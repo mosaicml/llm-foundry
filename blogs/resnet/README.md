@@ -53,7 +53,7 @@ To reproduce a specific run, two pieces of information are required:
 
 1. `scale_schedule_ratio`: Factor which scales the duration of a particular run.
 
-**Note:** The `scale_schedule_ratio` is a scaling factor for `max_duration`, each recipe sets a default `max_duration = 90ep`(epochs).  Thus a run with `scale_schedule_ratio = 0.1` will run for `90 * 0.3 = 27` epochs.
+**Note:** The `scale_schedule_ratio` is a scaling factor for `max_duration`, each recipe sets a default `max_duration = 90ep`(epochs).  Thus a run with `scale_schedule_ratio = 0.3` will run for `90 * 0.3 = 27` epochs.
 
 First, choose a recipe you would like to work with: [`Mild`, `Medium`, `Hot`].  This will determine which configuration file, `recipe_yaml_path`, you will need to specify. 
 

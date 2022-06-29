@@ -1,1 +1,3 @@
 mosaicml==0.7.1
+mosaicml[streaming]==0.7.1
+mosaicml[wandb]==0.7.1

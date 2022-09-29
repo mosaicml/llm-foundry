@@ -1,7 +1,7 @@
 <br />
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./loss-curve-dark.png">
-  <img alt="Training curves for various LLM sizes." src=".loss-curve-light.png" width=500px>
+  <img alt="Training curves for various LLM sizes." src="./loss-curve-light.png" width=500px>
 </picture>
 <br />
 

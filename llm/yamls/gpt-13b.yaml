@@ -1,0 +1,120 @@
+data_remote: &data_remote ./my-copy-c4
+data_local: &data_local ./my-copy-c4
+max_seq_len: &max_seq_len 2048
+tokenizer_name: &tokenizer_name gpt2
+
+# Run Name
+run_name: gpt-13b
+
+# Model
+model:
+  tokenizer_name: *tokenizer_name
+  d_model: 5120
+  n_heads: 40
+  n_layers: 40
+  mlp_ratio: 4
+  max_seq_len: *max_seq_len
+  vocab_size: 50257
+  init_std: 0.02
+  attn_pdrop: 0.0
+  resid_pdrop: 0.0
+  emb_pdrop: 0.0
+  attn_impl: flash
+
+# Dataloaders
+train_loader:
+  dataset:
+    name: streaming_c4
+    remote: *data_remote
+    local: *data_local
+    split: train
+    tokenizer_name: *tokenizer_name
+    max_seq_len: *max_seq_len
+    group_method: concat
+    shuffle: true
+  drop_last: true
+  num_workers: 8
+  pin_memory: true
+  prefetch_factor: 2
+  persistent_workers: true
+  timeout: 0
+
+eval_loader:
+  dataset:
+    name: streaming_c4
+    remote: *data_remote
+    local: *data_local
+    split: val
+    tokenizer_name: *tokenizer_name
+    max_seq_len: *max_seq_len
+    group_method: truncate
+    shuffle: false
+  drop_last: false
+  num_workers: 8
+  pin_memory: true
+  prefetch_factor: 2
+  persistent_workers: true
+  timeout: 0
+
+# Optimization
+scheduler:
+  name: cosine_with_warmup
+  t_warmup: 100ba
+  alpha_f: 0.1
+
+optimizer:
+  name: decoupled_adamw
+  lr: 1.0e-4
+  betas:
+    - 0.9
+    - 0.95
+  eps: 1.0e-08
+  weight_decay: 0.0
+
+max_duration: 124000ba
+eval_interval: 5000ba
+global_train_batch_size: 1024
+grad_clip_norm: 1.0
+
+# System
+seed: 17
+device_train_microbatch_size: 8
+precision: bf16
+
+# FSDP
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  min_params: 4e8
+  mixed_precision: default
+  activation_checkpointing: true
+  activation_cpu_offload: false
+  verbose: true
+
+# Logging
+callbacks:
+  speed_monitor:
+    window_size: 10
+  lr_monitor: {}
+  # memory_monitor: {}
+
+loggers:
+  progress_bar: {}
+  # wandb: {}
+  # s3:
+  #   bucket: my-bucket
+  #   prefix: my-folder
+
+# # Checkpointing
+# checkpoint_save_path: './{run_name}/checkpoints'
+# checkpoint_save_interval: 5000ba
+# num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+
+# # Load from local filesystem
+# load_path: ./gpt-13b/checkpoints/latest-rank{rank}.pt
+
+# # Load from remote object store
+# load_path: gpt-13b/checkpoints/latest-rank{rank}
+# load_object_store:
+#   s3:
+#     bucket: my-bucket
+#     prefix: my-folder

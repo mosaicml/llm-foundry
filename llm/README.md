@@ -1,3 +1,10 @@
+<br />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./loss-curve-dark.png">
+  <img alt="Training curves for various LLM sizes." src=".loss-curve-light.png" width=500px>
+</picture>
+<br />
+
 # Mosaic Large Language Models
 
 This folder contains starter code for training LLMs with Composer + FSDP (in alpha release).

@@ -1,9 +1,9 @@
-<br />
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./loss-curve-dark.png">
-  <img alt="Training curves for various LLM sizes." src="./loss-curve-light.png" width=500px>
-</picture>
-<br />
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./loss-curve-dark.png">
+    <img alt="Compute-optimal training curves for LLMs of various sizes (125M -> 3B)." src="./loss-curve-light.png" width="75%">
+  </picture>
+</p>
 
 # Mosaic Large Language Models
 

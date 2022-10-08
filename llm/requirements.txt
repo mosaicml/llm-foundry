@@ -1,4 +1,4 @@
-mosaicml[streaming] @ git+ssh://git@github.com/mosaicml/composer@fsdp-alpha
+mosaicml[streaming] @ git+https://github.com/mosaicml/composer@fsdp-alpha
 flash_attn @ git+https://github.com/HazyResearch/flash-attention.git@main
 transformers==4.21.3
 datasets==2.4.0

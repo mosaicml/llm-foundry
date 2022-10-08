@@ -103,15 +103,16 @@ class StreamingC4(StreamingDataset):
     # If group_method=='truncate', we simply return the token sample.
     # If group_method=='concat', then we keep fetching token samples until we fill up max_seq_len.
     def __iter__(self) -> Iterator[Any]:
-        iterator = super().__iter__()
-
         if self.group_method == 'truncate':
+            iterator = super().__iter__()
             yield from iterator
 
         elif self.group_method == 'concat':
             buffer = {}
             while True:
+                iterator = super().__iter__()
                 for sample in iterator:
+
                     for k, v in sample.items():
                         buffer[k] = buffer.get(k, []) + v + [self.tokenizer.eos_token_id]
                     if len(buffer['input_ids']) >= self.max_seq_len:

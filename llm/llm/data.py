@@ -115,7 +115,7 @@ class StreamingC4(StreamingDataset):
 
                     for k, v in sample.items():
                         buffer[k] = buffer.get(k, []) + v + [self.tokenizer.eos_token_id]
-                    if len(buffer['input_ids']) >= self.max_seq_len:
+                    while len(buffer['input_ids']) >= self.max_seq_len:
                         concat_sample = {}
                         for k, v in buffer.items():
                             concat_sample[k] = v[:self.max_seq_len]

@@ -1,6 +1,7 @@
-mosaicml[streaming] @ git+https://github.com/mosaicml/composer@fsdp-alpha
+mosaicml==0.11.0
+mosaicml-streaming<1
 flash_attn @ git+https://github.com/HazyResearch/flash-attention.git@main
-transformers==4.21.3
-datasets==2.4.0
-omegaconf
-wandb
+transformers<5
+datasets<3
+omegaconf<3
+wandb<1

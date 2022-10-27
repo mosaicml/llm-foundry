@@ -11,23 +11,25 @@ from itertools import islice
 from typing import Any, Dict, Iterator, Mapping, Optional
 
 import transformers
-from composer.datasets.streaming import StreamingDataset
+from omegaconf import OmegaConf as om
+from streaming import Dataset
 from torch.utils.data import DataLoader
 
 
-class StreamingC4(StreamingDataset):
+class StreamingC4(Dataset):
     """
-    Implementation of the C4 (Colossal Cleaned Common Crawl) dataset using StreamingDataset V1.
+    Implementation of the C4 (Colossal Cleaned Common Crawl) dataset using mosaicml-streaming's Dataset V2.
 
     Args:
         remote (str): Remote directory (S3 or local filesystem) where dataset is stored.
         local (str): Local filesystem directory where dataset is cached during operation.
         split (str): The dataset split to use, either 'train' or 'val'.
         shuffle (bool): Whether to shuffle the samples in this dataset.
+        prefetch (int): Target number of samples remaining to prefetch while iterating.
         tokenizer_name (str): The name of the HuggingFace tokenizer to use to tokenize samples.
         max_seq_len (int): The max sequence length of each token sample.
         group_method (str): How to group text samples into token samples. Supports 'truncate' or 'concat'.
-        max_retries (int): Number of download re-attempts before giving up. Default: 2.
+        retry (int): Number of download re-attempts before giving up. Default: 2.
         timeout (float): How long to wait for shard to download before raising an exception. Default: 120 sec.
         batch_size (Optional[int]): Hint batch_size that will be used on each device's DataLoader. Default: ``None``.
     """
@@ -37,10 +39,11 @@ class StreamingC4(StreamingDataset):
                  local: str,
                  split: str,
                  shuffle: bool,
+                 prefetch: int,
                  tokenizer_name: str,
                  max_seq_len: int,
                  group_method: str = 'truncate',
-                 max_retries: int = 2,
+                 retry: int = 2,
                  timeout: float = 120,
                  batch_size: Optional[int] = None):
         # Validation
@@ -49,34 +52,29 @@ class StreamingC4(StreamingDataset):
         if group_method not in ['truncate', 'concat']:
             raise ValueError(f"group_method='{group_method}' must be one of ['truncate', 'concat'].")
 
-        # Build StreamingDataset
-        decoders = {
-            'text': self._decode,
-            'timestamp': self._decode,
-            'url': self._decode,
-        }
-        super().__init__(remote=os.path.join(remote, split),
-                         local=os.path.join(local, split),
+        # Build Dataset
+        super().__init__(remote=remote,
+                         local=local,
+                         split=split,
                          shuffle=shuffle,
-                         decoders=decoders,
-                         max_retries=max_retries,
+                         prefetch=prefetch,
+                         keep_zip=False,
+                         retry=retry,
                          timeout=timeout,
+                         hash=None,
                          batch_size=batch_size)
         self.tokenizer_name = tokenizer_name
         self.max_seq_len = max_seq_len
         self.group_method = group_method
 
         # Build tokenizer
+        os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(self.tokenizer_name)
         if self.tokenizer.pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             self.tokenizer.pad_token = self.tokenizer.eos_token
         # suppress warnings when using group_method='concat' and no truncation
         self.tokenizer.model_max_length = int(1e30)
-
-    # How to decode binary data from .mds files to python strings
-    def _decode(self, data: bytes) -> str:
-        return data.decode('utf-8')
 
     # How to tokenize a text sample to a token sample
     def _tokenize(self, text_sample):
@@ -125,7 +123,7 @@ class StreamingC4(StreamingDataset):
             raise ValueError(f"Got unknown group_method='{self.group_method}'.")
 
     # Define length
-    # Usually this can be left alone and inherited directly from super() class StreamingDataset, but concatenating samples is custom behavior.
+    # Usually this can be left alone and inherited directly from super() class Dataset, but concatenating samples is custom behavior.
     # If group_method=='truncate', we simply return the # samples.
     # If group_method=='concat', we repeat forever, and we don't have a defined length.
     def __len__(self) -> int:
@@ -137,19 +135,18 @@ class StreamingC4(StreamingDataset):
             raise ValueError(f"Got unknown group_method='{self.group_method}'.")
 
 
-def build_dataloader(cfg: Mapping[str, Any], device_batch_size: int):
+def build_c4_dataloader(cfg: Mapping[str, Any], device_batch_size: int):
 
-    if cfg.dataset.name == 'streaming_c4':
-        dataset = StreamingC4(split=cfg.dataset.split,
-                              remote=cfg.dataset.remote,
-                              local=cfg.dataset.local,
-                              shuffle=cfg.dataset.shuffle,
-                              tokenizer_name=cfg.dataset.tokenizer_name,
-                              max_seq_len=cfg.dataset.max_seq_len,
-                              group_method=cfg.dataset.group_method,
-                              batch_size=device_batch_size)
-    else:
-        raise ValueError(f'Not sure how to build dataset={cfg.dataset.name}')
+    assert cfg.name == 'c4', f'Tried to build c4 dataloader with cfg.name={cfg.name}'
+    dataset = StreamingC4(split=cfg.dataset.split,
+                            remote=cfg.dataset.remote,
+                            local=cfg.dataset.local,
+                            shuffle=cfg.dataset.shuffle,
+                            prefetch=cfg.dataset.prefetch,
+                            tokenizer_name=cfg.dataset.tokenizer_name,
+                            max_seq_len=cfg.dataset.max_seq_len,
+                            group_method=cfg.dataset.group_method,
+                            batch_size=device_batch_size)
 
     collate_fn = transformers.DataCollatorForLanguageModeling(
         tokenizer=dataset.tokenizer, mlm=False)
@@ -176,27 +173,30 @@ if __name__ == '__main__':
         local = remote
     print (f'Reading val split from {remote} -> {local}')
 
-    batch_size = 2
-    dataset  = StreamingC4(split='val',
-                            remote=remote,
-                            local=local,
-                            shuffle=False,
-                            tokenizer_name='gpt2',
-                            max_seq_len=32,
-                            group_method='concat',
-                            batch_size=batch_size)
+    cfg = {
+        'name': 'c4',
+        'dataset': {
+            'remote': remote,
+            'local': local,
+            'split': 'val',
+            'shuffle': True,
+            'prefetch': 1000,
+            'tokenizer_name': 'gpt2',
+            'max_seq_len': 32,
+            'group_method': 'concat'
+        },
+        'drop_last': False,
+        'num_workers': 4,
+        'pin_memory': True,
+        'prefetch_factor': 2,
+        'persistent_workers': True,
+        'timeout': 30,
+    }
+    cfg = om.create(cfg)
+    device_batch_size = 2
 
-    collate_fn = transformers.DataCollatorForLanguageModeling(
-        tokenizer=dataset.tokenizer, mlm=False)
-
-    loader = DataLoader(
-        dataset,
-        collate_fn=collate_fn,
-        batch_size=batch_size,
-        drop_last=False,
-        num_workers=4,
-    )
-
+    loader = build_c4_dataloader(cfg, device_batch_size)
+    tokenizer = loader.dataset.tokenizer
     for batch_ix, batch in enumerate(islice(loader, 5)):
         print('\n')
         print ('#'*20, f'Batch {batch_ix}', '#'*20)
@@ -204,5 +204,5 @@ if __name__ == '__main__':
             print (k, v.shape, v.dtype)
         for sample_ix, token_sample in enumerate(batch['input_ids']):
             print ('-'*20, f' Sample {sample_ix} ', '-'*20)
-            print (dataset.tokenizer.decode(token_sample))
+            print (tokenizer.decode(token_sample))
 

@@ -15,8 +15,8 @@ Train the MosaicML ResNet, the fastest ResNet50 implementation that yields a :sp
 ## Large Language Models (LLMs)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./llm/loss-curve-dark.png">
-  <img alt="Training curves for various LLM sizes." src="./llm/loss-curve-light.png" width=500px>
+  <source media="(prefers-color-scheme: dark)" srcset="./llm/assets/loss-curve-dark.png">
+  <img alt="Training curves for various LLM sizes." src="./llm/assets/loss-curve-light.png" width=500px>
 </picture>
 
 A simple yet feature complete implementation of GPT, that scales to 70B parameters while maintaining high performance on GPU clusters. Flexible code, written with vanilla PyTorch, that uses [PyTorch FSDP](https://pytorch.org/blog/introducing-pytorch-fully-sharded-data-parallel-api/) and some recent efficiency improvements.

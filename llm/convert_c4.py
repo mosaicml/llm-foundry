@@ -10,25 +10,23 @@ from glob import glob
 from itertools import islice
 from typing import Any, Dict, Iterable, List, Tuple
 
-import datasets
+import datasets as hf_datasets
 import torch
-from composer.datasets.streaming import StreamingDatasetWriter
-from datasets import Dataset
+from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset, get_worker_info
+from tqdm import tqdm
 
 
 def parse_args() -> Namespace:
     """Parse commandline arguments."""
     args = ArgumentParser()
     args.add_argument('--out_root', type=str, required=True)
-    args.add_argument('--shard_size_limit', type=int, default=1 << 28)
-    args.add_argument('--tqdm', type=int, default=1)
     args.add_argument('--splits', nargs='+', default=['train', 'val'])
 
     return args.parse_args()
 
 
-def get(split: str) -> IterableDataset:
+def build_hf_c4_dataset(split: str) -> IterableDataset:
     """Collect the samples for this dataset split.
 
     Args:
@@ -41,7 +39,7 @@ def get(split: str) -> IterableDataset:
     class ShardedC4(IterableDataset):
 
         def __init__(self):
-            self.dataset = datasets.load_dataset(path='c4', name='en', split=split, streaming=True)
+            self.dataset = hf_datasets.load_dataset(path='c4', name='en', split=split, streaming=True)
 
         def num_shards(self):
             return len(self.dataset._ex_iterable.kwargs['filepaths'])
@@ -59,11 +57,11 @@ def get(split: str) -> IterableDataset:
     return ShardedC4()
 
 
-def each(dataset: IterableDataset) -> Iterable[Dict[str, bytes]]:
+def generate_samples(dataset: IterableDataset) -> Iterable[Dict[str, bytes]]:
     """Generator over each dataset sample.
 
     Args:
-        samples (Dataset): A HF Dataset locally downloaded.
+        samples (IterableDataset): An iterable dataset that is multi-worker compatible
 
     Yields:
         Sample dicts.
@@ -94,7 +92,11 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Commandline arguments.
     """
-    fields = ['text', 'timestamp', 'url']
+    columns = {
+        'text': 'str',
+        'timestamp': 'str',
+        'url': 'str'
+    }
 
     for (split, split_new_name, expected_num_samples) in [
         ('train', 'train', 364868892),
@@ -104,15 +106,17 @@ def main(args: Namespace) -> None:
         if split_new_name not in args.splits:
             continue
 
-        # Get dataset
-        dataset = get(split=split)
+        # Get samples
+        dataset = build_hf_c4_dataset(split=split)
+        samples = generate_samples(dataset)
 
         # Write samples
-        with StreamingDatasetWriter(dirname=os.path.join(args.out_root, split_new_name),
-                                    fields=fields,
-                                    shard_size_limit=args.shard_size_limit,
-                                    compression=None) as out:
-            out.write_samples(samples=each(dataset), use_tqdm=bool(args.tqdm), total=expected_num_samples)
+        with MDSWriter(
+                dirname=os.path.join(args.out_root, split_new_name),
+                columns=columns
+        ) as out:
+            for sample in tqdm(samples, desc=split_new_name, total=expected_num_samples):
+                out.write(sample)
 
 
 if __name__ == '__main__':

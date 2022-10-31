@@ -1,3 +1,6 @@
+torchvision<0.14
+torchtext<0.14
+torch<1.13
 mosaicml==0.11.0
 mosaicml-streaming<1
 flash_attn @ git+https://github.com/HazyResearch/flash-attention.git@main

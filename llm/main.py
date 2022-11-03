@@ -88,7 +88,7 @@ def update_batch_size_info(cfg):
 
 def log_config(cfg):
     print(om.to_yaml(cfg))
-    if 'wandb' in cfg.loggers:
+    if 'wandb' in cfg.get('loggers', {}):
         try:
             import wandb
         except ImportError as e:

@@ -1,0 +1,95 @@
+run_name: resnet_example
+cluster: null  # Name of the cluster to use for this run
+gpu_type: a100_40gb # Type of GPU to use
+gpu_num: 8  # Number of GPUs to use
+image: mosaicml/pytorch:1.12.1_cu116-python3.9-ubuntu20.04
+integrations:
+  - integration_type: "git_repo"
+    git_repo: mosaicml/benchmarks
+    git_branch: landan/resnet_benchmark
+command: |
+  cd benchmarks/resnet
+  pip install -r requirements.txt
+  composer main.py /mnt/config/parameters.yaml
+
+# Configuration copied from baseline.yaml
+parameters:
+  run_name: r50_i1k_baseline # Name of the  training run used for checkpointing and other logging
+  is_train: true             # Trains the model if true, otherwise runs evaluation
+  seed: 17                   # Random seed
+  max_duration: 90ep         # Duration to train specified as a Time string
+  grad_accum: 'auto'         # Amount of gradient accumulation, 'auto' means Composer will choose the optimal value
+
+  # Model
+  model:
+    name: resnet50           # Name of the ResNet model to train either resnet{18, 34, 50, 101, 152}
+    loss_name: cross_entropy # Name of the loss function either 'cross_entropy' or 'binary_cross_entropy'
+    num_classes: 1000        # Number of classes in the classification task
+
+  # Training Dataset Parameters
+  train_dataset:
+    is_streaming: true                    # Whether or not your data is in a remote location (e.g. a S3 bucket)
+    path: s3://my-bucket/my-imagenet      # Path to S3 bucket if streaming, otherwise path to local data directory
+    local: /tmp/mds-cache/mds-imagenet1k/ # Local cache when streaming data
+    resize_size: -1                       # Training image resize size before crop, -1 means no resize
+    crop_size: 224                        # Training image crop size
+    batch_size: 2048                      # Training dataloader batch size per device
+
+  # Validation Dataset Parameters
+  eval_dataset:
+    is_streaming: true                    # Whether or not your data is in a remote location (e.g. a S3 bucket)
+    path: s3://my-bucket/my-imagenet      # S3 bucket if streaming, otherwise path to local data
+    local: /tmp/mds-cache/mds-imagenet1k/ # Local cache when streaming data
+    resize_size: 256                      # Evaluation image resize size before crop
+    crop_size: 224                        # Evaluation image crop size
+    batch_size: 2048                      # Evaluation dataloader batch size per device
+
+  # Optimizer Parameters
+  optimizer:
+    lr: 2.048
+    momentum: 0.875
+    weight_decay: 5.0e-4
+
+  # LR Scheduler Parameters
+  scheduler:
+    t_warmup: 8ep # Duration of learning rate warmup specified as a Time string
+    alpha_f: 0.0  # Base learning rate multiplier to decay to
+
+  loggers:
+    progress_bar: {}
+    # wandb:     # Uncomment and fill below arguments to use WandB logger
+      # entity:  # Name of WandB entity, usually username or organization name
+      # project: # Name of WandB project
+      # group:   # Name of WandB group
+
+  # Set to null for baseline or for recipe, either ["mild", "medium", "hot"] for increasing training time and accuracy
+  recipe_name: null
+
+  # Updated parameters for mild recipe
+  mild:
+    model.loss_name: binary_cross_entropy
+    train_dataset.crop_size: 176
+    eval_dataset.resize_size: 232
+    max_duration: 36ep
+
+  # Updated parameters for medium recipe
+  medium:
+    model.loss_name: binary_cross_entropy
+    train_dataset.crop_size: 176
+    eval_dataset.resize_size: 232
+    max_duration: 135ep
+
+  # Updated parameters for hot recipe
+  hot:
+    model.loss_name: binary_cross_entropy
+    train_dataset.crop_size: 176
+    eval_dataset.resize_size: 232
+    max_duration: 270ep
+
+  # Save checkpoint parameters
+  save_folder: null # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
+  save_interval: 10ep # Interval to checkpoint based on time string
+  save_num_checkpoints_to_keep: 1 # Cleans up checkpoints saved locally only!
+
+  # Load checkpoint parameters
+  load_path: null # e.g. './ckpt/latest-rank{rank}.pt' (local) or 's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)

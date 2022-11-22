@@ -1,3 +1,2 @@
-mosaicml==0.7.1
-mosaicml[streaming]==0.7.1
-mosaicml[wandb]==0.7.1
+mosaicml[streaming,wandb]==0.11.0
+omegaconf

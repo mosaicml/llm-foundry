@@ -6,7 +6,7 @@ image: mosaicml/pytorch:1.12.1_cu116-python3.9-ubuntu20.04
 integrations:
   - integration_type: "git_repo"
     git_repo: mosaicml/benchmarks
-    git_branch: landan/resnet_benchmark
+    git_branch: main
 command: |
   cd benchmarks/resnet
   pip install -r requirements.txt

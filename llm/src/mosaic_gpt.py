@@ -19,7 +19,7 @@ from composer.models.base import ComposerModel
 class TorchCausalAttention(nn.Module):
     def __init__(self, cfg: Mapping[str, Any], device: str = None):
         super().__init__()
-        self.mha = nn.MultiheadAttention(
+        self.mhsa = nn.MultiheadAttention(
             embed_dim=cfg.d_model,
             num_heads=cfg.n_heads,
             dropout=cfg.attn_pdrop,
@@ -27,12 +27,34 @@ class TorchCausalAttention(nn.Module):
             batch_first=True,
             device=device,
         )
-        self.register_buffer(
-            "mask", torch.tril(torch.ones(cfg.max_seq_len, cfg.max_seq_len)))
-        self.mha.out_proj._is_residual = True
+
+        self.register_buffer('mask', torch.empty((cfg.max_seq_len, cfg.max_seq_len), device=device))
+        self.mask_initialized = False
+        self.mhsa.out_proj._is_residual = True
+
+    def _fill_causal_attn_mask(self):
+        torch.full(size=self.mask.shape, fill_value=float('-inf'), out=self.mask)
+        torch.triu(input=self.mask, diagonal=1, out=self.mask)
 
     def forward(self, x, key_padding_mask):
-        return self.mha(x, x, x, attn_mask=self.mask, need_weights=False)
+        # Two important disclaimers
+        # 1. Torch uses additive attention. If your attn_mask/key_padding mask is a float tensor, it will add the floats
+        #   directly to your attention matrix. If they are boolean masks, True will be converted to -inf before adding the
+        #   mask to your attentions. See https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html#torch.nn.MultiheadAttention.forward
+        #   Basically True/-inf indicates tokens we do not want to attend to.
+        #
+        # 2. This is is the exact opposite behavior of Huggingface's tokenizers, which use the convention that True denotes tokens
+        #   we do want to attend to. See https://huggingface.co/docs/transformers/glossary#attention-mask
+        #
+        if not self.mask_initialized:
+            self._fill_causal_attn_mask()
+            self.mask_initialized = True
+
+        return self.mhsa(x, x, x,
+            attn_mask=self.mask,
+            key_padding_mask=~key_padding_mask,
+            need_weights=True
+        )
 
 
 class FlashCausalAttention(nn.Module):
@@ -43,7 +65,7 @@ class FlashCausalAttention(nn.Module):
         except ImportError as e:
             raise e
 
-        self.mha = FlashMHA(
+        self.mhsa = FlashMHA(
             embed_dim=cfg.d_model,
             num_heads=cfg.n_heads,
             attention_dropout=cfg.attn_pdrop,
@@ -52,10 +74,10 @@ class FlashCausalAttention(nn.Module):
             causal=True,
             device=device,
         )
-        self.mha.out_proj._is_residual = True
+        self.mhsa.out_proj._is_residual = True
 
     def forward(self, x, key_padding_mask):
-        return self.mha(x,
+        return self.mhsa(x,
                         key_padding_mask=key_padding_mask,
                         need_weights=False)
 

@@ -23,6 +23,13 @@ model:
   emb_pdrop: 0.0
   attn_impl: flash
 
+# Tokenizer
+tokenizer:
+  type: hftokenizer
+  args:
+    tokenizer_name: *tokenizer_name
+    max_seq_len: *max_seq_len
+
 # Dataloaders
 train_loader:
   name: c4
@@ -82,6 +89,7 @@ grad_clip_norm: 1.0
 
 # System
 seed: 17
+device_eval_batch_size: 8
 device_train_microbatch_size: 8
 # device_train_microbatch_size: auto
 precision: bf16

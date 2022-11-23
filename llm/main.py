@@ -15,7 +15,7 @@ from composer.utils import dist, reproducibility
 from omegaconf import OmegaConf as om
 
 from src.data_c4 import build_c4_dataloader
-from src.mosaic_gpt import ComposerMosaicGPT
+from src.model_registry import COMPOSER_MODEL_REGISTRY
 
 
 def build_logger(name, kwargs):
@@ -58,32 +58,39 @@ def build_scheduler(cfg):
     else:
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
 
-# Coming soon: this conversion math will be done inside Composer Trainer rather than entrypoint
-def update_batch_size_info(cfg):
-    global_train_batch_size = cfg.global_train_batch_size
-    device_train_batch_size = global_train_batch_size // dist.get_world_size()
-    device_train_microbatch_size = cfg.device_train_microbatch_size
-    if device_train_microbatch_size == 'auto':
-        device_train_grad_accum = 'auto'
-        device_eval_microbatch_size = 'auto'
-        device_eval_batch_size = device_train_batch_size
-    elif isinstance(device_train_microbatch_size, int):
-        if device_train_microbatch_size > device_train_batch_size:
-            print (f"WARNING: device_train_microbatch_size > device_train_batch_size, will be reduced from {device_train_microbatch_size} -> {device_train_batch_size}.")
-            cfg.device_train_microbatch_size = device_train_batch_size
-            device_train_microbatch_size = device_train_batch_size
-        device_train_grad_accum = device_train_batch_size // device_train_microbatch_size
-        device_eval_microbatch_size = device_train_microbatch_size
-        device_eval_batch_size = device_eval_microbatch_size
+def calculate_batch_size_info(global_batch_size, device_microbatch_size):
+    device_batch_size = global_batch_size // dist.get_world_size()
+    if device_microbatch_size == 'auto':
+        device_grad_accum = 'auto'
+    elif isinstance(device_microbatch_size, int):
+        if device_microbatch_size > device_batch_size:
+            print (
+                f'WARNING: device_microbatch_size > device_batch_size, '
+                f'will be reduced from {device_microbatch_size} -> {device_batch_size}.'
+            )
+            device_microbatch_size = device_batch_size
+        device_grad_accum = device_batch_size // device_microbatch_size
     else:
-        raise ValueError(
-            f'Not sure how to parse {device_train_microbatch_size=}')
+        raise ValueError(f'Not sure how to parse {device_microbatch_size=}')
 
+    return device_batch_size, device_microbatch_size, device_grad_accum
+
+
+# Coming soon: this conversion math will be done inside Composer Trainer
+def update_batch_size_info(cfg):
+    device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
+        cfg.global_train_batch_size, cfg.device_train_microbatch_size
+    )
     cfg.n_gpus = dist.get_world_size()
     cfg.device_train_batch_size = device_train_batch_size
+    cfg.device_train_microbatch_size = device_train_microbatch_size
     cfg.device_train_grad_accum = device_train_grad_accum
-    cfg.device_eval_batch_size = device_eval_batch_size
-    cfg.device_eval_microbatch_size = device_eval_microbatch_size
+    # Safely set `device_eval_batch_size` if not provided by user
+    if 'device_eval_batch_size' not in cfg:
+        if cfg.device_train_microbatch_size == 'auto':
+            cfg.device_eval_batch_size = 1 # TODO debug auto eval microbatching
+        else:
+            cfg.device_eval_batch_size = cfg.device_train_microbatch_size
     return cfg
 
 def log_config(cfg):
@@ -98,10 +105,9 @@ def log_config(cfg):
 
 def build_composer_model(cfg):
     warnings.filterwarnings(action='ignore', message='Torchmetrics v0.9 introduced a new argument class property')
-
-    if cfg.name == 'mosaic_gpt':
-        return ComposerMosaicGPT(cfg)
-    else:
+    try:
+        return COMPOSER_MODEL_REGISTRY[cfg.name](cfg)
+    except:
         raise ValueError(f'Not sure how to build model with name={cfg.name}')
 
 def build_dataloader(cfg, device_batch_size):

@@ -4,24 +4,12 @@ max_seq_len: &max_seq_len 2048
 tokenizer_name: &tokenizer_name gpt2
 
 # Run Name
-run_name: gpt-70b
+run_name: gpt-neo-125m
 
 # Model
 model:
-  name: mosaic_gpt
-  device: meta
-  tokenizer_name: *tokenizer_name
-  d_model: 8192
-  n_heads: 64
-  n_layers: 80
-  mlp_ratio: 4
-  max_seq_len: *max_seq_len
-  vocab_size: 50257
-  init_std: 0.02
-  attn_pdrop: 0.0
-  resid_pdrop: 0.0
-  emb_pdrop: 0.0
-  attn_impl: flash
+  name: hf_causal_lm
+  hf_config_name_or_path: EleutherAI/gpt-neo-125M
 
 # Tokenizer
 tokenizer:
@@ -75,16 +63,16 @@ scheduler:
 
 optimizer:
   name: decoupled_adamw
-  lr: 8.0e-5
+  lr: 6.0e-4
   betas:
     - 0.9
     - 0.95
   eps: 1.0e-08
   weight_decay: 0.0
 
-max_duration:  333800ba # ~ 1.4T tokens
-eval_interval: 10000ba
-global_train_batch_size: 2048
+max_duration: 4800ba # ~ 2.5B tokens
+eval_interval: 500ba
+global_train_batch_size: 256
 grad_clip_norm: 1.0
 
 # System
@@ -97,9 +85,9 @@ precision: bf16
 # FSDP
 fsdp_config:
   sharding_strategy: FULL_SHARD
-  min_params: 6e8
-  mixed_precision: PURE # Only needed for 40GB cards
-  activation_checkpointing: true
+  min_params: 1e8
+  mixed_precision: DEFAULT
+  activation_checkpointing: false
   activation_cpu_offload: false
   verbose: true
 
@@ -117,14 +105,13 @@ callbacks:
   # wandb: {}
 
 # Checkpoint to local filesystem or remote object store
-# save_interval: 10000ba
+# save_interval: 500ba
 # save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
 # save_folder: ./{run_name}/checkpoints
 # save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
 
 # Load from local filesystem or remote object store
-# load_path: ./gpt-70b/checkpoints/latest-rank{rank}.pt
-# load_path: s3://my-bucket/my-folder/gpt-70b/checkpoints/latest-rank{rank}.pt
-
+# load_path: ./gpt-125m/checkpoints/latest-rank{rank}.pt
+# load_path: s3://my-bucket/my-folder/gpt-125m/checkpoints/latest-rank{rank}.pt
 
 

@@ -1,0 +1,91 @@
+run_name: deeplab-benchmark
+cluster: null  # Name of the cluster to use for this run
+gpu_type: a100_80gb # Type of GPU to use
+gpu_num: 8  # Number of GPUs to use specified as an integer
+image: mosaicml/pytorch_vision:1.12.1_cu116-python3.9-ubuntu20.04
+integrations:
+  - integration_type: "git_repo"
+    git_repo: mosaicml/benchmarks
+command: |
+  cd benchmarks/deeplab
+  pip install -r requirements.txt
+  composer main.py /mnt/config/parameters.yaml
+# Configuration copied from baseline.yaml
+parameters:
+  run_name: deeplabv3_ade20k # Name of the  training run used for checkpointing and other logging
+  is_train: true             # Trains the model if true, otherwise runs evaluation
+  seed: 17                   # Random seed
+  max_duration: 128ep         # Duration to train specified as a Time string
+  grad_accum: 'auto'         # Amount of gradient accumulation, 'auto' means Composer will choose the optimal value
+
+  # Model
+  model:
+    num_classes: 150                  # Number of classes in the classification task
+    backbone_arch: 'resnet101'        # resnet50 or resnet101
+    backbone_weights: 'IMAGENET1K_V2' # 'none', 'IMAGENET1K', or 'IMAGENET1K_V2'
+    sync_bn: true                     # Use sync BatchNorm. Recommended if the per device microbatch size is below 16
+    cross_entropy_weight: 0.375       # Weight to scale the cross entropy loss
+    dice_weight: 1.125                # Weight to scale the dice loss
+
+  # Training Dataset Parameters
+  train_dataset:
+    is_streaming: true                 # If true, use streaming dataset
+    path: s3://my-bucket/ade20k        # Path to S3 bucket if streaming, otherwise path to local data directory
+    local: /tmp/mds-cache/mds-ade20k/  # Local cache when streaming data
+    base_size: 512                     # Initial size of the image and target before other augmentations
+    min_resize_scale: 0.5              # The minimum value the samples can be rescaled
+    max_resize_scale: 2.0              # The maximum value the samples can be rescaled
+    final_size: 512                    # The final size of the image and target
+    ignore_background: true            # If true, ignore the background class when calculating the training loss
+    batch_size: 128                    # Training dataloader batch size per device
+
+  # Validation Dataset Parameters
+  eval_dataset:
+    is_streaming: true                   # If true, use streaming dataset
+    path: s3://my-bucket/ade20k          # S3 bucket if streaming, otherwise path to local data
+    local: /tmp/mds-cache/mds-ade20k/    # Local cache when streaming data
+    base_size: 512                       # Initial size of the image and target before other augmentations
+    min_resize_scale: 0.5                # The minimum value the samples can be rescaled
+    max_resize_scale: 2.0                # The maximum value the samples can be rescaled
+    final_size: 512                      # The final size of the image and target
+    ignore_background: true              # If true, ignore the background class when calculating the training loss             
+    batch_size: 128                      # Evaluation dataloader batch size per device
+    drop_last: False
+
+  # Optimizer Parameters
+  optimizer:
+    lr: 0.08
+    momentum: 0.9
+    weight_decay: 5.0e-5
+
+
+  loggers:
+    progress_bar: {}
+    # wandb:     # Uncomment and fill below arguments to use WandB logger
+    #   entity:  # Name of WandB entity, usually username or organization name
+    #   project:  # Name of WandB project
+    #   group:   # Name of WandB group
+
+  # null for baseline or for recipe, either ["mild", "medium", "hot"] in order of increasing training time and accuracy
+  recipe_name: null
+
+  # Updated parameters for mild recipe
+  mild:
+    max_duration: 25ep
+
+  # Updated parameters for medium recipe
+  medium:
+    max_duration: 90ep
+
+  # Updated parameters for hot recipe
+  hot:
+    max_duration: 240ep
+
+  # Save checkpoint parameters
+  save_folder: null               # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
+  save_interval: 10ep             # Interval to checkpoint based on time string
+  save_num_checkpoints_to_keep: 1 # Cleans up checkpoints saved locally only!
+
+  # Load checkpoint parameters
+  load_path: null # e.g. './ckpt/latest-rank{rank}.pt' (local) or 's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)
+  

@@ -165,6 +165,7 @@ def main(cfg):
         schedulers=scheduler,
         max_duration=cfg.max_duration,
         eval_interval=cfg.eval_interval,
+        eval_subset_num_batches=cfg.eval_loader.get('eval_subset_num_batches', -1),
         progress_bar=cfg.progress_bar,
         log_to_console=cfg.log_to_console,
         loggers=loggers,
@@ -185,6 +186,8 @@ def main(cfg):
 
     print("Starting training...")
     trainer.fit()
+
+    print("Done.")
 
 
 if __name__ == '__main__':

@@ -1,0 +1,16 @@
+max_duration: 1ba
+grad_accum: 1
+
+train_dataset:
+  is_streaming: true
+  batch_size: 2
+
+eval_dataset:
+  is_streaming: true
+  batch_size: 2
+
+save_folder: null
+save_interval: 1ba
+save_num_checkpoints_to_keep: 1
+
+load_path: null

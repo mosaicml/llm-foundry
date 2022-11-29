@@ -1,0 +1,2 @@
+mosaicml[streaming,wandb]==0.11.0
+omegaconf

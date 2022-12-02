@@ -1,16 +1,18 @@
-from typing import Optional
+# Copyright 2022 MosaicML Benchmarks authors
+# SPDX-License-Identifier: Apache-2.0
 
 import torch
-from torchmetrics import Accuracy, MetricCollection
-from torchvision.models import resnet
-
 from composer.loss import binary_cross_entropy_with_logits, soft_cross_entropy
 from composer.metrics import CrossEntropy
 from composer.models import ComposerClassifier
+from torchmetrics import Accuracy, MetricCollection
+from torchvision.models import resnet
 
-def build_composer_resnet(model_name: Optional[str] = 'resnet50', loss_name: Optional[str] = 'cross_entropy', num_classes: Optional[int] = 1000):
-    """
-    Helper function to build a Composer ResNet model.
+
+def build_composer_resnet(model_name: str = 'resnet50',
+                          loss_name: str = 'cross_entropy',
+                          num_classes: int = 1000):
+    """Helper function to build a Composer ResNet model.
 
     Args:
         model_name (str, optional): Name of the ResNet model to use, either
@@ -48,7 +50,9 @@ def build_composer_resnet(model_name: Optional[str] = 'resnet50', loss_name: Opt
     elif loss_name == 'binary_cross_entropy':
         loss_fn = binary_cross_entropy_with_logits
     else:
-        raise ValueError(f"loss_name='{loss_name}' but must be either ['cross_entropy', 'binary_cross_entropy']")
+        raise ValueError(
+            f"loss_name='{loss_name}' but must be either ['cross_entropy', 'binary_cross_entropy']"
+        )
 
     # Wrapper function to convert a image classification PyTorch model into a Composer model
     composer_model = ComposerClassifier(model,

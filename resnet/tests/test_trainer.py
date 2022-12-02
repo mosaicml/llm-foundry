@@ -1,14 +1,20 @@
-import pytest
+# Copyright 2022 MosaicML Benchmarks authors
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import sys
+
+import pytest
+
 # TODO: this should be removed when benchmarks has a setup.py i.e. installable
 sys.path.append('.')
 
-from omegaconf import OmegaConf
 import torch
+from omegaconf import OmegaConf
 
 from ..main import main
 from ..tests.utils import SynthClassificationDirectory
+
 
 @pytest.mark.parametrize('recipe_name', [None, 'mild', 'medium', 'hot'])
 def test_trainer(recipe_name):
@@ -38,7 +44,7 @@ def test_trainer(recipe_name):
         # Check that the checkpoint was loaded by comparing model weights
         config.load_path = chkpt_path
         config.is_train = False
-        config.seed += 10 # change seed
+        config.seed += 10  # change seed
         trainer2 = main(config)
         model2 = trainer2.state.model.module
 

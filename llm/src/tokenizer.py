@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from abc import ABC, abstractmethod
-from typing import Any
 
 import transformers
 
@@ -35,14 +34,15 @@ class LLMTokenizer(ABC):
 class HFTokenizer(LLMTokenizer):
     tokenizer_name: str
     max_seq_len: int
-    group_method: str
+    group_method: str  # type: ignore (reportUninitializedInstanceVariable)
     tokenizer: transformers.AutoTokenizer
 
     def __init__(self, tokenizer_name: str, max_seq_len: int):
         super().__init__(tokenizer_name, max_seq_len)
 
         # Build tokenizer
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(self.tokenizer_name)
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+            self.tokenizer_name)
         if self.tokenizer.pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -71,6 +71,4 @@ class HFTokenizer(LLMTokenizer):
         return self.tokenizer.bos_token_id
 
 
-TOKENIZER_REGISTRY = {
-    "hftokenizer": HFTokenizer
-}
+TOKENIZER_REGISTRY = {'hftokenizer': HFTokenizer}

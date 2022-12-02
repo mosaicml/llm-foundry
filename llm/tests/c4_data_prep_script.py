@@ -17,6 +17,6 @@ def test_download_script_from_api():
 
 def test_download_script_from_cmdline():
     # test calling it via the cmd line interface
-    os.system("python convert_c4.py --out_root ./my-copy-c4-2 --splits val")
+    os.system('python convert_c4.py --out_root ./my-copy-c4-2 --splits val')
     assert os.path.exists(os.path.join(os.getcwd(), 'my-copy-c4-2'))
     shutil.rmtree(os.path.join(os.getcwd(), 'my-copy-c4-2'))

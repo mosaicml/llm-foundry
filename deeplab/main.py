@@ -1,23 +1,22 @@
-# Copyright 2022 MosaicML Composer authors
+# Copyright 2022 MosaicML Benchmarks authors
 # SPDX-License-Identifier: Apache-2.0
+
 """Example script to train a DeepLabv3 model on ADE20k."""
 
 import os
 import sys
+
 import omegaconf
-from omegaconf import OmegaConf
-
 import torch
-
 from composer import Trainer
 from composer.algorithms import EMA, SAM, ChannelsLast, MixUp
 from composer.callbacks import LRMonitor, MemoryMonitor, SpeedMonitor
 from composer.loggers import ProgressBarLogger, WandBLogger
 from composer.optim import CosineAnnealingScheduler, DecoupledSGDW
 from composer.utils import dist
-
 from data import build_ade20k_dataspec
 from model import build_composer_deeplabv3
+from omegaconf import OmegaConf
 
 
 def build_logger(name: str, kwargs: dict):
@@ -45,12 +44,16 @@ def log_config(config: omegaconf.DictConfig):
 
 def main(config):
     if config.grad_accum == 'auto' and not torch.cuda.is_available():
-        raise ValueError('grad_accum="auto" requires training with a GPU; please specify grad_accum as an integer')
+        raise ValueError(
+            'grad_accum="auto" requires training with a GPU; please specify grad_accum as an integer'
+        )
 
     # If using a recipe, update the config's loss name, eval and train resize sizes, and the max duration
     if config.recipe_name:
         if config.recipe_name not in ['mild', 'medium', 'hot']:
-            raise ValueError(f'recipe_name={config.recipe_name}, but must be one of ["mild", "medium", "hot"]')
+            raise ValueError(
+                f'recipe_name={config.recipe_name}, but must be one of ["mild", "medium", "hot"]'
+            )
         recipe_config = config[config.recipe_name]
         config.update(recipe_config)
 
@@ -140,7 +143,9 @@ def main(config):
 
     # Callbacks for logging
     print('Building Speed, LR, and Memory monitoring callbacks')
-    speed_monitor = SpeedMonitor(window_size=50)  # Measures throughput as samples/sec and tracks total training time
+    speed_monitor = SpeedMonitor(
+        window_size=50
+    )  # Measures throughput as samples/sec and tracks total training time
     lr_monitor = LRMonitor()  # Logs the learning rate
     memory_monitor = MemoryMonitor()  # Logs memory utilization
 

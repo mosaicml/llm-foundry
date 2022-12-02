@@ -1,5 +1,6 @@
-# Copyright 2022 MosaicML Composer authors
+# Copyright 2022 MosaicML Benchmarks authors
 # SPDX-License-Identifier: Apache-2.0
+
 """DeepLabV3 model extending :class:`.ComposerClassifier`."""
 
 import functools
@@ -13,14 +14,13 @@ import torch.nn.functional as F
 import torchvision
 from composer.loss import DiceLoss, soft_cross_entropy
 from composer.metrics import CrossEntropy, MIoU
-from composer.models.initializers import Initializer
 from composer.models.tasks import ComposerClassifier
 from composer.utils import dist
 from packaging import version
 from torchmetrics import MetricCollection
 from torchvision.models import _utils, resnet
 
-__all__ = ['deeplabv3', 'composer_deeplabv3']
+__all__ = ['deeplabv3', 'build_composer_deeplabv3']
 
 
 class SimpleSegmentationModel(torch.nn.Module):
@@ -49,6 +49,7 @@ def deeplabv3(num_classes: int,
               use_plus: bool = True,
               init_fn: Optional[Callable] = None):
     """Helper function to build a mmsegmentation DeepLabV3 model.
+
     Args:
         num_classes (int): Number of classes in the segmentation task.
         backbone_arch (str, optional): The architecture to use for the backbone. Must be either
@@ -60,14 +61,15 @@ def deeplabv3(num_classes: int,
         use_plus (bool, optional): If ``True``, use DeepLabv3+ head instead of DeepLabv3. Default: ``True``.
         init_fn (Callable, optional): initialization function for the model. ``()`` for no initialization.
             Default: ``()``.
+
     Returns:
         deeplabv3: A DeepLabV3 :class:`torch.nn.Module`.
+
     Example:
     .. code-block:: python
         from composer.models.deeplabv3.deeplabv3 import deeplabv3
         pytorch_model = deeplabv3(num_classes=150, backbone_arch='resnet101', backbone_weights=None)
     """
-
     # check that the specified architecture is in the resnet module
     if not hasattr(resnet, backbone_arch):
         raise ValueError(
@@ -90,7 +92,7 @@ def deeplabv3(num_classes: int,
                     textwrap.dedent(f"""\
                         `backbone_weights` must be either "IMAGENET1K_V1" or "IMAGENET1K_V2"
                         if torchvision.__version__ < 0.13.0. `backbone_weights` was {backbone_weights}."""
-                                    ))
+                                   ))
         backbone = getattr(resnet, backbone_arch)(
             pretrained=pretrained,
             replace_stride_with_dilation=[False, True, True])
@@ -110,15 +112,15 @@ def deeplabv3(num_classes: int,
                                               return_layers=return_layers)
 
     try:
-        from mmseg.models import ASPPHead, DepthwiseSeparableASPPHead
+        from mmseg.models import (  # type: ignore (reportMissingImports)
+            ASPPHead, DepthwiseSeparableASPPHead)
     except ImportError as e:
         raise ImportError(
             textwrap.dedent("""\
             Either mmcv or mmsegmentation is not installed. To install mmcv, please run pip install mmcv-full==1.4.4 -f
              https://download.openmmlab.com/mmcv/dist/{cu_version}/{torch_version}/index.html where {cu_version} and
              {torch_version} refer to your CUDA and PyTorch versions, respectively. To install mmsegmentation, please
-             run pip install mmsegmentation==0.22.0 on command-line.""")
-        ) from e
+             run pip install mmsegmentation==0.22.0 on command-line.""")) from e
 
     world_size = dist.get_world_size()
     if sync_bn and world_size == 1:
@@ -195,10 +197,12 @@ def build_composer_deeplabv3(num_classes: int,
                              cross_entropy_weight: float = 1.0,
                              dice_weight: float = 0.0,
                              init_fn: Optional[Callable] = None):
-    """Helper function to create a :class:`.ComposerClassifier` with a DeepLabv3(+) model. Logs
-        Mean Intersection over Union (MIoU) and Cross Entropy during training and validation.
+    """Create a :class:`.ComposerClassifier` for a DeepLabv3(+) model.
+
+    Logs Mean Intersection over Union (MIoU) and Cross Entropy during training and validation.
     From `Rethinking Atrous Convolution for Semantic Image Segmentation <https://arxiv.org/abs/1706.05587>`_
         (Chen et al, 2017).
+
     Args:
         num_classes (int): Number of classes in the segmentation task.
         backbone_arch (str, optional): The architecture to use for the backbone. Must be either
@@ -213,14 +217,15 @@ def build_composer_deeplabv3(num_classes: int,
         dice_weight (float): Weight to scale the dice loss. Default: ``0.0``.
         init_fn (Callable, optional): initialization function for the model. ``None`` for no initialization.
             Default: ``None``.
+
     Returns:
         ComposerModel: instance of :class:`.ComposerClassifier` with a DeepLabv3(+) model.
+
     Example:
     .. code-block:: python
         from composer.models import composer_deeplabv3
         model = composer_deeplabv3(num_classes=150, backbone_arch='resnet101', backbone_weights=None)
     """
-
     model = deeplabv3(backbone_arch=backbone_arch,
                       backbone_weights=backbone_weights,
                       use_plus=use_plus,

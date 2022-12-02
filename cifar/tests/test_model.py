@@ -1,12 +1,12 @@
-# Copyright 2022 MosaicML Composer authors
+# Copyright 2022 MosaicML Benchmarks authors
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 import torch
 from composer.models import ComposerClassifier
 
 from ..model import build_composer_resnet_cifar
+
 
 @pytest.mark.parametrize('model_name', ['resnet_56', 'resnet_20'])
 @pytest.mark.parametrize('num_classes', [10, 100])

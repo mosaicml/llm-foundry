@@ -77,12 +77,12 @@ optimizer:
   name: decoupled_adamw
   lr: 8.0e-5
   betas:
-    - 0.9
-    - 0.95
+  - 0.9
+  - 0.95
   eps: 1.0e-08
   weight_decay: 0.0
 
-max_duration:  333800ba # ~ 1.4T tokens
+max_duration: 333800ba  # ~ 1.4T tokens
 eval_interval: 10000ba
 global_train_batch_size: 2048
 grad_clip_norm: 1.0
@@ -114,7 +114,7 @@ callbacks:
   memory_monitor: {}
 
 # loggers:
-  # wandb: {}
+#   wandb: {}
 
 # Checkpoint to local filesystem or remote object store
 # save_interval: 10000ba
@@ -125,6 +125,3 @@ callbacks:
 # Load from local filesystem or remote object store
 # load_path: ./gpt-70b/checkpoints/latest-rank{rank}.pt
 # load_path: s3://my-bucket/my-folder/gpt-70b/checkpoints/latest-rank{rank}.pt
-
-
-

@@ -1,6 +1,8 @@
-# Copyright 2022 MosaicML Composer authors
+# Copyright 2022 MosaicML Benchmarks authors
 # SPDX-License-Identifier: Apache-2.0
+
 """ADE20K Semantic segmentation and scene parsing dataset.
+
 Please refer to the `ADE20K dataset <https://groups.csail.mit.edu/vision/datasets/ADE20K/>`_ for more details about this
 dataset.
 """
@@ -41,21 +43,30 @@ def build_ade20k_dataspec(
     **dataloader_kwargs,
 ):
     """Builds an ADE20k dataloader.
+
     Args:
-        path (str): Path to S3 bucket if streaming, otherwise path to local data directory
-        local (str): Local filesystem directory where dataset is cached during operation. Default: ``'/tmp/mds-cache/mds-ade20k/'``.
+        path (str): Path to S3 bucket if streaming, otherwise path to local
+            data directory
+        local (str): Local filesystem directory where dataset is cached during
+            operation. Default: ``'/tmp/mds-cache/mds-ade20k/'``.
         is_streaming (bool):  If True, use streaming dataset. Default: ``True``.
         batch_size (int): Batch size per device.
-        split (str): The dataset split to use either 'train', 'val', or 'test'. Default: ``'train```.
+        split (str): The dataset split to use either 'train', 'val', or 'test'.
+            Default: ``'train```.
         drop_last (bool): Whether to drop last samples. Default: ``True``.
         shuffle (bool): Whether to shuffle the dataset. Default: ``True``.
-        base_size (int): Initial size of the image and target before other augmentations. Default: ``512``.
-        min_resize_scale (float): The minimum value the samples can be rescaled. Default: ``0.5``.
-        max_resize_scale (float): The maximum value the samples can be rescaled. Default: ``2.0``.
-        final_size (int): The final size of the image and target. Default: ``512``.
-        ignore_background (bool): If true, ignore the background class when calculating the training loss.
-            Default: ``true``.
-        **dataloader_kwargs (Dict[str, Any]): Additional settings for the dataloader (e.g. num_workers, etc.)
+        base_size (int): Initial size of the image and target before other
+            augmentations. Default: ``512``.
+        min_resize_scale (float): The minimum value the samples can be rescaled.
+            Default: ``0.5``.
+        max_resize_scale (float): The maximum value the samples can be rescaled.
+            Default: ``2.0``.
+        final_size (int): The final size of the image and target.
+            Default: ``512``.
+        ignore_background (bool): If true, ignore the background class when
+            calculating the training loss. Default: ``true``.
+        **dataloader_kwargs (Dict[str, Any]): Additional settings for the
+            dataloader (e.g. num_workers, etc.)
     """
     both_transforms, image_transforms, target_transforms = build_ade20k_transformations(
         split=split,
@@ -66,13 +77,13 @@ def build_ade20k_dataspec(
 
     if is_streaming:
         dataset = streaming.vision.ADE20K(remote=path,
-                                local=local,
-                                split=split,
-                                shuffle=shuffle,
-                                both_transforms=both_transforms,
-                                transform=image_transforms,
-                                target_transform=target_transforms,
-                                batch_size=batch_size)
+                                          local=local,
+                                          split=split,
+                                          shuffle=shuffle,
+                                          both_transforms=both_transforms,
+                                          transform=image_transforms,
+                                          target_transform=target_transforms,
+                                          batch_size=batch_size)
         sampler = None
     else:
         dataset = ADE20k(datadir=path,
@@ -81,8 +92,9 @@ def build_ade20k_dataspec(
                          image_transforms=image_transforms,
                          target_transforms=target_transforms)
 
-
-        sampler = dist.get_sampler(dataset, drop_last=drop_last, shuffle=shuffle)
+        sampler = dist.get_sampler(dataset,
+                                   drop_last=drop_last,
+                                   shuffle=shuffle)
     device_transform_fn = NormalizationFn(mean=IMAGENET_CHANNEL_MEAN,
                                           std=IMAGENET_CHANNEL_STD,
                                           ignore_background=ignore_background)
@@ -98,9 +110,9 @@ def build_ade20k_dataspec(
     )
 
 
-
 class ADE20k(Dataset):
     """PyTorch Dataset for ADE20k.
+
     Args:
         datadir (str): the path to the ADE20k folder. Dataset should be in the format <datadir>/ADEChallengeData2016/images
         split (str): The dataset split to use either 'train', 'val', or 'test'. Default: ``'train```.
@@ -121,15 +133,17 @@ class ADE20k(Dataset):
         self.both_transforms = both_transforms
         self.image_transforms = image_transforms
         self.target_transforms = target_transforms
-        split_to_dir = {'train': 'training', # map split names to ade20k image directories
-                        'val': 'validation',
-                        'test': 'test'}
+        split_to_dir = {
+            'train': 'training',  # map split names to ade20k image directories
+            'val': 'validation',
+            'test': 'test'
+        }
         self.split = split_to_dir[split]
- 
+
         # Check datadir value
         if self.datadir is None:
             raise ValueError('datadir must be specified')
-            
+
         # add ADEChallengeData2016 to root dir
         self.datadir = os.path.join(self.datadir, 'ADEChallengeData2016')
 
@@ -156,9 +170,7 @@ class ADE20k(Dataset):
 
         # Remove grayscale samples
         if self.split == 'training':
-            corrupted_samples = [
-                '00003020', '00001701', '00013508', '00008455'
-            ]
+            corrupted_samples = ['00003020', '00001701', '00013508', '00008455']
             for sample in corrupted_samples:
                 sample_file = f'ADE_train_{sample}.jpg'
                 if sample_file in self.image_files:
@@ -195,8 +207,8 @@ class ADE20k(Dataset):
 
 
 class StreamingADE20k(StreamingDataset):
-    """
-    Implementation of the ADE20k dataset using StreamingDataset.
+    """Implementation of the ADE20k dataset using StreamingDataset.
+
     Args:
         remote (str): Remote directory (S3 or local filesystem) where dataset is stored.
         local (str): Local filesystem directory where dataset is cached during operation.
@@ -279,21 +291,28 @@ class StreamingADE20k(StreamingDataset):
 
 def check_dataloader():
     """Tests if your dataloader is working locally.
-    Run `python data.py my_data_path` to test local dataset.
-    Run `python data.py s3://my-bucket/my-dir/data /tmp/path/to/local` to test streaming.
+
+    Run `python data.py my_data_path` to test local dataset. Run `python data.py
+    s3://my-bucket/my-dir/data /tmp/path/to/local` to test streaming.
     """
     path = sys.argv[1]
     batch_size = 2
     if len(sys.argv) > 2:
         local = sys.argv[2]
-        dataspec = build_ade20k_dataspec(path=path, local=local, batch_size=batch_size)
+        dataspec = build_ade20k_dataspec(path=path,
+                                         local=local,
+                                         batch_size=batch_size)
     else:
-        dataspec = build_ade20k_dataspec(path=path, is_streaming=False, batch_size=batch_size)
-
+        dataspec = build_ade20k_dataspec(path=path,
+                                         is_streaming=False,
+                                         batch_size=batch_size)
 
     print('Running 5 batchs of dataloader')
     for batch_ix, batch in enumerate(islice(dataspec.dataloader, 5)):
-        print(f'Batch id: {batch_ix}; Image batch shape: {batch[0].shape}; Target batch shape: {batch[1].shape}')
+        print(
+            f'Batch id: {batch_ix}; Image batch shape: {batch[0].shape}; Target batch shape: {batch[1].shape}'
+        )
+
 
 if __name__ == '__main__':
     check_dataloader()

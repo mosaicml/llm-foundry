@@ -1,28 +1,33 @@
 # Copyright 2022 MosaicML Benchmarks authors
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import warnings
-import torch
-from omegaconf import OmegaConf as om
-from composer.utils import reproducibility
 
+import pytest
+import torch
+from composer.utils import reproducibility
+from omegaconf import OmegaConf as om
 from src.model_registry import COMPOSER_MODEL_REGISTRY
 
 
 @pytest.mark.parametrize('dropout', [0.0, 0.1])
 def test_compare_hf_v_mosaic_gpt(dropout):
-    warnings.filterwarnings(action='ignore', message='Torchmetrics v0.9 introduced a new argument class property')
-    conf_path = "yamls/mosaic_gpt/125m.yaml"    # set cfg path
-    batch_size = 2                              # set batch size
-    device = 'cuda'                             # set decive
-    
+    warnings.filterwarnings(
+        action='ignore',
+        message='Torchmetrics v0.9 introduced a new argument class property')
+    conf_path = 'yamls/mosaic_gpt/125m.yaml'  # set cfg path
+    batch_size = 2  # set batch size
+    device = 'cuda'  # set decive
+
     # ensure reproducibility
     seed = 17
     reproducibility.seed_all(seed)  # set seed
 
     # get hf gpt2 cfg
-    hf_cfg = om.create({'name': 'hf_causal_lm', 'hf_config_name_or_path': 'gpt2'})
+    hf_cfg = om.create({
+        'name': 'hf_causal_lm',
+        'hf_config_name_or_path': 'gpt2'
+    })
 
     # get hf gpt2 model
     print(hf_cfg)
@@ -31,7 +36,7 @@ def test_compare_hf_v_mosaic_gpt(dropout):
 
     hf_model.model.config.embd_pdrop = dropout
     hf_model.model.transformer.drop.p = dropout
-    
+
     hf_model.model.config.resid_pdrop = dropout
     for b in hf_model.model.transformer.h:
         b.mlp.dropout.p = dropout
@@ -71,12 +76,19 @@ def test_compare_hf_v_mosaic_gpt(dropout):
     n_params = sum(p.numel() for p in model.parameters())
 
     assert hf_n_params == n_params
-    
+
     # generate random input branch
     batch = {}
-    batch['input_ids']      = torch.randint(low=0, high=cfg.vocab_size, size=(batch_size, cfg.max_seq_len)).to(device)
-    batch['labels']         = torch.randint(low=0, high=cfg.vocab_size, size=(batch_size, cfg.max_seq_len)).to(device)
-    batch['attention_mask'] = torch.ones(size=(batch_size, cfg.max_seq_len), dtype=torch.int64).to(device)
+    batch['input_ids'] = torch.randint(low=0,
+                                       high=cfg.vocab_size,
+                                       size=(batch_size,
+                                             cfg.max_seq_len)).to(device)
+    batch['labels'] = torch.randint(low=0,
+                                    high=cfg.vocab_size,
+                                    size=(batch_size,
+                                          cfg.max_seq_len)).to(device)
+    batch['attention_mask'] = torch.ones(size=(batch_size, cfg.max_seq_len),
+                                         dtype=torch.int64).to(device)
 
     hf_model.train()
     model.train()
@@ -90,22 +102,24 @@ def test_compare_hf_v_mosaic_gpt(dropout):
     print(f'{hf_model_fwd.mean().item() = }\n{model_fwd.mean().item() = }')
     if hf_model_fwd.mean().allclose(model_fwd.mean()):
         warn_msg = f'WARNING: model_fwd ({model_fwd}) and hf_model_fwd ({hf_model_fwd}) are very close at init.'
-        raise warnings.warn(warn_msg)
+        raise warnings.warn(warn_msg)  # type: ignore
 
     hf_model_statedict = hf_model.state_dict()
 
     # convert hf gpt statedict to mosaic gpt statedict
     # HF keys which are ignored
-    hf_keys_ignore = [".attn.masked_bias", ".attn.bias"]
+    hf_keys_ignore = ['.attn.masked_bias', '.attn.bias']
     # HF params which need to be transposed
-    _transpose = [".attn.c_attn.", ".attn.c_proj.", ".mlp.c_fc.", ".mlp.c_proj."]
+    _transpose = [
+        '.attn.c_attn.', '.attn.c_proj.', '.mlp.c_fc.', '.mlp.c_proj.'
+    ]
     # HF keys which need to be replaced by the associated value
     hf_2_mosaic_key_mods = {
-        "model.transformer.h.": "model.transformer.blocks.",
-        ".attn.c_attn.":        ".causal_attn.mhsa.Wqkv.",
-        ".attn.c_proj.":        ".causal_attn.mhsa.out_proj.",
-        ".mlp.c_fc.":           ".mlp.mlp_up.",
-        ".mlp.c_proj.":         ".mlp.mlp_down.",
+        'model.transformer.h.': 'model.transformer.blocks.',
+        '.attn.c_attn.': '.causal_attn.mhsa.Wqkv.',
+        '.attn.c_proj.': '.causal_attn.mhsa.out_proj.',
+        '.mlp.c_fc.': '.mlp.mlp_up.',
+        '.mlp.c_proj.': '.mlp.mlp_down.',
     }
 
     # convert hf gpt statedict to mosaic gpt statedict using the dict and list above

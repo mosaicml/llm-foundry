@@ -3,16 +3,15 @@
 
 import os
 import warnings
+
 import pytest
 import torch
+from main import main
 from omegaconf import OmegaConf as om
 
-from main import main
 
-
-def gpt_tiny_cfg(conf_path="yamls/mosaic_gpt/125m.yaml"):
-    """ create gpt tiny cfg """
-
+def gpt_tiny_cfg(conf_path='yamls/mosaic_gpt/125m.yaml'):
+    """Create gpt tiny cfg."""
     with open(conf_path) as f:
         test_cfg = om.load(f)
     # removes requirement to download / process train set
@@ -39,22 +38,25 @@ def gpt_tiny_cfg(conf_path="yamls/mosaic_gpt/125m.yaml"):
     return test_cfg
 
 
-@pytest.mark.parametrize(
-    'device',
-    [
-        'cpu',
-        pytest.param(
-            'cuda',
-            marks=pytest.mark.skipif(not torch.cuda.is_available(), reason="testing with cuda requires GPU")
-        ),
-    ])
+@pytest.mark.parametrize('device', [
+    'cpu',
+    pytest.param('cuda',
+                 marks=pytest.mark.skipif(
+                     not torch.cuda.is_available(),
+                     reason='testing with cuda requires GPU')),
+])
 def test_train(device):
     if not os.path.isdir('./my-copy-c4/val'):
-        pytest.xfail("c4 dataset not set up as expected")
+        pytest.xfail('c4 dataset not set up as expected')
 
-    warnings.filterwarnings(action='ignore', category=DeprecationWarning, message="Using the 'grad_clip_norm' field in Trainer is deprecated. Please usethe GradientClipping Algorithm in composer.algorithms.gradient_clipping.")
+    warnings.filterwarnings(
+        action='ignore',
+        category=DeprecationWarning,
+        message=
+        "Using the 'grad_clip_norm' field in Trainer is deprecated. Please usethe GradientClipping Algorithm in composer.algorithms.gradient_clipping."
+    )
 
-    test_cfg = gpt_tiny_cfg(conf_path="yamls/mosaic_gpt/125m.yaml")
+    test_cfg = gpt_tiny_cfg(conf_path='yamls/mosaic_gpt/125m.yaml')
 
     if device == 'cpu':
         test_cfg.model.device = 'cpu'

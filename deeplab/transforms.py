@@ -1,6 +1,8 @@
-# Copyright 2022 MosaicML Composer authors
+# Copyright 2022 MosaicML Benchmarks authors
 # SPDX-License-Identifier: Apache-2.0
+
 """ADE20K Semantic segmentation and scene parsing dataset.
+
 Please refer to the `ADE20K dataset <https://groups.csail.mit.edu/vision/datasets/ADE20K/>`_ for more details about this
 dataset.
 """
@@ -8,10 +10,10 @@ dataset.
 from math import ceil
 from typing import Optional, Tuple, Union
 
-from PIL import Image
 import numpy as np
 import torch
 import torchvision.transforms.functional as TF
+from PIL import Image
 from torchvision import transforms
 
 IMAGENET_CHANNEL_MEAN = (0.485 * 255, 0.456 * 255, 0.406 * 255)
@@ -24,17 +26,19 @@ def build_ade20k_transformations(split,
                                  max_resize_scale: float = 2.0,
                                  final_size: int = 512):
     """Builds the transformations for the ADE20k dataset.
-       Args:
-           split (str): The dataset split to use; one of 'train', 'val', or 'test'. Default: ``'train```.
-           base_size (int): Initial size of the image and target before other augmentations. Default: ``512``.
-           min_resize_scale (float): The minimum value by which the samples can be rescaled. Default: ``0.5``.
-           max_resize_scale (float): The maximum value by which the samples can be rescaled. Default: ``2.0``.
-           final_size (int): The final size of the image and target. Default: ``512``.
-       Returns:
-           both_transforms (torch.nn.Module): Transformations to apply to a 2-tuple containing the input image and the
-               target semantic segmentation mask.
-           image_transforms (torch.nn.Module): Transformations to apply to the input image only.
-           target_transforms (torch.nn.Module): Transformations to apply to the target semantic segmentation mask only.
+
+    Args:
+        split (str): The dataset split to use; one of 'train', 'val', or 'test'. Default: ``'train```.
+        base_size (int): Initial size of the image and target before other augmentations. Default: ``512``.
+        min_resize_scale (float): The minimum value by which the samples can be rescaled. Default: ``0.5``.
+        max_resize_scale (float): The maximum value by which the samples can be rescaled. Default: ``2.0``.
+        final_size (int): The final size of the image and target. Default: ``512``.
+
+    Returns:
+        both_transforms (torch.nn.Module): Transformations to apply to a 2-tuple containing the input image and the
+            target semantic segmentation mask.
+        image_transforms (torch.nn.Module): Transformations to apply to the input image only.
+        target_transforms (torch.nn.Module): Transformations to apply to the target semantic segmentation mask only.
     """
     if split == 'train':
         both_transforms = torch.nn.Sequential(
@@ -75,13 +79,15 @@ def build_ade20k_transformations(split,
 
 
 class RandomResizePair(torch.nn.Module):
-    """Resize the image and target to ``base_size`` times a randomly sampled value.
+    """Resize the image and target to ``base_size`` times a random value.
+
     Args:
         min_scale (float): the minimum value by which the samples can be rescaled.
         max_scale (float): the maximum value by which the samples can be rescaled.
         base_size (Tuple[int, int]): a specified base size (height x width) to scale to get the resized dimensions.
             When this is None, use the input image size. Default: ``None``.
     """
+
     def __init__(self,
                  min_scale: float,
                  max_scale: float,
@@ -111,12 +117,14 @@ class RandomResizePair(torch.nn.Module):
 # Based on: https://github.com/open-mmlab/mmsegmentation/blob/aa50358c71fe9c4cccdd2abe42433bdf702e757b/mmseg/datasets/pipelines/transforms.py#L584
 class RandomCropPair(torch.nn.Module):
     """Crop the image and target at a randomly sampled position.
+
     Args:
         crop_size (Tuple[int, int]): the size (height x width) of the crop.
         class_max_percent (float): the maximum percent of the image area a single class should occupy. Default is 1.0.
         num_retry (int): the number of times to resample the crop if ``class_max_percent`` threshold is not reached.
             Default is 1.
     """
+
     def __init__(self,
                  crop_size: Tuple[int, int],
                  class_max_percent: float = 1.0,
@@ -143,8 +151,8 @@ class RandomCropPair(torch.nn.Module):
             for _ in range(self.num_retry):
                 # Crop target
                 target_crop = TF.crop(
-                    target, *crop
-                )  # type: ignore - transform typing excludes PIL.Image
+                    target,
+                    *crop)  # type: ignore - transform typing excludes PIL.Image
 
                 # count the number of each class represented in cropped target
                 labels, counts = np.unique(np.array(target_crop),
@@ -153,7 +161,7 @@ class RandomCropPair(torch.nn.Module):
 
                 # if the class with the most area is within the class_max_percent threshold, stop retrying
                 if len(counts) > 1 and (np.max(counts) / np.sum(counts)
-                                        ) < self.class_max_percent:
+                                       ) < self.class_max_percent:
                     break
 
                 crop = transforms.RandomCrop.get_params(
@@ -163,17 +171,18 @@ class RandomCropPair(torch.nn.Module):
         image = TF.crop(
             image, *crop)  # type: ignore - transform typing excludes PIL.Image
         target = TF.crop(
-            target,
-            *crop)  # type: ignore - transform typing excludes PIL.Image
+            target, *crop)  # type: ignore - transform typing excludes PIL.Image
 
         return image, target
 
 
 class RandomHFlipPair(torch.nn.Module):
     """Flip the image and target horizontally with a specified probability.
+
     Args:
         probability (float): the probability of flipping the image and target. Default: ``0.5``.
     """
+
     def __init__(self, probability: float = 0.5):
         super().__init__()
         self.probability = probability
@@ -192,10 +201,12 @@ class RandomHFlipPair(torch.nn.Module):
 
 class PadToSize(torch.nn.Module):
     """Pad an image to a specified size.
+
     Args:
         size (Tuple[int, int]): the size (height x width) of the image after padding.
         fill (Union[int, Tuple[int, int, int]]): the value to use for the padded pixels. Default: ``0``.
     """
+
     def __init__(self,
                  size: Tuple[int, int],
                  fill: Union[int, Tuple[int, int, int]] = 0):
@@ -215,15 +226,18 @@ class PadToSize(torch.nn.Module):
 
 
 class PhotometricDistoration(torch.nn.Module):
-    """Applies a combination of brightness, contrast, saturation, and hue jitters with random intensity.
+    """Randomly jitters brightness, contrast, saturation, and hue.
+
     This is a less severe form of PyTorch's ColorJitter used by the mmsegmentation library here:
     https://github.com/open-mmlab/mmsegmentation/blob/aa50358c71fe9c4cccdd2abe42433bdf702e757b/mmseg/datasets/pipelines/transforms.py#L861
+
     Args:
         brightness (float): max and min to jitter brightness.
         contrast (float): max and min to jitter contrast.
         saturation (float): max and min to jitter saturation.
         hue (float): max and min to jitter hue.
     """
+
     def __init__(self, brightness: float, contrast: float, saturation: float,
                  hue: float):
         super().__init__()

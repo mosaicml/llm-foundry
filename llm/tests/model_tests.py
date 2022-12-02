@@ -3,34 +3,40 @@
 
 import os
 import warnings
+from typing import cast
+
 import torch
 import torch.nn as nn
-from omegaconf import OmegaConf as om
-from composer.utils import reproducibility
 from composer.optim import DecoupledAdamW
-
-from src.tokenizer import TOKENIZER_REGISTRY
+from composer.utils import reproducibility
+from omegaconf import DictConfig
+from omegaconf import OmegaConf as om
 from src.model_registry import COMPOSER_MODEL_REGISTRY
+from src.tokenizer import TOKENIZER_REGISTRY
 
 
-def get_config(conf_path="yamls/mosaic_gpt/125m.yaml"):
-    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+def get_config(conf_path='yamls/mosaic_gpt/125m.yaml') -> DictConfig:
+    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     print(conf_path)
     with open(conf_path) as f:
         test_cfg = om.load(f)
-    return test_cfg
+    return cast(DictConfig, test_cfg)
 
 
-def get_objs(conf_path="yamls/mosaic_gpt/125m.yaml"):
-    warnings.filterwarnings(action='ignore', message='Torchmetrics v0.9 introduced a new argument class property')
+def get_objs(conf_path='yamls/mosaic_gpt/125m.yaml'):
+    warnings.filterwarnings(
+        action='ignore',
+        message='Torchmetrics v0.9 introduced a new argument class property')
     test_cfg = get_config(conf_path=conf_path)
-    tokenizer = TOKENIZER_REGISTRY[test_cfg.tokenizer.type](**test_cfg.tokenizer.args)
-    
+    _ = TOKENIZER_REGISTRY[test_cfg.tokenizer.type](
+        **test_cfg.tokenizer.args)  # make sure tokenizer in registry
+
     reproducibility.seed_all(test_cfg.seed)
 
     # Read FSDP Config as a dict
     fsdp_config = test_cfg.get('fsdp_config', None)
-    fsdp_config = om.to_container(fsdp_config, resolve=True) if fsdp_config else None
+    fsdp_config = om.to_container(fsdp_config,
+                                  resolve=True) if fsdp_config else None
 
     # Build Model
     # For fast initialization, use `meta` device
@@ -50,12 +56,11 @@ def get_objs(conf_path="yamls/mosaic_gpt/125m.yaml"):
     model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model)
     # Optimizer
     assert test_cfg.optimizer.name == 'decoupled_adamw'
-    optimizer = DecoupledAdamW(
-        model.parameters(),
-        lr=test_cfg.optimizer.lr,
-        betas=test_cfg.optimizer.betas,
-        eps=test_cfg.optimizer.eps,
-        weight_decay=test_cfg.optimizer.weight_decay)
+    optimizer = DecoupledAdamW(model.parameters(),
+                               lr=test_cfg.optimizer.lr,
+                               betas=test_cfg.optimizer.betas,
+                               eps=test_cfg.optimizer.eps,
+                               weight_decay=test_cfg.optimizer.weight_decay)
 
     return test_cfg, model, optimizer
 
@@ -63,18 +68,28 @@ def get_objs(conf_path="yamls/mosaic_gpt/125m.yaml"):
 def gen_random_batch(batch_size, test_cfg):
     # generate input batch of random data
     batch = {}
-    batch['input_ids']      = torch.randint(low=0, high=test_cfg.model.vocab_size, size=(batch_size, test_cfg.max_seq_len)).to(test_cfg.device)
-    batch['labels']         = torch.randint(low=0, high=test_cfg.model.vocab_size, size=(batch_size, test_cfg.max_seq_len)).to(test_cfg.device)
-    batch['attention_mask'] = torch.ones(size=(batch_size, test_cfg.max_seq_len), dtype=torch.int64).to(test_cfg.device)
+    batch['input_ids'] = torch.randint(
+        low=0,
+        high=test_cfg.model.vocab_size,
+        size=(batch_size, test_cfg.max_seq_len)).to(test_cfg.device)
+    batch['labels'] = torch.randint(low=0,
+                                    high=test_cfg.model.vocab_size,
+                                    size=(batch_size, test_cfg.max_seq_len)).to(
+                                        test_cfg.device)
+    batch['attention_mask'] = torch.ones(size=(batch_size,
+                                               test_cfg.max_seq_len),
+                                         dtype=torch.int64).to(test_cfg.device)
     return batch
 
 
 def test_full_forward_and_backward(batch_size=2):
-    test_cfg, model, optimizer = get_objs(conf_path="yamls/mosaic_gpt/125m.yaml")
+    test_cfg, model, optimizer = get_objs(
+        conf_path='yamls/mosaic_gpt/125m.yaml')
 
     batch = gen_random_batch(batch_size, test_cfg)
 
-    assert batch['input_ids'].shape == torch.Size([batch_size, test_cfg.max_seq_len])
+    assert batch['input_ids'].shape == torch.Size(
+        [batch_size, test_cfg.max_seq_len])
     model.train()
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
@@ -86,21 +101,21 @@ def test_full_forward_and_backward(batch_size=2):
 
 
 def test_attention_mechanism(batch_size=2):
-    test_cfg, model, _ = get_objs(conf_path="yamls/mosaic_gpt/125m.yaml")
+    test_cfg, model, _ = get_objs(conf_path='yamls/mosaic_gpt/125m.yaml')
 
     batch = gen_random_batch(batch_size, test_cfg)
 
     model.eval()
     # run a partial forward where we explicitly inspect the attention_mask from the causal_attn block
-    input_ids, key_padding_mask = batch['input_ids'], batch['attention_mask'].bool()
+    input_ids, key_padding_mask = batch['input_ids'], batch[
+        'attention_mask'].bool()
 
     _, S = input_ids.size()
     assert (
         S <= test_cfg.max_seq_len
-    ), f"Cannot forward input with seq_len={S}, this model only supports seq_len<={test_cfg.max_seq_len}"
-    pos = torch.arange(
-        0, S, dtype=torch.long,
-        device=input_ids.device).unsqueeze(0)
+    ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={test_cfg.max_seq_len}'
+    pos = torch.arange(0, S, dtype=torch.long,
+                       device=input_ids.device).unsqueeze(0)
 
     tok_emb = model.model.transformer.wte(input_ids)
     pos_emb = model.model.transformer.wpe(pos)
@@ -111,11 +126,11 @@ def test_attention_mechanism(batch_size=2):
     # and with 0 everywhere else
     expected_zerod_weights = nn.Transformer.generate_square_subsequent_mask(test_cfg.max_seq_len)\
         .reshape(1, test_cfg.max_seq_len, test_cfg.max_seq_len)
-    expected_zerod_weights = torch.isneginf(torch.cat(
-        batch_size*[expected_zerod_weights]
-    ))
-    torch_key_padding = torch.cat(
-        test_cfg.max_seq_len*[(~key_padding_mask).reshape(batch_size, 1, test_cfg.max_seq_len)], 
+    expected_zerod_weights = torch.isneginf(  # type: ignore
+        torch.cat(batch_size * [expected_zerod_weights]))
+    torch_key_padding = torch.cat(  # type: ignore
+        test_cfg.max_seq_len *
+        [(~key_padding_mask).reshape(batch_size, 1, test_cfg.max_seq_len)],
         axis=1)
     expected_zerod_weights |= torch_key_padding
 
@@ -132,23 +147,25 @@ def test_attention_mechanism(batch_size=2):
 
 
 def test_full_forward_and_backward_gpt_neo(batch_size=2):
-    warnings.filterwarnings(action='ignore', message='Torchmetrics v0.9 introduced a new argument class property')
-    conf_path = "yamls/hf_causal_lm/gpt-neo-125m.yaml"
+    warnings.filterwarnings(
+        action='ignore',
+        message='Torchmetrics v0.9 introduced a new argument class property')
+    conf_path = 'yamls/hf_causal_lm/gpt-neo-125m.yaml'
     with open(conf_path) as f:
         neo_cfg = om.load(f)
 
     device = 'cpu'
     neo_cfg.device = device
 
-    model = COMPOSER_MODEL_REGISTRY[neo_cfg.model.name](neo_cfg.model).to(device)
+    model = COMPOSER_MODEL_REGISTRY[neo_cfg.model.name](
+        neo_cfg.model).to(device)
 
     assert neo_cfg.optimizer.name == 'decoupled_adamw'
-    optimizer = DecoupledAdamW(
-        model.parameters(),
-        lr=neo_cfg.optimizer.lr,
-        betas=neo_cfg.optimizer.betas,
-        eps=neo_cfg.optimizer.eps,
-        weight_decay=neo_cfg.optimizer.weight_decay)
+    optimizer = DecoupledAdamW(model.parameters(),
+                               lr=neo_cfg.optimizer.lr,
+                               betas=neo_cfg.optimizer.betas,
+                               eps=neo_cfg.optimizer.eps,
+                               weight_decay=neo_cfg.optimizer.weight_decay)
 
     # set vacab size using model num_embeddings
     neo_cfg.model.vocab_size = model.model.transformer.wte.num_embeddings

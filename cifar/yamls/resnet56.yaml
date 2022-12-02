@@ -3,20 +3,20 @@ is_train: true         # Trains the model if true, otherwise runs evaluation
 seed: 42               # Random seed
 max_duration: 160ep    # Duration to train specified as a Time string
 use_recipe: false      # Whether to train with a recipe for faster convergence or higher accuracy
-grad_accum: 'auto'     # Amount of gradient accumulation, 'auto' (GPU only) means Composer will set the optimal value
+grad_accum: auto       # Amount of gradient accumulation, 'auto' (GPU only) means Composer will set the optimal value
 
 train_dataset:
   path: cifar10
   is_streaming: false # Set to `true` if your data is in a remote location (e.g. an S3 bucket)
   batch_size: 1024    # Training dataloader batch size per device
-  local: null         # Local cache location when streaming data
+  local:              # Local cache location when streaming data
   download: true      # Whether to download the data
 
 eval_dataset:
   path: cifar10
   is_streaming: false # Set to `true` if your data is in a remote location (e.g. an S3 bucket)
   batch_size: 1024    # Evaluation dataloader batch size per device
-  local: null         # Local cache location when streaming data
+  local:              # Local cache location when streaming data
   download: true      # Whether to download the data
 
 model:
@@ -31,21 +31,21 @@ optimizer:
 lr_scheduler:
   t_warmup: 5ep # Duration of learning rate warmup specified as a Time string
   milestones:   # Epochs to decay the learning rate by gamma
-   - 80ep
-   - 120ep
+  - 80ep
+  - 120ep
   gamma: 0.1    # Multiplier to learning rate when decaying
 
 loggers:
   progress_bar: {}
   # wandb:     # Uncomment and fill below arguments to use WandB logger
-    # entity:  # Name of WandB entity, usually username or organization name
-    # project: # Name of WandB project
-    # group:   # Name of WandB group
+  #   entity:  # Name of WandB entity, usually username or organization name
+  #   project: # Name of WandB project
+  #   group:   # Name of WandB group
 
 # Save checkpoint parameters
-save_folder: null               # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
+save_folder:                    # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
 save_interval: 10ep             # Interval to checkpoint based on time string
 save_num_checkpoints_to_keep: 1 # Cleans up checkpoints saved locally only!
 
 # Load checkpoint parameters
-load_path: null # e.g. './ckpt/latest-rank{rank}.pt' (local) or 's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)
+load_path:      # e.g. './ckpt/latest-rank{rank}.pt' (local) or 's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)

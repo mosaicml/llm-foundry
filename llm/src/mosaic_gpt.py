@@ -1,24 +1,26 @@
 # Copyright 2022 MosaicML Benchmarks authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-A simple, flexible implementation of a GPT model.
+"""A simple, flexible implementation of a GPT model.
+
 Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 """
 
 import math
 from functools import partial
-from typing import Any, Mapping
+from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from composer.metrics.nlp import LanguageCrossEntropy, Perplexity
 from composer.models.base import ComposerModel
+from omegaconf import DictConfig
 
 
 class TorchCausalAttention(nn.Module):
-    def __init__(self, cfg: Mapping[str, Any], device: str = None):
+
+    def __init__(self, cfg: DictConfig, device: Optional[str] = None):
         super().__init__()
         self.mhsa = nn.MultiheadAttention(
             embed_dim=cfg.d_model,
@@ -29,12 +31,17 @@ class TorchCausalAttention(nn.Module):
             device=device,
         )
 
-        self.register_buffer('mask', torch.empty((cfg.max_seq_len, cfg.max_seq_len), device=device))
+        self.register_buffer(
+            'mask',
+            torch.empty((cfg.max_seq_len, cfg.max_seq_len), device=device))
         self.mask_initialized = False
-        self.mhsa.out_proj._is_residual = True
+        self.mhsa.out_proj._is_residual = True  # type: ignore
 
     def _fill_causal_attn_mask(self):
-        torch.full(size=self.mask.shape, fill_value=float('-inf'), out=self.mask)
+        assert isinstance(self.mask, torch.Tensor)  # for type checking
+        torch.full(size=self.mask.shape,
+                   fill_value=float('-inf'),
+                   out=self.mask)
         torch.triu(input=self.mask, diagonal=1, out=self.mask)
 
     def forward(self, x, key_padding_mask):
@@ -51,15 +58,17 @@ class TorchCausalAttention(nn.Module):
             self._fill_causal_attn_mask()
             self.mask_initialized = True
 
-        return self.mhsa(x, x, x,
-            attn_mask=self.mask,
-            key_padding_mask=~key_padding_mask,
-            need_weights=True
-        )
+        return self.mhsa(x,
+                         x,
+                         x,
+                         attn_mask=self.mask,
+                         key_padding_mask=~key_padding_mask,
+                         need_weights=True)
 
 
 class FlashCausalAttention(nn.Module):
-    def __init__(self, cfg: Mapping[str, Any], device: str = None):
+
+    def __init__(self, cfg: DictConfig, device: Optional[str] = None):
         super().__init__()
         try:
             from flash_attn.flash_attention import FlashMHA
@@ -79,12 +88,13 @@ class FlashCausalAttention(nn.Module):
 
     def forward(self, x, key_padding_mask):
         return self.mhsa(x,
-                        key_padding_mask=key_padding_mask,
-                        need_weights=False)
+                         key_padding_mask=key_padding_mask,
+                         need_weights=False)
 
 
 class GPTMLP(nn.Module):
-    def __init__(self, cfg: Mapping[str, Any], device: str = None):
+
+    def __init__(self, cfg: DictConfig, device: Optional[str] = None):
         super().__init__()
         self.mlp_up = nn.Linear(cfg.d_model,
                                 cfg.mlp_ratio * cfg.d_model,
@@ -93,14 +103,15 @@ class GPTMLP(nn.Module):
         self.mlp_down = nn.Linear(cfg.mlp_ratio * cfg.d_model,
                                   cfg.d_model,
                                   device=device)
-        self.mlp_down._is_residual = True
+        self.mlp_down._is_residual = True  # type: ignore
 
     def forward(self, x):
         return self.mlp_down(self.mlp_act(self.mlp_up(x)))
 
 
 class GPTBlock(nn.Module):
-    def __init__(self, cfg: Mapping[str, Any], device: str = None):
+
+    def __init__(self, cfg: DictConfig, device: Optional[str] = None):
         super().__init__()
         self.ln_1 = nn.LayerNorm(cfg.d_model, device=device)
         if cfg.attn_impl == 'torch':
@@ -114,9 +125,11 @@ class GPTBlock(nn.Module):
         self.resid_attn_dropout = nn.Dropout(cfg.resid_pdrop)
         self.resid_mlp_dropout = nn.Dropout(cfg.resid_pdrop)
 
-    def forward(self,
-                x: torch.Tensor,
-                key_padding_mask: torch.ByteTensor = None) -> torch.Tensor:
+    def forward(
+            self,
+            x: torch.Tensor,
+            key_padding_mask: Optional[torch.ByteTensor] = None
+    ) -> torch.Tensor:
         a = self.ln_1(x)
         b, _ = self.causal_attn(a, key_padding_mask)
         x = x + self.resid_attn_dropout(b)
@@ -127,17 +140,22 @@ class GPTBlock(nn.Module):
 
 
 class MosaicGPT(nn.Module):
-    def __init__(self, cfg: Mapping[str, Any]):
+
+    def __init__(self, cfg: DictConfig):
         super().__init__()
         assert cfg.name == 'mosaic_gpt', f'Tried to build MosaicGPT model with cfg.name={cfg.name}'
         self.cfg = cfg
         self.transformer = nn.ModuleDict(
             dict(
-                wte=nn.Embedding(cfg.vocab_size, cfg.d_model, device=cfg.device),
-                wpe=nn.Embedding(cfg.max_seq_len, cfg.d_model, device=cfg.device),
+                wte=nn.Embedding(cfg.vocab_size, cfg.d_model,
+                                 device=cfg.device),
+                wpe=nn.Embedding(cfg.max_seq_len,
+                                 cfg.d_model,
+                                 device=cfg.device),
                 emb_drop=nn.Dropout(cfg.emb_pdrop),
                 blocks=nn.ModuleList([
-                    GPTBlock(cfg, device=cfg.device) for _ in range(cfg.n_layers)
+                    GPTBlock(cfg, device=cfg.device)
+                    for _ in range(cfg.n_layers)
                 ]),
                 ln_f=nn.LayerNorm(cfg.d_model, device=cfg.device),
             ))
@@ -148,36 +166,38 @@ class MosaicGPT(nn.Module):
 
         # Apply weight tying
         # Ensures that wte and lm_head are in the same FSDP block
-        self.transformer._fsdp_wrap = False
-        self.transformer.wte._fsdp_wrap = False
-        self.lm_head._fsdp_wrap = False
-        self.lm_head.weight = self.transformer.wte.weight
+        self.transformer._fsdp_wrap = False  # type: ignore
+        self.transformer.wte._fsdp_wrap = False  # type: ignore
+        self.lm_head._fsdp_wrap = False  # type: ignore
+        self.lm_head.weight = self.transformer.wte.weight  # type: ignore
 
         if cfg.device != 'meta':
             self.apply(self.param_init_fn)
 
     def forward(self,
                 input_ids: torch.LongTensor,
-                key_padding_mask: torch.ByteTensor = None):
+                key_padding_mask: Optional[torch.ByteTensor] = None):
         _, S = input_ids.size()
         assert (
             S <= self.cfg.max_seq_len
-        ), f"Cannot forward input with seq_len={S}, this model only supports seq_len<={self.cfg.max_seq_len}"
+        ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.cfg.max_seq_len}'
         pos = torch.arange(0, S, dtype=torch.long,
                            device=input_ids.device).unsqueeze(0)
 
-        tok_emb = self.transformer.wte(input_ids)
-        pos_emb = self.transformer.wpe(pos)
-        x = self.transformer.emb_drop(tok_emb + pos_emb)
-        for block in self.transformer.blocks:
+        tok_emb = self.transformer.wte(input_ids)  # type: ignore
+        pos_emb = self.transformer.wpe(pos)  # type: ignore
+        x = self.transformer.emb_drop(tok_emb + pos_emb)  # type: ignore
+        for block in self.transformer.blocks:  # type: ignore
             x = block(x, key_padding_mask)
-        x = self.transformer.ln_f(x)
+        x = self.transformer.ln_f(x)  # type: ignore
         logits = self.lm_head(x)
         return logits
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
-        init_fn = partial(torch.nn.init.normal_, mean=0.0, std=self.cfg.init_std)
+        init_fn = partial(torch.nn.init.normal_,
+                          mean=0.0,
+                          std=self.cfg.init_std)
         # Linear
         if isinstance(module, nn.Linear):
             init_fn(module.weight)
@@ -218,7 +238,7 @@ class MosaicGPT(nn.Module):
                 torch.nn.init.zeros_(module.bias_k)
             if module.bias_v is not None:
                 torch.nn.init.zeros_(module.bias_v)
-            
+
             # out proj
             if module.out_proj._is_residual:
                 module.out_proj.weight.data.normal_(
@@ -253,7 +273,7 @@ class ComposerMosaicGPT(ComposerModel):
         }
 
     def get_targets(self, batch):
-        targets = torch.roll(batch["labels"], shifts=-1)
+        targets = torch.roll(batch['labels'], shifts=-1)
         targets[:, -1] = -100
         return targets
 

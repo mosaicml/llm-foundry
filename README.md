@@ -28,4 +28,3 @@ Train the MosaicML DeepLabV3 that yields a :sparkles:5x:sparkles: faster time-to
 A simple yet feature complete implementation of GPT, that scales to 70B parameters while maintaining high performance on GPU clusters. Flexible code, written with vanilla PyTorch, that uses [PyTorch FSDP](https://pytorch.org/blog/introducing-pytorch-fully-sharded-data-parallel-api/) and some recent efficiency improvements.
 
 :rocket: Get started with the code [here](./llm/).
-

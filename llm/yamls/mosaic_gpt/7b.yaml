@@ -77,8 +77,8 @@ optimizer:
   name: decoupled_adamw
   lr: 1.2e-4
   betas:
-    - 0.9
-    - 0.95
+  - 0.9
+  - 0.95
   eps: 1.0e-08
   weight_decay: 0.0
 
@@ -114,7 +114,7 @@ callbacks:
   memory_monitor: {}
 
 # loggers:
-  # wandb: {}
+#   wandb: {}
 
 # Checkpoint to local filesystem or remote object store
 # save_interval: 5000ba
@@ -125,6 +125,3 @@ callbacks:
 # Load from local filesystem or remote object store
 # load_path: ./gpt-7b/checkpoints/latest-rank{rank}.pt
 # load_path: s3://my-bucket/my-folder/gpt-7b/checkpoints/latest-rank{rank}.pt
-
-
-

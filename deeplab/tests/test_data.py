@@ -1,19 +1,24 @@
+# Copyright 2022 MosaicML Benchmarks authors
+# SPDX-License-Identifier: Apache-2.0
+
 import os
-import tempfile
 import shutil
-import pytest
 import sys
-import torch
+import tempfile
 
 import numpy as np
+import pytest
+import torch
 from PIL import Image
 
 from ..data import build_ade20k_dataspec, check_dataloader
 
 
 class SynthADE20KDirectory:
+
     def __enter__(self):
-        self.path = create_synthetic_ade20k()
+        path = create_synthetic_ade20k()
+        self.path = path  # type: ignore (reportUninitializedInstanceVariable)
         return self.path
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -56,10 +61,12 @@ def create_synthetic_ade20k():
 
         train_image = Image.fromarray(
             train_image.astype('uint8')).convert('RGB')
-        train_image.save(os.path.join(train_images_path, f'ADE_train_0000000{i}.jpg'))
+        train_image.save(
+            os.path.join(train_images_path, f'ADE_train_0000000{i}.jpg'))
 
         train_target = Image.fromarray(trian_target.astype('uint8'))
-        train_target.save(os.path.join(train_annotations_path, f'ADE_train_0000000{i}.png'))
+        train_target.save(
+            os.path.join(train_annotations_path, f'ADE_train_0000000{i}.png'))
 
         val_image = np.random.rand(height, width, 3) * 255
         val_target = np.random.randint(low=0,
@@ -70,16 +77,14 @@ def create_synthetic_ade20k():
         val_image.save(os.path.join(val_images_path, f'ADE_val_0000000{i}.jpg'))
 
         val_target = Image.fromarray(val_target.astype('uint8'))
-        val_target.save(os.path.join(val_annotations_path, f'ADE_val_0000000{i}.png'))
+        val_target.save(
+            os.path.join(val_annotations_path, f'ADE_val_0000000{i}.png'))
 
     return tmp_dirname
 
 
 @pytest.mark.parametrize('split', ['train', 'val'])
-def test_dataloader_builder(split,
-                            batch_size=2,
-                            base_size=32,
-                            final_size=32):
+def test_dataloader_builder(split, batch_size=2, base_size=32, final_size=32):
     with SynthADE20KDirectory() as datadir:
         ade20k_dataspec = build_ade20k_dataspec(datadir,
                                                 is_streaming=False,

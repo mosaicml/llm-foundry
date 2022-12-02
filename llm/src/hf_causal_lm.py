@@ -3,7 +3,6 @@
 
 import torch
 import torch.nn.functional as F
-import transformers
 from composer.metrics.nlp import LanguageCrossEntropy, Perplexity
 from composer.models.base import ComposerModel
 from transformers import AutoConfig, AutoModelForCausalLM
@@ -25,6 +24,7 @@ _HF_MODEL_BLOCKS = (
     GPTNeoXLayer,
 )
 
+
 def prepare_hf_causal_lm_model_for_fsdp(model):
     assert isinstance(model, _SUPPORTED_HF_MODELS)
     # When using the HF Causal LM models,
@@ -38,10 +38,12 @@ def prepare_hf_causal_lm_model_for_fsdp(model):
 
     # FSDP Wrap and Activation Checkpoint every GPT2Block
     model.fsdp_wrap_fn = lambda module: isinstance(module, _HF_MODEL_BLOCKS)
-    model.activation_checkpointing_fn = lambda module: isinstance(module, _HF_MODEL_BLOCKS)
+    model.activation_checkpointing_fn = lambda module: isinstance(
+        module, _HF_MODEL_BLOCKS)
 
 
 class ComposerHFCausalLM(ComposerModel):
+
     def __init__(self, cfg):
         super().__init__()
         config = AutoConfig.from_pretrained(cfg.hf_config_name_or_path)
@@ -57,12 +59,13 @@ class ComposerHFCausalLM(ComposerModel):
         prepare_hf_causal_lm_model_for_fsdp(self.model)
 
     def get_targets(self, batch):
-        targets = torch.roll(batch["labels"], shifts=-1)
+        targets = torch.roll(batch['labels'], shifts=-1)
         targets[:, -1] = -100
         return targets
 
     def forward(self, batch):
-        return self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'].bool()).logits
+        return self.model(input_ids=batch['input_ids'],
+                          attention_mask=batch['attention_mask'].bool()).logits
 
     def eval_forward(self, batch, outputs=None):
         return outputs if outputs is not None else self.forward(batch)

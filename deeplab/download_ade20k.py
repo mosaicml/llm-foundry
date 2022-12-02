@@ -1,19 +1,19 @@
-# Copyright 2022 MosaicML Composer authors
+# Copyright 2022 MosaicML Benchmarks authors
 # SPDX-License-Identifier: Apache-2.0
+
 """ADE20K Semantic segmentation and scene parsing dataset.
+
 Please refer to the `ADE20K dataset <https://groups.csail.mit.edu/vision/datasets/ADE20K/>`_ for more details about this
 dataset.
 """
 
 import argparse
+
 import torchvision
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument(
-    'path',
-    help='ADE20k Download directory.',
-    type=str)
+parser.add_argument('path', help='ADE20k Download directory.', type=str)
 
 args = parser.parse_args()
 

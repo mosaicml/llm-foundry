@@ -1,12 +1,12 @@
 run_name: cifar_example
-cluster: null       # Name of the cluster to use for this run
+cluster:            # Name of the cluster to use for this run
 gpu_type: a100_40gb # Type of GPU to use
 gpu_num: 8          # Number of GPUs to use
 image: mosaicml/pytorch:1.12.1_cu116-python3.9-ubuntu20.04
 integrations:
-  - integration_type: "git_repo"
-    git_repo: mosaicml/benchmarks
-    git_branch: landan/cifar_benchmark
+- integration_type: git_repo
+  git_repo: mosaicml/benchmarks
+  git_branch: landan/cifar_benchmark
 command: |
   cd benchmarks/cifar
   pip install -r requirements.txt

@@ -2,7 +2,7 @@ run_name: r50_i1k_baseline # Name of the  training run used for checkpointing an
 is_train: true             # Trains the model if true, otherwise runs evaluation
 seed: 17                   # Random seed
 max_duration: 90ep         # Duration to train specified as a Time string
-grad_accum: 'auto'         # Amount of gradient accumulation, 'auto' means Composer will choose the optimal value
+grad_accum: auto           # Amount of gradient accumulation, 'auto' means Composer will choose the optimal value
 
 # Model
 model:
@@ -42,12 +42,12 @@ scheduler:
 loggers:
   progress_bar: {}
   # wandb:     # Uncomment and fill below arguments to use WandB logger
-    # entity:  # Name of WandB entity, usually username or organization name
-    # project: # Name of WandB project
-    # group:   # Name of WandB group
+  #   entity:  # Name of WandB entity, usually username or organization name
+  #   project: # Name of WandB project
+  #   group:   # Name of WandB group
 
 # null for baseline or for recipe, either ["mild", "medium", "hot"] in order of increasing training time and accuracy
-recipe_name: null
+recipe_name:
 
 # Updated parameters for mild recipe
 mild:
@@ -71,9 +71,9 @@ hot:
   max_duration: 270ep
 
 # Save checkpoint parameters
-save_folder: null               # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
+save_folder:                    # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
 save_interval: 10ep             # Interval to checkpoint based on time string
 save_num_checkpoints_to_keep: 1 # Cleans up checkpoints saved locally only!
 
 # Load checkpoint parameters
-load_path: null # e.g. './ckpt/latest-rank{rank}.pt' (local) or 's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)
+load_path:      # e.g. './ckpt/latest-rank{rank}.pt' (local) or 's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)

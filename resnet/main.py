@@ -1,5 +1,6 @@
 # Copyright 2022 MosaicML Benchmarks authors
 # SPDX-License-Identifier: Apache-2.0
+
 """Example script to train a ResNet model on ImageNet."""
 
 import os
@@ -11,14 +12,13 @@ from composer import Trainer
 from composer.algorithms import (EMA, SAM, BlurPool, ChannelsLast, ColOut,
                                  LabelSmoothing, MixUp, ProgressiveResizing,
                                  RandAugment, StochasticDepth)
-from composer.callbacks import MemoryMonitor, LRMonitor, SpeedMonitor
+from composer.callbacks import LRMonitor, MemoryMonitor, SpeedMonitor
 from composer.loggers import ProgressBarLogger, WandBLogger
 from composer.optim import CosineAnnealingWithWarmupScheduler, DecoupledSGDW
 from composer.utils import dist
-from omegaconf import OmegaConf, DictConfig
-
 from data import build_imagenet_dataspec
 from model import build_composer_resnet
+from omegaconf import DictConfig, OmegaConf
 
 
 def build_logger(name: str, kwargs: Dict):
@@ -32,6 +32,7 @@ def build_logger(name: str, kwargs: Dict):
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
+
 def log_config(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
     if 'wandb' in cfg.loggers:
@@ -42,14 +43,19 @@ def log_config(cfg: DictConfig):
         if wandb.run:
             wandb.config.update(OmegaConf.to_container(cfg, resolve=True))
 
+
 def main(config):
     if config.grad_accum == 'auto' and not torch.cuda.is_available():
-        raise ValueError('grad_accum="auto" requires training with a GPU; please specify grad_accum as an integer')
+        raise ValueError(
+            'grad_accum="auto" requires training with a GPU; please specify grad_accum as an integer'
+        )
 
     # If using a recipe, update the config's loss name, eval and train resize sizes, and the max duration
     if config.recipe_name:
         if config.recipe_name not in ['mild', 'medium', 'hot']:
-            raise ValueError(f'recipe_name={config.recipe_name}, but must be one of ["mild", "medium", "hot"]')
+            raise ValueError(
+                f'recipe_name={config.recipe_name}, but must be one of ["mild", "medium", "hot"]'
+            )
         recipe_config = config[config.recipe_name]
         config.update(recipe_config)
 
@@ -116,9 +122,11 @@ def main(config):
 
     # Callbacks for logging
     print('Building Speed, LR, and Memory monitoring callbacks')
-    speed_monitor = SpeedMonitor(window_size=50) # Measures throughput as samples/sec and tracks total training time
-    lr_monitor = LRMonitor() # Logs the learning rate
-    memory_monitor = MemoryMonitor() # Logs memory utilization
+    speed_monitor = SpeedMonitor(
+        window_size=50
+    )  # Measures throughput as samples/sec and tracks total training time
+    lr_monitor = LRMonitor()  # Logs the learning rate
+    memory_monitor = MemoryMonitor()  # Logs memory utilization
 
     # Callback for checkpointing
     print('Built Speed, LR, and Memory monitoring callbacks\n')
@@ -170,31 +178,35 @@ def main(config):
         algorithms = None
     print('Built algorithm recipes\n')
 
-    loggers = [build_logger(name, logger_config) for name, logger_config in config.loggers.items()]
+    loggers = [
+        build_logger(name, logger_config)
+        for name, logger_config in config.loggers.items()
+    ]
 
     # Create the Trainer!
     print('Building Trainer')
     device = 'gpu' if torch.cuda.is_available() else 'cpu'
     precision = 'amp' if device == 'gpu' else 'fp32'  # Mixed precision for fast training when using a GPU
-    trainer = Trainer(run_name=config.run_name,
-                      model=composer_model,
-                      train_dataloader=train_dataspec,
-                      eval_dataloader=eval_dataspec,
-                      eval_interval='1ep',
-                      optimizers=optimizer,
-                      schedulers=lr_scheduler,
-                      algorithms=algorithms,
-                      loggers=loggers,
-                      max_duration=config.max_duration,
-                      callbacks=[speed_monitor, lr_monitor, memory_monitor],
-                      save_folder=config.save_folder,
-                      save_interval=config.save_interval,
-                      save_num_checkpoints_to_keep=config.save_num_checkpoints_to_keep,
-                      load_path=config.load_path,
-                      device=device,
-                      precision=precision,
-                      grad_accum=config.grad_accum,
-                      seed=config.seed)
+    trainer = Trainer(
+        run_name=config.run_name,
+        model=composer_model,
+        train_dataloader=train_dataspec,
+        eval_dataloader=eval_dataspec,
+        eval_interval='1ep',
+        optimizers=optimizer,
+        schedulers=lr_scheduler,
+        algorithms=algorithms,
+        loggers=loggers,
+        max_duration=config.max_duration,
+        callbacks=[speed_monitor, lr_monitor, memory_monitor],
+        save_folder=config.save_folder,
+        save_interval=config.save_interval,
+        save_num_checkpoints_to_keep=config.save_num_checkpoints_to_keep,
+        load_path=config.load_path,
+        device=device,
+        precision=precision,
+        grad_accum=config.grad_accum,
+        seed=config.seed)
     print('Built Trainer\n')
 
     print('Logging config')

@@ -21,8 +21,8 @@ medium:
 hot:
   max_duration: 1ba
 
-save_folder: null
+save_folder:
 save_interval: 1ba
 save_num_checkpoints_to_keep: 1
 
-load_path: null
+load_path:

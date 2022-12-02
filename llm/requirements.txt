@@ -3,7 +3,7 @@ torchtext==0.13.1
 torch==1.12.1
 mosaicml==0.11.1
 mosaicml-streaming==0.1.2
-flash-attn @ git+https://github.com/mvpatel2000/flash-attention@main
+flash-attn==0.2.2
 transformers==4.24.0
 datasets==2.7.1
 omegaconf==2.2.3

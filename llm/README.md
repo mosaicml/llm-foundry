@@ -16,7 +16,7 @@ We even packed in a few tricks (e.g. [FlashAttention](https://github.com/HazyRes
 
 You'll find in this folder:
 * `src/mosaic_gpt.py` - a simple PyTorch GPT model, wrapped in `ComposerModel`, that can scale up to 70B parameters
-* `src/data_c4.py` - a [MosaicML streaming dataset](https://docs.mosaicml.com/projects/streaming/en/latest/) that can be used with a vanilla PyTorch dataloader.
+* `src/data_c4.py` - a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) that can be used with a vanilla PyTorch dataloader.
 * `main.py` - a script that builds a [Composer](https://github.com/mosaicml/composer) Trainer and calls `trainer.fit()`.
 * `yamls/` - pre-baked configs for training compute-optimal LLMs from 125M up to 70B parameters.
 
@@ -63,7 +63,7 @@ We first convert the dataset from its native format (a collection of zipped JSON
 to MosaicML's streaming dataset format (a collection of binary `.mds` files).
 Once in `.mds` format, we can store the dataset in a central location (filesystem, S3, GCS, etc.)
 and stream the data to any compute cluster, with any number of devices, and any number of CPU workers, and it all ~ just works ~ .
-You can read more about [the benefits of using mosaicml-streaming here](https://docs.mosaicml.com/projects/streaming/en/latest/):
+You can read more about [the benefits of using mosaicml-streaming here](https://streaming.docs.mosaicml.com/en/latest/):
 
 ### Converting C4 to streaming dataset `.mds` format
 To make yourself a copy of C4, use `convert_c4.py` like so:

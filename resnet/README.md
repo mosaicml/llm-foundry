@@ -27,7 +27,7 @@ This folder contains starter code for training [torchvision ResNet architectures
 
 The specific files in this folder are:
 * `model.py` - Creates a [ComposerModel](https://docs.mosaicml.com/en/v0.11.0/composer_model.html) from a torchvision ResNet model
-* `data.py` - Provides a [MosaicML streaming dataset](https://docs.mosaicml.com/projects/streaming/en/latest/) for ImageNet and a PyTorch dataset for a local copy of ImageNet
+* `data.py` - Provides a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) for ImageNet and a PyTorch dataset for a local copy of ImageNet
 * `main.py` - Trains a ResNet on ImagNet using the [Composer](https://github.com/mosaicml/composer) [Trainer](https://docs.mosaicml.com/en/stable/api_reference/generated/composer.Trainer.html#trainer).
 * `tests/` - A suite of tests to check each training component
 * `yamls/`

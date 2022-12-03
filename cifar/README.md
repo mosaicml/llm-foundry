@@ -31,7 +31,7 @@ This folder contains starter code for training a CIFAR ResNet architecture. You 
 
 The specific files in this folder are:
 * `model.py` - Creates a [ComposerModel](https://docs.mosaicml.com/en/v0.11.0/composer_model.html) from a CIFAR ResNet model defined in the script
-* `data.py` - Creates either a Torchvision dataset or a [MosaicML streaming dataset](https://docs.mosaicml.com/projects/streaming/en/latest/) for CIFAR10
+* `data.py` - Creates either a Torchvision dataset or a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) for CIFAR10
 * `main.py` - Trains a CIFAR ResNet on CIFAR10 using the [Composer](https://github.com/mosaicml/composer) [Trainer](https://docs.mosaicml.com/en/stable/api_reference/generated/composer.Trainer.html#trainer)
 * `tests/` - A suite of tests to check each training component
 * `yamls/`

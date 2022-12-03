@@ -10,7 +10,7 @@ You'll find in this folder:
 
 * `main.py` — A straightforward script for parsing YAMLs, building a [Composer](https://github.com/mosaicml/composer) Trainer, and kicking off an MLM pre-training job, locally or on Mosaic's cloud.
 * `convert_c4.py` — A script for converting [C4](https://huggingface.co/datasets/c4) into a format used by our streaming dataset. See [Dataset preparation](#Dataset-preparation).
-* `src/data_c4.py` — A [MosaicML streaming dataset](https://docs.mosaicml.com/projects/streaming/en/latest/) for MLM pre-training that can be used with a vanilla PyTorch dataloader.
+* `src/data_c4.py` — A [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) for MLM pre-training that can be used with a vanilla PyTorch dataloader.
 * `yamls/main/` - Pre-baked configs for pre-training both our sped-up Mosaic BERT as well as the reference HuggingFace BERT. These are used when running `main.py`.
 * `yamls/test/main.yaml` - A config for quickly verifying that `main.py` runs.
 ### Fine-tuning
@@ -96,7 +96,7 @@ We first convert the dataset from its native format (a collection of zipped JSON
 to MosaicML's streaming dataset format (a collection of binary `.mds` files).
 Once in `.mds` format, we can store the dataset in a central location (filesystem, S3, GCS, etc.)
 and stream the data to any compute cluster, with any number of devices, and any number of CPU workers, and it all just works.
-You can read more about the benefits of using mosaicml-streaming [here](https://docs.mosaicml.com/projects/streaming/en/latest/).
+You can read more about the benefits of using mosaicml-streaming [here](https://streaming.docs.mosaicml.com/en/latest/).
 
 ### Converting C4 to streaming dataset `.mds` format
 

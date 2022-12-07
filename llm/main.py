@@ -57,6 +57,10 @@ def build_scheduler(cfg):
 
 
 def calculate_batch_size_info(global_batch_size, device_microbatch_size):
+    if global_batch_size % dist.get_world_size() != 0:
+        raise ValueError(f'Global batch size {global_batch_size} is not divisible by {dist.get_world_size()} '
+                         'as a result, the batch size would be truncated, please adjust `global_batch_size` '
+                         f'to be divisible by world size, {dist.get_world_size()}.')
     device_batch_size = global_batch_size // dist.get_world_size()
     if device_microbatch_size == 'auto':
         device_grad_accum = 'auto'

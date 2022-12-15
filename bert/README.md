@@ -321,7 +321,7 @@ So, for example, if you want to use ALiBi positional embeddings (and [you probab
 
 Another good example is domain-specific tokenization. In the biomedical domain, words may be split by the pre-trained BERT tokenizer in ways that make downstream tasks more difficult and computationally expensive. For example, the common drug "naloxone" is tokenized by `bert-base-uncased` tokenizer into the 4 tokens `[na, ##lo, ##xon, ##e]` [(Gu et al., 2020)](https://arxiv.org/abs/2007.15779), making tasks like NER more difficult and using more of the limited sequence length available.
 
-In short, you should pre-train your own Mosaic BERT from scratch :) 
+In short, you should pre-train your own Mosaic BERT from scratch :)
 
 
 

@@ -1,5 +1,5 @@
-# # Copyright 2022 MosaicML Composer authors
-# # SPDX-License-Identifier: Apache-2.0
+# Copyright 2022 MosaicML Benchmarks authors
+# SPDX-License-Identifier: Apache-2.0
 
 # """Contains GLUE job objects for the simple_glue_trainer."""
 import atexit
@@ -7,11 +7,11 @@ import copy
 import gc
 import multiprocessing as mp
 import os
+from multiprocessing import managers
 from typing import Any, Dict, List, Optional, Union, cast
 
 import torch
-from torch.utils.data import DataLoader
-
+from composer import ComposerModel
 from composer.core import Callback
 from composer.core.evaluator import Evaluator
 from composer.core.types import Dataset
@@ -20,8 +20,8 @@ from composer.optim import ComposerScheduler, DecoupledAdamW
 from composer.trainer.devices import Device, DeviceGPU
 from composer.trainer.trainer import Trainer
 from composer.utils import dist, reproducibility
-
 from src.glue.data import create_glue_dataset
+from torch.utils.data import DataLoader
 
 
 def _build_dataloader(dataset, **kwargs):
@@ -49,14 +49,16 @@ TASK_NAME_TO_NUM_LABELS = {
     'cola': 2
 }
 
+
 def reset_trainer(trainer: Trainer, garbage_collect: bool = False):
-    """Cleans up memory usage left by trainer"""
+    """Cleans up memory usage left by trainer."""
     trainer.close()
     # Unregister engine from atexit to remove ref
     atexit.unregister(trainer.engine._close)
     # Close potentially persistent dataloader workers
-    if trainer.state.train_dataloader and trainer.state.train_dataloader._iterator is not None:  # type: ignore [reportGeneralTypeIssues]
-        trainer.state.train_dataloader._iterator._shutdown_workers()  # type: ignore [reportGeneralTypeIssues]
+    loader = trainer.state.train_dataloader
+    if loader and loader._iterator is not None:  # type: ignore
+        loader._iterator._shutdown_workers()  # type: ignore
     # Explicitly delete attributes of state as otherwise gc.collect() doesn't free memory
     for key in list(trainer.state.__dict__.keys()):
         delattr(trainer.state, key)
@@ -66,6 +68,7 @@ def reset_trainer(trainer: Trainer, garbage_collect: bool = False):
     if garbage_collect:
         gc.collect()
         torch.cuda.empty_cache()
+
 
 class FineTuneJob:
     """Encapsulates a fine-tuning job.
@@ -117,17 +120,18 @@ class FineTuneJob:
             return self._job_name
         return self.__class__.__name__
 
-    def run(
-        self,
-        gpu_queue: Optional[mp.Queue] = None,
-        process_to_gpu: Optional[mp.managers.DictProxy] = None
-    ) -> Dict[str, Any]:
+    def run(self,
+            gpu_queue: Optional[mp.Queue] = None,
+            process_to_gpu: Optional[managers.DictProxy] = None
+           ) -> Dict[str, Any]:
         """Trains the model, optionally pulling a GPU id from the queue.
-        Returns a dict with keys:
-        * 'checkpoints': list of saved_checkpoints, if any,
-        * 'metrics': nested dict of results, accessed by
-                     dataset and metric name, e.g.
-                     ``metrics['glue_mnli']['Accuracy']``.
+
+        Returns:
+            A dict with keys:
+            * 'checkpoints': list of saved_checkpoints, if any,
+            * 'metrics': nested dict of results, accessed by
+                        dataset and metric name, e.g.
+                        ``metrics['glue_mnli']['Accuracy']``.
         """
         if gpu_queue is None:
             if torch.cuda.device_count() > 0:
@@ -138,6 +142,7 @@ class FineTuneJob:
                 device = 'cpu'
         else:
             current_pid = os.getpid()
+            assert process_to_gpu is not None
             if current_pid in process_to_gpu:
                 gpu_id = process_to_gpu[current_pid]
             else:
@@ -154,7 +159,8 @@ class FineTuneJob:
         collected_metrics: Dict[str, Dict[str, Any]] = {}
         for eval_name, metrics in trainer.state.eval_metrics.items():
             collected_metrics[eval_name] = {
-                name: metric.compute().cpu().numpy() for name, metric in metrics.items()
+                name: metric.compute().cpu().numpy()
+                for name, metric in metrics.items()
             }
 
         saved_checkpoints = copy.copy(trainer.saved_checkpoints)
@@ -162,7 +168,11 @@ class FineTuneJob:
 
         self.print_metrics(collected_metrics)
 
-        output = {'checkpoints': saved_checkpoints, 'metrics': collected_metrics, 'job_name': self.job_name}
+        output = {
+            'checkpoints': saved_checkpoints,
+            'metrics': collected_metrics,
+            'job_name': self.job_name
+        }
 
         return output
 
@@ -171,7 +181,7 @@ class GlueClassificationJob(FineTuneJob):
 
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: ComposerModel,
         tokenizer_name: str,
         job_name: Optional[str] = None,
         seed: int = 42,
@@ -191,7 +201,7 @@ class GlueClassificationJob(FineTuneJob):
     ):
         if task_name is None:
             raise ValueError(
-                "GlueClassificationJob should not be instantiated directly. Please instantiate a specific glue job type instead (e.g. MNLIJob)."
+                'GlueClassificationJob should not be instantiated directly. Please instantiate a specific glue job type instead (e.g. MNLIJob).'
             )
         super().__init__(job_name, load_path, save_folder, seed, **kwargs)
 
@@ -217,29 +227,30 @@ class GlueClassificationJob(FineTuneJob):
         self.optimizer = None
 
     def get_trainer(self, device: Optional[Union[Device, str]] = None):
-        return Trainer(model=self.model,
-                       optimizers=self.optimizer,
-                       schedulers=self.scheduler,
-                       train_dataloader=self.train_dataloader,
-                       eval_dataloader=self.evaluators,
-                       eval_interval=self.eval_interval,
-                       load_path=self.load_path,
-                       save_folder=self.save_folder,
-                       max_duration=self.max_duration,
-                       seed=self.seed,
-                       grad_accum='auto' if torch.cuda.device_count() > 0 else 1,
-                       load_weights_only=True,
-                       load_strict_model_weights=False,
-                       loggers=self.loggers,
-                       callbacks=self.callbacks,
-                       python_log_level='ERROR',
-                       run_name=self.job_name,
-                       load_ignore_keys=['state/model/model.classifier*'],
-                       precision=self.precision,
-                       device=device,
-                       progress_bar=True,
-                       log_to_console=False,
-                       **self.kwargs)
+        return Trainer(
+            model=self.model,
+            optimizers=self.optimizer,
+            schedulers=self.scheduler,
+            train_dataloader=self.train_dataloader,
+            eval_dataloader=self.evaluators,
+            eval_interval=self.eval_interval,
+            load_path=self.load_path,
+            save_folder=self.save_folder,
+            max_duration=self.max_duration,
+            seed=self.seed,
+            grad_accum='auto' if torch.cuda.device_count() > 0 else 1,
+            load_weights_only=True,
+            load_strict_model_weights=False,
+            loggers=self.loggers,
+            callbacks=self.callbacks,
+            python_log_level='ERROR',
+            run_name=self.job_name,
+            load_ignore_keys=['state/model/model.classifier*'],
+            precision=self.precision,
+            device=device,
+            progress_bar=True,
+            log_to_console=False,
+            **self.kwargs)
 
 
 class MNLIJob(GlueClassificationJob):
@@ -247,7 +258,7 @@ class MNLIJob(GlueClassificationJob):
 
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: ComposerModel,
         tokenizer_name: str,
         job_name: Optional[str] = None,
         seed: int = 42,
@@ -300,15 +311,20 @@ class MNLIJob(GlueClassificationJob):
             'drop_last': False,
         }
         train_dataset = create_glue_dataset(split='train', **dataset_kwargs)
-        self.train_dataloader = _build_dataloader(train_dataset, **dataloader_kwargs)
-        mnli_eval_dataset = create_glue_dataset(split='validation_matched', **dataset_kwargs)
-        mnli_eval_mismatched_dataset = create_glue_dataset(split='validation_mismatched', **dataset_kwargs)
+        self.train_dataloader = _build_dataloader(train_dataset,
+                                                  **dataloader_kwargs)
+        mnli_eval_dataset = create_glue_dataset(split='validation_matched',
+                                                **dataset_kwargs)
+        mnli_eval_mismatched_dataset = create_glue_dataset(
+            split='validation_mismatched', **dataset_kwargs)
         mnli_evaluator = Evaluator(label='glue_mnli',
-                                   dataloader=_build_dataloader(mnli_eval_dataset, **dataloader_kwargs),
+                                   dataloader=_build_dataloader(
+                                       mnli_eval_dataset, **dataloader_kwargs),
                                    metric_names=['Accuracy'])
         mnli_evaluator_mismatched = Evaluator(label='glue_mnli_mismatched',
-                                              dataloader=_build_dataloader(mnli_eval_mismatched_dataset,
-                                                                           **dataloader_kwargs),
+                                              dataloader=_build_dataloader(
+                                                  mnli_eval_mismatched_dataset,
+                                                  **dataloader_kwargs),
                                               metric_names=['Accuracy'])
         self.evaluators = [mnli_evaluator, mnli_evaluator_mismatched]
 
@@ -318,7 +334,7 @@ class RTEJob(GlueClassificationJob):
 
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: ComposerModel,
         tokenizer_name: str,
         job_name: Optional[str] = None,
         seed: int = 42,
@@ -371,10 +387,13 @@ class RTEJob(GlueClassificationJob):
             'drop_last': False,
         }
         train_dataset = create_glue_dataset(split='train', **dataset_kwargs)
-        self.train_dataloader = _build_dataloader(train_dataset, **dataloader_kwargs)
-        rte_eval_dataset = create_glue_dataset(split='validation', **dataset_kwargs)
+        self.train_dataloader = _build_dataloader(train_dataset,
+                                                  **dataloader_kwargs)
+        rte_eval_dataset = create_glue_dataset(split='validation',
+                                               **dataset_kwargs)
         rte_evaluator = Evaluator(label='glue_rte',
-                                  dataloader=_build_dataloader(rte_eval_dataset, **dataloader_kwargs),
+                                  dataloader=_build_dataloader(
+                                      rte_eval_dataset, **dataloader_kwargs),
                                   metric_names=['Accuracy'])
         self.evaluators = [rte_evaluator]
 
@@ -384,7 +403,7 @@ class QQPJob(GlueClassificationJob):
 
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: ComposerModel,
         tokenizer_name: str,
         job_name: Optional[str] = None,
         seed: int = 42,
@@ -437,10 +456,13 @@ class QQPJob(GlueClassificationJob):
             'drop_last': False,
         }
         train_dataset = create_glue_dataset(split='train', **dataset_kwargs)
-        self.train_dataloader = _build_dataloader(train_dataset, **dataloader_kwargs)
-        qqp_eval_dataset = create_glue_dataset(split='validation', **dataset_kwargs)
+        self.train_dataloader = _build_dataloader(train_dataset,
+                                                  **dataloader_kwargs)
+        qqp_eval_dataset = create_glue_dataset(split='validation',
+                                               **dataset_kwargs)
         qqp_evaluator = Evaluator(label='glue_qqp',
-                                  dataloader=_build_dataloader(qqp_eval_dataset, **dataloader_kwargs),
+                                  dataloader=_build_dataloader(
+                                      qqp_eval_dataset, **dataloader_kwargs),
                                   metric_names=['Accuracy', 'BinaryF1Score'])
         self.evaluators = [qqp_evaluator]
 
@@ -450,7 +472,7 @@ class COLAJob(GlueClassificationJob):
 
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: ComposerModel,
         tokenizer_name: str,
         job_name: Optional[str] = None,
         seed: int = 42,
@@ -503,10 +525,13 @@ class COLAJob(GlueClassificationJob):
             'drop_last': False,
         }
         train_dataset = create_glue_dataset(split='train', **dataset_kwargs)
-        self.train_dataloader = _build_dataloader(train_dataset, **dataloader_kwargs)
-        cola_eval_dataset = create_glue_dataset(split='validation', **dataset_kwargs)
+        self.train_dataloader = _build_dataloader(train_dataset,
+                                                  **dataloader_kwargs)
+        cola_eval_dataset = create_glue_dataset(split='validation',
+                                                **dataset_kwargs)
         cola_evaluator = Evaluator(label='glue_cola',
-                                   dataloader=_build_dataloader(cola_eval_dataset, **dataloader_kwargs),
+                                   dataloader=_build_dataloader(
+                                       cola_eval_dataset, **dataloader_kwargs),
                                    metric_names=['MatthewsCorrCoef'])
         self.evaluators = [cola_evaluator]
 
@@ -516,7 +541,7 @@ class MRPCJob(GlueClassificationJob):
 
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: ComposerModel,
         tokenizer_name: str,
         job_name: Optional[str] = None,
         seed: int = 42,
@@ -569,10 +594,13 @@ class MRPCJob(GlueClassificationJob):
             'drop_last': False,
         }
         train_dataset = create_glue_dataset(split='train', **dataset_kwargs)
-        self.train_dataloader = _build_dataloader(train_dataset, **dataloader_kwargs)
-        mrpc_eval_dataset = create_glue_dataset(split='validation', **dataset_kwargs)
+        self.train_dataloader = _build_dataloader(train_dataset,
+                                                  **dataloader_kwargs)
+        mrpc_eval_dataset = create_glue_dataset(split='validation',
+                                                **dataset_kwargs)
         mrpc_evaluator = Evaluator(label='glue_mrpc',
-                                   dataloader=_build_dataloader(mrpc_eval_dataset, **dataloader_kwargs),
+                                   dataloader=_build_dataloader(
+                                       mrpc_eval_dataset, **dataloader_kwargs),
                                    metric_names=['Accuracy', 'BinaryF1Score'])
         self.evaluators = [mrpc_evaluator]
 
@@ -582,7 +610,7 @@ class QNLIJob(GlueClassificationJob):
 
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: ComposerModel,
         tokenizer_name: str,
         job_name: Optional[str] = None,
         seed: int = 42,
@@ -635,10 +663,13 @@ class QNLIJob(GlueClassificationJob):
             'drop_last': False,
         }
         train_dataset = create_glue_dataset(split='train', **dataset_kwargs)
-        self.train_dataloader = _build_dataloader(train_dataset, **dataloader_kwargs)
-        qnli_eval_dataset = create_glue_dataset(split='validation', **dataset_kwargs)
+        self.train_dataloader = _build_dataloader(train_dataset,
+                                                  **dataloader_kwargs)
+        qnli_eval_dataset = create_glue_dataset(split='validation',
+                                                **dataset_kwargs)
         qnli_evaluator = Evaluator(label='glue_qnli',
-                                   dataloader=_build_dataloader(qnli_eval_dataset, **dataloader_kwargs),
+                                   dataloader=_build_dataloader(
+                                       qnli_eval_dataset, **dataloader_kwargs),
                                    metric_names=['Accuracy'])
         self.evaluators = [qnli_evaluator]
 
@@ -648,7 +679,7 @@ class SST2Job(GlueClassificationJob):
 
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: ComposerModel,
         tokenizer_name: str,
         job_name: Optional[str] = None,
         seed: int = 42,
@@ -701,10 +732,13 @@ class SST2Job(GlueClassificationJob):
             'drop_last': False,
         }
         train_dataset = create_glue_dataset(split='train', **dataset_kwargs)
-        self.train_dataloader = _build_dataloader(train_dataset, **dataloader_kwargs)
-        sst2_eval_dataset = create_glue_dataset(split='validation', **dataset_kwargs)
+        self.train_dataloader = _build_dataloader(train_dataset,
+                                                  **dataloader_kwargs)
+        sst2_eval_dataset = create_glue_dataset(split='validation',
+                                                **dataset_kwargs)
         sst2_evaluator = Evaluator(label='glue_sst2',
-                                   dataloader=_build_dataloader(sst2_eval_dataset, **dataloader_kwargs),
+                                   dataloader=_build_dataloader(
+                                       sst2_eval_dataset, **dataloader_kwargs),
                                    metric_names=['Accuracy'])
         self.evaluators = [sst2_evaluator]
 
@@ -714,7 +748,7 @@ class STSBJob(GlueClassificationJob):
 
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: ComposerModel,
         tokenizer_name: str,
         job_name: Optional[str] = None,
         seed: int = 42,
@@ -767,10 +801,13 @@ class STSBJob(GlueClassificationJob):
             'drop_last': False,
         }
         train_dataset = create_glue_dataset(split='train', **dataset_kwargs)
-        self.train_dataloader = _build_dataloader(train_dataset, **dataloader_kwargs)
-        stsb_eval_dataset = create_glue_dataset(split='validation', **dataset_kwargs)
+        self.train_dataloader = _build_dataloader(train_dataset,
+                                                  **dataloader_kwargs)
+        stsb_eval_dataset = create_glue_dataset(split='validation',
+                                                **dataset_kwargs)
         stsb_evaluator = Evaluator(label='glue_stsb',
-                                   dataloader=_build_dataloader(stsb_eval_dataset, **dataloader_kwargs),
+                                   dataloader=_build_dataloader(
+                                       stsb_eval_dataset, **dataloader_kwargs),
                                    metric_names=['SpearmanCorrCoef'])
         self.evaluators = [stsb_evaluator]
 

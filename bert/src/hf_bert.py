@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Composer authors
+# Copyright 2022 MosaicML Benchmarks authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Implements a Hugging Face BERT wrapped inside a :class:`.ComposerModel`."""
@@ -7,16 +7,17 @@ from __future__ import annotations
 
 from typing import Optional
 
-from composer.metrics.nlp import LanguageCrossEntropy, MaskedAccuracy, BinaryF1Score
+from composer.metrics.nlp import (BinaryF1Score, LanguageCrossEntropy,
+                                  MaskedAccuracy)
 from composer.models.huggingface import HuggingFaceModel
 from composer.utils.import_helpers import MissingConditionalImportError
-
 from torchmetrics import MeanSquaredError
 from torchmetrics.classification.accuracy import Accuracy
 from torchmetrics.classification.matthews_corrcoef import MatthewsCorrCoef
 from torchmetrics.regression.spearman import SpearmanCorrCoef
 
 __all__ = ['create_hf_bert_mlm', 'create_hf_bert_classification']
+
 
 def create_hf_bert_mlm(pretrained_model_name: str = 'bert-base-uncased',
                        use_pretrained: Optional[bool] = False,
@@ -61,18 +62,18 @@ def create_hf_bert_mlm(pretrained_model_name: str = 'bert-base-uncased',
               "vocab_size": 30522
             }
 
-   To create a |:hugging_face:| BERT model for Masked Language Model pretraining:
+    To create a |:hugging_face:| BERT model for Masked Language Model pretraining:
 
-    .. testcode::
+     .. testcode::
 
-        from src.hf_bert import create_hf_bert_mlm
-        model = create_hf_bert_mlm()
-
+         from src.hf_bert import create_hf_bert_mlm
+         model = create_hf_bert_mlm()
     """
     try:
         import transformers
     except ImportError as e:
-        raise MissingConditionalImportError(extra_deps_group='nlp', conda_package='transformers') from e
+        raise MissingConditionalImportError(extra_deps_group='nlp',
+                                            conda_package='transformers') from e
 
     if not model_config:
         model_config = {}
@@ -82,10 +83,11 @@ def create_hf_bert_mlm(pretrained_model_name: str = 'bert-base-uncased',
 
     if use_pretrained:
         assert transformers.AutoModelForMaskedLM.from_pretrained is not None, 'AutoModelForMaskedLM has from_pretrained method'
-        model = transformers.AutoModelForMaskedLM.from_pretrained(pretrained_model_name_or_path=pretrained_model_name,
-                                                                  **model_config)
+        model = transformers.AutoModelForMaskedLM.from_pretrained(
+            pretrained_model_name_or_path=pretrained_model_name, **model_config)
     else:
-        config = transformers.AutoConfig.from_pretrained(pretrained_model_name, **model_config)
+        config = transformers.AutoConfig.from_pretrained(
+            pretrained_model_name, **model_config)
         assert transformers.AutoModelForMaskedLM.from_config is not None, 'AutoModelForMaskedLM has from_config method'
         model = transformers.AutoModelForMaskedLM.from_config(config)
 
@@ -99,19 +101,23 @@ def create_hf_bert_mlm(pretrained_model_name: str = 'bert-base-uncased',
         tokenizer = None
 
     metrics = [
-        LanguageCrossEntropy(ignore_index=-100, vocab_size=model.config.vocab_size),
+        LanguageCrossEntropy(ignore_index=-100,
+                             vocab_size=model.config.vocab_size),
         MaskedAccuracy(ignore_index=-100)
     ]
-    return HuggingFaceModel(model=model, tokenizer=tokenizer, use_logits=True, metrics=metrics)
+    return HuggingFaceModel(model=model,
+                            tokenizer=tokenizer,
+                            use_logits=True,
+                            metrics=metrics)
 
 
-def create_hf_bert_classification(num_labels: int,
-                                  pretrained_model_name: str = 'bert-base-uncased',
-                                  use_pretrained: Optional[bool] = False,
-                                  model_config: Optional[dict] = None,
-                                  tokenizer_name: Optional[str] = None,
-                                  gradient_checkpointing: Optional[bool] = False):
-
+def create_hf_bert_classification(
+        num_labels: int,
+        pretrained_model_name: str = 'bert-base-uncased',
+        use_pretrained: Optional[bool] = False,
+        model_config: Optional[dict] = None,
+        tokenizer_name: Optional[str] = None,
+        gradient_checkpointing: Optional[bool] = False):
     """BERT model based on |:hugging_face:| Transformers.
 
     For more information, see `Transformers <https://huggingface.co/transformers/>`_.
@@ -174,7 +180,8 @@ def create_hf_bert_classification(num_labels: int,
     try:
         import transformers
     except ImportError as e:
-        raise MissingConditionalImportError(extra_deps_group='nlp', conda_package='transformers') from e
+        raise MissingConditionalImportError(extra_deps_group='nlp',
+                                            conda_package='transformers') from e
 
     if not model_config:
         model_config = {}
@@ -189,9 +196,11 @@ def create_hf_bert_classification(num_labels: int,
         model = transformers.AutoModelForSequenceClassification.from_pretrained(
             pretrained_model_name_or_path=pretrained_model_name, **model_config)
     else:
-        config = transformers.AutoConfig.from_pretrained(pretrained_model_name, **model_config)
+        config = transformers.AutoConfig.from_pretrained(
+            pretrained_model_name, **model_config)
         assert transformers.AutoModelForSequenceClassification.from_config is not None, 'AutoModelForSequenceClassification has from_config method'
-        model = transformers.AutoModelForSequenceClassification.from_config(config)
+        model = transformers.AutoModelForSequenceClassification.from_config(
+            config)
 
     if gradient_checkpointing:
         model.gradient_checkpointing_enable()
@@ -207,8 +216,14 @@ def create_hf_bert_classification(num_labels: int,
         metrics = [MeanSquaredError(), SpearmanCorrCoef()]
     else:
         # Metrics for a classification model
-        metrics = [Accuracy(), MatthewsCorrCoef(num_classes=model.config.num_labels)]
+        metrics = [
+            Accuracy(),
+            MatthewsCorrCoef(num_classes=model.config.num_labels)
+        ]
         if num_labels == 2:
             metrics.append(BinaryF1Score())
 
-    return HuggingFaceModel(model=model, tokenizer=tokenizer, use_logits=True, metrics=metrics)
+    return HuggingFaceModel(model=model,
+                            tokenizer=tokenizer,
+                            use_logits=True,
+                            metrics=metrics)

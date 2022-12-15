@@ -69,8 +69,8 @@ optimizer:
   name: decoupled_adamw
   lr: 5.0e-4 # Peak learning rate
   betas:
-    - 0.9
-    - 0.98
+  - 0.9
+  - 0.98
   eps: 1.0e-06
   weight_decay: 1.0e-5 # Amount of weight decay regularization
 
@@ -95,13 +95,16 @@ callbacks:
 
 loggers:
   wandb: # (Comment this block to disable W&B logging)
-    project: null # Fill this in
-    entity: null # Fill this in
+    project:      # Fill this in
+    entity:      # Fill this in
 
 # Checkpoint to local filesystem or remote object store
 save_interval: 3500ba
 save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
-save_folder: null # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
+save_folder:      # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
 
-# (Optional) Load from local filesystem or remote object store to start from an existing model checkpoint
-# load_path: null # e.g. './ckpt/latest-rank{rank}.pt' (local) or 's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)
+# (Optional) Load from local filesystem or remote object store to
+# start from an existing model checkpoint;
+# e.g. './ckpt/latest-rank{rank}.pt' (local), or
+# 's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)
+# load_path: null

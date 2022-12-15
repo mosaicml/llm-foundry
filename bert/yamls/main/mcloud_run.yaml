@@ -9,13 +9,13 @@
 # When ready, use `mcli run -f yamls/main/mcloud_run.yaml` to launch
 
 run_name: &run_name mosaic-bert-base-uncased
-cluster: null  # Name of the cluster to use for this run
+cluster:       # Name of the cluster to use for this run
 gpu_type: a100_80gb # Type of GPU to use (we use a100_80gb)
 gpu_num: 8  # Number of GPUs to use
 image: mosaicml/pytorch:1.12.1_cu116-python3.9-ubuntu20.04
 integrations:
-  - integration_type: "git_repo"
-    git_repo: mosaicml/benchmarks
+- integration_type: git_repo
+  git_repo: mosaicml/benchmarks
 command: |
   cd benchmarks/bert
   pip install -r requirements.txt
@@ -25,7 +25,8 @@ command: |
 # Changes to `parameters` will be reflected in `/mnt/config/parameters.yaml`, which
 # is the config that `main.py` uses in the above command.
 parameters:
-  data_remote: &data_remote null # Supply a path to your remote dataset
+  # Supply a path to your remote dataset and, optionally, local dataset
+  data_remote: &data_remote ''
   data_local: &data_local /tmp/mds-cache/
 
   max_seq_len: &max_seq_len 128
@@ -90,8 +91,8 @@ parameters:
     name: decoupled_adamw
     lr: 5.0e-4 # Peak learning rate
     betas:
-      - 0.9
-      - 0.98
+    - 0.9
+    - 0.98
     eps: 1.0e-06
     weight_decay: 1.0e-5 # Amount of weight decay regularization
 
@@ -119,13 +120,16 @@ parameters:
 
   loggers:
     wandb: # (Comment this block to disable W&B logging)
-      project: null
-      entity: null
+      project:
+      entity:
 
   # Checkpoint to local filesystem or remote object store
   save_interval: 3500ba
   save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
-  save_folder: null # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
+  save_folder:      # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
 
-  # (Optional) Load from local filesystem or remote object store to start from an existing model checkpoint
-  # load_path: null # e.g. './ckpt/latest-rank{rank}.pt' (local) or 's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)
+  # (Optional) Load from local filesystem or remote object store to
+  # start from an existing model checkpoint;
+  # e.g. './ckpt/latest-rank{rank}.pt' (local), or
+  # 's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)
+  # load_path: null

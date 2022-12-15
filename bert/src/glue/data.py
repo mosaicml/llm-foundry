@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML Benchmarks authors
+# SPDX-License-Identifier: Apache-2.0
+
 import logging
 
 from composer.utils import MissingConditionalImportError, dist
@@ -28,15 +31,20 @@ def create_glue_dataset(
         import datasets
         import transformers
     except ImportError as e:
-        raise MissingConditionalImportError(extra_deps_group='nlp', conda_package='transformers') from e
+        raise MissingConditionalImportError(extra_deps_group='nlp',
+                                            conda_package='transformers') from e
 
     if task not in _task_column_names:
-        raise ValueError(f'task ({task}) must be one of {_task_column_names.keys()}')
+        raise ValueError(
+            f'task ({task}) must be one of {_task_column_names.keys()}')
 
     if (max_seq_length % 8) != 0:
-        log.warning('For performance, a max_seq_length as a multiple of 8 is recommended.')
+        log.warning(
+            'For performance, a max_seq_length as a multiple of 8 is recommended.'
+        )
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name)  #type: ignore (thirdparty)
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        tokenizer_name)  #type: ignore (thirdparty)
 
     log.info(f'Loading {task.upper()} on rank {dist.get_global_rank()}')
     download_config = datasets.DownloadConfig(max_retries=max_retries)
@@ -47,14 +55,16 @@ def create_glue_dataset(
         download_config=download_config,
     )
 
-    log.info(f'Starting tokenization by preprocessing over {num_workers} threads!')
+    log.info(
+        f'Starting tokenization by preprocessing over {num_workers} threads!')
     text_column_names = _task_column_names[task]
 
     def tokenize_function(inp):
         # truncates sentences to max_length or pads them to max_length
 
         first_half = inp[text_column_names[0]]
-        second_half = inp[text_column_names[1]] if text_column_names[1] in inp else None
+        second_half = inp[
+            text_column_names[1]] if text_column_names[1] in inp else None
         return tokenizer(
             text=first_half,
             text_pair=second_half,
@@ -63,7 +73,8 @@ def create_glue_dataset(
             truncation=True,
         )
 
-    columns_to_remove = ['idx'] + [i for i in text_column_names if i is not None]
+    columns_to_remove = ['idx'
+                        ] + [i for i in text_column_names if i is not None]
 
     assert isinstance(dataset, datasets.Dataset)
     dataset = dataset.map(

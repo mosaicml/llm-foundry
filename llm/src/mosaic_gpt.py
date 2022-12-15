@@ -71,7 +71,7 @@ class FlashCausalAttention(nn.Module):
     def __init__(self, cfg: DictConfig, device: Optional[str] = None):
         super().__init__()
         try:
-            from flash_attn.flash_attention import FlashMHA
+            from flash_attn.flash_attention import FlashMHA  # type: ignore
         except ImportError as e:
             raise e
 

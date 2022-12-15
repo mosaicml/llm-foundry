@@ -1,5 +1,5 @@
 # Use this YAML to verify that GLUE fine-tuning works. Runs on CPU or GPUs (if available).
-# From `benchmarks/bert`, run: 
+# From `benchmarks/bert`, run:
 #   `python glue.py yamls/test/glue.yaml` to run using the HuggingFace BERT
 #   `python glue.py yamls/test/glue.yaml model.name=mosaic_bert` to run using the Mosaic BERT
 
@@ -22,7 +22,7 @@ model:
 
 
 # Loading
-starting_checkpoint_load_path: null # Start from scratch for the sake of testing
+starting_checkpoint_load_path:      # Start from scratch for the sake of testing
 local_pretrain_checkpoint_folder: ./local-bert-checkpoints/
 
 # Saving
@@ -44,7 +44,7 @@ tasks: # Only run MNLI and RTE for the sake of testing
   mnli:
     # Specify any extra task-specific arguments for the trainer here
     trainer_kwargs:
-      # We keep one MNLI checkpoint locally so that we can start finetuning of 
+      # We keep one MNLI checkpoint locally so that we can start finetuning of
       # RTE, MRPC and STS-B from the MNLI checkpoint
       save_num_checkpoints_to_keep: 1
       max_duration: 10ba

@@ -1,5 +1,5 @@
 # Use this YAML to verify that MLM pre-training works. Runs on CPU or GPUs (if available).
-# From `benchmarks/bert`, run: 
+# From `benchmarks/bert`, run:
 #   `composer main.py yamls/test/main.yaml` to run using the HuggingFace BERT
 #   `composer main.py yamls/test/main.yaml model.name=mosaic_bert` to run using the Mosaic BERT
 
@@ -70,8 +70,8 @@ optimizer:
   name: decoupled_adamw
   lr: 2.0e-4
   betas:
-    - 0.9
-    - 0.95
+  - 0.9
+  - 0.95
   eps: 1.0e-08
   weight_decay: 0.0
 

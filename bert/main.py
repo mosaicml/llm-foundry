@@ -1,12 +1,12 @@
-# Copyright 2022 MosaicML Composer authors
+# Copyright 2022 MosaicML Benchmarks authors
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import sys
+from typing import Dict
 
 import wandb
-from composer import algorithms
-from composer import Trainer
+from composer import Trainer, algorithms
 from composer.callbacks import LRMonitor, MemoryMonitor, SpeedMonitor
 from composer.loggers import WandBLogger
 from composer.optim import DecoupledAdamW
@@ -15,7 +15,6 @@ from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       LinearWithWarmupScheduler)
 from composer.utils import dist, reproducibility
 from omegaconf import OmegaConf as om
-
 from src.data_c4 import build_c4_dataloader
 from src.hf_bert import create_hf_bert_mlm
 from src.mosaic_bert import create_mosaic_bert_mlm
@@ -27,6 +26,7 @@ def build_logger(name, kwargs):
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
+
 def build_callback(name, kwargs):
     if name == 'lr_monitor':
         return LRMonitor()
@@ -36,6 +36,7 @@ def build_callback(name, kwargs):
         return SpeedMonitor(window_size=kwargs.get('window_size', 1))
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
+
 
 def build_algorithm(name, kwargs):
     if name == 'alibi':
@@ -47,33 +48,30 @@ def build_algorithm(name, kwargs):
     else:
         raise ValueError(f'Not sure how to build algorithm: {name}')
 
+
 def build_optimizer(cfg, model):
     if cfg.name == 'decoupled_adamw':
-        return DecoupledAdamW(
-            model.parameters(),
-            lr=cfg.lr,
-            betas=cfg.betas,
-            eps=cfg.eps,
-            weight_decay=cfg.weight_decay
-        )
+        return DecoupledAdamW(model.parameters(),
+                              lr=cfg.lr,
+                              betas=cfg.betas,
+                              eps=cfg.eps,
+                              weight_decay=cfg.weight_decay)
     else:
         raise ValueError(f'Not sure how to build optimizer: {cfg.name}')
 
+
 def build_scheduler(cfg):
     if cfg.name == 'constant_with_warmup':
-        return ConstantWithWarmupScheduler(
-            t_warmup=cfg.t_warmup)
+        return ConstantWithWarmupScheduler(t_warmup=cfg.t_warmup)
     elif cfg.name == 'linear_decay_with_warmup':
-        return LinearWithWarmupScheduler(
-            t_warmup=cfg.t_warmup,
-            alpha_f=cfg.alpha_f
-        )
+        return LinearWithWarmupScheduler(t_warmup=cfg.t_warmup,
+                                         alpha_f=cfg.alpha_f)
     elif cfg.name == 'cosine_with_warmup':
-        return CosineAnnealingWithWarmupScheduler(
-            t_warmup=cfg.t_warmup,
-            alpha_f=cfg.alpha_f)
+        return CosineAnnealingWithWarmupScheduler(t_warmup=cfg.t_warmup,
+                                                  alpha_f=cfg.alpha_f)
     else:
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
+
 
 def build_model(cfg):
     if cfg.name == 'hf_bert':
@@ -82,18 +80,17 @@ def build_model(cfg):
             use_pretrained=cfg.get('use_pretrained', None),
             model_config=cfg.get('model_config', None),
             tokenizer_name=cfg.get('tokenizer_name', None),
-            gradient_checkpointing=cfg.get('gradient_checkpointing', None)
-        )
+            gradient_checkpointing=cfg.get('gradient_checkpointing', None))
     elif cfg.name == 'mosaic_bert':
         return create_mosaic_bert_mlm(
             pretrained_model_name=cfg.pretrained_model_name,
             pretrained_checkpoint=cfg.get('pretrained_checkpoint', None),
             model_config=cfg.get('model_config', None),
             tokenizer_name=cfg.get('tokenizer_name', None),
-            gradient_checkpointing=cfg.get('gradient_checkpointing', None)
-        )
+            gradient_checkpointing=cfg.get('gradient_checkpointing', None))
     else:
         raise ValueError(f'Not sure how to build model with name={cfg.name}')
+
 
 def build_dataloader(cfg, device_batch_size):
     if cfg.name == 'c4':
@@ -103,7 +100,7 @@ def build_dataloader(cfg, device_batch_size):
 
 
 def main(cfg):
-    print("Training using config: ")
+    print('Training using config: ')
     print(om.to_yaml(cfg))
     reproducibility.seed_all(cfg.seed)
 
@@ -115,32 +112,45 @@ def main(cfg):
 
     # Get batch size info
     if cfg.global_train_batch_size % dist.get_world_size() != 0:
-        raise ValueError(f'Global batch size {cfg.global_train_batch_size} is not divisible by {dist.get_world_size()} '
-                         'as a result, the batch size would be truncated, please adjust `global_train_batch_size` '
-                         f'to be divisible by world size, {dist.get_world_size()}.')
-    device_train_batch_size = cfg.global_train_batch_size // dist.get_world_size()
-    device_eval_batch_size = cfg.get('global_eval_batch_size', cfg.global_train_batch_size) // dist.get_world_size()
+        raise ValueError(
+            f'Global batch size {cfg.global_train_batch_size} is not divisible by {dist.get_world_size()} '
+            'as a result, the batch size would be truncated, please adjust `global_train_batch_size` '
+            f'to be divisible by world size, {dist.get_world_size()}.')
+    device_train_batch_size = cfg.global_train_batch_size // dist.get_world_size(
+    )
+    device_eval_batch_size = cfg.get(
+        'global_eval_batch_size',
+        cfg.global_train_batch_size) // dist.get_world_size()
 
     # Dataloaders
-    print("Building train loader...")
+    print('Building train loader...')
     train_loader = build_dataloader(cfg.train_loader, device_train_batch_size)
-    print("Building eval loader...")
+    print('Building eval loader...')
     eval_loader = build_dataloader(cfg.eval_loader, device_eval_batch_size)
 
     # Optimizer
     optimizer = build_optimizer(cfg.optimizer, model)
-    
+
     # Scheduler
     scheduler = build_scheduler(cfg.scheduler)
 
     # Loggers
-    loggers = [build_logger(name, logger_cfg) for name, logger_cfg in cfg.get('loggers', {}).items()]
+    loggers = [
+        build_logger(name, logger_cfg)
+        for name, logger_cfg in cfg.get('loggers', {}).items()
+    ]
 
     # Callbacks
-    callbacks = [build_callback(name, callback_cfg) for name, callback_cfg in cfg.get('callbacks', {}).items()]
+    callbacks = [
+        build_callback(name, callback_cfg)
+        for name, callback_cfg in cfg.get('callbacks', {}).items()
+    ]
 
     # Algorithms
-    algorithms = [build_algorithm(name, algorithm_cfg) for name, algorithm_cfg in cfg.get('algorithms', {}).items()]
+    algorithms = [
+        build_algorithm(name, algorithm_cfg)
+        for name, algorithm_cfg in cfg.get('algorithms', {}).items()
+    ]
 
     if 'run_name' in cfg:
         run_name = cfg['run_name']
@@ -171,13 +181,15 @@ def main(cfg):
         grad_accum=cfg.get('grad_accum', 'auto'),
         save_folder=cfg.get('save_folder', None),
         save_interval=cfg.get('save_interval', '1000ba'),
-        save_num_checkpoints_to_keep=cfg.get('save_num_checkpoints_to_keep', -1),
+        save_num_checkpoints_to_keep=cfg.get('save_num_checkpoints_to_keep',
+                                             -1),
         load_path=cfg.get('load_path', None),
         load_weights_only=cfg.get('load_weights_only', False),
     )
 
-    print("Logging config...")
+    print('Logging config...')
     config_dict = om.to_container(cfg, resolve=True)
+    assert isinstance(config_dict, (Dict,))  # type checking
     config_dict.update({
         'n_gpus': dist.get_world_size(),
         'n_params': n_params,
@@ -187,7 +199,7 @@ def main(cfg):
     if wandb.run is not None:
         wandb.config.update(config_dict)
 
-    print("Starting training...")
+    print('Starting training...')
     trainer.fit()
 
 

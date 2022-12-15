@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML Benchmarks authors
+# SPDX-License-Identifier: Apache-2.0
+
 import copy
 import gc
 import multiprocessing as mp
@@ -6,25 +9,25 @@ import sys
 import time
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor as Pool
-from multiprocessing.managers import SyncManager
+from multiprocessing.managers import DictProxy, SyncManager
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 from urllib.parse import urlparse
 
 import numpy as np
 import omegaconf as om
 import torch
-
-from composer.algorithms import Alibi, GatedLinearUnits, FusedLayerNorm
+from composer.algorithms import Alibi, FusedLayerNorm, GatedLinearUnits
 from composer.callbacks import LRMonitor, SpeedMonitor
 from composer.loggers import WandBLogger
 from composer.optim import LinearWithWarmupScheduler
 from composer.utils import reproducibility
 from composer.utils.file_helpers import get_file
 from composer.utils.object_store import S3ObjectStore
-
+from src.glue.finetuning_jobs import (TASK_NAME_TO_NUM_LABELS, COLAJob, MNLIJob,
+                                      MRPCJob, QNLIJob, QQPJob, RTEJob, SST2Job,
+                                      STSBJob)
 from src.hf_bert import create_hf_bert_classification
 from src.mosaic_bert import create_mosaic_bert_classification
-from src.glue.finetuning_jobs import COLAJob, MNLIJob, MRPCJob, QNLIJob, QQPJob, RTEJob, SST2Job, STSBJob, TASK_NAME_TO_NUM_LABELS
 
 TASK_NAME_TO_CLASS = {
     'mnli': MNLIJob,
@@ -60,6 +63,7 @@ def build_scheduler(cfg):
     else:
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
 
+
 def build_algorithm(name, cfg):
     if name == 'gated_linear_units':
         return GatedLinearUnits(**cfg)
@@ -79,8 +83,7 @@ def build_model(cfg, num_labels: int):
             use_pretrained=cfg.get('use_pretrained', False),
             model_config=cfg.get('model_config', None),
             tokenizer_name=cfg.get('tokenizer_name', None),
-            gradient_checkpointing=cfg.get('gradient_checkpointing', None)
-        )
+            gradient_checkpointing=cfg.get('gradient_checkpointing', None))
     elif cfg.name == 'mosaic_bert':
         return create_mosaic_bert_classification(
             num_labels=num_labels,
@@ -88,14 +91,16 @@ def build_model(cfg, num_labels: int):
             pretrained_checkpoint=cfg.get('pretrained_checkpoint', None),
             model_config=cfg.get('model_config', None),
             tokenizer_name=cfg.get('tokenizer_name', None),
-            gradient_checkpointing=cfg.get('gradient_checkpointing', None)
-        )
+            gradient_checkpointing=cfg.get('gradient_checkpointing', None))
     else:
         raise ValueError(f'Not sure how to build model with name={cfg.name}')
 
 
 def get_values_from_path(path: str, separator: str = '/') -> Dict[str, str]:
-    """Parses out information from a path/string that looks like ...<separator>key=value<separator..."""
+    """Parses out information from a path/string that looks like.
+
+    ...<separator>key=value<separator...
+    """
     dict_output = {}
     underscore_split = path.split(separator)
     for item in underscore_split:
@@ -114,30 +119,41 @@ def get_checkpoint_name_from_path(path: str) -> str:
 
 def download_starting_checkpoint(starting_checkpoint_load_path: str,
                                  local_pretrain_checkpoints_folder: str) -> str:
-    """Downloads the pretrained checkpoints to start from. Currently only supports S3 and URLs"""
+    """Downloads the pretrained checkpoints to start from.
+
+    Currently only supports S3 and URLs
+    """
     load_object_store = None
     parsed_path = urlparse(starting_checkpoint_load_path)
-    if parsed_path.scheme == "s3":
+    if parsed_path.scheme == 's3':
         load_object_store = S3ObjectStore(bucket=parsed_path.netloc)
 
-    download_path = parsed_path.path if parsed_path.scheme == "s3" else starting_checkpoint_load_path
+    download_path = parsed_path.path if parsed_path.scheme == 's3' else starting_checkpoint_load_path
     os.makedirs(local_pretrain_checkpoints_folder, exist_ok=True)
-    local_path = os.path.join(local_pretrain_checkpoints_folder, get_checkpoint_name_from_path(parsed_path.path))
+    local_path = os.path.join(local_pretrain_checkpoints_folder,
+                              get_checkpoint_name_from_path(parsed_path.path))
     if not os.path.exists(local_path):
-        get_file(destination=local_path, path=download_path.lstrip('/'), object_store=load_object_store, progress_bar=True)
+        get_file(destination=local_path,
+                 path=download_path.lstrip('/'),
+                 object_store=load_object_store,
+                 progress_bar=True)
 
     return local_path
 
 
 def _setup_gpu_queue(num_gpus: int, manager: SyncManager):
-    """Returns a queue with [0, 1, .. num_gpus]."""
+    """Returns a queue with [0, 1, ..
+
+    num_gpus].
+    """
     gpu_queue = manager.Queue(num_gpus)
     for gpu_id in range(num_gpus):
         gpu_queue.put(gpu_id)
     return gpu_queue
 
 
-def create_job_configs(main_config: om.DictConfig, tasks_to_run: Set[str], pretrained_checkpoint_path: str):
+def create_job_configs(main_config: om.DictConfig, tasks_to_run: Set[str],
+                       pretrained_checkpoint_path: Optional[str]):
     configs = []
     for task_name, task_config in main_config.tasks.items():
         if task_name not in tasks_to_run:
@@ -165,7 +181,8 @@ def create_job_configs(main_config: om.DictConfig, tasks_to_run: Set[str], pretr
                 'load_path':
                     pretrained_checkpoint_path,
                 'save_folder':
-                    os.path.join(main_config.save_finetune_checkpoint_folder, f'task={task_name}', f'seed={task_seed}'),
+                    os.path.join(main_config.save_finetune_checkpoint_folder,
+                                 f'task={task_name}', f'seed={task_seed}'),
                 'loggers':
                     logger_configs,
                 'callbacks':
@@ -181,12 +198,11 @@ def create_job_configs(main_config: om.DictConfig, tasks_to_run: Set[str], pretr
 
     return configs
 
-def run_job_worker(
-    config: om.DictConfig,
-    gpu_queue: Optional[mp.Queue] = None,
-    process_to_gpu: Optional[mp.managers.DictProxy] = None
-) -> Any:
-    """Instantiates the job object and runs it"""
+
+def run_job_worker(config: om.DictConfig,
+                   gpu_queue: Optional[mp.Queue] = None,
+                   process_to_gpu: Optional[DictProxy] = None) -> Any:
+    """Instantiates the job object and runs it."""
     # need to set seed before model initialization for determinism
     reproducibility.seed_all(config.seed)
     instantiated_job = TASK_NAME_TO_CLASS[config.task](
@@ -197,9 +213,18 @@ def run_job_worker(
         scheduler=build_scheduler(config.scheduler),
         load_path=config.load_path,
         save_folder=config.save_folder,
-        loggers=[build_logger(name, logger_config) for name, logger_config in config.get('loggers', {}).items()],
-        callbacks=[build_callback(name, callback_config) for name, callback_config in config.get('callbacks', {}).items()],
-        algorithms=[build_algorithm(name, algorithm_config) for name, algorithm_config in config.get('algorithms', {}).items()],
+        loggers=[
+            build_logger(name, logger_config)
+            for name, logger_config in config.get('loggers', {}).items()
+        ],
+        callbacks=[
+            build_callback(name, callback_config)
+            for name, callback_config in config.get('callbacks', {}).items()
+        ],
+        algorithms=[
+            build_algorithm(name, algorithm_config)
+            for name, algorithm_config in config.get('algorithms', {}).items()
+        ],
         precision=config.precision,
         **config.trainer_kwargs,
     )
@@ -234,25 +259,29 @@ def run_jobs_parallel(configs: Sequence[om.DictConfig]):
         process_to_gpu = manager.dict()
 
         ctx = mp.get_context('spawn')
-        with Pool(max_workers=min(num_gpus, len(configs)), mp_context=ctx) as pool:
-            results = pool.map(
-                run_job_worker,
-                [config for config in configs],
-                [gpu_queue for _ in configs],
-                [process_to_gpu for _ in configs]
-            )
+        with Pool(max_workers=min(num_gpus, len(configs)),
+                  mp_context=ctx) as pool:
+            results = pool.map(run_job_worker, [config for config in configs],
+                               [gpu_queue for _ in configs],
+                               [process_to_gpu for _ in configs])
 
     job_name_to_config = {config.job_name: config for config in configs}
     finished_results = {}
     for result in results:
         job_name = result['job_name']
-        finished_results[job_name] = {'result': result, 'config': job_name_to_config[job_name]}
+        finished_results[job_name] = {
+            'result': result,
+            'config': job_name_to_config[job_name]
+        }
 
     return finished_results
 
 
 def run_jobs_serial(configs):
-    """Runs the jobs serially, rather than in parallel. Useful for debugging"""
+    """Runs the jobs serially, rather than in parallel.
+
+    Useful for debugging
+    """
     results = {}
     for config in configs:
         result = run_job_worker(config)
@@ -261,7 +290,7 @@ def run_jobs_serial(configs):
 
 
 def format_job_name(job_name: str) -> str:
-    """Formats the job name for pretty printing"""
+    """Formats the job name for pretty printing."""
     dict_output = get_values_from_path(job_name, separator='_')
     return f'{dict_output["task"].upper()}(seed={dict_output["seed"]})'
 
@@ -289,8 +318,8 @@ def _print_table(results: Dict[str, Dict[str, Any]]):
     print('\n')
 
 
-def _print_averaged_glue_results(glue_results: List[Tuple[Tuple[str, str], float]]):
-    """Pretty prints a table of glue results averaged across seeds"""
+def _print_averaged_glue_results(glue_results: List[Tuple[str, float]]) -> None:
+    """Pretty prints a table of glue results averaged across seeds."""
     header = '{job_name:50}|'
     hyphen_count = 50 + 11
     row_format = header + ' {value:.2f}'
@@ -308,7 +337,8 @@ def _print_averaged_glue_results(glue_results: List[Tuple[Tuple[str, str], float
 
 
 def train(config: om.DictConfig) -> None:
-    """
+    """Main training logic.
+
     Args:
         config (DictConfig): Configuration composed by OmegaConf
     """
@@ -318,26 +348,29 @@ def train(config: om.DictConfig) -> None:
     reproducibility.seed_all(config.default_seed)
 
     # Quiet down WandB
-    os.environ["WANDB_SILENT"] = "true"
+    os.environ['WANDB_SILENT'] = 'true'
 
     # Set tokenizer parallelism
-    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
     # Confirm GPUs if parallel=True
     if config.parallel:
-        assert torch.cuda.device_count() > 0, "Can only use parallel mode if GPUs are available. Please set parallel=False."
+        assert torch.cuda.device_count(
+        ) > 0, 'Can only use parallel mode if GPUs are available. Please set parallel=False.'
 
     # Downloads the starting checkpoint ahead of time so that
     # the different tasks don't all try to download it at the same time
     if config.get('starting_checkpoint_load_path', None):
-        local_pretrain_checkpoint_path = download_starting_checkpoint(config.starting_checkpoint_load_path,
-                                                                      config.local_pretrain_checkpoint_folder)
+        local_pretrain_checkpoint_path = download_starting_checkpoint(
+            config.starting_checkpoint_load_path,
+            config.local_pretrain_checkpoint_folder)
     else:
         local_pretrain_checkpoint_path = None
 
     # Builds round 1 configs and runs them
     round_1_task_names = {'cola', 'sst2', 'qqp', 'qnli', 'mnli'}
-    round_1_job_configs = create_job_configs(config, round_1_task_names, local_pretrain_checkpoint_path)
+    round_1_job_configs = create_job_configs(config, round_1_task_names,
+                                             local_pretrain_checkpoint_path)
 
     round_1_results = {}
     if len(round_1_job_configs) > 0:
@@ -362,7 +395,8 @@ def train(config: om.DictConfig) -> None:
     # Builds round 2 configs and runs them
     round_2_task_names = {'rte', 'mrpc', 'stsb'}
     round_2_starting_checkpoint_path = mnli_checkpoint_path if mnli_checkpoint_path is not None else local_pretrain_checkpoint_path
-    round_2_job_configs = create_job_configs(config, round_2_task_names, round_2_starting_checkpoint_path)
+    round_2_job_configs = create_job_configs(config, round_2_task_names,
+                                             round_2_starting_checkpoint_path)
 
     round_2_results = {}
     if len(round_2_job_configs) > 0:
@@ -390,14 +424,17 @@ def train(config: om.DictConfig) -> None:
         for _, eval_results in result['result']['metrics'].items():
             for _, metric in eval_results.items():
                 glue_results[job_values['task']].append(metric * 100)
-    glue_results = {key: np.mean(values) for key, values in glue_results.items()}
+    glue_results = {
+        key: np.mean(values) for key, values in glue_results.items()
+    }
 
     overall_glue = []
     for _, average_metric in glue_results.items():
         overall_glue.append(average_metric)
     overall_glue = np.mean(overall_glue)
 
-    _print_averaged_glue_results([(key, value) for key, value in glue_results.items()] +
+    _print_averaged_glue_results([(key, value)
+                                  for key, value in glue_results.items()] +
                                  [('glue', overall_glue)])
 
 

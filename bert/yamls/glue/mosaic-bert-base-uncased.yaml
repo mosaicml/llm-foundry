@@ -19,7 +19,8 @@ model:
   tokenizer_name: *tokenizer_name
 
 # Loading
-starting_checkpoint_load_path: <checkpoint_from_pretraining> # Fill this in with the composer checkpoint from the end of pre-training a Mosaic BERT
+# (fill this in with the composer checkpoint from the end of pre-training a Mosaic BERT)
+starting_checkpoint_load_path: <checkpoint_from_pretraining>
 local_pretrain_checkpoint_folder: ./local-bert-checkpoints/
 
 # Saving
@@ -30,8 +31,8 @@ save_finetune_checkpoint_folder: ${save_finetune_checkpoint_prefix}/${base_run_n
 # Loggers
 loggers:
   wandb: # (Comment this block to disable W&B logging)
-    project: null # Fill this in if using W&B
-    entity: null # Fill this in if using W&B
+    project:      # Fill this in if using W&B
+    entity:      # Fill this in if using W&B
 
 # Callbacks
 callbacks:
@@ -52,7 +53,7 @@ tasks:
   mnli:
     # Specify any extra task-specific arguments for the trainer here
     trainer_kwargs:
-      # We keep one MNLI checkpoint locally so that we can start finetuning of 
+      # We keep one MNLI checkpoint locally so that we can start finetuning of
       # RTE, MRPC and STS-B from the MNLI checkpoint
       save_num_checkpoints_to_keep: 1
   rte:

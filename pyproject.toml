@@ -8,14 +8,15 @@ skip = [ "env", "wandb", "runs", "build", "node_modules" ]
 # Pyright
 [tool.pyright]
 include = [
-    "streaming/**",
+    "bert/**",
+    "cifar/**",
+    "deeplab/**",
+    "llm/**",
+    "resnet/**",
     "tests/**",
 ]
-exclude = [
-    "build/**",
-    "node_modules/**",
-    "streaming/text/convert/enwiki/**"
-]
+exclude = []
+stubPath = ""  # suppress useless 'stubPath is not a valid directory' errors
 
 reportUnnecessaryIsInstance = "warning"
 reportMissingTypeStubs = "none"
@@ -486,5 +487,5 @@ ignore_patterns = [
 
 [tool.pydocstyle]
 convention="google"
-add_ignore="D100,D101,D102,D103,D104,D105,D107,D401"
-add_select="D400,D404"
+add_ignore="D100,D101,D102,D103,D104,D105,D107,D400,D401,D415"
+add_select="D404"

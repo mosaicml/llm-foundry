@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Benchmarks authors
+# Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -110,7 +110,7 @@ def log_results_to_tsv(results: JsonResults, outfile: str) -> None:
 
 
 if __name__ == '__main__':
-    """Example usage from benchmarks/llm directory:
+    """Example usage from examples/llm directory:
 
     python -m src.evaluation.eval --experiment_name opt_1.3b \
         --model_type pretrained_hf \

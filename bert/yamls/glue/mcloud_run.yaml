@@ -15,9 +15,9 @@ gpu_num: 8  # Number of GPUs to use
 image: mosaicml/pytorch:1.12.1_cu116-python3.9-ubuntu20.04
 integrations:
 - integration_type: git_repo
-  git_repo: mosaicml/benchmarks
+  git_repo: mosaicml/examples
 command: |
-  cd benchmarks/bert
+  cd examples/bert
   pip install -r requirements.txt
   python glue.py /mnt/config/parameters.yaml
 

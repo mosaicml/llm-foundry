@@ -16,7 +16,7 @@
     <a href="https://join.slack.com/t/mosaicml-community/shared_invite/zt-w0tiddn9-WGTlRpfjcO9J5jyrMub1dg">
         <img alt="Chat @ Slack" src="https://img.shields.io/badge/slack-chat-2eb67d.svg?logo=slack">
     </a>
-    <a href="https://github.com/mosaicml/benchmarks/blob/main/LICENSE">
+    <a href="https://github.com/mosaicml/examples/blob/main/LICENSE">
         <img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-green.svg?logo=slack">
     </a>
 </p>
@@ -98,7 +98,7 @@ But if you really must try this manually on your own cluster, then just provide 
 either directly via CLI, or via environment variables that can be read. Then launch the appropriate command on each node:
 
 ### Overriding Arguments
-Composer benchmarks uses [`omegaconf`](https://github.com/omry/omegaconf) to manage configs. OmegaConf allows us to override YAML configs from the command line for quick experimentation.
+Composer examples uses [`omegaconf`](https://github.com/omry/omegaconf) to manage configs. OmegaConf allows us to override YAML configs from the command line for quick experimentation.
 
 Common examples include:
 

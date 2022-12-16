@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Benchmarks authors
+# Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.

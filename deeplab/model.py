@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Benchmarks authors
+# Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
 """DeepLabV3 model extending :class:`.ComposerClassifier`."""

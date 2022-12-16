@@ -5,9 +5,9 @@ gpu_num: 8  # Number of GPUs to use specified as an integer
 image: mosaicml/pytorch_vision:1.12.1_cu116-python3.9-ubuntu20.04
 integrations:
 - integration_type: git_repo
-  git_repo: mosaicml/benchmarks
+  git_repo: mosaicml/examples
 command: |
-  cd benchmarks/deeplab
+  cd examples/deeplab
   pip install -r requirements.txt
   composer main.py /mnt/config/parameters.yaml
 # Configuration copied from baseline.yaml

@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Benchmarks authors
+# Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
 # """Contains GLUE job objects for the simple_glue_trainer."""

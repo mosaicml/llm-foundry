@@ -1,6 +1,6 @@
-# benchmarks
+# Examples
 
-Fast reference benchmarks for training ML models with recipes. Designed to be easily forked and modified.
+Fast reference examples for training ML models with recipes. Designed to be easily forked and modified.
 ## ResNet-50 + ImageNet
 <img src="https://assets-global.website-files.com/61fd4eb76a8d78bc0676b47d/62a12d1e4eb9b83915be37a6_r50_overall_pareto.png" alt="drawing" width="500"/>
 

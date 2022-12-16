@@ -1,5 +1,5 @@
 # Use this YAML to verify that GLUE fine-tuning works. Runs on CPU or GPUs (if available).
-# From `benchmarks/bert`, run:
+# From `examples/bert`, run:
 #   `python glue.py yamls/test/glue.yaml` to run using the HuggingFace BERT
 #   `python glue.py yamls/test/glue.yaml model.name=mosaic_bert` to run using the Mosaic BERT
 

@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Benchmarks authors
+# Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-# TODO: this should be removed when benchmarks has a setup.py i.e. installable
+# TODO: this should be removed when examples has a setup.py i.e. installable
 sys.path.append('.')
 
 import torch

@@ -49,7 +49,7 @@ This recommended Docker image comes pre-configured with the following dependenci
 To get started, clone this repo and install the requirements:
 
 ```bash
-git clone https://github.com/mosaicml/benchmarks.git
+git clone https://github.com/mosaicml/examples.git
 cd bert
 pip install -r requirements.txt
 ```

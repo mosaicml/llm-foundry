@@ -38,6 +38,9 @@ def test_trainer(use_recipe):
         trainer1 = main(config)
         model1 = trainer1.state.model.module
 
+        # TODO avoid tests taking a long time to exit without this
+        trainer1.state.dataloader._iterator._shutdown_workers()  # type: ignore
+
         # Check that the checkpoint was saved
         chkpt_path = os.path.join(tmp_datadir, 'ep0-ba1-rank0.pt')
         assert os.path.isfile(chkpt_path)

@@ -3,10 +3,10 @@
 
 import copy
 import os
-import pytest
 import warnings
 from typing import cast
 
+import pytest
 import torch
 import torch.nn as nn
 from composer.optim import DecoupledAdamW
@@ -183,20 +183,25 @@ def test_full_forward_and_backward_gpt_neo(batch_size=2):
     updated_params = next(model.parameters()).clone().data
     assert not torch.equal(original_params, updated_params)
 
-@pytest.mark.parametrize('attention_type,precision', [
-    ('torch', torch.float16),
-    ('torch', torch.bfloat16),
-    ('flash', torch.float16),
-    # Note: Whether this test fails or not depends on the random seed, how many steps are run for,
-    # and possibly other stuff like torch/cuda version. It is flaky.
-    pytest.param('flash', torch.bfloat16, marks=pytest.mark.xfail)
-])
+
+@pytest.mark.parametrize(
+    'attention_type,precision',
+    [
+        ('torch', torch.float16),
+        ('torch', torch.bfloat16),
+        ('flash', torch.float16),
+        # Note: Whether this test fails or not depends on the random seed, how many steps are run for,
+        # and possibly other stuff like torch/cuda version. It is flaky.
+        pytest.param('flash', torch.bfloat16, marks=pytest.mark.xfail)
+    ])
 def test_determinism(attention_type: str, precision):
     if not torch.cuda.is_available():
-        pytest.skip('This test requires CUDA to be available in order to run with bfloat16 precision.')
+        pytest.skip(
+            'This test requires CUDA to be available in order to run with bfloat16 precision.'
+        )
     reproducibility.seed_all(1111)
 
-    conf_path='yamls/mosaic_gpt/125m.yaml'
+    conf_path = 'yamls/mosaic_gpt/125m.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
 
@@ -204,26 +209,28 @@ def test_determinism(attention_type: str, precision):
     test_cfg.model.device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
-    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model).to(test_cfg.model.device)
+    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model).to(
+        test_cfg.model.device)
     model_2 = copy.deepcopy(model_1)
 
     optimizer_1 = DecoupledAdamW(model_1.parameters(),
-                               lr=test_cfg.optimizer.lr,
-                               betas=test_cfg.optimizer.betas,
-                               eps=test_cfg.optimizer.eps,
-                               weight_decay=test_cfg.optimizer.weight_decay)
+                                 lr=test_cfg.optimizer.lr,
+                                 betas=test_cfg.optimizer.betas,
+                                 eps=test_cfg.optimizer.eps,
+                                 weight_decay=test_cfg.optimizer.weight_decay)
     optimizer_2 = DecoupledAdamW(model_2.parameters(),
-                               lr=test_cfg.optimizer.lr,
-                               betas=test_cfg.optimizer.betas,
-                               eps=test_cfg.optimizer.eps,
-                               weight_decay=test_cfg.optimizer.weight_decay)
+                                 lr=test_cfg.optimizer.lr,
+                                 betas=test_cfg.optimizer.betas,
+                                 eps=test_cfg.optimizer.eps,
+                                 weight_decay=test_cfg.optimizer.weight_decay)
 
     for i in range(5):
         with torch.cuda.amp.autocast(True, precision):
             batch = gen_random_batch(2, test_cfg)
             output_1 = model_1(batch)
             output_2 = model_2(batch)
-            assert output_1.allclose(output_2, rtol=0.0, atol=0.0), f'differed at step {i}'
+            assert output_1.allclose(output_2, rtol=0.0,
+                                     atol=0.0), f'differed at step {i}'
 
             loss_1 = model_1.loss(output_1, batch)
             loss_2 = model_2.loss(output_2, batch)
@@ -232,5 +239,3 @@ def test_determinism(attention_type: str, precision):
             loss_2.backward()
             optimizer_1.step()
             optimizer_2.step()
-
-

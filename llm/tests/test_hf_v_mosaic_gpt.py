@@ -108,7 +108,7 @@ def test_compare_hf_v_mosaic_gpt(dropout):
 
     # convert hf gpt statedict to mosaic gpt statedict
     # HF keys which are ignored
-    hf_keys_ignore = ['.attn.masked_bias', '.attn.bias']
+    hf_keys_ignore = ['.attn.masked_bias', '.attn.bias', 'lm_head']
     # HF params which need to be transposed
     _transpose = [
         '.attn.c_attn.', '.attn.c_proj.', '.mlp.c_fc.', '.mlp.c_proj.'

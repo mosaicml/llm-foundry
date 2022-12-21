@@ -32,7 +32,6 @@ tokenizer:
 
 # Dataloaders
 train_loader:
-  name: c4
   dataset:
     remote: *data_remote
     local: *data_local
@@ -50,7 +49,6 @@ train_loader:
   timeout: 0
 
 eval_loader:
-  name: c4
   dataset:
     remote: *data_remote
     local: *data_local

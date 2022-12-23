@@ -1,7 +1,7 @@
-torchvision==0.13.1
-torchtext==0.13.1
-torch==1.12.1
-mosaicml==0.11.1
+torchvision==0.14.0
+torchtext==0.14.0
+torch==1.13.0
+mosaicml==0.12.0
 mosaicml-streaming==0.1.2
 flash-attn==0.2.2
 transformers==4.24.0

@@ -32,6 +32,8 @@ class StreamingTextDataset(Dataset):
         max_seq_len (int): The max sequence length of each sample.
         group_method (str): How to group text samples into token samples.
             Supports 'truncate' or 'concat'.
+        keep_zip (bool): Whether to keep or delete the compressed file when
+            decompressing downloaded shards.
         retry (int): Number of download re-attempts before giving up.
             Default: 2.
         timeout (float): How long to wait for shard to download before
@@ -49,6 +51,7 @@ class StreamingTextDataset(Dataset):
                  tokenizer_name: str,
                  max_seq_len: int,
                  group_method: str = 'truncate',
+                 keep_zip: bool = False,
                  retry: int = 2,
                  timeout: float = 120,
                  batch_size: Optional[int] = None):
@@ -67,7 +70,7 @@ class StreamingTextDataset(Dataset):
                          split=split,
                          shuffle=shuffle,
                          prefetch=prefetch,
-                         keep_zip=False,
+                         keep_zip=keep_zip,
                          retry=retry,
                          timeout=timeout,
                          hash=None,
@@ -161,6 +164,7 @@ def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
         tokenizer_name=cfg.dataset.tokenizer_name,
         max_seq_len=cfg.dataset.max_seq_len,
         group_method=cfg.dataset.group_method,
+        keep_zip=cfg.dataset.get('keep_zip', False),
         batch_size=device_batch_size
     )
 
@@ -202,7 +206,8 @@ if __name__ == '__main__':
             'prefetch': 1000,
             'tokenizer_name': 'gpt2',
             'max_seq_len': 32,
-            'group_method': 'concat'
+            'group_method': 'concat',
+            'keep_zip': True  # since we are just testing, do not delete originals
         },
         'drop_last': False,
         'num_workers': 4,

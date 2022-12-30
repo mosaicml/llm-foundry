@@ -6,7 +6,7 @@ import sys
 import warnings
 
 from composer import Trainer, algorithms
-from composer.callbacks import LRMonitor, MemoryMonitor, SpeedMonitor
+from composer.callbacks import LRMonitor, MemoryMonitor
 from composer.loggers import WandBLogger
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
@@ -15,6 +15,7 @@ from composer.utils import dist, reproducibility
 from omegaconf import OmegaConf as om
 from src.text_data import build_text_dataloader
 from src.model_registry import COMPOSER_MODEL_REGISTRY
+from src.speed_monitor_w_mfu import SpeedMonitorMFU
 
 
 def build_logger(name, kwargs):
@@ -30,7 +31,9 @@ def build_callback(name, kwargs):
     elif name == 'memory_monitor':
         return MemoryMonitor()
     elif name == 'speed_monitor':
-        return SpeedMonitor(window_size=kwargs.get('window_size', 1))
+        return SpeedMonitorMFU(
+            window_size=kwargs.get('window_size', 1),
+            gpu_flops_available=kwargs.get('gpu_flops_available', None))
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
@@ -152,6 +155,8 @@ def main(cfg):
     model = build_composer_model(cfg.model)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')
+    if hasattr(model, 'num_fwd_flops'):
+        print(f'{model.num_fwd_flops=:.2e}')
 
     # Dataloaders
     print('Building train loader...')

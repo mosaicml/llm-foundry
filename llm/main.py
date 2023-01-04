@@ -6,7 +6,7 @@ import sys
 import warnings
 
 from composer import Trainer, algorithms
-from composer.callbacks import LRMonitor, MemoryMonitor
+from composer.callbacks import LRMonitor, MemoryMonitor, OptimizerMonitor
 from composer.loggers import WandBLogger
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
@@ -34,6 +34,10 @@ def build_callback(name, kwargs):
         return SpeedMonitorMFU(
             window_size=kwargs.get('window_size', 1),
             gpu_flops_available=kwargs.get('gpu_flops_available', None))
+    elif name == 'optimizer_monitor':
+        return OptimizerMonitor(
+            log_optimizer_metrics=kwargs.get('log_optimizer_metrics', True),
+        )
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

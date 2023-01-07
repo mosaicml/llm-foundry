@@ -4,6 +4,8 @@ torch==1.13.0
 mosaicml==0.12.0
 mosaicml-streaming==0.1.2
 flash-attn==0.2.2
+# need a newer version of triton
+triton==2.0.0.dev20221103
 transformers==4.24.0
 datasets==2.7.1
 omegaconf==2.2.3

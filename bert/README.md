@@ -9,8 +9,6 @@ You'll find in this folder:
 ### Pre-training
 
 * `main.py` — A straightforward script for parsing YAMLs, building a [Composer](https://github.com/mosaicml/composer) Trainer, and kicking off an MLM pre-training job, locally or on Mosaic's cloud.
-* `convert_c4.py` — A script for converting [C4](https://huggingface.co/datasets/c4) into a format used by our streaming dataset. See [Dataset preparation](#Dataset-preparation).
-* `src/data_c4.py` — A [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) for MLM pre-training that can be used with a vanilla PyTorch dataloader.
 * `yamls/main/` - Pre-baked configs for pre-training both our sped-up Mosaic BERT as well as the reference HuggingFace BERT. These are used when running `main.py`.
 * `yamls/test/main.yaml` - A config for quickly verifying that `main.py` runs.
 ### Fine-tuning
@@ -28,6 +26,9 @@ You'll find in this folder:
 * `src/flash_attn_triton.py` - Source code for the [FlashAttention](https://arxiv.org/abs/2205.14135) implementation used in Mosaic BERT.
 * `requirements.txt` — All needed Python dependencies.
 * This `README.md`
+
+In the [common](../common) folder, you will also find:
+* `common/text_data.py`- a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) that can be used with a vanilla PyTorch dataloader.
 
 # Setup
 
@@ -63,7 +64,7 @@ To verify that pre-training runs correctly, first prepare a local copy of the C4
 # Download the 'val' split and convert to StreamingDataset format
 # This will take 10 sec to 1 min depending on your Internet bandwidth
 # You should see a dataset folder `./my-copy-c4/val` that is ~0.5GB
-python convert_c4.py --out_root ./my-copy-c4 --splits val
+python ../scripts/convert_c4.py --out_root ./my-copy-c4 --splits val
 
 # Run the pre-training script with the test config and HuggingFace BERT
 composer main.py yamls/test/main.yaml
@@ -106,12 +107,12 @@ To make yourself a copy of C4, use `convert_c4.py` like so:
 # Download the 'val' split and convert to StreamingDataset format
 # This will take 10 sec to 1 min depending on your Internet bandwidth
 # You should see a dataset folder `./my-copy-c4/val` that is ~0.5GB
-python convert_c4.py --out_root ./my-copy-c4 --splits val
+python ../scripts/convert_c4.py --out_root ./my-copy-c4 --splits val
 
 # Download the 'train' split if you really want to train the model (not just profile)
 # This will take 1-to-many hours depending on bandwidth, # CPUs, etc.
 # The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
-python convert_c4.py --out_root ./my-copy-c4 --splits train
+python ../scripts/convert_c4.py --out_root ./my-copy-c4 --splits train
 ```
 
 If you're planning on doing multiple training runs, you can upload the **local** copy of C4 you just created to a central location. This will allow you to the skip dataset preparation step in the future. Once you have done so, modify the YAMLs in `yamls/main/` so that the `data_remote` field points to the new location. Then you can simply stream the dataset instead of creating a local copy!
@@ -124,12 +125,12 @@ To verify that the dataloader works, run a quick test on your `val` split like s
 # This will construct a `StreamingC4` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
 # Since remote and local are set to the same path, no streaming/copying takes place.
-python src/data_c4.py ./my-copy-c4 ./my-copy-c4
+python ../common/text_data.py ./my-copy-c4 ./my-copy-c4
 
 # This will do the same thing, but stream data from {remote} -> {local}.
 # The remote path can be a filesystem or object store URI.
-python src/data_c4.py ./my-copy-c4 /tmp/cache-c4
-python src/data_c4.py s3://my-bucket/my-copy-c4 /tmp/cache-c4
+python ../common/text_data.py ./my-copy-c4 /tmp/cache-c4
+python ../common/text_data.py s3://my-bucket/my-copy-c4 /tmp/cache-c4
 ```
 
 # Training

@@ -2,75 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import pathlib
 import sys
 from typing import Dict
 
 import wandb
-from composer import Trainer, algorithms
-from composer.callbacks import LRMonitor, MemoryMonitor, SpeedMonitor
-from composer.loggers import WandBLogger
-from composer.optim import DecoupledAdamW
-from composer.optim.scheduler import (ConstantWithWarmupScheduler,
-                                      CosineAnnealingWithWarmupScheduler,
-                                      LinearWithWarmupScheduler)
+from composer import Trainer
 from composer.utils import dist, reproducibility
 from omegaconf import OmegaConf as om
-from src.data_c4 import build_c4_dataloader
 from src.hf_bert import create_hf_bert_mlm
 from src.mosaic_bert import create_mosaic_bert_mlm
 
-
-def build_logger(name, kwargs):
-    if name == 'wandb':
-        return WandBLogger(**kwargs)
-    else:
-        raise ValueError(f'Not sure how to build logger: {name}')
-
-
-def build_callback(name, kwargs):
-    if name == 'lr_monitor':
-        return LRMonitor()
-    elif name == 'memory_monitor':
-        return MemoryMonitor()
-    elif name == 'speed_monitor':
-        return SpeedMonitor(window_size=kwargs.get('window_size', 1))
-    else:
-        raise ValueError(f'Not sure how to build callback: {name}')
-
-
-def build_algorithm(name, kwargs):
-    if name == 'alibi':
-        return algorithms.Alibi(**kwargs)
-    elif name == 'fused_layernorm':
-        return algorithms.FusedLayerNorm(**kwargs)
-    elif name == 'gated_linear_units':
-        return algorithms.GatedLinearUnits(**kwargs)
-    else:
-        raise ValueError(f'Not sure how to build algorithm: {name}')
-
-
-def build_optimizer(cfg, model):
-    if cfg.name == 'decoupled_adamw':
-        return DecoupledAdamW(model.parameters(),
-                              lr=cfg.lr,
-                              betas=cfg.betas,
-                              eps=cfg.eps,
-                              weight_decay=cfg.weight_decay)
-    else:
-        raise ValueError(f'Not sure how to build optimizer: {cfg.name}')
-
-
-def build_scheduler(cfg):
-    if cfg.name == 'constant_with_warmup':
-        return ConstantWithWarmupScheduler(t_warmup=cfg.t_warmup)
-    elif cfg.name == 'linear_decay_with_warmup':
-        return LinearWithWarmupScheduler(t_warmup=cfg.t_warmup,
-                                         alpha_f=cfg.alpha_f)
-    elif cfg.name == 'cosine_with_warmup':
-        return CosineAnnealingWithWarmupScheduler(t_warmup=cfg.t_warmup,
-                                                  alpha_f=cfg.alpha_f)
-    else:
-        raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
+sys.path.append(str(pathlib.Path(__file__).parent.parent / 'common'))
+from builders import (build_algorithm, build_callback, build_dataloader,
+                      build_logger, build_optimizer, build_scheduler)
 
 
 def build_model(cfg):
@@ -88,13 +33,6 @@ def build_model(cfg):
             model_config=cfg.get('model_config', None),
             tokenizer_name=cfg.get('tokenizer_name', None),
             gradient_checkpointing=cfg.get('gradient_checkpointing', None))
-    else:
-        raise ValueError(f'Not sure how to build model with name={cfg.name}')
-
-
-def build_dataloader(cfg, device_batch_size):
-    if cfg.name == 'c4':
-        return build_c4_dataloader(cfg, device_batch_size)
     else:
         raise ValueError(f'Not sure how to build model with name={cfg.name}')
 

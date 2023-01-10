@@ -2,72 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import pathlib
 import sys
 import warnings
 
-from composer import Trainer, algorithms
-from composer.callbacks import LRMonitor, MemoryMonitor, OptimizerMonitor
-from composer.loggers import WandBLogger
-from composer.optim import DecoupledAdamW
-from composer.optim.scheduler import (ConstantWithWarmupScheduler,
-                                      CosineAnnealingWithWarmupScheduler)
+from composer import Trainer
 from composer.utils import dist, reproducibility
 from omegaconf import OmegaConf as om
-from src.text_data import build_text_dataloader
 from src.model_registry import COMPOSER_MODEL_REGISTRY
-from src.speed_monitor_w_mfu import SpeedMonitorMFU
 
-
-def build_logger(name, kwargs):
-    if name == 'wandb':
-        return WandBLogger(**kwargs)
-    else:
-        raise ValueError(f'Not sure how to build logger: {name}')
-
-
-def build_callback(name, kwargs):
-    if name == 'lr_monitor':
-        return LRMonitor()
-    elif name == 'memory_monitor':
-        return MemoryMonitor()
-    elif name == 'speed_monitor':
-        return SpeedMonitorMFU(
-            window_size=kwargs.get('window_size', 1),
-            gpu_flops_available=kwargs.get('gpu_flops_available', None))
-    elif name == 'optimizer_monitor':
-        return OptimizerMonitor(
-            log_optimizer_metrics=kwargs.get('log_optimizer_metrics', True),
-        )
-    else:
-        raise ValueError(f'Not sure how to build callback: {name}')
-
-
-def build_algorithm(name, kwargs):
-    if name == 'gradient_clipping':
-        return algorithms.GradientClipping(**kwargs)
-    else:
-        raise ValueError(f'Not sure how to build algorithm: {name}')
-
-
-def build_optimizer(cfg, model):
-    if cfg.name == 'decoupled_adamw':
-        return DecoupledAdamW(model.parameters(),
-                              lr=cfg.lr,
-                              betas=cfg.betas,
-                              eps=cfg.eps,
-                              weight_decay=cfg.weight_decay)
-    else:
-        raise ValueError(f'Not sure how to build optimizer: {cfg.name}')
-
-
-def build_scheduler(cfg):
-    if cfg.name == 'constant_with_warmup':
-        return ConstantWithWarmupScheduler(t_warmup=cfg.t_warmup)
-    elif cfg.name == 'cosine_with_warmup':
-        return CosineAnnealingWithWarmupScheduler(t_warmup=cfg.t_warmup,
-                                                  alpha_f=cfg.alpha_f)
-    else:
-        raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
+sys.path.append(str(pathlib.Path(__file__).parent.parent / 'common'))
+from builders import (build_algorithm, build_callback, build_dataloader,
+                      build_logger, build_optimizer, build_scheduler)
+from logging_utils import log_config
 
 
 def calculate_batch_size_info(global_batch_size, device_microbatch_size):
@@ -110,17 +57,6 @@ def update_batch_size_info(cfg):
     return cfg
 
 
-def log_config(cfg):
-    print(om.to_yaml(cfg))
-    if 'wandb' in cfg.get('loggers', {}):
-        try:
-            import wandb
-        except ImportError as e:
-            raise e
-        if wandb.run:
-            wandb.config.update(om.to_container(cfg, resolve=True))
-
-
 def build_composer_model(cfg):
     warnings.filterwarnings(
         action='ignore',
@@ -129,13 +65,6 @@ def build_composer_model(cfg):
         return COMPOSER_MODEL_REGISTRY[cfg.name](cfg)
     except:
         raise ValueError(f'Not sure how to build model with name={cfg.name}')
-
-
-def build_dataloader(cfg, device_batch_size):
-    try:
-        return build_text_dataloader(cfg, device_batch_size)
-    except:
-        raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
 def main(cfg):
@@ -213,7 +142,8 @@ def main(cfg):
         callbacks=callbacks,
         precision=cfg.precision,
         algorithms=algos,
-        device_train_microbatch_size=cfg.get('device_train_microbatch_size', 'auto'),
+        device_train_microbatch_size=cfg.get('device_train_microbatch_size',
+                                             'auto'),
         fsdp_config=fsdp_config,  # type: ignore
         save_folder=cfg.get('save_folder', None),
         save_interval=cfg.get('save_interval', '1000ba'),

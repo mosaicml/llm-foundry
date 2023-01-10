@@ -5,6 +5,7 @@ import copy
 import gc
 import multiprocessing as mp
 import os
+import pathlib
 import sys
 import time
 from collections import defaultdict
@@ -16,10 +17,6 @@ from urllib.parse import urlparse
 import numpy as np
 import omegaconf as om
 import torch
-from composer.algorithms import Alibi, FusedLayerNorm, GatedLinearUnits
-from composer.callbacks import LRMonitor, SpeedMonitor
-from composer.loggers import WandBLogger
-from composer.optim import LinearWithWarmupScheduler
 from composer.utils import reproducibility
 from composer.utils.file_helpers import get_file
 from composer.utils.object_store import S3ObjectStore
@@ -28,6 +25,10 @@ from src.glue.finetuning_jobs import (TASK_NAME_TO_NUM_LABELS, COLAJob, MNLIJob,
                                       STSBJob)
 from src.hf_bert import create_hf_bert_classification
 from src.mosaic_bert import create_mosaic_bert_classification
+
+sys.path.append(str(pathlib.Path(__file__).parent.parent / 'common'))
+from builders import (build_algorithm, build_callback, build_logger,
+                      build_scheduler)
 
 TASK_NAME_TO_CLASS = {
     'mnli': MNLIJob,
@@ -39,40 +40,6 @@ TASK_NAME_TO_CLASS = {
     'stsb': STSBJob,
     'cola': COLAJob
 }
-
-
-def build_logger(name, kwargs):
-    if name == 'wandb':
-        return WandBLogger(**kwargs)
-    else:
-        raise ValueError(f'Not sure how to build logger: {name}')
-
-
-def build_callback(name, kwargs):
-    if name == 'lr_monitor':
-        return LRMonitor()
-    elif name == 'speed_monitor':
-        return SpeedMonitor()
-    else:
-        raise ValueError(f'Not sure how to build callback: {name}')
-
-
-def build_scheduler(cfg):
-    if cfg.name == 'linear_with_warmup':
-        return LinearWithWarmupScheduler(t_warmup=cfg.t_warmup)
-    else:
-        raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
-
-
-def build_algorithm(name, cfg):
-    if name == 'gated_linear_units':
-        return GatedLinearUnits(**cfg)
-    elif name == 'alibi':
-        return Alibi(**cfg)
-    elif name == 'fused_layernorm':
-        return FusedLayerNorm(**cfg)
-    else:
-        raise ValueError(f'Not sure how to build algorithm: {cfg.name}')
 
 
 def build_model(cfg, num_labels: int):

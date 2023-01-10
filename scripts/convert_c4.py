@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """C4 streaming dataset conversion scripts."""
-
 import os
+import platform
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable
 
@@ -68,7 +68,11 @@ def generate_samples(dataset: IterableDataset) -> Iterable[Dict[str, bytes]]:
     Yields:
         Sample dicts.
     """
-    num_workers = min(64, dataset.num_shards())  # type: ignore
+    # Multiple workers is only supported on linux machines
+    if 'linux' in platform.platform().lower():
+        num_workers = min(64, dataset.num_shards())  # type: ignore
+    else:
+        num_workers = 0
     batch_size = 512
     # If using multiple workers, configure each worker to prefetch as many samples as it can, up to the aggregate device batch size
     # If not using workers, the torch DataLoader expects the default value for prefetch_factor, which non-intuitively must be 2.

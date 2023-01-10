@@ -26,9 +26,10 @@ cat /tmp/requirements.txt
 # TODO -I would sandbox better (always overwriting system copies with versions
 # in requirements.txt) but this causes mysterious Flash Attention issues
 pip install -U -r /tmp/requirements.txt
+# We need to force install pytest into each environment so that it does not use the system pytest
+pip install --ignore-installed pytest
 rm /tmp/requirements.txt
-
-pytest tests
+python -m pytest tests
 
 echo "Cleaning up venv..."
 deactivate

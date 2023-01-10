@@ -40,8 +40,9 @@ callbacks:
 
 # Scheduler
 scheduler:
-  name: linear_with_warmup
+  name: linear_decay_with_warmup
   t_warmup: 0.06dur
+  alpha_f: 0.0
 
 # Task configuration
 tasks:

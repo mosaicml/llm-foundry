@@ -16,9 +16,11 @@ We even packed in a few tricks (e.g. [FlashAttention](https://github.com/HazyRes
 
 You'll find in this folder:
 * `src/mosaic_gpt.py` - a simple PyTorch GPT model, wrapped in `ComposerModel`, that can scale up to 70B parameters
-* `src/text_data.py` - a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) that can be used with a vanilla PyTorch dataloader.
 * `main.py` - a script that builds a [Composer](https://github.com/mosaicml/composer) Trainer and calls `trainer.fit()`.
 * `yamls/` - pre-baked configs for training compute-optimal LLMs from 125M up to 70B parameters.
+
+In the [common](../common) folder, you will also find:
+* `common/text_data.py`- a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) that can be used with a vanilla PyTorch dataloader.
 
 At all model scales, we are training the exact same [vanilla PyTorch GPT model](./src/mosaic_gpt.py#L106), with no special parallelism strategies.
 Composer + FSDP does all the heavy lifting to make sure we can scale up without running out of memory and while maintaining high performance.
@@ -71,12 +73,12 @@ To make yourself a copy of C4, use `convert_c4.py` like so:
 # Download the 'val' split and convert to StreamingDataset format
 # This will take 10 sec to 1 min depending on your Internet bandwidth
 # You should see a dataset folder `./my-copy-c4/val` that is ~0.5GB
-python convert_c4.py --out_root ./my-copy-c4 --splits val
+python ../scripts/convert_c4.py --out_root ./my-copy-c4 --splits val
 
 # Download the 'train' split if you really want to train the model (not just profile)
 # This will take 1-to-many hours depending on bandwidth, # CPUs, etc.
 # The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
-python convert_c4.py --out_root ./my-copy-c4 --splits train
+python ../scripts/convert_c4.py --out_root ./my-copy-c4 --splits train
 ```
 
 ### Test the Dataloader
@@ -87,12 +89,12 @@ To verify that the dataloader works, run a quick test on your `val` split like s
 # This will construct a `StreamingTextDataset` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
 # Since remote and local are set to the same path, no streaming/copying takes place.
-python src/text_data.py ./my-copy-c4 ./my-copy-c4
+python ../common/text_data.py ./my-copy-c4 ./my-copy-c4
 
 # This will do the same thing, but stream data from {remote} -> {local}.
 # The remote path can be a filesystem or object store URI.
-python src/text_data.py ./my-copy-c4 /tmp/cache-c4
-python src/text_data.py s3://my-bucket/my-copy-c4 /tmp/cache-c4
+python ../common/text_data.py ./my-copy-c4 /tmp/cache-c4
+python ../common/text_data.py s3://my-bucket/my-copy-c4 /tmp/cache-c4
 ```
 
 # How to start training

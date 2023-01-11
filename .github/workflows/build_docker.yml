@@ -7,6 +7,7 @@ on:
 jobs:
   docker-build:
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'mosaicml'
     strategy:
       fail-fast: false
       matrix:

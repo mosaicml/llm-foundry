@@ -8,10 +8,10 @@
 from __future__ import annotations
 
 import warnings
-from typing import Union
+from collections import deque
+from typing import Any, Deque, Dict, Union
 
 import torch
-from composer.callbacks import SpeedMonitor
 from composer.core import Callback, State
 from composer.loggers import Logger
 from composer.utils import dist
@@ -112,11 +112,7 @@ def get_gpu_flops_available(state):
         except:
             gpu_flops_available = None
 
-    if gpu_flops_available is not None:
-        print(
-            f'Using {gpu_flops_available=} when calculate MFU (assumes {state.precision.value} precision using {torch.cuda.get_device_name()}).'
-        )
-    else:
+    if gpu_flops_available is None:
         warnings.warn(
             f'gpu_flop count not found for {dev_name=} with precision: {state.precision.value}; MFU cannot be calculated and reported. '
             f'gpu_flops_available can be manually overridden by setting gpu_flops_available in SpeedMonitorMFU()'
@@ -125,30 +121,61 @@ def get_gpu_flops_available(state):
     return gpu_flops_available
 
 
-class SpeedMonitorMFU(SpeedMonitor):
-    """Logs the training throughput and MFU."""
+class SpeedMonitorMFU(Callback):
+    """Logs the training throughput and MFU.
+    """
+    def __init__(
+        self,
+        window_size: int = 100,
+        gpu_flops_available: Union[float, int] = None
+    ):
+        # Track the batch num samples and wct to compute throughput over a window of batches
+        self.batch_start_num_samples = 0
+        self.batch_start_wct = 0.0
+        self.batch_wct_buffer: Deque[float] = deque(maxlen=window_size)
+        self.batch_num_samples_buffer: Deque[int] = deque(maxlen=window_size)
+        self.window_size = window_size
 
-    def __init__(self,
-                 window_size: int = 100,
-                 gpu_flops_available: Union[float, int] = None):
-        super().__init__(window_size=window_size)
         self.set_gpu_flops_available = False
         self.gpu_flops_available = gpu_flops_available
-        if gpu_flops_available:
-            print(
-                f'gpu_flops_available is manaually set to {gpu_flops_available} for calculating MFU.'
-            )
-            self.set_gpu_flops_available = True
+
+        # Keep track of time spent evaluating
+        self.total_eval_wct = 0.0
+
+    def state_dict(self) -> Dict[str, Any]:
+        return {
+            'batch_start_num_samples': self.batch_start_num_samples,
+            'batch_start_wct': self.batch_start_wct,
+            'batch_wct_buffer': self.batch_wct_buffer,
+            'batch_num_samples_buffer': self.batch_num_samples_buffer,
+            'total_eval_wct': self.total_eval_wct,
+        }
+
+    def load_state_dict(self, state: Dict[str, Any]) -> None:
+        self.batch_start_num_samples = state['batch_start_num_samples']
+        self.batch_start_wct = state['batch_start_wct']
+        self.batch_wct_buffer = deque(
+            [x for x in state['batch_wct_buffer']],
+            maxlen=self.window_size,
+        )
+        self.batch_num_samples_buffer = deque(
+            [x for x in state['batch_num_samples_buffer']],
+            maxlen=self.window_size,
+        )
+        self.total_eval_wct = state['total_eval_wct']
+
+    def before_dataloader(self, state: State, logger: Logger) -> None:
+        del logger  # unused
+        self.batch_start_wct = state.timestamp.total_wct.total_seconds()
+        self.batch_start_num_samples = int(state.timestamp.sample)
+
+        # Get available GPU FLOPS
+        if not self.gpu_flops_available:
+            self.gpu_flops_available = get_gpu_flops_available(state)
 
     def batch_end(self, state: State, logger: Logger):
-        if not self.set_gpu_flops_available:
-            self.gpu_flops_available = get_gpu_flops_available(state)
-            self.set_gpu_flops_available = True
-
-        batch_num_samples = int(
-            state.timestamp.sample) - self.batch_start_num_samples
-        batch_wct = state.timestamp.total_wct.total_seconds(
-        ) - self.batch_start_wct
+        batch_num_samples = int(state.timestamp.sample) - self.batch_start_num_samples
+        batch_wct = state.timestamp.total_wct.total_seconds() - self.batch_start_wct
 
         # Add the new element
         self.batch_wct_buffer.append(batch_wct)
@@ -159,37 +186,27 @@ class SpeedMonitorMFU(SpeedMonitor):
             world_size = dist.get_world_size()
             grad_accum = state.grad_accum if state.grad_accum else 1
             global_batch_size = state.device_train_microbatch_size * grad_accum * world_size
-            throughput = sum(self.batch_num_samples_buffer) / sum(
-                self.batch_wct_buffer)
-            dev_throughput = throughput / world_size
-            logger.log_metrics({'throughput/samples_per_sec': throughput})
-            logger.log_metrics(
-                {'throughput/batches_per_sec': throughput / global_batch_size})
-            logger.log_metrics(
-                {'throughput/device/samples_per_sec': dev_throughput})
-            logger.log_metrics({
-                'throughput/device/batches_per_sec':
-                    dev_throughput / global_batch_size
-            })
+            batches_per_sec = len(self.batch_num_samples_buffer) / sum(self.batch_wct_buffer)
+            samples_per_sec = sum(self.batch_num_samples_buffer) / sum(self.batch_wct_buffer)
+            dev_batches_per_sec = batches_per_sec / world_size
+            dev_samples_per_sec = samples_per_sec / world_size
+            logger.log_metrics({'throughput/batches_per_sec':  batches_per_sec})
+            logger.log_metrics({'throughput/samples_per_sec': samples_per_sec})
+            logger.log_metrics({'throughput/device/batches_per_sec': dev_batches_per_sec})
+            logger.log_metrics({'throughput/device/samples_per_sec': dev_samples_per_sec})
 
             if hasattr(state.dataloader.dataset, 'max_seq_len'):
                 # only applicable to seq data / models
-                logger.log_metrics({
-                    'throughput/tokens_per_sec':
-                        throughput * state.dataloader.dataset.max_seq_len
-                })
-                logger.log_metrics({
-                    'throughput/device/tokens_per_sec':
-                        dev_throughput * state.dataloader.dataset.max_seq_len
-                })
+                logger.log_metrics({'throughput/tokens_per_sec': samples_per_sec * state.dataloader.dataset.max_seq_len})
+                logger.log_metrics({'throughput/device/tokens_per_sec': dev_samples_per_sec * state.dataloader.dataset.max_seq_len})
 
             if hasattr(state.model, 'num_fwd_flops'):
-                flops = (3 * state.model.num_fwd_flops) * throughput
-                logger.log_metrics({'throughput/flops': flops})
-                dev_flops = flops / world_size
-                logger.log_metrics({'throughput/device/flops': dev_flops})
+                flops_per_sec = (3 * state.model.num_fwd_flops) * samples_per_sec
+                logger.log_metrics({'throughput/flops_per_sec': flops_per_sec})
+                dev_flops_per_sec = flops_per_sec / world_size
+                logger.log_metrics({'throughput/device/flops_per_sec': dev_flops_per_sec})
                 if self.gpu_flops_available:
-                    mfu = dev_flops / self.gpu_flops_available
+                    mfu = dev_flops_per_sec / self.gpu_flops_available
                     logger.log_metrics({'throughput/device/mfu': mfu})
 
         # Log the time
@@ -203,3 +220,7 @@ class SpeedMonitorMFU(SpeedMonitor):
                 (state.timestamp.total_wct.total_seconds() + self.total_eval_wct
                 ),
         })
+
+    def eval_end(self, state: State, logger: Logger):
+        del logger  # unused
+        self.total_eval_wct += state.eval_timestamp.total_wct.total_seconds()

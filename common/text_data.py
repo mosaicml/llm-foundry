@@ -11,71 +11,76 @@ from typing import Any, Dict, Iterator, Optional
 import transformers
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from streaming import Dataset
+from streaming import StreamingDataset
 from torch.utils.data import DataLoader
 
 
-class StreamingTextDataset(Dataset):
-    """Generic implementation of a text dataset using MosaicML's streaming.
-
-    Dataset V2.
+class StreamingTextDataset(StreamingDataset):
+    """Generic implementation of a text dataset using MosaicML's streaming Dataset V2.
 
     Args:
-        remote (str): Remote directory (S3 or local filesystem) where dataset
-            is stored.
-        local (str): Local filesystem directory where dataset is cached
-            during operation.
-        split (str): The dataset split to use, either 'train' or 'val'.
-        shuffle (bool): Whether to shuffle the samples in this dataset.
-        prefetch (int): Target number of samples remaining to prefetch
-            while iterating.
+        local (str): Local dataset directory where shards are cached by split.
         tokenizer_name (str): The name of the HuggingFace tokenizer to use to
             tokenize samples.
         max_seq_len (int): The max sequence length of each sample.
         group_method (str): How to group text samples into token samples.
             Supports 'truncate' or 'concat'.
-        keep_zip (bool): Whether to keep or delete the compressed file when
-            decompressing downloaded shards.
-        retry (int): Number of download re-attempts before giving up.
-            Default: 2.
-        timeout (float): How long to wait for shard to download before
-            raising an exception. Default: 120 sec.
-        batch_size (Optional[int]): Hint batch_size that will be used on
-            each device's DataLoader. Default: ``None``.
+        remote (str, optional): Download shards from this remote path or directory. If None, this
+            rank and worker's partition of the dataset must all exist locally. Defaults to ``None``.
+        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to ``False``.
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when
+            decompressing downloaded shards. If set to None, keep if remote is local. Defaults to
+            ``None``.
+        download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
+        download_timeout (float): Number of seconds to wait for a shard to download before raising
+            an exception. Defaults to ``60``.
+        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
+            shards. Defaults to ``None``.
+        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
+            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
+            partitioned over the workers. Defaults to ``None``.
     """
 
     def __init__(self,
-                 remote: str,
                  local: str,
-                 split: str,
-                 shuffle: bool,
-                 prefetch: int,
                  tokenizer_name: str,
                  max_seq_len: int,
-                 group_method: str = 'truncate',
-                 keep_zip: bool = False,
-                 retry: int = 2,
-                 timeout: float = 120,
+                 group_method: str,
+                 remote: Optional[str] = None,
+                 split: Optional[str] = None,
+                 shuffle: bool = False,
+                 predownload: Optional[int] = 100_000,
+                 keep_zip: Optional[bool] = None,
+                 download_retry: int = 2,
+                 download_timeout: float = 60,
+                 validate_hash: Optional[str] = None,
+                 shuffle_seed: int = 9176,
+                 num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None):
+
         # Validation
-        if split not in ['train', 'val']:
-            raise ValueError(
-                f"split='{split}' must be one of ['train', 'val'].")
         if group_method not in ['truncate', 'concat']:
             raise ValueError(
                 f"group_method='{group_method}' must be one of ['truncate', 'concat']."
             )
 
         # Build Dataset
-        super().__init__(remote=remote,
-                         local=local,
+        super().__init__(local=local,
+                         remote=remote,
                          split=split,
                          shuffle=shuffle,
-                         prefetch=prefetch,
+                         predownload=predownload,
                          keep_zip=keep_zip,
-                         retry=retry,
-                         timeout=timeout,
-                         hash=None,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         shuffle_seed=shuffle_seed,
+                         num_canonical_nodes=num_canonical_nodes,
                          batch_size=batch_size)
         self.tokenizer_name = tokenizer_name
         self.max_seq_len = max_seq_len
@@ -157,18 +162,25 @@ class StreamingTextDataset(Dataset):
 
 
 def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
-    dataset = StreamingTextDataset(split=cfg.dataset.split,
-                                   remote=cfg.dataset.remote,
-                                   local=cfg.dataset.local,
-                                   shuffle=cfg.dataset.shuffle,
-                                   prefetch=cfg.dataset.prefetch,
-                                   tokenizer_name=cfg.dataset.tokenizer_name,
-                                   max_seq_len=cfg.dataset.max_seq_len,
-                                   group_method=cfg.dataset.group_method,
-                                   keep_zip=cfg.dataset.get('keep_zip', False),
-                                   batch_size=device_batch_size)
+    assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
+    dataset = StreamingTextDataset(
+        local=cfg.dataset.local,
+        tokenizer_name=cfg.dataset.tokenizer_name,
+        max_seq_len=cfg.dataset.max_seq_len,
+        group_method=cfg.dataset.group_method,
+        remote=cfg.dataset.get('remote', None),
+        split=cfg.dataset.get('split', None),
+        shuffle=cfg.dataset.get('shuffle', False),
+        predownload=cfg.dataset.get('predownload', 100_000),
+        keep_zip=cfg.dataset.get('keep_zip', False),
+        download_retry=cfg.dataset.get('download_retry', 2),
+        download_timeout=cfg.dataset.get('download_timeout', 60),
+        validate_hash=cfg.dataset.get('validate_hash', None),
+        shuffle_seed=cfg.dataset.get('shuffle_seed', None),
+        num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', None),
+        batch_size=device_batch_size)
 
-    mlm_probability = cfg.dataset.get('mlm_probability', None)
+    mlm_probability = cfg.get('mlm_probability', None)
     collate_fn = transformers.DataCollatorForLanguageModeling(
         tokenizer=dataset.tokenizer,
         mlm=mlm_probability is not None,
@@ -180,36 +192,37 @@ def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
         batch_size=device_batch_size,
         drop_last=cfg.drop_last,
         num_workers=cfg.num_workers,
-        pin_memory=cfg.pin_memory,
-        prefetch_factor=cfg.prefetch_factor,
-        persistent_workers=cfg.persistent_workers,
-        timeout=cfg.timeout,
+        pin_memory=cfg.get('pin_memory', True),
+        prefetch_factor=cfg.get('prefetch_factor', 2),
+        persistent_workers=cfg.get('persistent_workers', True),
+        timeout=cfg.get('timeout', 0),
     )
 
 
 # Helpful to test if your dataloader is working locally
 # Run `python data.py [remote] [local, optional]` and verify that batches are printed out
 if __name__ == '__main__':
-    remote = sys.argv[1]
-    ds_name = 'c4' if 'c4' in remote else 'the_pile' if 'pile' in remote else 'dataset'
+
     if len(sys.argv) > 2:
-        local = sys.argv[2]
+        local, remote = sys.argv[1:2]
     else:
-        local = f'/tmp/{ds_name}' if 's3' in remote else remote
-    print(f'Reading val split of {ds_name} dataset from {remote} -> {local}')
+        local = sys.argv[1]
+        remote = None
+    print(f'Reading val split dataset from {remote} -> {local}')
 
     cfg = {
+        'name': 'text',
         'dataset': {
-            'remote': remote,
             'local': local,
+            'remote': remote,
             'split': 'val',
-            'shuffle': True,
-            'prefetch': 1000,
+            'shuffle': False,
+            'predownload': 1000,
             'tokenizer_name': 'gpt2',
             'max_seq_len': 32,
-            'group_method': 'concat',
+            'group_method': 'truncate',
             'keep_zip':
-                True  # since we are just testing, do not delete originals
+                True,  # since we are just testing, do not delete originals
         },
         'drop_last': False,
         'num_workers': 4,

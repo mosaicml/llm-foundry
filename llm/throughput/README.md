@@ -26,7 +26,7 @@ hfu* = 4 * flops_per_seq * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
 hfu = (4 * flops_per_seq + 4 * attn_flops_per_seq) * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
 ```
 
-These are approximations. Real HFU would be higher since it would include the FLOP usage of norm, act, residual, as well as account for ALL recomputation (Model's using FlashAttn would include an extra recompute factor given FlashAttn does a recomputation in the fwd pass; in reality, the hfu flop attn multiplier would be 5 instaed of 4).
+These are approximations. Real HFU would be higher since it would include the FLOP usage of norm, act, residual, as well as account for ALL recomputation (Models using FlashAttn would include an extra recompute factor given FlashAttn does a recomputation in the fwd pass; in reality, the hfu flop attn multiplier would be 5 instead of 4).
 
 Below we highlight some of the configurations, but the full tables can be found in [FULL_TABLES](./FULL_TABLES.md).  
 These tables are not exhaustive. If there is a setting you are interested in, try profiling it yourself. For example, using Mosaic Cloud, to test MosaicGPT {13B, 30B} using fp16 with a batch size of 2M tokens and seq len {2k, 4k, 8k, 16k} run:  

@@ -3,8 +3,8 @@
 
 # Follow the instructions in the README to set up ./my-copy-c4
 # Or point data paths to your remote C4 dataset
-data_remote: &data_remote ./my-copy-c4
 data_local: &data_local ./my-copy-c4
+data_remote: &data_remote null
 
 max_seq_len: &max_seq_len 128
 tokenizer_name: &tokenizer_name bert-base-uncased
@@ -22,12 +22,11 @@ model:
 
 # Dataloaders
 train_loader:
-  name: c4
+  name: text
   dataset:
-    remote: *data_remote
     local: *data_local
+    remote: *data_remote
     split: train
-    prefetch: 1_000_000
     tokenizer_name: *tokenizer_name
     max_seq_len: *max_seq_len
     group_method: truncate
@@ -35,18 +34,13 @@ train_loader:
     mlm_probability: *mlm_probability
   drop_last: true
   num_workers: 8
-  pin_memory: true
-  prefetch_factor: 2
-  persistent_workers: true
-  timeout: 0
 
 eval_loader:
-  name: c4
+  name: text
   dataset:
-    remote: *data_remote
     local: *data_local
+    remote: *data_remote
     split: val
-    prefetch: 1000
     tokenizer_name: *tokenizer_name
     max_seq_len: *max_seq_len
     group_method: truncate
@@ -54,10 +48,6 @@ eval_loader:
     mlm_probability: 0.15 # We always evaluate at 15% masking for consistent comparison
   drop_last: false
   num_workers: 8
-  pin_memory: true
-  prefetch_factor: 2
-  persistent_workers: true
-  timeout: 0
 
 # Optimization
 scheduler:

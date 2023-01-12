@@ -86,7 +86,7 @@ def build_scheduler(cfg):
 
 
 def build_dataloader(cfg, device_batch_size):
-    try:
+    if cfg.name == 'text':
         return build_text_dataloader(cfg, device_batch_size)
-    except:
+    else:
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')

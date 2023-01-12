@@ -7,7 +7,7 @@
 
 # Mosaic Large Language Models
 
-This folder contains starter code for training LLMs with Composer + FSDP (in beta, use `composer>=0.11.0`).
+This folder contains starter code for training LLMs with Composer + FSDP (in beta, use `mosaicml>=0.12.0`).
 
 Our goal was to build the simplest, most flexible, and still performant stack for training LLMs ([see our blog post](https://www.mosaicml.com/blog/gpt-3-quality-for-500k)).
 To emphasize that flexibility, we designed this folder as a simple but feature-complete example of GPT pre-training
@@ -17,7 +17,10 @@ We even packed in a few tricks (e.g. [FlashAttention](https://github.com/HazyRes
 You'll find in this folder:
 * `src/mosaic_gpt.py` - a simple PyTorch GPT model, wrapped in `ComposerModel`, that can scale up to 70B parameters
 * `main.py` - a script that builds a [Composer](https://github.com/mosaicml/composer) Trainer and calls `trainer.fit()`.
-* `yamls/` - pre-baked configs for training compute-optimal LLMs from 125M up to 70B parameters.
+* `yamls/` - configs for training compute-optimal LLMs from 125M up to 70B parameters.
+* `throughput/` - data on the throughput of our models on different cluster configurations.
+* `mcloud/` - examples of how to use [MosaicML Cloud](https://www.mosaicml.com/cloud) to seamlessly launch training :)
+
 
 In the [common](../common) folder, you will also find:
 * `common/text_data.py`- a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) that can be used with a vanilla PyTorch dataloader.
@@ -34,31 +37,23 @@ Now that you've had a chance to explore the code, let's jump into actually runni
 
 # Prerequisites
 Here's what you need to get started with our LLM stack:
-* Use a Docker image with PyTorch 1.12+, e.g. [MosaicML's PyTorch base image](https://hub.docker.com/r/mosaicml/pytorch/tags)
-   * Recommended tag: `mosaicml/pytorch:1.12.1_cu116-python3.9-ubuntu20.04`
+* Use a Docker image with PyTorch 1.13+, e.g. [MosaicML's PyTorch base image](https://hub.docker.com/r/mosaicml/pytorch/tags)
+   * Recommended tag: `mosaicml/pytorch:1.13.0_cu117-python3.10-ubuntu20.04`
    * This image comes pre-configured with the following dependencies:
-      * PyTorch Version: 1.12.1
-      * CUDA Version: 11.6
-      * Python Version: 3.9
+      * PyTorch Version: 1.13.0
+      * CUDA Version: 11.7
+      * Python Version: 3.10
       * Ubuntu Version: 20.04
       * FlashAttention kernels from [HazyResearch](https://github.com/HazyResearch/flash-attention)
 * Use a system with NVIDIA GPUs
-
 * Install requirements via: `pip install -r requirements.txt`
-  * `composer` with FSDP support (`composer>=0.11.0`)
-  * `flash_attn`
-  * `transformers`
-  * `datasets`
-  * `omegaconf`
-  * `wandb`
-
 * Prepare a local copy of the dataset via instructions below.
 
 # Dataset preparation
 To run training, you'll need to make yourself a local copy of the pre-training dataset.
 If you only want to profile these LLMs, we recommend that you **only download and prepare the `val` split**,
 and use it for both train and eval in your script. Just change `split: train` to `split: val` in your run YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L32).
-Alternatively, feel free to substitute our dataloader with one of your own in the entrypoint [main.py](./main.py#L93)!
+Alternatively, feel free to substitute our dataloader with one of your own in [main.py](./main.py#L93)!
 
 As an example, we train LLMs on the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
 We first convert the dataset from its native format (a collection of zipped JSONs)
@@ -88,13 +83,13 @@ To verify that the dataloader works, run a quick test on your `val` split like s
 ```bash
 # This will construct a `StreamingTextDataset` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
-# Since remote and local are set to the same path, no streaming/copying takes place.
-python ../common/text_data.py ./my-copy-c4 ./my-copy-c4
+# Since we only provide a local path, no streaming/copying takes place.
+python ../common/text_data.py ./my-copy-c4
 
-# This will do the same thing, but stream data from {remote} -> {local}.
+# This will do the same thing, but stream data to {local} from {remote}.
 # The remote path can be a filesystem or object store URI.
-python ../common/text_data.py ./my-copy-c4 /tmp/cache-c4
-python ../common/text_data.py s3://my-bucket/my-copy-c4 /tmp/cache-c4
+python ../common/text_data.py /tmp/cache-c4 ./my-copy-c4
+python ../common/text_data.py /tmp/cache-c4 s3://my-bucket/my-copy-c4
 ```
 
 # How to start training
@@ -119,7 +114,7 @@ If training on a single node, the `composer` launcher will autodetect the number
 composer main.py yamls/mosaic_gpt/125m.yaml
 ```
 
-To train with high performance on multi-node clusters, the easiest way is with MosaicML Cloud ;)
+To train with high performance on multi-node clusters, the easiest way is with MosaicML Cloud ;) Check out the `mcloud/` folder for examples!
 
 But if you really must try this manually on your own cluster, then just provide a few variables to `composer`
 either directly via CLI, or via environment variables that can be read. Then launch the appropriate command on each node:
@@ -165,30 +160,22 @@ You can also easily enable other experiment trackers like Weights and Biases or 
 by using [Composer's logging integrations](https://docs.mosaicml.com/en/v0.10.0/trainer/logging.html).
 
 ```bash
-[batch=7/5000]: trainer/grad_accum: 4
-[batch=7/5000]: loss/train/total: 9.8454
-[batch=7/5000]: metrics/train/LanguageCrossEntropy: 9.8454
-[batch=7/5000]: metrics/train/Perplexity: 18871.5430
-[batch=8/5000]: wall_clock/train: 16.8334
-[batch=8/5000]: wall_clock/val: 0.0000
-[batch=8/5000]: wall_clock/total: 16.8334
-[batch=8/5000]: lr-DecoupledAdamW/group0: 0.0000
-[batch=8/5000]: trainer/global_step: 8
-[batch=8/5000]: trainer/batch_idx: 8
-[trace]: algorithm_traces/GradientClipping/Event.AFTER_TRAIN_BATCH:1
-
-[batch=8/5000]: trainer/grad_accum: 4
-[batch=8/5000]: loss/train/total: 9.7484
-[batch=8/5000]: metrics/train/LanguageCrossEntropy: 9.7484
-[batch=8/5000]: metrics/train/Perplexity: 17127.0938
-[batch=9/5000]: wall_clock/train: 18.3862
-[batch=9/5000]: wall_clock/val: 0.0000
-[batch=9/5000]: wall_clock/total: 18.3862
-[batch=9/5000]: lr-DecoupledAdamW/group0: 0.0000
-[batch=9/5000]: trainer/global_step: 9
-[batch=9/5000]: trainer/batch_idx: 9
-
-train                           0%|                         | 9/5000 [00:18<2:15:12,  1.63s/ba, loss/train/total=9.7484]
+[batch=1/100]:
+         Train LanguageCrossEntropy: 10.9736
+         Train Perplexity: 58312.0586
+         Train loss/train/total: 10.9736
+[batch=2/100]:
+         Train LanguageCrossEntropy: 10.9724
+         Train Perplexity: 58243.8086
+         Train loss/train/total: 10.9724
+[batch=3/100]:
+         Train LanguageCrossEntropy: 10.9745
+         Train Perplexity: 58365.8047
+         Train loss/train/total: 10.9745
+[batch=4/100]:
+         Train LanguageCrossEntropy: 10.6459
+         Train Perplexity: 42018.5508
+         Train loss/train/total: 10.6459
 ```
 
 # How many GPUs do I need to train a LLM?

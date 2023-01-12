@@ -97,9 +97,3 @@ repos:
     entry: yamllint
     language: python
     types: [file, yaml]
-
-- repo: https://github.com/jumanjihouse/pre-commit-hook-yamlfmt
-  rev: 0.2.1
-  hooks:
-  - id: yamlfmt
-    args: [--mapping, '2', --sequence, '2', --offset, '0', --width, '120', --implicit_start]  # yamllint disable-line

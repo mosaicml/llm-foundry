@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import warnings
 from collections import deque
-from typing import Any, Deque, Dict, Union
+from typing import Any, Deque, Dict, Optional, Union
 
 import torch
 from composer.core import Callback, State
 from composer.loggers import Logger
+from composer.models.base import ComposerModel
 from composer.utils import dist
+from torch.utils.data import DataLoader
 
 GPU_AVAILABLE_FLOPS = {
     # source: https://resources.nvidia.com/en-us-tensor-core/nvidia-tensor-core-gpu-datasheet
@@ -27,8 +29,9 @@ GPU_AVAILABLE_FLOPS = {
         'amp_fp16': 1.979e15 / 2,
         'bf16': 1.979e15 / 2,
         'amp_bf16': 1.979e15 / 2,
-        'fp8': 3_958 / 2,
-        'int8': 3_958 / 2
+        'fp8': 3.958e15 / 2,
+        'amp_fp8': 3.958e15 / 2,
+        'int8': 3.958e15 / 2,
     },
     'h100-pcie': {
         'fp64': 51e12,
@@ -38,8 +41,9 @@ GPU_AVAILABLE_FLOPS = {
         'amp_fp16': 1.513e15 / 2,
         'bf16': 1.513e15 / 2,
         'amp_bf16': 1.513e15 / 2,
-        'fp8': 3_026 / 2,
-        'int8': 3_026 / 2
+        'fp8': 3.026e15 / 2,
+        'amp_fp8': 3.026e15 / 2,
+        'int8': 3.026e15 / 2,
     },
     # source: https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a100/pdf/nvidia-a100-datasheet-us-nvidia-1758950-r4-web.pdf
     # sxm and pcie have same flop counts
@@ -50,26 +54,26 @@ GPU_AVAILABLE_FLOPS = {
         'fp16': 312e12,
         'amp_fp16': 312e12,
         'bf16': 312e12,
-        'amp_bf16': 312e12
+        'amp_bf16': 312e12,
     },
     # source: https://images.nvidia.com/content/technologies/volta/pdf/volta-v100-datasheet-update-us-1165301-r5.pdf
     'v100-sxm': {
         'fp64': 7.8e12,
         'fp32': 15.7e12,
         'fp16': 125e12,
-        'amp_fp16': 125e12
+        'amp_fp16': 125e12,
     },
     'v100-pcie': {
         'fp64': 7e12,
         'fp32': 14e12,
         'fp16': 112e12,
-        'amp_fp16': 112e12
+        'amp_fp16': 112e12,
     },
     'v100s-pcie': {
         'fp64': 8.2e12,
         'fp32': 16.4e12,
         'fp16': 130e12,
-        'amp_fp16': 130e12
+        'amp_fp16': 130e12,
     },
     # source: https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/tesla-t4/t4-tensor-core-datasheet-951643.pdf
     # sxm and pcie have same flop counts
@@ -78,14 +82,14 @@ GPU_AVAILABLE_FLOPS = {
         'fp16': 65e12,
         'amp_fp16': 65e12,
         'int8': 130e12,
-        'int4': 260e12
+        'int4': 260e12,
     },
 }
 
 __all__ = ['SpeedMonitorMFU']
 
 
-def get_gpu_flops_available(state):
+def get_gpu_flops_available(state: State):
     gpu_flops_available = None
 
     # torch.cuda.get_device_name() ex output: 'NVIDIA A100-SXM4-40GB'
@@ -122,13 +126,11 @@ def get_gpu_flops_available(state):
 
 
 class SpeedMonitorMFU(Callback):
-    """Logs the training throughput and MFU.
-    """
-    def __init__(
-        self,
-        window_size: int = 100,
-        gpu_flops_available: Union[float, int] = None
-    ):
+    """Logs the training throughput and MFU."""
+
+    def __init__(self,
+                 window_size: int = 100,
+                 gpu_flops_available: Optional[Union[float, int]] = None):
         # Track the batch num samples and wct to compute throughput over a window of batches
         self.batch_start_num_samples = 0
         self.batch_start_wct = 0.0
@@ -174,8 +176,10 @@ class SpeedMonitorMFU(Callback):
             self.gpu_flops_available = get_gpu_flops_available(state)
 
     def batch_end(self, state: State, logger: Logger):
-        batch_num_samples = int(state.timestamp.sample) - self.batch_start_num_samples
-        batch_wct = state.timestamp.total_wct.total_seconds() - self.batch_start_wct
+        batch_num_samples = int(
+            state.timestamp.sample) - self.batch_start_num_samples
+        batch_wct = state.timestamp.total_wct.total_seconds(
+        ) - self.batch_start_wct
 
         # Add the new element
         self.batch_wct_buffer.append(batch_wct)
@@ -184,27 +188,42 @@ class SpeedMonitorMFU(Callback):
         # Log the throughput
         if len(self.batch_num_samples_buffer) == self.window_size:
             world_size = dist.get_world_size()
-            grad_accum = state.grad_accum if state.grad_accum else 1
-            global_batch_size = state.device_train_microbatch_size * grad_accum * world_size
-            batches_per_sec = len(self.batch_num_samples_buffer) / sum(self.batch_wct_buffer)
-            samples_per_sec = sum(self.batch_num_samples_buffer) / sum(self.batch_wct_buffer)
+            batches_per_sec = len(self.batch_num_samples_buffer) / sum(
+                self.batch_wct_buffer)
+            samples_per_sec = sum(self.batch_num_samples_buffer) / sum(
+                self.batch_wct_buffer)
             dev_batches_per_sec = batches_per_sec / world_size
             dev_samples_per_sec = samples_per_sec / world_size
-            logger.log_metrics({'throughput/batches_per_sec':  batches_per_sec})
+            logger.log_metrics({'throughput/batches_per_sec': batches_per_sec})
             logger.log_metrics({'throughput/samples_per_sec': samples_per_sec})
-            logger.log_metrics({'throughput/device/batches_per_sec': dev_batches_per_sec})
-            logger.log_metrics({'throughput/device/samples_per_sec': dev_samples_per_sec})
+            logger.log_metrics(
+                {'throughput/device/batches_per_sec': dev_batches_per_sec})
+            logger.log_metrics(
+                {'throughput/device/samples_per_sec': dev_samples_per_sec})
 
-            if hasattr(state.dataloader.dataset, 'max_seq_len'):
+            if isinstance(state.dataloader, DataLoader) and hasattr(
+                    state.dataloader.dataset, 'max_seq_len'):
+                max_seq_len = state.dataloader.dataset.max_seq_len  # type: ignore
                 # only applicable to seq data / models
-                logger.log_metrics({'throughput/tokens_per_sec': samples_per_sec * state.dataloader.dataset.max_seq_len})
-                logger.log_metrics({'throughput/device/tokens_per_sec': dev_samples_per_sec * state.dataloader.dataset.max_seq_len})
+                logger.log_metrics({
+                    'throughput/tokens_per_sec': samples_per_sec * max_seq_len
+                })
+                logger.log_metrics({
+                    'throughput/device/tokens_per_sec':
+                        dev_samples_per_sec * max_seq_len
+                })
 
-            if hasattr(state.model, 'num_fwd_flops'):
-                flops_per_sec = (3 * state.model.num_fwd_flops) * samples_per_sec
+            composer_model = state.model
+            if not isinstance(composer_model, ComposerModel):
+                composer_model = composer_model.module  # Handles DDP case until Composer fixes this
+            if hasattr(composer_model, 'num_fwd_flops'):
+                assert isinstance(composer_model.num_fwd_flops, float)
+                # Assume that training flops is 3x fwd flops (1 fwd, 2 bkw)
+                flops_per_sec = 3 * composer_model.num_fwd_flops * samples_per_sec
                 logger.log_metrics({'throughput/flops_per_sec': flops_per_sec})
                 dev_flops_per_sec = flops_per_sec / world_size
-                logger.log_metrics({'throughput/device/flops_per_sec': dev_flops_per_sec})
+                logger.log_metrics(
+                    {'throughput/device/flops_per_sec': dev_flops_per_sec})
                 if self.gpu_flops_available:
                     mfu = dev_flops_per_sec / self.gpu_flops_available
                     logger.log_metrics({'throughput/device/mfu': mfu})

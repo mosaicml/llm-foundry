@@ -67,11 +67,11 @@ repos:
   hooks:
   - id: pyright
     name: pyright
-    entry: pyright .
+    entry: pyright
     language: node
     types: [python]
-    pass_filenames: false
-    additional_dependencies: [pyright@1.1.281]
+    pass_filenames: true
+    additional_dependencies: ['pyright@1.1.281']
 - repo: https://github.com/PyCQA/docformatter
   rev: v1.5.0
   hooks:

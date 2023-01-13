@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 
 
 class StreamingTextDataset(StreamingDataset):
-    """Generic implementation of a text dataset using MosaicML's streaming Dataset V2.
+    """Generic text dataset using MosaicML's StreamingDataset.
 
     Args:
         local (str): Local dataset directory where shards are cached by split.
@@ -194,7 +194,7 @@ def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
         num_workers=cfg.num_workers,
         pin_memory=cfg.get('pin_memory', True),
         prefetch_factor=cfg.get('prefetch_factor', 2),
-        persistent_workers=cfg.get('persistent_workers', True),
+        persistent_workers=cfg.get('persistent_workers', False),
         timeout=cfg.get('timeout', 0),
     )
 
@@ -204,11 +204,12 @@ def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
 if __name__ == '__main__':
 
     if len(sys.argv) > 2:
-        local, remote = sys.argv[1:2]
+        local, remote = sys.argv[1:3]
+        print(f'Reading val split from {local} <- streamed from <- {remote}')
     else:
         local = sys.argv[1]
         remote = None
-    print(f'Reading val split dataset from {remote} -> {local}')
+        print(f'Reading val split from {local}')
 
     cfg = {
         'name': 'text',
@@ -217,19 +218,13 @@ if __name__ == '__main__':
             'remote': remote,
             'split': 'val',
             'shuffle': False,
-            'predownload': 1000,
             'tokenizer_name': 'gpt2',
             'max_seq_len': 32,
             'group_method': 'truncate',
-            'keep_zip':
-                True,  # since we are just testing, do not delete originals
+            'keep_zip': True,  # in case we need compressed files after testing
         },
         'drop_last': False,
         'num_workers': 4,
-        'pin_memory': True,
-        'prefetch_factor': 2,
-        'persistent_workers': True,
-        'timeout': 60,
     }
     cfg = om.create(cfg)
     device_batch_size = 2

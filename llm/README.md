@@ -50,10 +50,11 @@ Here's what you need to get started with our LLM stack:
 * Prepare a local copy of the dataset via instructions below.
 
 # Dataset preparation
-To run training, you'll need to make yourself a local copy of the pre-training dataset.
-If you only want to profile these LLMs, we recommend that you **only download and prepare the `val` split**,
-and use it for both train and eval in your script. Just change `split: train` to `split: val` in your run YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L32).
-Alternatively, feel free to substitute our dataloader with one of your own in [main.py](./main.py#L93)!
+To run training, you'll need to make yourself aå copy of the pre-training dataset.
+If you only want to profile these LLMs, we recommend that you **download and prepare the `train_small` and `val` splits**,
+and skip the full `train` split. You'll just need to replace `split: train` with `split: train_small` in your run YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L40).
+You can also accomplish this in your CLI command like so: `composer main.py ... train_loader.split=train_small`
+Alternatively, feel free to substitute our dataloader with one of your own in [main.py](./main.py#L96)!
 
 As an example, we train LLMs on the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
 We first convert the dataset from its native format (a collection of zipped JSONs)
@@ -65,15 +66,19 @@ You can read more about [the benefits of using mosaicml-streaming here](https://
 ### Converting C4 to streaming dataset `.mds` format
 To make yourself a copy of C4, use `convert_c4.py` like so:
 ```bash
-# Download the 'val' split and convert to StreamingDataset format
-# This will take 10 sec to 1 min depending on your Internet bandwidth
-# You should see a dataset folder `./my-copy-c4/val` that is ~0.5GB
-python ../scripts/convert_c4.py --out_root ./my-copy-c4 --splits val
+# Download the 'train_small', 'val' splits and convert to StreamingDataset format
+# This will take 20 sec to 1 min depending on your Internet bandwidth
+# You should see two folders `./my-copy-c4/train_small` and `./my-copy-c4/val` that are each ~0.5GB
+python ../scripts/convert_c4.py --out_root ./my-copy-c4 --splits train_small val
 
 # Download the 'train' split if you really want to train the model (not just profile)
 # This will take 1-to-many hours depending on bandwidth, # CPUs, etc.
 # The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
 python ../scripts/convert_c4.py --out_root ./my-copy-c4 --splits train
+
+# For any of the above commands, you can also choose to compress the .mds files.
+# This is useful if your plan is to store these in object store after conversion.
+# python ../scripts/convert_c4.py ... --compression zstd
 ```
 
 ### Test the Dataloader
@@ -96,12 +101,10 @@ python ../common/text_data.py /tmp/cache-c4 s3://my-bucket/my-copy-c4
 
 Now that you've installed dependencies and built a local copy of the C4 dataset, let's start training!
 
-**Please remember** to edit the `data_remote` and `data_local` paths in your YAML to point to your local C4 copy.
-Our streaming dataloader always streams from `data_remote` -> `data_local`, and if both paths are the same,
-then no extra copying is done.
+**Please remember** to edit the `data_local` and (optionally) `data_remote` paths in your YAML.
+Our streaming dataloader always streams to `data_local` <- from <- `data_remote`, and if the remote path is missing, the files are expected to be present in `data_local`.
 
-**Also remember** that if you only downloaded the `val` split, you need to make sure your train_dataloader is pointed that split.
-Just change `split: train` to `split: val` in your YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L32).
+**Also remember** that if you only downloaded the `train_small` split, you need to make sure your train_loader uses that split. Just change `split: train` to `split: train_small` in your YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L40). Or alternatively, pass it in via CLI arg: `composer main.py ... train_loader.split=train_small`.
 
 
 ### Single-Node training

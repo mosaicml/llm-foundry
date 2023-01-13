@@ -82,6 +82,17 @@ def main(cfg):
     fsdp_config = om.to_container(fsdp_config,
                                   resolve=True) if fsdp_config else None
 
+    # Restrict model init device to 'meta' and 'cpu',
+    # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors when multiple GPUs are available.
+    # Also 'meta' is only valid when using FSDP
+    assert cfg.model.device in ['meta', 'cpu']
+    if fsdp_config is None and cfg.model.device == 'meta':
+        print (
+            "Using init device `cfg.model.device='meta'` is only valid when using FSDP! "
+            "Reverting to `cfg.model.device='cpu'`."
+        )
+        cfg.model.device = 'cpu'
+
     # Build Model
     # For fast initialization of MosaicGPT, use cfg.model.device='meta'
     print('Initializing model...')

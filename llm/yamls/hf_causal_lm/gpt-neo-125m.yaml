@@ -77,7 +77,7 @@ seed: 17
 device_eval_batch_size: 4
 device_train_microbatch_size: 4
 # device_train_microbatch_size: auto
-precision: bf16
+precision: amp_bf16
 
 # FSDP
 fsdp_config:
@@ -89,8 +89,9 @@ fsdp_config:
   verbose: true
 
 # Logging
-progress_bar: true
+progress_bar: false
 log_to_console: true
+console_log_interval: 1ba
 
 callbacks:
   speed_monitor:

@@ -82,6 +82,7 @@ algorithms:
 
 max_duration: 51500ba # ~ 54B tokens
 eval_interval: 5000ba
+eval_subset_num_batches: -1
 global_train_batch_size: 512
 
 # System
@@ -101,8 +102,9 @@ fsdp_config:
   verbose: true
 
 # Logging
-progress_bar: true
+progress_bar: false
 log_to_console: true
+console_log_interval: 1ba
 
 callbacks:
   speed_monitor:

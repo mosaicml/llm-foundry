@@ -217,7 +217,7 @@ class SpeedMonitorMFU(Callback):
             if not isinstance(composer_model, ComposerModel):
                 composer_model = composer_model.module  # Handles DDP case until Composer fixes this
             if hasattr(composer_model, 'num_fwd_flops'):
-                assert isinstance(composer_model.num_fwd_flops, float)
+                assert isinstance(composer_model.num_fwd_flops, (int, float))
                 # Assume that training flops is 3x fwd flops (1 fwd, 2 bkw)
                 flops_per_sec = 3 * composer_model.num_fwd_flops * samples_per_sec
                 logger.log_metrics({'throughput/flops_per_sec': flops_per_sec})

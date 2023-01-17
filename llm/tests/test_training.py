@@ -59,7 +59,9 @@ def test_train(device):
     test_cfg = gpt_tiny_cfg(conf_path='yamls/mosaic_gpt/125m.yaml')
 
     if device == 'cpu':
-        pytest.xfail('FSDP in PyTorch 1.13 does not support precision `Precision.FP32` with sharding_strategy `FULL_SHARD.`')
+        pytest.xfail(
+            'FSDP in PyTorch 1.13 does not support precision `Precision.FP32` with sharding_strategy `FULL_SHARD.`'
+        )
         test_cfg.model.device = 'cpu'
         test_cfg.model.attn_impl = 'torch'
         test_cfg.precision = 'fp32'

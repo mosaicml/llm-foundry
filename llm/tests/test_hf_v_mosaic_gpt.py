@@ -13,16 +13,34 @@ from src.model_registry import COMPOSER_MODEL_REGISTRY
 @pytest.mark.parametrize(
     'attn_impl,dropout,strict,alibi,mask_val',
     [
-        ("flash", 0.0, True, False, 1),
-        ("flash", 0.1, True, False, 1),
-        ("torch", 0.0, False, False, 1),  # requires strict=False to skip loading model.attn_mask
-        ("triton", 0.0, False, False, 1),  # requires strict=False to skip loading model.attn_mask
-        ("triton", 0.1, False, False, 1),  # requires strict=False to skip loading model.attn_mask
-        pytest.param("torch", 0.0, False, True, 1, marks=pytest.mark.xfail(reason="hf model is not implemented with alibi")),
-        pytest.param("triton", 0.1, False, True, 1, marks=pytest.mark.xfail(reason="hf model is not implemented with alibi")),
-        ("torch", 0.0, False, False, 0),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
-        ("triton", 0.0, False, False, 0),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
-        ("triton", 0.1, False, False, 0),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
+        ('flash', 0.0, True, False, 1),
+        ('flash', 0.1, True, False, 1),
+        ('torch', 0.0, False, False,
+         1),  # requires strict=False to skip loading model.attn_mask
+        ('triton', 0.0, False, False,
+         1),  # requires strict=False to skip loading model.attn_mask
+        ('triton', 0.1, False, False,
+         1),  # requires strict=False to skip loading model.attn_mask
+        pytest.param('torch',
+                     0.0,
+                     False,
+                     True,
+                     1,
+                     marks=pytest.mark.xfail(
+                         reason='hf model is not implemented with alibi')),
+        pytest.param('triton',
+                     0.1,
+                     False,
+                     True,
+                     1,
+                     marks=pytest.mark.xfail(
+                         reason='hf model is not implemented with alibi')),
+        ('torch', 0.0, False, False, 0
+        ),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
+        ('triton', 0.0, False, False, 0
+        ),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
+        ('triton', 0.1, False, False, 0
+        ),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
     ])
 def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
     warnings.filterwarnings(
@@ -98,19 +116,18 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
 
     # generate random input branch
     batch = {}
-    batch['input_ids'] = torch.randint(
-        low=0,
-        high=cfg.vocab_size,
-        size=(batch_size, cfg.max_seq_len)).to(device)
-    batch['labels'] = torch.randint(
-        low=0,
-        high=cfg.vocab_size,
-        size=(batch_size, cfg.max_seq_len)).to(device)
-    batch['attention_mask'] = torch.ones(
-        size=(batch_size, cfg.max_seq_len),
-        dtype=torch.int64).to(device)
+    batch['input_ids'] = torch.randint(low=0,
+                                       high=cfg.vocab_size,
+                                       size=(batch_size,
+                                             cfg.max_seq_len)).to(device)
+    batch['labels'] = torch.randint(low=0,
+                                    high=cfg.vocab_size,
+                                    size=(batch_size,
+                                          cfg.max_seq_len)).to(device)
+    batch['attention_mask'] = torch.ones(size=(batch_size, cfg.max_seq_len),
+                                         dtype=torch.int64).to(device)
 
-    batch['attention_mask'][:, cfg.max_seq_len // 2 :] = mask_val
+    batch['attention_mask'][:, cfg.max_seq_len // 2:] = mask_val
 
     hf_model.train()
     model.train()
@@ -141,9 +158,11 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
         '.mlp.c_fc.': '.mlp.mlp_up.',
         '.mlp.c_proj.': '.mlp.mlp_down.',
     }
-    if attn_impl == "torch":
-        hf_2_mosaic_key_mods['.attn.c_attn.weight'] = '.causal_attn.mhsa.in_proj_weight'
-        hf_2_mosaic_key_mods['.attn.c_attn.bias'] = '.causal_attn.mhsa.in_proj_bias'
+    if attn_impl == 'torch':
+        hf_2_mosaic_key_mods[
+            '.attn.c_attn.weight'] = '.causal_attn.mhsa.in_proj_weight'
+        hf_2_mosaic_key_mods[
+            '.attn.c_attn.bias'] = '.causal_attn.mhsa.in_proj_bias'
         hf_2_mosaic_key_mods['.attn.c_proj.'] = '.causal_attn.mhsa.out_proj.'
     else:
         hf_2_mosaic_key_mods['.attn.c_attn.'] = '.causal_attn.mhsa.Wqkv.'

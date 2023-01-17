@@ -1,7 +1,7 @@
 # MosaicGPT Throughput, MFU, and HFU
 Throughput, MFU, and HFU for MosaicGPT models trained on [MosaicML Cloud](https://www.mosaicml.com/cloud).
 
-`run_all_configs.py` uses MosaicML Cloud's python api to run the specified configurations.  
+`run_all_configs.py` uses MosaicML Cloud's python api to run the specified configurations.
 `parse_logs.py` uses MosaicML Cloud's python api to load and parse training logs and get training throughput numbers. Throughput numbers are used to calculate model FLOP utilization (MFU) and hardware FLOP utilization (HFU).
 
 ## MFU and HFU
@@ -28,8 +28,8 @@ hfu = (4 * flops_per_seq + 4 * attn_flops_per_seq) * throughput / (gpu_num * GPU
 
 These are approximations. Real HFU would be higher since it would include the FLOP usage of norm, act, residual, as well as account for ALL recomputation (Models using FlashAttn would include an extra recompute factor given FlashAttn does a recomputation in the fwd pass; in reality, the hfu flop attn multiplier would be 5 instead of 4).
 
-Below we highlight some of the configurations, but the full tables can be found in [FULL_TABLES](./FULL_TABLES.md).  
-These tables are not exhaustive. If there is a setting you are interested in, try profiling it yourself. For example, using Mosaic Cloud, to test MosaicGPT {13B, 30B} using fp16 with a batch size of 2M tokens and seq len {2k, 4k, 8k, 16k} run:  
+Below we highlight some of the configurations, but the full tables can be found in [FULL_TABLES](./FULL_TABLES.md).
+These tables are not exhaustive. If there is a setting you are interested in, try profiling it yourself. For example, using Mosaic Cloud, to test MosaicGPT {13B, 30B} using fp16 with a batch size of 2M tokens and seq len {2k, 4k, 8k, 16k} run:
 ```
 python run_all_configs.py -m 13b.yaml 30b.yaml -t fp16 -b 21 21 -s 11 14 --RUN
 ```

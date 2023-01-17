@@ -1,8 +1,8 @@
 integrations:
-  - integration_type: git_repo
-    git_repo: mosaicml/examples
-    git_branch: v0.0.2
-    pip_install: -r llm/requirements.txt
+- integration_type: git_repo
+  git_repo: mosaicml/examples
+  git_branch: v0.0.2
+  pip_install: -r llm/requirements.txt
 
 # We are fetching, converting, and training on the 'val' split
 # as it is small and quick to get going for this demo.
@@ -135,15 +135,15 @@ parameters:
     lr_monitor: {}
     memory_monitor: {}
 
-  # loggers:
-  #   wandb: {}
+    # loggers:
+    #   wandb: {}
 
-  # Checkpoint to local filesystem or remote object store
-  # save_interval: 2000ba
-  # save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
-  # save_folder: ./{run_name}/checkpoints
-  # save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
+    # Checkpoint to local filesystem or remote object store
+    # save_interval: 2000ba
+    # save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+    # save_folder: ./{run_name}/checkpoints
+    # save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
 
-  # Load from local filesystem or remote object store
-  # load_path: ./gpt-1b/checkpoints/latest-rank{rank}.pt
-  # load_path: s3://my-bucket/my-folder/gpt-1b/checkpoints/latest-rank{rank}.pt
+    # Load from local filesystem or remote object store
+    # load_path: ./gpt-1b/checkpoints/latest-rank{rank}.pt
+    # load_path: s3://my-bucket/my-folder/gpt-1b/checkpoints/latest-rank{rank}.pt

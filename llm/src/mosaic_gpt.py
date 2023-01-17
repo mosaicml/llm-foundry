@@ -39,13 +39,12 @@ class TorchCausalAttention(nn.Module):
             ))
 
     def forward(self, x, key_padding_mask, attn_mask=None):
-        return self.mhsa(
-            x,
-            x,
-            x,
-            attn_mask=attn_mask,
-            key_padding_mask=~key_padding_mask,
-            need_weights=True)
+        return self.mhsa(x,
+                         x,
+                         x,
+                         attn_mask=attn_mask,
+                         key_padding_mask=~key_padding_mask,
+                         need_weights=True)
 
     @staticmethod
     def mask_shape(n_heads, seq_len, alibi):
@@ -70,7 +69,12 @@ class TorchCausalAttention(nn.Module):
 
         if alibi:
             device, dtype = attn_mask.device, attn_mask.dtype
-            a_bias = alibi_bias(n_heads, seq_len, full=True, alibi_bias_max=alibi_bias_max, device=device, dtype=dtype)
+            a_bias = alibi_bias(n_heads,
+                                seq_len,
+                                full=True,
+                                alibi_bias_max=alibi_bias_max,
+                                device=device,
+                                dtype=dtype)
             attn_mask.add_(a_bias.squeeze())
 
         return attn_mask
@@ -103,10 +107,9 @@ class FlashCausalAttention(nn.Module):
 
     def forward(self, x, key_padding_mask, attn_mask=None):
         assert attn_mask is None
-        return self.mhsa(
-            x,
-            key_padding_mask=key_padding_mask,
-            need_weights=False)
+        return self.mhsa(x,
+                         key_padding_mask=key_padding_mask,
+                         need_weights=False)
 
     @staticmethod
     def mask_shape(*args, **kwargs):
@@ -118,7 +121,9 @@ class FlashCausalAttention(nn.Module):
 
 
 class TritonFlashCausalAttention(nn.Module):
-    """Multi-headed self attention using triton FlashAttn kernel which includes bias for Alibi integration
+    """Multi-headed self attention using triton FlashAttn kernel.
+
+    This also includes bias for Alibi integration.
     """
 
     def __init__(self, cfg: DictConfig, device: Optional[str] = None):
@@ -128,8 +133,8 @@ class TritonFlashCausalAttention(nn.Module):
         except ImportError as e:
             raise e
 
-        assert cfg.attn_pdrop == 0, "triton kernel does not support attn_dropout"
-        
+        assert cfg.attn_pdrop == 0, 'triton kernel does not support attn_dropout'
+
         self.mhsa = FlashMHA(
             embed_dim=cfg.d_model,
             num_heads=cfg.n_heads,
@@ -142,11 +147,10 @@ class TritonFlashCausalAttention(nn.Module):
 
     def forward(self, x, key_padding_mask=None, attn_mask=None):
         assert key_padding_mask is None
-        return self.mhsa(
-            x,
-            key_padding_mask=None,
-            attn_mask=attn_mask,
-            need_weights=False)
+        return self.mhsa(x,
+                         key_padding_mask=None,
+                         attn_mask=attn_mask,
+                         need_weights=False)
 
     @staticmethod
     def mask_shape(n_heads, seq_len, alibi):
@@ -159,22 +163,37 @@ class TritonFlashCausalAttention(nn.Module):
 
         if alibi:
             device, dtype = attn_mask.device, attn_mask.dtype
-            attn_mask.add_(alibi_bias(n_heads, seq_len, full=False, alibi_bias_max=alibi_bias_max, device=device, dtype=dtype))
+            attn_mask.add_(
+                alibi_bias(n_heads,
+                           seq_len,
+                           full=False,
+                           alibi_bias_max=alibi_bias_max,
+                           device=device,
+                           dtype=dtype))
 
         return attn_mask
 
 
-def alibi_bias(n_heads, seq_len, full=False, alibi_bias_max=8, device=None, dtype=None):
-    alibi_bias = torch.arange(1 - seq_len, 1, dtype=dtype, device=device).view(1, 1, 1, seq_len)
+def alibi_bias(n_heads,
+               seq_len,
+               full=False,
+               alibi_bias_max=8,
+               device=None,
+               dtype=None):
+    alibi_bias = torch.arange(1 - seq_len, 1, dtype=dtype,
+                              device=device).view(1, 1, 1, seq_len)
     if full:
         # generate 1 x Heads x SeqLen x SeqLen alibi bias mask
         # otherwise the mask is 1 x Heads x 1 x SeqLen (which is braodcasted up to the approproate size)
-        alibi_bias = alibi_bias - torch.arange(1 - seq_len, 1, dtype=dtype, device=device).view(1, 1, seq_len, 1)
-        alibi_bias.abs_().mul_(-1)  # since we're using causal flag, this isn't really needed, but why not include it
+        alibi_bias = alibi_bias - torch.arange(
+            1 - seq_len, 1, dtype=dtype, device=device).view(1, 1, seq_len, 1)
+        alibi_bias.abs_().mul_(
+            -1
+        )  # since we're using causal flag, this isn't really needed, but why not include it
 
     m = torch.arange(1, n_heads + 1, dtype=dtype, device=device)
     m.mul_(alibi_bias_max / n_heads)
-    alibi_bias = alibi_bias * (1. / (2 ** m.view(1, n_heads, 1, 1)))
+    alibi_bias = alibi_bias * (1. / (2**m.view(1, n_heads, 1, 1)))
     return alibi_bias
 
 
@@ -197,7 +216,10 @@ class GPTMLP(nn.Module):
 
 class GPTBlock(nn.Module):
 
-    def __init__(self, cfg: DictConfig, causal_attn_cls, device: Optional[str] = None):
+    def __init__(self,
+                 cfg: DictConfig,
+                 causal_attn_cls,
+                 device: Optional[str] = None):
         super().__init__()
         if cfg.get('alibi', False):
             assert cfg.attn_impl == 'triton' or cfg.attn_impl == 'torch', 'Only triton kernel or torch supports alibi'
@@ -209,10 +231,10 @@ class GPTBlock(nn.Module):
         self.resid_mlp_dropout = nn.Dropout(cfg.resid_pdrop)
 
     def forward(
-            self,
-            x: torch.Tensor,
-            key_padding_mask: Optional[torch.ByteTensor] = None,
-            attn_mask: Optional[torch.Tensor] = None,
+        self,
+        x: torch.Tensor,
+        key_padding_mask: Optional[torch.ByteTensor] = None,
+        attn_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         a = self.ln_1(x)
         b, _ = self.causal_attn(a, key_padding_mask, attn_mask)
@@ -238,64 +260,88 @@ class MosaicGPT(nn.Module):
         else:
             raise ValueError(f'Unknown attn_impl={cfg.attn_impl}')
 
-        self.alibi = cfg.get("alibi", False)
-        self.alibi_bias_max = cfg.get("alibi_bias_max", 8 if self.alibi else None)
+        self.alibi = cfg.get('alibi', False)
+        self.alibi_bias_max = cfg.get('alibi_bias_max',
+                                      8 if self.alibi else None)
         # CogView (https://arxiv.org/abs/2105.13290) and GLM-130B (https://arxiv.org/abs/2210.02414)
         # both report this helping with stabilizing training
-        self.embedding_fraction = cfg.get("embedding_fraction", 1)
-        assert 0 < self.embedding_fraction <= 1, "model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!"
+        self.embedding_fraction = cfg.get('embedding_fraction', 1)
+        assert 0 < self.embedding_fraction <= 1, 'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!'
 
-        self.transformer = nn.ModuleDict({'wte': nn.Embedding(cfg.vocab_size, cfg.d_model, device=cfg.device)})
+        self.transformer = nn.ModuleDict({
+            'wte': nn.Embedding(cfg.vocab_size, cfg.d_model, device=cfg.device)
+        })
         if not self.alibi:
-            self.transformer.update({'wpe': nn.Embedding(cfg.max_seq_len, cfg.d_model, device=cfg.device)})
+            self.transformer.update({
+                'wpe':
+                    nn.Embedding(cfg.max_seq_len,
+                                 cfg.d_model,
+                                 device=cfg.device)
+            })
         self.transformer.update({'emb_drop': nn.Dropout(cfg.emb_pdrop)})
-        self.transformer.update({'blocks': nn.ModuleList([
-                    GPTBlock(cfg, causal_attn_cls=self.causal_attn_cls, device=cfg.device)
-                    for _ in range(cfg.n_layers)
-                ])})
-        self.transformer.update({'ln_f': nn.LayerNorm(cfg.d_model, device=cfg.device)})
+        self.transformer.update({
+            'blocks':
+                nn.ModuleList([
+                    GPTBlock(cfg,
+                             causal_attn_cls=self.causal_attn_cls,
+                             device=cfg.device) for _ in range(cfg.n_layers)
+                ])
+        })
+        self.transformer.update(
+            {'ln_f': nn.LayerNorm(cfg.d_model, device=cfg.device)})
 
         if cfg.device != 'meta':
             self.apply(self.param_init_fn)
 
         # define attn mask
         self._attn_mask_initialized = False
-        mask_shape = self.causal_attn_cls.mask_shape(cfg.n_heads, cfg.max_seq_len, self.alibi)
+        mask_shape = self.causal_attn_cls.mask_shape(cfg.n_heads,
+                                                     cfg.max_seq_len,
+                                                     self.alibi)
         if mask_shape:
-            self.register_buffer('attn_mask', torch.empty(mask_shape, device=cfg.device))
+            self.register_buffer('attn_mask',
+                                 torch.empty(mask_shape, device=cfg.device))
         else:
             self.attn_mask = None
 
     def _attn_mask(self, batch_size=None, seq_len=None, key_padding_mask=None):
         if not self._attn_mask_initialized:
-            self.causal_attn_cls.attn_mask_(
-                self.attn_mask,
-                self.cfg.n_heads,
-                self.cfg.max_seq_len,
-                alibi=self.alibi,
-                alibi_bias_max=self.alibi_bias_max)
+            self.causal_attn_cls.attn_mask_(self.attn_mask,
+                                            self.cfg.n_heads,
+                                            self.cfg.max_seq_len,
+                                            alibi=self.alibi,
+                                            alibi_bias_max=self.alibi_bias_max)
             self._attn_mask_initialized = True
-        
+
         if self.cfg.attn_impl == 'flash':
             return self.attn_mask  # None
-        
+
         # select seq_len subset of attn mask
         attn_mask = self.attn_mask[..., :seq_len, :seq_len]
 
-        if self.cfg.attn_impl == 'triton' and key_padding_mask is not None and key_padding_mask.bool().logical_not().any():
-            attn_mask = attn_mask.masked_fill(~key_padding_mask.view(batch_size, 1, 1, seq_len), float('-inf'))
+        if self.cfg.attn_impl == 'triton' and key_padding_mask is not None and key_padding_mask.bool(
+        ).logical_not().any():
+            attn_mask = attn_mask.masked_fill(
+                ~key_padding_mask.view(batch_size, 1, 1, seq_len),
+                float('-inf'))
 
         if self.cfg.attn_impl == 'torch':
-            if key_padding_mask is not None and key_padding_mask.bool().logical_not().any():
-                attn_mask = attn_mask.expand(batch_size, self.cfg.n_heads, seq_len, seq_len).clone()
-                attn_mask.masked_fill_(~key_padding_mask.view(batch_size, 1, 1, seq_len), float('-inf'))
+            if key_padding_mask is not None and key_padding_mask.bool(
+            ).logical_not().any():
+                attn_mask = attn_mask.expand(batch_size, self.cfg.n_heads,
+                                             seq_len, seq_len).clone()
+                attn_mask.masked_fill_(
+                    ~key_padding_mask.view(batch_size, 1, 1, seq_len),
+                    float('-inf'))
                 attn_mask = attn_mask.reshape(-1, seq_len, seq_len)
             elif self.alibi:
                 # WARNING: Alibi with torch attn is not thoroughly tested
                 # torch mask is supposed to be of shape nzz x SeqLen x SeqLen
                 # we must braodcast to batch size then flatten batchsize * n_heads dim
                 # Note: if key_padding_mask is triggered, the needed expansion is already done.
-                attn_mask = attn_mask.expand(batch_size, self.cfg.n_heads, seq_len, seq_len).reshape(-1, seq_len, seq_len)
+                attn_mask = attn_mask.expand(batch_size, self.cfg.n_heads,
+                                             seq_len, seq_len).reshape(
+                                                 -1, seq_len, seq_len)
 
         return attn_mask
 
@@ -311,7 +357,8 @@ class MosaicGPT(nn.Module):
         if self.alibi:
             x = tok_emb
         else:
-            pos = torch.arange(0, S, dtype=torch.long, device=input_ids.device).unsqueeze(0)
+            pos = torch.arange(0, S, dtype=torch.long,
+                               device=input_ids.device).unsqueeze(0)
             pos_emb = self.transformer.wpe(pos)  # type: ignore
             x = tok_emb + pos_emb
 
@@ -319,15 +366,16 @@ class MosaicGPT(nn.Module):
             x = self.transformer.emb_drop(x)  # type: ignore
         else:
             # this implementation is proposed on page 7 of the GLM-130B paper https://arxiv.org/abs/2210.02414
-            x = self.transformer.emb_drop(
-                x * self.embedding_fraction + x.detach() * (1 - self.embedding_fraction)
-            )
-        
-        attn_mask = self._attn_mask(batch_size=B, seq_len=S, key_padding_mask=key_padding_mask)
+            x = self.transformer.emb_drop(x * self.embedding_fraction +
+                                          x.detach() *
+                                          (1 - self.embedding_fraction))
+
+        attn_mask = self._attn_mask(batch_size=B,
+                                    seq_len=S,
+                                    key_padding_mask=key_padding_mask)
         for block in self.transformer.blocks:  # type: ignore
             x = block(
-                x,
-                None if self.cfg.attn_impl == 'triton' else key_padding_mask,
+                x, None if self.cfg.attn_impl == 'triton' else key_padding_mask,
                 attn_mask)
         x = self.transformer.ln_f(x)  # type: ignore
         # output embedding weight tied to input embedding
@@ -336,7 +384,9 @@ class MosaicGPT(nn.Module):
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
-        init_fn = partial(torch.nn.init.normal_, mean=0.0, std=self.cfg.init_std)
+        init_fn = partial(torch.nn.init.normal_,
+                          mean=0.0,
+                          std=self.cfg.init_std)
         # Linear
         if isinstance(module, nn.Linear):
             init_fn(module.weight)
@@ -449,6 +499,7 @@ class ComposerMosaicGPT(ComposerModel):
         params_flops_per_token = 2 * n_params
         params_flops_per_seq = params_flops_per_token * self.model.cfg.max_seq_len
         # there are 2 FLOPS per mac; there is A=Q*K^T and out=A*V ops (ie mult by 2)
-        attn_flops_per_seq = self.model.cfg.n_layers * 2 * 2 * (self.model.cfg.d_model * (self.model.cfg.max_seq_len ** 2))
-        self.__num_fwd_flops =  params_flops_per_seq + attn_flops_per_seq
+        attn_flops_per_seq = self.model.cfg.n_layers * 2 * 2 * (
+            self.model.cfg.d_model * (self.model.cfg.max_seq_len**2))
+        self.__num_fwd_flops = params_flops_per_seq + attn_flops_per_seq
         return self.__num_fwd_flops

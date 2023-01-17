@@ -38,9 +38,9 @@ Now that you've had a chance to explore the code, let's jump into actually runni
 # Prerequisites
 Here's what you need to get started with our LLM stack:
 * Use a Docker image with PyTorch 1.13+, e.g. [MosaicML's PyTorch base image](https://hub.docker.com/r/mosaicml/pytorch/tags)
-   * Recommended tag: `mosaicml/pytorch:1.13.0_cu117-python3.10-ubuntu20.04`
+   * Recommended tag: `mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04`
    * This image comes pre-configured with the following dependencies:
-      * PyTorch Version: 1.13.0
+      * PyTorch Version: 1.13.1
       * CUDA Version: 11.7
       * Python Version: 3.10
       * Ubuntu Version: 20.04

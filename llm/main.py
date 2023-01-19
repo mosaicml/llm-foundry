@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import pathlib
 import sys
 import warnings
 
@@ -11,11 +10,10 @@ from composer.utils import dist, reproducibility
 from omegaconf import OmegaConf as om
 from src.model_registry import COMPOSER_MODEL_REGISTRY
 
-sys.path.append(str(pathlib.Path(__file__).parent.parent / 'common'))
-from builders import build_dataloader  # type: ignore (reportMissingImports)
-from builders import (build_algorithm, build_callback, build_logger,
-                      build_optimizer, build_scheduler)
-from logging_utils import log_config  # type: ignore (reportMissingImports)
+from mosaicml_examples.builders import (build_algorithm, build_callback,
+                                        build_dataloader, build_logger,
+                                        build_optimizer, build_scheduler)
+from mosaicml_examples.logging_utils import log_config
 
 
 def calculate_batch_size_info(global_batch_size, device_microbatch_size):
@@ -84,7 +82,8 @@ def main(cfg):
                                   resolve=True) if fsdp_config else None
 
     # Restrict model init device to 'meta' and 'cpu',
-    # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors when multiple GPUs are available.
+    # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
+    # when multiple GPUs are available.
     # Also 'meta' is only valid when using FSDP
     assert cfg.model.device in ['meta', 'cpu']
     if fsdp_config is None and cfg.model.device == 'meta':

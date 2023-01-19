@@ -70,7 +70,7 @@ repos:
     entry: pyright
     language: node
     types: [python]
-    pass_filenames: true
+    pass_filenames: false  # if true, we get separate error output for each file
     additional_dependencies: ['pyright@1.1.281']
 - repo: https://github.com/PyCQA/docformatter
   rev: v1.5.0

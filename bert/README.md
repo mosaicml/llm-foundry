@@ -27,8 +27,8 @@ You'll find in this folder:
 * `requirements.txt` — All needed Python dependencies.
 * This `README.md`
 
-In the [common](../common) folder, you will also find:
-* `common/text_data.py`- a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) that can be used with a vanilla PyTorch dataloader.
+In the [mosaicml_examples](../mosaicml_examples) folder, you will also find:
+* `mosaicml_examples/text_data.py`- a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) that can be used with a vanilla PyTorch dataloader.
 
 # Setup
 
@@ -123,14 +123,14 @@ To verify that the dataloader works, run a quick test on your `val` split like s
 
 ```bash
 # This will construct a `StreamingC4` dataset from your `val` split,
-# pass it into a PyTorch Dataloader, and iterate over it and print samples.
+# pass it into a PyTorch Dataloader, iterate over it, and print samples.
 # Since remote and local are set to the same path, no streaming/copying takes place.
-python ../common/text_data.py ./my-copy-c4 ./my-copy-c4
+python ../mosaicml_examples/text_data.py ./my-copy-c4 ./my-copy-c4
 
 # This will do the same thing, but stream data from {remote} -> {local}.
 # The remote path can be a filesystem or object store URI.
-python ../common/text_data.py ./my-copy-c4 /tmp/cache-c4
-python ../common/text_data.py s3://my-bucket/my-copy-c4 /tmp/cache-c4
+python ../mosaicml_examples/text_data.py ./my-copy-c4 /tmp/cache-c4
+python ../mosaicml_examples/text_data.py s3://my-bucket/my-copy-c4 /tmp/cache-c4
 ```
 
 # Training

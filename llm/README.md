@@ -22,8 +22,8 @@ You'll find in this folder:
 * `mcloud/` - examples of how to use [MosaicML Cloud](https://www.mosaicml.com/cloud) to seamlessly launch training :)
 
 
-In the [common](../common) folder, you will also find:
-* `common/text_data.py`- a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) that can be used with a vanilla PyTorch dataloader.
+In the [mosaicml_examples](../mosaicml_examples) folder, you will also find:
+* `mosaicml_examples/text_data.py`- a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/latest/) that can be used with a vanilla PyTorch dataloader.
 
 At all model scales, we are training the exact same [vanilla PyTorch GPT model](./src/mosaic_gpt.py#L106), with no special parallelism strategies.
 Composer + FSDP does all the heavy lifting to make sure we can scale up without running out of memory and while maintaining high performance.
@@ -89,12 +89,12 @@ To verify that the dataloader works, run a quick test on your `val` split like s
 # This will construct a `StreamingTextDataset` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
 # Since we only provide a local path, no streaming/copying takes place.
-python ../common/text_data.py ./my-copy-c4
+python ../mosaicml_examples/text_data.py ./my-copy-c4
 
 # This will do the same thing, but stream data to {local} from {remote}.
 # The remote path can be a filesystem or object store URI.
-python ../common/text_data.py /tmp/cache-c4 ./my-copy-c4
-python ../common/text_data.py /tmp/cache-c4 s3://my-bucket/my-copy-c4
+python ../mosaicml_examples/text_data.py /tmp/cache-c4 ./my-copy-c4
+python ../mosaicml_examples/text_data.py /tmp/cache-c4 s3://my-bucket/my-copy-c4
 ```
 
 # How to start training

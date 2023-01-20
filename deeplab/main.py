@@ -21,10 +21,7 @@ from omegaconf import OmegaConf
 
 def build_logger(name: str, kwargs: dict):
     if name == 'progress_bar':
-        return ProgressBarLogger(
-            progress_bar=kwargs.get('progress_bar', True),
-            log_to_console=kwargs.get('log_to_console', True),
-        )
+        return ProgressBarLogger()
     elif name == 'wandb':
         return WandBLogger(**kwargs)
     else:

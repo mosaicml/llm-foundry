@@ -15,10 +15,10 @@ from typing import Any, Optional, Tuple
 import streaming
 import torch
 from composer.core import DataSpec
-from composer.datasets.streaming import StreamingDataset
 from composer.datasets.utils import NormalizationFn, pil_image_collate
 from composer.utils import dist
 from PIL import Image
+from streaming import StreamingDataset
 from torch.utils.data import DataLoader, Dataset
 from transforms import (IMAGENET_CHANNEL_MEAN, IMAGENET_CHANNEL_STD,
                         build_ade20k_transformations)

@@ -19,6 +19,7 @@ import torch
 from composer.utils import reproducibility
 from composer.utils.file_helpers import get_file
 from composer.utils.object_store import S3ObjectStore
+from omegaconf import DictConfig
 from src.glue.finetuning_jobs import (TASK_NAME_TO_NUM_LABELS, COLAJob, MNLIJob,
                                       MRPCJob, QNLIJob, QQPJob, RTEJob, SST2Job,
                                       STSBJob)
@@ -40,7 +41,7 @@ TASK_NAME_TO_CLASS = {
 }
 
 
-def build_model(cfg, num_labels: int):
+def build_model(cfg: DictConfig, num_labels: int):
     if cfg.name == 'hf_bert':
         return create_hf_bert_classification(
             num_labels=num_labels,

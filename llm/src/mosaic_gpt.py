@@ -143,7 +143,7 @@ class TritonFlashCausalAttention(nn.Module):
             causal=True,
             device=device,
         )
-        self.mhsa.out_proj._is_residual = True
+        self.mhsa.out_proj._is_residual = True  # type: ignore
 
     def forward(self, x, key_padding_mask=None, attn_mask=None):
         assert key_padding_mask is None
@@ -317,6 +317,7 @@ class MosaicGPT(nn.Module):
             return self.attn_mask  # None
 
         # select seq_len subset of attn mask
+        assert self.attn_mask is not None, 'Internal logic error'
         attn_mask = self.attn_mask[..., :seq_len, :seq_len]
 
         if self.cfg.attn_impl == 'triton' and key_padding_mask is not None and key_padding_mask.bool(
@@ -366,9 +367,10 @@ class MosaicGPT(nn.Module):
             x = self.transformer.emb_drop(x)  # type: ignore
         else:
             # this implementation is proposed on page 7 of the GLM-130B paper https://arxiv.org/abs/2210.02414
-            x = self.transformer.emb_drop(x * self.embedding_fraction +
-                                          x.detach() *
-                                          (1 - self.embedding_fraction))
+            x_shrunk = (x * self.embedding_fraction) + (
+                x.detach() * (1 - self.embedding_fraction))
+            assert isinstance(self.transformer.emb_drop, nn.Module)  # pyright
+            x = self.transformer.emb_drop(x_shrunk)
 
         attn_mask = self._attn_mask(batch_size=B,
                                     seq_len=S,
@@ -379,6 +381,8 @@ class MosaicGPT(nn.Module):
                 attn_mask)
         x = self.transformer.ln_f(x)  # type: ignore
         # output embedding weight tied to input embedding
+        assert isinstance(self.transformer.wte, nn.Module)  # pyright
+        assert isinstance(self.transformer.wte.weight, torch.Tensor)  # pyright
         logits = F.linear(x, self.transformer.wte.weight, None)
         return logits
 

@@ -15,9 +15,9 @@ from composer import ComposerModel
 from composer.core import Callback
 from composer.core.evaluator import Evaluator
 from composer.core.types import Dataset
+from composer.devices import Device, DeviceGPU
 from composer.loggers import LoggerDestination
 from composer.optim import ComposerScheduler, DecoupledAdamW
-from composer.trainer.devices import Device, DeviceGPU
 from composer.trainer.trainer import Trainer
 from composer.utils import dist, reproducibility
 from src.glue.data import create_glue_dataset

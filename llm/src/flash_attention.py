@@ -15,7 +15,7 @@ from einops import rearrange
 from torch import Tensor
 
 try:
-    from src.flash_attn_triton import flash_attn_func, flash_attn_qkvpacked_func
+    from src.flash_attn_triton import flash_attn_qkvpacked_func
 except ImportError as e:
     raise e
 
@@ -121,8 +121,8 @@ class FlashMHA(nn.Module):
 
     def forward(self,
                 x,
-                key_padding_mask: torch.Tensor = None,
-                attn_mask: torch.Tensor = None,
+                key_padding_mask: Optional[torch.Tensor] = None,
+                attn_mask: Optional[torch.Tensor] = None,
                 need_weights: bool = False):
         r"""Multiheaded softmax attention.
 

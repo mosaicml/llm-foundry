@@ -87,7 +87,8 @@ def filter_runs(runs):
 
 
 def parse_run(run):
-    n_params = gpu_num = seq_len = global_batchsize_tokens = global_train_batch_size = micro_batchsize = precision = throughput = mfu = None
+    n_params = gpu_num = seq_len = global_batchsize_tokens = mfu = -1
+    global_train_batch_size = micro_batchsize = precision = throughput = -1
 
     model_name = [s for s in run.name.split('-') if 'gpt' in s][0]
     gpu_num = run.config.gpu_num
@@ -127,7 +128,6 @@ def parse_run(run):
             break
 
     d_model = run.config.parameters['model']['d_model']
-    n_heads = run.config.parameters['model']['n_heads']
     n_layers = run.config.parameters['model']['n_layers']
 
     global_batchsize_tokens = global_train_batch_size * seq_len

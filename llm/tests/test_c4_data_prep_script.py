@@ -8,7 +8,7 @@ import sys
 from argparse import Namespace
 
 sys.path.append(str(pathlib.Path(__file__).parent.parent.parent / 'scripts'))
-from convert_c4 import main
+from convert_c4 import main  # type: ignore
 
 
 def test_download_script_from_api():

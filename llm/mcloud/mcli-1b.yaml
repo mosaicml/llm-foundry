@@ -3,6 +3,7 @@ integrations:
   git_repo: mosaicml/examples
   git_branch: v0.0.2
   pip_install: -r llm/requirements.txt
+  ssh_clone: false
 
 # We are fetching, converting, and training on the 'val' split
 # as it is small and quick to get going for this demo.

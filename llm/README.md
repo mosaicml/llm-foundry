@@ -50,7 +50,7 @@ Here's what you need to get started with our LLM stack:
 * Prepare a local copy of the dataset via instructions below.
 
 # Dataset preparation
-To run training, you'll need to make yourself aå copy of the pre-training dataset.
+To run training, you'll need to make yourself a copy of the pre-training dataset.
 If you only want to profile these LLMs, we recommend that you **download and prepare the `train_small` and `val` splits**,
 and skip the full `train` split. You'll just need to replace `split: train` with `split: train_small` in your run YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L40).
 You can also accomplish this in your CLI command like so: `composer main.py ... train_loader.split=train_small`

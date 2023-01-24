@@ -53,7 +53,7 @@ Here's what you need to get started with our LLM stack:
 To run training, you'll need to make yourself a copy of the pre-training dataset.
 If you only want to profile these LLMs, we recommend that you **download and prepare the `train_small` and `val` splits**,
 and skip the full `train` split. You'll just need to replace `split: train` with `split: train_small` in your run YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L40).
-You can also accomplish this in your CLI command like so: `composer main.py ... train_loader.split=train_small`
+You can also accomplish this in your CLI command like so: `composer main.py ... train_loader.dataset.split=train_small`
 Alternatively, feel free to substitute our dataloader with one of your own in [main.py](./main.py#L96)!
 
 As an example, we train LLMs on the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
@@ -104,7 +104,7 @@ Now that you've installed dependencies and built a local copy of the C4 dataset,
 **Please remember** to edit the `data_local` and (optionally) `data_remote` paths in your YAML.
 Our streaming dataloader always streams to `data_local` <- from <- `data_remote`, and if the remote path is missing, the files are expected to be present in `data_local`.
 
-**Also remember** that if you only downloaded the `train_small` split, you need to make sure your train_loader uses that split. Just change `split: train` to `split: train_small` in your YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L40). Or alternatively, pass it in via CLI arg: `composer main.py ... train_loader.split=train_small`.
+**Also remember** that if you only downloaded the `train_small` split, you need to make sure your train_loader uses that split. Just change `split: train` to `split: train_small` in your YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L40). Or alternatively, pass it in via CLI arg: `composer main.py ... train_loader.dataset.split=train_small`.
 
 
 ### Single-Node training

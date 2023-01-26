@@ -46,8 +46,16 @@ Here's what you need to get started with our LLM stack:
       * Ubuntu Version: 20.04
       * FlashAttention kernels from [HazyResearch](https://github.com/HazyResearch/flash-attention)
 * Use a system with NVIDIA GPUs
-* Install requirements via: `pip install -r requirements.txt`
-* Prepare a local copy of the dataset via instructions below.
+
+# Installation
+
+To get started, clone this repo and install the requirements:
+
+```bash
+git clone https://github.com/mosaicml/examples.git
+pip install ".[llm]"  # or pip install ".[llm-cpu]" if no NVIDIA GPU
+cd llm
+```
 
 # Dataset preparation
 To run training, you'll need to make yourself a copy of the pre-training dataset.

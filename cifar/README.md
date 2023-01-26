@@ -52,11 +52,16 @@ Here's what you need to start training:
     * Python Version: 3.9
     * Ubuntu Version: 20.04
   * System with NVIDIA GPUs
-* Other requirements (`pip install -r requirements.txt`):
-  * [`composer`](https://github.com/mosaicml/composer) - MosaicML's PyTorch training framework
-  * [`streaming`](https://github.com/mosaicml/streaming) - MosaicML's streaming dataset
-  * [`wandb`](https://github.com/wandb/wandb) - Weights and Biases for experiment tracking
-  * [`omegaconf`](https://github.com/omry/omegaconf) - Configuration management
+
+# Installation
+
+To get started, clone this repo and install the requirements:
+
+```bash
+git clone https://github.com/mosaicml/examples.git
+pip install ".[cifar]"  # or pip install ".[cifar-cpu]" if no NVIDIA GPU
+cd cifar
+```
 
 # How to start training
 

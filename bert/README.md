@@ -51,11 +51,9 @@ To get started, clone this repo and install the requirements:
 
 ```bash
 git clone https://github.com/mosaicml/examples.git
+pip install ".[bert]"  # or pip install ".[bert-cpu]" if no NVIDIA GPU
 cd bert
-pip install -r requirements.txt
 ```
-
-**Note:** If your environment does not match our [system recommendations](#system-recommendations), you may need to comment out the `triton==2.0.0.dev20221103` line in `requirements.txt` in order to run `pip install -r requirements.txt`.
 
 ### Pre-training
 To verify that pre-training runs correctly, first prepare a local copy of the C4 validation split, and then run the `main.py` pre-training script twice using our testing config. First, with the baseline HuggingFace BERT. Second, with the Mosaic BERT.

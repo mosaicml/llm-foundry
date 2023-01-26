@@ -40,7 +40,7 @@ Now that you have explored the code, let's jump into the prerequisites for train
 
 # Prerequisites
 
-Here's what you need to train:
+Here's what you need to get started:
 
 * Docker image with PyTorch 1.12+, e.g. [MosaicML's PyTorch image](https://hub.docker.com/r/mosaicml/pytorch/tags)
    * Recommended tag: `mosaicml/pytorch_vision:1.12.1_cu116-python3.9-ubuntu20.04`
@@ -53,11 +53,16 @@ Here's what you need to train:
       * Ubuntu Version: 20.04
 * [ADE20k Dataset](https://groups.csail.mit.edu/vision/datasets/ADE20K/) must be stored either locally (see `download_ade20k.py`) or uploaded to an S3 bucket after converting to a [streaming format](https://github.com/mosaicml/streaming) using [this script](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/ade20k.py)
 * System with NVIDIA GPUs
-* Requirements (`pip install -r requirements.txt`), including:
-  * [`composer`](https://github.com/mosaicml/composer) - MosaicML's PyTorch training framework
-  * [`streaming`](https://github.com/mosaicml/streaming) - MosaicML's streaming dataset
-  * [`wandb`](https://github.com/wandb/wandb) - Weights and Biases for experiment tracking
-  * [`omegaconf`](https://github.com/omry/omegaconf) - Configuration management
+
+# Installation
+
+To get started, clone this repo and install the requirements:
+
+```bash
+git clone https://github.com/mosaicml/examples.git
+pip install ".[deeplab]"  # or pip install ".[deeplab-cpu]" if no NVIDIA GPU
+cd deeplab
+```
 
 # Dataloader Testing
 

@@ -7,15 +7,7 @@ skip = [ "env", "wandb", "runs", "build", "node_modules" ]
 
 # Pyright
 [tool.pyright]
-include = [
-    "bert/**",
-    "cifar/**",
-    "deeplab/**",
-    "llm/**",
-    "resnet/**",
-    "tests/**",
-]
-exclude = []
+exclude = ['env-**']
 stubPath = ""  # suppress useless 'stubPath is not a valid directory' errors
 
 reportUnnecessaryIsInstance = "warning"

@@ -51,7 +51,7 @@ import math
 import torch
 import triton  # type: ignore (reportMissingImports)
 import triton.language as tl  # type: ignore (reportMissingImports)
-from einops import repeat
+from einops import repeat  # type: ignore (reportMissingImports)
 
 
 @triton.autotune(

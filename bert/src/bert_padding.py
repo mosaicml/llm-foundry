@@ -10,7 +10,7 @@ These functions are used extensively throughout the Mosaic BERT implementation
 in `bert_layers.py`.
 """
 
-from typing import Tuple
+from typing import Tuple, cast
 
 import torch
 import torch.nn.functional as F
@@ -107,7 +107,7 @@ def unpad_input(
     """
     seqlens_in_batch = attention_mask.sum(dim=-1, dtype=torch.int32)
     indices = torch.nonzero(attention_mask.flatten(), as_tuple=False).flatten()
-    max_seqlen_in_batch = seqlens_in_batch.max().item()
+    max_seqlen_in_batch = int(seqlens_in_batch.max().item())
     cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.int32),
                        (1, 0))
     # TD [2022-03-04] We don't want to index with a bool mask, because Pytorch will expand the
@@ -115,9 +115,11 @@ def unpad_input(
     # times larger than it needs to be, wasting memory. It's faster and more memory-efficient to
     # index with integer indices. Moreover, torch's index is a bit slower than it needs to be,
     # so we write custom forward and backward to make it a bit faster.
-    return (index_first_axis(rearrange(hidden_states, 'b s ... -> (b s) ...'),
-                             indices), indices, cu_seqlens, max_seqlen_in_batch
-           )  # type: ignore
+    hidden_states = cast(
+        torch.Tensor,
+        index_first_axis(rearrange(hidden_states, 'b s ... -> (b s) ...'),
+                         indices))
+    return hidden_states, indices, cu_seqlens, max_seqlen_in_batch
 
 
 def unpad_input_only(

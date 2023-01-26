@@ -63,15 +63,6 @@ repos:
     - --comment-style
     - '#'
     types: [python]
-- repo: local
-  hooks:
-  - id: pyright
-    name: pyright
-    entry: pyright
-    language: node
-    types: [python]
-    pass_filenames: false # if true, we get separate error output for each file
-    additional_dependencies: ['pyright@1.1.281']
 - repo: https://github.com/PyCQA/docformatter
   rev: v1.5.0
   hooks:

@@ -11,7 +11,7 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
-from einops import rearrange
+from einops import rearrange  # type: ignore (reportMissingImports)
 from torch import Tensor
 
 try:

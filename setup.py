@@ -63,11 +63,17 @@ def _dependencies_as_dict(deps: List[str]) -> Dict[str, str]:
     return ret
 
 
-def _merge_dependencies(deps_base: List[str], deps_update: List[str]):
+def _merge_dependencies(deps_base: List[str], deps_update: List[str],
+                        cpu_only: bool = False):
     """Subdir requirements.txt supersedes repo requirements."""
     base_dict = _dependencies_as_dict(deps_base)
     base_dict.update(_dependencies_as_dict(deps_update))
     base_dict.pop(_PACKAGE_NAME, None)  # avoid circular dependencies
+    if cpu_only:
+        # these packages can't even be installed unless there's actually
+        # a GPU on your machine
+        base_dict.pop('flash-attn', None)
+        base_dict.pop('triton', None)
     return [k + v for k, v in base_dict.items()]  # 'foo': '>3' -> 'foo>3'
 
 
@@ -75,7 +81,11 @@ extra_deps = {}
 for name in _EXAMPLE_SUBDIRS:
     subdir_path = os.path.join(_project_root, name, 'requirements.txt')
     with open(subdir_path, 'r') as f:
-        extra_deps[name] = _merge_dependencies(install_requires, f.readlines())
+        lines = f.readlines()
+        extra_deps[name] = _merge_dependencies(
+            install_requires, lines, cpu_only=False)
+        extra_deps[f'{name}-cpu'] = _merge_dependencies(
+            install_requires, lines, cpu_only=True)
 
 setup(
     name=_PACKAGE_NAME,

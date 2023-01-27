@@ -63,7 +63,8 @@ def _dependencies_as_dict(deps: List[str]) -> Dict[str, str]:
     return ret
 
 
-def _merge_dependencies(deps_base: List[str], deps_update: List[str],
+def _merge_dependencies(deps_base: List[str],
+                        deps_update: List[str],
                         cpu_only: bool = False):
     """Subdir requirements.txt supersedes repo requirements."""
     base_dict = _dependencies_as_dict(deps_base)
@@ -82,10 +83,12 @@ for name in _EXAMPLE_SUBDIRS:
     subdir_path = os.path.join(_project_root, name, 'requirements.txt')
     with open(subdir_path, 'r') as f:
         lines = f.readlines()
-        extra_deps[name] = _merge_dependencies(
-            install_requires, lines, cpu_only=False)
-        extra_deps[f'{name}-cpu'] = _merge_dependencies(
-            install_requires, lines, cpu_only=True)
+        extra_deps[name] = _merge_dependencies(install_requires,
+                                               lines,
+                                               cpu_only=False)
+        extra_deps[f'{name}-cpu'] = _merge_dependencies(install_requires,
+                                                        lines,
+                                                        cpu_only=True)
 
 setup(
     name=_PACKAGE_NAME,

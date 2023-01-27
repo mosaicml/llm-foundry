@@ -43,8 +43,8 @@ reportUnusedCoroutine = "error"
 
 # Pytest
 [tool.pytest.ini_options]
-# By default, do not run remote tests
-addopts = "--tb=short"
+# By default, skip gpu tests
+addopts = "--tb=short -m 'not gpu'"
 
 markers = [
     # For distributed testing
@@ -53,6 +53,8 @@ markers = [
     "daily",
     # Whether the test will be reading data from a remote source, and may require credentials
     "remote",
+    # whether the test requires a gpu
+    "gpu",
 ]
 
 filterwarnings = [

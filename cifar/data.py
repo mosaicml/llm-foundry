@@ -13,7 +13,7 @@ from typing import Any, Callable, Optional
 from composer.core import DataSpec
 from composer.datasets.utils import NormalizationFn, pil_image_collate
 from composer.utils import dist
-from streaming import Dataset
+from streaming import StreamingDataset
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from torchvision.datasets import VisionDataset
@@ -26,7 +26,7 @@ CIFAR10_CHANNEL_MEAN = 0.4914 * 255, 0.4822 * 255, 0.4465 * 255
 CIFAR10_CHANNEL_STD = 0.247 * 255, 0.243 * 255, 0.261 * 255
 
 
-class StreamingCIFAR(Dataset, VisionDataset):
+class StreamingCIFAR(StreamingDataset, VisionDataset):
     """CIFAR streaming dataset based on PyTorch's VisionDataset.
 
     Args:
@@ -38,12 +38,6 @@ class StreamingCIFAR(Dataset, VisionDataset):
         shuffle (bool): Whether to iterate over the samples in randomized order.
         transform (callable, optional): A function/transform that takes in an
             image and returns a transformed version. Default: ``None``.
-        prefetch (int, optional): Target number of samples remaining to
-            prefetch while iterating. Default: ``100_000``.
-        retry (int, optional): Number of download re-attempts before giving up.
-            Default: ``2``.
-        timeout (float, optional): Number of seconds to wait for a shard to
-            download before raising an exception. Default: 120 seconds.
         batch_size (int, optional): The batch size that will be used on each
             device's DataLoader. Default: ``None``.
     """
@@ -54,9 +48,6 @@ class StreamingCIFAR(Dataset, VisionDataset):
                  split: str,
                  shuffle: bool,
                  transform: Optional[Callable] = None,
-                 prefetch: Optional[int] = 100_000,
-                 retry: Optional[int] = 2,
-                 timeout: Optional[float] = 120,
                  batch_size: Optional[int] = None) -> None:
 
         if split not in ['train', 'test']:
@@ -69,11 +60,6 @@ class StreamingCIFAR(Dataset, VisionDataset):
                          local=local,
                          split=split,
                          shuffle=shuffle,
-                         prefetch=prefetch,
-                         keep_zip=False,
-                         retry=retry,
-                         timeout=timeout,
-                         hash=None,
                          batch_size=batch_size)
 
     def __getitem__(self, idx: int) -> Any:

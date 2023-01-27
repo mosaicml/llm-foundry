@@ -60,6 +60,7 @@ To get started, clone this repo and install the requirements:
 
 ```bash
 git clone https://github.com/mosaicml/examples.git
+cd examples
 pip install ".[deeplab]"  # or pip install ".[deeplab-cpu]" if no NVIDIA GPU
 cd deeplab
 ```

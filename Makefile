@@ -48,10 +48,10 @@ lint:  ## Apply autoformating and run style checks via pre-commit
 .PHONY: test
 test:  ## Run all the tests
 	@echo "================================ Testing CIFAR examples"
-	bash scripts/test_benchmark.sh cifar
+	bash scripts/test_subdirectory.sh cifar
 	@echo "================================ Testing DeepLab examples"
-	bash scripts/test_benchmark.sh deeplab
+	bash scripts/test_subdirectory.sh deeplab
 	@echo "================================ Testing LLM examples"
-	bash scripts/test_benchmark.sh llm
+	bash scripts/test_subdirectory.sh llm
 	@echo "================================ Testing ResNet examples"
-	bash scripts/test_benchmark.sh resnet
+	bash scripts/test_subdirectory.sh resnet

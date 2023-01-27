@@ -1,15 +1,11 @@
 #!/bin/env bash
 
-# Script to cd into a subdirectory, install its deps, and run its tests
+# Script to cd into a subdirectory, install its deps, and lint its contents
 #
-# The tricky part here is that some modules, like flash-attn, are really
-# finicky to get installed and depend on details of your environment (e.g.,
-# the installed CUDA version). For these deps, we just use whatever's
-# in the surrounding environment. We do this by:
-#   1) Allowing the venv to use the environment's installed packages
-#       via the --system-site-packages flag.
-#   2) Having the pip install overwrite everything in the requirements
-#       *except* a few whitelisted dependencies.
+# The one subtlety here is that we only install the CPU dependencies since
+# we don't have the CI infra to run workflows on GPUs yet. Also, it makes it
+# easy to run this on your local machine + checks that we're doing
+# conditional imports properly.
 
 ENV_NAME="env-${1%/}"   # strip trailing slash if present
 

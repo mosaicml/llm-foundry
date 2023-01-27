@@ -21,7 +21,7 @@ model:
 
 # Dataloaders
 train_loader:
-  name: c4
+  name: text
   dataset:
     remote: *data_remote
     local: *data_local
@@ -29,7 +29,7 @@ train_loader:
     tokenizer_name: *tokenizer_name
     max_seq_len: *max_seq_len
     group_method: truncate
-    prefetch: 1000
+    predownload: 1000
     shuffle: true
     mlm_probability: *mlm_probability
   drop_last: true
@@ -40,7 +40,7 @@ train_loader:
   timeout: 0
 
 eval_loader:
-  name: c4
+  name: text
   dataset:
     remote: *data_remote
     local: *data_local
@@ -48,7 +48,7 @@ eval_loader:
     tokenizer_name: *tokenizer_name
     max_seq_len: *max_seq_len
     group_method: truncate
-    prefetch: 1000
+    predownload: 1000
     shuffle: false
     mlm_probability: *mlm_probability
   drop_last: false

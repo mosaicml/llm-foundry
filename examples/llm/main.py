@@ -114,22 +114,24 @@ def main(cfg):
     # Scheduler
     scheduler = build_scheduler(cfg.scheduler)
 
+    # we use (cfg.get(...) or {}) instead of cfg.get(..., {}) so that
+    # .items() works even when the value is None
     # Loggers
     loggers = [
         build_logger(name, logger_cfg)
-        for name, logger_cfg in cfg.get('loggers', {}).items()
+        for name, logger_cfg in cfg.get('loggers' or {}).items()
     ]
 
     # Callbacks
     callbacks = [
         build_callback(name, callback_cfg)
-        for name, callback_cfg in cfg.get('callbacks', {}).items()
+        for name, callback_cfg in cfg.get('callbacks' or {}).items()
     ]
 
     # Algorithms
     algorithms = [
         build_algorithm(name, algorithm_cfg)
-        for name, algorithm_cfg in cfg.get('algorithms', {}).items()
+        for name, algorithm_cfg in cfg.get('algorithms' or {}).items()
     ]
 
     # Build the Trainer

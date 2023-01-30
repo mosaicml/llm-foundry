@@ -1,0 +1,153 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/examples
+  # git_branch: # use your branch
+  # git_commit: # OR use your commit hash
+  pip_install: -e .[llm]
+  ssh_clone: false
+
+# We are fetching, converting, and training on the 'val' split
+# as it is small and quick to get going for this demo.
+# For real training runs, follow the instructions in `examples/llm/README.md`
+# to convert and host the full 'train' dataset.
+command: |
+  cd examples/examples/llm
+  python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val
+  composer main.py /mnt/config/parameters.yaml
+
+image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+optimization_level: 0
+
+run_name: mosaic-gpt-1b-ctx-8k-gpus-8
+
+gpu_num: 8
+gpu_type: a100_40gb
+cluster: r0z0 # replace with your cluster here!
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+# and referenced in our `command` above
+# We use this to customize hparams like `max_seq_len=8192` at runtime
+parameters:
+  data_local: &data_local ./my-copy-c4
+  data_remote: &data_remote null
+  tokenizer_name: &tokenizer_name gpt2
+  max_seq_len: &max_seq_len 2048
+  global_seed: &global_seed 17
+
+  # Model
+  model:
+    name: mosaic_gpt
+    device: meta
+    tokenizer_name: *tokenizer_name
+    d_model: 2048
+    n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
+    n_layers: 24
+    mlp_ratio: 4
+    max_seq_len: *max_seq_len
+    vocab_size: 50257
+    init_std: 0.02
+    attn_pdrop: 0.0
+    resid_pdrop: 0.0
+    emb_pdrop: 0.0
+    attn_impl: flash
+
+  # Tokenizer
+  tokenizer:
+    type: hftokenizer
+    args:
+      tokenizer_name: *tokenizer_name
+      max_seq_len: *max_seq_len
+
+  # Dataloaders
+  train_loader:
+    name: text
+    dataset:
+      local: *data_local
+      remote: *data_remote
+      split: train_small # Using 'train_small' for this demo
+      shuffle: true
+      tokenizer_name: *tokenizer_name
+      max_seq_len: *max_seq_len
+      group_method: concat
+      shuffle_seed: *global_seed
+    drop_last: true
+    num_workers: 8
+
+  eval_loader:
+    name: text
+    dataset:
+      local: *data_local
+      remote: *data_remote
+      split: val
+      shuffle: false
+      tokenizer_name: *tokenizer_name
+      max_seq_len: *max_seq_len
+      group_method: truncate
+      shuffle_seed: *global_seed
+    drop_last: false
+    num_workers: 8
+
+  # Optimization
+  scheduler:
+    name: cosine_with_warmup
+    t_warmup: 100ba
+    alpha_f: 0.1
+
+  optimizer:
+    name: decoupled_adamw
+    lr: 2.0e-4
+    betas:
+    - 0.9
+    - 0.95
+    eps: 1.0e-08
+    weight_decay: 0.0
+
+  algorithms:
+    gradient_clipping:
+      clipping_type: norm
+      clipping_threshold: 1.0
+
+  max_duration: 24800ba # ~ 26B tokens
+  eval_interval: 2000ba
+  eval_subset_num_batches: -1
+  global_train_batch_size: 128 # ~1M tokens
+
+  # System
+  seed: 17
+  device_eval_batch_size: 2
+  device_train_microbatch_size: 2
+  # device_train_microbatch_size: auto
+  precision: amp_bf16
+
+  # FSDP
+  fsdp_config:
+    sharding_strategy: FULL_SHARD
+    min_params: 2e8
+    mixed_precision: DEFAULT
+    activation_checkpointing: true
+    activation_cpu_offload: false
+    verbose: true
+
+  # Logging
+  progress_bar: false
+  log_to_console: true
+  console_log_interval: 1ba
+
+  callbacks:
+    speed_monitor:
+      window_size: 10
+    lr_monitor: {}
+    memory_monitor: {}
+
+#   loggers:
+#     wandb: {}
+
+#   Checkpoint to local filesystem or remote object store
+#   save_interval: 2000ba
+#   save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+#   save_folder: ./{run_name}/checkpoints
+#   save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
+
+#   Load from local filesystem or remote object store
+#   load_path: ./gpt-1b/checkpoints/latest-rank{rank}.pt
+#   load_path: s3://my-bucket/my-folder/gpt-1b/checkpoints/latest-rank{rank}.pt

@@ -1,0 +1,81 @@
+tokenizer_name: &tokenizer_name prajjwal1/bert-tiny
+max_seq_len: &max_seq_len 128
+mlm_probability: &mlm_probability 0.15
+
+# Run Name
+run_name: test
+
+# Model
+model:
+  name:
+  use_pretrained: false
+  pretrained_model_name: *tokenizer_name
+  tokenizer_name: *tokenizer_name
+
+# Dataloaders
+train_loader:
+  name: text
+  dataset:
+    remote:
+    local:
+    split: train
+    tokenizer_name: *tokenizer_name
+    max_seq_len: *max_seq_len
+    group_method: truncate
+    predownload: 1000
+    shuffle: true
+    mlm_probability: *mlm_probability
+  drop_last: true
+  num_workers: 0
+
+eval_loader:
+  name: text
+  dataset:
+    remote:
+    local:
+    split: val
+    tokenizer_name: *tokenizer_name
+    max_seq_len: *max_seq_len
+    group_method: truncate
+    predownload: 1000
+    shuffle: false
+    mlm_probability: *mlm_probability
+  drop_last: false
+  num_workers: 0
+
+global_train_batch_size: 2
+
+# Optimization
+scheduler:
+  name: linear_decay_with_warmup
+  t_warmup: 0.5dur
+  alpha_f: 0.02
+
+optimizer:
+  name: decoupled_adamw
+  lr: 2.0e-4
+  betas:
+  - 0.9
+  - 0.95
+  eps: 1.0e-08
+  weight_decay: 0.0
+
+# Training duration and evaluation frequency
+max_duration: 8ba
+eval_interval: 8ba
+eval_subset_num_batches: 8 # For code testing, evaluate on a subset of 8 batches
+
+# System
+seed: 17
+grad_accum: 1
+precision: fp32
+
+# Logging
+progress_bar: false
+log_to_console: false
+console_log_interval: 1ba
+
+callbacks:
+  # speed_monitor:
+  #   window_size: 500
+  lr_monitor: {}

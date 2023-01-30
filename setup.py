@@ -5,19 +5,17 @@ import re
 from typing import Dict, List
 
 import setuptools
-from setuptools import setup
+from setuptools import find_packages, setup
 
 _PACKAGE_NAME = 'mosaicml-examples'
-_PACKAGE_DIR = 'mosaicml_examples'
+_PACKAGE_DIR = 'examples'
 _EXAMPLE_SUBDIRS = ('cifar', 'resnet', 'deeplab', 'bert', 'llm')
-
-_project_root = os.path.dirname(os.path.realpath(__file__))
-
-print('_project_root:', _project_root)
+_REPO_REAL_PATH = os.path.dirname(os.path.realpath(__file__))
+_PACKAGE_REAL_PATH = os.path.join(_REPO_REAL_PATH, _PACKAGE_DIR)
 
 # Read the repo version
 # We can't use `.__version__` from the library since it's not installed yet
-with open(os.path.join(_project_root, 'mosaicml_examples', '__init__.py')) as f:
+with open(os.path.join(_PACKAGE_REAL_PATH, '__init__.py')) as f:
     content = f.read()
 # regex: '__version__', whitespace?, '=', whitespace, quote, version, quote
 # we put parens around the version so that it becomes elem 1 of the match
@@ -50,7 +48,7 @@ classifiers = [
     'Programming Language :: Python :: 3.10',
 ]
 
-with open(os.path.join(_project_root, 'requirements.txt'), 'r') as f:
+with open(os.path.join(_REPO_REAL_PATH, 'requirements.txt'), 'r') as f:
     install_requires = f.readlines()
 
 
@@ -80,7 +78,7 @@ def _merge_dependencies(deps_base: List[str],
 
 extra_deps = {}
 for name in _EXAMPLE_SUBDIRS:
-    subdir_path = os.path.join(_project_root, name, 'requirements.txt')
+    subdir_path = os.path.join(_PACKAGE_REAL_PATH, name, 'requirements.txt')
     with open(subdir_path, 'r') as f:
         lines = f.readlines()
         extra_deps[name] = _merge_dependencies(install_requires,
@@ -99,7 +97,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/mosaicml/examples/',
-    package_dir={_PACKAGE_DIR: f'./{_PACKAGE_DIR}'},
+    package_dir={_PACKAGE_DIR: _PACKAGE_REAL_PATH},
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,

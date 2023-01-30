@@ -10,15 +10,15 @@
 ENV_NAME="env-${1%/}"   # strip trailing slash if present
 
 echo "Creating venv..."
-python -m venv "$ENV_NAME"
+python -m venv "$ENV_NAME" --system-site-packages
 source "$ENV_NAME/bin/activate"
 
 echo "Installing requirements..."
 pip install --upgrade pip
-pip install ".[$1-cpu]"  # setup.py merges repo + subdir deps + strips gpu deps
+pip install -I ".[$1-cpu]"  # setup.py merges repo + subdir deps + strips gpu deps
 
 echo "Running checks on files:"
-FILES=$(find "$1" -type f | grep -v '.pyc')
+FILES=$(find "examples/$1" -type f | grep -v '.pyc')
 echo $FILES
 pre-commit run --files $FILES && pyright $FILES
 STATUS=$?

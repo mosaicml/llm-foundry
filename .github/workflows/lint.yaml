@@ -1,14 +1,14 @@
-name: Linting
+name: Lint
 
 on:
   push:
     branches:
-      - main
-      - release/*
+    - main
+    - release/*
   pull_request:
     branches:
-      - main
-      - release/*
+    - main
+    - release/*
   workflow_dispatch: {}
 defaults:
   run:
@@ -20,32 +20,33 @@ jobs:
     strategy:
       matrix:
         python_version:
-          - "3.9"
+        - '3.9'
         subdir:
-          - "bert"
-          - "cifar"
-          - "deeplab"
-          - "llm"
-          - "resnet"
+        - bert
+        - cifar
+        - deeplab
+        - llm
+        - resnet
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python_version }}
-      - name: Cache pip
-        uses: actions/cache@v3
-        with:
-          # This path is specific to Ubuntu
-          path: ~/.cache/pip
-          # Look to see if there is a cache hit for the corresponding requirements file
-          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py', 'requirements.txt',  '${{ matrix.subdir }}/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-            ${{ runner.os }}-
-      - name: Setup
-        run: |
-          set -ex
-          python -m pip install --upgrade pip wheel
-      - name: Linting
-        run: |
-          bash scripts/lint_subdirectory.sh ${{ matrix.subdir }}
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python_version }}
+    - name: Cache pip
+      uses: actions/cache@v3
+      with:
+        # This path is specific to Ubuntu
+        path: ~/.cache/pip
+        # Look to see if there is a cache hit for the corresponding requirements file
+        key: ${{ runner.os }}-pip-${{ hashFiles('setup.py', 'requirements.txt',  '${{
+          matrix.subdir }}/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          ${{ runner.os }}-
+    - name: Setup
+      run: |
+        set -ex
+        python -m pip install --upgrade pip wheel
+    - name: Lint
+      run: |
+        bash scripts/lint_subdirectory.sh ${{ matrix.subdir }}

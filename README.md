@@ -16,8 +16,8 @@ To get started, either clone or fork this repo and install whichever example\[s\
 ```bash
 git clone https://github.com/mosaicml/examples.git
 cd examples
-pip install ".[llm]"  # or pip install ".[llm-cpu]" if no NVIDIA GPU
-cd llm
+pip install -e ".[llm]"  # or pip install -e ".[llm-cpu]" if no NVIDIA GPU
+cd examples/llm
 ```
 
 # Tests and Linting
@@ -43,7 +43,7 @@ This repo features the following examples, each as their own subdirectory:
 
 Train the MosaicML ResNet, the fastest ResNet50 implementation that yields a :sparkles: 7x :sparkles: faster time-to-train compared to a strong baseline. See our [blog](https://www.mosaicml.com/blog/mosaic-resnet) for more details and recipes. Our recipes were also demonstrated at [MLPerf](https://www.mosaicml.com/blog/mlperf-2022), a cross industry ML benchmark.
 
-:rocket: Get started with the code [here](./resnet/).
+:rocket: Get started with the code [here](./examples/resnet/).
 
 
 ## DeepLabV3 + ADE20k
@@ -51,19 +51,19 @@ Train the MosaicML ResNet, the fastest ResNet50 implementation that yields a :sp
 
 Train the MosaicML DeepLabV3 that yields a :sparkles:5x:sparkles: faster time-to-train compared to a strong baseline. See our [blog](https://www.mosaicml.com/blog/mosaic-image-segmentation) for more details and recipes.
 
-:rocket: Get started with the code [here](./deeplab/).
+:rocket: Get started with the code [here](./examples/deeplab/).
 
 
 ## Large Language Models (LLMs)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./llm/assets/loss-curve-dark.png">
-  <img alt="Training curves for various LLM sizes." src="./llm/assets/loss-curve-light.png" width=500px>
+  <source media="(prefers-color-scheme: dark)" srcset="./examples/llm/assets/loss-curve-dark.png">
+  <img alt="Training curves for various LLM sizes." src="./examples/llm/assets/loss-curve-light.png" width=500px>
 </picture>
 
 A simple yet feature complete implementation of GPT, that scales to 70B parameters while maintaining high performance on GPU clusters. Flexible code, written with vanilla PyTorch, that uses [PyTorch FSDP](https://pytorch.org/blog/introducing-pytorch-fully-sharded-data-parallel-api/) and some recent efficiency improvements.
 
-:rocket: Get started with the code [here](./llm/).
+:rocket: Get started with the code [here](./examples/llm/).
 
 
 ## BERT
@@ -72,4 +72,4 @@ This benchmark covers both pre-training and fine-tuning a BERT model. With this 
 
 We also provide the source code and recipe behind our Mosaic BERT model, which you can train yourself using this repo.
 
-:rocket: Get started with the code [here](./bert/).
+:rocket: Get started with the code [here](./examples/bert/).

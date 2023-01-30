@@ -1,0 +1,11 @@
+datasets==2.7.1
+einops==0.5.0
+torch==1.13.1
+mosaicml>=0.12,<0.13
+mosaicml-streaming==0.2.2
+omegaconf==2.2.3
+transformers==4.25.1
+# need a newer version of triton
+triton==2.0.0.dev20221103
+torchmetrics==0.9.3
+wandb==0.13.6

@@ -1,0 +1,13 @@
+run_name: cifar-example
+cluster:            # Name of the cluster to use for this run
+gpu_type: a100_40gb # Type of GPU to use
+gpu_num: 8          # Number of GPUs to use
+image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/examples  # Replace with your fork to use custom code
+  git_branch: main             # Replace with your branch to use custom code
+  pip_install: -e .[cifar]
+command: |
+  cd examples/examples/cifar
+  composer main.py yamls/resnet56.yaml

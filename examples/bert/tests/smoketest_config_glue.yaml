@@ -1,0 +1,52 @@
+# Whether to run the various GLUE jobs serially or in parallel (must be `false` on CPU)
+parallel: false
+
+# Basic run configuration, additional details will be added to this name for each GLUE task, and each random seed
+base_run_name: glue-finetuning-benchmark-test
+default_seed: 1111
+precision: fp32
+
+# Tokenizer for dataset creation
+tokenizer_name: &tokenizer_name bert-base-uncased
+
+# Base model config
+model:
+  name:
+  pretrained_model_name: prajjwal1/bert-tiny
+  tokenizer_name: *tokenizer_name
+
+
+# Loading
+starting_checkpoint_load_path:      # Start from scratch for the sake of testing
+local_pretrain_checkpoint_folder: ./local-bert-checkpoints/
+
+# Saving
+save_finetune_checkpoint_prefix: ./local-finetune-checkpoints/ # (local)
+save_finetune_checkpoint_folder: ${save_finetune_checkpoint_prefix}/${base_run_name}
+
+# Callbacks
+callbacks:
+  lr_monitor: {}
+  # speed_monitor: {}
+
+# Scheduler
+scheduler:
+  name: linear_decay_with_warmup
+  t_warmup: 0.5dur
+  alpha_f: 0.0
+
+# Task configuration
+tasks: # Only run MNLI and RTE for the sake of testing
+  mnli:
+    # Specify any extra task-specific arguments for the trainer here
+    trainer_kwargs:
+      # We keep one MNLI checkpoint locally so that we can start finetuning of
+      # RTE, MRPC and STS-B from the MNLI checkpoint
+      save_num_checkpoints_to_keep: 1
+      max_duration: 2ba
+      eval_subset_num_batches: 2
+  rte:
+    trainer_kwargs:
+      save_num_checkpoints_to_keep: 0
+      max_duration: 2ba
+      eval_subset_num_batches: 2

@@ -47,6 +47,8 @@ lint:  ## Apply autoformating and run style checks via pre-commit
 # we don't test the BERT examples since there are no tests yet...
 .PHONY: test
 test:  ## Run all the tests
+	@echo "================================ Testing BERT examples"
+	bash scripts/test_subdirectory.sh bert
 	@echo "================================ Testing CIFAR examples"
 	bash scripts/test_subdirectory.sh cifar
 	@echo "================================ Testing DeepLab examples"

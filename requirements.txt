@@ -1,3 +1,7 @@
+# These requirements are shared for all examples
+# Each example subdir has its own `requirements.txt` with extra deps.
+# E.g. to install LLM folder deps, use `pip install -e .[llm]`
+
 mosaicml>=0.12,<0.13
 pre-commit>=2.18.1,<3
 pytest>=7.2.1,<8
@@ -5,8 +9,8 @@ pytest_codeblocks>=0.16.1,<0.17
 pytest-cov>=4,<5
 pyright>=1.1.290,<1.2
 toml>=0.10.2,<0.11
-packaging>=21,<24
+packaging>=21,<23
 omegaconf>=2.2.3,<3
-# these are just for text_data.py
+# these are just for common/text_data.py
 transformers>=4.11,<5
-mosaicml-streaming<0.3.*
+mosaicml-streaming<0.3

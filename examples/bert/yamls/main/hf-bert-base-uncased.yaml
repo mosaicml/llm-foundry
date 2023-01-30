@@ -1,0 +1,103 @@
+# Note that some of the fields in this template haven't been filled in yet.
+# Please resolve any `null` fields before launching!
+
+# Follow the instructions in the README to set up ./my-copy-c4
+# Or point data paths to your remote C4 dataset
+data_local: &data_local ./my-copy-c4
+data_remote: &data_remote null
+
+max_seq_len: &max_seq_len 128
+tokenizer_name: &tokenizer_name bert-base-uncased
+mlm_probability: &mlm_probability 0.15
+
+# Run Name
+run_name: hf-bert-base-uncased
+
+# Model
+model:
+  name: hf_bert
+  use_pretrained: false # Train the model from scratch. Set to true to start from the HF off-the-shelf weights.
+  pretrained_model_name: *tokenizer_name
+  tokenizer_name: *tokenizer_name
+
+# Dataloaders
+train_loader:
+  name: text
+  dataset:
+    local: *data_local
+    remote: *data_remote
+    split: train
+    tokenizer_name: *tokenizer_name
+    max_seq_len: *max_seq_len
+    group_method: truncate
+    shuffle: true
+    mlm_probability: *mlm_probability
+  drop_last: true
+  num_workers: 8
+
+eval_loader:
+  name: text
+  dataset:
+    local: *data_local
+    remote: *data_remote
+    split: val
+    tokenizer_name: *tokenizer_name
+    max_seq_len: *max_seq_len
+    group_method: truncate
+    shuffle: false
+    mlm_probability: 0.15 # We always evaluate at 15% masking for consistent comparison
+  drop_last: false
+  num_workers: 8
+
+# Optimization
+scheduler:
+  name: linear_decay_with_warmup
+  t_warmup: 0.06dur # Warmup to the full LR for 6% of the training duration
+  alpha_f: 0.02 # Linearly decay to 0.02x the full LR by the end of the training duration
+
+optimizer:
+  name: decoupled_adamw
+  lr: 5.0e-4 # Peak learning rate
+  betas:
+  - 0.9
+  - 0.98
+  eps: 1.0e-06
+  weight_decay: 1.0e-5 # Amount of weight decay regularization
+
+max_duration: 286720000sp # Subsample the training data for ~275M samples
+eval_interval: 2000ba
+global_train_batch_size: 4096
+grad_clip_norm: -1.0
+
+# System
+seed: 17
+grad_accum: auto
+precision: bf16
+
+# Logging
+progress_bar: false
+log_to_console: true
+console_log_interval: 1ba
+
+
+callbacks:
+  speed_monitor:
+    window_size: 500
+  lr_monitor: {}
+
+# (Optional) W&B logging
+# loggers:
+#   wandb:
+#     project:      # Fill this in
+#     entity:      # Fill this in
+
+# (Optional) Checkpoint to local filesystem or remote object store
+# save_interval: 3500ba
+# save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+# save_folder:      # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
+
+# (Optional) Load from local filesystem or remote object store to
+# start from an existing model checkpoint;
+# e.g. './ckpt/latest-rank{rank}.pt' (local), or
+# 's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)
+# load_path: null

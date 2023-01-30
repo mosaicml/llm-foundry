@@ -1,0 +1,91 @@
+# Use this YAML to verify that MLM pre-training works. Runs on CPU or GPUs (if available).
+# From `examples/bert`, run:
+#   `composer main.py yamls/test/main.yaml` to run using the HuggingFace BERT
+#   `composer main.py yamls/test/main.yaml model.name=mosaic_bert` to run using the Mosaic BERT
+
+data_remote: &data_remote ./my-copy-c4 # Follow the instructions in the README to set up ./my-copy-c4
+data_local: &data_local ./my-copy-c4
+tokenizer_name: &tokenizer_name prajjwal1/bert-tiny
+max_seq_len: &max_seq_len 128
+mlm_probability: &mlm_probability 0.15
+
+# Run Name
+run_name: test
+
+# Model
+model:
+  name: hf_bert
+  use_pretrained: false # Train the model from scratch. Set to true to start from the HF off-the-shelf weights.
+  pretrained_model_name: *tokenizer_name
+  tokenizer_name: *tokenizer_name
+
+# Dataloaders
+train_loader:
+  name: text
+  dataset:
+    remote: *data_remote
+    local: *data_local
+    split: train_small
+    tokenizer_name: *tokenizer_name
+    max_seq_len: *max_seq_len
+    group_method: truncate
+    predownload: 1000
+    shuffle: true
+    mlm_probability: *mlm_probability
+  drop_last: true
+  num_workers: 8
+
+eval_loader:
+  name: text
+  dataset:
+    remote: *data_remote
+    local: *data_local
+    split: val
+    tokenizer_name: *tokenizer_name
+    max_seq_len: *max_seq_len
+    group_method: truncate
+    predownload: 1000
+    shuffle: false
+    mlm_probability: *mlm_probability
+  drop_last: false
+  num_workers: 8
+
+global_train_batch_size: 16
+
+# Optimization
+scheduler:
+  name: linear_decay_with_warmup
+  t_warmup: 0.06dur # Warmup to the full LR for 6% of the training duration
+  alpha_f: 0.02 # Linearly decay to 0.02x the full LR by the end of the training duration
+
+optimizer:
+  name: decoupled_adamw
+  lr: 2.0e-4
+  betas:
+  - 0.9
+  - 0.95
+  eps: 1.0e-08
+  weight_decay: 0.0
+
+grad_clip_norm: -1.0
+
+# Training duration and evaluation frequency
+max_duration: 10ba
+eval_interval: 10ba
+eval_subset_num_batches: 20 # For code testing, evaluate on a subset of 20 batches
+
+# System
+seed: 17
+grad_accum: 1
+precision: fp32
+
+# Logging
+progress_bar: false
+log_to_console: true
+console_log_interval: 1ba
+
+
+callbacks:
+  speed_monitor:
+    window_size: 500
+  lr_monitor: {}

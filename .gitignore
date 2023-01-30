@@ -1,6 +1,12 @@
 # Data
 my-copy-c4/
 
+# WandB
+wandb/
+
+# Makefile envs
+env*/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,4 +1,4 @@
-# MosaicmML Examples
+# MosaicML Examples
 
 This repo contains reference examples for training ML models quickly and to high accuracy. It's designed to be easily forked and modified.
 

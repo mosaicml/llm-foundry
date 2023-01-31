@@ -3,7 +3,8 @@
 
 import composer
 from composer import algorithms
-from composer.callbacks import LRMonitor, MemoryMonitor, SpeedMonitor
+from composer.callbacks import (LRMonitor, MemoryMonitor, OptimizerMonitor,
+                                SpeedMonitor)
 from composer.loggers import WandBLogger
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
@@ -21,18 +22,12 @@ def build_callback(name, kwargs):
     elif name == 'memory_monitor':
         return MemoryMonitor()
     elif name == 'speed_monitor':
-        if version.parse(composer.__version__) < version.parse('0.12.0'):
-            return SpeedMonitor(window_size=kwargs.get('window_size', 1))
         return SpeedMonitorMFU(window_size=kwargs.get('window_size', 1),
                                gpu_flops_available=kwargs.get(
                                    'gpu_flops_available', None))
     elif name == 'optimizer_monitor':
-        try:
-            from composer.callbacks import OptimizerMonitor
-            return OptimizerMonitor(log_optimizer_metrics=kwargs.get(
-                'log_optimizer_metrics', True),)
-        except:
-            raise ValueError(f'Not sure how to build callback: {name}')
+        return OptimizerMonitor(log_optimizer_metrics=kwargs.get(
+            'log_optimizer_metrics', True),)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
@@ -53,6 +48,8 @@ def build_algorithm(name, kwargs):
         return algorithms.FusedLayerNorm(**kwargs)
     elif name == 'gated_linear_units':
         return algorithms.GatedLinearUnits(**kwargs)
+    elif name == 'low_precision_layernorm':
+        return algorithms.LowPrecisionLayerNorm(**kwargs)
     else:
         raise ValueError(f'Not sure how to build algorithm: {name}')
 

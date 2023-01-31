@@ -180,7 +180,7 @@ def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
         num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', None),
         batch_size=device_batch_size)
 
-    mlm_probability = cfg.get('mlm_probability', None)
+    mlm_probability = cfg.dataset.get('mlm_probability', None)
     collate_fn = transformers.DataCollatorForLanguageModeling(
         tokenizer=dataset.tokenizer,
         mlm=mlm_probability is not None,

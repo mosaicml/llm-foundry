@@ -26,7 +26,7 @@ train_loader:
     shuffle: true
     mlm_probability: *mlm_probability
   drop_last: true
-  num_workers: 0
+  num_workers: 4
 
 eval_loader:
   name: text
@@ -41,9 +41,7 @@ eval_loader:
     shuffle: false
     mlm_probability: *mlm_probability
   drop_last: false
-  num_workers: 0
-
-global_train_batch_size: 2
+  num_workers: 4
 
 # Optimization
 scheduler:
@@ -63,11 +61,12 @@ optimizer:
 # Training duration and evaluation frequency
 max_duration: 8ba
 eval_interval: 8ba
-eval_subset_num_batches: 8 # For code testing, evaluate on a subset of 8 batches
+global_train_batch_size: 4
 
 # System
 seed: 17
-grad_accum: 1
+device_eval_batch_size: 4
+device_train_microbatch_size: 2
 precision: fp32
 
 # Logging

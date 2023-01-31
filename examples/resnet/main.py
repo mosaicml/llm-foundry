@@ -18,7 +18,9 @@ from composer.optim import CosineAnnealingWithWarmupScheduler, DecoupledSGDW
 from composer.utils import dist
 from data import build_imagenet_dataspec
 from model import build_composer_resnet
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf
+
+from examples.common.config_utils import log_config
 
 
 def build_logger(name: str, kwargs: Dict):
@@ -28,17 +30,6 @@ def build_logger(name: str, kwargs: Dict):
         return WandBLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
-
-
-def log_config(cfg: DictConfig):
-    print(OmegaConf.to_yaml(cfg))
-    if 'wandb' in cfg.loggers:
-        try:
-            import wandb
-        except ImportError as e:
-            raise e
-        if wandb.run:
-            wandb.config.update(OmegaConf.to_container(cfg, resolve=True))
 
 
 def main(config):

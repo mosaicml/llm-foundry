@@ -50,12 +50,10 @@ eval_loader:
   drop_last: false
   num_workers: 8
 
-global_train_batch_size: 16
-
 # Optimization
 scheduler:
   name: linear_decay_with_warmup
-  t_warmup: 0.06dur # Warmup to the full LR for 6% of the training duration
+  t_warmup: 0.5dur # Warmup to the full LR for 6% of the training duration
   alpha_f: 0.02 # Linearly decay to 0.02x the full LR by the end of the training duration
 
 optimizer:
@@ -67,16 +65,16 @@ optimizer:
   eps: 1.0e-08
   weight_decay: 0.0
 
-grad_clip_norm: -1.0
-
 # Training duration and evaluation frequency
 max_duration: 10ba
 eval_interval: 10ba
 eval_subset_num_batches: 20 # For code testing, evaluate on a subset of 20 batches
+global_train_batch_size: 16
 
 # System
 seed: 17
-grad_accum: 1
+device_eval_batch_size: 16
+device_train_microbatch_size: 16
 precision: fp32
 
 # Logging
@@ -86,6 +84,6 @@ console_log_interval: 1ba
 
 
 callbacks:
-  speed_monitor:
-    window_size: 500
+  # speed_monitor:
+  #   window_size: 500
   lr_monitor: {}

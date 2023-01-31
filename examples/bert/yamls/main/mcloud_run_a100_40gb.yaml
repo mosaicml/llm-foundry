@@ -6,11 +6,11 @@
 # Note that some of the fields in this template haven't been filled in yet.
 # Please resolve any `null` fields before launching!
 #
-# When ready, use `mcli run -f yamls/main/mcloud_run.yaml` to launch
+# When ready, use `mcli run -f yamls/main/mcloud_run_a100_40gb.yaml` to launch
 
 run_name: &run_name mosaic-bert-base-uncased
 cluster:       # Name of the cluster to use for this run
-gpu_type: a100_80gb # Type of GPU to use (we use a100_80gb)
+gpu_type: a100_40gb # Type of GPU to use
 gpu_num: 8  # Number of GPUs to use
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 integrations:
@@ -94,11 +94,11 @@ parameters:
   max_duration: 286720000sp # Subsample the training data for ~275M samples
   eval_interval: 2000ba
   global_train_batch_size: 4096
-  grad_clip_norm: -1.0
 
   # System
   seed: 17
-  grad_accum: auto
+  device_eval_batch_size: 128
+  device_train_microbatch_size: 128
   precision: bf16
 
   # Logging

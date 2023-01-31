@@ -6,7 +6,6 @@
 import os
 import sys
 
-import omegaconf
 import torch
 from composer import Trainer
 from composer.algorithms import EMA, SAM, ChannelsLast, MixUp
@@ -18,6 +17,8 @@ from data import build_ade20k_dataspec
 from model import build_composer_deeplabv3
 from omegaconf import OmegaConf
 
+from examples.common.config_utils import log_config
+
 
 def build_logger(name: str, kwargs: dict):
     if name == 'progress_bar':
@@ -26,17 +27,6 @@ def build_logger(name: str, kwargs: dict):
         return WandBLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
-
-
-def log_config(config: omegaconf.DictConfig):
-    print(OmegaConf.to_yaml(config))
-    if 'wandb' in config.loggers:
-        try:
-            import wandb
-        except ImportError as e:
-            raise e
-        if wandb.run:
-            wandb.config.update(OmegaConf.to_container(config, resolve=True))
 
 
 def main(config):

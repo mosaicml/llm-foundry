@@ -12,10 +12,11 @@ from composer.callbacks import LRMonitor, MemoryMonitor, SpeedMonitor
 from composer.loggers import ProgressBarLogger, WandBLogger
 from composer.optim import DecoupledSGDW, MultiStepWithWarmupScheduler
 from composer.utils import dist
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf
 
 from examples.cifar.data import build_cifar10_dataspec
 from examples.cifar.model import build_composer_resnet_cifar
+from examples.common.config_utils import log_config
 
 
 def build_logger(name: str, kwargs: Dict):
@@ -25,17 +26,6 @@ def build_logger(name: str, kwargs: Dict):
         return WandBLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
-
-
-def log_config(cfg: DictConfig):
-    print(OmegaConf.to_yaml(cfg))
-    if 'wandb' in cfg.loggers:
-        try:
-            import wandb
-        except ImportError as e:
-            raise e
-        if wandb.run:
-            wandb.config.update(OmegaConf.to_container(cfg, resolve=True))
 
 
 def main(config):

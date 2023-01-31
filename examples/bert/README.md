@@ -220,12 +220,18 @@ Before using the configs in `yamls/glue/` when running `glue.py`, you'll need to
 
 # Running on the MosaicML Cloud
 
-If you have configured a compute cluster to work with the MosaicML Cloud, you can use the `yaml/*/mcloud_run.yaml` reference YAMLs for examples of how to run pre-training and fine-tuning remotely!
+If you have configured a compute cluster to work with the MosaicML Cloud, you can use the `yaml/*/mcloud_run*.yaml` reference YAMLs for examples of how to run pre-training and fine-tuning remotely!
 
 Once you have filled in the missing YAML fields (and made any other modifications you want), you can launch pre-training by simply running:
 
 ```bash
-mcli run -f yamls/main/mcloud_run.yaml
+mcli run -f yamls/main/mcloud_run_a100_80gb.yaml
+```
+
+Or, if your cluster has A100 GPUs with 40gb of memory:
+
+```bash
+mcli run -f yamls/main/mcloud_run_a100_40gb.yaml
 ```
 
 Similarly, for GLUE fine-tuning, just fill in the missing YAML fields (e.g., to use the pre-training checkpoint as the starting point) and run:

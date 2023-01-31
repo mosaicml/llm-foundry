@@ -69,11 +69,12 @@ algorithms:
 max_duration: 286720000sp # Subsample the training data for ~275M samples
 eval_interval: 2000ba
 global_train_batch_size: 4096
-grad_clip_norm: -1.0
 
 # System
 seed: 17
-grad_accum: auto
+device_eval_batch_size: 128
+device_train_microbatch_size: 128
+# device_train_microbatch_size: auto
 precision: bf16
 
 # Logging

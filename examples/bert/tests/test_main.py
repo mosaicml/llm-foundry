@@ -8,8 +8,7 @@ import torch
 from omegaconf import DictConfig, OmegaConf
 
 from examples.bert.main import main
-
-from .utils import SynthTextDirectory
+from examples.bert.tests.utils import SynthTextDirectory
 
 
 @pytest.mark.parametrize('model_name,seed', [('mosaic_bert', 17),

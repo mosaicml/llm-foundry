@@ -32,12 +32,12 @@ save_finetune_checkpoint_folder: ${save_finetune_checkpoint_prefix}/${base_run_n
 # Callbacks
 callbacks:
   lr_monitor: {}
-  speed_monitor: {}
+  # speed_monitor: {}
 
 # Scheduler
 scheduler:
   name: linear_decay_with_warmup
-  t_warmup: 0.06dur
+  t_warmup: 0.5dur
   alpha_f: 0.0
 
 # Task configuration

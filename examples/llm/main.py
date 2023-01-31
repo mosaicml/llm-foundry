@@ -6,54 +6,14 @@ import sys
 import warnings
 
 from composer import Trainer
-from composer.utils import dist, reproducibility
+from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
 
 from examples.common.builders import (build_algorithm, build_callback,
                                       build_dataloader, build_logger,
                                       build_optimizer, build_scheduler)
-from examples.common.logging_utils import log_config
+from examples.common.config_utils import log_config, update_batch_size_info
 from examples.llm.src.model_registry import COMPOSER_MODEL_REGISTRY
-
-
-def calculate_batch_size_info(global_batch_size, device_microbatch_size):
-    if global_batch_size % dist.get_world_size() != 0:
-        raise ValueError(
-            f'Global batch size {global_batch_size} is not divisible by {dist.get_world_size()} '
-            'as a result, the batch size would be truncated, please adjust `global_batch_size` '
-            f'to be divisible by world size, {dist.get_world_size()}.')
-    device_batch_size = global_batch_size // dist.get_world_size()
-    if device_microbatch_size == 'auto':
-        device_grad_accum = 'auto'
-    elif isinstance(device_microbatch_size, int):
-        if device_microbatch_size > device_batch_size:
-            print(
-                f'WARNING: device_microbatch_size > device_batch_size, '
-                f'will be reduced from {device_microbatch_size} -> {device_batch_size}.'
-            )
-            device_microbatch_size = device_batch_size
-        device_grad_accum = device_batch_size // device_microbatch_size
-    else:
-        raise ValueError(f'Not sure how to parse {device_microbatch_size=}')
-
-    return device_batch_size, device_microbatch_size, device_grad_accum
-
-
-# Coming soon: this conversion math will be done inside Composer Trainer
-def update_batch_size_info(cfg):
-    device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
-        cfg.global_train_batch_size, cfg.device_train_microbatch_size)
-    cfg.n_gpus = dist.get_world_size()
-    cfg.device_train_batch_size = device_train_batch_size
-    cfg.device_train_microbatch_size = device_train_microbatch_size
-    cfg.device_train_grad_accum = device_train_grad_accum
-    # Safely set `device_eval_batch_size` if not provided by user
-    if 'device_eval_batch_size' not in cfg:
-        if cfg.device_train_microbatch_size == 'auto':
-            cfg.device_eval_batch_size = 1  # TODO debug auto eval microbatching
-        else:
-            cfg.device_eval_batch_size = cfg.device_train_microbatch_size
-    return cfg
 
 
 def build_composer_model(cfg):

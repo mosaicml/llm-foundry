@@ -3,11 +3,10 @@
 
 import os
 import sys
-from typing import Dict, Optional, cast
+from typing import Optional, cast
 
-import wandb
 from composer import Trainer
-from composer.utils import dist, reproducibility
+from composer.utils import reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -16,6 +15,7 @@ from examples.bert.src.mosaic_bert import create_mosaic_bert_mlm
 from examples.common.builders import (build_algorithm, build_callback,
                                       build_dataloader, build_logger,
                                       build_optimizer, build_scheduler)
+from examples.common.config_utils import log_config, update_batch_size_info
 
 
 def build_model(cfg: DictConfig):
@@ -44,29 +44,21 @@ def main(cfg: DictConfig,
     print(om.to_yaml(cfg))
     reproducibility.seed_all(cfg.seed)
 
+    # Get batch size info
+    cfg = update_batch_size_info(cfg)
+
     # Build Model
     print('Initializing model...')
     model = build_model(cfg.model)
     n_params = sum(p.numel() for p in model.parameters())
     print(f'{n_params=:.4e}')
 
-    # Get batch size info
-    if cfg.global_train_batch_size % dist.get_world_size() != 0:
-        raise ValueError(
-            f'Global batch size {cfg.global_train_batch_size} is not divisible by {dist.get_world_size()} '
-            'as a result, the batch size would be truncated, please adjust `global_train_batch_size` '
-            f'to be divisible by world size, {dist.get_world_size()}.')
-    device_train_batch_size = cfg.global_train_batch_size // dist.get_world_size(
-    )
-    device_eval_batch_size = cfg.get(
-        'global_eval_batch_size',
-        cfg.global_train_batch_size) // dist.get_world_size()
-
     # Dataloaders
     print('Building train loader...')
-    train_loader = build_dataloader(cfg.train_loader, device_train_batch_size)
+    train_loader = build_dataloader(cfg.train_loader,
+                                    cfg.device_train_batch_size)
     print('Building eval loader...')
-    eval_loader = build_dataloader(cfg.eval_loader, device_eval_batch_size)
+    eval_loader = build_dataloader(cfg.eval_loader, cfg.device_eval_batch_size)
 
     # Optimizer
     optimizer = build_optimizer(cfg.optimizer, model)
@@ -118,7 +110,8 @@ def main(cfg: DictConfig,
         callbacks=callbacks,
         precision=cfg.precision,
         device=cfg.get('device', None),
-        grad_accum=cfg.get('grad_accum', 'auto'),
+        device_train_microbatch_size=cfg.get('device_train_microbatch_size',
+                                             'auto'),
         save_folder=cfg.get('save_folder', None),
         save_interval=cfg.get('save_interval', '1000ba'),
         save_num_checkpoints_to_keep=cfg.get('save_num_checkpoints_to_keep',
@@ -129,16 +122,7 @@ def main(cfg: DictConfig,
     )
 
     print('Logging config...')
-    config_dict = om.to_container(cfg, resolve=True)
-    assert isinstance(config_dict, (Dict,))  # type checking
-    config_dict.update({
-        'n_gpus': dist.get_world_size(),
-        'n_params': n_params,
-        'device_train_batch_size': device_train_batch_size,
-        'device_eval_batch_size': device_eval_batch_size,
-    })
-    if wandb.run is not None:
-        wandb.config.update(config_dict)
+    log_config(cfg)
 
     if do_train:
         print('Starting training...')

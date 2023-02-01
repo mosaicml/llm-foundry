@@ -1,3 +1,5 @@
+## Warning: The numbers in the tables below are based on torch 1.12 and are out of date. The current setup achieves higher throughput / MFU. This warning will be removed once the tables are updated.
+
 # MosaicGPT Throughput, MFU, and HFU
 Throughput, MFU, and HFU for MosaicGPT models trained on [MosaicML Cloud](https://www.mosaicml.com/cloud).
 

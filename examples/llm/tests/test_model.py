@@ -103,7 +103,6 @@ def test_full_forward_and_backward(batch_size=2):
     assert not torch.equal(original_params, updated_params)
 
 
-@pytest.mark.skip  # XXX this shouldn't fail; temporary workaround so CI passes
 def test_attention_mechanism(batch_size=2):
     test_cfg, model, _ = get_objs(conf_path='yamls/mosaic_gpt/testing.yaml')
 
@@ -138,12 +137,17 @@ def test_attention_mechanism(batch_size=2):
         axis=1)
     expected_zerod_weights |= torch_key_padding
 
+    attn_mask = model.model._attn_mask(batch_size=batch_size,
+                                       seq_len=test_cfg.max_seq_len,
+                                       key_padding_mask=key_padding_mask)
+
     for block in model.model.transformer.blocks:
         a = block.ln_1(x)
-        b, attention_weights = block.causal_attn(a, key_padding_mask)
+        b, attention_weights = block.causal_attn(a,
+                                                 key_padding_mask,
+                                                 attn_mask=attn_mask)
 
         zerod_weights = (attention_weights == 0)
-        # XXX this line fails as of 2023-1-25
         assert torch.equal(expected_zerod_weights, zerod_weights)
         x = x + block.resid_attn_dropout(b)
         m = block.ln_2(x)

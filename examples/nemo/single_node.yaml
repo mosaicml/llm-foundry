@@ -1,0 +1,21 @@
+run_name: #run-name-here
+cluster: #mcloud-cluster-name-here
+gpu_num: 8
+image: nvcr.io/nvidia/nemo:22.09
+env_variables:
+  - key: PYTHONUNBUFFERED
+    value: '1'
+command: | 
+
+  # getting the vocab, merge files for the tokenizer
+  wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-vocab.json
+  wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt
+
+  python3 examples/nlp/language_modeling/megatron_gpt_pretraining.py \
+  --config-path=/workspace/nemo/examples/nlp/language_modeling/conf/ \
+  --config-name=megatron_gpt_config.yaml \
+  model.data.data_prefix=[1.0,/your_dataset_path_here/] \
+  model.tokenizer.vocab_file=gpt2-vocab.json \
+  model.tokenizer.merge_file=gpt2-merges.txt \
+  model.optim.name="fused_adam" \
+  trainer.devices=8

@@ -15,7 +15,7 @@ from composer.algorithms import (EMA, SAM, BlurPool, ChannelsLast, ColOut,
 from composer.callbacks import LRMonitor, MemoryMonitor, SpeedMonitor
 from composer.loggers import ProgressBarLogger, WandBLogger
 from composer.optim import CosineAnnealingWithWarmupScheduler, DecoupledSGDW
-from composer.utils import dist
+from composer.utils import dist, reproducibility
 from data import build_imagenet_dataspec
 from model import build_composer_resnet
 from omegaconf import OmegaConf
@@ -33,6 +33,7 @@ def build_logger(name: str, kwargs: Dict):
 
 
 def main(config):
+    reproducibility.seed_all(config.seed)
     if config.grad_accum == 'auto' and not torch.cuda.is_available():
         raise ValueError(
             'grad_accum="auto" requires training with a GPU; please specify grad_accum as an integer'

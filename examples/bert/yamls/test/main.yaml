@@ -84,6 +84,6 @@ console_log_interval: 1ba
 
 
 callbacks:
-  # speed_monitor:
-  #   window_size: 500
+  speed_monitor:
+    window_size: 5
   lr_monitor: {}

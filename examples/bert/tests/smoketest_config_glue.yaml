@@ -27,7 +27,7 @@ save_finetune_checkpoint_folder: ${save_finetune_checkpoint_prefix}/${base_run_n
 # Callbacks
 callbacks:
   lr_monitor: {}
-  # speed_monitor: {}
+  speed_monitor: {}
 
 # Scheduler
 scheduler:

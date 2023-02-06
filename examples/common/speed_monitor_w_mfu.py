@@ -92,6 +92,10 @@ __all__ = ['SpeedMonitorMFU']
 def get_gpu_flops_available(state: State):
     gpu_flops_available = None
 
+    # Return 0 if no CUDA device (e.g., when running with CPU only)
+    if not torch.cuda.is_available():
+        return 0
+
     # torch.cuda.get_device_name() ex output: 'NVIDIA A100-SXM4-40GB'
     dev_name = torch.cuda.get_device_name().lower()
     if 'h100-sxm' in dev_name:
@@ -118,9 +122,13 @@ def get_gpu_flops_available(state: State):
 
     if gpu_flops_available is None:
         warnings.warn(
-            f'gpu_flop count not found for {dev_name=} with precision: {state.precision.value}; MFU cannot be calculated and reported. '
-            f'gpu_flops_available can be manually overridden by setting gpu_flops_available in SpeedMonitorMFU()'
+            f'gpu_flop count not found for {dev_name=} with precision: {state.precision.value}; ' +\
+            f'MFU cannot be calculated and reported. gpu_flops_available can be manually' +\
+            f'overridden by setting gpu_flops_available in SpeedMonitorMFU()'
         )
+        # Setting to 0 will disable MFU computation and prevent
+        # the speed monitor from running this helper every batch
+        gpu_flops_available = 0
 
     return gpu_flops_available
 
@@ -172,7 +180,7 @@ class SpeedMonitorMFU(Callback):
         self.batch_start_num_samples = int(state.timestamp.sample)
 
         # Get available GPU FLOPS
-        if not self.gpu_flops_available:
+        if self.gpu_flops_available is None:
             self.gpu_flops_available = get_gpu_flops_available(state)
 
     def batch_end(self, state: State, logger: Logger):

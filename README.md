@@ -20,6 +20,33 @@ pip install -e ".[llm]"  # or pip install -e ".[llm-cpu]" if no NVIDIA GPU
 cd examples/llm
 ```
 
+# Extending an example
+
+Each example provides a short `main.py` that constructs a `Trainer` object and all of the arguments to it. There are three easy ways to extend an example:
+
+1. **Change the configuration.** Each example has a `yamls` subdirectory, and each `yaml` file therein contains settings like the learning rate, where to load data from, and more. These settings are read within `main.py` and used to configure the `Trainer`.
+1. **Modify the arguments to `Trainer` directly.**  For example, if you want to use a different optimizer, the simplest way is to construct this optimizer in `main.py` and pass it as the `optimizer` argument to the `Trainer`.
+1. **Write an [Algorithm](https://docs.mosaicml.com/en/stable/trainer/algorithms.html#two-way-callbacks) and add it to the `Trainer`'s `algorithms` argument.** This lets you inject arbitrary code almost anywhere in your training loop and modify training as it happens. Composer includes [a big list](https://docs.mosaicml.com/en/stable/trainer/algorithms.html#robot-algorithms) of Algorithms whose [source code](https://github.com/mosaicml/composer/tree/dev/composer/algorithms) you can use as examples.
+
+We also provide some convenient string-to-object mappings in [common/builders.py](./examples/common/builders.py). These let you avoid cluttering `main.py` with code like:
+
+```python
+if cfg.optimizer == 'adam':
+   ...
+elif cfg.optimizer == 'sgd':
+  ...
+```
+
+and instead write:
+
+```python
+opt = builders.build_optimizer(cfg.optimizer, model)
+```
+
+with all the if-elif logic wrapped in this reusable function. You can easily extend these functions to include new options; e.g., to add an optimizer, you could extend `build_optimizer` in [common/builders.py](./examples/common/builders.py) to import and construct your optimizer.
+
+If you run into any issues extending the code, or just want to discuss an idea you have, please open an [issue](https://github.com/mosaicml/examples/issues/new) or join our [community Slack](https://join.slack.com/t/mosaicml-community/shared_invite/zt-1btms90mc-GipE2ufuPkKY0QBrmF3LSA)!
+
 # Tests and Linting
 
 If you already have the dependencies for a given example installed, you can just run:

@@ -59,7 +59,9 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
     # get hf gpt2 cfg
     hf_cfg = om.create({
         'name': 'hf_causal_lm',
-        'hf_config_name_or_path': 'gpt2'
+        'hf_config_name_or_path': 'gpt2',
+        'pretrained': False,
+        'device': 'cpu',
     })
 
     # get hf gpt2 model

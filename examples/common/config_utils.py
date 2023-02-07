@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
+import math
 from typing import Union
 
 from composer.utils import dist
@@ -25,7 +26,8 @@ def calculate_batch_size_info(global_batch_size: int,
                 f'will be reduced from {device_microbatch_size} -> {device_batch_size}.'
             )
             device_microbatch_size = device_batch_size
-        device_grad_accum = device_batch_size // device_microbatch_size
+        device_grad_accum = math.ceil(device_batch_size /
+                                      device_microbatch_size)
     else:
         raise ValueError(f'Not sure how to parse {device_microbatch_size=}')
 

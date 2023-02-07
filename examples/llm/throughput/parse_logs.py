@@ -3,6 +3,7 @@
 
 import argparse
 import csv
+import math
 from typing import Any, Dict
 
 from mcli import sdk as msdk
@@ -95,7 +96,7 @@ def parse_run(run) -> Dict[str, Any]:
 
     seq_len = run.config.parameters['max_seq_len']
     global_train_batch_size = run.config.parameters['global_train_batch_size']
-    activation_checkpointing = str(fsdp_config['activation_checkpointing'])
+    activation_checkpointing = fsdp_config['activation_checkpointing']
 
     logs = msdk.get_run_logs(run)
     lines = ''
@@ -144,25 +145,44 @@ def parse_run(run) -> Dict[str, Any]:
         hfu_w_attn = mfu_w_attn
 
     return {
-        'Model': model_name,
-        'SeqLen (T)': seq_len,
-        '# GPUs': gpu_num,
-        'GPU': gpu_type,
-        'MFU': round(mfu_w_attn * 100, 2),
-        'HFU': round(hfu_w_attn * 100, 2),
-        'MicroBatchSize': micro_batchsize,
-        'GradAccum': global_train_batch_size // gpu_num // micro_batchsize,
-        'GlobalBatchSize': global_train_batch_size,
-        'Throughput (S/s)': int(throughput),
-        'Throughput (T/s)': int(throughput * seq_len),
-        'Throughput (T/s/GPU)': int(throughput * seq_len / gpu_num),
-        'GlobalBatchSize (T)': global_train_batch_size * seq_len,
-        'Precision': run.config.parameters['precision'],
-        'MP Mode': fsdp_config['mixed_precision'],
-        'Sharding Strategy': fsdp_config['sharding_strategy'],
-        'Activation Checkpointing': activation_checkpointing,
-        'Activation CPUOffload': str(fsdp_config['activation_cpu_offload']),
-        'NumParams': n_params,
+        'Model':
+            model_name,
+        'SeqLen (T)':
+            seq_len,
+        '# GPUs':
+            gpu_num,
+        'GPU':
+            gpu_type,
+        'MFU':
+            round(mfu_w_attn * 100, 2),
+        'HFU':
+            round(hfu_w_attn * 100, 2),
+        'MicroBatchSize':
+            micro_batchsize,
+        'GradAccum':
+            math.ceil(global_train_batch_size / gpu_num / micro_batchsize),
+        'GlobalBatchSize':
+            global_train_batch_size,
+        'Throughput (S/s)':
+            int(throughput),
+        'Throughput (T/s)':
+            int(throughput * seq_len),
+        'Throughput (T/s/GPU)':
+            int(throughput * seq_len / gpu_num),
+        'GlobalBatchSize (T)':
+            global_train_batch_size * seq_len,
+        'Precision':
+            run.config.parameters['precision'],
+        'MP Mode':
+            fsdp_config['mixed_precision'],
+        'Sharding Strategy':
+            fsdp_config['sharding_strategy'],
+        'Activation Checkpointing':
+            activation_checkpointing,
+        'Activation CPUOffload':
+            str(fsdp_config['activation_cpu_offload']),
+        'NumParams':
+            n_params,
     }
 
 

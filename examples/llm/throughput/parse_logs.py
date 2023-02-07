@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import csv
+from typing import Any, Dict
 
 from mcli import sdk as msdk
 
@@ -17,16 +19,12 @@ def parse_args():
 
     parser.add_argument('--project', type=str, default='tput')
     parser.add_argument('--filters', type=str, default=[], nargs='+')
+    parser.add_argument('-s',
+                        '--save-path',
+                        type=str,
+                        default='benchmark_results')
 
     return parser.parse_args()
-
-
-def extract_from_loglines(string, lines):
-    for line in lines:
-        if f'{string}: ' in line[:len(f'{string}: ')]:
-            return line.split(' ')[-1]
-
-    raise ValueError(f'{string=} not found in log')
 
 
 def get_runs(args):
@@ -86,23 +84,18 @@ def filter_runs(runs):
     return runs
 
 
-def parse_run(run):
-    n_params = gpu_num = seq_len = global_batchsize_tokens = mfu = -1
-    global_train_batch_size = micro_batchsize = precision = throughput = -1
+def parse_run(run) -> Dict[str, Any]:
+    n_params = micro_batchsize = throughput = -1
 
     model_name = [s for s in run.name.split('-') if 'gpt' in s][0]
     gpu_num = run.config.gpu_num
     gpu_type = run.config.gpu_type
 
-    precision = run.config.parameters['precision']
-    mp_mode = run.config.parameters['fsdp_config']['mixed_precision']
-    sharding_strategy = run.config.parameters['fsdp_config'][
-        'sharding_strategy']
-    a_ckpt = run.config.parameters['fsdp_config']['activation_checkpointing']
-    a_cpu_offload = run.config.parameters['fsdp_config'][
-        'activation_cpu_offload']
+    fsdp_config = run.config.parameters['fsdp_config']
+
     seq_len = run.config.parameters['max_seq_len']
     global_train_batch_size = run.config.parameters['global_train_batch_size']
+    activation_checkpointing = str(fsdp_config['activation_checkpointing'])
 
     logs = msdk.get_run_logs(run)
     lines = ''
@@ -111,7 +104,7 @@ def parse_run(run):
     lines = lines.split('\n')
 
     for line in lines:
-        if f'n_params: ' in line[:len(f'n_params: ')]:
+        if line.startswith('n_params'):
             n_params = int(line.split(' ')[-1])
             break
 
@@ -130,12 +123,6 @@ def parse_run(run):
     d_model = run.config.parameters['model']['d_model']
     n_layers = run.config.parameters['model']['n_layers']
 
-    global_batchsize_tokens = global_train_batch_size * seq_len
-    grad_accum = global_train_batch_size // gpu_num // micro_batchsize
-
-    throughput_t = throughput * seq_len
-    throughput_t_gpu = throughput_t / gpu_num
-
     # mfu is approximated using thoughtput and param count
     # the number of paramters is approximately the number of multiply-accumulates (MAC) in the network
     # each MAC has 2 FLOPs - we multiply by 2 ie 2 * n_param
@@ -143,7 +130,6 @@ def parse_run(run):
     # this gets us FLOPs / token
     flops_per_token = 2 * n_params
     flops_per_seq = flops_per_token * seq_len
-    mfu = 3 * flops_per_seq * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
 
     # there are 2 FLOPS per mac; there is A=Q*K^T and out=A*V ops (ie mult by 2)
     attn_flops_per_seq = n_layers * 2 * 2 * (d_model * (seq_len**2))
@@ -151,33 +137,63 @@ def parse_run(run):
     mfu_w_attn = (3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / (
         gpu_num * GPU_AVAILABLE_FLOPS)
 
-    if a_ckpt:
-        hfu = 4 * flops_per_seq * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
+    if activation_checkpointing:
         hfu_w_attn = (4 * flops_per_seq + 4 * attn_flops_per_seq
                      ) * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
     else:
-        hfu = mfu
         hfu_w_attn = mfu_w_attn
 
-    print(
-        f'| {model_name: >7} | {seq_len: >10} | {gpu_num: >3}x{gpu_type.upper()} | {mfu:.4f} | {mfu_w_attn:.4f} | {hfu:.4f} | {hfu_w_attn:.4f} | {throughput_t: >16.2f} | {throughput_t_gpu: >23.4f} | {throughput: >16.4f} | {n_params: >11} | {global_batchsize_tokens: >19} | {global_train_batch_size: >19} | {micro_batchsize: >18} | {grad_accum: >9} | {sharding_strategy: >13} | {str(a_ckpt): >7} | {str(a_cpu_offload): >13} | {precision: >9} | {mp_mode: >7} | {gpu_num: >7} | {gpu_type: >7} |'
-    )
+    return {
+        'Model': model_name,
+        'SeqLen (T)': seq_len,
+        '# GPUs': gpu_num,
+        'GPU': gpu_type,
+        'MFU': round(mfu_w_attn * 100, 2),
+        'HFU': round(hfu_w_attn * 100, 2),
+        'MicroBatchSize': micro_batchsize,
+        'GradAccum': global_train_batch_size // gpu_num // micro_batchsize,
+        'GlobalBatchSize': global_train_batch_size,
+        'Throughput (S/s)': int(throughput),
+        'Throughput (T/s)': int(throughput * seq_len),
+        'Throughput (T/s/GPU)': int(throughput * seq_len / gpu_num),
+        'GlobalBatchSize (T)': global_train_batch_size * seq_len,
+        'Precision': run.config.parameters['precision'],
+        'MP Mode': fsdp_config['mixed_precision'],
+        'Sharding Strategy': fsdp_config['sharding_strategy'],
+        'Activation Checkpointing': activation_checkpointing,
+        'Activation CPUOffload': str(fsdp_config['activation_cpu_offload']),
+        'NumParams': n_params,
+    }
 
 
 def main(args):
     runs = get_runs(args)
     runs = filter_runs(runs)
 
-    print(
-        '| Model   | SeqLen (T) | GPUType       | MFU*   | MFU    | HFU*   | HFU    | Throughput (T/s) | GPUThroughput (T/s/GPU) | Throughput (S/s) | ParamCount  | GlobalBatchSize (T) | GlobalBatchSize (S) | MicroBatchSize (S) | GradAccum | ShardStrategy | ActCkpt | ActCPUoffload | Precision | MP Mode | NumGPUs | GPUType   |\n'
-        '| ------- | ---------- | ------------- | ------ | ------ | ------ | ------ | ---------------- | ----------------------- | ---------------- | ----------- | ------------------- | ------------------- | ------------------ | --------- | ------------- | ------- | ------------- | --------- | ------- | ------- | --------- |'
-    )
+    results = []
     for run in runs:
         try:
-            parse_run(run)
+            results.append(parse_run(run))
         except Exception as e:
             print(f'{run.name=} not parsed')
             print(e)
+
+    csv_name = args.save_path + '.csv'
+    with open(csv_name, 'w') as f:
+        writer = csv.DictWriter(f, fieldnames=results[0].keys())
+        writer.writeheader()
+        for result in results:
+            writer.writerow(result)
+
+    md_name = args.save_path + '.md'
+    fieldnames = results[0].keys()
+    with open(md_name, 'w') as f:
+        fmt = '| ' + ' {} |' * len(fieldnames) + '\n'
+
+        f.write(fmt.format(*fieldnames))
+        f.write(fmt.format(*['---' for _ in fieldnames]))
+        for result in results:
+            f.write(fmt.format(*result.values()))
 
 
 if __name__ == '__main__':

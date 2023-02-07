@@ -815,13 +815,12 @@ class BertForMaskedLM(BertPreTrainedModel):
         if (input_ids is not None) == (inputs_embeds is not None):
             raise ValueError('Must specify either input_ids or input_embeds!')
 
-        masked_lm_labels = labels
-        if masked_lm_labels is None:
-            raise ValueError('Mosaic BertForMaskedLM requires a labels tensor.')
+        if labels is None:
+            masked_tokens_mask = None
+        else:
+            masked_tokens_mask = labels > 0
 
-        return_dict = return_dict if return_dict is not None else self.config.return_dict
-
-        masked_tokens_mask = masked_lm_labels > 0
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.bert(
             input_ids,
@@ -841,29 +840,31 @@ class BertForMaskedLM(BertPreTrainedModel):
         sequence_output = outputs[0]
         prediction_scores = self.cls(sequence_output)
 
-        # Compute loss
-        loss_fct = nn.CrossEntropyLoss()
-        masked_token_idx = torch.nonzero(masked_lm_labels.flatten() > 0,
-                                         as_tuple=False).flatten()
-        masked_lm_loss = loss_fct(prediction_scores,
-                                  masked_lm_labels.flatten()[masked_token_idx])
+        loss = None
+        if labels is not None:
+            # Compute loss
+            loss_fct = nn.CrossEntropyLoss()
+            masked_token_idx = torch.nonzero(labels.flatten() > 0,
+                                             as_tuple=False).flatten()
+            loss = loss_fct(prediction_scores,
+                            labels.flatten()[masked_token_idx])
 
-        assert input_ids is not None, 'Coding error; please open an issue'
-        batch, seqlen = input_ids.shape[:2]
-        prediction_scores = rearrange(index_put_first_axis(
-            prediction_scores, masked_token_idx, batch * seqlen),
-                                      '(b s) d -> b s d',
-                                      b=batch)
+            assert input_ids is not None, 'Coding error; please open an issue'
+            batch, seqlen = input_ids.shape[:2]
+            prediction_scores = rearrange(index_put_first_axis(
+                prediction_scores, masked_token_idx, batch * seqlen),
+                                          '(b s) d -> b s d',
+                                          b=batch)
 
         if not return_dict:
             output = (prediction_scores,) + outputs[2:]
-            return ((masked_lm_loss,) + output)
+            return ((loss,) + output) if loss is not None else output
 
         return MaskedLMOutput(
-            loss=masked_lm_loss,
+            loss=loss,
             logits=prediction_scores,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
+            hidden_states=None,
+            attentions=None,
         )
 
     def prepare_inputs_for_generation(self, input_ids: torch.Tensor,
@@ -971,11 +972,6 @@ class BertForSequenceClassification(BertPreTrainedModel):
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if labels is None:
-            raise ValueError(
-                'Mosaic BertForSequenceClassification requires a labels tensor.'
-            )
-
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
@@ -993,29 +989,31 @@ class BertForSequenceClassification(BertPreTrainedModel):
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
 
-        # Compute loss
         loss = None
-        if self.config.problem_type is None:
-            if self.num_labels == 1:
-                self.config.problem_type = 'regression'
-            elif self.num_labels > 1 and (labels.dtype == torch.long or
-                                          labels.dtype == torch.int):
-                self.config.problem_type = 'single_label_classification'
-            else:
-                self.config.problem_type = 'multi_label_classification'
+        if labels is not None:
+            # Compute loss
+            if self.config.problem_type is None:
+                if self.num_labels == 1:
+                    self.config.problem_type = 'regression'
+                elif self.num_labels > 1 and (labels.dtype == torch.long or
+                                              labels.dtype == torch.int):
+                    self.config.problem_type = 'single_label_classification'
+                else:
+                    self.config.problem_type = 'multi_label_classification'
 
-        if self.config.problem_type == 'regression':
-            loss_fct = nn.MSELoss()
-            if self.num_labels == 1:
-                loss = loss_fct(logits.squeeze(), labels.squeeze())
-            else:
+            if self.config.problem_type == 'regression':
+                loss_fct = nn.MSELoss()
+                if self.num_labels == 1:
+                    loss = loss_fct(logits.squeeze(), labels.squeeze())
+                else:
+                    loss = loss_fct(logits, labels)
+            elif self.config.problem_type == 'single_label_classification':
+                loss_fct = nn.CrossEntropyLoss()
+                loss = loss_fct(logits.view(-1, self.num_labels),
+                                labels.view(-1))
+            elif self.config.problem_type == 'multi_label_classification':
+                loss_fct = nn.BCEWithLogitsLoss()
                 loss = loss_fct(logits, labels)
-        elif self.config.problem_type == 'single_label_classification':
-            loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        elif self.config.problem_type == 'multi_label_classification':
-            loss_fct = nn.BCEWithLogitsLoss()
-            loss = loss_fct(logits, labels)
 
         if not return_dict:
             output = (logits,) + outputs[2:]
@@ -1024,8 +1022,8 @@ class BertForSequenceClassification(BertPreTrainedModel):
         return SequenceClassifierOutput(
             loss=loss,
             logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
+            hidden_states=None,
+            attentions=None,
         )
 
 

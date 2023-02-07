@@ -35,7 +35,7 @@ class TorchCausalAttention(nn.Module):
 
         warnings.warn(
             DeprecationWarning(
-                'Using `attn_impl: torch` is deprecated; recommened using `attn_impl: triton`.'
+                'Using `attn_impl: torch` is deprecated; recommened using `attn_impl: flash`.'
             ))
 
     def forward(self, x, key_padding_mask, attn_mask=None):
@@ -100,11 +100,6 @@ class FlashCausalAttention(nn.Module):
         )
         self.mhsa.out_proj._is_residual = True
 
-        warnings.warn(
-            DeprecationWarning(
-                'Using `attn_impl: flash` is deprecated; recommened using `attn_impl: triton`.'
-            ))
-
     def forward(self, x, key_padding_mask, attn_mask=None):
         assert attn_mask is None
         return self.mhsa(x,
@@ -145,6 +140,12 @@ class TritonFlashCausalAttention(nn.Module):
             device=device,
         )
         self.mhsa.out_proj._is_residual = True  # type: ignore
+
+        warnings.warn(
+            'While `attn_impl: triton` can be faster than `attn_impl: flash` '
+            'it uses more memory. When training larger models this can trigger '
+            'alloc retries which hurts performance. If encountered, we recommend '
+            'using `attn_impl: flash`.')
 
     def forward(self, x, key_padding_mask=None, attn_mask=None):
         assert key_padding_mask is None

@@ -193,14 +193,9 @@ def test_full_forward_and_backward_gpt2_small(batch_size=2):
 
 @pytest.mark.parametrize(
     'attention_type,precision',
-    [
-        ('torch', torch.float16),
-        ('torch', torch.bfloat16),
-        pytest.param('flash', torch.float16, marks=pytest.mark.gpu),
-        # Note: Whether this test fails or not depends on the random seed, how many steps are run for,
-        # and possibly other stuff like torch/cuda version. It is flaky.
-        pytest.param('flash', torch.bfloat16, marks=pytest.mark.xfail)
-    ])
+    [('torch', torch.float16), ('torch', torch.bfloat16),
+     pytest.param('flash', torch.float16, marks=pytest.mark.gpu),
+     pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu)])
 def test_determinism(attention_type: str, precision):
     if not torch.cuda.is_available():
         pytest.skip(

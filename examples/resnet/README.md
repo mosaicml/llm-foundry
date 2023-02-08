@@ -23,6 +23,7 @@
 <br />
 
 # Mosaic ResNet
+
 This folder contains starter code for training [torchvision ResNet architectures](https://pytorch.org/vision/stable/models.html) using our most efficient training recipes (see our [short blog post](https://www.mosaicml.com/blog/mosaic-resnet) or [detailed blog post](https://www.mosaicml.com/blog/mosaic-resnet-deep-dive) for details). These recipes were developed to hit baseline accuracy on [ImageNet](https://www.image-net.org/) 7x faster or to maximize ImageNet accuracy over long training durations. Although these recipes were developed for training ResNet on ImageNet, they could be used to train other image classification models on other datasets. Give it a try!
 
 The specific files in this folder are:
@@ -34,9 +35,62 @@ The specific files in this folder are:
   * `resnet50.yaml` - Configuration for a ResNet50 training run to be used as the first argument to `main.py`
   * `mcloud_run.yaml` - yaml to use if running on the [MosaicML Cloud](https://www.mosaicml.com/blog/introducing-mosaicml-cloud)
 
-Now that you have explored the code, let's jump into the prerequisites for training.
+Now that you've explored the code, let's get training.
 
-# Prerequisites
+## Prepare your data
+
+If you want to train on ImageNet or any other dataset, you'll need to either make it a [streaming dataset](https://github.com/mosaicml/streaming) using [this script](https://github.com/mosaicml/streaming/blob/86a9b95189e8b292a8c7880a1c49dc55d1895544/streaming/vision/convert/imagenet.py) or a local [torchvision ImageFolder](https://pytorch.org/vision/main/generated/torchvision.datasets.ImageFolder.html). If you are planning to train on ImageNet, download instructions can be found [here](https://www.image-net.org/download.php).
+
+The below command will test if your data is set up appropriately:
+```bash
+# Test dataset stored locally
+python data.py path/to/data
+
+# Test datast stored remotely
+python data.py s3://my-bucket/my-dir/data /tmp/path/to/local
+```
+
+## Get started with the MosaicML Cloud
+
+If you're using the MosaicML cloud, all you need to install is [`mcli`](https://github.com/mosaicml/mosaicml-cli/):
+
+```bash
+pip install --upgrade mosaicml-cli
+```
+
+Then, just fill in a few fields in [yamls/mcloud_run.yaml](./yamls/mcloud_run.yaml):
+
+```yaml
+cluster:   # Add the name of the cluster to use for this run
+gpu_type:   # Type of GPU to use; usually a100_40gb
+...
+  git_repo: mosaicml/examples  # Replace with your fork to use custom code
+  git_branch: main             # Replace with your branch to use custom code
+```
+
+These tell `mcli` where to get your code and what cluster your organization is using.
+
+You'll also need to tell the default training configuration file [(resnet50.yaml)](./yamls/resnet50.yaml) where your dataset lives:
+```yaml
+train_dataset:
+    ...
+    path: # Fill in with path to local data directory or cloud bucket
+
+eval_dataset:
+    ...
+    path:  # Fill in with path to local data directory or cloud bucket
+```
+
+With this information provided, you can now run the code in this directory on a remote machine like so:
+```bash
+mcli run -f yamls/mcloud_run.yaml
+```
+
+You're done. You can skip the rest of the instructions except [using Mosaic recipes](#using-mosaic-recipes).
+
+## Get started without the MosaicML Cloud
+
+### Prerequisites
 
 Here's what you need to train:
 
@@ -47,13 +101,14 @@ Here's what you need to train:
       * CUDA Version: 11.6
       * Python Version: 3.9
       * Ubuntu Version: 20.04
-* [Imagenet Dataset](http://www.image-net.org/)
+* [ImageNet Dataset](http://www.image-net.org/)
     * Must be stored either locally (see download instructions [here](https://www.image-net.org/download.php)) or uploaded to an S3 bucket after converting to a [streaming format](https://github.com/mosaicml/streaming) using [this script](https://github.com/mosaicml/streaming/blob/86a9b95189e8b292a8c7880a1c49dc55d1895544/streaming/vision/convert/imagenet.py)
 * System with NVIDIA GPUs
 
-# Installation
+### Installation
 
-To get started, clone this repo and install the requirements:
+Just clone this repo and install the requirements. If you want to customize the
+code, first fork this repo on GitHub and clone your fork instead.
 
 ```bash
 git clone https://github.com/mosaicml/examples.git
@@ -62,26 +117,14 @@ pip install -e ".[resnet]"  # or pip install -e ".[resnet-cpu]" if no NVIDIA GPU
 cd examples/resnet
 ```
 
-# Dataloader Testing
-
-If you want to train on ImageNet or any other dataset, you'll need to either make it a [streaming dataset](https://github.com/mosaicml/streaming) using [this script](https://github.com/mosaicml/streaming/blob/86a9b95189e8b292a8c7880a1c49dc55d1895544/streaming/vision/convert/imagenet.py) or a local [torchvision ImageFolder](https://pytorch.org/vision/main/generated/torchvision.datasets.ImageFolder.html). If you are planning to train on ImageNet, download instructions can be found [here](https://www.image-net.org/download.php).
-
-The below command will test if your data is set up appropriately:
-```bash
-# Test locally stored dataset
-python data.py path/to/data
-
-# Test remote storage dataset
-python data.py s3://my-bucket/my-dir/data /tmp/path/to/local
-```
-
-# How to start training
+### How to start training
 
 Now that you've installed dependencies and tested your dataset, let's start training!
 
 **Please remember**: for both `train_dataset` and `eval_dataset`, edit the `path` and (if streaming) `local` arguments in `resnet50.yaml` to point to your data.
 
-### Single-Node training
+#### Single-Node training
+
 We run the `main.py` script using our `composer` launcher, which generates a process for each device in a node.
 
 If training on a single node, the `composer` launcher will autodetect the number of devices, so all you need to do is :
@@ -95,7 +138,8 @@ To train with high performance on multi-node clusters, the easiest way is with M
 But if you really must try this manually on your own cluster, then just provide a few variables to `composer`
 either directly via CLI, or via environment variables that can be read. Then launch the appropriate command on each node:
 
-### Multi-Node via CLI args
+#### Multi-Node via CLI args
+
 ```bash
 # Using 2 nodes with 8 devices each
 # Total world size is 16
@@ -108,7 +152,7 @@ composer --world_size 16 --node_rank 0 --master_addr 0.0.0.0 --master_port 7501 
 composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 main.py yamls/resnet50.yaml
 ```
 
-### Multi-Node via environment variables
+#### Multi-Node via environment variables
 ```bash
 # Using 2 nodes with 8 devices each
 # Total world size is 16
@@ -129,7 +173,7 @@ composer main.py yamls/resnet50.yaml
 composer main.py yamls/resnet50.yaml
 ```
 
-### Results
+#### Results
 You should see logs being printed to your terminal like below. You can also easily enable other experiment trackers like Weights and Biases or CometML,
 by using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/trainer/logging.html).
 
@@ -168,7 +212,8 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/t
 [epoch=0][batch=17/625]: metrics/train/Accuracy: 0.0010
 train          Epoch   0:    3%|▋                        | 17/625 [00:17<07:23,  1.37ba/s, loss/train/total=7.1292]
 ```
-# Using Mosaic Recipes
+
+## Using Mosaic recipes
 
 As described in our [ResNet blog post](https://www.mosaicml.com/blog/mosaic-resnet), we cooked up three recipes to train ResNets faster and with higher accuracy:
 - The **Mild** recipe is for short training runs
@@ -177,13 +222,13 @@ As described in our [ResNet blog post](https://www.mosaicml.com/blog/mosaic-resn
 
 <img src="https://assets.website-files.com/61fd4eb76a8d78bc0676b47d/62a188a808b39301a7c3550f_Recipe%20Final.svg" width="50%" height="50%"/>
 
-To use a recipe, specify the name using the the `recipe_name` argument. Specifying a recipe will change several aspects of the training run such as:
+To use a recipe, specify the name using the the `recipe_name` argument, either in the config file or via the command line. Specifying a recipe will change several aspects of the training run such as:
 1. Changes the loss function to binary cross entropy instead of standard cross entropy to improve accuracy.
 2. Changes the train crop size to 176 (instead of 224) and the evaluation resize size to 232 (instead of 256). The smaller train crop size increases throughput and accuracy.
 3. Changes the number of training epochs to the optimal value for each training recipe. Feel free to change these in `resnet50.yaml` to better suite your model and/or dataset.
 4. Specifies unique sets of [speedup methods](https://docs.mosaicml.com/en/stable/trainer/algorithms.html) for model training.
 
-Here is an example command to run the mild recipe on a single node:
+Here is an example command to run the mild recipe locally:
 ```bash
 composer main.py yamls/resnet50.yaml recipe_name=mild
 ```
@@ -196,9 +241,10 @@ The ResNet50 and smaller models are dataloader-bottlenecked when training with o
 Our best results use FFCV, so an FFCV version of ImageNet is required to exactly match our best results.
 
 ---
-# Saving and Loading checkpoints
 
-At the bottom of `yamls/resnet50.yaml`, we provide arguments for saving and loading model weights. Please specify the `save_folder` or `load_path` arguments if you need to save or load checkpoints!
+## Saving and loading checkpoints
 
-# Contact Us
+At the bottom of [`yamls/resnet50.yaml`](./yamls/resnet50.yaml), we provide arguments for saving and loading model weights. Please specify the `save_folder` or `load_path` arguments if you need to save or load checkpoints!
+
+## Contact us
 If you run into any problems with the code, please file Github issues directly to this repo.

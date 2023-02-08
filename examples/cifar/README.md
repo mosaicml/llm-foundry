@@ -27,9 +27,9 @@
 
 This folder contains starter code for training a CIFAR ResNet architecture. You can swap out the model and dataset if desired, but we recommend using the [ResNet + ImageNet benchmark](../resnet/) for new models and datasets.
 
-# Overview
+## Overview
 
-The specific files in this folder are:
+The files in this folder are:
 * `model.py` - Creates a [ComposerModel](https://docs.mosaicml.com/en/stable/composer_model.html) from a CIFAR ResNet model defined in the script
 * `data.py` - Creates either a Torchvision dataset or a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/stable/) for CIFAR10
 * `main.py` - Trains a CIFAR ResNet on CIFAR10 using the [Composer](https://github.com/mosaicml/composer) [Trainer](https://docs.mosaicml.com/en/stable/api_reference/generated/composer.Trainer.html#trainer)
@@ -38,11 +38,40 @@ The specific files in this folder are:
   * `resnet56.yaml` - Configuration for a CIFAR ResNet56 training run, to be used as the first argument to `main.py`
   * `mcloud_run.yaml` - yaml to use if running on the [MosaicML Cloud](https://www.mosaicml.com/blog/introducing-mosaicml-cloud)
 
-Now that you have explored the code, let's jump into the prerequisites for training.
+Now that you've explored the code, let's get training.
 
-# Prerequisites
+## Get started with the MosaicML Cloud
 
-Here's what you need to start training:
+If you're using the MosaicML cloud, all you need to install is [`mcli`](https://github.com/mosaicml/mosaicml-cli/):
+
+```bash
+pip install --upgrade mosaicml-cli
+```
+
+Then, just fill in a few fields in [yamls/mcloud_run.yaml](./yamls/mcloud_run.yaml):
+
+```yaml
+cluster:   # Add the name of the cluster to use for this run
+gpu_type:   # Type of GPU to use; usually a100_40gb
+...
+  git_repo: mosaicml/examples  # Replace with your fork to use custom code
+  git_branch: main             # Replace with your branch to use custom code
+```
+
+These tell `mcli` where to get your code and what cluster your organization is using.
+
+With this information provided, you can now run the code in this directory on a remote machine like so:
+```bash
+mcli run -f yamls/mcloud_run.yaml
+```
+
+You're done. You can skip the rest of the instructions except [saving and loading checkpoints](#saving-and-loading-checkpoints).
+
+## Get started without the MosaicML Cloud
+
+### Prerequisites
+
+If you're not using the MosaicML cloud, here's what you need to start training:
 
 * Docker image with PyTorch 1.12+, e.g. [MosaicML's PyTorch image](https://hub.docker.com/r/mosaicml/pytorch/tags)
   * Recommended tag: `mosaicml/pytorch:1.12.1_cu116-python3.9-ubuntu20.04`
@@ -51,11 +80,12 @@ Here's what you need to start training:
     * CUDA Version: 11.6
     * Python Version: 3.9
     * Ubuntu Version: 20.04
-  * System with NVIDIA GPUs
+* System with NVIDIA GPUs
 
-# Installation
+### Installation
 
-To get started, clone this repo and install the requirements:
+Just clone this repo and install the requirements. If you want to customize the
+code, first fork this repo on GitHub and clone your fork instead.
 
 ```bash
 git clone https://github.com/mosaicml/examples.git
@@ -64,7 +94,7 @@ pip install -e ".[cifar]"  # or pip install -e ".[cifar-cpu]" if no NVIDIA GPU
 cd examples/cifar
 ```
 
-# How to start training
+### How to start training
 
 Now that you've installed dependencies, let's start training!
 
@@ -78,7 +108,7 @@ For a single node, the `composer` launcher will autodetect the number of devices
 composer main.py yamls/resnet56.yaml
 ```
 
-## Results
+### Results
 
 You should see logs printed to your terminal like below. You can also easily enable other experiment trackers like Weights and Biases or CometML using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/trainer/logging.html).
 
@@ -118,9 +148,9 @@ You should see logs printed to your terminal like below. You can also easily ena
 train          Epoch   0:    3%|▋                        | 17/625 [00:17<07:23,  1.37ba/s, loss/train/total=7.1292]
 ```
 
-# Saving and Loading checkpoints
+## Saving and Loading checkpoints
 
 At the bottom of `yamls/resnet56.yaml`, we provide arguments for saving and loading model weights. Please specify the `save_folder` or `load_path` arguments if you need to save or load checkpoints!
 
-# Contact Us
+## Contact Us
 If you run into any problems with the code, please file Github issues directly to this repo.

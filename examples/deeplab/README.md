@@ -25,7 +25,7 @@
 # Mosaic DeepLabV3+
 This folder contains starter code for training [mmsegmentation DeepLabV3+ architectures](https://github.com/open-mmlab/mmsegmentation/tree/master/configs/deeplabv3plus) using our most efficient training recipes (see our [benchmark blog post](https://www.mosaicml.com/blog/behind-the-scenes) or [recipes blog post](https://www.mosaicml.com/blog/mosaic-image-segmentation) for details). These recipes were developed to hit baseline accuracy on [ADE20K](https://groups.csail.mit.edu/vision/datasets/ADE20K/) 5x faster or to maximize ADE20K mean Intersection-over-Union (mIoU) over long training durations. Although these recipes were developed for training DeepLabV3+ on ADE20k, they could be used to train other segmentation models on other datasets. Give it a try!
 
-The specific files in this folder are:
+The files in this folder are:
 * `model.py` - A [ComposerModel](https://docs.mosaicml.com/en/stable/composer_model.html) that wraps an mmsegmentation DeepLabV3+ model
 * `data.py` - A [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/stable/) for ADE20K and a PyTorch dataset for a local copy of ADE20K
 * `transforms.py` - Torchvision transforms for ADE20K
@@ -38,7 +38,68 @@ The specific files in this folder are:
 
 Now that you have explored the code, let's jump into the prerequisites for training.
 
-# Prerequisites
+
+## Prepare your data
+
+This benchmark assumes that [ADE20k Dataset](https://groups.csail.mit.edu/vision/datasets/ADE20K/) is already stored on your local machine or stored in an S3 bucket after being processed into a streaming dataset. ADE20K can be downloaded by running:
+
+```bash
+# download ADE20k to specified local directory
+python download_ade20k.py path/to/data
+```
+
+To convert ADE20k to a [streaming format](https://github.com/mosaicml/streaming) for efficient training from an object store like S3, use [this script](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/ade20k.py).
+
+The below commands will test if your data is set up appropriately:
+```bash
+# Test locally stored dataset
+python data.py path/to/data
+
+# Test remote storage dataset
+python data.py s3://my-bucket/my-dir/data /tmp/path/to/local
+```
+
+## Get started with the MosaicML Cloud
+
+If you're using the MosaicML cloud, all you need to install is [`mcli`](https://github.com/mosaicml/mosaicml-cli/):
+
+```bash
+pip install --upgrade mosaicml-cli
+```
+
+Then, just fill in a few fields in [yamls/mcloud_run.yaml](./yamls/mcloud_run.yaml):
+
+```yaml
+cluster:   # Add the name of the cluster to use for this run
+gpu_type:   # Type of GPU to use; usually a100_40gb
+...
+  git_repo: mosaicml/examples  # Replace with your fork to use custom code
+  git_branch: main             # Replace with your branch to use custom code
+```
+
+These tell `mcli` where to get your code and what cluster your organization is using.
+
+You'll also need to tell the default training configuration file [(resnet50.yaml)](./yamls/deeplabv3.yaml) where your dataset lives:
+```yaml
+train_dataset:
+    ...
+    path: # Fill in with path to local data directory or cloud bucket
+
+eval_dataset:
+    ...
+    path:  # Fill in with path to local data directory or cloud bucket
+```
+
+With this information provided, you can now run the code in this directory on a remote machine like so:
+```bash
+mcli run -f yamls/mcloud_run.yaml
+```
+
+You're done. You can skip the rest of the instructions except [using Mosaic recipes](#using-mosaic-recipes).
+
+## Get started without the MosaicML Cloud
+
+### Prerequisites
 
 Here's what you need to get started:
 
@@ -51,11 +112,10 @@ Here's what you need to get started:
       * mmsegmentation Version: 0.22.0
       * Python Version: 3.9
       * Ubuntu Version: 20.04
-   * Note: `mmcv-full` is not listed in the `requirements.txt`, because it can be difficult to install. If you are installing it yourself rather than using the suggested docker image, follow the instructions [here](https://mmcv.readthedocs.io/en/latest/get_started/installation.html#install-with-pip).
 * [ADE20k Dataset](https://groups.csail.mit.edu/vision/datasets/ADE20K/) must be stored either locally (see `download_ade20k.py`) or uploaded to an S3 bucket after converting to a [streaming format](https://github.com/mosaicml/streaming) using [this script](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/ade20k.py)
 * System with NVIDIA GPUs
 
-# Installation
+### Installation
 
 To get started, clone this repo and install the requirements:
 
@@ -66,31 +126,20 @@ pip install -e ".[deeplab]"  # or pip install -e ".[deeplab-cpu]" if no NVIDIA G
 cd examples/deeplab
 ```
 
-# Dataloader Testing
+---
+**NOTE**
 
-This benchmark assumes that ADE20K is already stored on your local machine or stored in an S3 bucket after being processed into a streaming dataset. ADE20K can be downloaded by running:
+`mmcv-full` is not listed in the `requirements.txt`, because it can be difficult to install. If you are installing it yourself rather than using the suggested docker image, follow the instructions [here](https://mmcv.readthedocs.io/en/latest/get_started/installation.html#install-with-pip).
 
-```bash
-# downooad ADE20k to specified local directory
-python download_ade20k.py path/to/data
-```
+---
 
-The below commands will test if your data is set up appropriately:
-```bash
-# Test locally stored dataset
-python data.py path/to/data
-
-# Test remote storage dataset
-python data.py s3://my-bucket/my-dir/data /tmp/path/to/local
-```
-
-# How to start training
+### How to start training
 
 Now that you've installed dependencies and tested your dataset, let's start training!
 
 **Please remember**: for both `train_dataset` and `eval_dataset`, edit the `path` and (if streaming) `local` arguments in `deeplabv3.yaml` to point to your data.
 
-### Single-Node training
+#### Single-Node training
 We run the `main.py` script using our `composer` launcher, which generates a process for each device in a node.
 
 If training on a single node, the `composer` launcher will autodetect the number of devices, so all you need to do is:
@@ -104,20 +153,7 @@ To train with high performance on multi-node clusters, the easiest way is with M
 But if you really must try this manually on your own cluster, then just provide a few variables to `composer`
 either directly via CLI, or via environment variables that can be read. Then launch the appropriate command on each node:
 
-### Overriding Arguments
-Composer examples uses [`omegaconf`](https://github.com/omry/omegaconf) to manage configs. OmegaConf allows us to override YAML configs from the command line for quick experimentation.
-
-Common examples include:
-
-```bash
-# train with the mild recipe
-python main.py yamls/deeplabv3.yaml recipe_name=mild
-
-# change train and eval dataset paths to the ade20k local directory and set streaming to false
-python main.py yamls/deeplabv3.yaml train_dataset.path=ade20k train_dataset.is_streaming=false eval_dataset.path=ade20k evaldataset.is_streaming=false
-```
-
-### Multi-Node via CLI args
+#### Multi-Node via CLI args
 ```bash
 # Using 2 nodes with 8 devices each
 # Total world size is 16
@@ -130,7 +166,7 @@ composer --world_size 16 --node_rank 0 --master_addr 0.0.0.0 --master_port 7501 
 composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 main.py yamls/deeplabv3.yaml
 ```
 
-### Multi-Node via environment variables
+#### Multi-Node via environment variables
 ```bash
 # Using 2 nodes with 8 devices each
 # Total world size is 16
@@ -190,7 +226,8 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/t
 [epoch=0][batch=17/625]: metrics/train/Accuracy: 0.0010
 train          Epoch   0:    3%|▋                        | 17/625 [00:17<07:23,  1.37ba/s, loss/train/total=7.1292]
 ```
-# Using Mosaic Recipes
+
+## Using Mosaic Recipes
 
 As described in our [Segmentation blog post](https://www.mosaicml.com/blog/mosaic-image-segmentation), we cooked up three recipes to train DeepLabV3+ faster and with higher accuracy:
 - The **Mild** recipe is for short training runs
@@ -207,13 +244,13 @@ composer main.py yamls/basline.yaml recipe_name=mild
 ```
 
 ---
-# Saving and Loading checkpoints
+## Saving and Loading checkpoints
 
 At the bottom of `yamls/deeplabv3.yaml`, we provide arguments for saving and loading model weights. Please specify the `save_folder` or `load_path` arguments if you need to save or load checkpoints!
 
-# On memory constraints
+## On memory constraints
 In previous blog posts ([1](https://www.mosaicml.com/blog/farewell-oom), [2](https://www.mosaicml.com/blog/billion-parameter-gpt-training-made-easy))
 we demonstrated Auto Grad Accum. This allows Composer to automatically execute each batch as multiple microbatches to save memory. This means the same configuration can be run on different hardware or on fewer devices without manually tuning the batch size or (significantly) changing the optimization. This feature is thoroughly tested, but if there are any issues, you can manually set `grad_accum` to your desired value.
 
-# Contact Us
+## Contact Us
 If you run into any problems with the code, please file Github issues directly to this repo.

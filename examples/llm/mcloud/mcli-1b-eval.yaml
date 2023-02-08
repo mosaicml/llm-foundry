@@ -1,0 +1,62 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/examples
+  # git_branch: # use your branch
+  # git_commit: # OR use your commit hash
+  pip_install: -e .[llm]
+  ssh_clone: false
+
+command: |
+  cd examples/examples/llm/icl_eval
+  composer evaluate_model.py /mnt/config/parameters.yaml
+
+image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+optimization_level: 0
+
+run_name: mosaic-gpt-1b-eval
+gpu_num: 8
+gpu_type: a100_80gb
+cluster: r0z0 # replace with your cluster here!
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+parameters:
+  tokenizer:
+    type: hftokenizer
+    args:
+      tokenizer_name: gpt2
+      max_seq_len: 2048
+
+  model:
+    model_type: mosaic_gpt
+    # load_path: ADD YOUR OWN CHECKPOINT
+    config_path: ../yamls/mosaic_gpt/1b.yaml
+
+  # FSDP config for model sharding
+  fsdp_config:
+    sharding_strategy: FULL_SHARD
+
+  icl_tasks:
+  -
+    label: piqa
+    dataset_uri: # ADD YOUR OWN DATASET URI
+    num_fewshot:
+    - 5
+    batch_size: 16
+    icl_task_type: multiple_choice
+    metric_names:
+    - InContextLearningMultipleChoiceAccuracy
+    prompt_string: '' # this goes at the beginning of each input
+    example_delimiter: '\n' # this goes between fewshot examples
+    continuation_delimiter: ' ' # this separates questions from answers
+  -
+    label: lambada
+    dataset_uri: # ADD YOUR OWN DATASET URI
+    num_fewshot:
+    - 0
+    batch_size: 16
+    icl_task_type: language_modeling
+    metric_names:
+    - InContextLearningLMAccuracy
+    prompt_string: '' # this goes at the beginning of each input
+    example_delimiter: '\n' # this goes between fewshot examples
+    continuation_delimiter: '' # this separates contexts from continuations

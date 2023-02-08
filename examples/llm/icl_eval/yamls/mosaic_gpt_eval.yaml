@@ -1,0 +1,40 @@
+tokenizer:
+  type: hftokenizer
+  args:
+    tokenizer_name: gpt2
+    max_seq_len: 2048
+
+model:
+  model_type: mosaic_gpt
+  load_path: # ADD YOUR OWN CHECKPOINT
+  config_path: ../yamls/mosaic_gpt/1b.yaml
+
+# FSDP config for model sharding
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+
+icl_tasks:
+-
+  label: piqa
+  dataset_uri: # ADD YOUR OWN DATASET URI
+  num_fewshot:
+  - 5
+  batch_size: 16
+  icl_task_type: multiple_choice
+  metric_names:
+  - InContextLearningMultipleChoiceAccuracy
+  prompt_string: '' # this goes at the beginning of each input
+  example_delimiter: '\n' # this goes between fewshot examples
+  continuation_delimiter: ' ' # this separates questions from answers
+-
+  label: lambada
+  dataset_uri: # ADD YOUR OWN DATASET URI
+  num_fewshot:
+  - 0
+  batch_size: 16
+  icl_task_type: language_modeling
+  metric_names:
+  - InContextLearningLMAccuracy
+  prompt_string: '' # this goes at the beginning of each input
+  example_delimiter: '\n' # this goes between fewshot examples
+  continuation_delimiter: '' # this separates contexts from continuations

@@ -12,8 +12,8 @@ sys.path.append('.')
 import torch
 from omegaconf import OmegaConf
 
-from ..main import main
-from ..tests.utils import SynthClassificationDirectory
+from examples.cifar.main import main
+from examples.cifar.tests.utils import SynthClassificationDirectory
 
 
 @pytest.mark.parametrize('use_recipe', [True, False])

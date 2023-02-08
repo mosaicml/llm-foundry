@@ -5,7 +5,7 @@ import pytest
 import torch
 from composer.models import ComposerClassifier
 
-from ..model import build_composer_resnet
+from examples.resnet.model import build_composer_resnet
 
 
 @pytest.mark.parametrize(

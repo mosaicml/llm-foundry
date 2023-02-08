@@ -5,7 +5,7 @@ import pytest
 import torch
 from composer.models import ComposerClassifier
 
-from ..model import build_composer_resnet_cifar
+from examples.cifar.model import build_composer_resnet_cifar
 
 
 @pytest.mark.parametrize('model_name', ['resnet_56', 'resnet_20'])

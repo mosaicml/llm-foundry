@@ -11,7 +11,7 @@ import pytest
 import torch
 from PIL import Image
 
-from ..data import build_ade20k_dataspec, check_dataloader
+from examples.deeplab.data import build_ade20k_dataspec, check_dataloader
 
 
 class SynthADE20KDirectory:

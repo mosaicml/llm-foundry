@@ -14,7 +14,7 @@ python -m venv "$ENV_NAME" --system-site-packages
 source "$ENV_NAME/bin/activate"
 
 echo "Installing requirements..."
-pip install --upgrade pip
+pip install --upgrade 'pip<23'
 pip install -I ".[$1-cpu]"  # setup.py merges repo + subdir deps + strips gpu deps
 
 echo "Running checks on files:"

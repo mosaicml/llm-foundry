@@ -18,6 +18,13 @@ model:
   name: mosaic_bert
   pretrained_model_name: *tokenizer_name
   tokenizer_name: *tokenizer_name
+  # Mosaic BERT 'base' generally uses the default architecture values for from the Hugging Face BertConfig object
+  # Note: if using the pretrained_checkpoint argument to create a model from an existing checkpoint, make sure
+  # the model_config settings match the architecture of the existing model
+  model_config:
+    num_attention_heads: 12 # bert-base default
+    num_hidden_layers: 12 # bert-base default
+    attention_probs_dropout_prob: 0.0 # This must be 0 for Flash Attention with triton to work
 
 # Dataloaders
 train_loader:
@@ -64,7 +71,7 @@ optimizer:
   weight_decay: 1.0e-5 # Amount of weight decay regularization
 
 algorithms:
-  fused_layernorm: {}
+  low_precision_layernorm: {}
 
 max_duration: 286720000sp # Subsample the training data for ~275M samples
 eval_interval: 2000ba

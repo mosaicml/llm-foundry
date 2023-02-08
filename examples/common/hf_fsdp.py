@@ -136,10 +136,10 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
     tied_embeddings = hf_get_tied_embedding_weights(
         causal_base_model)  # type: ignore
     modules = {
-        "base_model": causal_base_model,
-        "model_block": model_block,
-        "lm_head": lm_head,
-        "tied_embeddings": tied_embeddings
+        'base_model': causal_base_model,
+        'model_block': model_block,
+        'lm_head': lm_head,
+        'tied_embeddings': tied_embeddings
     }
 
     for mod_name, module in modules.items():
@@ -166,13 +166,13 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
 
 
 def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel) -> None:
-    """Wrap an encoder/decoder HF model
+    """Wrap an encoder/decoder HF model.
 
     This works for T5, BART, Pegasus, PegasusX, but not all enc/dec (ProphetNet)
-    You have model.shared, model.encoder, model.decoder and model.lm_head,
-    where model.shared are the embeddings which are tied to model.lm_head, and
-    model.shared == model.encoder.embed_tokens and
-    model.shared == model.decoder.embed_tokens
+    You have model.shared, model.encoder, model.decoder and model.lm_head, where
+    model.shared are the embeddings which are tied to model.lm_head, and
+    model.shared == model.encoder.embed_tokens and model.shared ==
+    model.decoder.embed_tokens
     """
     tied_embeddings = model.get_input_embeddings()
     encoder = model.get_encoder()
@@ -183,12 +183,12 @@ def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel) -> None:
     decoder_block = hf_get_hidden_layers(decoder)
 
     modules = {
-        "encoder": encoder,
-        "decoder": decoder,
-        "encoder_block": encoder_block,
-        "decoder_block": decoder_block,
-        "lm_head": lm_head,
-        "tied_embeddings": tied_embeddings
+        'encoder': encoder,
+        'decoder': decoder,
+        'encoder_block': encoder_block,
+        'decoder_block': decoder_block,
+        'lm_head': lm_head,
+        'tied_embeddings': tied_embeddings
     }
 
     for mod_name, module in modules.items():

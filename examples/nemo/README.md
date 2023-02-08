@@ -32,7 +32,7 @@ The logs for a successful training job should look something like:
 
 To run a multi-node job it’s as simple as running `mcli run -f multi_node.yaml`.
 
-Fundamentally, the script relies on using the `parallel` library to create the appropriate number of processes, 8, one per GPU. MCloud sets up the appropriate ENV variables such that NeMo knows the size of the job. 
+Fundamentally, the script relies on using the `parallel` library to create the appropriate number of processes, 8, one per GPU. MCloud sets up the appropriate ENV variables such that NeMo knows the size of the job.
 
 Below are the logs from multi-node training:
 

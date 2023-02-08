@@ -55,6 +55,7 @@ def create_mosaic_bert_mlm(pretrained_model_name: str = 'bert-base-uncased',
 
         {
         "_name_or_path": "bert-base-uncased",
+        "alibi_starting_size": 512,
         "architectures": ["BertForMaskedLM"],
         "attention_probs_dropout_prob": 0.0,
         "classifier_dropout": null,
@@ -87,15 +88,25 @@ def create_mosaic_bert_mlm(pretrained_model_name: str = 'bert-base-uncased',
     if not model_config:
         model_config = {}
 
-    # By default, turn off attention dropout in Mosaic BERT (otherwise, Flash Attention will be off by default)
+    # By default, turn off attention dropout in Mosaic BERT
+    # (otherwise, Flash Attention will be off by default)
     if 'attention_probs_dropout_prob' not in model_config:
         model_config['attention_probs_dropout_prob'] = 0.0
+
+    # Use `alibi_starting_size` to determine how large of an alibi tensor to
+    # create when initializing the model. You should be able to ignore
+    # this parameter in most cases.
+    if 'alibi_starting_size' not in model_config:
+        model_config['alibi_starting_size'] = 512
 
     if not pretrained_model_name:
         pretrained_model_name = 'bert-base-uncased'
 
-    config = transformers.AutoConfig.from_pretrained(pretrained_model_name,
-                                                     **model_config)
+    config, unused_kwargs = transformers.AutoConfig.from_pretrained(
+        pretrained_model_name, return_unused_kwargs=True, **model_config)
+    # This lets us use non-standard config fields (e.g. `starting_alibi_size`)
+    config.update(unused_kwargs)
+
     # Padding for divisibility by 8
     if config.vocab_size % 8 != 0:
         config.vocab_size += 8 - (config.vocab_size % 8)
@@ -170,6 +181,7 @@ def create_mosaic_bert_classification(
     .. code-block::
         {
             "_name_or_path": "bert-base-uncased",
+            "alibi_starting_size": 512,
             "architectures": [
             "BertForSequenceClassification
             ],
@@ -226,18 +238,26 @@ def create_mosaic_bert_classification(
     if not model_config:
         model_config = {}
 
-    # By default, turn off attention dropout in Mosaic BERT (otherwise, Flash Attention will be off by default)
+    # By default, turn off attention dropout in Mosaic BERT
+    # (otherwise, Flash Attention will be off by default)
     if 'attention_probs_dropout_prob' not in model_config:
         model_config['attention_probs_dropout_prob'] = 0.0
+
+    # Use `alibi_starting_size` to determine how large of an alibi tensor to
+    # create when initializing the model. You should be able to ignore
+    # this parameter in most cases.
+    if 'alibi_starting_size' not in model_config:
+        model_config['alibi_starting_size'] = 512
 
     model_config['num_labels'] = num_labels
 
     if not pretrained_model_name:
         pretrained_model_name = 'bert-base-uncased'
 
-    config = transformers.AutoConfig.from_pretrained(pretrained_model_name,
-                                                     **model_config)
-    assert transformers.AutoModelForSequenceClassification.from_config is not None, 'AutoModelForSequenceClassification has from_config method'
+    config, unused_kwargs = transformers.AutoConfig.from_pretrained(
+        pretrained_model_name, return_unused_kwargs=True, **model_config)
+    # This lets us use non-standard config fields (e.g. `starting_alibi_size`)
+    config.update(unused_kwargs)
 
     # Padding for divisibility by 8
     if config.vocab_size % 8 != 0:

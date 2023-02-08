@@ -156,22 +156,23 @@ class TritonFlashCausalAttention(nn.Module):
 
     @staticmethod
     def mask_shape(n_heads, seq_len, alibi):
-        return (1, n_heads, 1, seq_len) if alibi else (1, 1, 1, seq_len)
+        return (1, n_heads, 1, seq_len) if alibi else None
 
     @staticmethod
     def attn_mask_(attn_mask, n_heads, seq_len, alibi=False, alibi_bias_max=8):
-        # in-place fill causal attn mask
-        attn_mask.zero_()
+        if attn_mask is not None:
+            # in-place fill causal attn mask
+            attn_mask.zero_()
 
-        if alibi:
-            device, dtype = attn_mask.device, attn_mask.dtype
-            attn_mask.add_(
-                alibi_bias(n_heads,
-                           seq_len,
-                           full=False,
-                           alibi_bias_max=alibi_bias_max,
-                           device=device,
-                           dtype=dtype))
+            if alibi:
+                device, dtype = attn_mask.device, attn_mask.dtype
+                attn_mask.add_(
+                    alibi_bias(n_heads,
+                               seq_len,
+                               full=False,
+                               alibi_bias_max=alibi_bias_max,
+                               device=device,
+                               dtype=dtype))
 
         return attn_mask
 
@@ -300,13 +301,31 @@ class MosaicGPT(nn.Module):
         mask_shape = self.causal_attn_cls.mask_shape(cfg.n_heads,
                                                      cfg.max_seq_len,
                                                      self.alibi)
-        if mask_shape:
+        if mask_shape is not None:
             self.register_buffer('attn_mask',
                                  torch.empty(mask_shape, device=cfg.device))
         else:
             self.attn_mask = None
 
-    def _attn_mask(self, batch_size=None, seq_len=None, key_padding_mask=None):
+    def _check_apply_key_padding_mask(self, key_padding_mask):
+        if key_padding_mask.bool().logical_not().any():
+            # check to verify all tokens after the first invalid tokens are invalid.
+            # if there are no valid tokens after the first invalid token,
+            # key_padding_mask isn't required given causal mask will eliminate
+            # unwanted token interaction.
+            # WARNING: this approach only works for right padded causal attn
+            # NOTE: I chose this algorithm given its vectorized; there is room for improvement...
+            c_sum = key_padding_mask.cumsum(1)
+            num_valid_tokens = c_sum[:, -1].long()
+            vals = c_sum[range(key_padding_mask.size(0)), num_valid_tokens - 1]
+            return any(vals != num_valid_tokens)
+        return False
+
+    def _attn_mask(self,
+                   batch_size=None,
+                   seq_len=None,
+                   key_padding_mask=None,
+                   dtype=None):
         if not self._attn_mask_initialized:
             self.causal_attn_cls.attn_mask_(self.attn_mask,
                                             self.cfg.n_heads,
@@ -318,24 +337,40 @@ class MosaicGPT(nn.Module):
         if self.cfg.attn_impl == 'flash':
             return self.attn_mask  # None
 
-        # select seq_len subset of attn mask
-        assert self.attn_mask is not None, 'Internal logic error'
-        attn_mask = self.attn_mask[..., :seq_len, :seq_len]
+        attn_mask = self.attn_mask
+        if attn_mask is not None:
+            # select seq_len subset of attn mask
+            attn_mask = attn_mask[..., :seq_len, :seq_len]
 
-        if self.cfg.attn_impl == 'triton' and key_padding_mask is not None and key_padding_mask.bool(
-        ).logical_not().any():
+        kpm_fill_value = -1e4  # numerically stable -inf
+
+        if self.cfg.attn_impl == 'triton' and key_padding_mask is not None and self._check_apply_key_padding_mask(
+                key_padding_mask):
+
+            if attn_mask is None:
+                attn_mask = key_padding_mask.zeros(
+                    ((batch_size, 1, seq_len, seq_len)), dtype=dtype)
+
             attn_mask = attn_mask.masked_fill(
-                ~key_padding_mask.view(batch_size, 1, 1, seq_len),
-                float('-inf'))
+                ~key_padding_mask.view((batch_size, 1, 1, seq_len)),
+                kpm_fill_value)
+            attn_mask = attn_mask.masked_fill(
+                ~key_padding_mask.view((batch_size, 1, seq_len, 1)),
+                kpm_fill_value)
 
         if self.cfg.attn_impl == 'torch':
-            if key_padding_mask is not None and key_padding_mask.bool(
-            ).logical_not().any():
+            assert attn_mask is not None, 'Internal logic error'
+
+            if key_padding_mask is not None and self._check_apply_key_padding_mask(
+                    key_padding_mask):
                 attn_mask = attn_mask.expand(batch_size, self.cfg.n_heads,
                                              seq_len, seq_len).clone()
                 attn_mask.masked_fill_(
                     ~key_padding_mask.view(batch_size, 1, 1, seq_len),
-                    float('-inf'))
+                    kpm_fill_value)
+                attn_mask.masked_fill_(
+                    ~key_padding_mask.view(batch_size, 1, seq_len, 1),
+                    kpm_fill_value)
                 attn_mask = attn_mask.reshape(-1, seq_len, seq_len)
             elif self.alibi:
                 # WARNING: Alibi with torch attn is not thoroughly tested
@@ -376,7 +411,8 @@ class MosaicGPT(nn.Module):
 
         attn_mask = self._attn_mask(batch_size=B,
                                     seq_len=S,
-                                    key_padding_mask=key_padding_mask)
+                                    key_padding_mask=key_padding_mask,
+                                    dtype=x.dtype)
         for block in self.transformer.blocks:  # type: ignore
             x = block(
                 x, None if self.cfg.attn_impl == 'triton' else key_padding_mask,

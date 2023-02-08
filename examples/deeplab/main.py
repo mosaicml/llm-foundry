@@ -12,12 +12,12 @@ from composer.algorithms import EMA, SAM, ChannelsLast, MixUp
 from composer.callbacks import LRMonitor, MemoryMonitor, SpeedMonitor
 from composer.loggers import ProgressBarLogger, WandBLogger
 from composer.optim import CosineAnnealingScheduler, DecoupledSGDW
-from composer.utils import dist
-from data import build_ade20k_dataspec
-from model import build_composer_deeplabv3
+from composer.utils import dist, reproducibility
 from omegaconf import OmegaConf
 
 from examples.common.config_utils import log_config
+from examples.deeplab.data import build_ade20k_dataspec
+from examples.deeplab.model import build_composer_deeplabv3
 
 
 def build_logger(name: str, kwargs: dict):
@@ -30,6 +30,8 @@ def build_logger(name: str, kwargs: dict):
 
 
 def main(config):
+    reproducibility.seed_all(config.seed)
+
     if config.grad_accum == 'auto' and not torch.cuda.is_available():
         raise ValueError(
             'grad_accum="auto" requires training with a GPU; please specify grad_accum as an integer'

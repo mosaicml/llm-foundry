@@ -124,12 +124,9 @@ git clone https://github.com/mosaicml/examples.git
 cd examples
 pip install -e ".[deeplab]"  # or pip install -e ".[deeplab-cpu]" if no NVIDIA GPU
 cd examples/deeplab
+# Note: mmcv-full is not in requirements.txt since it is difficult to install automatically
+# If you are not using the suggested docker image, install mmcv using the instructions at https://mmcv.readthedocs.io/en/latest/get_started/installation.html#install-with-pip
 ```
-
----
-**NOTE**
-
-`mmcv-full` is not listed in the `requirements.txt`, because it can be difficult to install. If you are installing it yourself rather than using the suggested docker image, follow the instructions [here](https://mmcv.readthedocs.io/en/latest/get_started/installation.html#install-with-pip).
 
 ---
 

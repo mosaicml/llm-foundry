@@ -1,0 +1,36 @@
+# Tokenizer
+tokenizer:
+  type: hftokenizer
+  args:
+    tokenizer_name: gpt2
+    max_seq_len: 2048
+
+model:
+  model_type: pretrained_hf
+  pretrained_model_name_or_path: EleutherAI/gpt-neo-125M
+
+icl_tasks:
+-
+  label: piqa
+  dataset_uri: # ADD YOUR OWN DATASET URI
+  num_fewshot:
+  - 5
+  batch_size: 16
+  icl_task_type: multiple_choice
+  metric_names:
+  - InContextLearningMultipleChoiceAccuracy
+  prompt_string: '' # this goes at the beginning of each input
+  example_delimiter: '\n' # this goes between fewshot examples
+  continuation_delimiter: ' ' # this separates questions from answers
+-
+  label: lambada
+  dataset_uri: # ADD YOUR OWN DATASET URI
+  num_fewshot:
+  - 0
+  batch_size: 16
+  icl_task_type: language_modeling
+  metric_names:
+  - InContextLearningLMAccuracy
+  prompt_string: '' # this goes at the beginning of each input
+  example_delimiter: '\n' # this goes between fewshot examples
+  continuation_delimiter: '' # this separates contexts from continuations

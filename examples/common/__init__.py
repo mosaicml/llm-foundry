@@ -3,7 +3,8 @@
 
 try:
     from examples.common.builders import (build_algorithm, build_callback,
-                                          build_dataloader, build_logger,
+                                          build_dataloader,
+                                          build_icl_evaluators, build_logger,
                                           build_optimizer, build_scheduler)
     from examples.common.config_utils import (calculate_batch_size_info,
                                               log_config,
@@ -27,6 +28,7 @@ __all__ = [
     'build_optimizer',
     'build_scheduler',
     'build_dataloader',
+    'build_icl_evaluators',
     'calculate_batch_size_info',
     'update_batch_size_info',
     'log_config',

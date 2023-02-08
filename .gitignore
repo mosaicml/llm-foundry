@@ -1,5 +1,6 @@
 # Data
 my-copy-c4/
+*.jsonl*
 
 # WandB
 wandb/

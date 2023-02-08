@@ -10,10 +10,12 @@ from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
 
 from examples.common.builders import (build_algorithm, build_callback,
-                                      build_dataloader, build_logger,
-                                      build_optimizer, build_scheduler)
+                                      build_dataloader, build_icl_evaluators,
+                                      build_logger, build_optimizer,
+                                      build_scheduler)
 from examples.common.config_utils import log_config, update_batch_size_info
 from examples.llm.src.model_registry import COMPOSER_MODEL_REGISTRY
+from examples.llm.src.tokenizer import TOKENIZER_REGISTRY
 
 
 def build_composer_model(cfg):
@@ -66,7 +68,18 @@ def main(cfg):
     train_loader = build_dataloader(cfg.train_loader,
                                     cfg.device_train_batch_size)
     print('Building eval loader...')
-    eval_loader = build_dataloader(cfg.eval_loader, cfg.device_eval_batch_size)
+    evaluators = []
+    if 'eval_loader' in cfg:
+        eval_loader = build_dataloader(cfg.eval_loader,
+                                       cfg.device_eval_batch_size)
+        evaluators.append(eval_loader)
+
+    if 'icl_tasks' in cfg:
+        tokenizer = TOKENIZER_REGISTRY[cfg.tokenizer.type](**cfg.tokenizer.args)
+        icl_evaluators, _ = build_icl_evaluators(cfg, tokenizer)
+        for icl_evaluator in icl_evaluators:
+            model.add_eval_metrics(icl_evaluator)
+        evaluators.extend(icl_evaluators)
 
     # Optimizer
     optimizer = build_optimizer(cfg.optimizer, model)
@@ -100,7 +113,7 @@ def main(cfg):
         seed=cfg.seed,
         model=model,
         train_dataloader=train_loader,
-        eval_dataloader=eval_loader,
+        eval_dataloader=evaluators,
         optimizers=optimizer,
         schedulers=scheduler,
         max_duration=cfg.max_duration,

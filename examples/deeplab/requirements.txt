@@ -1,4 +1,3 @@
 mosaicml[streaming,wandb]>=0.11.0,<0.13
 omegaconf
 mmsegmentation
-mmcv-full

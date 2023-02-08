@@ -51,6 +51,7 @@ Here's what you need to get started:
       * mmsegmentation Version: 0.22.0
       * Python Version: 3.9
       * Ubuntu Version: 20.04
+   * Note: `mmcv-full` is not listed in the `requirements.txt`, because it can be difficult to install. If you are installing it yourself rather than using the suggested docker image, follow the instructions [here](https://mmcv.readthedocs.io/en/latest/get_started/installation.html#install-with-pip).
 * [ADE20k Dataset](https://groups.csail.mit.edu/vision/datasets/ADE20K/) must be stored either locally (see `download_ade20k.py`) or uploaded to an S3 bucket after converting to a [streaming format](https://github.com/mosaicml/streaming) using [this script](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/ade20k.py)
 * System with NVIDIA GPUs
 

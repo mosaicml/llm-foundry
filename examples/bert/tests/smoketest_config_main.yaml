@@ -25,6 +25,7 @@ train_loader:
     predownload: 1000
     shuffle: true
     mlm_probability: *mlm_probability
+    num_canonical_nodes: 8
   drop_last: true
   num_workers: 4
 
@@ -40,6 +41,7 @@ eval_loader:
     predownload: 1000
     shuffle: false
     mlm_probability: *mlm_probability
+    num_canonical_nodes: 8
   drop_last: false
   num_workers: 4
 

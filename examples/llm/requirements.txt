@@ -5,7 +5,7 @@ mosaicml-streaming==0.2.3
 flash-attn==0.2.8
 mosaicml-cli>=0.2.32,<1
 # need a newer version of triton
-triton==2.0.0.dev20221103
+triton==2.0.0.dev20221202
 transformers==4.25.1
 datasets==2.7.1
 omegaconf==2.2.3

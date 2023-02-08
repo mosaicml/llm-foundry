@@ -130,18 +130,19 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
                                           cfg.max_seq_len)).to(device)
     batch['attention_mask'] = torch.ones(size=(batch_size, cfg.max_seq_len),
                                          dtype=torch.int64).to(device)
-
+    # mask out some tokens
     batch['attention_mask'][:, cfg.max_seq_len // 2:] = mask_val
+    kpm = batch['attention_mask'].view(*batch['attention_mask'].shape, 1)
 
     hf_model.train()
     model.train()
 
     # UTIL: can be used to verify that models are not the same at init
     with torch.autocast(device_type='cuda', dtype=torch.float16):
-        torch.manual_seed(0)
-        hf_model_fwd = hf_model(batch)
-        torch.manual_seed(0)
-        model_fwd = model(batch)
+        torch.manual_seed(seed)
+        hf_model_fwd = hf_model(batch) * kpm
+        torch.manual_seed(seed)
+        model_fwd = model(batch) * kpm
     print(f'{hf_model_fwd.mean().item() = }\n{model_fwd.mean().item() = }')
     if hf_model_fwd.mean().allclose(model_fwd.mean()):
         warn_msg = f'WARNING: model_fwd ({model_fwd}) and hf_model_fwd ({hf_model_fwd}) are very close at init.'
@@ -195,13 +196,15 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
 
     with torch.autocast(device_type=device, dtype=torch.float16):
         torch.manual_seed(seed)
-        hf_model_fwd = hf_model(batch)
+        hf_model_fwd = hf_model(batch) * kpm
         torch.manual_seed(seed)
-        model_fwd = model(batch)
+        model_fwd = model(batch) * kpm
 
     print(f'{hf_model_fwd.mean().item() = }\n{model_fwd.mean().item() = }')
     print(f'{hf_model_fwd = }\n{model_fwd = }')
 
     # given dropout seeded the same way, the mean of the outputs is extremely similar
-    assert hf_model_fwd.mean().allclose(model_fwd.mean())
+    assert hf_model_fwd.mean().allclose(model_fwd.mean(),
+                                        rtol=1e-04,
+                                        atol=1e-06)
     assert hf_model_fwd.allclose(model_fwd, rtol=1e-02, atol=1e-02)

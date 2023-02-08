@@ -23,7 +23,7 @@ class SynthTextDirectory(object):
         shutil.rmtree(self.path)
 
 
-def create_synthetic_text_dataset(n_samples: int = 16):
+def create_synthetic_text_dataset(n_samples: int = 128):
     tmp_dirname = tempfile.mkdtemp()
 
     for split in ['train', 'val']:

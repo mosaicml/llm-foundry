@@ -6,8 +6,8 @@ import sys
 import pytest
 import torch
 
-from ..data import build_imagenet_dataspec, check_dataloader
-from ..tests.utils import SynthClassificationDirectory
+from examples.resnet.data import build_imagenet_dataspec, check_dataloader
+from examples.resnet.tests.utils import SynthClassificationDirectory
 
 # TODO: streaming dataset and dataloader testing
 

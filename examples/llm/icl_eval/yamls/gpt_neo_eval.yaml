@@ -6,8 +6,16 @@ tokenizer:
     max_seq_len: 2048
 
 model:
-  model_type: pretrained_hf
+  name: hf_causal_lm
   pretrained_model_name_or_path: EleutherAI/gpt-neo-125M
+  device: cpu
+  pretrained: true
+
+load_path: # Add your (optional) Composer checkpoint path here!
+
+# FSDP config for model sharding
+# fsdp_config:
+#   sharding_strategy: FULL_SHARD
 
 icl_tasks:
 -

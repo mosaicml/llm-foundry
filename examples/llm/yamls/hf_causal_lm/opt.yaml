@@ -10,7 +10,7 @@ run_name: opt-2.7b
 # Model
 model:
   name: hf_causal_lm
-  hf_config_name_or_path: facebook/opt-2.7b
+  pretrained_model_name_or_path: facebook/opt-2.7b
   device: cpu
   pretrained: true
 

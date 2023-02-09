@@ -10,7 +10,7 @@ run_name: gpt2-small
 # Model
 model:
   name: hf_causal_lm
-  hf_config_name_or_path: gpt2
+  pretrained_model_name_or_path: gpt2
   device: cpu  # this is where to initialize weights; cpu memory or meta tensor
   pretrained: false  # false: only use the architecture; true: initialize with pretrained weights
 

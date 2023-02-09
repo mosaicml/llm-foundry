@@ -108,7 +108,7 @@ Here's what you need to get started:
    * The image comes pre-configured with the following dependencies:
       * PyTorch Version: 1.12.1
       * CUDA Version: 11.6
-      * MMCV Version: 1.4.4
+      * MMCV Version: 1.4.8
       * mmsegmentation Version: 0.22.0
       * Python Version: 3.9
       * Ubuntu Version: 20.04
@@ -125,7 +125,7 @@ cd examples
 pip install -e ".[deeplab]"  # or pip install -e ".[deeplab-cpu]" if no NVIDIA GPU
 cd examples/deeplab
 # Note: mmcv-full is not in requirements.txt since it is difficult to install automatically
-# If you are not using the suggested docker image, install mmcv using the instructions at https://mmcv.readthedocs.io/en/latest/get_started/installation.html#install-with-pip
+# If you are not using the suggested docker image, install mmcv using the instructions at https://mmcv.readthedocs.io/en/latest/get_started/installation.html#install-with-pip (we use version 1.4.8)
 ```
 
 ---

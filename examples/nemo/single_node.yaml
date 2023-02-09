@@ -1,16 +1,24 @@
-run_name: # run-name-here
-cluster: # mcloud-cluster-name-here
+run_name: nemo-megatron-gpt-124m-gpu-8
+cluster: r0z0 # Update with your cluster here!
 gpu_num: 8
-image: nvcr.io/nvidia/nemo:22.09
-env_variables:
-  - key: PYTHONUNBUFFERED
-    value: '1'
-command: |
 
-  # getting the vocab, merge files for the tokenizer
+# For the latest NeMo container version, see https://catalog.ngc.nvidia.com/orgs/nvidia/containers/nemo
+image: nvcr.io/nvidia/nemo:22.11
+
+env_variables:
+# Configure Python to not buffer stdout and stderr, so output shows up in console immediately
+- key: PYTHONUNBUFFERED
+  value: '1'
+
+command: |
+  # Getting the tokenizer vocab and merge files
   wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-vocab.json
   wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt
 
+  # Make sure to prepare and download the training data, as defined in NeMo documentation:
+  # https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/nlp/nemo_megatron/gpt/gpt_training.html
+
+  # Make sure to update the training dataset path below
   python3 examples/nlp/language_modeling/megatron_gpt_pretraining.py \
   --config-path=/workspace/nemo/examples/nlp/language_modeling/conf/ \
   --config-name=megatron_gpt_config.yaml \

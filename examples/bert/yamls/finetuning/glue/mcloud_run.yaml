@@ -6,7 +6,7 @@
 # Note that some of the fields in this template haven't been filled in yet.
 # Please resolve any `null` fields before launching!
 #
-# When ready, use `mcli run -f yamls/glue/mcloud_run.yaml` to launch
+# When ready, use `mcli run -f yamls/finetuning/glue/mcloud_run.yaml` to launch
 
 run_name: &run_name mosaic-bert-base-uncased-glue-finetuning
 cluster:       # Name of the cluster to use for this run

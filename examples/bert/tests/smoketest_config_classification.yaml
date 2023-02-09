@@ -1,47 +1,30 @@
 tokenizer_name: &tokenizer_name prajjwal1/bert-tiny
 max_seq_len: &max_seq_len 32
-mlm_probability: &mlm_probability 0.15
 
 # Run Name
 run_name: test
 
 # Model
 model:
-  name:
-  use_pretrained: false
+  name: mosaic_bert
+  num_labels: 2
   pretrained_model_name: *tokenizer_name
   tokenizer_name: *tokenizer_name
 
 # Dataloaders
 train_loader:
-  name: text
-  dataset:
-    remote:
-    local:
-    split: train
-    tokenizer_name: *tokenizer_name
-    max_seq_len: *max_seq_len
-    group_method: truncate
-    predownload: 1000
-    shuffle: true
-    mlm_probability: *mlm_probability
-    num_canonical_nodes: 8
+  split: train
+  tokenizer_name: *tokenizer_name
+  max_seq_len: *max_seq_len
+  shuffle: true
   drop_last: true
   num_workers: 4
 
 eval_loader:
-  name: text
-  dataset:
-    remote:
-    local:
-    split: val
-    tokenizer_name: *tokenizer_name
-    max_seq_len: *max_seq_len
-    group_method: truncate
-    predownload: 1000
-    shuffle: false
-    mlm_probability: *mlm_probability
-    num_canonical_nodes: 8
+  split: validation
+  tokenizer_name: *tokenizer_name
+  max_seq_len: *max_seq_len
+  shuffle: false
   drop_last: false
   num_workers: 4
 
@@ -63,6 +46,7 @@ optimizer:
 # Training duration and evaluation frequency
 max_duration: 8ba
 eval_interval: 8ba
+eval_subset_num_batches: 2
 global_train_batch_size: 4
 
 # System

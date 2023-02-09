@@ -77,13 +77,14 @@ def create_glue_dataset(
                         ] + [i for i in text_column_names if i is not None]
 
     assert isinstance(dataset, datasets.Dataset)
+    safe_name = tokenizer_name.replace('/', ',')
     dataset = dataset.map(
         tokenize_function,
         batched=True,
         num_proc=None if num_workers == 0 else num_workers,
         batch_size=1000,
         remove_columns=columns_to_remove,
-        new_fingerprint=f'{task}-{tokenizer_name}-tokenization-{split}',
+        new_fingerprint=f'{task}-{safe_name}-tokenization-{split}',
         load_from_cache_file=True,
     )
     return dataset

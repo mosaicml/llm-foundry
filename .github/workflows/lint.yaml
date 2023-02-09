@@ -27,6 +27,7 @@ jobs:
         - deeplab
         - llm
         - resnet
+        - nemo
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4

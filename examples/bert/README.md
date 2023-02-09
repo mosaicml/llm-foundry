@@ -13,10 +13,12 @@ You'll find in this folder:
 * `yamls/test/main.yaml` - A config for quickly verifying that `main.py` runs.
 
 ### Fine-tuning
+* `sequence_classification.py` - A starter script to simplify fine-tuning with your own dataset on a single classification task, locally or on Mosaic's cloud.
 * `glue.py` - A more complex script for parsing YAMLs and orchestrating the numerous fine-tuning training jobs across 8 GLUE tasks (we exclude the WNLI task here), locally or on Mosaic's cloud.
 * `src/glue/data.py` - Datasets used by `glue.py` in GLUE fine-tuning.
 * `src/glue/finetuning_jobs.py` - Custom classes, one for each GLUE task, instantiated by `glue.py`. These handle individual fine-tuning jobs and task-specific hyperparameters.
-* `yamls/glue/` - Pre-baked configs for pre-training both our sped-up Mosaic BERT as well as the reference HuggingFace BERT. These are used when running `glue.py`.
+* `yamls/finetuning/` - Pre-baked configs for pre-training both our sped-up Mosaic BERT as well as the reference HuggingFace BERT. These are used when running `sequence_classification.py` and `glue.py`.
+* `yamls/test/sequence_classification.yaml` - A config for quickly verifying that `sequence_classification.py` runs.
 * `yamls/test/glue.yaml` - A config for quickly verifying that `glue.py` runs.
 
 ### Shared
@@ -37,7 +39,9 @@ In the [common](../common) folder, you will also find:
 
 In this benchmark, we train BERTs on the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4). To run pre-training on C4, you'll need to make yourself a copy of this dataset.
 
-Alternatively, feel free to substitute our dataloader with one of your own in the script [main.py](./main.py#L101)!
+Alternatively, feel free to substitute our dataloader with one of your own in the script [main.py](./main.py#L98).
+When you move on to fine-tuning, you can train on your own dataset by adding into the script [sequence_classification.py](./sequence_classification.py#L63).
+For now, let's focus on preparing the C4 data for pre-training.
 
 We first convert the dataset from its native format (a collection of zipped JSONs)
 to MosaicML's streaming dataset format (a collection of binary `.mds` files).
@@ -129,14 +133,24 @@ composer main.py yamls/test/main.yaml model.name=mosaic_bert
 
 ### Test fine-tuning
 
-To verify that fine-tuning runs correctly, run the `glue.py` fine-tuning script twice using our testing config. First, with the baseline HuggingFace BERT. Second, with the Mosaic BERT.
+To verify that fine-tuning runs correctly, run each of the fine-tuning scripts twice using our testing configs. First, verify `sequence_classification.py` with the baseline HuggingFace BERT and again with the Mosaic BERT.
 
 ```bash
 # Run the fine-tuning script with the test config and HuggingFace BERT
+python sequence_classification.py yamls/test/sequence_classification.yaml
+
+# Run the fine-tuning script with the test config and Mosaic BERT
+python sequence_classification.py yamls/test/sequence_classification.yaml model.name=mosaic_bert
+```
+
+Second, verify `glue.py` for both models.
+
+```bash
+# Run the GLUE script with the test config and HuggingFace BERT
 python glue.py yamls/test/glue.yaml
 rm -rf local-finetune-checkpoints
 
-# Run the fine-tuning script with the test config and Mosaic BERT
+# Run the GLUE script with the test config and Mosaic BERT
 python glue.py yamls/test/glue.yaml model.name=mosaic_bert
 rm -rf local-finetune-checkpoints
 ```
@@ -168,6 +182,17 @@ composer main.py yamls/main/mosaic-bert-base-uncased.yaml
 ```
 
 **Please remember** to modify the reference YAMLs (e.g., `yamls/main/mosaic-bert-base-uncased.yaml`) to customize saving and loading locations—only the YAMLs in `yamls/test/` are ready to use out-of-the-box. See the [configs](#configs) section for more detail.
+
+### Single-task fine-tuning
+
+After pre-training comes fine-tuning. We provide `sequence_classification.py` as a handy starter script to simplify fine-tuning a pre-trained BERT model on your own custom dataset. **Just modify this script by plugging in your dataset, and you can fine-tune your BERT model on the task you care about.** Check the script itself for more detailed instructions.
+
+After modifying the starter script, update the reference YAMLs (e.g., `yamls/finetuning/mosaic-bert-base-uncased.yaml`) to reflect your changes. Use the `composer` launcher when you're ready.
+
+```bash
+# Fine-tune your BERT model on your custom classification task!
+composer classication.py yamls/finetuning/mosaic-bert-base-uncased.yaml`
+```
 
 ### GLUE fine-tuning
 
@@ -214,9 +239,18 @@ Before using the configs in `yamls/main/` when running `main.py`, you'll need to
 * `loggers.wandb` (optional) - If you want to log to W&B, fill in the `project` and `entity` fields, or comment out the `wandb` block if you don't want to use this logger.
 * `load_path` (optional) - If you have a checkpoint that you'd like to start from, this is how you set that.
 
+### sequence_classification.py
+
+Before using the configs in `yamls/finetuning/` when running `sequence_classification.py`, you'll need to fill in:
+
+* `load_path` (optional) - If you have a checkpoint that you'd like to start from, this is how you set that. If you're fine-tuning a Mosaic BERT, this should not be left empty.
+* `save_folder` - This will determine where model checkpoints are saved. Note that it can depend on `run_name`. For example, if you set `save_folder` to `s3://mybucket/mydir/{run_name}/ckpt` it will replace `{run_name}` with the value of `run_name`. So you should avoid re-using the same run name across multiple training runs.
+* `loggers.wandb` (optional) - If you want to log to W&B, fill in the `project` and `entity` fields, or comment out the `wandb` block if you don't want to use this logger.
+* `algorithms` (optional) - Make sure to include any architecture-modifying algorithms that were applied to your starting checkpoint model before pre-training. For instance, if you turned on `gated_linear_units` in pre-training, make sure to do so during fine-tuning too!
+
 ### glue.py
 
-Before using the configs in `yamls/glue/` when running `glue.py`, you'll need to fill in:
+Before using the configs in `yamls/finetuning/glue/` when running `glue.py`, you'll need to fill in:
 
 * `starting_checkpoint_load_path` - This determines which checkpoint you start from when doing fine-tuning. This should look like `<save_folder>/<checkpoint>`, where `<save_folder>` is the location you set in your pre-training config (see above section).
 * `loggers.wandb` (optional) - If you want to log to W&B, fill in the `project` and `entity` fields, or comment out the `wandb` block if you don't want to use this logger.

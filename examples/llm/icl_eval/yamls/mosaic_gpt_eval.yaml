@@ -5,13 +5,26 @@ tokenizer:
     max_seq_len: 2048
 
 model:
-  model_type: mosaic_gpt
-  load_path: # ADD YOUR OWN CHECKPOINT
-  config_path: ../yamls/mosaic_gpt/1b.yaml
+  name: mosaic_gpt
+  device: meta
+  tokenizer_name: gpt2
+  d_model: 768
+  n_heads: 12
+  n_layers: 12
+  mlp_ratio: 4
+  max_seq_len: 2048
+  vocab_size: 50257
+  init_std: 0.02
+  attn_pdrop: 0.0
+  resid_pdrop: 0.0
+  emb_pdrop: 0.0
+  attn_impl: flash
+
+load_path: # Add your (optional) Composer checkpoint path here!
 
 # FSDP config for model sharding
-fsdp_config:
-  sharding_strategy: FULL_SHARD
+# fsdp_config:
+#   sharding_strategy: FULL_SHARD
 
 icl_tasks:
 -

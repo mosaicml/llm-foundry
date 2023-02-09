@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+
 from composer import algorithms
 from composer.callbacks import LRMonitor, MemoryMonitor, OptimizerMonitor
 from composer.core import Evaluator
@@ -86,6 +88,8 @@ def build_dataloader(cfg, device_batch_size):
 
 
 def build_icl_evaluators(cfg, tokenizer):
+    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
     evaluators = []
     logger_keys = []
 

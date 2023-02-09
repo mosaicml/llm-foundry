@@ -7,11 +7,11 @@ import time
 import torch
 from composer.loggers import InMemoryLogger
 from composer.trainer import Trainer
-from model_loading import load_composer_model
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
 from examples.common.builders import build_icl_evaluators
+from examples.llm.src.model_registry import COMPOSER_MODEL_REGISTRY
 from examples.llm.src.tokenizer import TOKENIZER_REGISTRY
 
 if __name__ == '__main__':
@@ -21,8 +21,7 @@ if __name__ == '__main__':
     cli_cfg = om.from_cli(args_list)
     cfg = DictConfig(om.merge(yaml_cfg, cli_cfg))
 
-    composer_model = load_composer_model(cfg)
-
+    composer_model = COMPOSER_MODEL_REGISTRY[cfg.model.name](cfg.model)
     tokenizer = TOKENIZER_REGISTRY[cfg.tokenizer.type](**cfg.tokenizer.args)
     evaluators, logger_keys = build_icl_evaluators(cfg, tokenizer)
     for evaluator in evaluators:

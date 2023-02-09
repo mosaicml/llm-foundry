@@ -27,9 +27,22 @@ parameters:
       max_seq_len: 2048
 
   model:
-    model_type: mosaic_gpt
-    # load_path: ADD YOUR OWN CHECKPOINT
-    config_path: ../yamls/mosaic_gpt/1b.yaml
+    name: mosaic_gpt
+    device: meta
+    tokenizer_name: gpt2
+    d_model: 2048
+    n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
+    n_layers: 24
+    mlp_ratio: 4
+    max_seq_len: 2048
+    vocab_size: 50257
+    init_std: 0.02
+    attn_pdrop: 0.0
+    resid_pdrop: 0.0
+    emb_pdrop: 0.0
+    attn_impl: flash
+
+  load_path: # Add your (optional) Composer checkpoint path here!
 
   # FSDP config for model sharding
   fsdp_config:

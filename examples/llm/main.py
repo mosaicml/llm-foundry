@@ -74,7 +74,8 @@ def main(cfg):
         eval_loader = Evaluator(label='eval',
                                 dataloader=build_dataloader(
                                     cfg.eval_loader,
-                                    cfg.device_eval_batch_size))
+                                    cfg.device_eval_batch_size),
+                                metric_names=list(model.train_metrics.keys()))
         evaluators.append(eval_loader)
 
     if 'icl_tasks' in cfg:

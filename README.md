@@ -53,7 +53,8 @@ If you run into any issues extending the code, or just want to discuss an idea y
 
 If you already have the dependencies for a given example installed, you can just run:
 ```bash
-pre-commit run --all-files  # autoformatting
+pre-commit run --all-files  # autoformatting for whole repo
+cd examples/llm  # or bert, resnet, etc
 pyright .  # type checking
 pytest tests/  # run tests
 ```
@@ -75,7 +76,7 @@ and we run:
 python script.py b=baz nested.foo=different
 ```
 The `main.py` file will end up with:
-```json
+```python
 {'a': 1, 'b': 'baz', 'nested': {'foo': 'different'}}
 ```
 

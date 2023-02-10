@@ -11,7 +11,10 @@ run_name: gpt-neo-125m
 model:
   name: hf_causal_lm
   pretrained_model_name_or_path: EleutherAI/gpt-neo-125M
-  device: cpu  # this is where to initialize weights; cpu memory or meta tensor
+  config_overrides:
+    # WARNING: if setting `pretrained: true`, `max_position_embeddings` must match the
+    # `max_position_embeddings` used during pre-training
+    max_position_embeddings: ${max_seq_len}
   pretrained: false  # false: only use the architecture; true: initialize with pretrained weights
 
 # Tokenizer
@@ -20,7 +23,6 @@ tokenizer:
   args:
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-
 
 # Dataloaders
 train_loader:
@@ -73,10 +75,11 @@ algorithms:
 
 max_duration: 4800ba # ~ 2.5B tokens
 eval_interval: 500ba
+eval_subset_num_batches: -1
 global_train_batch_size: 256
 
 # System
-seed: 17
+seed: ${global_seed}
 device_eval_batch_size: 4
 device_train_microbatch_size: 4
 # device_train_microbatch_size: auto

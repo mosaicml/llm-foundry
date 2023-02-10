@@ -165,6 +165,7 @@ def test_full_forward_and_backward_gpt2_small(batch_size=2):
 
     device = 'cpu'
     neo_cfg.device = device
+    neo_cfg.max_seq_len = 1024
 
     model = COMPOSER_MODEL_REGISTRY[neo_cfg.model.name](
         neo_cfg.model).to(device)
@@ -180,7 +181,8 @@ def test_full_forward_and_backward_gpt2_small(batch_size=2):
     neo_cfg.model.vocab_size = model.model.transformer.wte.num_embeddings
     batch = gen_random_batch(batch_size, neo_cfg)
 
-    batch['input_ids'].shape == torch.Size([batch_size, neo_cfg.max_seq_len])
+    assert batch['input_ids'].shape == torch.Size(
+        [batch_size, neo_cfg.max_seq_len])
     model.train()
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)

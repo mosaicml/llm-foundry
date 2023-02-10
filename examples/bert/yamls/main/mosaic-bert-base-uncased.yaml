@@ -3,12 +3,12 @@
 
 # Follow the instructions in the README to set up ./my-copy-c4
 # Or point data paths to your remote C4 dataset
-data_local: &data_local ./my-copy-c4
-data_remote: &data_remote null
+data_local: ./my-copy-c4
+data_remote: null
 
-max_seq_len: &max_seq_len 128
-tokenizer_name: &tokenizer_name bert-base-uncased
-mlm_probability: &mlm_probability 0.3 # Mosaic BERT should use 30% masking for optimal performance
+max_seq_len: 128
+tokenizer_name: bert-base-uncased
+mlm_probability: 0.3 # Mosaic BERT should use 30% masking for optimal performance
 
 # Run Name
 run_name: mosaic-bert-base-uncased
@@ -16,8 +16,8 @@ run_name: mosaic-bert-base-uncased
 # Model
 model:
   name: mosaic_bert
-  pretrained_model_name: *tokenizer_name
-  tokenizer_name: *tokenizer_name
+  pretrained_model_name: ${tokenizer_name}
+  tokenizer_name: ${tokenizer_name}
   # Mosaic BERT 'base' generally uses the default architecture values for from the Hugging Face BertConfig object
   # Note: if using the pretrained_checkpoint argument to create a model from an existing checkpoint, make sure
   # the model_config settings match the architecture of the existing model
@@ -30,25 +30,25 @@ model:
 train_loader:
   name: text
   dataset:
-    local: *data_local
-    remote: *data_remote
+    local: ${data_local}
+    remote: ${data_remote}
     split: train
-    tokenizer_name: *tokenizer_name
-    max_seq_len: *max_seq_len
+    tokenizer_name: ${tokenizer_name}
+    max_seq_len: ${max_seq_len}
     group_method: truncate
     shuffle: true
-    mlm_probability: *mlm_probability
+    mlm_probability: ${mlm_probability}
   drop_last: true
   num_workers: 8
 
 eval_loader:
   name: text
   dataset:
-    local: *data_local
-    remote: *data_remote
+    local: ${data_local}
+    remote: ${data_remote}
     split: val
-    tokenizer_name: *tokenizer_name
-    max_seq_len: *max_seq_len
+    tokenizer_name: ${tokenizer_name}
+    max_seq_len: ${max_seq_len}
     group_method: truncate
     shuffle: false
     mlm_probability: 0.15 # We always evaluate at 15% masking for consistent comparison

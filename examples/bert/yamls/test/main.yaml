@@ -3,11 +3,11 @@
 #   `composer main.py yamls/test/main.yaml` to run using the HuggingFace BERT
 #   `composer main.py yamls/test/main.yaml model.name=mosaic_bert` to run using the Mosaic BERT
 
-data_remote: &data_remote ./my-copy-c4 # Follow the instructions in the README to set up ./my-copy-c4
-data_local: &data_local ./my-copy-c4
-tokenizer_name: &tokenizer_name prajjwal1/bert-tiny
-max_seq_len: &max_seq_len 128
-mlm_probability: &mlm_probability 0.15
+data_remote: null # Follow the instructions in the README to set up ./my-copy-c4
+data_local: ./my-copy-c4
+tokenizer_name: prajjwal1/bert-tiny
+max_seq_len: 128
+mlm_probability: 0.15
 
 # Run Name
 run_name: test
@@ -16,37 +16,37 @@ run_name: test
 model:
   name: hf_bert
   use_pretrained: false # Train the model from scratch. Set to true to start from the HF off-the-shelf weights.
-  pretrained_model_name: *tokenizer_name
-  tokenizer_name: *tokenizer_name
+  pretrained_model_name: ${tokenizer_name}
+  tokenizer_name: ${tokenizer_name}
 
 # Dataloaders
 train_loader:
   name: text
   dataset:
-    remote: *data_remote
-    local: *data_local
+    remote: ${data_remote}
+    local: ${data_local}
     split: train_small
-    tokenizer_name: *tokenizer_name
-    max_seq_len: *max_seq_len
+    tokenizer_name: ${tokenizer_name}
+    max_seq_len: ${max_seq_len}
     group_method: truncate
     predownload: 1000
     shuffle: true
-    mlm_probability: *mlm_probability
+    mlm_probability: ${mlm_probability}
   drop_last: true
   num_workers: 8
 
 eval_loader:
   name: text
   dataset:
-    remote: *data_remote
-    local: *data_local
+    remote: ${data_remote}
+    local: ${data_local}
     split: val
-    tokenizer_name: *tokenizer_name
-    max_seq_len: *max_seq_len
+    tokenizer_name: ${tokenizer_name}
+    max_seq_len: ${max_seq_len}
     group_method: truncate
     predownload: 1000
     shuffle: false
-    mlm_probability: *mlm_probability
+    mlm_probability: ${mlm_probability}
   drop_last: false
   num_workers: 8
 

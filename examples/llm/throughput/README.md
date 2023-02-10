@@ -1,17 +1,40 @@
 ## Warning: The numbers in the tables below are based on torch 1.12 and are out of date. The current setup achieves higher throughput / MFU. This warning will be removed once the tables are updated.
 
-# MosaicGPT Throughput, MFU, and HFU
-Throughput, MFU, and HFU for MosaicGPT models trained on [MosaicML Cloud](https://www.mosaicml.com/cloud).
+# MosaicGPT Training Benchmarks
 
-`run_all_configs.py` uses MosaicML Cloud's python api to run the specified configurations.
-`parse_logs.py` uses MosaicML Cloud's python api to load and parse training logs and get training throughput numbers. Throughput numbers are used to calculate model FLOP utilization (MFU) and hardware FLOP utilization (HFU).
+Benchmark measurements for MosaicGPT models trained on [MosaicML Cloud](https://www.mosaicml.com/cloud), including throughput, MFU, and HFU. Each model is based on optimized configurations of various sizes in the [yamls](../yamls) folder, ranging from a 125m to 70B parameter models.
+
+To reproduce these results, first:
+```
+python submit_benchmarks.py -m 125m.yaml --cluster [your_mosaicml_cluster] --RUN
+```
+
+will use our Python API to submit a sweep of configurations for the 125M parameter model. To run all the configurations, omit the `-m` flag.
+
+Then, after the runs are completed:
+```
+python collect_results.py --save-path results
+```
+will use our Python API to collect and calculate the benchmark results, and then save as both a CSV file `results.csv`, and a markdown table `results.md`.
+
+> **Note**
+> The `collect_results.py` will by default find all runs with `tput` in the run name. To customize this project tag, use `--project` in both the submissing and collection scripts.
+
 
 ## MFU and HFU
 
-MFU and HFU are defined in https://arxiv.org/abs/2205.05198. All FLOP calculations exclude the FLOPS of norm, act, and residual.
+Model FLOPs Utilization (MFU) and Hardware FLOPS Utilization (HFU) are estimates, based on the throughput and the known FLOPs of the computation, of what percentage of the hardware's FLOPs are being used during training.
 
-MFU approximation:
+MFU calculates the utilizaiton from the floating point operations required for a single forward/backwards pass of the model, and do not account for the additional compute required for other implementation details such as activation checkpointing. Thus, MFU is independant of implementation and hardware.
+
+HFU attempt to capture the actual floating point operations incurred during the forward/backwards pass on the hardware, and is a more accurate measurement of hardware utilization, but less general and difficult to compare across various hardware and implementation details.
+
+For more information, see [Korthikanti et al, 2022](https://arxiv.org/abs/2205.05198). All FLOP calculations exclude the operations required for normalization, activation, and residuals.
+
+### MFU
+
 Per token, each parameter is used for a MAC (2 FLOPS) per network operation. Neural Network training has 3 network operations: forward pass, backward pass, and computation of parameter gradient.
+
 The attention mechanism forward pass FLOPS are: `attn_flops_per_seq = n_layers * 2 * 2 * (d_model * (seq_len**2))`
 ```
 flops_per_token = 2 * n_params
@@ -22,20 +45,23 @@ attn_flops_per_seq = n_layers * 2 * 2 * (d_model * (seq_len**2))
 mfu = (3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
 ```
 
+### HFU
+
 The HFU numbers shown below account for the fact that the networks use checkpointing and recomputes activations. This effectively requires an extra forward pass through the network.
 ```
 hfu* = 4 * flops_per_seq * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
 hfu = (4 * flops_per_seq + 4 * attn_flops_per_seq) * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
 ```
 
-These are approximations. Real HFU would be higher since it would include the FLOP usage of norm, act, residual, as well as account for ALL recomputation (Models using FlashAttn would include an extra recompute factor given FlashAttn does a recomputation in the fwd pass; in reality, the hfu flop attn multiplier would be 5 instead of 4).
+Note that these are approximations. Actual HFU would be higher since it includes the floating poit operations for normalization, activation, and residual lyaers, as well as **all** recomputation. For example, our models use Flash Attention, which requires including an extra recompute factor for its recomputation in the forward pass. Therefore, the attention multipler would be 5 instead of 4.
 
-Below we highlight some of the configurations, but the full tables can be found in [FULL_TABLES](./FULL_TABLES.md).
-These tables are not exhaustive. If there is a setting you are interested in, try profiling it yourself. For example, using Mosaic Cloud, to test MosaicGPT {13B, 30B} using fp16 with a batch size of 2M tokens and seq len {2k, 4k, 8k, 16k} run:
+## Results
+
+Below we include several configurations across different hardware platforms, sequence lengths and batch sizes. It is easy to benchmark configurations for your own use case. For example, using Mosaic Cloud, to test MosaicGPT {13B, 30B} using fp16 with a batch size of 2M tokens and seq len {2k, 4k, 8k, 16k} run:
 ```
-python run_all_configs.py -m 13b.yaml 30b.yaml -t fp16 -b 21 21 -s 11 14 --RUN
+python submit_benchmarks.py -m 13b.yaml 30b.yaml -t fp16 -b 21 21 -s 11 14 --RUN
 ```
-This will run 8 configs for 12 steps to get throughput numbers. `python parse_logs.py` can then be used to parse all output training logs and create the tables below.
+This will run 8 configs for 12 steps to get throughput numbers. `python collect_results.py` can then be used to parse all output training logs and create the tables below.
 
 ## A100 80GB
 

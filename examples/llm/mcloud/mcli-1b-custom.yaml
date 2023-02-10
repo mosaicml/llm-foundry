@@ -28,22 +28,22 @@ cluster: r0z0 # replace with your cluster here!
 # and referenced in our `command` above
 # We use this to customize hparams like `max_seq_len=8192` at runtime
 parameters:
-  data_local: &data_local ./my-copy-c4
-  data_remote: &data_remote null
-  tokenizer_name: &tokenizer_name gpt2
-  max_seq_len: &max_seq_len 2048
-  global_seed: &global_seed 17
+  data_local: ./my-copy-c4
+  data_remote: null
+  tokenizer_name: gpt2
+  max_seq_len: 2048
+  global_seed: 17
 
   # Model
   model:
     name: mosaic_gpt
     device: meta
-    tokenizer_name: *tokenizer_name
+    tokenizer_name: ${tokenizer_name}
     d_model: 2048
     n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
     n_layers: 24
     mlp_ratio: 4
-    max_seq_len: *max_seq_len
+    max_seq_len: ${max_seq_len}
     vocab_size: 50257
     init_std: 0.02
     attn_pdrop: 0.0
@@ -55,35 +55,35 @@ parameters:
   tokenizer:
     type: hftokenizer
     args:
-      tokenizer_name: *tokenizer_name
-      max_seq_len: *max_seq_len
+      tokenizer_name: ${tokenizer_name}
+      max_seq_len: ${max_seq_len}
 
   # Dataloaders
   train_loader:
     name: text
     dataset:
-      local: *data_local
-      remote: *data_remote
+      local: ${data_local}
+      remote: ${data_remote}
       split: train_small # Using 'train_small' for this demo
       shuffle: true
-      tokenizer_name: *tokenizer_name
-      max_seq_len: *max_seq_len
+      tokenizer_name: ${tokenizer_name}
+      max_seq_len: ${max_seq_len}
       group_method: concat
-      shuffle_seed: *global_seed
+      shuffle_seed: ${global_seed}
     drop_last: true
     num_workers: 8
 
   eval_loader:
     name: text
     dataset:
-      local: *data_local
-      remote: *data_remote
+      local: ${data_local}
+      remote: ${data_remote}
       split: val
       shuffle: false
-      tokenizer_name: *tokenizer_name
-      max_seq_len: *max_seq_len
+      tokenizer_name: ${tokenizer_name}
+      max_seq_len: ${max_seq_len}
       group_method: truncate
-      shuffle_seed: *global_seed
+      shuffle_seed: ${global_seed}
     drop_last: false
     num_workers: 8
 

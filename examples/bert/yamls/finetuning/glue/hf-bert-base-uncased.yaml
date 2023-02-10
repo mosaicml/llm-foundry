@@ -10,13 +10,13 @@ default_seed: 19
 precision: bf16
 
 # Tokenizer for dataset creation
-tokenizer_name: &tokenizer_name bert-base-uncased
+tokenizer_name: bert-base-uncased
 
 # Base model config
 model:
   name: hf_bert
-  pretrained_model_name: *tokenizer_name
-  tokenizer_name: *tokenizer_name
+  pretrained_model_name: ${tokenizer_name}
+  tokenizer_name: ${tokenizer_name}
 
 # Loading
 starting_checkpoint_load_path:      # Fill this in with the composer checkpoint from the end of pre-training a HF BERT

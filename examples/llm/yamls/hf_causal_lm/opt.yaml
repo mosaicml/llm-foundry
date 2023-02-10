@@ -1,8 +1,8 @@
-data_local: &data_local ./my-copy-c4
-data_remote: &data_remote null
-tokenizer_name: &tokenizer_name facebook/opt-2.7b
-max_seq_len: &max_seq_len 256
-global_seed: &global_seed 17
+data_local: ./my-copy-c4
+data_remote: null
+tokenizer_name: facebook/opt-2.7b
+max_seq_len: 256
+global_seed: 17
 
 # Run Name
 run_name: opt-2.7b

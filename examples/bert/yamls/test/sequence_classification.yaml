@@ -3,8 +3,8 @@
 #   `composer sequence_classification.py yamls/test/sequence_classification.yaml` (HuggingFace BERT)
 #   `composer sequence_classification.py yamls/test/sequence_classification.yaml model.name=mosaic_bert` (Mosaic BERT)
 
-tokenizer_name: &tokenizer_name prajjwal1/bert-tiny
-max_seq_len: &max_seq_len 128
+tokenizer_name: prajjwal1/bert-tiny
+max_seq_len: 128
 
 # Run Name
 run_name: test
@@ -15,22 +15,22 @@ load_path: # (Optionally) provide a composer checkpoint to use for the starting 
 model:
   name: mosaic_bert
   num_labels: 2
-  pretrained_model_name: *tokenizer_name
-  tokenizer_name: *tokenizer_name
+  pretrained_model_name: ${tokenizer_name}
+  tokenizer_name: ${tokenizer_name}
 
 # Dataloaders
 train_loader:
   split: train
-  tokenizer_name: *tokenizer_name
-  max_seq_len: *max_seq_len
+  tokenizer_name: ${tokenizer_name}
+  max_seq_len: ${max_seq_len}
   shuffle: true
   drop_last: true
   num_workers: 8
 
 eval_loader:
   split: validation
-  tokenizer_name: *tokenizer_name
-  max_seq_len: *max_seq_len
+  tokenizer_name: ${tokenizer_name}
+  max_seq_len: ${max_seq_len}
   shuffle: true
   drop_last: true
   num_workers: 8

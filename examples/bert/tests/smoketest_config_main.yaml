@@ -1,6 +1,6 @@
-tokenizer_name: &tokenizer_name prajjwal1/bert-tiny
-max_seq_len: &max_seq_len 32
-mlm_probability: &mlm_probability 0.15
+tokenizer_name: prajjwal1/bert-tiny
+max_seq_len: 32
+mlm_probability: 0.15
 
 # Run Name
 run_name: test
@@ -9,8 +9,8 @@ run_name: test
 model:
   name:
   use_pretrained: false
-  pretrained_model_name: *tokenizer_name
-  tokenizer_name: *tokenizer_name
+  pretrained_model_name: ${tokenizer_name}
+  tokenizer_name: ${tokenizer_name}
 
 # Dataloaders
 train_loader:
@@ -19,12 +19,12 @@ train_loader:
     remote:
     local:
     split: train
-    tokenizer_name: *tokenizer_name
-    max_seq_len: *max_seq_len
+    tokenizer_name: ${tokenizer_name}
+    max_seq_len: ${max_seq_len}
     group_method: truncate
     predownload: 1000
     shuffle: true
-    mlm_probability: *mlm_probability
+    mlm_probability: ${mlm_probability}
     num_canonical_nodes: 8
   drop_last: true
   num_workers: 4
@@ -35,12 +35,12 @@ eval_loader:
     remote:
     local:
     split: val
-    tokenizer_name: *tokenizer_name
-    max_seq_len: *max_seq_len
+    tokenizer_name: ${tokenizer_name}
+    max_seq_len: ${max_seq_len}
     group_method: truncate
     predownload: 1000
     shuffle: false
-    mlm_probability: *mlm_probability
+    mlm_probability: ${mlm_probability}
     num_canonical_nodes: 8
   drop_last: false
   num_workers: 4

@@ -10,8 +10,8 @@
 # Run Name
 run_name: finetune-mosaic-bert
 
-tokenizer_name: &tokenizer_name bert-base-uncased
-max_seq_len: &max_seq_len 128
+tokenizer_name: bert-base-uncased
+max_seq_len: 128
 
 load_path: # (Optionally) provide a composer checkpoint to use for the starting weights
 
@@ -19,22 +19,22 @@ load_path: # (Optionally) provide a composer checkpoint to use for the starting 
 model:
   name: mosaic_bert
   num_labels: 2 # <-- Make sure to update these after you modify the starter script!
-  pretrained_model_name: *tokenizer_name
-  tokenizer_name: *tokenizer_name
+  pretrained_model_name: ${tokenizer_name}
+  tokenizer_name: ${tokenizer_name}
 
 # Dataloaders (make sure to update these after you modify the starter script!)
 train_loader:
   split: train
-  tokenizer_name: *tokenizer_name
-  max_seq_len: *max_seq_len
+  tokenizer_name: ${tokenizer_name}
+  max_seq_len: ${max_seq_len}
   shuffle: true
   drop_last: true
   num_workers: 8
 
 eval_loader:
   split: validation
-  tokenizer_name: *tokenizer_name
-  max_seq_len: *max_seq_len
+  tokenizer_name: ${tokenizer_name}
+  max_seq_len: ${max_seq_len}
   shuffle: true
   drop_last: true
   num_workers: 8

@@ -1,8 +1,8 @@
-data_local: &data_local ./my-copy-c4
-data_remote: &data_remote null
-tokenizer_name: &tokenizer_name gpt2
-max_seq_len: &max_seq_len 2048
-global_seed: &global_seed 17
+data_local: ./my-copy-c4
+data_remote: null
+tokenizer_name: gpt2
+max_seq_len: 2048
+global_seed: 17
 
 # Run Name
 run_name: gpt-neo-125m
@@ -18,36 +18,36 @@ model:
 tokenizer:
   type: hftokenizer
   args:
-    tokenizer_name: *tokenizer_name
-    max_seq_len: *max_seq_len
+    tokenizer_name: ${tokenizer_name}
+    max_seq_len: ${max_seq_len}
 
 
 # Dataloaders
 train_loader:
   name: text
   dataset:
-    local: *data_local
-    remote: *data_remote
+    local: ${data_local}
+    remote: ${data_remote}
     split: train
     shuffle: true
-    tokenizer_name: *tokenizer_name
-    max_seq_len: *max_seq_len
+    tokenizer_name: ${tokenizer_name}
+    max_seq_len: ${max_seq_len}
     group_method: concat
-    shuffle_seed: *global_seed
+    shuffle_seed: ${global_seed}
   drop_last: true
   num_workers: 8
 
 eval_loader:
   name: text
   dataset:
-    local: *data_local
-    remote: *data_remote
+    local: ${data_local}
+    remote: ${data_remote}
     split: val
     shuffle: false
-    tokenizer_name: *tokenizer_name
-    max_seq_len: *max_seq_len
+    tokenizer_name: ${tokenizer_name}
+    max_seq_len: ${max_seq_len}
     group_method: truncate
-    shuffle_seed: *global_seed
+    shuffle_seed: ${global_seed}
   drop_last: false
   num_workers: 8
 

@@ -48,8 +48,9 @@ def main(cfg):
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
     # when multiple GPUs are available.
     # Also 'meta' is only valid when using FSDP
-    assert cfg.model.device in ['meta', 'cpu']
-    if fsdp_config is None and cfg.model.device == 'meta':
+    device = cfg.model.get('device', 'cpu')
+    assert device in ['meta', 'cpu']
+    if fsdp_config is None and device == 'meta':
         print(
             "Using init device `cfg.model.device='meta'` is only valid when using FSDP! "
             "Reverting to `cfg.model.device='cpu'`.")

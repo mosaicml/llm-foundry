@@ -10,7 +10,7 @@ integrations:
 command: |
   cd examples/examples/deeplab
   composer main.py /mnt/config/parameters.yaml
-# Configuration copied from baseline.yaml
+# Configuration similar to baseline.yaml
 parameters:
   run_name: deeplabv3_ade20k # Name of the  training run used for checkpointing and other logging
   is_train: true             # Trains the model if true, otherwise runs evaluation

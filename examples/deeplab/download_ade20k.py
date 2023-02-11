@@ -13,7 +13,10 @@ import torchvision
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('path', help='ADE20k Download directory.', type=str)
+parser.add_argument('--path',
+                    help='ADE20k Download directory.',
+                    type=str,
+                    default='./ade20k')
 
 args = parser.parse_args()
 

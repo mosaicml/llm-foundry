@@ -79,9 +79,12 @@ You can read more about the benefits of using mosaicml-streaming [here](https://
 To make yourself a copy of C4, use `convert_c4.py` like so:
 
 ```bash
-# Download the 'train_small', 'val' splits and convert to StreamingDataset format
-# This will take 20 sec to 1 min depending on your Internet bandwidth
-# You should see two folders `./my-copy-c4/train_small` and `./my-copy-c4/val` that are each ~0.5GB
+# Download the 'train_small' and 'val' splits and convert to StreamingDataset format
+# This will take 20-60 seconds depending on your Internet bandwidth
+# You should see two folders: `./my-copy-c4/train_small` and `./my-copy-c4/val` that are each ~0.5GB
+# Note: for BERT we are not doing any concatenation of samples, so we do not use the `--concat_tokens`
+# option here. Instead, samples will simply get padded or truncated to the max sequence length
+# in the dataloader
 python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val
 
 # Download the 'train' split if you really want to train the model (not just profile)
@@ -90,7 +93,7 @@ python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val
 # python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train
 
 # For any of the above commands, you can also choose to compress the .mds files.
-# This is useful if your plan is to store these in an object store after conversion.
+# This is useful if your plan is to store these in object store after conversion.
 # python ../common/convert_c4.py ... --compression zstd
 ```
 
@@ -104,16 +107,12 @@ To verify that the dataloader works, run a quick test on your `val` split like s
 # This will construct a `StreamingTextDataset` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
 # Since we only provide a local path, no streaming/copying takes place.
-python ../common/text_data.py ./my-copy-c4
-```
+python ../common/text_data.py --local_path ./my-copy-c4 --tokenizer bert-base-uncased
 
-The streaming dataloader is also particularly useful when your dataset has been moved to a central location.
-For example:
-```bash
 # This will do the same thing, but stream data to {local} from {remote}.
 # The remote path can be a filesystem or object store URI.
-python ../common/text_data.py /tmp/cache-c4 ./my-copy-c4  # stream from filesystem, e.g. a slow NFS volume to fast local disk
-python ../common/text_data.py /tmp/cache-c4 s3://my-bucket/my-copy-c4  # stream from object store
+python ../common/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4 --tokenizer bert-base-uncased # stream from filesystem, e.g. a slow NFS volume to fast local disk
+# python ../common/text_data.py --local_path /tmp/cache-c4 --remote_path s3://my-bucket/my-copy-c4 --tokenizer bert-base-uncased # stream from object store
 ```
 
 With our data prepared, we can now start training.

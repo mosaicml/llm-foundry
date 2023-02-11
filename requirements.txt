@@ -12,5 +12,6 @@ toml>=0.10.2,<0.11
 packaging>=21,<23
 omegaconf>=2.2.3,<3
 # these are just for common/text_data.py
+datasets>=2.9.0
 transformers>=4.11,<5
 mosaicml-streaming<0.2.4

@@ -28,7 +28,6 @@ train_loader:
     split: train_small
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-    group_method: truncate
     predownload: 1000
     shuffle: true
     mlm_probability: ${mlm_probability}
@@ -43,7 +42,6 @@ eval_loader:
     split: val
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-    group_method: truncate
     predownload: 1000
     shuffle: false
     mlm_probability: ${mlm_probability}
@@ -81,7 +79,6 @@ precision: fp32
 progress_bar: false
 log_to_console: true
 console_log_interval: 1ba
-
 
 callbacks:
   speed_monitor:

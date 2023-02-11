@@ -78,12 +78,13 @@ To make yourself a copy of C4, use `convert_c4.py` like so:
 # Download the 'train_small' and 'val' splits and convert to StreamingDataset format
 # This will take 20-60 seconds depending on your Internet bandwidth
 # You should see two folders: `./my-copy-c4/train_small` and `./my-copy-c4/val` that are each ~0.5GB
-python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val
+# Note: We are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
+python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
 # Download the 'train' split if you really want to train the model (not just profile)
 # This will take 1-to-many hours depending on bandwidth, # CPUs, etc.
 # The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
-# python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train
+# python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
 # For any of the above commands, you can also choose to compress the .mds files.
 # This is useful if your plan is to store these in object store after conversion.
@@ -98,12 +99,12 @@ To verify that the dataloader works, run a quick test on your `val` split like s
 # This will construct a `StreamingTextDataset` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
 # Since we only provide a local path, no streaming/copying takes place.
-python ../common/text_data.py ./my-copy-c4
+python ../common/text_data.py --local_path ./my-copy-c4
 
 # This will do the same thing, but stream data to {local} from {remote}.
 # The remote path can be a filesystem or object store URI.
-python ../common/text_data.py /tmp/cache-c4 ./my-copy-c4  # stream from filesystem, e.g. a slow NFS volume to fast local disk
-python ../common/text_data.py /tmp/cache-c4 s3://my-bucket/my-copy-c4  # stream from object store
+python ../common/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4  # stream from filesystem, e.g. a slow NFS volume to fast local disk
+# python ../common/text_data.py --local_path /tmp/cache-c4 --remote_path s3://my-bucket/my-copy-c4  # stream from object store
 ```
 
 # How to start training

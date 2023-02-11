@@ -13,11 +13,16 @@ def test_download_script_from_api():
     path = os.path.join(os.getcwd(), 'my-copy-c4-1')
     shutil.rmtree(path, ignore_errors=True)
     main(
-        Namespace(**{
-            'splits': ['val'],
-            'out_root': './my-copy-c4-1',
-            'compression': None,
-        }))
+        Namespace(
+            **{
+                'splits': ['val'],
+                'out_root': './my-copy-c4-1',
+                'compression': None,
+                'concat_tokens': None,
+                'bos_text': None,
+                'eos_text': None,
+                'no_wrap': False
+            }))
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)
 

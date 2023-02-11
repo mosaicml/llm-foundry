@@ -43,9 +43,6 @@ class HFTokenizer(LLMTokenizer):
         # Build tokenizer
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
             self.tokenizer_name)
-        if self.tokenizer.pad_token is None:
-            # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
-            self.tokenizer.pad_token = self.tokenizer.eos_token
         # suppress warnings when using group_method='concat' and no truncation
         self.tokenizer.model_max_length = int(1e30)
 

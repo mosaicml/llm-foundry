@@ -32,12 +32,14 @@ class ComposerHFCausalLM(HuggingFaceModel):
         else:
             model = AutoModelForCausalLM.from_config(config)
 
-        prepare_hf_causal_lm_model_for_fsdp(model)
-
         super().__init__(model=model,
                          tokenizer=tokenizer,
                          metrics=metrics,
                          use_logits=True)
+
+        # Note: We need to add the FSDP related attributes to the model AFTER the super init,
+        # so that the (possible) embedding resizing doesn't destroy them
+        prepare_hf_causal_lm_model_for_fsdp(model)
 
     def get_targets(self, batch: dict):
         targets = torch.roll(batch['labels'], shifts=-1)

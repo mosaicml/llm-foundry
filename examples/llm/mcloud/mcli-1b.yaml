@@ -16,12 +16,12 @@ command: |
   composer main.py yamls/mosaic_gpt/1b.yaml \
     train_loader.dataset.split=train_small \
     max_duration=100ba \
-    eval_interval=0 \
-    run_name=$COMPOSER_RUN_NAME
+    eval_interval=0
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 optimization_level: 0
 
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
 run_name: mosaic-gpt-1b-gpus-8
 
 gpu_num: 8

@@ -123,6 +123,9 @@ def create_job_configs(main_config: om.DictConfig, tasks_to_run: Set[str],
                        pretrained_checkpoint_path: Optional[str]):
     configs = []
     for task_name, task_config in main_config.tasks.items():
+        if main_config.get('base_run_name') is None:
+            main_config.base_run_name = os.environ.get('COMPOSER_RUN_NAME',
+                                                       'glue')
         if task_name not in tasks_to_run:
             continue
         for task_seed in task_config.get('seeds', [main_config.default_seed]):

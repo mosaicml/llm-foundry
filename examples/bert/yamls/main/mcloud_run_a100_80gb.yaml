@@ -8,7 +8,8 @@
 #
 # When ready, use `mcli run -f yamls/main/mcloud_run_a100_80gb.yaml` to launch
 
-run_name: &run_name mosaic-bert-base-uncased
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
+run_name: mosaic-bert-base-uncased
 cluster:       # Name of the cluster to use for this run
 gpu_type: a100_80gb # Type of GPU to use (we use a100_80gb in our experiments)
 gpu_num: 8  # Number of GPUs to use
@@ -27,16 +28,16 @@ command: |
 # Changes to `parameters` will be reflected in `/mnt/config/parameters.yaml`, which
 # is the config that `main.py` uses in the above command.
 parameters:
+  # Run Name
+  run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
+
   # Supply a path to your remote data path
   data_local: /tmp/mds-cache/
-  data_remote: null
+  data_remote: # If blank, files must be present in data_local
 
   max_seq_len: 128
   tokenizer_name: bert-base-uncased
   mlm_probability: 0.3 # Mosaic BERT should use 30% masking for optimal performance
-
-  # Run Name
-  run_name: *run_name
 
   # Model
   model:

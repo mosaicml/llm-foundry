@@ -12,7 +12,8 @@ integrations:
 # to convert and host the full 'train' dataset.
 command: |
   cd examples/examples/llm
-  python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val
+  python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val \
+    --concat_tokens 8192 --tokenizer gpt2 --eos_text '<|endoftext|>'
   composer main.py /mnt/config/parameters.yaml
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
@@ -32,7 +33,7 @@ parameters:
   data_local: ./my-copy-c4
   data_remote: # If blank, files must be present in data_local
   tokenizer_name: gpt2
-  max_seq_len: 2048
+  max_seq_len: 8192
   global_seed: 17
 
   # Model
@@ -115,8 +116,8 @@ parameters:
 
   # System
   seed: 17
-  device_eval_batch_size: 2
-  device_train_microbatch_size: 2
+  device_eval_batch_size: 1
+  device_train_microbatch_size: 1
   # device_train_microbatch_size: auto
   precision: amp_bf16
 
@@ -124,7 +125,7 @@ parameters:
   fsdp_config:
     sharding_strategy: FULL_SHARD
     mixed_precision: DEFAULT
-    activation_checkpointing: true
+    activation_checkpointing: false
     activation_cpu_offload: false
     verbose: false
 

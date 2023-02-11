@@ -4,10 +4,11 @@
 """Build a StreamingTextDataset dataset and dataloader for training."""
 
 import os
-import sys
 from itertools import islice
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Optional
 
+import numpy as np
+import torch
 import transformers
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
@@ -23,8 +24,6 @@ class StreamingTextDataset(StreamingDataset):
         tokenizer_name (str): The name of the HuggingFace tokenizer to use to
             tokenize samples.
         max_seq_len (int): The max sequence length of each sample.
-        group_method (str): How to group text samples into token samples.
-            Supports 'truncate' or 'concat'.
         remote (str, optional): Download shards from this remote path or directory. If None, this
             rank and worker's partition of the dataset must all exist locally. Defaults to ``None``.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
@@ -41,7 +40,7 @@ class StreamingTextDataset(StreamingDataset):
             shards. Defaults to ``None``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
-            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+            If ``None``, defaults to the number of nodes of the initial run. Defaults to 128.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
     """
@@ -50,7 +49,6 @@ class StreamingTextDataset(StreamingDataset):
                  local: str,
                  tokenizer_name: str,
                  max_seq_len: int,
-                 group_method: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
                  shuffle: bool = False,
@@ -60,14 +58,29 @@ class StreamingTextDataset(StreamingDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  shuffle_seed: int = 9176,
-                 num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None):
+                 num_canonical_nodes: Optional[int] = 128,
+                 batch_size: Optional[int] = None,
+                 **kwargs: Dict[str, Any]):
 
-        # Validation
-        if group_method not in ['truncate', 'concat']:
+        group_method = kwargs.pop('group_method', None)
+        if group_method is not None:
+            raise NotImplementedError(
+                'group_method is deprecated and has been removed.\nTo ' +
+                'concatenate, use the --concat_tokens ' +
+                'argument when creating your MDS dataset with concat_c4.py')
+
+        if kwargs is not None and len(kwargs) > 0:
             raise ValueError(
-                f"group_method='{group_method}' must be one of ['truncate', 'concat']."
+                f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}'
             )
+
+        if remote is None or (local == remote):
+            if os.path.isdir(local):
+                contents = set(os.listdir(local))
+                if split not in contents:
+                    raise ValueError(
+                        f'local directory {local} does not contain split {split}'
+                    )
 
         # Build Dataset
         super().__init__(local=local,
@@ -82,83 +95,46 @@ class StreamingTextDataset(StreamingDataset):
                          shuffle_seed=shuffle_seed,
                          num_canonical_nodes=num_canonical_nodes,
                          batch_size=batch_size)
-        self.tokenizer_name = tokenizer_name
         self.max_seq_len = max_seq_len
-        self.group_method = group_method
 
         # Build tokenizer
         os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
+        os.environ['TOKENIZERS_PARALLELISM'] = 'false'
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
-            self.tokenizer_name)
-        if self.tokenizer._pad_token is None:
-            # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
-            self.tokenizer._pad_token = self.tokenizer._eos_token
-        # suppress warnings when using group_method='concat' and no truncation
+            tokenizer_name)
+
+        # suppress warnings when using longer 'max_seq_len'
         self.tokenizer.model_max_length = int(1e30)
 
     # How to tokenize a text sample to a token sample
     def _tokenize(self, text_sample):
-        if self.group_method == 'truncate':
-            truncation = True
-            padding = 'max_length'
-            max_length = self.max_seq_len
-        elif self.group_method == 'concat':
-            truncation = False
-            padding = False
-            max_length = None
-        else:
-            raise ValueError(f"Got unknown group_method='{self.group_method}'.")
+        if self.tokenizer._pad_token is None:
+            # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
+            raise RuntimeError(
+                'If tokenizing on-the-fly, tokenizer must have a pad_token_id')
+
         return self.tokenizer(text_sample['text'],
-                              truncation=truncation,
-                              padding=padding,
-                              max_length=max_length)
+                              truncation=True,
+                              padding='max_length',
+                              max_length=self.max_seq_len)
+
+    def _read_binary_tokenized_sample(self, sample):
+        return torch.from_numpy(
+            np.frombuffer(sample['tokens'],
+                          dtype=np.int64)[:self.max_seq_len].copy())
 
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
-        text_sample = super().__getitem__(idx)
-        token_sample = self._tokenize(text_sample)
+        sample = super().__getitem__(idx)
+        if 'text' in sample:
+            token_sample = self._tokenize(sample)
+        elif 'tokens' in sample:
+            token_sample = self._read_binary_tokenized_sample(sample)
+        else:
+            raise RuntimeError(
+                'StreamingTextDataset needs samples to have a `text` or `tokens` column'
+            )
         return token_sample
-
-    # Define iterable over samples
-    # Usually this can be left alone and inherited directly from super()
-    # class StreamingDataset, but concatenating samples is custom behavior.
-    # If group_method=='truncate', we simply return the token sample.
-    # If group_method=='concat', then we keep fetching token samples until we
-    # fill up max_seq_len.
-    def __iter__(self) -> Iterator[Any]:
-        if self.group_method == 'truncate':
-            iterator = super().__iter__()
-            yield from iterator
-
-        elif self.group_method == 'concat':
-            buffer = {}
-            while True:
-                iterator = super().__iter__()
-                for sample in iterator:
-
-                    for k, v in sample.items():
-                        buffer[k] = buffer.get(k, []) + v
-                    while len(buffer['input_ids']) >= self.max_seq_len:
-                        concat_sample = {}
-                        for k, v in buffer.items():
-                            concat_sample[k] = v[:self.max_seq_len]
-                            buffer[k] = v[self.max_seq_len:]
-                        yield concat_sample
-        else:
-            raise ValueError(f"Got unknown group_method='{self.group_method}'.")
-
-    # Define length
-    # Usually this can be left alone and inherited directly from super() class
-    # Dataset, but concatenating samples is custom behavior.
-    # If group_method=='truncate', we simply return the # samples.
-    # If group_method=='concat', we repeat forever, and have no defined length.
-    def __len__(self) -> Optional[int]:
-        if self.group_method == 'truncate':
-            return super().__len__()
-        elif self.group_method == 'concat':
-            return None
-        else:
-            raise ValueError(f"Got unknown group_method='{self.group_method}'.")
 
 
 def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
@@ -167,16 +143,15 @@ def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
         local=cfg.dataset.local,
         tokenizer_name=cfg.dataset.tokenizer_name,
         max_seq_len=cfg.dataset.max_seq_len,
-        group_method=cfg.dataset.group_method,
         remote=cfg.dataset.get('remote', None),
         split=cfg.dataset.get('split', None),
         shuffle=cfg.dataset.get('shuffle', False),
         predownload=cfg.dataset.get('predownload', 100_000),
-        keep_zip=cfg.dataset.get('keep_zip', False),
+        keep_zip=cfg.dataset.get('keep_zip', None),
         download_retry=cfg.dataset.get('download_retry', 2),
         download_timeout=cfg.dataset.get('download_timeout', 60),
         validate_hash=cfg.dataset.get('validate_hash', None),
-        shuffle_seed=cfg.dataset.get('shuffle_seed', None),
+        shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
         num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', 128),
         batch_size=device_batch_size)
 
@@ -200,27 +175,51 @@ def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
 
 
 # Helpful to test if your dataloader is working locally
-# Run `python data.py [remote] [local, optional]` and verify that batches are printed out
+# Run `python data.py  --local_path [local] [--remote_path remote, optional]` and verify that batches are printed out
 if __name__ == '__main__':
+    import argparse
 
-    if len(sys.argv) > 2:
-        local, remote = sys.argv[1:3]
-        print(f'Reading val split from {local} <- streamed from <- {remote}')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--tokenizer',
+                        type=str,
+                        default='gpt2',
+                        help='the name of the tokenizer to use')
+    parser.add_argument('--local_path',
+                        type=str,
+                        required=True,
+                        help='the path to the local copy of the dataset')
+    parser.add_argument(
+        '--remote_path',
+        type=str,
+        default=None,
+        help='the path to the remote copy to stream from (optional)')
+    parser.add_argument('--split',
+                        type=str,
+                        default='val',
+                        help='which split of the dataset to use')
+    parser.add_argument('--max_seq_len',
+                        type=int,
+                        default=32,
+                        help='max sequence length to test')
+
+    args = parser.parse_args()
+
+    if args.remote_path is not None:
+        print(
+            f'Reading val split from {args.local_path} <- streamed from <- {args.remote_path}'
+        )
     else:
-        local = sys.argv[1]
-        remote = None
-        print(f'Reading val split from {local}')
+        print(f'Reading val split from {args.local_path}')
 
     cfg = {
         'name': 'text',
         'dataset': {
-            'local': local,
-            'remote': remote,
-            'split': 'val',
+            'local': args.local_path,
+            'remote': args.remote_path,
+            'split': args.split,
             'shuffle': False,
-            'tokenizer_name': 'gpt2',
-            'max_seq_len': 32,
-            'group_method': 'truncate',
+            'tokenizer_name': args.tokenizer,
+            'max_seq_len': args.max_seq_len,
             'keep_zip': True,  # in case we need compressed files after testing
         },
         'drop_last': False,

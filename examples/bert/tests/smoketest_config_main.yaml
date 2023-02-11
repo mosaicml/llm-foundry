@@ -21,7 +21,6 @@ train_loader:
     split: train
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-    group_method: truncate
     predownload: 1000
     shuffle: true
     mlm_probability: ${mlm_probability}
@@ -37,7 +36,6 @@ eval_loader:
     split: val
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-    group_method: truncate
     predownload: 1000
     shuffle: false
     mlm_probability: ${mlm_probability}

@@ -19,6 +19,7 @@ def test_load_tokenizer():
 
     tokenizer = TOKENIZER_REGISTRY[test_cfg.tokenizer.type](
         **test_cfg.tokenizer.args)
+    tokenizer.tokenizer.pad_token = tokenizer.tokenizer.eos_token
     assert tokenizer.tokenizer.vocab_size == 50257
     assert tokenizer.tokenizer.name_or_path == 'gpt2'
 

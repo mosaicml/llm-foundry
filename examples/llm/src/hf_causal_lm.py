@@ -47,8 +47,11 @@ class ComposerHFCausalLM(HuggingFaceModel):
         return targets
 
     def forward(self, batch: dict):
-        return self.model(input_ids=batch['input_ids'],
-                          attention_mask=batch['attention_mask'].bool()).logits
+        input_ids = batch['input_ids']
+        attention_mask = batch['attention_mask'].bool(
+        ) if 'attention_mask' in batch else None
+        return self.model(input_ids=input_ids,
+                          attention_mask=attention_mask).logits
 
     def eval_forward(self, batch: dict, outputs: Optional[Tensor] = None):
         return outputs if outputs is not None else self.forward(batch)

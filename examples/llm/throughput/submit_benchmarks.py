@@ -336,7 +336,7 @@ def run_config(config, args):
         command = """
         cd examples
 
-        python examples/common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val
+        python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
         composer examples/llm/main.py /mnt/config/parameters.yaml
         """

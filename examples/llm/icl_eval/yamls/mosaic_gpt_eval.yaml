@@ -6,7 +6,7 @@ tokenizer:
 
 model:
   name: mosaic_gpt
-  device: meta
+  init_device: meta
   tokenizer_name: gpt2
   d_model: 768
   n_heads: 12

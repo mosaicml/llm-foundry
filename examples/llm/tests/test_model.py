@@ -50,7 +50,7 @@ def get_objs(conf_path='yamls/mosaic_gpt/testing.yaml'):
     test_cfg.model.attn_impl = 'torch'
     # device = 'cuda'
     # test_cfg.precision = 'amp'
-    test_cfg.model.device = device
+    test_cfg.model.init_device = device
     test_cfg.device = device
 
     test_cfg.global_train_batch_size = 2
@@ -211,7 +211,7 @@ def test_determinism(attention_type: str, precision):
         test_cfg = om.load(f)
 
     test_cfg.model.attn_impl = attention_type
-    test_cfg.model.device = 'cuda:0'
+    test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
     model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model).to(

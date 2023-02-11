@@ -18,6 +18,7 @@ command: |
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 optimization_level: 0
 
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
 run_name: mosaic-gpt-1b-ctx-8k-gpus-8
 
 gpu_num: 8
@@ -29,7 +30,7 @@ cluster: r0z0 # replace with your cluster here!
 # We use this to customize hparams like `max_seq_len=8192` at runtime
 parameters:
   data_local: ./my-copy-c4
-  data_remote: null
+  data_remote: # If blank, files must be present in data_local
   tokenizer_name: gpt2
   max_seq_len: 2048
   global_seed: 17
@@ -37,7 +38,7 @@ parameters:
   # Model
   model:
     name: mosaic_gpt
-    device: meta
+    init_device: meta
     tokenizer_name: ${tokenizer_name}
     d_model: 2048
     n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
@@ -122,11 +123,10 @@ parameters:
   # FSDP
   fsdp_config:
     sharding_strategy: FULL_SHARD
-    min_params: 2e8
     mixed_precision: DEFAULT
     activation_checkpointing: true
     activation_cpu_offload: false
-    verbose: true
+    verbose: false
 
   # Logging
   progress_bar: false

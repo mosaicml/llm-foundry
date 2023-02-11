@@ -8,7 +8,8 @@
 #
 # When ready, use `mcli run -f yamls/finetuning/glue/mcloud_run.yaml` to launch
 
-run_name: &run_name mosaic-bert-base-uncased-glue-finetuning
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
+run_name: mosaic-bert-base-uncased-glue-finetuning
 cluster:       # Name of the cluster to use for this run
 gpu_type: a100_80gb # Type of GPU to use (we use a100_80gb)
 gpu_num: 8  # Number of GPUs to use
@@ -34,7 +35,8 @@ parameters:
   # Basic run configuration, additional details will be added to this name
   # for each GLUE task, and each random seed. The base_run_name also determines
   # how runs are saved and logged in W&B
-  base_run_name: *run_name
+  base_run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
+
   default_seed: 19
   precision: bf16
 

@@ -63,7 +63,7 @@ def test_train(device):
         pytest.xfail(
             'FSDP in PyTorch 1.13 does not support precision `Precision.FP32` with sharding_strategy `FULL_SHARD.`'
         )
-        test_cfg.model.device = 'cpu'
+        test_cfg.model.init_device = 'cpu'
         test_cfg.model.attn_impl = 'torch'
         test_cfg.precision = 'fp32'
 

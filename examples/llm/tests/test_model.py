@@ -14,6 +14,7 @@ from composer.utils import reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
+from examples.llm.src.hf_causal_lm import ComposerHFCausalLM
 from examples.llm.src.model_registry import COMPOSER_MODEL_REGISTRY
 from examples.llm.src.tokenizer import TOKENIZER_REGISTRY
 
@@ -243,3 +244,20 @@ def test_determinism(attention_type: str, precision):
             loss_2.backward()
             optimizer_1.step()
             optimizer_2.step()
+
+
+def test_opt_wrapping():
+    conf = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': 'facebook/opt-125m',
+        'pretrained': 'false'
+    }
+    config = DictConfig(conf)
+
+    model = ComposerHFCausalLM(config)
+
+    # check that all the modules we except are blocked from FSDP wrapping
+    assert not model.model.model._fsdp_wrap
+    assert not model.model.model.decoder._fsdp_wrap
+    assert not model.model.model.decoder.embed_tokens._fsdp_wrap
+    assert not model.model.lm_head._fsdp_wrap

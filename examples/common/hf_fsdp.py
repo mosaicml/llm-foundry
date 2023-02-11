@@ -7,6 +7,7 @@ import functools
 from typing import Any, Iterable, List
 
 from transformers import PreTrainedModel
+from transformers.models.opt.modeling_opt import OPTDecoder
 
 # helper functions
 
@@ -104,6 +105,9 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
     HuggingFace for decoder-only LLMs.
     """
     causal_base_model = hf_get_causal_base_model(model)
+    # OPT has an extra layer of wrapping, so special case here
+    if isinstance(causal_base_model, OPTDecoder):
+        model.model._fsdp_wrap = False
     model_block = hf_get_hidden_layers(model)  # type: ignore
     lm_head = model.get_output_embeddings()
     # some models (OPT) implement .get_input_embeddings for the causal subclass

@@ -11,7 +11,7 @@ from composer.algorithms import BlurPool, ChannelsLast, LabelSmoothing, MixUp
 from composer.callbacks import LRMonitor, MemoryMonitor, SpeedMonitor
 from composer.loggers import ProgressBarLogger, WandBLogger
 from composer.optim import DecoupledSGDW, MultiStepWithWarmupScheduler
-from composer.utils import dist
+from composer.utils import dist, reproducibility
 from omegaconf import OmegaConf
 
 from examples.cifar.data import build_cifar10_dataspec
@@ -29,6 +29,7 @@ def build_logger(name: str, kwargs: Dict):
 
 
 def main(config):
+    reproducibility.seed_all(config.seed)
     if config.grad_accum == 'auto' and not torch.cuda.is_available():
         raise ValueError(
             'grad_accum="auto" requires training with a GPU; please specify grad_accum as an integer'

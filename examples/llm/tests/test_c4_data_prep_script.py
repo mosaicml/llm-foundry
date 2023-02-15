@@ -17,7 +17,7 @@ def test_download_script_from_api():
             **{
                 'dataset': 'c4',
                 'data_subset': 'en',
-                'splits': ['val'],
+                'splits': ['val_small'],
                 'out_root': './my-copy-c4-1',
                 'compression': None,
                 'concat_tokens': None,
@@ -34,7 +34,7 @@ def test_download_script_from_cmdline():
     path = os.path.join(os.getcwd(), 'my-copy-c4-2')
     shutil.rmtree(path, ignore_errors=True)
     os.system(
-        'python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val'
+        'python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
     )
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)

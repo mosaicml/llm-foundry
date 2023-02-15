@@ -139,6 +139,11 @@ class StreamingTextDataset(StreamingDataset):
 
 def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
+    if cfg.dataset.get('group_method', None) is not None:
+        raise NotImplementedError(
+            'group_method is deprecated and has been removed.\nTo ' +
+            'concatenate, use the --concat_tokens ' +
+            'argument when creating your MDS dataset with concat_c4.py')
     dataset = StreamingTextDataset(
         local=cfg.dataset.local,
         tokenizer_name=cfg.dataset.tokenizer_name,

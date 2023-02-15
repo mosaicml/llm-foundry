@@ -30,7 +30,6 @@ train_loader:
     shuffle: true
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-    group_method: concat
     shuffle_seed: ${global_seed}
   drop_last: true
   num_workers: 8
@@ -44,7 +43,6 @@ eval_loader:
     shuffle: false
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-    group_method: truncate
     shuffle_seed: ${global_seed}
   drop_last: false
   num_workers: 8

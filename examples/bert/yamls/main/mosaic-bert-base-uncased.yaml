@@ -35,7 +35,6 @@ train_loader:
     split: train
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-    group_method: truncate
     shuffle: true
     mlm_probability: ${mlm_probability}
   drop_last: true
@@ -49,7 +48,6 @@ eval_loader:
     split: val
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-    group_method: truncate
     shuffle: false
     mlm_probability: 0.15 # We always evaluate at 15% masking for consistent comparison
   drop_last: false
@@ -71,7 +69,7 @@ optimizer:
   weight_decay: 1.0e-5 # Amount of weight decay regularization
 
 algorithms:
-  low_precision_layernorm: {}
+  fused_layernorm: {}
 
 max_duration: 286720000sp # Subsample the training data for ~275M samples
 eval_interval: 2000ba

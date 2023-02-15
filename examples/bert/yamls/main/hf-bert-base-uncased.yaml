@@ -26,7 +26,7 @@ model:
     num_attention_heads: 12 # bert-base default
     num_hidden_layers: 12 # bert-base default
     max_position_embedding: 512
-    attention_probs_dropout_prob: 0.0
+    attention_probs_dropout_prob: 0.1 # bert-base default
 
 # Dataloaders
 train_loader:
@@ -37,7 +37,6 @@ train_loader:
     split: train
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-    group_method: truncate
     shuffle: true
     mlm_probability: ${mlm_probability}
   drop_last: true
@@ -51,7 +50,6 @@ eval_loader:
     split: val
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-    group_method: truncate
     shuffle: false
     mlm_probability: 0.15 # We always evaluate at 15% masking for consistent comparison
   drop_last: false

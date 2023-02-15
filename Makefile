@@ -43,6 +43,8 @@ lint:  ## Apply autoformating and run style checks via pre-commit
 	bash scripts/lint_subdirectory.sh llm
 	@echo "================================ Linting ResNet examples"
 	bash scripts/lint_subdirectory.sh resnet
+	@echo "================================ Linting Stable Diffusion Finetuning examples"
+	bash scripts/lint_subdirectory.sh stable-diffusion
 
 # we don't test the BERT examples since there are no tests yet...
 .PHONY: test
@@ -57,3 +59,5 @@ test:  ## Run all the tests
 	bash scripts/test_subdirectory.sh llm
 	@echo "================================ Testing ResNet examples"
 	bash scripts/test_subdirectory.sh resnet
+	@echo "================================ Testing Stable Diffusion Finetuning examples"
+	bash scripts/test_subdirectory.sh stable-diffusion

@@ -20,7 +20,7 @@ from omegaconf import DictConfig, OmegaConf
 from examples.common import build_logger, calculate_batch_size_info, log_config
 
 
-def main(config: DictConfig):
+def main(config: DictConfig):  # type: ignore
     reproducibility.seed_all(config.seed)
     device = 'gpu' if torch.cuda.is_available() else 'cpu'
     if dist.get_world_size(
@@ -136,4 +136,4 @@ if __name__ == '__main__':
         yaml_config = OmegaConf.load(f)
     cli_config = OmegaConf.from_cli(args_list)
     config = OmegaConf.merge(yaml_config, cli_config)
-    main(config)
+    main(config)  # type: ignore

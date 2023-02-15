@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Prompt and image visualization callback for diffusion models."""
-
 from composer import Callback, Logger, State
 from composer.loggers import WandBLogger
 from composer.utils import ensure_tuple
@@ -20,8 +19,8 @@ class LogDiffusionImages(Callback):
 
     def eval_batch_end(self, state: State, logger: Logger):
         prompts = state.batch  # batch_size
-        outputs = state.outputs.cpu(
-        )  # Tensor of shape [len(prompts) * num_images_per_prompt, 3, 512, 512])
+        # Tensor of shape [len(prompts) * num_images_per_prompt, 3, 512, 512])
+        outputs = state.outputs.cpu()  # type: ignore
 
         num_images_per_prompt = state.model.module.num_images_per_prompt
         for destination in ensure_tuple(logger.destinations):
@@ -29,7 +28,7 @@ class LogDiffusionImages(Callback):
                 if num_images_per_prompt > 1:
                     outputs = [
                         make_grid(out, nrow=num_images_per_prompt)
-                        for out in outputs.chunk(len(prompts))
+                        for out in outputs.chunk(len(prompts))  # type: ignore
                     ]
 
                 for prompt, output in zip(prompts, outputs):

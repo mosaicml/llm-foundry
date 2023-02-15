@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/examples
-  # git_branch: # use your branch
+  git_branch: v0.0.3 # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e .[llm]
   ssh_clone: false
@@ -71,7 +71,6 @@ parameters:
       shuffle: true
       tokenizer_name: ${tokenizer_name}
       max_seq_len: ${max_seq_len}
-      group_method: concat
       shuffle_seed: ${global_seed}
     drop_last: true
     num_workers: 8
@@ -85,7 +84,6 @@ parameters:
       shuffle: false
       tokenizer_name: ${tokenizer_name}
       max_seq_len: ${max_seq_len}
-      group_method: truncate
       shuffle_seed: ${global_seed}
     drop_last: false
     num_workers: 8

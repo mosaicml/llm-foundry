@@ -107,6 +107,11 @@ def build_icl_evaluators(cfg, tokenizer):
     for icl_cfg in cfg.icl_tasks:
         _validate_cfg(icl_cfg)
         for num_fewshot in list(icl_cfg.num_fewshot):
+            if tokenizer.pad_token_id is None:
+                # Current workaround to support GPT2 tokenizer with `pad_token_id = None`
+                pad_tok_id = tokenizer.eos_token_id
+            else:
+                pad_tok_id = tokenizer.pad_token_id
             label = f'{icl_cfg.label}/{num_fewshot}-shot'
             metric_names = list(icl_cfg.metric_names)
             dataloader = get_icl_task_dataloader(
@@ -115,7 +120,7 @@ def build_icl_evaluators(cfg, tokenizer):
                 tokenizer,
                 batch_size=icl_cfg.batch_size,
                 max_seq_len=tokenizer.max_seq_len,
-                pad_tok_id=tokenizer.pad_token_id,
+                pad_tok_id=pad_tok_id,
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,

@@ -3,6 +3,7 @@
 
 import argparse
 import math
+import os
 
 import requests
 import yaml
@@ -47,7 +48,7 @@ def parse_args():
         default='mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04')
     parser.add_argument('--git_branch',
                         type=str,
-                        default='main',
+                        default=None,
                         help='what git branch to use.')
     parser.add_argument('--git_commit',
                         type=str,
@@ -84,12 +85,6 @@ def parse_args():
         nargs=2,
         help=
         'exponent of batch size (in tokens) to be tested (default: [19, 23] = 2^19 to 2^23)'
-    )
-    parser.add_argument(
-        '--yaml_base',
-        type=str,
-        default=
-        'https://raw.githubusercontent.com/mosaicml/examples/main/examples/llm/yamls/mosaic_gpt/'
     )
     parser.add_argument('-m',
                         '--model_yamls',
@@ -289,12 +284,11 @@ def mod_parameters(parameters,
 def get_integrations(project, git_branch=None, git_commit=None, wandb=True):
     integrations = []
 
-    if args.git_branch and args.git_commit:
-        raise ValueError(
-            f'{args.git_branch=} and {args.git_commit=} cannot both be set!')
+    if git_branch and git_commit:
+        raise ValueError(f'{git_branch=} and {git_commit=} cannot both be set!')
     git_integration = {
         k: v for k, v in {
-            'git_branch': args.git_branch,
+            'git_branch': git_branch,
             'git_commit': git_commit,
         }.items() if v is not None
     }
@@ -310,14 +304,14 @@ def get_integrations(project, git_branch=None, git_commit=None, wandb=True):
         integrations += [{
             'integration_type': 'wandb',
             'entity': 'mosaic-ml',
-            'project': args.project
+            'project': project
         }]
 
     return integrations
 
 
 def run_config(config, args):
-    yaml_base, model_yaml, max_seq_len, global_train_batch_size, cluster, gpu_type, gpu_num, precision = config
+    model_yaml, max_seq_len, global_train_batch_size, cluster, gpu_type, gpu_num, precision = config
 
     integrations = get_integrations(
         args.project,
@@ -341,10 +335,10 @@ def run_config(config, args):
         composer examples/llm/main.py /mnt/config/parameters.yaml
         """
 
-    yaml_file = yaml_base + model_yaml
-    parameters = get_parameters(yaml_file)
+    path = os.path.join('../yamls/mosaic_gpt', model_yaml)
+    parameters = get_parameters(path)
 
-    model_name = '-'.join(yaml_file.split('.')[-2].split('/')[-2:]).replace(
+    model_name = '-'.join(model_yaml.split('.')[-2].split('/')[-2:]).replace(
         '_', '-')
     model_name = model_name.split('-')
     if 'mosaic' in model_name:
@@ -438,8 +432,7 @@ if __name__ == '__main__':
                                                          gpu_type,
                                                          p_multiplier=4)
                                 if run:
-                                    config = (args.yaml_base, model_yaml,
-                                              max_seq_len,
+                                    config = (model_yaml, max_seq_len,
                                               global_train_batch_size, cluster,
                                               gpu_type, gpu_num, precision)
                                     print(config)

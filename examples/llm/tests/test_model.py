@@ -214,8 +214,7 @@ def test_determinism(attention_type: str, precision):
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
-    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model).to(
-        test_cfg.model.device)
+    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model)
     model_2 = copy.deepcopy(model_1)
 
     optimizer_1 = DecoupledAdamW(model_1.parameters(),

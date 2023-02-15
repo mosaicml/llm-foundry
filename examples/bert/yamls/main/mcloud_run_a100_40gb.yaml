@@ -17,7 +17,7 @@ image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/examples
-  # git_branch: # use your branch
+  git_branch: v0.0.3 # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e .[bert]
 command: |
@@ -62,7 +62,6 @@ parameters:
       split: train
       tokenizer_name: ${tokenizer_name}
       max_seq_len: ${max_seq_len}
-      group_method: truncate
       shuffle: true
       mlm_probability: ${mlm_probability}
     drop_last: true
@@ -76,7 +75,6 @@ parameters:
       split: val
       tokenizer_name: ${tokenizer_name}
       max_seq_len: ${max_seq_len}
-      group_method: truncate
       shuffle: false
       mlm_probability: 0.15 # We always evaluate at 15% masking for consistent comparison
     drop_last: false
@@ -98,7 +96,7 @@ parameters:
     weight_decay: 1.0e-5 # Amount of weight decay regularization
 
   algorithms:
-    low_precision_layernorm: {}
+    fused_layernorm: {}
 
   max_duration: 286720000sp # Subsample the training data for ~275M samples
   eval_interval: 2000ba

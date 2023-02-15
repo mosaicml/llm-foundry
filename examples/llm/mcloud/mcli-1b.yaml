@@ -12,8 +12,9 @@ integrations:
 # to convert and host the full 'train' dataset.
 command: |
   cd examples/examples/llm
-  python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val \
-    --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
+  python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root \
+    ./my-copy-c4 --splits train_small val \
+    --concat_tokens 8192 --tokenizer gpt2 --eos_text '<|endoftext|>'
   composer main.py yamls/mosaic_gpt/1b.yaml \
     train_loader.dataset.split=train_small \
     max_duration=100ba \

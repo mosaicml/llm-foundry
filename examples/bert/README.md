@@ -76,7 +76,7 @@ You can read more about the benefits of using mosaicml-streaming [here](https://
 
 ### Converting C4 to streaming dataset `.mds` format
 
-To make yourself a copy of C4, use `convert_c4.py` like so:
+To make yourself a copy of C4, use `convert_dataset.py` like so:
 
 ```bash
 # Download the 'train_small' and 'val' splits and convert to StreamingDataset format
@@ -85,16 +85,16 @@ To make yourself a copy of C4, use `convert_c4.py` like so:
 # Note: for BERT we are not doing any concatenation of samples, so we do not use the `--concat_tokens`
 # option here. Instead, samples will simply get padded or truncated to the max sequence length
 # in the dataloader
-python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val
+python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val
 
 # Download the 'train' split if you really want to train the model (not just profile)
 # This will take 1-to-many hours depending on bandwidth, # CPUs, etc.
 # The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
-# python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train
+# python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train
 
 # For any of the above commands, you can also choose to compress the .mds files.
 # This is useful if your plan is to store these in object store after conversion.
-# python ../common/convert_c4.py ... --compression zstd
+# python ../common/convert_dataset.py ... --compression zstd
 ```
 
 If you're planning on doing multiple training runs, you can upload the **local** copy of C4 you just created to a central location. This will allow you to skip the dataset preparation step in the future. Once you have done so, modify the YAMLs in `yamls/main/` so that the `data_remote` field points to the new location. Then you can simply stream the dataset instead of creating a local copy!

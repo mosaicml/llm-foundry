@@ -1,0 +1,64 @@
+run_name: stable-diffusion-finetune
+
+seed: 42 # Random seed
+
+max_duration: 2000ba # Duration to train specified as a Time string
+eval_interval: 200ba
+
+global_train_batch_size: 32 # Training total batch size (4 per 40gb A100, 8 cards)
+global_eval_batch_size: 32
+
+# Amount of gradient accumulation, auto (GPU only) means Composer will set the optimal value, set to 1 for cpu
+grad_accum: auto
+precision: amp # (GPU only), set to fp32 if training on cpu
+use_ema: false
+
+dataset:
+  # other datasets can be found at https://huggingface.co/datasets?task_categories=task_categories:text-to-image
+  name: lambdalabs/pokemon-blip-captions
+  resolution: 512 # training image size
+  image_column: image
+  caption_column: text
+  mean:
+  - 0.5 # default chanel normalization for pokemon dataset, may need to be changed for other datasets
+  std:
+  - 0.5 # default chanel normalization for pokemon dataset, may need to be changed for other datasets
+  prompts:
+  - A Majestic Shiba Inu Doge wearing a blue sweater
+  - A cute bunny rabbit
+  - Yoda
+  - An epic landscape photo of a mountain
+  - Girl with a pearl earring
+  - Totoro
+  - Hello Kitty
+  - Waffle
+  - IPhone
+  - Mustache
+
+model:
+  # commonly CompVis/stable-diffusion-v1-4 or stabilityai/stable-diffusion-2-1 use 2-1 for sizes > 512
+  name: CompVis/stable-diffusion-v1-4
+  train_text_encoder: false
+  train_unet: true
+  num_images_per_prompt: 4 # number of images to generate per prompt at evaluation time
+  image_key: image_tensor
+  caption_key: input_ids
+
+optimizer:
+  lr: 2.0e-05
+  weight_decay: 1.0e-3
+
+loggers:
+  wandb:     # Uncomment and fill below arguments to use WandB logger
+    entity:  # Name of WandB entity, usually username or organization name
+    project: stable-diffusion-finetune # Name of WandB project
+    group:   # Name of WandB group
+    rank_zero_only: false
+
+# Save checkpoint parameters
+save_folder: # e.g. ./{run_name}/ckpt (local) or s3://mybucket/mydir/{run_name}/ckpt (remote)
+save_interval: 200ba # Interval to checkpoint based on time string
+save_num_checkpoints_to_keep: 5 # Cleans up checkpoints saved locally only!
+
+# Load checkpoint parameters
+load_path: # e.g. ./ckpt/latest-rank{rank}.pt (local) or s3://mybucket/mydir/ckpt/latest-rank{rank}.pt (remote)

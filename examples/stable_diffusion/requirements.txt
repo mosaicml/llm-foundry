@@ -1,0 +1,15 @@
+# --------- pytorch --------- #
+torch>=1.12.0
+torchvision>=0.11.0
+mosaicml[all]>=0.12.1,<0.13
+
+# --------- others --------- #
+omegaconf
+
+# -------- diffusion -------- #
+diffusers[torch]==0.11.1
+transformers[torch]==4.25.1
+
+# -------- optional -------- #
+# ninja # Faster xformers install
+# git+https://github.com/facebookresearch/xformers.git@3df785ce54114630155621e2be1c2fa5037efa27#egg=xformers #xformers

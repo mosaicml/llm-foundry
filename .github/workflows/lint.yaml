@@ -27,6 +27,7 @@ jobs:
         - deeplab
         - llm
         - resnet
+        - stable_diffusion
         - nemo
     steps:
     - uses: actions/checkout@v3

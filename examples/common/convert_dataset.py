@@ -8,7 +8,7 @@ import warnings
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Dict, Iterable, Optional, Union
 
 import datasets as hf_datasets
 import numpy as np
@@ -27,9 +27,13 @@ def parse_args() -> Namespace:
     """Parse commandline arguments."""
     parser = ArgumentParser(
         description=
-        'Convert dataset into MDS format, optionally concatenating and tokenizing')
+        'Convert dataset into MDS format, optionally concatenating and tokenizing'
+    )
     parser.add_argument('--dataset', type=str, required=True)
-    parser.add_argument('--data_subset', type=str, default=None, help='E.g. "all" or "en"')
+    parser.add_argument('--data_subset',
+                        type=str,
+                        default=None,
+                        help='E.g. "all" or "en"')
     parser.add_argument('--splits',
                         nargs='+',
                         default=['train', 'train_small', 'val'])
@@ -90,90 +94,71 @@ class DatasetConstants:
 
 
 class TrainSmallConstants(DataSplitConstants):
-    def __init__(
-        self,
-        hf_split: str = 'train',
-        folder_split: str = 'train_small',
-        raw_samples: int = 1000000,
-        truncated_samples: int = 100000
-    ):
+
+    def __init__(self,
+                 hf_split: str = 'train',
+                 folder_split: str = 'train_small',
+                 raw_samples: int = 1000000,
+                 truncated_samples: int = 100000):
         super().__init__(hf_split, folder_split, raw_samples, truncated_samples)
 
 
 class ValSmallConstants(DataSplitConstants):
-    def __init__(
-        self,
-        hf_split: str = 'validation',
-        folder_split: str = 'val_small',
-        raw_samples: int = 10000,
-        truncated_samples: int = 10000
-    ):
+
+    def __init__(self,
+                 hf_split: str = 'validation',
+                 folder_split: str = 'val_small',
+                 raw_samples: int = 10000,
+                 truncated_samples: int = 10000):
         super().__init__(hf_split, folder_split, raw_samples, truncated_samples)
 
 
 pileconstants = DatasetConstants(
-    chars_per_sample=6212, # Computed over validation set
-    chars_per_token=4 # OpenAI estimate
+    chars_per_sample=6212,  # Computed over validation set
+    chars_per_token=4  # OpenAI estimate
 )
-pileconstants.splits["train"] = DataSplitConstants(
-    hf_split='train',
-    folder_split='train',
-    raw_samples=210607728,
-    truncated_samples=None
-)
-pileconstants.splits["train_small"] = DataSplitConstants(
+pileconstants.splits['train'] = DataSplitConstants(hf_split='train',
+                                                   folder_split='train',
+                                                   raw_samples=210607728,
+                                                   truncated_samples=None)
+pileconstants.splits['train_small'] = DataSplitConstants(
     hf_split='train',
     folder_split='train_small',
     raw_samples=1000000,
-    truncated_samples=100000
-)
-pileconstants.splits["val"] = DataSplitConstants(
-    hf_split='validation',
-    folder_split='val',
-    raw_samples=214670,
-    truncated_samples=None
-)
-pileconstants.splits["val_small"] = DataSplitConstants(
-    hf_split='validation',
-    folder_split='val_small',
-    raw_samples=10000,
-    truncated_samples=10000
-)
-
+    truncated_samples=100000)
+pileconstants.splits['val'] = DataSplitConstants(hf_split='validation',
+                                                 folder_split='val',
+                                                 raw_samples=214670,
+                                                 truncated_samples=None)
+pileconstants.splits['val_small'] = DataSplitConstants(hf_split='validation',
+                                                       folder_split='val_small',
+                                                       raw_samples=10000,
+                                                       truncated_samples=10000)
 
 c4constants = DatasetConstants(
-    chars_per_sample=2163, # Computed over validation set
-    chars_per_token=4 # OpenAI estimate
+    chars_per_sample=2163,  # Computed over validation set
+    chars_per_token=4  # OpenAI estimate
 )
-c4constants.splits["train"] = DataSplitConstants(
-    hf_split='train',
-    folder_split='train',
-    raw_samples=364868892,
-    truncated_samples=None
-)
-c4constants.splits["train_small"] = DataSplitConstants(
+c4constants.splits['train'] = DataSplitConstants(hf_split='train',
+                                                 folder_split='train',
+                                                 raw_samples=364868892,
+                                                 truncated_samples=None)
+c4constants.splits['train_small'] = DataSplitConstants(
     hf_split='train',
     folder_split='train_small',
     raw_samples=1000000,
-    truncated_samples=100000
-)
-c4constants.splits["val"] = DataSplitConstants(
-    hf_split='validation',
-    folder_split='val',
-    raw_samples=364608,
-    truncated_samples=None
-)
-c4constants.splits["val_small"] = DataSplitConstants(
-    hf_split='validation',
-    folder_split='val_small',
-    raw_samples=10000,
-    truncated_samples=10000
-)
+    truncated_samples=100000)
+c4constants.splits['val'] = DataSplitConstants(hf_split='validation',
+                                               folder_split='val',
+                                               raw_samples=364608,
+                                               truncated_samples=None)
+c4constants.splits['val_small'] = DataSplitConstants(hf_split='validation',
+                                                     folder_split='val_small',
+                                                     raw_samples=10000,
+                                                     truncated_samples=10000)
 
-CONSTS = {
-    "c4": c4constants,
-    "the_pile": pileconstants
-}
+CONSTS = {'c4': c4constants, 'the_pile': pileconstants}
+
 
 class NoConcatDataset(IterableDataset):
     """An IterableDataset that returns text samples for MDSWriter.
@@ -181,7 +166,8 @@ class NoConcatDataset(IterableDataset):
     Returns dicts of {'text': bytes}
     """
 
-    def __init__(self, dataset_name: str, data_subset: Union[str, None], split: str):
+    def __init__(self, dataset_name: str, data_subset: Union[str, None],
+                 split: str):
         self.hf_dataset = hf_datasets.load_dataset(path=dataset_name,
                                                    name=data_subset,
                                                    split=split,
@@ -216,17 +202,15 @@ class ConcatTokensDataset(IterableDataset):
     ```
     """
 
-    def __init__(
-        self,
-        dataset_name: str,
-        split: str,
-        tokenizer: PreTrainedTokenizerBase,
-        max_length: int,
-        bos_text: str,
-        eos_text: str,
-        no_wrap: bool,
-        data_subset: Union[str, None] = None
-    ):
+    def __init__(self,
+                 dataset_name: str,
+                 split: str,
+                 tokenizer: PreTrainedTokenizerBase,
+                 max_length: int,
+                 bos_text: str,
+                 eos_text: str,
+                 no_wrap: bool,
+                 data_subset: Union[str, None] = None):
         self.tokenizer = tokenizer
         os.environ['TOKENIZERS_PARALLELISM'] = 'false'
         self.max_length = max_length
@@ -286,13 +270,15 @@ class ConcatTokensDataset(IterableDataset):
                 }
 
 
-def build_hf_dataset(
-        dataset_name: str,
-        split: str, mode: ConcatMode, max_length: Optional[int],
-        bos_text: Optional[str], eos_text: Optional[str],
-        no_wrap: Optional[bool],
-        tokenizer: Optional[PreTrainedTokenizerBase],
-        data_subset: Union[str, None] = None) -> IterableDataset:
+def build_hf_dataset(dataset_name: str,
+                     split: str,
+                     mode: ConcatMode,
+                     max_length: Optional[int],
+                     bos_text: Optional[str],
+                     eos_text: Optional[str],
+                     no_wrap: Optional[bool],
+                     tokenizer: Optional[PreTrainedTokenizerBase],
+                     data_subset: Union[str, None] = None) -> IterableDataset:
     """Build an IterableDataset over the HF C4 or pile source data.
 
     Args:
@@ -310,7 +296,9 @@ def build_hf_dataset(
         An IterableDataset.
     """
     if mode == ConcatMode.NO_CONCAT:
-        dataset = NoConcatDataset(dataset_name=dataset_name, data_subset=data_subset,split=split)
+        dataset = NoConcatDataset(dataset_name=dataset_name,
+                                  data_subset=data_subset,
+                                  split=split)
     else:
         if bos_text + eos_text == '':
             test_tokens = tokenizer('test')
@@ -323,19 +311,19 @@ def build_hf_dataset(
                 tok_error_msg += 'such as facebook/opt-125m, or specify EOS/BOS text with e.g. '
                 tok_error_msg += '--bos_text=<|endoftext|>.'
                 raise ValueError(tok_error_msg)
-        dataset = ConcatTokensDataset(
-                                 dataset_name=dataset_name,
-                                 data_subset=data_subset,
-                                 split=split,
-                                 tokenizer=tokenizer,
-                                 max_length=max_length,
-                                 bos_text=bos_text,
-                                 eos_text=eos_text,
-                                 no_wrap=no_wrap)
+        dataset = ConcatTokensDataset(dataset_name=dataset_name,
+                                      data_subset=data_subset,
+                                      split=split,
+                                      tokenizer=tokenizer,
+                                      max_length=max_length,
+                                      bos_text=bos_text,
+                                      eos_text=eos_text,
+                                      no_wrap=no_wrap)
     return dataset
 
 
-def _est_progress_denominator(total_samples: int, chars_per_sample: int, chars_per_token: int, mode: ConcatMode,
+def _est_progress_denominator(total_samples: int, chars_per_sample: int,
+                              chars_per_token: int, mode: ConcatMode,
                               max_length: int):
     est_tokens_per_sample = chars_per_sample // chars_per_token
     if mode == ConcatMode.NO_CONCAT:
@@ -400,7 +388,9 @@ def main(args: Namespace) -> None:
     try:
         dataset_constants = CONSTS[args.dataset]
     except KeyError:
-        raise ValueError(f'Constants for dataset "{args.dataset}" not found. Currently only "the_pile" and "c4" are supported.')
+        raise ValueError(
+            f'Constants for dataset "{args.dataset}" not found. Currently only "the_pile" and "c4" are supported.'
+        )
 
     if args.concat_tokens is not None:
         mode = ConcatMode.CONCAT_TOKENS
@@ -428,14 +418,14 @@ def main(args: Namespace) -> None:
 
         # Get samples
         dataset = build_hf_dataset(dataset_name=args.dataset,
-                                      data_subset=args.data_subset,
-                                      split=hf_split,
-                                      mode=mode,
-                                      max_length=args.concat_tokens,
-                                      bos_text=args.bos_text,
-                                      eos_text=args.eos_text,
-                                      no_wrap=args.no_wrap,
-                                      tokenizer=tokenizer)
+                                   data_subset=args.data_subset,
+                                   split=hf_split,
+                                   mode=mode,
+                                   max_length=args.concat_tokens,
+                                   bos_text=args.bos_text,
+                                   eos_text=args.eos_text,
+                                   no_wrap=args.no_wrap,
+                                   tokenizer=tokenizer)
         loader = build_dataloader(dataset=dataset, batch_size=512)
         samples = generate_samples(loader,
                                    truncate_num_samples=truncate_num_samples)
@@ -457,7 +447,9 @@ def main(args: Namespace) -> None:
                        columns=columns,
                        compression=args.compression) as out:
             if denominator is not None:
-                for sample in tqdm(samples, desc=folder_split, total=denominator):
+                for sample in tqdm(samples,
+                                   desc=folder_split,
+                                   total=denominator):
                     out.write(sample)
             else:
                 for sample in tqdm(samples, desc=folder_split):

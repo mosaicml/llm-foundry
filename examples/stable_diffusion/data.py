@@ -19,7 +19,7 @@ def collate_fn(examples: dict):
     image_tensor = torch.stack(
         [example['image_tensor'] for example in examples])
     image_tensor = image_tensor.to(
-        memory_format=torch.contiguous_format).float()
+        memory_format=torch.contiguous_format).float()  # type: ignore
     input_ids = torch.stack([example['input_ids'] for example in examples])
     return {'image_tensor': image_tensor, 'input_ids': input_ids}
 
@@ -111,14 +111,18 @@ def build_hf_image_caption_datapsec(name: str,
         dataset = load_dataset(name, split='train')
 
     # add image_tensor and input_ids columns (processed images and text)
-    dataset = dataset.with_transform(preprocess)
-    sampler = dist.get_sampler(dataset, drop_last=drop_last, shuffle=shuffle)
-    return DataSpec(dataloader=DataLoader(dataset=dataset,
-                                          batch_size=batch_size,
-                                          sampler=sampler,
-                                          drop_last=drop_last,
-                                          collate_fn=collate_fn,
-                                          **dataloader_kwargs))
+    dataset = dataset.with_transform(preprocess)  # type: ignore
+    sampler = dist.get_sampler(
+        dataset,  # type: ignore
+        drop_last=drop_last,  # type: ignore
+        shuffle=shuffle)  # type: ignore
+    return DataSpec(dataloader=DataLoader(
+        dataset=dataset,  # type: ignore
+        batch_size=batch_size,
+        sampler=sampler,
+        drop_last=drop_last,
+        collate_fn=collate_fn,  # type: ignore
+        **dataloader_kwargs))  # type: ignore
 
 
 def build_prompt_dataspec(prompts: list[str], batch_size: int,

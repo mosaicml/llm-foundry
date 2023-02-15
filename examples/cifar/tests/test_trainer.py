@@ -25,6 +25,7 @@ def test_trainer(use_recipe):
         smoke_config = OmegaConf.load(f)
     config = OmegaConf.merge(base_config, smoke_config)
     config.use_recipe = use_recipe
+    config.seed = 1337 + 100 * use_recipe
 
     with SynthClassificationDirectory() as tmp_datadir:
         config.train_dataset.path = tmp_datadir

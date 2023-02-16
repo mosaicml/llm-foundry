@@ -35,14 +35,14 @@ style:  ## Apply autoformating and run style checks via pre-commit
 lint:  ## Apply autoformating and run style checks via pre-commit
 	@echo "================================ Linting BERT examples"
 	bash scripts/lint_subdirectory.sh bert
-	@echo "================================ Linting CIFAR examples"
-	bash scripts/lint_subdirectory.sh cifar
+	@echo "================================ Linting Resnet CIFAR examples"
+	bash scripts/lint_subdirectory.sh resnet_cifar
 	@echo "================================ Linting DeepLab examples"
 	bash scripts/lint_subdirectory.sh deeplab
 	@echo "================================ Linting LLM examples"
 	bash scripts/lint_subdirectory.sh llm
-	@echo "================================ Linting ResNet examples"
-	bash scripts/lint_subdirectory.sh resnet
+	@echo "================================ Linting ResNet ImageNet examples"
+	bash scripts/lint_subdirectory.sh resnet_imagenet
 	@echo "================================ Linting Stable Diffusion Finetuning examples"
 	bash scripts/lint_subdirectory.sh stable-diffusion
 
@@ -51,13 +51,13 @@ lint:  ## Apply autoformating and run style checks via pre-commit
 test:  ## Run all the tests
 	@echo "================================ Testing BERT examples"
 	bash scripts/test_subdirectory.sh bert
-	@echo "================================ Testing CIFAR examples"
-	bash scripts/test_subdirectory.sh cifar
+	@echo "================================ Testing ResNet CIFAR examples"
+	bash scripts/test_subdirectory.sh resnet_cifar
 	@echo "================================ Testing DeepLab examples"
 	bash scripts/test_subdirectory.sh deeplab
 	@echo "================================ Testing LLM examples"
 	bash scripts/test_subdirectory.sh llm
-	@echo "================================ Testing ResNet examples"
-	bash scripts/test_subdirectory.sh resnet
+	@echo "================================ Testing ResNet ImageNet examples"
+	bash scripts/test_subdirectory.sh resnet_imagenet
 	@echo "================================ Testing Stable Diffusion Finetuning examples"
 	bash scripts/test_subdirectory.sh stable-diffusion

@@ -23,10 +23,10 @@ jobs:
         - '3.9'
         subdir:
         - bert
-        - cifar
+        - resnet_cifar
         - deeplab
         - llm
-        - resnet
+        - resnet_imagenet
         - stable_diffusion
         - nemo
     steps:

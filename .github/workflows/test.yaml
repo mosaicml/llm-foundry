@@ -23,18 +23,18 @@ jobs:
         - name: bert-pytest
           container: mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
           subdir: bert
-        - name: cifar-pytest
+        - name: resnet-cifar-pytest
           container: mosaicml/pytorch_vision:1.13.1_cpu-python3.10-ubuntu20.04
-          subdir: cifar
+          subdir: resnet_cifar
         - name: deeplab-pytest
           container: mosaicml/pytorch_vision:1.13.1_cpu-python3.10-ubuntu20.04
           subdir: deeplab
         - name: llm-pytest
           container: mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
           subdir: llm
-        - name: resnet-pytest
+        - name: resnet-imagenet-pytest
           container: mosaicml/pytorch_vision:1.13.1_cpu-python3.10-ubuntu20.04
-          subdir: resnet
+          subdir: resnet_imagenet
         - name: stable-diffusion-pytest
           container: mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
           subdir: stable_diffusion

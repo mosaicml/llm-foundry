@@ -1,4 +1,4 @@
-run_name: cifar-example
+run_name: resnet-cifar-example
 cluster:            # Name of the cluster to use for this run
 gpu_type: a100_40gb # Type of GPU to use
 gpu_num: 8          # Number of GPUs to use
@@ -7,7 +7,7 @@ integrations:
 - integration_type: git_repo
   git_repo: mosaicml/examples  # Replace with your fork to use custom code
   git_branch: v0.0.3   # Replace with your branch to use custom code
-  pip_install: -e .[cifar]
+  pip_install: -e .[resnet-cifar]
 command: |
-  cd examples/examples/cifar
+  cd examples/examples/resnet_cifar
   composer main.py yamls/resnet56.yaml

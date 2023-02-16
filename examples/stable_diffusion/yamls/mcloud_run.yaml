@@ -6,7 +6,7 @@ image: mosaicml/pytorch:1.12.1_cu116-python3.9-ubuntu20.04
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/examples
-  pip_install: .[stable_diffusion]
+  pip_install: .[stable-diffusion]
 command: |
   cd examples/examples/stable_diffusion
   composer main.py /mnt/config/parameters.yaml

@@ -53,7 +53,7 @@ hfu* = 4 * flops_per_seq * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
 hfu = (4 * flops_per_seq + 4 * attn_flops_per_seq) * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
 ```
 
-Note that these are approximations. Actual HFU would be higher since it includes the floating poit operations for normalization, activation, and residual lyaers, as well as **all** recomputation. For example, our models use Flash Attention, which requires including an extra recompute factor for its recomputation in the forward pass. Therefore, the attention multipler would be 5 instead of 4.
+Note that these are approximations. Actual HFU would be higher since it includes the floating point operations for normalization, activation, and residual lyaers, as well as **all** recomputation. For example, our models use Flash Attention, which requires including an extra recompute factor for its recomputation in the forward pass. Therefore, the attention multipler would be 5 instead of 4.
 
 ## Results
 

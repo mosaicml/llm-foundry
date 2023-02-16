@@ -20,7 +20,7 @@ pip install -e ".[llm]"  # or pip install -e ".[llm-cpu]" if no NVIDIA GPU
 cd examples/llm # cd into the specific example's folder
 ```
 
-Available examples include `bert`, `cifar`, `llm`, `resnet`, `deeplab`, and `nemo`.
+Available examples include `bert`, `cifar`, `llm`, `resnet`, `deeplab`, `nemo`, and `stable_diffusion`.
 
 ## Extending an example
 

@@ -90,8 +90,8 @@ code, first fork this repo on GitHub and clone your fork instead.
 ```bash
 git clone https://github.com/mosaicml/examples.git
 cd examples
-pip install -e ".[cifar]"  # or pip install -e ".[cifar-cpu]" if no NVIDIA GPU
-cd examples/cifar
+pip install -e ".[resnet-cifar]"  # or pip install -e ".[resnet-cifar-cpu]" if no NVIDIA GPU
+cd examples/resnet_cifar
 ```
 
 ### How to start training

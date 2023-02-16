@@ -19,7 +19,8 @@ source "$ENV_NAME/bin/activate"
 
 echo "Installing requirements..."
 pip install --upgrade 'pip<23'
-pip install -I ".[$1-cpu]"  # we rely on docker image to handle flash-attn, etc
+target=$(echo $1 | tr '_' '-')
+pip install -I ".[$target-cpu]"  # we rely on docker image to handle flash-attn, etc
 
 DIRECTORY="examples/$1"
 cp pyproject.toml "$DIRECTORY"

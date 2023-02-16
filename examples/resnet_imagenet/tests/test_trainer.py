@@ -12,26 +12,24 @@ sys.path.append('.')
 import torch
 from omegaconf import OmegaConf
 
-from examples.cifar.main import main
-from examples.cifar.tests.utils import SynthClassificationDirectory
+from examples.resnet_imagenet.main import main
+from examples.resnet_imagenet.tests.utils import SynthClassificationDirectory
 
 
-@pytest.mark.parametrize('use_recipe', [True, False])
-def test_trainer(use_recipe):
-    with open('yamls/resnet56.yaml') as f:
+@pytest.mark.parametrize('recipe_name', [None, 'mild', 'medium', 'hot'])
+def test_trainer(recipe_name):
+    with open('yamls/resnet50.yaml') as f:
         base_config = OmegaConf.load(f)
 
     with open('tests/smoketest_config.yaml') as f:
         smoke_config = OmegaConf.load(f)
     config = OmegaConf.merge(base_config, smoke_config)
-    config.use_recipe = use_recipe
-    config.seed = 1337 + 100 * use_recipe
+    config.recipe_name = recipe_name
 
     with SynthClassificationDirectory() as tmp_datadir:
+        print(tmp_datadir)
         config.train_dataset.path = tmp_datadir
-        config.train_dataset.local = tmp_datadir
         config.eval_dataset.path = tmp_datadir
-        config.eval_dataset.local = tmp_datadir
         # Also save checkpoints in the temporary directory
         config.save_folder = tmp_datadir
 

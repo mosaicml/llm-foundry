@@ -33,7 +33,7 @@ This folder contains starter code for finetuning Stable Diffusion. You can easil
 ```bash
 git clone https://github.com/mosaicml/examples.gitcd examples/
 cd examples
-pip install -e ".[stable_diffusion]"
+pip install -e ".[stable-diffusion]"
 cd examples/stable_diffusion
 ```
 ## Optionally, install xformers

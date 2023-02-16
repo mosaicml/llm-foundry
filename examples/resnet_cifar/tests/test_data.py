@@ -5,8 +5,8 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-from examples.cifar.data import build_cifar10_dataspec
-from examples.cifar.tests.utils import SynthClassificationDirectory
+from examples.resnet_cifar.data import build_cifar10_dataspec
+from examples.resnet_cifar.tests.utils import SynthClassificationDirectory
 
 # TODO: streaming dataset and dataloader testing
 

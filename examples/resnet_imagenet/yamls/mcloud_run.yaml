@@ -8,10 +8,10 @@ integrations:
   git_repo: mosaicml/examples
   git_branch: v0.0.3
   ssh_clone: false
-  pip_install: -e .[resnet]
+  pip_install: -e .[resnet-imagenet]
 
 command: |
-  cd examples/examples/resnet
+  cd examples/examples/resnet_imagenet
   composer main.py /mnt/config/parameters.yaml
 
 # Configuration copied from baseline.yaml

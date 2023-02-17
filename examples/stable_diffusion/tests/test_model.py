@@ -33,7 +33,7 @@ def build_dummy_stable_diffusion_model(model_name_or_path: str,
     """
     unet = UNet2DConditionModel(**PretrainedConfig.get_config_dict(
         model_name_or_path, subfolder='unet')[0])
-    if is_xformers_available():
+    if torch.cuda.is_available() and is_xformers_available():
         unet.enable_xformers_memory_efficient_attention()
     vae = AutoencoderKL(**PretrainedConfig.get_config_dict(model_name_or_path,
                                                            subfolder='vae')[0])

@@ -133,7 +133,9 @@ def create_job_configs(main_config: om.DictConfig, tasks_to_run: Set[str],
             logger_configs = copy.deepcopy(main_config.get('loggers', {}))
             for logger_name, logger_config in logger_configs.items():
                 if logger_name == 'wandb':
-                    logger_config['group'] = main_config.base_run_name
+                    # allow user set groups, otherwise set group to run name
+                    if 'group' not in logger_config:
+                        logger_config['group'] = main_config.base_run_name
                     logger_config['name'] = run_name
             task_seed_config = om.OmegaConf.create({
                 'task':

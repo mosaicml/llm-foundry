@@ -173,7 +173,7 @@ class TritonFlashCausalAttention(nn.Module):
     def __init__(self, cfg: DictConfig, device: Optional[str] = None):
         super().__init__()
         try:
-            from examples.llm.src.flash_attention import \
+            from examples.llm.src.models.flash_attention import \
                 FlashMHA  # type: ignore
         except ImportError as e:
             raise e

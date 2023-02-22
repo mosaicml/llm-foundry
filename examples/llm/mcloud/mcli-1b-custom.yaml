@@ -12,11 +12,9 @@ integrations:
 # to convert and host the full 'train' dataset.
 command: |
   cd examples/examples/llm
-  python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root \
-    ./my-copy-c4 --splits train_small val \
+  python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val \
     --concat_tokens 8192 --tokenizer gpt2 --eos_text '<|endoftext|>'
   composer main.py /mnt/config/parameters.yaml
-
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 optimization_level: 0
 

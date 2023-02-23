@@ -72,6 +72,43 @@ class TorchCausalAttention(nn.Module):
 
         return attn_mask
 
+    @staticmethod
+    def generate_attn_mask(
+        attn_mask,
+        batch_size,
+        heads,
+        seq_len,
+        key_padding_mask=None,
+        alibi=False,
+        dtype=None,
+    ):
+
+        # select seq_len subset of attn mask
+        attn_mask = attn_mask[..., :seq_len, :seq_len]
+
+        if key_padding_mask is not None and _check_apply_key_padding_mask(
+                key_padding_mask):
+            attn_mask = attn_mask.expand(batch_size, heads, seq_len,
+                                         seq_len).clone()
+
+            kpm_fill_value = -1e4  # numerically stable -inf
+            attn_mask.masked_fill_(
+                ~key_padding_mask.view(batch_size, 1, 1, seq_len),
+                kpm_fill_value)
+            attn_mask.masked_fill_(
+                ~key_padding_mask.view(batch_size, 1, seq_len, 1),
+                kpm_fill_value)
+            attn_mask = attn_mask.reshape(-1, seq_len, seq_len)
+        elif alibi:
+            # WARNING: Alibi with torch attn is not thoroughly tested
+            # torch mask is supposed to be of shape nzz x SeqLen x SeqLen
+            # we must braodcast to batch size then flatten batchsize * n_heads dim
+            # Note: if key_padding_mask is triggered, the needed expansion is already done.
+            attn_mask = attn_mask.expand(batch_size, heads, seq_len,
+                                         seq_len).reshape(-1, seq_len, seq_len)
+
+        return attn_mask
+
 
 class FlashCausalAttention(nn.Module):
 
@@ -154,6 +191,18 @@ class FlashCausalAttention(nn.Module):
     def attn_mask_(*args, **kwargs):
         return None
 
+    @staticmethod
+    def generate_attn_mask(
+        attn_mask,
+        batch_size,
+        heads,
+        seq_len,
+        key_padding_mask=None,
+        alibi=False,
+        dtype=None,
+    ):
+        return attn_mask  # None
+
 
 class TritonFlashCausalAttention(nn.Module):
     """Multi-headed self attention using triton FlashAttn kernel.
@@ -164,7 +213,7 @@ class TritonFlashCausalAttention(nn.Module):
     def __init__(self, cfg: DictConfig, device: Optional[str] = None):
         super().__init__()
         try:
-            from examples.llm.src.layers.flash_attention import \
+            from examples.llm.src.models.layers.flash_attention import \
                 FlashMHA  # type: ignore
         except ImportError as e:
             raise e
@@ -215,6 +264,51 @@ class TritonFlashCausalAttention(nn.Module):
                                dtype=dtype))
 
         return attn_mask
+
+    @staticmethod
+    def generate_attn_mask(
+        attn_mask,
+        batch_size,
+        heads,
+        seq_len,
+        key_padding_mask=None,
+        alibi=False,
+        dtype=None,
+    ):
+        if attn_mask is not None:
+            # select seq_len subset of attn mask
+            attn_mask = attn_mask[..., :seq_len, :seq_len]
+
+        if key_padding_mask is not None and _check_apply_key_padding_mask(
+                key_padding_mask):
+            if attn_mask is None:
+                attn_mask = key_padding_mask.new_zeros(
+                    ((batch_size, 1, seq_len, seq_len)), dtype=dtype)
+
+            kpm_fill_value = -1e4  # numerically stable -inf
+            attn_mask = attn_mask.masked_fill(
+                ~key_padding_mask.view((batch_size, 1, 1, seq_len)),
+                kpm_fill_value)
+            attn_mask = attn_mask.masked_fill(
+                ~key_padding_mask.view((batch_size, 1, seq_len, 1)),
+                kpm_fill_value)
+
+        return attn_mask
+
+
+def _check_apply_key_padding_mask(key_padding_mask):
+    if key_padding_mask.bool().logical_not().any():
+        # check to verify all tokens after the first invalid tokens are invalid.
+        # if there are no valid tokens after the first invalid token,
+        # key_padding_mask isn't required given causal mask will eliminate
+        # unwanted token interaction.
+        # WARNING: this approach only works for right padded causal attn
+        # NOTE: I chose this algorithm given its vectorized; there is room for improvement...
+        c_sum = key_padding_mask.cumsum(1)
+        num_valid_tokens = c_sum[:, -1].long()
+        vals = c_sum[range(key_padding_mask.size(0)), num_valid_tokens - 1]
+        return any(vals != num_valid_tokens)
+    return False
 
 
 def alibi_bias(n_heads,

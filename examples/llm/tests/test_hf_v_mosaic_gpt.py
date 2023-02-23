@@ -59,9 +59,9 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
     # get hf gpt2 cfg
     hf_cfg = om.create({
         'name': 'hf_causal_lm',
-        'hf_config_name_or_path': 'gpt2',
-        'pretrained': False,
+        'pretrained_model_name_or_path': 'gpt2',
         'device': 'cpu',
+        'pretrained': False
     })
 
     # get hf gpt2 model
@@ -140,7 +140,7 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
     # UTIL: can be used to verify that models are not the same at init
     with torch.autocast(device_type='cuda', dtype=torch.float16):
         torch.manual_seed(seed)
-        hf_model_fwd = hf_model(batch) * kpm
+        hf_model_fwd = hf_model(batch)['logits'] * kpm
         torch.manual_seed(seed)
         model_fwd = model(batch) * kpm
     print(f'{hf_model_fwd.mean().item() = }\n{model_fwd.mean().item() = }')
@@ -196,7 +196,7 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
 
     with torch.autocast(device_type=device, dtype=torch.float16):
         torch.manual_seed(seed)
-        hf_model_fwd = hf_model(batch) * kpm
+        hf_model_fwd = hf_model(batch)['logits'] * kpm
         torch.manual_seed(seed)
         model_fwd = model(batch) * kpm
 

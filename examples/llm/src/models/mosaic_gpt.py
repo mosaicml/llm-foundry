@@ -18,8 +18,8 @@ from composer.metrics.nlp import LanguageCrossEntropy, Perplexity
 from composer.models.base import ComposerModel
 from omegaconf import DictConfig
 
-import examples.llm.src.layers.attention as attention
-import examples.llm.src.layers.gpt_blocks as gpt_blocks
+import examples.llm.src.models.layers.attention as attention
+import examples.llm.src.models.layers.gpt_blocks as gpt_blocks
 
 
 class MosaicGPT(nn.Module):
@@ -93,20 +93,6 @@ class MosaicGPT(nn.Module):
         else:
             self.attn_mask = None
 
-    def _check_apply_key_padding_mask(self, key_padding_mask):
-        if key_padding_mask.bool().logical_not().any():
-            # check to verify all tokens after the first invalid tokens are invalid.
-            # if there are no valid tokens after the first invalid token,
-            # key_padding_mask isn't required given causal mask will eliminate
-            # unwanted token interaction.
-            # WARNING: this approach only works for right padded causal attn
-            # NOTE: I chose this algorithm given its vectorized; there is room for improvement...
-            c_sum = key_padding_mask.cumsum(1)
-            num_valid_tokens = c_sum[:, -1].long()
-            vals = c_sum[range(key_padding_mask.size(0)), num_valid_tokens - 1]
-            return any(vals != num_valid_tokens)
-        return False
-
     def _attn_mask(self,
                    batch_size=None,
                    seq_len=None,
@@ -120,54 +106,14 @@ class MosaicGPT(nn.Module):
                                             alibi_bias_max=self.alibi_bias_max)
             self._attn_mask_initialized = True
 
-        if self.cfg.attn_impl == 'flash':
-            return self.attn_mask  # None
-
-        attn_mask = self.attn_mask
-        if attn_mask is not None:
-            # select seq_len subset of attn mask
-            attn_mask = attn_mask[..., :seq_len, :seq_len]
-
-        kpm_fill_value = -1e4  # numerically stable -inf
-
-        if self.cfg.attn_impl == 'triton' and key_padding_mask is not None and self._check_apply_key_padding_mask(
-                key_padding_mask):
-
-            if attn_mask is None:
-                attn_mask = key_padding_mask.zeros(
-                    ((batch_size, 1, seq_len, seq_len)), dtype=dtype)
-
-            attn_mask = attn_mask.masked_fill(
-                ~key_padding_mask.view((batch_size, 1, 1, seq_len)),
-                kpm_fill_value)
-            attn_mask = attn_mask.masked_fill(
-                ~key_padding_mask.view((batch_size, 1, seq_len, 1)),
-                kpm_fill_value)
-
-        if self.cfg.attn_impl == 'torch':
-            assert attn_mask is not None, 'Internal logic error'
-
-            if key_padding_mask is not None and self._check_apply_key_padding_mask(
-                    key_padding_mask):
-                attn_mask = attn_mask.expand(batch_size, self.cfg.n_heads,
-                                             seq_len, seq_len).clone()
-                attn_mask.masked_fill_(
-                    ~key_padding_mask.view(batch_size, 1, 1, seq_len),
-                    kpm_fill_value)
-                attn_mask.masked_fill_(
-                    ~key_padding_mask.view(batch_size, 1, seq_len, 1),
-                    kpm_fill_value)
-                attn_mask = attn_mask.reshape(-1, seq_len, seq_len)
-            elif self.alibi:
-                # WARNING: Alibi with torch attn is not thoroughly tested
-                # torch mask is supposed to be of shape nzz x SeqLen x SeqLen
-                # we must braodcast to batch size then flatten batchsize * n_heads dim
-                # Note: if key_padding_mask is triggered, the needed expansion is already done.
-                attn_mask = attn_mask.expand(batch_size, self.cfg.n_heads,
-                                             seq_len, seq_len).reshape(
-                                                 -1, seq_len, seq_len)
-
-        return attn_mask
+        return self.causal_attn_cls.generate_attn_mask(
+            self.attn_mask,
+            batch_size,
+            self.cfg.n_heads,
+            seq_len,
+            key_padding_mask=key_padding_mask,
+            alibi=self.alibi,
+            dtype=dtype)
 
     def forward(self,
                 input_ids: torch.LongTensor,

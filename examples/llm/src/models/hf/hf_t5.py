@@ -1,9 +1,6 @@
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Copyright 2022 MosaicML Composer authors
-# SPDX-License-Identifier: Apache-2.0
-
 """Implements a Hugging Face T5 wrapped inside a :class:`.ComposerModel`."""
 
 from __future__ import annotations
@@ -52,6 +49,10 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
     def __init__(self, cfg: DictConfig):
         config = AutoConfig.from_pretrained(cfg.pretrained_model_name_or_path,
                                             **cfg.get('config_overrides', {}))
+
+        if not config.is_encoder_decoder:
+            raise ValueError(f'Model type "hf_t5" currently only supports T5 models ' +\
+                             f'using configs where `is_encoder_decoder` is ``True``.')
 
         tokenizer = AutoTokenizer.from_pretrained(
             cfg.pretrained_model_name_or_path)

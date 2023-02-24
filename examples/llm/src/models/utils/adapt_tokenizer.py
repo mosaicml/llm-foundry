@@ -36,15 +36,7 @@ def adapt_tokenizer_for_denoising(tokenizer: Union[PreTrainedTokenizer,
     _sentinel_token_ids = tokenizer(sentinels,
                                     add_special_tokens=False).input_ids
 
-    @property
-    def sentinel_token_ids(self):
-        return _sentinel_token_ids
-
-    # Actually let's get fancy and make this a subclass
-    class_name = tokenizer.__class__.__name__ + 'ForMOD'
-    child_class = type(class_name, (tokenizer.__class__,),
-                       {'sentinel_token_ids': sentinel_token_ids})
-    tokenizer.__class__ = child_class
+    tokenizer.sentinel_token_ids = _sentinel_token_ids
 
 
 class AutoTokenizerForMOD(AutoTokenizer):

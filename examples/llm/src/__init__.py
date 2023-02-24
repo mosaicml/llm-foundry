@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
+from examples.llm.src.data import (MixtureOfDenoisersCollator,
+                                   build_text_denoising_dataloader)
 from examples.llm.src.model_registry import COMPOSER_MODEL_REGISTRY
 from examples.llm.src.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                         ComposerHFT5)
@@ -15,6 +17,8 @@ from examples.llm.src.tokenizer import (TOKENIZER_REGISTRY, HFTokenizer,
                                         LLMTokenizer)
 
 __all__ = [
+    'build_text_denoising_dataloader',
+    'MixtureOfDenoisersCollator',
     'FlashAttention',
     'FlashMHA',
     'ComposerHFCausalLM',

@@ -7,7 +7,7 @@ import warnings
 
 from composer import Trainer
 from composer.core import Evaluator
-from composer.utils import reproducibility
+from composer.utils import dist, get_device, reproducibility
 from omegaconf import OmegaConf as om
 
 from examples.common.builders import (build_algorithm, build_callback,
@@ -39,6 +39,7 @@ def main(cfg):
     )
 
     reproducibility.seed_all(cfg.seed)
+    dist.initialize_dist(get_device(None))
 
     # Run Name
     if cfg.get('run_name') is None:

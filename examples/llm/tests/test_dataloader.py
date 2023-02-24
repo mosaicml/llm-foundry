@@ -9,6 +9,7 @@ import torch
 from omegaconf import OmegaConf as om
 
 from examples.common.text_data import build_text_dataloader
+from examples.llm.src import build_text_denoising_dataloader
 
 
 def get_config(conf_path='yamls/mosaic_gpt/125m.yaml'):
@@ -18,20 +19,28 @@ def get_config(conf_path='yamls/mosaic_gpt/125m.yaml'):
     return test_cfg
 
 
+def get_data_local(tokenizer_name, pretokenize):
+    return f'my-copy-c4-{tokenizer_name}-pretokenize-{pretokenize}'
+
+
+def get_abs_data_path(data_local):
+    return os.path.join(os.getcwd(), data_local)
+
+
 @pytest.mark.parametrize('tokenizer_name', ['gpt2', 'facebook/opt-125m'])
 @pytest.mark.parametrize('pretokenize', [False, True])
 def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     if tokenizer_name == 'gpt2' and not pretokenize:
         pytest.xfail('Must pretokenize data if using "gpt2" tokenizer')
 
-    data_local = f'my-copy-c4-{tokenizer_name}-pretokenize-{pretokenize}'
+    data_local = get_data_local(tokenizer_name, pretokenize)
     split = 'val_small'
     tokenizer_args = {
         'gpt2': '--eos_text "<|endoftext|>"',
         'facebook/opt-125m': '--bos_text "</s>"'
     }[tokenizer_name]
 
-    path = os.path.join(os.getcwd(), data_local)
+    path = get_abs_data_path(data_local)
     shutil.rmtree(path, ignore_errors=True)
     if pretokenize:
         os.system(
@@ -62,3 +71,54 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     a = attention_mask == 0
     b = batch['labels'] == -100
     assert torch.equal(a, b)
+
+
+@pytest.mark.parametrize('decoder_only_format', [True, False])
+@pytest.mark.parametrize('pretokenize', [True, False])
+def test_denoising_dataloader(decoder_only_format, pretokenize):
+    # Use the datasets just built in the last test
+    tokenizer_name = 'facebook/opt-125m'
+    data_local = get_data_local(tokenizer_name, pretokenize)
+    path = get_abs_data_path(data_local)
+    max_seq_len = 256 if decoder_only_format else 128
+
+    cfg = {
+        'name': 'text_denoising',
+        'dataset': {
+            'local': path,
+            'remote': path,
+            'split': 'val_small',
+            'shuffle': False,
+            'tokenizer_name': tokenizer_name,
+            'max_seq_len': max_seq_len,
+            'predownload': 1000,
+            'keep_zip': False,  # in case we need compressed files after testing
+        },
+        'mixture_of_denoisers': {
+            'decoder_only_format': decoder_only_format,
+            'span_mean_lengths_and_ratios': [[3, .15], [8, .5]],
+            'sequence_mask_ratios': 0.25,
+        },
+        'drop_last': False,
+        'num_workers': 0,
+    }
+    cfg = om.create(cfg)
+    device_batch_size = 2
+
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+    if decoder_only_format:
+        expected_keys += ['bidirectional_mask']
+    else:
+        expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
+
+    loader = build_text_denoising_dataloader(cfg, device_batch_size)
+    batch_ix = 0
+    for batch in loader:
+        for k in expected_keys:
+            assert k in batch
+            t = batch[k]
+            assert t.shape[0] == device_batch_size
+            assert t.shape[1] <= max_seq_len
+        batch_ix += 1
+        if batch_ix >= 5:
+            break

@@ -35,8 +35,12 @@ def build_dummy_stable_diffusion_model(model_name_or_path: str,
         model_name_or_path, subfolder='unet')[0])
     if torch.cuda.is_available() and is_xformers_available():
         unet.enable_xformers_memory_efficient_attention()
-    vae = AutoencoderKL(**PretrainedConfig.get_config_dict(model_name_or_path,
-                                                           subfolder='vae')[0])
+    config_dict = PretrainedConfig.get_config_dict(model_name_or_path,
+                                                   subfolder='vae')[0]
+    # this argument was introduced in a later version of diffusers
+    if 'scaling_factor' in config_dict:
+        del config_dict['scaling_factor']
+    vae = AutoencoderKL(**config_dict)
 
     text_encoder = CLIPTextModel(config=PretrainedConfig.from_pretrained(
         model_name_or_path, subfolder='text_encoder'))

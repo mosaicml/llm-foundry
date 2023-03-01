@@ -186,7 +186,7 @@ def test_full_forward_and_backward_gpt2_small(prefixlm, batch_size=2):
 
     device = 'cpu'
     neo_cfg.device = device
-    neo_cfg.max_seq_len = 1024
+    neo_cfg.max_seq_len = 256
 
     if prefixlm:
         neo_cfg.model.name = 'hf_prefix_lm'

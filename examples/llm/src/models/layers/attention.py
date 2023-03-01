@@ -120,17 +120,18 @@ class FlashCausalAttention(nn.Module):
         except ImportError as e:
             raise e
 
+        self.clip_qkv = cfg.get('attn_clip_qkv')
         self.attn_qk_ln = cfg.get('attn_qk_ln')
         self.d_model = cfg.d_model
         self.n_heads = cfg.n_heads
 
-        if self.attn_qk_ln:
+        if self.attn_qk_ln or self.clip_qkv:
             self.W_qkv = nn.Linear(self.d_model,
                                    3 * self.d_model,
                                    bias=True,
                                    device=device)
-            self.causal_attn = FlashAttention(attention_dropout=cfg.attn_pdrop,
-                                              device=device)
+            self.inner_attn = FlashAttention(attention_dropout=cfg.attn_pdrop,
+                                             device=device)
             self.out_proj = nn.Linear(self.d_model,
                                       self.d_model,
                                       bias=True,
@@ -138,8 +139,9 @@ class FlashCausalAttention(nn.Module):
 
             self.out_proj._is_residual = True  # type: ignore
 
-            self.q_ln = nn.LayerNorm(self.d_model, device=device)
-            self.k_ln = nn.LayerNorm(self.d_model, device=device)
+            if self.attn_qk_ln:
+                self.q_ln = nn.LayerNorm(self.d_model, device=device)
+                self.k_ln = nn.LayerNorm(self.d_model, device=device)
         else:
             self.mhsa = FlashMHA(
                 embed_dim=cfg.d_model,
@@ -154,15 +156,18 @@ class FlashCausalAttention(nn.Module):
 
     def forward(self, x, key_padding_mask, attn_mask=None):
         assert attn_mask is None
-        if self.attn_qk_ln:
-            qkv = self.W_qkv(x)
 
-            # Applying layernorm to qk
-            dtype = qkv.dtype
-            q, k, v = qkv.split(self.d_model, dim=-1)
-            q = self.q_ln(q).to(dtype)
-            k = self.k_ln(k).to(dtype)
-            qkv = torch.cat([q, k, v], dim=-1)
+        if self.attn_qk_ln or self.clip_qkv:
+            qkv = self.W_qkv(x)
+            if self.clip_qkv:
+                qkv.clamp_(min=-self.clip_qkv, max=self.clip_qkv)
+            if self.attn_qk_ln:
+                # Applying layernorm to qk
+                dtype = qkv.dtype
+                q, k, v = qkv.split(self.d_model, dim=-1)
+                q = self.q_ln(q).to(dtype)
+                k = self.k_ln(k).to(dtype)
+                qkv = torch.cat([q, k, v], dim=-1)
 
             # attention
             qkv = rearrange(qkv,
@@ -170,7 +175,7 @@ class FlashCausalAttention(nn.Module):
                             three=3,
                             h=self.n_heads)
 
-            context, attn_weights = self.causal_attn(
+            context, attn_weights = self.inner_attn(
                 qkv,
                 key_padding_mask=key_padding_mask,
                 causal=True,
@@ -213,22 +218,48 @@ class TritonFlashCausalAttention(nn.Module):
     def __init__(self, cfg: DictConfig, device: Optional[str] = None):
         super().__init__()
         try:
-            from examples.llm.src.models.layers.flash_attention import \
-                FlashMHA  # type: ignore
+            from examples.llm.src.models.layers.flash_attention import (  # type: ignore
+                FlashAttention, FlashMHA)
         except ImportError as e:
             raise e
 
         assert cfg.attn_pdrop == 0, 'triton kernel does not support attn_dropout'
 
-        self.mhsa = FlashMHA(
-            embed_dim=cfg.d_model,
-            num_heads=cfg.n_heads,
-            bias=True,
-            batch_first=True,
-            causal=True,
-            device=device,
-        )
-        self.mhsa.out_proj._is_residual = True  # type: ignore
+        self.clip_qkv = cfg.get('attn_clip_qkv')
+        self.attn_qk_ln = cfg.get('attn_qk_ln')
+        self.d_model = cfg.d_model
+        self.n_heads = cfg.n_heads
+
+        if self.attn_qk_ln or self.clip_qkv:
+            self.Wqkv = nn.Linear(self.d_model,
+                                  3 * self.d_model,
+                                  bias=True,
+                                  device=device)
+            self.inner_attn = FlashAttention(
+                num_heads=cfg.n_heads,
+                softmax_scale=cfg.get('softmax_scale'),
+                device=device)
+            self.out_proj = nn.Linear(self.d_model,
+                                      self.d_model,
+                                      bias=True,
+                                      device=device)
+
+            self.out_proj._is_residual = True  # type: ignore
+
+            if self.attn_qk_ln:
+                self.q_ln = nn.LayerNorm(self.d_model, device=device)
+                self.k_ln = nn.LayerNorm(self.d_model, device=device)
+        else:
+            self.mhsa = FlashMHA(
+                embed_dim=cfg.d_model,
+                num_heads=cfg.n_heads,
+                bias=True,
+                batch_first=True,
+                causal=True,
+                softmax_scale=cfg.get('softmax_scale'),
+                device=device,
+            )
+            self.mhsa.out_proj._is_residual = True  # type: ignore
 
         warnings.warn(
             'While `attn_impl: triton` can be faster than `attn_impl: flash` '
@@ -237,11 +268,34 @@ class TritonFlashCausalAttention(nn.Module):
             'using `attn_impl: flash`.')
 
     def forward(self, x, key_padding_mask=None, attn_mask=None):
-        assert key_padding_mask is None
-        return self.mhsa(x,
-                         key_padding_mask=None,
-                         attn_mask=attn_mask,
-                         need_weights=False)
+        if self.attn_qk_ln or self.clip_qkv:
+            qkv = self.Wqkv(x)
+            if self.clip_qkv:
+                qkv.clamp_(min=-self.clip_qkv, max=self.clip_qkv)
+            if self.attn_qk_ln:
+                # Applying layernorm to qk
+                dtype = qkv.dtype
+                q, k, v = qkv.split(self.d_model, dim=-1)
+                q = self.q_ln(q).to(dtype)
+                k = self.k_ln(k).to(dtype)
+                qkv = torch.cat([q, k, v], dim=-1)
+
+            # attention
+            context, attn_weights = self.inner_attn(
+                qkv,
+                key_padding_mask=key_padding_mask,
+                attn_mask=attn_mask,
+                is_causal=True,
+                need_weights=False,
+                average_attn_weights=False)
+
+            return self.out_proj(context), attn_weights
+
+        else:
+            return self.mhsa(x,
+                             key_padding_mask=None,
+                             attn_mask=attn_mask,
+                             need_weights=False)
 
     @staticmethod
     def mask_shape(n_heads, seq_len, alibi):

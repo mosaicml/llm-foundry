@@ -37,9 +37,15 @@ class MosaicGPT(nn.Module):
         else:
             raise ValueError(f'Unknown attn_impl={cfg.attn_impl}')
 
-        if cfg.get('attn_qk_ln') and cfg.attn_impl != 'flash':
+        if cfg.get('attn_qk_ln') and cfg.attn_impl not in ['flash', 'triton']:
             raise NotImplementedError(
-                'LayerNorm over queries and keys in attention is only implemented with flash attention.'
+                'LayerNorm over queries and keys in attention is only implemented with flash and triton attention.'
+            )
+        if cfg.get('attn_clip_qkv') and cfg.attn_impl not in [
+                'flash', 'triton'
+        ]:
+            raise NotImplementedError(
+                'QKV clipping only implemented with flash and triton attention.'
             )
 
         self.alibi = cfg.get('alibi', False)

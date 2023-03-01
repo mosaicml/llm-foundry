@@ -100,6 +100,7 @@ class FlashMHA(nn.Module):
                  bias=True,
                  batch_first=True,
                  causal=False,
+                 softmax_scale=None,
                  device=None,
                  dtype=None,
                  **kwargs) -> None:
@@ -119,7 +120,7 @@ class FlashMHA(nn.Module):
                               bias=bias,
                               **factory_kwargs)
         self.inner_attn = FlashAttention(num_heads=num_heads,
-                                         softmax_scale=None,
+                                         softmax_scale=softmax_scale,
                                          **factory_kwargs)
         self.out_proj = nn.Linear(embed_dim,
                                   embed_dim,

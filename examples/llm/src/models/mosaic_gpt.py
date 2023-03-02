@@ -48,6 +48,13 @@ class MosaicGPT(nn.Module):
                 'QKV clipping only implemented with flash and triton attention.'
             )
 
+        if cfg.get('softmax_scale') and cfg.attn_impl not in [
+                'flash', 'triton'
+        ]:
+            raise NotImplementedError(
+                'softmax_scale only implemented with flash and triton attention.'
+            )
+
         self.alibi = cfg.get('alibi', False)
         self.alibi_bias_max = cfg.get('alibi_bias_max',
                                       8 if self.alibi else None)

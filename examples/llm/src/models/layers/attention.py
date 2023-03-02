@@ -122,16 +122,18 @@ class FlashCausalAttention(nn.Module):
 
         self.clip_qkv = cfg.get('attn_clip_qkv')
         self.attn_qk_ln = cfg.get('attn_qk_ln')
+        self.softmax_scale = cfg.get('softmax_scale')
         self.d_model = cfg.d_model
         self.n_heads = cfg.n_heads
 
-        if self.attn_qk_ln or self.clip_qkv:
+        if self.attn_qk_ln or self.clip_qkv or self.softmax_scale:
             self.W_qkv = nn.Linear(self.d_model,
                                    3 * self.d_model,
                                    bias=True,
                                    device=device)
             self.inner_attn = FlashAttention(attention_dropout=cfg.attn_pdrop,
-                                             device=device)
+                                             device=device,
+                                             softmax_scale=self.softmax_scale)
             self.out_proj = nn.Linear(self.d_model,
                                       self.d_model,
                                       bias=True,
@@ -157,7 +159,7 @@ class FlashCausalAttention(nn.Module):
     def forward(self, x, key_padding_mask, attn_mask=None):
         assert attn_mask is None
 
-        if self.attn_qk_ln or self.clip_qkv:
+        if self.attn_qk_ln or self.clip_qkv or self.softmax_scale:
             qkv = self.W_qkv(x)
             if self.clip_qkv:
                 qkv.clamp_(min=-self.clip_qkv, max=self.clip_qkv)

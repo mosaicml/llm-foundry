@@ -13,21 +13,22 @@ from examples.llm import COMPOSER_MODEL_REGISTRY
 
 @pytest.mark.gpu
 @pytest.mark.parametrize(
-    'attn_impl,dropout,strict,alibi,mask_val',
+    'attn_impl,dropout,strict,alibi,mask_val,no_attn_mask',
     [
-        ('flash', 0.0, True, False, 1),
-        ('flash', 0.1, True, False, 1),
-        ('torch', 0.0, False, False,
-         1),  # requires strict=False to skip loading model.attn_mask
-        ('triton', 0.0, False, False,
-         1),  # requires strict=False to skip loading model.attn_mask
-        ('triton', 0.1, False, False,
-         1),  # requires strict=False to skip loading model.attn_mask
+        ('flash', 0.0, True, False, 1, False),
+        ('flash', 0.1, True, False, 1, False),
+        ('torch', 0.0, False, False, 1,
+         False),  # requires strict=False to skip loading model.attn_mask
+        ('triton', 0.0, False, False, 1,
+         False),  # requires strict=False to skip loading model.attn_mask
+        ('triton', 0.1, False, False, 1,
+         False),  # requires strict=False to skip loading model.attn_mask
         pytest.param('torch',
                      0.0,
                      False,
                      True,
                      1,
+                     False,
                      marks=pytest.mark.xfail(
                          reason='hf model is not implemented with alibi')),
         pytest.param('triton',
@@ -35,16 +36,23 @@ from examples.llm import COMPOSER_MODEL_REGISTRY
                      False,
                      True,
                      1,
+                     False,
                      marks=pytest.mark.xfail(
                          reason='hf model is not implemented with alibi')),
-        ('torch', 0.0, False, False, 0
+        ('torch', 0.0, False, False, 0, False
         ),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
-        ('triton', 0.0, False, False, 0
+        ('triton', 0.0, False, False, 0, False
         ),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
-        ('triton', 0.1, False, False, 0
+        ('triton', 0.1, False, False, 0, False
         ),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
+        ('flash', 0.0, True, False, None, True),
+        ('torch', 0.0, False, False, None,
+         True),  # requires strict=False to skip loading model.attn_mask
+        ('triton', 0.0, False, False, None,
+         True),  # requires strict=False to skip loading model.attn_mask
     ])
-def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
+def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val,
+                                 no_attn_mask):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
@@ -128,11 +136,16 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
                                     high=cfg.vocab_size,
                                     size=(batch_size,
                                           cfg.max_seq_len)).to(device)
-    batch['attention_mask'] = torch.ones(size=(batch_size, cfg.max_seq_len),
-                                         dtype=torch.int64).to(device)
-    # mask out some tokens
-    batch['attention_mask'][:, cfg.max_seq_len // 2:] = mask_val
-    kpm = batch['attention_mask'].view(*batch['attention_mask'].shape, 1)
+    kpm = None
+    if no_attn_mask:
+        if 'attention_mask' in batch.keys():
+            _ = batch.pop('attention_mask')
+    else:
+        batch['attention_mask'] = torch.ones(size=(batch_size, cfg.max_seq_len),
+                                             dtype=torch.int64).to(device)
+        # mask out some tokens
+        batch['attention_mask'][:, cfg.max_seq_len // 2:] = mask_val
+        kpm = batch['attention_mask'].view(*batch['attention_mask'].shape, 1)
 
     hf_model.train()
     model.train()
@@ -140,9 +153,13 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
     # UTIL: can be used to verify that models are not the same at init
     with torch.autocast(device_type='cuda', dtype=torch.float16):
         torch.manual_seed(seed)
-        hf_model_fwd = hf_model(batch)['logits'] * kpm
+        hf_model_fwd = hf_model(batch)['logits']
+        if kpm is not None:
+            hf_model_fwd *= kpm
         torch.manual_seed(seed)
-        model_fwd = model(batch) * kpm
+        model_fwd = model(batch)
+        if kpm is not None:
+            model_fwd *= kpm
     print(f'{hf_model_fwd.mean().item() = }\n{model_fwd.mean().item() = }')
     if hf_model_fwd.mean().allclose(model_fwd.mean()):
         warn_msg = f'WARNING: model_fwd ({model_fwd}) and hf_model_fwd ({hf_model_fwd}) are very close at init.'
@@ -196,9 +213,13 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val):
 
     with torch.autocast(device_type=device, dtype=torch.float16):
         torch.manual_seed(seed)
-        hf_model_fwd = hf_model(batch)['logits'] * kpm
+        hf_model_fwd = hf_model(batch)['logits']
+        if kpm is not None:
+            hf_model_fwd *= kpm
         torch.manual_seed(seed)
-        model_fwd = model(batch) * kpm
+        model_fwd = model(batch)
+        if kpm is not None:
+            model_fwd *= kpm
 
     print(f'{hf_model_fwd.mean().item() = }\n{model_fwd.mean().item() = }')
     print(f'{hf_model_fwd = }\n{model_fwd = }')

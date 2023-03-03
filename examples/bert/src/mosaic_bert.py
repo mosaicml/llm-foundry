@@ -18,6 +18,7 @@ from torchmetrics.regression.spearman import SpearmanCorrCoef
 
 from examples.bert.src.bert_layers import (BertForMaskedLM,
                                            BertForSequenceClassification)
+from examples.bert.src.configuration_bert import BertConfig
 
 all = ['create_mosaic_bert_mlm', 'create_mosaic_bert_classification']
 
@@ -88,31 +89,17 @@ def create_mosaic_bert_mlm(pretrained_model_name: str = 'bert-base-uncased',
     if not model_config:
         model_config = {}
 
-    # By default, turn off attention dropout in Mosaic BERT
-    # (otherwise, Flash Attention will be off by default)
-    if 'attention_probs_dropout_prob' not in model_config:
-        model_config['attention_probs_dropout_prob'] = 0.0
-
-    # Use `alibi_starting_size` to determine how large of an alibi tensor to
-    # create when initializing the model. You should be able to ignore
-    # this parameter in most cases.
-    if 'alibi_starting_size' not in model_config:
-        model_config['alibi_starting_size'] = 512
-
     if not pretrained_model_name:
         pretrained_model_name = 'bert-base-uncased'
 
-    config, unused_kwargs = transformers.AutoConfig.from_pretrained(
-        pretrained_model_name, return_unused_kwargs=True, **model_config)
-    # This lets us use non-standard config fields (e.g. `starting_alibi_size`)
-    config.update(unused_kwargs)
+    config = BertConfig.from_pretrained(pretrained_model_name, **model_config)
 
     # Padding for divisibility by 8
     if config.vocab_size % 8 != 0:
         config.vocab_size += 8 - (config.vocab_size % 8)
 
     if pretrained_checkpoint is not None:
-        model = BertForMaskedLM.from_pretrained(
+        model = BertForMaskedLM.from_composer(
             pretrained_checkpoint=pretrained_checkpoint, config=config)
     else:
         model = BertForMaskedLM(config)
@@ -264,7 +251,7 @@ def create_mosaic_bert_classification(
         config.vocab_size += 8 - (config.vocab_size % 8)
 
     if pretrained_checkpoint is not None:
-        model = BertForSequenceClassification.from_pretrained(
+        model = BertForSequenceClassification.from_composer(
             pretrained_checkpoint=pretrained_checkpoint, config=config)
     else:
         model = BertForSequenceClassification(config)

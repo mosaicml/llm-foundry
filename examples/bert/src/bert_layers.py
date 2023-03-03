@@ -774,14 +774,14 @@ class BertForMaskedLM(BertPreTrainedModel):
         self.post_init()
 
     @classmethod
-    def from_pretrained(cls,
-                        pretrained_checkpoint,
-                        state_dict=None,
-                        cache_dir=None,
-                        from_tf=False,
-                        config=None,
-                        *inputs,
-                        **kwargs):
+    def from_composer(cls,
+                      pretrained_checkpoint,
+                      state_dict=None,
+                      cache_dir=None,
+                      from_tf=False,
+                      config=None,
+                      *inputs,
+                      **kwargs):
         """Load from pre-trained."""
         model = cls(config, *inputs, **kwargs)
         if from_tf:
@@ -944,14 +944,14 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.post_init()
 
     @classmethod
-    def from_pretrained(cls,
-                        pretrained_checkpoint,
-                        state_dict=None,
-                        cache_dir=None,
-                        from_tf=False,
-                        config=None,
-                        *inputs,
-                        **kwargs):
+    def from_composer(cls,
+                      pretrained_checkpoint,
+                      state_dict=None,
+                      cache_dir=None,
+                      from_tf=False,
+                      config=None,
+                      *inputs,
+                      **kwargs):
         """Load from pre-trained."""
         model = cls(config, *inputs, **kwargs)
         if from_tf:

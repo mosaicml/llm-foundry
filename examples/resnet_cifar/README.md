@@ -36,13 +36,13 @@ The files in this folder are:
 * `tests/` - A suite of tests to check each training component
 * `yamls/`
   * `resnet56.yaml` - Configuration for a CIFAR ResNet56 training run, to be used as the first argument to `main.py`
-  * `mcloud_run.yaml` - yaml to use if running on the [MosaicML Cloud](https://www.mosaicml.com/blog/introducing-mosaicml-cloud)
+  * `mcloud_run.yaml` - yaml to use if running on the [MosaicML platform](https://www.mosaicml.com/blog/introducing-mosaicml-cloud)
 
 Now that you've explored the code, let's get training.
 
-## Get started with the MosaicML Cloud
+## Get started with the MosaicML platform
 
-If you're using the MosaicML cloud, all you need to install is [`mcli`](https://github.com/mosaicml/mosaicml-cli/):
+If you're using the MosaicML platform, all you need to install is [`mcli`](https://github.com/mosaicml/mosaicml-cli/):
 
 ```bash
 pip install --upgrade mosaicml-cli
@@ -67,11 +67,11 @@ mcli run -f yamls/mcloud_run.yaml
 
 You're done. You can skip the rest of the instructions except [saving and loading checkpoints](#saving-and-loading-checkpoints).
 
-## Get started without the MosaicML Cloud
+## Get started without the MosaicML platform
 
 ### Prerequisites
 
-If you're not using the MosaicML cloud, here's what you need to start training:
+If you're not using the MosaicML platform, here's what you need to start training:
 
 * Docker image with PyTorch 1.12+, e.g. [MosaicML's PyTorch image](https://hub.docker.com/r/mosaicml/pytorch/tags)
   * Recommended tag: `mosaicml/pytorch:1.12.1_cu116-python3.9-ubuntu20.04`

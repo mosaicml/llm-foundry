@@ -2,7 +2,7 @@
 
 # MosaicGPT Training Benchmarks
 
-Benchmark measurements for MosaicGPT models trained on [MosaicML Cloud](https://www.mosaicml.com/cloud), including throughput, MFU, and HFU. Each model is based on optimized configurations of various sizes in the [yamls](../yamls) folder, ranging from a 125m to 70B parameter models.
+Benchmark measurements for MosaicGPT models trained on [MosaicML platform](https://www.mosaicml.com/platform), including throughput, MFU, and HFU. Each model is based on optimized configurations of various sizes in the [yamls](../yamls) folder, ranging from a 125m to 70B parameter models.
 
 To reproduce these results, first:
 ```

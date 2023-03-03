@@ -60,8 +60,8 @@ The easiest way to train with new data is to make a new dataset in the same form
 
 To add a non-HuggingFace dataset, create your own dataset that yeilds `image` and `text` pairs and use the `build_hf_image_caption_datapsec` function in `data.py` for guidance regarding tokenization and transformations.
 
-# Using MCLOUD
-This example can be run with MCLOUD by configuring the `cluster` and `gpu_type` parameters in `yamls/mcloud_run.yaml` then running:
+# Using the MosaicML platform
+This example can be run with the MosaicML platform by configuring the `cluster` and `gpu_type` parameters in `yamls/mcloud_run.yaml` then running:
 
 ```bash
 mcli run -f yamls/mcloud_run.yaml

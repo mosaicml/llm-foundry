@@ -32,11 +32,13 @@ class TorchCausalAttention(nn.Module):
             ))
 
     def forward(self, x, key_padding_mask, attn_mask=None):
+        if key_padding_mask is not None:
+            key_padding_mask = ~key_padding_mask
         return self.mhsa(x,
                          x,
                          x,
                          attn_mask=attn_mask,
-                         key_padding_mask=~key_padding_mask,
+                         key_padding_mask=key_padding_mask,
                          need_weights=True)
 
     @staticmethod

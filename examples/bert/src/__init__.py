@@ -19,6 +19,7 @@ from examples.bert.src.bert_padding import (IndexFirstAxis, IndexPutFirstAxis,
                                             index_first_axis,
                                             index_put_first_axis, pad_input,
                                             unpad_input, unpad_input_only)
+from examples.bert.src.configuration_bert import BertConfig
 
 if torch.cuda.is_available():
     from examples.bert.src.flash_attn_triton import \
@@ -32,6 +33,7 @@ from examples.bert.src.mosaic_bert import (create_mosaic_bert_classification,
                                            create_mosaic_bert_mlm)
 
 __all__ = [
+    'BertConfig',
     'BertEmbeddings',
     'BertEncoder',
     'BertForMaskedLM',

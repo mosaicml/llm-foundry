@@ -1,8 +1,8 @@
-# Using MosaicML Cloud to train LLMs
+# Using MosaicML platform to train LLMs
 
-This folder contains examples of how to use [MosaicML Cloud](https://www.mosaicml.com/cloud) to launch LLM training runs.
+This folder contains examples of how to use [MosaicML platform](https://www.mosaicml.com/platform) to launch LLM training runs.
 
-Full documentation on MosaicML Cloud can be found at https://mcli.docs.mosaicml.com/.
+Full documentation on MosaicML platform can be found at https://mcli.docs.mosaicml.com/.
 
 ## Using MosaicML Command Line Interface (MCLI) to launch runs
 
@@ -17,8 +17,8 @@ Here's how easy it is to launch an LLM training run with MCLI:
 mcli run -f mcli-1b.yaml --cluster CLUSTER --gpus GPUS --name NAME --follow
 ```
 
-All the details of multi-gpu and multi-node orchestration are handled automatically by MosaicML Cloud. Try it out yourself!
+All the details of multi-gpu and multi-node orchestration are handled automatically by MosaicML platform. Try it out yourself!
 
 ## Using the MosaicML Python SDK to launch runs
-You can also use the [Python SDK](https://mcli.docs.mosaicml.com/en/stable/python/hello_world.html) to launch MosaicML Cloud jobs.
+You can also use the [Python SDK](https://mcli.docs.mosaicml.com/en/stable/python/hello_world.html) to launch MosaicML platform jobs.
 This can be used to programatically sweep hyperparameters or orchestrate training runs within a larger pipeline.

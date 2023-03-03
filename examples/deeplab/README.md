@@ -34,7 +34,7 @@ The files in this folder are:
 * `tests/` - A suite of tests to check each training component
 * `yamls/`
   * `deeplabv3.yaml` - Configuration for a DeepLabV3+ training run to be used as the first argument to `main.py`
-  * `mcloud_run.yaml` - yaml to use if running on the [MosaicML Cloud](https://www.mosaicml.com/blog/introducing-mosaicml-cloud)
+  * `mcloud_run.yaml` - yaml to use if running on the [MosaicML platform](https://www.mosaicml.com/blog/introducing-mosaicml-cloud)
 
 Now that you have explored the code, let's jump into the prerequisites for training.
 
@@ -59,9 +59,9 @@ python data.py path/to/data
 python data.py s3://my-bucket/my-dir/data /tmp/path/to/local
 ```
 
-## Get started with the MosaicML Cloud
+## Get started with the MosaicML platform
 
-If you're using the MosaicML cloud, all you need to install is [`mcli`](https://github.com/mosaicml/mosaicml-cli/):
+If you're using the MosaicML platform, all you need to install is [`mcli`](https://mcli.docs.mosaicml.com/):
 
 ```bash
 pip install --upgrade mosaicml-cli
@@ -97,7 +97,7 @@ mcli run -f yamls/mcloud_run.yaml
 
 You're done. You can skip the rest of the instructions except [using Mosaic recipes](#using-mosaic-recipes).
 
-## Get started without the MosaicML Cloud
+## Get started without the MosaicML platform
 
 ### Prerequisites
 
@@ -145,7 +145,7 @@ If training on a single node, the `composer` launcher will autodetect the number
 composer main.py yamls/deeplabv3.yaml
 ```
 
-To train with high performance on multi-node clusters, the easiest way is with MosaicML Cloud ;)
+To train with high performance on multi-node clusters, the easiest way is with the MosaicML platform ;)
 
 But if you really must try this manually on your own cluster, then just provide a few variables to `composer`
 either directly via CLI, or via environment variables that can be read. Then launch the appropriate command on each node:

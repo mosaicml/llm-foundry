@@ -259,9 +259,9 @@ Before using the configs in `yamls/finetuning/glue/` when running `glue.py`, you
 * `base_run_name` (optional) - Make sure to avoid re-using the same name across multiple runs.
 * `algorithms` (optional) - Make sure to include any architecture-modifying algorithms that were applied to your starting checkpoint model before pre-training. For instance, if you turned on `gated_linear_units` in pre-training, make sure to do so during fine-tuning too!
 
-## Running on the MosaicML Cloud
+## Running on the MosaicML platform
 
-If you have configured a compute cluster to work with the MosaicML Cloud, you can use the `yaml/*/mcloud_run*.yaml` reference YAMLs for examples of how to run pre-training and fine-tuning remotely!
+If you have configured a compute cluster to work with the MosaicML platform, you can use the `yaml/*/mcloud_run*.yaml` reference YAMLs for examples of how to run pre-training and fine-tuning remotely!
 
 Once you have filled in the missing YAML fields (and made any other modifications you want), you can launch pre-training by simply running:
 
@@ -289,7 +289,7 @@ mcli run -f yamls/finetuning/glue/mcloud_run.yaml
 
 ### Multi-node training
 
-To train with high performance on *multi-node* clusters, the easiest way is with MosaicML Cloud ;)
+To train with high performance on *multi-node* clusters, the easiest way is with the MosaicML platform ;)
 
 But if you want to try this manually on your own cluster, then just provide a few variables to `composer`, either directly via CLI or via environment variables. Then launch the appropriate command on each node.
 
@@ -357,4 +357,4 @@ If you're reading this, we're still profiling the exact speedup and performance 
 
 If you run into any problems with the code, please file Github issues directly to this repo.
 
-If you want to train BERT-style models on MosaicML Cloud, reach out to us at [demo@mosaicml.com](mailto:demo@mosaicml.com)!
+If you want to train BERT-style models on MosaicML platform, reach out to us at [demo@mosaicml.com](mailto:demo@mosaicml.com)!

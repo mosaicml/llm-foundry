@@ -18,6 +18,27 @@ def torch_defualt_param_init_fn_(module, cfg):
         module.reset_parameters()
 
 
+def fused_init_helper_(module, init_fn_):
+    # parameter initialization is often based on the parameters shape.
+    # If a layer is fused, initialization should be based on the shapes
+    # of the original tensor instead of the shape of the fused tensor.
+    # Layers which are fused should have the _fused attibute defined.
+    # The first element of _fused is the dimension along which the tensor is fused.
+    # This is followed by an iterable of split indices."
+
+    _fused = getattr(module, '_fused', None)
+
+    if _fused is None:
+        raise RuntimeError(f'Internal logic error')
+
+    dim, splits = _fused
+    splits = (0, *splits, module.weight.size(dim))
+    for s, e in zip(splits[:-1], splits[1:]):
+        slice_indices = [slice(None)] * module.weight.ndim
+        slice_indices[dim] = slice(s, e)
+        init_fn_(module.weight[slice_indices])
+
+
 def generic_param_init_fn_(module, cfg, init_fn_):
     if cfg.get('verbose') and cfg.get('verbose') > 1:
         warnings.warn(
@@ -32,23 +53,10 @@ def generic_param_init_fn_(module, cfg, init_fn_):
                 f'set `init_div_is_residual: false` in model config to disable this.'
             )
 
-    # Linear
     if isinstance(module, nn.Linear):
-        _fused = getattr(module, '_fused', None)
-        if _fused is not None:
-            # parameter initialization is often based on the parameters shape.
-            # If a layer is fused, initialization should be based on the shapes
-            # of the original tensor instead of the shape of the fused tensor.
-            # Layers which are fused should have the _fused attibute defined.
-            # The first element of _fused is the dimension along which the tensor is fused.
-            # This is followed by an iterable of indices defining the splits."
-
-            dim, splits = _fused
-            splits = (0, *splits, module.weight.size(dim))
-            for s, e in zip(splits[:-1], splits[1:]):
-                slice_indices = [slice(None)] * module.weight.ndim
-                slice_indices[dim] = slice(s, e)
-                init_fn_(module.weight[slice_indices])
+        # Linear
+        if hasattr(module, '_fused'):
+            fused_init_helper_(module, init_fn_)
         else:
             init_fn_(module.weight)
         if module.bias is not None:
@@ -58,12 +66,12 @@ def generic_param_init_fn_(module, cfg, init_fn_):
             with torch.no_grad():
                 module.weight.div_(math.sqrt(2 * cfg.n_layers))
 
-    # Embedding
-    if isinstance(module, nn.Embedding):
+    elif isinstance(module, nn.Embedding):
+        # Embedding
         init_fn_(module.weight)
 
-    # LayerNorm
-    if isinstance(module, nn.LayerNorm):
+    elif isinstance(module, nn.LayerNorm):
+        # LayerNorm
         if cfg.get('verbose', 0) > 1:
             warnings.warn(
                 f'LayerNorm gamma weights are set to 1. If the layer has a bias it is initialized to 0.'
@@ -72,8 +80,8 @@ def generic_param_init_fn_(module, cfg, init_fn_):
         if module.bias is not None:
             torch.nn.init.zeros_(module.bias)
 
-    # torch's MultiheadAttention
-    if isinstance(module, nn.MultiheadAttention):
+    elif isinstance(module, nn.MultiheadAttention):
+        # torch's MultiheadAttention
         if module._qkv_same_embed_dim:
             assert module.in_proj_weight is not None
             assert module.q_proj_weight is None and module.k_proj_weight is None and module.v_proj_weight is None
@@ -104,6 +112,13 @@ def generic_param_init_fn_(module, cfg, init_fn_):
                 module.out_proj.weight.div_(math.sqrt(2 * cfg.n_layers))
         if module.out_proj.bias is not None:
             torch.nn.init.zeros_(module.out_proj.bias)
+
+    else:
+        for _ in module.parameters(recurse=False):
+            # raise error if uninitialized module has any parameters
+            raise NotImplementedError(
+                f'{module.__class__.__name__} parameters are not initialized by param_init_fn.'
+            )
 
 
 def baseline_param_init_fn_(module, cfg):

@@ -58,6 +58,9 @@ class MosaicGPT(nn.Module):
         self.alibi = cfg.get('alibi', False)
         self.alibi_bias_max = cfg.get('alibi_bias_max',
                                       8 if self.alibi else None)
+        if self.alibi and cfg.attn_impl not in ['torch', 'triton']:
+            raise NotImplementedError(
+                'alibi only implemented with torch and triton attention.')
         # CogView (https://arxiv.org/abs/2105.13290) and GLM-130B (https://arxiv.org/abs/2210.02414)
         # both report this helping with stabilizing training
         self.embedding_fraction = cfg.get('embedding_fraction', 1)

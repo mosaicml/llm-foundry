@@ -201,7 +201,9 @@ def main(config):
         device=device,
         precision=precision,
         grad_accum=config.grad_accum,
-        seed=config.seed)
+        seed=config.seed,
+        python_log_level=config.get('python_log_level', None),
+    )
     print('Built Trainer\n')
 
     print('Logging config')

@@ -60,7 +60,9 @@ class TorchCausalAttention(nn.Module):
         # 2. This is is the exact opposite behavior of Huggingface's tokenizers, which use the convention that True denotes tokens
         #   we do want to attend to. See https://huggingface.co/docs/transformers/glossary#attention-mask
         attn_mask.fill_(float('-inf'))
-        attn_mask.triu_(diagonal=1)
+        # attn_mask.triu_(diagonal=1)  # triu_ is not implemented for cuda bf16
+        # TODO: revert back to triu_ when torch supports triu_ for cuda bf16
+        attn_mask.masked_fill_(attn_mask.to(bool).fill_(1).tril_(), 0.)
 
         if alibi:
             device, dtype = attn_mask.device, attn_mask.dtype

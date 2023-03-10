@@ -6,6 +6,7 @@
 Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 """
 
+import math
 import warnings
 from typing import Optional
 
@@ -91,6 +92,20 @@ class MosaicGPT(nn.Module):
         })
         self.transformer.update(
             {'ln_f': nn.LayerNorm(cfg.d_model, device=cfg.init_device)})
+
+        # enables scaling output logits; similar to a softmax "temperature"
+        # PaLM paper uses scale 1/sqrt(cfg.d_model)
+        self.logit_scale = None
+        if self.cfg.get('logit_scale') is not None:
+            logit_scale = self.cfg.get('logit_scale')
+            if isinstance(logit_scale, str):
+                if logit_scale == 'inv_sqrt_d_model':
+                    logit_scale = 1 / math.sqrt(self.cfg.d_model)
+                else:
+                    raise ValueError(
+                        f"{logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'."
+                    )
+            self.logit_scale = logit_scale
 
         if cfg.init_device != 'meta':
             print(
@@ -188,6 +203,14 @@ class MosaicGPT(nn.Module):
         assert isinstance(self.transformer.wte, nn.Module)  # pyright
         assert isinstance(self.transformer.wte.weight, torch.Tensor)  # pyright
         logits = F.linear(x, self.transformer.wte.weight, None)
+
+        if self.logit_scale is not None:
+            if self.logit_scale == 0:
+                warnings.warn(
+                    f'Multiplying logits by {self.logit_scale=}. This will produce uniform (uninformative) outputs.'
+                )
+            logits *= self.logit_scale
+
         return logits
 
     # Param Initialization, needed for device='meta' fast initialization

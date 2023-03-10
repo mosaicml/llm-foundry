@@ -10,10 +10,10 @@ import torch
 from torch import nn
 
 
-def torch_defualt_param_init_fn_(module, cfg):
+def torch_default_param_init_fn_(module, cfg):
     if cfg.get('verbose') and cfg.get('verbose') > 1:
         warnings.warn(
-            f"Initializaing network using module's reset_parameters attribute")
+            f"Initializing network using module's reset_parameters attribute")
 
     if hasattr(module, 'reset_parameters'):
         module.reset_parameters()
@@ -45,12 +45,33 @@ def generic_param_init_fn_(module, cfg, init_fn_):
         warnings.warn(
             f'If model has bias parameters they are initialized to 0.')
 
-    # enable user to divide _is_residual weights by math.sqrt(2 * cfg.n_layers)
-    div_is_residual = cfg.get('init_div_is_residual', True)
-    if div_is_residual:
+    # enable user to divide _is_residual weights by
+    # a value which defaults to math.sqrt(2 * cfg.n_layers)
+    init_div_is_residual = cfg.get('init_div_is_residual', True)
+
+    if init_div_is_residual is False:
+        # not used, for pyright
+        div_is_residual = 1.0
+    elif init_div_is_residual is True:
+        div_is_residual = math.sqrt(2 * cfg.n_layers)
+    elif isinstance(init_div_is_residual, float) or isinstance(
+            init_div_is_residual, int):
+        div_is_residual = init_div_is_residual
+    elif isinstance(init_div_is_residual,
+                    str) and init_div_is_residual.isnumeric():
+        # do not trust YAML parsing to always convert numbers to numbers
+        div_is_residual = float(init_div_is_residual)
+    else:
+        # not used, for pyright
+        div_is_residual = 1.0
+        raise ValueError(
+            f'Expected init_div_is_residual to be boolean or numeric, got {init_div_is_residual}'
+        )
+
+    if init_div_is_residual is not False:
         if cfg.get('verbose', 0) > 1:
             warnings.warn(
-                f'Initializing _is_residual layers then dividing them by math.sqrt(2 * n_layers).' +\
+                f'Initializing _is_residual layers then dividing them by {div_is_residual}.' +\
                 f'set `init_div_is_residual: false` in model config to disable this.'
             )
 
@@ -63,9 +84,10 @@ def generic_param_init_fn_(module, cfg, init_fn_):
         if module.bias is not None:
             torch.nn.init.zeros_(module.bias)
 
-        if div_is_residual and getattr(module, '_is_residual', False):
+        if init_div_is_residual is not False and getattr(
+                module, '_is_residual', False):
             with torch.no_grad():
-                module.weight.div_(math.sqrt(2 * cfg.n_layers))
+                module.weight.div_(div_is_residual)
 
     elif isinstance(module, nn.Embedding):
         # Embedding
@@ -139,9 +161,10 @@ def generic_param_init_fn_(module, cfg, init_fn_):
 
         # out proj
         init_fn_(module.out_proj.weight)
-        if div_is_residual and getattr(module.out_proj, '_is_residual', False):
+        if init_div_is_residual is not False and getattr(
+                module.out_proj, '_is_residual', False):
             with torch.no_grad():
-                module.out_proj.weight.div_(math.sqrt(2 * cfg.n_layers))
+                module.out_proj.weight.div_(div_is_residual)
         if module.out_proj.bias is not None:
             torch.nn.init.zeros_(module.out_proj.bias)
 
@@ -153,14 +176,49 @@ def generic_param_init_fn_(module, cfg, init_fn_):
             )
 
 
-def baseline_param_init_fn_(module, cfg):
-    init_fn_ = partial(torch.nn.init.normal_, mean=0.0, std=cfg.init_std)
+def _normal_init_(std, mean=0.0):
+    return partial(torch.nn.init.normal_, mean=mean, std=std)
+
+
+def _normal_param_init_fn_(module, cfg, std):
+    init_fn_ = _normal_init_(std=std)
 
     if cfg.get('verbose', 0) > 1:
         warnings.warn(
-            f'Using torch.nn.init.normal_ init fn mean=0.0, std={cfg.init_std}')
+            f'Using torch.nn.init.normal_ init fn mean=0.0, std={std}')
 
     generic_param_init_fn_(module, cfg, init_fn_)
+
+
+def baseline_param_init_fn_(module, cfg):
+    std = cfg.get('init_std')
+    if std is None:
+        raise ValueError(
+            'You must set model.init_std to a float value to use the default initialization scheme.'
+        )
+    _normal_param_init_fn_(module, cfg, std=std)
+
+
+def small_param_init_fn_(module, cfg):
+    # very close to kaiming normal
+    # from Transformers without Tears (2019) - Nguyen & Salazar
+    std = math.sqrt(2 / (5 * cfg.d_model))
+    _normal_param_init_fn_(module, cfg, std=std)
+
+
+def neox_param_init_fn_(module, cfg):
+    """From section 2.3.1 of GPT-NeoX-20B:
+
+    An Open-Source AutoregressiveLanguage Model — Black et. al. (2022)
+    see https://github.com/EleutherAI/gpt-neox/blob/9610391ab319403cef079b438edd016a2443af54/megatron/model/init_functions.py#L151
+    and https://github.com/EleutherAI/gpt-neox/blob/main/megatron/model/transformer.py
+    """
+    residual_div = cfg.n_layers / math.sqrt(10)  # small std / wang std
+
+    if cfg.get('verbose', 0) > 1:
+        warnings.warn(f'setting init_div_is_residual to {residual_div}')
+    cfg['init_div_is_residual'] = residual_div
+    small_param_init_fn_(module, cfg)
 
 
 def kaiming_uniform_param_init_fn_(module, cfg):
@@ -236,10 +294,12 @@ def xavier_normal_param_init_fn_(module, cfg):
 
 
 MODEL_INIT_REGISTRY = {
-    'default_': torch_defualt_param_init_fn_,
+    'default_': torch_default_param_init_fn_,
     'baseline_': baseline_param_init_fn_,
     'kaiming_uniform_': kaiming_uniform_param_init_fn_,
     'kaiming_normal_': kaiming_normal_param_init_fn_,
+    'neox_init_': neox_param_init_fn_,
+    'small_init_': small_param_init_fn_,
     'xavier_uniform_': xavier_uniform_param_init_fn_,
     'xavier_normal_': xavier_normal_param_init_fn_,
 }

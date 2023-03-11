@@ -19,6 +19,7 @@ class FlashAttention(nn.Module):
     """Implement the scaled dot product attention with softmax.
 
     Args:
+        num_heads: number of attention heads
         softmax_scale: The temperature to use for the softmax attention.
                       (default: 1/sqrt(d_keys) where d_keys is computed at
                       runtime)
@@ -40,43 +41,22 @@ class FlashAttention(nn.Module):
         self.softmax_scale = softmax_scale
 
     def forward(
-            self,
-            qkv,
-            key_padding_mask: Optional[Tensor] = None,
-            attn_mask: Optional[Tensor] = None,
-            is_causal: bool = False,
-            need_weights: bool = False,
-            average_attn_weights: bool = True
+        self,
+        qkv,
+        key_padding_mask: Optional[Tensor] = None,
+        attn_mask: Optional[Tensor] = None,
+        is_causal: bool = False,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         r"""Multiheaded softmax attention.
 
         Arguments:
-            qkv: The tensor containing the query, key, and value. (B, S, 3, H, D) if key_padding_mask is None
-                if unpadded: (nnz, 3, h, d)
-            key_padding_mask: If specified, a mask of shape :math:`(N, S)` indicating which elements within ``key``
-                to ignore for the purpose of attention (i.e. treat as "padding"). For unbatched `query`, shape should be :math:`(S)`.
-                Binary and byte masks are supported.
-                For a binary mask, a ``True`` value indicates that the corresponding ``key`` value will be ignored for
-                the purpose of attention. For a float mask, it will be directly added to the corresponding ``key`` value.
-            attn_mask: If specified, a 2D or 3D mask preventing attention to certain positions. Must be of shape
-                :math:`(L, S)` or :math:`(N\cdot\text{num\_heads}, L, S)`, where :math:`N` is the batch size,
-                :math:`L` is the target sequence length, and :math:`S` is the source sequence length. A 2D mask will be
-                broadcasted across the batch while a 3D mask allows for a different mask for each entry in the batch.
-                Binary, byte, and float masks are supported. For a binary mask, a ``True`` value indicates that the
-                corresponding position is not allowed to attend. For a byte mask, a non-zero value indicates that the
-                corresponding position is not allowed to attend. For a float mask, the mask values will be added to
-                the attention weight.
-            is_causal: If specified, applies a causal mask as attention mask. Mutually exclusive with providing attn_mask.
-                Default: ``False``.
-            need_weights: If specified, returns ``attn_output_weights`` in addition to ``attn_outputs``.
-                Default: ``True``.
-            average_attn_weights: If true, indicates that the returned ``attn_weights`` should be averaged across
-                heads. Otherwise, ``attn_weights`` are provided separately per head. Note that this flag only has an
-                effect when ``need_weights=True``. Default: ``True`` (i.e. average weights across heads)
+            qkv: The tensor containing the query, key, and value. (B, S, 3, H, D)
+            key_padding_mask: not implemented for triton kernel.
+            attn_mask: If specified, a 4D mask of floats which will be added to the attention weight. Must braodcast to (B, H, S, S).
+            is_causal: If specified, applies a causal mask as attention mask. Default: ``False``.
         """
         from flash_attn import flash_attn_triton  # type: ignore
 
-        assert not need_weights and not average_attn_weights
         assert qkv.dtype in [torch.float16, torch.bfloat16]
         assert qkv.is_cuda
 
@@ -136,24 +116,17 @@ class FlashMHA(nn.Module):
 
         Args:
             x: (batch, seqlen, hidden_dim) (where hidden_dim = num heads * head dim)
-            key_padding_mask: bool tensor of shape (batch, seqlen)
-            attn_mask: If specified, a 2D or 3D mask preventing attention to certain positions. Must be of shape
-                :math:`(L, S)` or :math:`(N\cdot\text{num\_heads}, L, S)`, where :math:`N` is the batch size,
-                :math:`L` is the target sequence length, and :math:`S` is the source sequence length. A 2D mask will be
-                broadcasted across the batch while a 3D mask allows for a different mask for each entry in the batch.
-                Binary, byte, and float masks are supported. For a binary mask, a ``True`` value indicates that the
-                corresponding position is not allowed to attend. For a byte mask, a non-zero value indicates that the
-                corresponding position is not allowed to attend. For a float mask, the mask values will be added to
-                the attention weight.
-            need_weights: If specified, returns ``attn_output_weights`` in addition to ``attn_outputs``.
-                Default: ``True``.
+            key_padding_mask: not implemented for triton kernel.
+            attn_mask: If specified, a 4D mask of floats which will be added to the attention weight. Must braodcast to (B, H, S, S).
+            need_weights: not implemented for triton kernel.
         """
+        if need_weights:
+            raise NotImplementedError(f'Not implemented for triton kernel.')
+
         qkv = self.Wqkv(x)
         context, attn_weights = self.inner_attn(
             qkv,
             key_padding_mask=key_padding_mask,
             attn_mask=attn_mask,
-            is_causal=self.causal,
-            need_weights=need_weights,
-            average_attn_weights=False)
+            is_causal=self.causal)
         return self.out_proj(context), attn_weights

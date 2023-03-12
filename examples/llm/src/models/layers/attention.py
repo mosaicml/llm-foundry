@@ -301,9 +301,7 @@ class TritonFlashCausalAttention(nn.Module):
                 qkv,
                 key_padding_mask=key_padding_mask,
                 attn_mask=attn_mask,
-                is_causal=True,
-                need_weights=False,
-                average_attn_weights=False)
+                is_causal=True)
 
             return self.out_proj(context), attn_weights
 

@@ -46,7 +46,8 @@ def main(config):
                 f'recipe_name={config.recipe_name}, but must be one of ["mild", "medium", "hot"]'
             )
         recipe_config = config[config.recipe_name]
-        config.update(recipe_config)
+        for key, value in recipe_config.items():
+            OmegaConf.update(config, key, value)
 
     # Divide batch sizes by number of devices if running multi-gpu training
     train_batch_size = config.train_dataset.batch_size

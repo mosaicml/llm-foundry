@@ -35,6 +35,9 @@ class MosaicGPTInference:
         temperature: float = 0.8,
         top_p: float = 0.95,
     ) -> List[str]:
+        if isinstance(prompts, str):
+            prompts = [prompts]
+
         bsz = len(prompts)
 
         prompt_tokens = [self.tokenizer.encode(x) for x in prompts]

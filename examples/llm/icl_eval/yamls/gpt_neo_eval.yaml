@@ -41,4 +41,4 @@ icl_tasks:
   - InContextLearningLMAccuracy
   prompt_string: '' # this goes at the beginning of each input
   example_delimiter: '\n' # this goes between fewshot examples
-  continuation_delimiter: '' # this separates contexts from continuations
+  continuation_delimiter: ' ' # this separates contexts from continuations

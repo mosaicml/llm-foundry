@@ -443,8 +443,8 @@ def main(args: Namespace) -> None:
 
         # Write samples
         print(f'Converting {folder_split} to MDS format...')
-        with MDSWriter(dirname=os.path.join(args.out_root, folder_split),
-                       columns=columns,
+        with MDSWriter(columns=columns,
+                       out=os.path.join(args.out_root, folder_split),
                        compression=args.compression) as out:
             if denominator is not None:
                 for sample in tqdm(samples,

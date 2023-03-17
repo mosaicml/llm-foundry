@@ -12,8 +12,6 @@ try:
     from examples.common.hf_fsdp import (prepare_hf_causal_lm_model_for_fsdp,
                                          prepare_hf_enc_dec_model_for_fsdp,
                                          prepare_hf_model_for_fsdp)
-    from examples.common.speed_monitor_w_mfu import (SpeedMonitorMFU,
-                                                     get_gpu_flops_available)
     from examples.common.text_data import (StreamingTextDataset,
                                            build_text_dataloader)
 except ImportError as e:
@@ -32,8 +30,6 @@ __all__ = [
     'calculate_batch_size_info',
     'update_batch_size_info',
     'log_config',
-    'get_gpu_flops_available',
-    'SpeedMonitorMFU',
     'StreamingTextDataset',
     'build_text_dataloader',
     'prepare_hf_causal_lm_model_for_fsdp',

@@ -218,7 +218,7 @@ def run_jobs_parallel(configs: Sequence[om.DictConfig]):
     * 'checkpoints': list of saved_checkpoints, if any,
     * 'metrics': nested dict of results, accessed by
                  dataset and metric name, e.g.
-                 ``metrics['glue_mnli']['Accuracy']``.
+                 ``metrics['glue_mnli']['MulticlassAccuracy']``.
     * 'job_name': The job name, helpful for keeping track of results during multiprocessing
     """
     num_gpus = torch.cuda.device_count()
@@ -269,8 +269,8 @@ def format_job_name(job_name: str) -> str:
 
 def _print_table(results: Dict[str, Dict[str, Any]]):
     """Pretty prints a table given a results dictionary."""
-    header = '{job_name:50}| {eval_task:25}| {name:20}|'
-    hyphen_count = 50 + 25 + 20 + 11
+    header = '{job_name:50}| {eval_task:25}| {name:27}|'
+    hyphen_count = 50 + 25 + 27 + 11
     row_format = header + ' {value:.2f}'
     print('\nCollected Job Results: \n')
     print('-' * hyphen_count)

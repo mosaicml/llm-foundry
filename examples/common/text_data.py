@@ -211,10 +211,10 @@ if __name__ == '__main__':
 
     if args.remote_path is not None:
         print(
-            f'Reading val split from {args.local_path} <- streamed from <- {args.remote_path}'
+            f'Reading {args.split} split from {args.local_path} <- streamed from <- {args.remote_path}'
         )
     else:
-        print(f'Reading val split from {args.local_path}')
+        print(f'Reading {args.split} split from {args.local_path}')
 
     cfg = {
         'name': 'text',

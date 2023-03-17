@@ -193,7 +193,7 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/t
 [epoch=0][batch=16/625]: memory/alloc_retries: 3
 [epoch=0][batch=16/625]: trainer/grad_accum: 2
 [epoch=0][batch=16/625]: loss/train/total: 7.1292
-[epoch=0][batch=16/625]: metrics/train/Accuracy: 0.0005
+[epoch=0][batch=16/625]: metrics/train/MulticlassAccuracy: 0.0005
 [epoch=0][batch=17/625]: wall_clock/train: 17.8836
 [epoch=0][batch=17/625]: wall_clock/val: 10.9666
 [epoch=0][batch=17/625]: wall_clock/total: 28.8502
@@ -209,7 +209,7 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/t
 [epoch=0][batch=17/625]: memory/alloc_retries: 3
 [epoch=0][batch=17/625]: trainer/grad_accum: 2
 [epoch=0][batch=17/625]: loss/train/total: 7.1243
-[epoch=0][batch=17/625]: metrics/train/Accuracy: 0.0010
+[epoch=0][batch=17/625]: metrics/train/MulticlassAccuracy: 0.0010
 train          Epoch   0:    3%|▋                        | 17/625 [00:17<07:23,  1.37ba/s, loss/train/total=7.1292]
 ```
 

@@ -4,7 +4,9 @@
 import os
 
 from composer import algorithms
-from composer.callbacks import LRMonitor, MemoryMonitor, OptimizerMonitor
+from composer.callbacks import (HealthChecker, LRMonitor, MemoryMonitor,
+                                OptimizerMonitor, RuntimeEstimator,
+                                SpeedMonitor)
 from composer.core import Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -15,7 +17,7 @@ from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       LinearWithWarmupScheduler)
 
 from examples.common.fdiff import FDiffMetrics
-from examples.common.speed_monitor_w_mfu import SpeedMonitorMFU
+from examples.common.optim.lion import DecoupledLionW
 from examples.common.text_data import build_text_dataloader
 
 
@@ -25,14 +27,18 @@ def build_callback(name, kwargs):
     elif name == 'memory_monitor':
         return MemoryMonitor()
     elif name == 'speed_monitor':
-        return SpeedMonitorMFU(window_size=kwargs.get('window_size', 1),
-                               gpu_flops_available=kwargs.get(
-                                   'gpu_flops_available', None))
+        return SpeedMonitor(window_size=kwargs.get('window_size', 1),
+                            gpu_flops_available=kwargs.get(
+                                'gpu_flops_available', None))
     elif name == 'fdiff':
         return FDiffMetrics(**kwargs)
+    elif name == 'runtime_estimator':
+        return RuntimeEstimator()
     elif name == 'optimizer_monitor':
         return OptimizerMonitor(log_optimizer_metrics=kwargs.get(
             'log_optimizer_metrics', True),)
+    elif name == 'health_checker':
+        return HealthChecker(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
@@ -66,6 +72,12 @@ def build_optimizer(cfg, model):
                               betas=cfg.betas,
                               eps=cfg.eps,
                               weight_decay=cfg.weight_decay)
+    elif cfg.name == 'decoupled_lionw':
+        return DecoupledLionW(model.parameters(),
+                              lr=cfg.lr,
+                              betas=cfg.betas,
+                              weight_decay=cfg.weight_decay)
+
     else:
         raise ValueError(f'Not sure how to build optimizer: {cfg.name}')
 
@@ -127,7 +139,9 @@ def build_icl_evaluators(cfg, tokenizer):
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
-                continuation_delimiter=icl_cfg.continuation_delimiter)
+                continuation_delimiter=icl_cfg.continuation_delimiter,
+                destination_path=f'{icl_cfg.label}-{num_fewshot}.jsonl',
+            )
             logger_keys.extend([f'metrics/{label}/{m}' for m in metric_names])
             evaluators.append(
                 Evaluator(label=label,

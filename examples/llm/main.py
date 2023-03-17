@@ -85,8 +85,10 @@ def main(cfg):
         f'torch.distributed.*_base is a private function and will be deprecated.*'
     )
 
+    cfg.dist_timeout = cfg.get('dist_timeout', 1800.0)
+
     reproducibility.seed_all(cfg.seed)
-    dist.initialize_dist(get_device(None))
+    dist.initialize_dist(get_device(None), timeout=cfg.dist_timeout)
 
     # Run Name
     if cfg.get('run_name') is None:
@@ -195,11 +197,17 @@ def main(cfg):
         save_overwrite=cfg.get('save_overwrite', False),
         load_path=cfg.get('load_path', None),
         load_weights_only=cfg.get('load_weights_only', False),
+        load_ignore_keys=cfg.get('load_ignore_keys', None),
+        autoresume=cfg.get('autoresume', False),
         python_log_level=cfg.get('python_log_level', None),
+        dist_timeout=cfg.dist_timeout,
     )
 
     print('Logging config...')
     log_config(cfg)
+
+    if cfg.get('eval_first', False):
+        trainer.eval()
 
     print('Starting training...')
     trainer.fit()

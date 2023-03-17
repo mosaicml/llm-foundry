@@ -2,7 +2,7 @@
 # Each example subdir has its own `requirements.txt` with extra deps.
 # E.g. to install LLM folder deps, use `pip install -e .[llm]`
 
-mosaicml>=0.12,<0.13
+mosaicml>=0.13.2,<0.14
 pre-commit>=2.18.1,<3
 pytest>=7.2.1,<8
 pytest_codeblocks>=0.16.1,<0.17
@@ -11,7 +11,9 @@ pyright==1.1.296
 toml>=0.10.2,<0.11
 packaging>=21,<23
 omegaconf>=2.2.3,<3
-# these are just for common/text_data.py
-datasets>=2.9.0
-transformers>=4.11,<5
-mosaicml-streaming<0.2.4
+# these are just for common/
+datasets==2.10.1
+transformers==4.25.1
+mosaicml-streaming==0.3.0
+pynvml<12
+slack-sdk<4

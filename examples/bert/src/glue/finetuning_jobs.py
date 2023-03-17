@@ -132,7 +132,7 @@ class FineTuneJob:
             * 'checkpoints': list of saved_checkpoints, if any,
             * 'metrics': nested dict of results, accessed by
                         dataset and metric name, e.g.
-                        ``metrics['glue_mnli']['Accuracy']``.
+                        ``metrics['glue_mnli']['MulticlassAccuracy']``.
         """
         if gpu_queue is None:
             if torch.cuda.device_count() > 0:
@@ -321,12 +321,12 @@ class MNLIJob(GlueClassificationJob):
         mnli_evaluator = Evaluator(label='glue_mnli',
                                    dataloader=_build_dataloader(
                                        mnli_eval_dataset, **dataloader_kwargs),
-                                   metric_names=['Accuracy'])
-        mnli_evaluator_mismatched = Evaluator(label='glue_mnli_mismatched',
-                                              dataloader=_build_dataloader(
-                                                  mnli_eval_mismatched_dataset,
-                                                  **dataloader_kwargs),
-                                              metric_names=['Accuracy'])
+                                   metric_names=['MulticlassAccuracy'])
+        mnli_evaluator_mismatched = Evaluator(
+            label='glue_mnli_mismatched',
+            dataloader=_build_dataloader(mnli_eval_mismatched_dataset,
+                                         **dataloader_kwargs),
+            metric_names=['MulticlassAccuracy'])
         self.evaluators = [mnli_evaluator, mnli_evaluator_mismatched]
 
 
@@ -395,7 +395,7 @@ class RTEJob(GlueClassificationJob):
         rte_evaluator = Evaluator(label='glue_rte',
                                   dataloader=_build_dataloader(
                                       rte_eval_dataset, **dataloader_kwargs),
-                                  metric_names=['Accuracy'])
+                                  metric_names=['MulticlassAccuracy'])
         self.evaluators = [rte_evaluator]
 
 
@@ -461,10 +461,10 @@ class QQPJob(GlueClassificationJob):
                                                   **dataloader_kwargs)
         qqp_eval_dataset = create_glue_dataset(split='validation',
                                                **dataset_kwargs)
-        qqp_evaluator = Evaluator(label='glue_qqp',
-                                  dataloader=_build_dataloader(
-                                      qqp_eval_dataset, **dataloader_kwargs),
-                                  metric_names=['Accuracy', 'BinaryF1Score'])
+        qqp_evaluator = Evaluator(
+            label='glue_qqp',
+            dataloader=_build_dataloader(qqp_eval_dataset, **dataloader_kwargs),
+            metric_names=['MulticlassAccuracy', 'BinaryF1Score'])
         self.evaluators = [qqp_evaluator]
 
 
@@ -599,10 +599,11 @@ class MRPCJob(GlueClassificationJob):
                                                   **dataloader_kwargs)
         mrpc_eval_dataset = create_glue_dataset(split='validation',
                                                 **dataset_kwargs)
-        mrpc_evaluator = Evaluator(label='glue_mrpc',
-                                   dataloader=_build_dataloader(
-                                       mrpc_eval_dataset, **dataloader_kwargs),
-                                   metric_names=['Accuracy', 'BinaryF1Score'])
+        mrpc_evaluator = Evaluator(
+            label='glue_mrpc',
+            dataloader=_build_dataloader(mrpc_eval_dataset,
+                                         **dataloader_kwargs),
+            metric_names=['MulticlassAccuracy', 'BinaryF1Score'])
         self.evaluators = [mrpc_evaluator]
 
 
@@ -671,7 +672,7 @@ class QNLIJob(GlueClassificationJob):
         qnli_evaluator = Evaluator(label='glue_qnli',
                                    dataloader=_build_dataloader(
                                        qnli_eval_dataset, **dataloader_kwargs),
-                                   metric_names=['Accuracy'])
+                                   metric_names=['MulticlassAccuracy'])
         self.evaluators = [qnli_evaluator]
 
 
@@ -740,7 +741,7 @@ class SST2Job(GlueClassificationJob):
         sst2_evaluator = Evaluator(label='glue_sst2',
                                    dataloader=_build_dataloader(
                                        sst2_eval_dataset, **dataloader_kwargs),
-                                   metric_names=['Accuracy'])
+                                   metric_names=['MulticlassAccuracy'])
         self.evaluators = [sst2_evaluator]
 
 

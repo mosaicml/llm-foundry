@@ -7,6 +7,8 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
+from composer.algorithms.low_precision_layernorm.low_precision_layernorm import \
+    LPLayerNorm
 from omegaconf import DictConfig
 
 
@@ -36,9 +38,13 @@ class GPTBlock(nn.Module):
         super().__init__()
         if cfg.get('alibi', False):
             assert cfg.attn_impl == 'triton' or cfg.attn_impl == 'torch', 'Only triton kernel or torch supports alibi'
-        self.ln_1 = nn.LayerNorm(cfg.d_model, device=device)
+
+        layernorm_class = LPLayerNorm if cfg.get('low_precision_layernorm',
+                                                 False) else nn.LayerNorm
+
+        self.ln_1 = layernorm_class(cfg.d_model, device=device)
         self.causal_attn = causal_attn_cls(cfg, device)
-        self.ln_2 = nn.LayerNorm(cfg.d_model, device=device)
+        self.ln_2 = layernorm_class(cfg.d_model, device=device)
         self.mlp = GPTMLP(cfg, device=device)
         self.resid_attn_dropout = nn.Dropout(cfg.resid_pdrop)
         self.resid_mlp_dropout = nn.Dropout(cfg.resid_pdrop)

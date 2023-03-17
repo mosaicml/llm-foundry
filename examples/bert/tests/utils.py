@@ -30,8 +30,8 @@ def create_synthetic_text_dataset(n_samples: int = 16):
         dirname = os.path.join(tmp_dirname, split)
         hashes = ['sha1', 'xxh64']
         size_limit = 1 << 25
-        with streaming.MDSWriter(dirname=dirname,
-                                 columns={'text': 'str'},
+        with streaming.MDSWriter(columns={'text': 'str'},
+                                 out=dirname,
                                  hashes=hashes,
                                  size_limit=size_limit) as out:
             for _ in range(n_samples):

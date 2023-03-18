@@ -180,15 +180,8 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val,
         '.mlp.c_fc.': '.mlp.mlp_up.',
         '.mlp.c_proj.': '.mlp.mlp_down.',
     }
-    if attn_impl == 'torch':
-        hf_2_mosaic_key_mods[
-            '.attn.c_attn.weight'] = '.causal_attn.mhsa.in_proj_weight'
-        hf_2_mosaic_key_mods[
-            '.attn.c_attn.bias'] = '.causal_attn.mhsa.in_proj_bias'
-        hf_2_mosaic_key_mods['.attn.c_proj.'] = '.causal_attn.mhsa.out_proj.'
-    else:
-        hf_2_mosaic_key_mods['.attn.c_attn.'] = '.causal_attn.mhsa.Wqkv.'
-        hf_2_mosaic_key_mods['.attn.c_proj.'] = '.causal_attn.mhsa.out_proj.'
+    hf_2_mosaic_key_mods['.attn.c_attn.'] = '.attn.Wqkv.'
+    hf_2_mosaic_key_mods['.attn.c_proj.'] = '.attn.out_proj.'
 
     # convert hf gpt statedict to mosaic gpt statedict using the dict and list above
     _hf_model_statedict = {}

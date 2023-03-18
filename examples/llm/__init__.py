@@ -11,10 +11,9 @@ try:
     from examples.llm.src.models.hf import (ComposerHFCausalLM,
                                             ComposerHFPrefixLM, ComposerHFT5)
     from examples.llm.src.models.layers.attention import (
-        FlashCausalAttention, TorchCausalAttention, TritonFlashCausalAttention,
-        alibi_bias)
-    from examples.llm.src.models.layers.flash_attention import (FlashAttention,
-                                                                FlashMHA)
+        MultiheadAttention, alibi_bias, attn_bias, attn_bias_shape,
+        flash_attn_fn, scaled_multihead_dot_product_attention,
+        triton_flash_attn_fn)
     from examples.llm.src.models.layers.gpt_blocks import GPTMLP, GPTBlock
     from examples.llm.src.models.mosaic_gpt import ComposerMosaicGPT, MosaicGPT
     from examples.llm.src.tokenizer import (TOKENIZER_REGISTRY, HFTokenizer,
@@ -31,15 +30,16 @@ except ImportError as e:
     ) from e
 
 __all__ = [
-    'FlashAttention',
-    'FlashMHA',
     'ComposerHFCausalLM',
     'ComposerHFPrefixLM',
     'ComposerHFT5',
     'COMPOSER_MODEL_REGISTRY',
-    'TorchCausalAttention',
-    'FlashCausalAttention',
-    'TritonFlashCausalAttention',
+    'scaled_multihead_dot_product_attention',
+    'flash_attn_fn',
+    'triton_flash_attn_fn',
+    'MultiheadAttention',
+    'attn_bias_shape',
+    'attn_bias',
     'alibi_bias',
     'GPTMLP',
     'GPTBlock',

@@ -59,6 +59,7 @@ def test_train(device, logit_scale):
     )
 
     test_cfg = gpt_tiny_cfg(conf_path='yamls/mosaic_gpt/125m.yaml')
+    test_cfg.eval_subset_num_batches = 2
     if logit_scale:
         test_cfg.model.logit_scale = logit_scale
 

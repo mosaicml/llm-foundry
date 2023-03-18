@@ -44,7 +44,6 @@ from composer import Trainer
 from composer.utils import get_device, maybe_create_object_store_from_uri
 from omegaconf import OmegaConf as om
 
-from examples.llm import TorchCausalAttention
 from examples.llm.src.model_registry import COMPOSER_MODEL_REGISTRY
 
 
@@ -127,18 +126,8 @@ def main(cfg):
                           load_weights_only=True)
         # replace flash/triton attention with torch causal attention
         for idx in range(cfg.model.n_layers):
-            torch_causal_attn = TorchCausalAttention(cfg.model)
-            torch_causal_attn.mhsa.in_proj_weight = orig_model.model.transformer.blocks[
-                idx].causal_attn.mhsa.Wqkv.weight
-            torch_causal_attn.mhsa.in_proj_bias = orig_model.model.transformer.blocks[
-                idx].causal_attn.mhsa.Wqkv.bias
-            torch_causal_attn.mhsa.out_proj.weight = (
-                orig_model.model.transformer.blocks[idx].causal_attn.mhsa.
-                out_proj.weight)
-            torch_causal_attn.mhsa.out_proj.bias = orig_model.model.transformer.blocks[
-                idx].causal_attn.mhsa.out_proj.bias
-            export_model.model.transformer.blocks[
-                idx].causal_attn = torch_causal_attn
+            export_model.model.transformer.blocks[idx].attn.load_state_dict(
+                orig_model.model.transformer.blocks[idx].attn.state_dict())
     else:
         export_model = orig_model
 

@@ -27,7 +27,7 @@ The full spec and defaults for Composer's `fsdp_config` is here:
 ```python
 fsdp_config = {
   'sharding_strategy': str = 'FULL_SHARD' | 'SHARD_GRAD_OP' | 'NO_SHARD', # Default: 'FULL_SHARD'
-  'min_params': float # Default: 1e8
+  'min_params': float, # Default: 1e8
   'cpu_offload': bool = True | False, # Default: False, cpu_offload not supported yet
   'mixed_precision': str = 'FULL' | 'DEFAULT' | 'PURE', # Default: 'DEFAULT'
   # Note: you can explictly provide a dictionary too

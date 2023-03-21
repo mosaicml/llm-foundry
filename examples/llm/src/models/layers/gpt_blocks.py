@@ -3,7 +3,7 @@
 
 """GPT Blocks used for the GPT Model."""
 
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -48,17 +48,19 @@ class GPTBlock(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
+        past_key_value: Optional[Tuple[torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         key_padding_mask: Optional[torch.ByteTensor] = None,
         is_causal: bool = True,
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor]]]:
         a = self.ln_1(x)
-        b, _ = self.attn(a,
-                         attn_bias=attn_bias,
-                         key_padding_mask=key_padding_mask,
-                         is_causal=is_causal)
+        b, _, past_key_value = self.attn(a,
+                                         past_key_value=past_key_value,
+                                         attn_bias=attn_bias,
+                                         key_padding_mask=key_padding_mask,
+                                         is_causal=is_causal)
         x = x + self.resid_attn_dropout(b)
         m = self.ln_2(x)
         n = self.mlp(m)
         x = x + self.resid_mlp_dropout(n)
-        return x
+        return x, past_key_value

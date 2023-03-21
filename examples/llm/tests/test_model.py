@@ -161,11 +161,12 @@ def test_attention_mechanism(batch_size=2):
 
     for block in model.model.transformer.blocks:
         a = block.ln_1(x)
-        b, attention_weights = block.attn(a,
-                                          attn_bias=attn_bias,
-                                          key_padding_mask=key_padding_mask,
-                                          is_causal=model.model.is_causal,
-                                          needs_weights=True)
+        b, attention_weights, _ = block.attn(a,
+                                             past_key_value=None,
+                                             attn_bias=attn_bias,
+                                             key_padding_mask=key_padding_mask,
+                                             is_causal=model.model.is_causal,
+                                             needs_weights=True)
 
         zerod_weights = (attention_weights == 0)
         assert torch.equal(expected_zerod_weights.expand(*zerod_weights.shape),

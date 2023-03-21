@@ -54,7 +54,7 @@ def test_attn_impl(attn_impl_0,
 
     key_padding_mask = torch.ones(n, s).to(device).bool()
 
-    def gen_bias(attn_impl, key_padding_mask):
+    def gen_bias(attn_impl):
         causal = True
         attn_bias = None
         bs = attention.attn_bias_shape(attn_impl,
@@ -72,7 +72,7 @@ def test_attn_impl(attn_impl_0,
                                 alibi=alibi,
                                 alibi_bias_max=8)
 
-        return attn_bias, key_padding_mask
+        return attn_bias
 
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()
@@ -80,16 +80,18 @@ def test_attn_impl(attn_impl_0,
     x1.requires_grad = True
 
     with torch.autocast(x0.device.type):
-        attn_bias, kpm = gen_bias(attn0.attn_impl, key_padding_mask)
-        y0, _ = attn0(x0,
-                      attn_bias=attn_bias,
-                      key_padding_mask=kpm,
-                      is_causal=True)
-        attn_bias, kpm = gen_bias(attn1.attn_impl, key_padding_mask)
-        y1, _ = attn1(x1,
-                      attn_bias=attn_bias,
-                      key_padding_mask=kpm,
-                      is_causal=True)
+        attn_bias = gen_bias(attn0.attn_impl)
+        y0, _, _ = attn0(x0,
+                         past_key_value=None,
+                         attn_bias=attn_bias,
+                         key_padding_mask=key_padding_mask,
+                         is_causal=True)
+        attn_bias = gen_bias(attn1.attn_impl)
+        y1, _, _ = attn1(x1,
+                         past_key_value=None,
+                         attn_bias=attn_bias,
+                         key_padding_mask=key_padding_mask,
+                         is_causal=True)
         y0 *= key_padding_mask.unsqueeze(-1)
         y1 *= key_padding_mask.unsqueeze(-1)
 
@@ -160,10 +162,11 @@ def test_vs_mha(attn_impl, device='cuda'):
     x1.requires_grad = True
 
     with torch.autocast(x0.device.type):
-        y0, _ = mmhsa(x0,
-                      attn_bias=None,
-                      key_padding_mask=key_padding_mask,
-                      is_causal=True)
+        y0, _, _ = mmhsa(x0,
+                         past_key_value=None,
+                         attn_bias=None,
+                         key_padding_mask=key_padding_mask,
+                         is_causal=True)
         y1, _ = tmhsa(x1,
                       x1,
                       x1,

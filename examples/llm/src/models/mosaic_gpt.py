@@ -8,7 +8,7 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 import math
 import warnings
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -131,9 +131,11 @@ class MosaicGPT(nn.Module):
 
         return self.attn_bias
 
-    def forward(self,
-                input_ids: torch.LongTensor,
-                key_padding_mask: Optional[torch.ByteTensor] = None):
+    def forward(
+            self,
+            input_ids: torch.LongTensor,
+            key_padding_mask: Optional[torch.ByteTensor] = None,
+            past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None):
         S = input_ids.size(1)
         assert (
             S <= self.cfg.max_seq_len
@@ -143,7 +145,25 @@ class MosaicGPT(nn.Module):
         if self.alibi:
             x = tok_emb
         else:
-            pos = torch.arange(0, S, dtype=torch.long,
+            past_position = 0
+            if past_key_values is not None:
+                if len(past_key_values) != self.cfg.n_layers:
+                    raise ValueError(
+                        f'past_key_values must provide a past_key_value for each attention ' +\
+                        f'layer in the network ({len(past_key_values)=}; {self.cfg.n_layers=}).'
+                    )
+                # get the key tensor whose spec should be (batch, seq, dim), and
+                # collect the `seq`, so that the position embedding is shifted
+                past_position = past_key_values[0][0].size(1)
+
+            if S + past_position > self.cfg.max_seq_len:
+                raise ValueError(
+                    f'Cannot forward input with past sequence length {past_position} and current sequence length '
+                    f'{S + 1}, this model only supports total sequence length <= {self.cfg.max_seq_len}.'
+                )
+            pos = torch.arange(past_position,
+                               S + past_position,
+                               dtype=torch.long,
                                device=input_ids.device).unsqueeze(0)
             pos_emb = self.transformer.wpe(pos)  # type: ignore
             x = tok_emb + pos_emb
@@ -158,11 +178,18 @@ class MosaicGPT(nn.Module):
             x = self.transformer.emb_drop(x_shrunk)
 
         attn_bias = self._attn_bias(device=x.device, dtype=x.dtype)
-        for block in self.transformer.blocks:  # type: ignore
-            x = block(x,
-                      attn_bias=attn_bias,
-                      key_padding_mask=key_padding_mask,
-                      is_causal=self.is_causal)
+
+        for b_idx, block in enumerate(self.transformer.blocks):  # type: ignore
+            past_key_value = past_key_values[
+                b_idx] if past_key_values is not None else None
+            x, past_key_value = block(x,
+                                      past_key_value=past_key_value,
+                                      attn_bias=attn_bias,
+                                      key_padding_mask=key_padding_mask,
+                                      is_causal=self.is_causal)
+            if past_key_values is not None:
+                past_key_values[b_idx] = past_key_value
+
         x = self.transformer.ln_f(x)  # type: ignore
         # output embedding weight tied to input embedding
         assert isinstance(self.transformer.wte, nn.Module)  # pyright

@@ -23,12 +23,19 @@ def scaled_multihead_dot_product_attention(
     n_heads,
     softmax_scale=None,
     attn_bias=None,
+    query_padding_mask=None,
     key_padding_mask=None,
     is_causal=False,
     dropout_p=0.0,
     training=False,
     needs_weights=False,
 ):
+    if query_padding_mask is not None:
+        query = query.masked_fill(~query_padding_mask.unsqueeze(-1), 0)
+    if key_padding_mask is not None:
+        key = key.masked_fill(~key_padding_mask.unsqueeze(-1), 0)
+        value = value.masked_fill(~key_padding_mask.unsqueeze(-1), 0)
+
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
     k = rearrange(key, 'b s (h d) -> b h d s', h=n_heads)  # includes key.t()
     v = rearrange(value, 'b s (h d) -> b h s d', h=n_heads)
@@ -50,6 +57,9 @@ def scaled_multihead_dot_product_attention(
             )
         attn_weight = attn_weight + attn_bias
 
+    if query_padding_mask is not None:
+        attn_weight = attn_weight.masked_fill(
+            ~query_padding_mask.view(b, 1, s_q, 1), -float('inf'))
     if key_padding_mask is not None:
         attn_weight = attn_weight.masked_fill(
             ~key_padding_mask.view((b, 1, 1, s_k)), -float('inf'))
@@ -65,6 +75,13 @@ def scaled_multihead_dot_product_attention(
 
     attn_weight = torch.softmax(attn_weight, dim=-1)
 
+    if query_padding_mask is not None:
+        attn_weight = attn_weight.masked_fill(
+            ~query_padding_mask.view(b, 1, s_q, 1), 0)
+    if key_padding_mask is not None:
+        attn_weight = attn_weight.masked_fill(
+            ~key_padding_mask.view(b, 1, 1, s_k), 0)
+
     if dropout_p:
         attn_weight = torch.nn.functional.dropout(attn_weight,
                                                   p=dropout_p,
@@ -72,7 +89,7 @@ def scaled_multihead_dot_product_attention(
                                                   inplace=True)
 
     out = attn_weight.matmul(v)
-    out = rearrange(out, 'b h s d -> b s (h d)', h=n_heads)
+    out = rearrange(out, 'b h s d -> b s (h d)')
 
     if needs_weights:
         return out, attn_weight
@@ -94,6 +111,7 @@ def flash_attn_fn(
     n_heads,
     softmax_scale=None,
     attn_bias=None,
+    query_padding_mask=None,
     key_padding_mask=None,
     is_causal=False,
     dropout_p=0.0,
@@ -113,15 +131,13 @@ def flash_attn_fn(
 
     batch_size, seqlen = query.shape[:2]
 
+    if query_padding_mask is None:
+        query_padding_mask = torch.ones_like(query[:, :, 0], dtype=torch.bool)
     if key_padding_mask is None:
         key_padding_mask = torch.ones_like(key[:, :, 0], dtype=torch.bool)
 
-    if training:
-        pad_mask = key_padding_mask
-    else:
-        pad_mask = torch.ones_like(query[:, :, 0], dtype=torch.bool)
     query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = bert_padding.unpad_input(
-        query, pad_mask)
+        query, query_padding_mask)
     query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
 
     key_unpad, _, cu_seqlens_k, max_seqlen_k = bert_padding.unpad_input(
@@ -158,6 +174,7 @@ def triton_flash_attn_fn(
     n_heads,
     softmax_scale=None,
     attn_bias=None,
+    query_padding_mask=None,
     key_padding_mask=None,
     is_causal=False,
     dropout_p=0.0,
@@ -179,16 +196,31 @@ def triton_flash_attn_fn(
         raise NotImplementedError(
             f'attn_impl: triton cannot return attn weights.')
 
+    if query_padding_mask is not None:
+        query = query.masked_fill(~query_padding_mask.unsqueeze(-1), 0)
     if key_padding_mask is not None:
-        b_size, s_k = key_padding_mask.shape
+        key = key.masked_fill(~key_padding_mask.unsqueeze(-1), 0)
+        value = value.masked_fill(~key_padding_mask.unsqueeze(-1), 0)
+
+    if query_padding_mask is not None or key_padding_mask is not None:
+        b_size, s_q, s_k = query.size(0), 1, 1
+        if query_padding_mask is not None:
+            s_q = query_padding_mask.size(1)
+        if key_padding_mask is not None:
+            s_k = key_padding_mask.size(1)
 
         if attn_bias is not None:
             attn_bias = attn_bias.expand(b_size, -1, -1, -1)
         else:
-            attn_bias = query.new_zeros(b_size, 1, 1, s_k)
+            attn_bias = query.new_zeros(b_size, 1, s_q, s_k)
 
-        attn_bias = attn_bias.masked_fill(
-            ~key_padding_mask.view((b_size, 1, 1, s_k)), -float('inf'))
+        if query_padding_mask is not None:
+            attn_bias = attn_bias.masked_fill(
+                ~query_padding_mask.view((b_size, 1, s_q, 1)), -float('inf'))
+
+        if key_padding_mask is not None:
+            attn_bias = attn_bias.masked_fill(
+                ~key_padding_mask.view((b_size, 1, 1, s_k)), -float('inf'))
 
     query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
     key = rearrange(key, 'b s (h d) -> b s h d', h=n_heads)
@@ -199,6 +231,9 @@ def triton_flash_attn_fn(
                                                     softmax_scale)
 
     output = attn_output.view(*attn_output.shape[:2], -1)
+    if query_padding_mask is not None:
+        output = output.masked_fill(~query_padding_mask.unsqueeze(-1), 0)
+
     return output, None
 
 
@@ -256,6 +291,7 @@ class MultiheadAttention(nn.Module):
 
     def forward(self,
                 x,
+                past_key_value=None,
                 attn_bias=None,
                 key_padding_mask=None,
                 is_causal=True,
@@ -266,11 +302,22 @@ class MultiheadAttention(nn.Module):
 
         query, key, value = qkv.chunk(3, dim=2)
 
+        query_padding_mask = None
+        if key_padding_mask is not None:
+            query_padding_mask = key_padding_mask[:, -query.size(1):]
+
         if self.attn_qk_ln:
             # Applying layernorm to qk
             dtype = query.dtype
             query = self.q_ln(query).to(dtype)
             key = self.k_ln(key).to(dtype)
+
+        if past_key_value is not None:
+            if len(past_key_value) == 0:
+                key = torch.cat([past_key_value[0], key], dim=1)
+                value = torch.cat([past_key_value[1], value], dim=1)
+
+            past_key_value = (key, value)
 
         if attn_bias is not None:
             attn_bias = attn_bias[:, :, -query.size(1):, -key.size(1):]
@@ -282,6 +329,7 @@ class MultiheadAttention(nn.Module):
             self.n_heads,
             softmax_scale=self.softmax_scale,
             attn_bias=attn_bias,
+            query_padding_mask=query_padding_mask,
             key_padding_mask=key_padding_mask,
             is_causal=is_causal,
             dropout_p=self.attn_dropout_p,
@@ -289,7 +337,7 @@ class MultiheadAttention(nn.Module):
             needs_weights=needs_weights,
         )
 
-        return self.out_proj(context), attn_weights
+        return self.out_proj(context), attn_weights, past_key_value
 
 
 def attn_bias_shape(attn_impl, n_heads, seq_len, alibi, causal):

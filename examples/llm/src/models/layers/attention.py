@@ -12,8 +12,19 @@ import torch.nn as nn
 from composer.algorithms.low_precision_layernorm.low_precision_layernorm import \
     LPLayerNorm
 from einops import rearrange
-from omegaconf import DictConfig
 from torch import nn
+
+
+def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
+                     original_is_causal: bool):
+    if original_is_causal and num_query_tokens != num_key_tokens:
+        if num_query_tokens != 1:
+            raise NotImplementedError(
+                'MosaicGPT does not support query and key with different number of tokens, unless number of query tokens is 1.'
+            )
+        else:
+            return False
+    return original_is_causal
 
 
 def scaled_multihead_dot_product_attention(
@@ -148,6 +159,9 @@ def flash_attn_fn(
     value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
 
     dropout_p = dropout_p if training else 0.0
+
+    reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
+
     output_unpad = flash_attn_interface.flash_attn_unpadded_func(
         query_unpad,
         key_unpad,
@@ -158,7 +172,7 @@ def flash_attn_fn(
         max_seqlen_k,
         dropout_p,
         softmax_scale=softmax_scale,
-        causal=is_causal,
+        causal=reset_is_causal,
         return_attn_probs=needs_weights)
 
     output = bert_padding.pad_input(
@@ -226,8 +240,9 @@ def triton_flash_attn_fn(
     key = rearrange(key, 'b s (h d) -> b s h d', h=n_heads)
     value = rearrange(value, 'b s (h d) -> b s h d', h=n_heads)
 
+    reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
     attn_output = flash_attn_triton.flash_attn_func(query, key, value,
-                                                    attn_bias, is_causal,
+                                                    attn_bias, reset_is_causal,
                                                     softmax_scale)
 
     output = attn_output.view(*attn_output.shape[:2], -1)
@@ -244,28 +259,38 @@ class MultiheadAttention(nn.Module):
     additive bias.
     """
 
-    def __init__(self, cfg: DictConfig, device: Optional[str] = None):
+    def __init__(
+        self,
+        d_model: int,
+        n_heads: int,
+        attn_impl: str = 'triton',
+        attn_clip_qkv: Optional[float] = None,
+        attn_qk_ln: bool = False,
+        softmax_scale: Optional[float] = None,
+        attn_pdrop: float = 0.0,
+        low_precision_layernorm: bool = False,
+        device: Optional[str] = None,
+    ):
         super().__init__()
-        self.attn_impl = cfg.get('attn_impl')
 
-        self.clip_qkv = cfg.get('attn_clip_qkv')
-        self.attn_qk_ln = cfg.get('attn_qk_ln')
+        self.attn_impl = attn_impl
+        self.clip_qkv = attn_clip_qkv
+        self.attn_qk_ln = attn_qk_ln
 
-        self.d_model = cfg.d_model
-        self.n_heads = cfg.n_heads
-        self.softmax_scale = cfg.get('softmax_scale')
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.softmax_scale = softmax_scale
         if self.softmax_scale is None:
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
-        self.attn_dropout_p = cfg.get('attn_pdrop')
+        self.attn_dropout_p = attn_pdrop
 
         self.Wqkv = nn.Linear(self.d_model, 3 * self.d_model, device=device)
         # for param init fn; enables shape based init of fused layers
-        fuse_splits = (cfg.d_model, 2 * cfg.d_model)
+        fuse_splits = (d_model, 2 * d_model)
         self.Wqkv._fused = (0, fuse_splits)  # type: ignore
 
         if self.attn_qk_ln:
-            layernorm_class = nn.LayerNorm if not cfg.get(
-                'low_precision_layernorm', False) else LPLayerNorm
+            layernorm_class = LPLayerNorm if low_precision_layernorm else nn.LayerNorm
             self.q_ln = layernorm_class(self.d_model, device=device)
             self.k_ln = layernorm_class(self.d_model, device=device)
 
@@ -284,7 +309,7 @@ class MultiheadAttention(nn.Module):
                 'Using `attn_impl: torch`; recommened using `attn_impl: flash`.'
             )
         else:
-            raise ValueError(f"{cfg.get('attn_impl')=} is an invalid setting.")
+            raise ValueError(f'{attn_impl=} is an invalid setting.')
 
         self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
         self.out_proj._is_residual = True  # type: ignore
@@ -297,6 +322,7 @@ class MultiheadAttention(nn.Module):
                 is_causal=True,
                 needs_weights=False):
         qkv = self.Wqkv(x)
+
         if self.clip_qkv:
             qkv.clamp_(min=-self.clip_qkv, max=self.clip_qkv)
 
@@ -313,7 +339,7 @@ class MultiheadAttention(nn.Module):
             key = self.k_ln(key).to(dtype)
 
         if past_key_value is not None:
-            if len(past_key_value) == 0:
+            if len(past_key_value) != 0:
                 key = torch.cat([past_key_value[0], key], dim=1)
                 value = torch.cat([past_key_value[1], value], dim=1)
 

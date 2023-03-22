@@ -46,8 +46,7 @@ def test_div_is_residual(is_residual: bool):
     cfg.init_div_is_residual = is_residual
     model = MLP(cfg)
 
-    model.apply(partial(generic_param_init_fn_, cfg=cfg,
-                        init_fn_=nn.init.ones_))
+    model.apply(partial(generic_param_init_fn_, init_fn_=nn.init.ones_, **cfg))
 
     # verify layer norm is init to bias=0 and weight=1
     assert (model.ln_1.weight == 1).all()
@@ -85,7 +84,7 @@ def test_fused_init_helper(fused):
             out_features, _ = weight.shape[:2]
             weight.fill_(1 / out_features)
 
-    fc.apply(partial(generic_param_init_fn_, cfg=cfg, init_fn_=init_fn_))
+    fc.apply(partial(generic_param_init_fn_, init_fn_=init_fn_, **cfg))
 
     expected_value = 1 / cfg.out_features
     if fused:
@@ -116,12 +115,11 @@ def test_all_params_init(module):
         with torch.no_grad():
             weight.fill_(fill_val)
 
-    module.apply(
-        partial(generic_param_init_fn_,
-                cfg=om.create({
-                    'n_layers': 2,
-                }),
-                init_fn_=max_fill_init_))
+    cfg = om.create({
+        'n_layers': 2,
+    })
+    module.apply(partial(generic_param_init_fn_, init_fn_=max_fill_init_,
+                         **cfg))
     for n, p in module.named_parameters():
         if n == 'bias':
             assert (p == 0).all()
@@ -156,7 +154,7 @@ def test_emb_init(emb_init_cfg):
             ('fc2', nn.Linear(cfg.out_features, cfg.out_features, bias=True)),
         ]))
 
-    model.apply(partial(MODEL_INIT_REGISTRY['kaiming_normal_'], cfg=cfg))
+    model.apply(partial(MODEL_INIT_REGISTRY['kaiming_normal_'], **cfg))
 
     if cfg.get('emb_init_std') is not None:
         emb_init_std = cfg.get('emb_init_std')

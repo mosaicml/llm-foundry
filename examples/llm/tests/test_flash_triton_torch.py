@@ -46,9 +46,9 @@ def test_attn_impl(attn_impl_0,
     n, s, f = 2, 16, cfg.d_model
 
     cfg.attn_impl = attn_impl_0
-    attn0 = attention.MultiheadAttention(cfg).to(device)
+    attn0 = attention.MultiheadAttention(**cfg).to(device)
     cfg.attn_impl = attn_impl_1
-    attn1 = attention.MultiheadAttention(cfg).to(device)
+    attn1 = attention.MultiheadAttention(**cfg).to(device)
 
     attn1.load_state_dict(attn0.state_dict())
 
@@ -131,7 +131,7 @@ def test_vs_mha(attn_impl, device='cuda'):
 
     n, s, f = 2, 16, cfg.d_model
 
-    mmhsa = attention.MultiheadAttention(cfg).to(device)
+    mmhsa = attention.MultiheadAttention(**cfg).to(device)
     tmhsa = torch.nn.MultiheadAttention(
         embed_dim=cfg.d_model,
         num_heads=cfg.n_heads,

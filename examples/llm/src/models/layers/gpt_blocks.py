@@ -9,22 +9,20 @@ import torch
 import torch.nn as nn
 from composer.algorithms.low_precision_layernorm.low_precision_layernorm import \
     LPLayerNorm
-from omegaconf import DictConfig
 
 from examples.llm.src.models.layers.attention import MultiheadAttention
 
 
 class GPTMLP(nn.Module):
 
-    def __init__(self, cfg: DictConfig, device: Optional[str] = None):
+    def __init__(self,
+                 d_model: int,
+                 mlp_ratio: int,
+                 device: Optional[str] = None):
         super().__init__()
-        self.mlp_up = nn.Linear(cfg.d_model,
-                                cfg.mlp_ratio * cfg.d_model,
-                                device=device)
+        self.mlp_up = nn.Linear(d_model, mlp_ratio * d_model, device=device)
         self.mlp_act = nn.GELU(approximate='none')
-        self.mlp_down = nn.Linear(cfg.mlp_ratio * cfg.d_model,
-                                  cfg.d_model,
-                                  device=device)
+        self.mlp_down = nn.Linear(mlp_ratio * d_model, d_model, device=device)
         self.mlp_down._is_residual = True  # type: ignore
 
     def forward(self, x):
@@ -33,17 +31,44 @@ class GPTMLP(nn.Module):
 
 class GPTBlock(nn.Module):
 
-    def __init__(self, cfg: DictConfig, device: Optional[str] = None):
+    def __init__(self,
+                 attn_impl: str,
+                 d_model: int,
+                 n_heads: int,
+                 mlp_ratio: int,
+                 attn_clip_qkv: Optional[float] = None,
+                 attn_qk_ln: bool = False,
+                 softmax_scale: Optional[float] = None,
+                 attn_pdrop: float = 0.0,
+                 alibi: bool = False,
+                 resid_pdrop: float = 0.0,
+                 low_precision_layernorm: bool = False,
+                 device: Optional[str] = None,
+                 **kwargs):
+        del kwargs  # unused, just to capture any extra args from the config
         super().__init__()
-        layernorm_class = LPLayerNorm if cfg.get('low_precision_layernorm',
-                                                 False) else nn.LayerNorm
 
-        self.ln_1 = layernorm_class(cfg.d_model, device=device)
-        self.attn = MultiheadAttention(cfg, device)
-        self.ln_2 = layernorm_class(cfg.d_model, device=device)
-        self.mlp = GPTMLP(cfg, device=device)
-        self.resid_attn_dropout = nn.Dropout(cfg.resid_pdrop)
-        self.resid_mlp_dropout = nn.Dropout(cfg.resid_pdrop)
+        layernorm_class = LPLayerNorm if low_precision_layernorm else nn.LayerNorm
+
+        self.ln_1 = layernorm_class(d_model, device=device)
+        self.attn = MultiheadAttention(
+            attn_impl=attn_impl,
+            attn_clip_qkv=attn_clip_qkv,
+            attn_qk_ln=attn_qk_ln,
+            softmax_scale=softmax_scale,
+            attn_pdrop=attn_pdrop,
+            d_model=d_model,
+            n_heads=n_heads,
+            device=device,
+        )
+        self.ln_2 = layernorm_class(d_model, device=device)
+        self.mlp = GPTMLP(
+            d_model=d_model,
+            mlp_ratio=mlp_ratio,
+            device=device,
+        )
+        self.resid_attn_dropout = nn.Dropout(resid_pdrop)
+        self.resid_mlp_dropout = nn.Dropout(resid_pdrop)
 
     def forward(
         self,

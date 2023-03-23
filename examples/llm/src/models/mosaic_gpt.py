@@ -120,13 +120,14 @@ class MosaicGPT(PreTrainedModel):
                 self.attn_bias = torch.zeros(self.attn_bias_shape,
                                              device=device,
                                              dtype=dtype)
-                attention.attn_bias(self.attn_impl,
-                                    self.attn_bias,
-                                    self.config.n_heads,
-                                    self.config.max_seq_len,
-                                    causal=self.is_causal,
-                                    alibi=self.alibi,
-                                    alibi_bias_max=self.alibi_bias_max)
+                self.attn_bias = attention.attn_bias(
+                    self.attn_impl,
+                    self.attn_bias,
+                    self.config.n_heads,
+                    self.config.max_seq_len,
+                    causal=self.is_causal,
+                    alibi=self.alibi,
+                    alibi_bias_max=self.alibi_bias_max)
             self._attn_bias_initialized = True
 
         return self.attn_bias

@@ -34,22 +34,18 @@ def scaled_multihead_dot_product_attention(
     n_heads,
     softmax_scale=None,
     attn_bias=None,
-    query_padding_mask=None,
     key_padding_mask=None,
     is_causal=False,
     dropout_p=0.0,
     training=False,
     needs_weights=False,
 ):
-    if query_padding_mask is not None:
-        query = query.masked_fill(~query_padding_mask.unsqueeze(-1), 0)
-    if key_padding_mask is not None:
-        key = key.masked_fill(~key_padding_mask.unsqueeze(-1), 0)
-        value = value.masked_fill(~key_padding_mask.unsqueeze(-1), 0)
 
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
     k = rearrange(key, 'b s (h d) -> b h d s', h=n_heads)  # includes key.t()
     v = rearrange(value, 'b s (h d) -> b h s d', h=n_heads)
+
+    min_val = torch.finfo(q.dtype).min
 
     b, _, s_q, d = q.shape
     s_k = k.size(-1)
@@ -68,12 +64,17 @@ def scaled_multihead_dot_product_attention(
             )
         attn_weight = attn_weight + attn_bias
 
-    if query_padding_mask is not None:
-        attn_weight = attn_weight.masked_fill(
-            ~query_padding_mask.view(b, 1, s_q, 1), -float('inf'))
     if key_padding_mask is not None:
+        if attn_bias is not None:
+            warnings.warn(
+                'Propogating key_padding_mask to the attention module ' +\
+                'and applying it within the attention module can cause ' +\
+                'unneccessary computation/memory usage. Consider integrating ' +\
+                'into attn_bias once and passing that to each attention ' +\
+                'module instead.'
+            )
         attn_weight = attn_weight.masked_fill(
-            ~key_padding_mask.view((b, 1, 1, s_k)), -float('inf'))
+            ~key_padding_mask.view((b, 1, 1, s_k)), min_val)
 
     if is_causal:
         s = max(s_q, s_k)
@@ -82,16 +83,9 @@ def scaled_multihead_dot_product_attention(
         causal_mask = causal_mask.logical_not()
         causal_mask = causal_mask[-s_q:, -s_k:]
         attn_weight = attn_weight.masked_fill(causal_mask.view(1, 1, s_q, s_k),
-                                              -float('inf'))
+                                              min_val)
 
     attn_weight = torch.softmax(attn_weight, dim=-1)
-
-    if query_padding_mask is not None:
-        attn_weight = attn_weight.masked_fill(
-            ~query_padding_mask.view(b, 1, s_q, 1), 0)
-    if key_padding_mask is not None:
-        attn_weight = attn_weight.masked_fill(
-            ~key_padding_mask.view(b, 1, 1, s_k), 0)
 
     if dropout_p:
         attn_weight = torch.nn.functional.dropout(attn_weight,
@@ -122,7 +116,6 @@ def flash_attn_fn(
     n_heads,
     softmax_scale=None,
     attn_bias=None,
-    query_padding_mask=None,
     key_padding_mask=None,
     is_causal=False,
     dropout_p=0.0,
@@ -142,10 +135,9 @@ def flash_attn_fn(
 
     batch_size, seqlen = query.shape[:2]
 
-    if query_padding_mask is None:
-        query_padding_mask = torch.ones_like(query[:, :, 0], dtype=torch.bool)
     if key_padding_mask is None:
         key_padding_mask = torch.ones_like(key[:, :, 0], dtype=torch.bool)
+    query_padding_mask = key_padding_mask[:, -query.size(1):]
 
     query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = bert_padding.unpad_input(
         query, query_padding_mask)
@@ -188,7 +180,6 @@ def triton_flash_attn_fn(
     n_heads,
     softmax_scale=None,
     attn_bias=None,
-    query_padding_mask=None,
     key_padding_mask=None,
     is_causal=False,
     dropout_p=0.0,
@@ -210,31 +201,22 @@ def triton_flash_attn_fn(
         raise NotImplementedError(
             f'attn_impl: triton cannot return attn weights.')
 
-    if query_padding_mask is not None:
-        query = query.masked_fill(~query_padding_mask.unsqueeze(-1), 0)
     if key_padding_mask is not None:
-        key = key.masked_fill(~key_padding_mask.unsqueeze(-1), 0)
-        value = value.masked_fill(~key_padding_mask.unsqueeze(-1), 0)
+        warnings.warn(
+            'Propogating key_padding_mask to the attention module ' +\
+            'and applying it within the attention module can cause ' +\
+            'unneccessary computation/memory usage. Consider integrating ' +\
+            'into attn_bias once and passing that to each attention ' +\
+            'module instead.'
+        )
+        b_size, s_k = key_padding_mask.shape[:2]
 
-    if query_padding_mask is not None or key_padding_mask is not None:
-        b_size, s_q, s_k = query.size(0), 1, 1
-        if query_padding_mask is not None:
-            s_q = query_padding_mask.size(1)
-        if key_padding_mask is not None:
-            s_k = key_padding_mask.size(1)
+        if attn_bias is None:
+            attn_bias = query.new_zeros(b_size, 1, 1, s_k)
 
-        if attn_bias is not None:
-            attn_bias = attn_bias.expand(b_size, -1, -1, -1)
-        else:
-            attn_bias = query.new_zeros(b_size, 1, s_q, s_k)
-
-        if query_padding_mask is not None:
-            attn_bias = attn_bias.masked_fill(
-                ~query_padding_mask.view((b_size, 1, s_q, 1)), -float('inf'))
-
-        if key_padding_mask is not None:
-            attn_bias = attn_bias.masked_fill(
-                ~key_padding_mask.view((b_size, 1, 1, s_k)), -float('inf'))
+        attn_bias = attn_bias.masked_fill(
+            ~key_padding_mask.view((b_size, 1, 1, s_k)),
+            torch.finfo(query.dtype).min)
 
     query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
     key = rearrange(key, 'b s (h d) -> b s h d', h=n_heads)
@@ -246,8 +228,6 @@ def triton_flash_attn_fn(
                                                     softmax_scale)
 
     output = attn_output.view(*attn_output.shape[:2], -1)
-    if query_padding_mask is not None:
-        output = output.masked_fill(~query_padding_mask.unsqueeze(-1), 0)
 
     return output, None
 
@@ -299,15 +279,18 @@ class MultiheadAttention(nn.Module):
         elif self.attn_impl == 'triton':
             self.attn_fn = triton_flash_attn_fn
             warnings.warn(
-                'While `attn_impl: triton` can be faster than `attn_impl: flash` '
-                'it uses more memory. When training larger models this can trigger '
-                'alloc retries which hurts performance. If encountered, we recommend '
-                'using `attn_impl: flash`.')
+                'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
+                'it uses more memory. When training larger models this can trigger '  +\
+                'alloc retries which hurts performance. If encountered, we recommend ' +\
+                'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.')
         elif self.attn_impl == 'torch':
             self.attn_fn = scaled_multihead_dot_product_attention
-            warnings.warn(
-                'Using `attn_impl: torch`; recommened using `attn_impl: flash`.'
-            )
+            if torch.cuda.is_available():
+                warnings.warn(
+                    'Using `attn_impl: torch`. If your model does not use `alibi` or ' +\
+                    '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' +\
+                    'we recommend using `attn_impl: triton`.'
+                )
         else:
             raise ValueError(f'{attn_impl=} is an invalid setting.')
 
@@ -329,9 +312,6 @@ class MultiheadAttention(nn.Module):
         query, key, value = qkv.chunk(3, dim=2)
 
         key_padding_mask = attention_mask
-        query_padding_mask = None
-        if attention_mask is not None:
-            query_padding_mask = attention_mask[:, -query.size(1):]
 
         if self.attn_qk_ln:
             # Applying layernorm to qk
@@ -356,7 +336,6 @@ class MultiheadAttention(nn.Module):
             self.n_heads,
             softmax_scale=self.softmax_scale,
             attn_bias=attn_bias,
-            query_padding_mask=query_padding_mask,
             key_padding_mask=key_padding_mask,
             is_causal=is_causal,
             dropout_p=self.attn_dropout_p,
@@ -367,20 +346,16 @@ class MultiheadAttention(nn.Module):
         return self.out_proj(context), attn_weights, past_key_value
 
 
-def attn_bias_shape(attn_impl, n_heads, seq_len, alibi, causal):
+def attn_bias_shape(attn_impl, n_heads, seq_len, alibi, prefix_lm, causal):
     if attn_impl == 'flash':
         return None
-    elif attn_impl == 'triton':
+    elif attn_impl in ['torch', 'triton']:
         if alibi:
-            if not causal:
+            if prefix_lm or not causal:
                 return (1, n_heads, seq_len, seq_len)
             return (1, n_heads, 1, seq_len)
-        return None
-    elif attn_impl == 'torch':
-        if alibi:
-            if not causal:
-                return (1, n_heads, seq_len, seq_len)
-            return (1, n_heads, 1, seq_len)
+        elif prefix_lm:
+            return (1, 1, seq_len, seq_len)
         return None
     else:
         raise ValueError(f'{attn_impl=} is an invalid setting.')
@@ -395,7 +370,7 @@ def attn_bias(attn_impl,
               alibi_bias_max=8):
     if attn_impl == 'flash':
         return None
-    elif attn_impl == 'triton':
+    elif attn_impl in ['torch', 'triton']:
         if alibi:
             # in place add alibi to attn bias
             device, dtype = attn_bias.device, attn_bias.dtype
@@ -407,19 +382,6 @@ def attn_bias(attn_impl,
                            device=device,
                            dtype=dtype))
         return attn_bias
-    elif attn_impl == 'torch':
-        if attn_bias is not None:
-            if alibi:
-                # in place add alibi to attn bias
-                device, dtype = attn_bias.device, attn_bias.dtype
-                attn_bias = attn_bias.add(
-                    alibi_bias(n_heads,
-                               seq_len,
-                               full=not causal,
-                               alibi_bias_max=alibi_bias_max,
-                               device=device,
-                               dtype=dtype))
-            return attn_bias
     else:
         raise ValueError(f'{attn_impl=} is an invalid setting.')
 

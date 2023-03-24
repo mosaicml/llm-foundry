@@ -13,7 +13,7 @@ packaging>=21,<23
 omegaconf>=2.2.3,<3
 # these are just for common/
 datasets==2.10.1
-transformers==4.25.1
+transformers>=4.25.1,<4.27
 mosaicml-streaming==0.3.0
 pynvml<12
 slack-sdk<4

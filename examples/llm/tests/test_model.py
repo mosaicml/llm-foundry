@@ -5,6 +5,7 @@ import copy
 import os
 import warnings
 from typing import cast
+from unittest import mock
 
 import pytest
 import torch
@@ -14,6 +15,7 @@ from composer.optim import DecoupledAdamW
 from composer.utils import get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from examples.llm import (COMPOSER_MODEL_REGISTRY, TOKENIZER_REGISTRY,
                           ComposerHFCausalLM, ComposerHFPrefixLM)
@@ -547,20 +549,23 @@ def test_generate(attention_impl, device):
         batched_generation = mosaic_gpt.generate(
             input_ids=batched_input_ids,
             attention_mask=batched_attention_mask,
-            max_new_tokens=5)
+            max_new_tokens=5,
+            use_cache=False)
         assert batched_generation.shape == (2, 6 + 5)
 
         reproducibility.seed_all(1234)
         generation_with_left_padding = mosaic_gpt.generate(
             input_ids=left_padding_input_ids,
             attention_mask=left_padding_attention_mask,
-            max_new_tokens=5)
+            max_new_tokens=5,
+            use_cache=False)
         assert generation_with_left_padding.shape == (2, 6 + 5)
         reproducibility.seed_all(1234)
         generation_with_no_padding = mosaic_gpt.generate(
             input_ids=no_padding_input_ids,
             attention_mask=no_padding_attention_mask,
-            max_new_tokens=5)
+            max_new_tokens=5,
+            use_cache=False)
         assert generation_with_no_padding.shape == (2, 3 + 5)
 
         # check that left padding and no padding produce the same output
@@ -693,3 +698,43 @@ def test_forward_with_cache(attention_impl, device):
                                    full_output.logits[:, -1, :].unsqueeze(1),
                                    atol=1e-2,
                                    rtol=1e-2)
+
+
+def test_generate_with_past_kv():
+    hf_config = MosaicGPTConfig(
+        init_device='cpu',
+        d_model=128,
+        n_heads=4,
+        n_layers=2,
+        mlp_ratio=2,
+        max_seq_len=2048,
+        emb_pdrop=0.1,
+        resid_pdrop=0.2,
+        attn_impl='torch',
+    )
+    mosaic_gpt = MosaicGPT(hf_config)
+    mosaic_gpt.eval()
+
+    # no padding in the input
+    no_padding_input_ids = torch.tensor([[11274, 16390, 11]])
+    no_padding_attention_mask = torch.tensor([[1, 1, 1]])
+
+    with mock.patch.object(MosaicGPT, 'forward',
+                           autospec=True) as forward_mocked:
+        forward_mocked.return_value = CausalLMOutputWithPast(
+            logits=torch.randn((1, 3, hf_config.vocab_size)),
+            past_key_values=[(torch.randn(1, 3, hf_config.d_model),
+                              torch.randn(1, 3, hf_config.d_model))
+                             for _ in range(hf_config.n_layers)])
+        _ = mosaic_gpt.generate(input_ids=no_padding_input_ids,
+                                attention_mask=no_padding_attention_mask,
+                                max_new_tokens=2)
+
+        assert forward_mocked.call_count == 2
+        _, _, kwargs = forward_mocked.mock_calls[0]
+        assert kwargs['past_key_values'] is None
+        _, _, kwargs = forward_mocked.mock_calls[1]
+        assert kwargs['past_key_values'] is not None
+        assert len(kwargs['past_key_values']) == hf_config.n_layers
+        assert kwargs['past_key_values'][0][0].shape == (1, 3,
+                                                         hf_config.d_model)

@@ -5,13 +5,13 @@
 
 from __future__ import annotations
 
-import torch
 from composer.metrics.nlp import LanguageCrossEntropy, MaskedAccuracy
 from omegaconf import DictConfig
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 from examples.llm.src.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from examples.llm.src.models.utils import (AutoTokenizerForMOD,
+                                           add_bidirectional_mask_if_missing,
                                            convert_hf_causal_lm_to_prefix_lm,
                                            init_empty_weights)
 
@@ -120,19 +120,5 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
 
     def forward(self, batch):
         # Add bidirectional_mask if it is missing and can be constructed
-        if 'bidirectional_mask' not in batch:
-            if batch.get('mode', None) == 'icl_task':
-                batch['bidirectional_mask'] = batch['attention_mask'].clone()
-                for i, continuation_indices in enumerate(
-                        batch['continuation_indices']):
-                    batch['bidirectional_mask'][i, continuation_indices] = 0
-            elif ('labels' in batch) and ('attention_mask' in batch):
-                batch['bidirectional_mask'] = torch.logical_and(
-                    torch.eq(batch['attention_mask'], 1),
-                    torch.eq(batch['labels'], _HF_IGNORE_INDEX),
-                ).type_as(batch['attention_mask'])
-            else:
-                raise KeyError(
-                    'No bidirectional_mask in batch and not sure how to construct one.'
-                )
+        add_bidirectional_mask_if_missing(batch)
         return super().forward(batch)

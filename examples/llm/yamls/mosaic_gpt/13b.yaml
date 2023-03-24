@@ -17,7 +17,7 @@ model:
   n_layers: 40
   mlp_ratio: 4
   max_seq_len: ${max_seq_len}
-  vocab_size: 50257
+  vocab_size: 50368
   init_std: 0.02
   attn_pdrop: 0.0
   resid_pdrop: 0.0

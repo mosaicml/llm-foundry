@@ -56,7 +56,7 @@ def _dependencies_as_dict(deps: List[str]) -> Dict[str, str]:
     """map, e.g., 'foo>=1.5,<1.6' -> {'foo': '>=1.5,<1.6'}"""
     ret = {}
     for dep in deps:
-        elems = re.split('([=><])', dep.strip())
+        elems = re.split('([=><@])', dep.strip())
         ret[elems[0]] = ''.join(elems[1:])
     return ret
 
@@ -73,6 +73,7 @@ def _merge_dependencies(deps_base: List[str],
         # a GPU on your machine
         base_dict.pop('flash-attn', None)
         base_dict.pop('triton', None)
+        base_dict.pop('xentropy-cuda-lib', None)
     return [k + v for k, v in base_dict.items()]  # 'foo': '>3' -> 'foo>3'
 
 

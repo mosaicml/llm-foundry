@@ -209,8 +209,10 @@ because more memory will enable you to use larger microbatch sizes.
 
 # Optimizing Performance
 The YAMLs in this repo are relatively well tuned for medium-to-large NVIDIA A100-40GB clusters.
-On different devices with more / less GPU memory,
-you may wish to edit the `device_train_microbatch_size` or `fsdp_config` values.
+
+If you are running with a CUDA-compatible GPU and have installed the LLM requirements, we turn on by default a kernel fusion optimization for the Cross Entropy loss function at the end of the model. This should not affect your model convergence, but if you would like to disable this, you can set `model.loss_fn=torch_crossentropy`. To re-enable, set `model.loss_fn=fused_crossentropy` or omit it from your YAML.
+
+On devices with more / less GPU memory, you may wish to edit the `device_train_microbatch_size` or `fsdp_config` values.
 In general, larger microbatch sizes and disabling `activation_checkpointing` lead to higher throughput.
 
 Note that each YAML specifies a `global_train_batch_size`, which is an optimization choice, i.e. the **math** being performed,

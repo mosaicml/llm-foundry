@@ -12,8 +12,8 @@ from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
 from torch import nn
 
-from examples.llm.src.models.param_init_fns import (MODEL_INIT_REGISTRY,
-                                                    generic_param_init_fn_)
+from examples.llm.src.models.utils import (MODEL_INIT_REGISTRY,
+                                           generic_param_init_fn_)
 
 
 class MLP(nn.Module):

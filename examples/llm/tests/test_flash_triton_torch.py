@@ -52,7 +52,7 @@ def test_attn_impl(attn_impl_0,
 
     attn1.load_state_dict(attn0.state_dict())
 
-    key_padding_mask = torch.ones(n, s).to(device).bool()
+    attention_mask = torch.ones(n, s).to(device).bool()
 
     def gen_bias(attn_impl):
         causal = True
@@ -84,16 +84,16 @@ def test_attn_impl(attn_impl_0,
         y0, _, _ = attn0(x0,
                          past_key_value=None,
                          attn_bias=attn_bias,
-                         key_padding_mask=key_padding_mask,
+                         attention_mask=attention_mask,
                          is_causal=True)
         attn_bias = gen_bias(attn1.attn_impl)
         y1, _, _ = attn1(x1,
                          past_key_value=None,
                          attn_bias=attn_bias,
-                         key_padding_mask=key_padding_mask,
+                         attention_mask=attention_mask,
                          is_causal=True)
-        y0 *= key_padding_mask.unsqueeze(-1)
-        y1 *= key_padding_mask.unsqueeze(-1)
+        y0 *= attention_mask.unsqueeze(-1)
+        y1 *= attention_mask.unsqueeze(-1)
 
         loss0 = y0.sum()
         loss1 = y1.sum()
@@ -155,7 +155,7 @@ def test_vs_mha(attn_impl, device='cuda'):
     tmhsa.out_proj.weight.data = mmhsa.out_proj.weight.data.clone().detach()
     tmhsa.out_proj.bias.data = mmhsa.out_proj.bias.data.clone().detach()
 
-    key_padding_mask = torch.ones(n, s).to(device).bool()
+    attention_mask = torch.ones(n, s).to(device).bool()
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()
     x0.requires_grad = True
@@ -165,16 +165,16 @@ def test_vs_mha(attn_impl, device='cuda'):
         y0, _, _ = mmhsa(x0,
                          past_key_value=None,
                          attn_bias=None,
-                         key_padding_mask=key_padding_mask,
+                         attention_mask=attention_mask,
                          is_causal=True)
         y1, _ = tmhsa(x1,
                       x1,
                       x1,
                       attn_mask=gen_tca_mask(),
-                      key_padding_mask=~key_padding_mask,
+                      key_padding_mask=~attention_mask,
                       need_weights=True)
-        y0 *= key_padding_mask.unsqueeze(-1)
-        y1 *= key_padding_mask.unsqueeze(-1)
+        y0 *= attention_mask.unsqueeze(-1)
+        y1 *= attention_mask.unsqueeze(-1)
 
         loss0 = y0.sum()
         loss1 = y1.sum()

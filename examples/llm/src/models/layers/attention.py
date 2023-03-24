@@ -318,7 +318,7 @@ class MultiheadAttention(nn.Module):
                 x,
                 past_key_value=None,
                 attn_bias=None,
-                key_padding_mask=None,
+                attention_mask=None,
                 is_causal=True,
                 needs_weights=False):
         qkv = self.Wqkv(x)
@@ -328,9 +328,10 @@ class MultiheadAttention(nn.Module):
 
         query, key, value = qkv.chunk(3, dim=2)
 
+        key_padding_mask = attention_mask
         query_padding_mask = None
-        if key_padding_mask is not None:
-            query_padding_mask = key_padding_mask[:, -query.size(1):]
+        if attention_mask is not None:
+            query_padding_mask = attention_mask[:, -query.size(1):]
 
         if self.attn_qk_ln:
             # Applying layernorm to qk

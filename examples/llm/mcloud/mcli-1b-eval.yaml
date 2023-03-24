@@ -37,7 +37,7 @@ parameters:
     n_layers: 24
     mlp_ratio: 4
     max_seq_len: 2048
-    vocab_size: 50257
+    vocab_size: 50368
     init_std: 0.02
     attn_pdrop: 0.0
     resid_pdrop: 0.0

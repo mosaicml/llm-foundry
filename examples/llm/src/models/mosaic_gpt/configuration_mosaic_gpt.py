@@ -18,7 +18,7 @@ class MosaicGPTConfig(PretrainedConfig):
         n_layers: int = 24,
         mlp_ratio: int = 4,
         max_seq_len: int = 2048,
-        vocab_size: int = 50257,
+        vocab_size: int = 50368,
         init_std: float = 0.02,
         attn_pdrop: float = 0.0,
         resid_pdrop: float = 0.0,
@@ -123,6 +123,8 @@ class MosaicGPTConfig(PretrainedConfig):
         self.use_cache = use_cache
         if 'name' in kwargs:
             del kwargs['name']
+        if 'loss_fn' in kwargs:
+            del kwargs['loss_fn']
         super().__init__(**kwargs)
 
         self._validate_config()

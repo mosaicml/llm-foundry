@@ -134,7 +134,7 @@ def build_icl_evaluators(cfg, tokenizer):
                 icl_cfg.dataset_uri,
                 tokenizer,
                 batch_size=icl_cfg.batch_size,
-                max_seq_len=tokenizer.max_seq_len,
+                max_seq_len=tokenizer.model_max_length,
                 pad_tok_id=pad_tok_id,
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,

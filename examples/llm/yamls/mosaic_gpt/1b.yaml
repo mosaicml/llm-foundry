@@ -26,10 +26,9 @@ model:
 
 # Tokenizer
 tokenizer:
-  type: hftokenizer
-  args:
-    tokenizer_name: ${tokenizer_name}
-    max_seq_len: ${max_seq_len}
+  name: ${tokenizer_name}
+  kwargs:
+    model_max_length: ${max_seq_len}
 
 # Dataloaders
 train_loader:

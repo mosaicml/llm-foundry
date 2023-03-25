@@ -63,13 +63,12 @@ def gen_random_batch(batch_size, cfg):
     return batch
 
 
-def build_composer_model(cfg):
+def build_composer_model(model_cfg, tokenizer_cfg):
     warnings.filterwarnings(
         action='ignore',
-        message='Torchmetrics v0.9 introduced a new argument class property',
-    )
+        message='Torchmetrics v0.9 introduced a new argument class property')
     try:
-        return COMPOSER_MODEL_REGISTRY[cfg.name](cfg)
+        return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer_cfg)
     except:
         raise ValueError(f'Not sure how to build model with name={cfg.name}')
 
@@ -106,7 +105,7 @@ def main(cfg):
 
     # Build Model
     print('Initializing model...')
-    orig_model = build_composer_model(cfg.model)
+    orig_model = build_composer_model(cfg.model, cfg.tokenizer)
 
     # Loading checkpoint using Trainer
     print('Loading model weights...')
@@ -120,7 +119,7 @@ def main(cfg):
             f'Replacing {cfg.model.attn_impl} attention with torch causal attention'
         )
         cfg.model.attn_impl = 'torch'
-        export_model = build_composer_model(cfg.model)
+        export_model = build_composer_model(cfg.model, cfg.tokenizer)
         trainer = Trainer(model=export_model,
                           load_path=load_path,
                           load_weights_only=True)

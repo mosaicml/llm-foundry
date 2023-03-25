@@ -3,9 +3,13 @@
 
 """Implements a Hugging Causal LM wrapped inside a :class:`.ComposerModel`."""
 
-from composer.metrics.nlp import (InContextLearningMetric, LanguageCrossEntropy,
-                                  Perplexity)
+from typing import Optional
+
+from composer.metrics.nlp import (InContextLearningLMAccuracy,
+                                  InContextLearningMultipleChoiceAccuracy,
+                                  LanguageCrossEntropy, LanguagePerplexity)
 from omegaconf import DictConfig
+from omegaconf import OmegaConf as om
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 from examples.llm.src.models.hf.model_wrapper import HuggingFaceModelWithZLoss
@@ -36,24 +40,42 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 to validation metrics. Default: ``False``.
     """
 
-    def __init__(self, cfg: DictConfig):
-        config = AutoConfig.from_pretrained(cfg.pretrained_model_name_or_path,
-                                            **cfg.get('config_overrides', {}))
+    def __init__(self,
+                 om_model_config: DictConfig,
+                 om_tokenizer_config: Optional[DictConfig] = None):
+        config = AutoConfig.from_pretrained(
+            om_model_config.pretrained_model_name_or_path,
+            **om_model_config.get('config_overrides', {}))
 
-        tokenizer = AutoTokenizer.from_pretrained(
-            cfg.pretrained_model_name_or_path)
+        resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
+                                                       resolve=True)
+        tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
+            'kwargs', {})
+        tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+                                                  **tokenizer_kwargs)
 
-        metrics = [LanguageCrossEntropy(len(tokenizer)), Perplexity()]
+        train_metrics = [
+            LanguageCrossEntropy(len(tokenizer)),
+            LanguagePerplexity(len(tokenizer)),
+        ]
+        eval_metrics = [
+            LanguageCrossEntropy(len(tokenizer)),
+            LanguagePerplexity(len(tokenizer)),
+            InContextLearningLMAccuracy(),
+            InContextLearningMultipleChoiceAccuracy(),
+        ]
 
-        init_device = cfg.get('init_device', 'cpu')
+        init_device = om_model_config.get('init_device', 'cpu')
         if init_device == 'cpu':
-            if cfg.pretrained:
+            if om_model_config.pretrained:
                 model = AutoModelForCausalLM.from_pretrained(
-                    cfg.pretrained_model_name_or_path, config=config)
+                    om_model_config.pretrained_model_name_or_path,
+                    config=config)
             else:
                 model = AutoModelForCausalLM.from_config(config)
         elif init_device == 'meta':
-            if cfg.pretrained:
+            if om_model_config.pretrained:
                 raise ValueError(
                     'Setting cfg.pretrained=True is not supported when init_device="meta".'
                 )
@@ -68,21 +90,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
         composer_model = super().__init__(model=model,
                                           tokenizer=tokenizer,
-                                          metrics=metrics,
-                                          z_loss=cfg.get('z_loss', 0.0))
+                                          metrics=train_metrics,
+                                          eval_metrics=eval_metrics,
+                                          z_loss=om_model_config.get(
+                                              'z_loss', 0.0))
 
         # if cfg.add_rouge:
         #     rouge_metric = RougeWithDetokenizer(detokenizer=tokenizer)
         #     composer_model.val_metrics[RougeWithDetokenizer.__name__] = rouge_metric
 
         return composer_model
-
-    def update_metric(self, batch, outputs, metric) -> None:
-        if isinstance(metric, InContextLearningMetric):
-            if batch.get('mode', None) == 'icl_task':
-                # only apply ICL metrics to specially constructed
-                # icl_task batches
-                metric.update(batch, outputs, self.labels)  # type: ignore
-        else:
-            outputs = outputs.view(-1, outputs.size(-1))
-            metric.update(outputs, self.labels.view(-1))  # type: ignore

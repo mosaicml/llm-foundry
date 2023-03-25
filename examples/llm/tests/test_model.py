@@ -17,8 +17,8 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-from examples.llm import (COMPOSER_MODEL_REGISTRY, TOKENIZER_REGISTRY,
-                          ComposerHFCausalLM, ComposerHFPrefixLM)
+from examples.llm import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
+                          ComposerHFPrefixLM)
 from examples.llm.src.models.mosaic_gpt import MosaicGPT, MosaicGPTConfig
 
 
@@ -35,8 +35,6 @@ def get_objs(conf_path='yamls/mosaic_gpt/testing.yaml'):
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
     test_cfg = get_config(conf_path=conf_path)
-    _ = TOKENIZER_REGISTRY[test_cfg.tokenizer.type](
-        **test_cfg.tokenizer.args)  # make sure tokenizer in registry
 
     reproducibility.seed_all(test_cfg.seed)
 
@@ -60,7 +58,8 @@ def get_objs(conf_path='yamls/mosaic_gpt/testing.yaml'):
     test_cfg.device_eval_batch_size = 2
     test_cfg.device_train_microbatch_size = 2
 
-    model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model)
+    model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
+                                                         test_cfg.tokenizer)
     # Optimizer
     assert test_cfg.optimizer.name == 'decoupled_adamw'
     optimizer = DecoupledAdamW(model.parameters(),
@@ -201,7 +200,7 @@ def test_full_forward_and_backward_gpt2_small(prefixlm, batch_size=2):
         neo_cfg.model.name = 'hf_causal_lm'
 
     model = COMPOSER_MODEL_REGISTRY[neo_cfg.model.name](
-        neo_cfg.model).to(device)
+        neo_cfg.model, neo_cfg.tokenizer).to(device)
 
     assert neo_cfg.optimizer.name == 'decoupled_adamw'
     optimizer = DecoupledAdamW(model.parameters(),
@@ -243,13 +242,17 @@ def test_full_forward_and_backward_t5_small(batch_size=2):
             'betas': [0.9, 0.99],
             'eps': 1e-6,
             'weight_decay': 0.00001
+        },
+        'tokenizer': {
+            'name': 't5-small',
         }
     })
 
     device = 'cpu'
     max_seq_len = 16
 
-    model = COMPOSER_MODEL_REGISTRY['hf_t5'](cfg.model).to(device)
+    model = COMPOSER_MODEL_REGISTRY['hf_t5'](cfg.model,
+                                             cfg.tokenizer).to(device)
 
     optimizer = DecoupledAdamW(model.parameters(),
                                lr=cfg.optimizer.lr,
@@ -292,7 +295,8 @@ def test_determinism(attention_type: str, precision):
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
-    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model)
+    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
+                                                           test_cfg.tokenizer)
     model_2 = copy.deepcopy(model_1)
 
     optimizer_1 = DecoupledAdamW(model_1.parameters(),
@@ -311,8 +315,8 @@ def test_determinism(attention_type: str, precision):
             batch = gen_random_batch(2, test_cfg)
             output_1 = model_1(batch)
             output_2 = model_2(batch)
-            assert output_1.allclose(output_2, rtol=0.0,
-                                     atol=0.0), f'differed at step {i}'
+            assert output_1.logits.allclose(output_2.logits, rtol=0.0,
+                                            atol=0.0), f'differed at step {i}'
 
             loss_1 = model_1.loss(output_1, batch)
             loss_2 = model_2.loss(output_2, batch)
@@ -330,7 +334,10 @@ def test_loss_fn():
     We provide non-zero tolerances to account for small numerics differences
     between the two loss implementations.
     """
-    from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
+    try:
+        from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
+    except:
+        pytest.skip('Fused cross entropy was not installed')
 
     reproducibility.seed_all(1111)
 
@@ -341,7 +348,8 @@ def test_loss_fn():
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
-    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model)
+    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
+                                                           test_cfg.tokenizer)
     model_2 = copy.deepcopy(model_1)
     assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
     model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
@@ -361,8 +369,8 @@ def test_loss_fn():
         batch = gen_random_batch(2, test_cfg)
         output_1 = model_1(batch)
         output_2 = model_2(batch)
-        assert output_1.allclose(output_2, rtol=1e-4,
-                                 atol=1e-4), f'differed at step {i}'
+        assert output_1.logits.allclose(output_2.logits, rtol=1e-4,
+                                        atol=1e-4), f'differed at step {i}'
 
         loss_1 = model_1.loss(output_1, batch)
         loss_2 = model_2.loss(output_2, batch)
@@ -382,16 +390,21 @@ def test_loss_fn():
 @pytest.mark.parametrize('prefixlm', [False, True])
 def test_opt_wrapping(prefixlm):
     conf = {
-        'name': 'hf_prefix_lm' if prefixlm else 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'facebook/opt-125m',
-        'pretrained': 'false'
+        'model': {
+            'name': 'hf_prefix_lm' if prefixlm else 'hf_causal_lm',
+            'pretrained_model_name_or_path': 'facebook/opt-125m',
+            'pretrained': 'false'
+        },
+        'tokenizer': {
+            'name': 'facebook/opt-125m'
+        }
     }
     config = DictConfig(conf)
 
     if prefixlm:
-        model = ComposerHFPrefixLM(config)
+        model = ComposerHFPrefixLM(config.model, config.tokenizer)
     else:
-        model = ComposerHFCausalLM(config)
+        model = ComposerHFCausalLM(config.model, config.tokenizer)
 
     # check that all the modules we except are blocked from FSDP wrapping
     assert not model.model.model._fsdp_wrap

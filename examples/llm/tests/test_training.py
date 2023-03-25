@@ -32,7 +32,7 @@ def gpt_tiny_cfg(conf_path='yamls/mosaic_gpt/125m.yaml'):
     test_cfg.model.n_layers = 2
     test_cfg.max_seq_len = 256
     test_cfg.model.max_seq_len = test_cfg.max_seq_len
-    test_cfg.tokenizer.args.max_seq_len = test_cfg.max_seq_len
+    test_cfg.tokenizer.kwargs.model_max_length = test_cfg.max_seq_len
     test_cfg.train_loader.dataset.max_seq_len = test_cfg.max_seq_len
     test_cfg.eval_loader.dataset.max_seq_len = test_cfg.max_seq_len
 

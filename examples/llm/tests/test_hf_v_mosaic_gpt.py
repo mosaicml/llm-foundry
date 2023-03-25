@@ -66,15 +66,21 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val,
 
     # get hf gpt2 cfg
     hf_cfg = om.create({
-        'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'gpt2',
-        'device': 'cpu',
-        'pretrained': False
+        'model': {
+            'name': 'hf_causal_lm',
+            'pretrained_model_name_or_path': 'gpt2',
+            'device': 'cpu',
+            'pretrained': False,
+        },
+        'tokenizer': {
+            'name': 'gpt2'
+        },
     })
 
     # get hf gpt2 model
     print(hf_cfg)
-    hf_model = COMPOSER_MODEL_REGISTRY[hf_cfg.name](hf_cfg).to(device)
+    hf_model = COMPOSER_MODEL_REGISTRY[hf_cfg.model.name](
+        hf_cfg.model, hf_cfg.tokenizer).to(device)
     hf_n_params = sum(p.numel() for p in hf_model.parameters())
 
     hf_model.model.config.embd_pdrop = dropout
@@ -99,26 +105,28 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val,
         cfg = om.load(f)
 
     # extract model cfg
-    cfg = cfg.model
+    model_cfg = cfg.model
     # use triton attn implementation
-    cfg.attn_impl = attn_impl
-    cfg.alibi = alibi
+    model_cfg.attn_impl = attn_impl
+    model_cfg.alibi = alibi
     # modify cfg for HF GPT2 compatibility
-    cfg.max_seq_len = hf_model.model.config.n_ctx
-    cfg.init_device = device
+    model_cfg.max_seq_len = hf_model.model.config.n_ctx
+    model_cfg.init_device = device
+    model_cfg.vocab_size = hf_model.model.config.vocab_size
     # set dropout prob
-    cfg.resid_pdrop = hf_model.model.config.resid_pdrop
-    cfg.emb_pdrop = hf_model.model.config.embd_pdrop
+    model_cfg.resid_pdrop = hf_model.model.config.resid_pdrop
+    model_cfg.emb_pdrop = hf_model.model.config.embd_pdrop
     # attn_dropout is integrated into the FlashMHA kernel
     # given this, it will generate different drop idx when compared to nn.Dropout
     # reguradless of if rng is seeded.
-    cfg.attn_pdrop = hf_model.model.config.attn_pdrop
+    model_cfg.attn_pdrop = hf_model.model.config.attn_pdrop
 
     # Build Model
     print('Initializing model...')
 
-    print(cfg)
-    model = COMPOSER_MODEL_REGISTRY[cfg.name](cfg).to(device)
+    print(model_cfg)
+    model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg,
+                                                    cfg.tokenizer).to(device)
     n_params = sum(p.numel() for p in model.parameters())
 
     if alibi:
@@ -129,22 +137,23 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val,
     # generate random input branch
     batch = {}
     batch['input_ids'] = torch.randint(low=0,
-                                       high=cfg.vocab_size,
+                                       high=model_cfg.vocab_size,
                                        size=(batch_size,
-                                             cfg.max_seq_len)).to(device)
+                                             model_cfg.max_seq_len)).to(device)
     batch['labels'] = torch.randint(low=0,
-                                    high=cfg.vocab_size,
+                                    high=model_cfg.vocab_size,
                                     size=(batch_size,
-                                          cfg.max_seq_len)).to(device)
+                                          model_cfg.max_seq_len)).to(device)
     kpm = None
     if no_attn_mask:
         if 'attention_mask' in batch.keys():
             _ = batch.pop('attention_mask')
     else:
-        batch['attention_mask'] = torch.ones(size=(batch_size, cfg.max_seq_len),
+        batch['attention_mask'] = torch.ones(size=(batch_size,
+                                                   model_cfg.max_seq_len),
                                              dtype=torch.int64).to(device)
         # mask out some tokens
-        batch['attention_mask'][:, cfg.max_seq_len // 2:] = mask_val
+        batch['attention_mask'][:, model_cfg.max_seq_len // 2:] = mask_val
         kpm = batch['attention_mask'].view(*batch['attention_mask'].shape, 1)
 
     hf_model.train()
@@ -157,7 +166,7 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val,
         if kpm is not None:
             hf_model_fwd *= kpm
         torch.manual_seed(seed)
-        model_fwd = model(batch)
+        model_fwd = model(batch).logits
         if kpm is not None:
             model_fwd *= kpm
     print(f'{hf_model_fwd.mean().item() = }\n{model_fwd.mean().item() = }')
@@ -210,7 +219,7 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val,
         if kpm is not None:
             hf_model_fwd *= kpm
         torch.manual_seed(seed)
-        model_fwd = model(batch)
+        model_fwd = model(batch).logits
         if kpm is not None:
             model_fwd *= kpm
 

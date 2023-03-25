@@ -15,7 +15,7 @@ from examples.common.builders import (build_algorithm, build_callback,
                                       build_optimizer, build_scheduler)
 from examples.common.config_utils import log_config, update_batch_size_info
 from examples.common.text_data import build_text_dataloader
-from examples.llm.src import (COMPOSER_MODEL_REGISTRY, TOKENIZER_REGISTRY,
+from examples.llm.src import (COMPOSER_MODEL_REGISTRY,
                               build_text_denoising_dataloader)
 
 
@@ -54,12 +54,12 @@ def validate_config(cfg):
             )
 
 
-def build_composer_model(cfg):
+def build_composer_model(model_cfg, tokenizer_cfg):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
     try:
-        return COMPOSER_MODEL_REGISTRY[cfg.name](cfg)
+        return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer_cfg)
     except:
         raise ValueError(f'Not sure how to build model with name={cfg.name}')
 
@@ -116,7 +116,7 @@ def main(cfg):
 
     # Build Model
     print('Initializing model...')
-    model = build_composer_model(cfg.model)
+    model = build_composer_model(cfg.model, cfg.tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')
     if hasattr(model, 'num_fwd_flops'):
@@ -137,10 +137,7 @@ def main(cfg):
         evaluators.append(eval_loader)
 
     if 'icl_tasks' in cfg:
-        tokenizer = TOKENIZER_REGISTRY[cfg.tokenizer.type](**cfg.tokenizer.args)
-        icl_evaluators, _ = build_icl_evaluators(cfg, tokenizer)
-        for icl_evaluator in icl_evaluators:
-            model.add_eval_metrics(icl_evaluator)
+        icl_evaluators, _ = build_icl_evaluators(cfg, model.tokenizer)
         evaluators.extend(icl_evaluators)
 
     # Optimizer

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from composer.metrics.nlp import LanguageCrossEntropy, MaskedAccuracy
 from omegaconf import DictConfig
+from omegaconf import OmegaConf as om
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 from examples.llm.src.models.hf.model_wrapper import HuggingFaceModelWithZLoss
@@ -64,28 +65,43 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
                 to validation metrics. Default: ``False``.
     """
 
-    def __init__(self, cfg: DictConfig):
-        config = AutoConfig.from_pretrained(cfg.pretrained_model_name_or_path,
-                                            **cfg.get('config_overrides', {}))
+    def __init__(self, om_model_config: DictConfig,
+                 om_tokenizer_config: DictConfig):
+        config = AutoConfig.from_pretrained(
+            om_model_config.pretrained_model_name_or_path,
+            **om_model_config.get('config_overrides', {}))
 
         # Set up the tokenizer (add tokens for denoising sentinels if needed)
-        if cfg.get('adapt_vocab_for_denoising', False):
+        if om_model_config.get('adapt_vocab_for_denoising', False):
+            resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
+                                                           resolve=True)
+            tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
+                'kwargs', {})
+            tokenizer_name = resolved_om_tokenizer_config[  # type: ignore
+                'name']
             tokenizer = AutoTokenizerForMOD.from_pretrained(
-                cfg.pretrained_model_name_or_path)
+                tokenizer_name, **tokenizer_kwargs)
         else:
-            tokenizer = AutoTokenizer.from_pretrained(
-                cfg.pretrained_model_name_or_path)
+            resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
+                                                           resolve=True)
+            tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
+                'kwargs', {})
+            tokenizer_name = resolved_om_tokenizer_config[  # type: ignore
+                'name']
+            tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+                                                      **tokenizer_kwargs)
         vocab_size = len(tokenizer)
 
-        init_device = cfg.get('init_device', 'cpu')
+        init_device = om_model_config.get('init_device', 'cpu')
         if init_device == 'cpu':
-            if cfg.pretrained:
+            if om_model_config.pretrained:
                 model = AutoModelForCausalLM.from_pretrained(
-                    cfg.pretrained_model_name_or_path, config=config)
+                    om_model_config.pretrained_model_name_or_path,
+                    config=config)
             else:
                 model = AutoModelForCausalLM.from_config(config)
         elif init_device == 'meta':
-            if cfg.pretrained:
+            if om_model_config.pretrained:
                 raise ValueError(
                     'Setting cfg.pretrained=True is not supported when init_device="meta".'
                 )
@@ -110,7 +126,8 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
         composer_model = super().__init__(model=model,
                                           tokenizer=tokenizer,
                                           metrics=metrics,
-                                          z_loss=cfg.get('z_loss', 0.0))
+                                          z_loss=om_model_config.get(
+                                              'z_loss', 0.0))
 
         # if cfg.add_rouge:
         #     rouge_metric = RougeWithDetokenizer(detokenizer=tokenizer)

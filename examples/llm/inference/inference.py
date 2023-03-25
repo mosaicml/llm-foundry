@@ -7,7 +7,7 @@ import torch
 from composer.core import get_precision_context
 from omegaconf import OmegaConf as om
 
-from examples.llm.src import COMPOSER_MODEL_REGISTRY, TOKENIZER_REGISTRY
+from examples.llm.src import COMPOSER_MODEL_REGISTRY
 
 
 def sample_top_p(probs, p):
@@ -84,21 +84,15 @@ class MosaicGPTInference:
         return decoded
 
 
-def build_composer_model(cfg):
+def build_composer_model(model_cfg, tokenizer_cfg):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
     try:
-        return COMPOSER_MODEL_REGISTRY[cfg.name](cfg)
+        return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer_cfg)
     except:
-        raise ValueError(f'Not sure how to build model with name={cfg.name}')
-
-
-def get_mosaicgpt_tokenizer(checkpoint_yaml_path: str):
-    with open(checkpoint_yaml_path) as f:
-        cfg = om.load(f)
-    tokenizer = TOKENIZER_REGISTRY[cfg.tokenizer.type](**cfg.tokenizer.args)
-    return tokenizer
+        raise ValueError(
+            f'Not sure how to build model with name={model_cfg.name}')
 
 
 def get_mosaicgpt_inference_model(checkpoint_yaml_path: str, tokenizer):
@@ -107,7 +101,7 @@ def get_mosaicgpt_inference_model(checkpoint_yaml_path: str, tokenizer):
     # set init_device to cpu for checkpoint loading
     # ToDo: Directly load a checkpoint into 'meta' model
     cfg.model.init_device = 'cpu'
-    model = build_composer_model(cfg.model)
+    model = build_composer_model(cfg.model, cfg.tokenizer)
 
     ckpt_load_path = cfg.get('load_path', None)  # type: ignore
     if ckpt_load_path is None:

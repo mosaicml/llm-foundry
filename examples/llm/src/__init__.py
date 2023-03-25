@@ -11,8 +11,6 @@ from examples.llm.src.models.layers.attention import (
     scaled_multihead_dot_product_attention, triton_flash_attn_fn)
 from examples.llm.src.models.layers.gpt_blocks import GPTMLP, GPTBlock
 from examples.llm.src.models.mosaic_gpt import ComposerMosaicGPT, MosaicGPT
-from examples.llm.src.tokenizer import (TOKENIZER_REGISTRY, HFTokenizer,
-                                        LLMTokenizer)
 
 __all__ = [
     'build_text_denoising_dataloader',
@@ -32,7 +30,4 @@ __all__ = [
     'GPTBlock',
     'MosaicGPT',
     'ComposerMosaicGPT',
-    'LLMTokenizer',
-    'HFTokenizer',
-    'TOKENIZER_REGISTRY',
 ]

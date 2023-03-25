@@ -15,12 +15,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from composer.algorithms.low_precision_layernorm.low_precision_layernorm import \
     LPLayerNorm
-from composer.metrics import METRIC_DEFAULT_CTORS, InContextLearningMetric
-from composer.metrics.nlp import LanguageCrossEntropy, Perplexity
-from composer.models.base import ComposerModel
+from composer.metrics import (InContextLearningLMAccuracy,
+                              InContextLearningMultipleChoiceAccuracy)
+from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
+from composer.models import HuggingFaceModel
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import PreTrainedModel
+from transformers import AutoTokenizer, PreTrainedModel
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 import examples.llm.src.models.layers.attention as attention
@@ -382,27 +383,46 @@ class MosaicGPT(PreTrainedModel):
         }
 
 
-class ComposerMosaicGPT(ComposerModel):
+class ComposerMosaicGPT(HuggingFaceModel):
 
-    def __init__(self, om_model_config: DictConfig):
-        super().__init__()
+    def __init__(self, om_model_config: DictConfig,
+                 om_tokenizer_config: DictConfig):
+        resolved_om_model_config = om.to_container(om_model_config,
+                                                   resolve=True)
+        hf_config = MosaicGPTConfig.from_dict(resolved_om_model_config)
+        model = MosaicGPT(hf_config)
 
-        resolved_om_config = om.to_container(om_model_config, resolve=True)
-        self.hf_config = MosaicGPTConfig.from_dict(resolved_om_config)
-        self.model = MosaicGPT(self.hf_config)
+        resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
+                                                       resolve=True)
+        tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
+            'kwargs', {})
+        tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+                                                  **tokenizer_kwargs)
+
+        train_metrics = [
+            LanguageCrossEntropy(hf_config.vocab_size),
+            LanguagePerplexity(hf_config.vocab_size)
+        ]
+        eval_metrics = [
+            LanguageCrossEntropy(hf_config.vocab_size),
+            LanguagePerplexity(hf_config.vocab_size),
+            InContextLearningLMAccuracy(),
+            InContextLearningMultipleChoiceAccuracy(),
+        ]
+
+        super().__init__(
+            model=model,
+            tokenizer=tokenizer,
+            use_logits=True,
+            metrics=train_metrics,
+            eval_metrics=eval_metrics,
+            shift_labels=True,
+            allow_embedding_resizing=True,
+        )
+
         self.num_fwd_flops = self._compute_num_fwd_flops()
-        self.train_metrics = {
-            'LanguageCrossEntropy':
-                LanguageCrossEntropy(self.hf_config.vocab_size),
-            'Perplexity':
-                Perplexity(),
-        }
-        self.eval_metrics = {
-            'LanguageCrossEntropy':
-                LanguageCrossEntropy(self.hf_config.vocab_size),
-            'Perplexity':
-                Perplexity(),
-        }
+
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
             try:
@@ -436,39 +456,12 @@ class ComposerMosaicGPT(ComposerModel):
         # Note: prefix_mask is only used if model.prefix_lm is True
         return self.model(input_ids=input_ids,
                           attention_mask=attention_mask,
-                          prefix_mask=prefix_mask).logits
-
-    def eval_forward(self, batch, outputs=None):
-        return outputs if outputs is not None else self.forward(batch)
+                          prefix_mask=prefix_mask)
 
     def loss(self, outputs, batch):
         targets = self.get_targets(batch)
-        return self.loss_fn(outputs.view(-1, outputs.size(-1)),
+        return self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
                             targets.view(-1))
-
-    def get_metrics(self, is_train=False):
-        return self.train_metrics if is_train else self.eval_metrics
-
-    def update_metric(self, batch, outputs, metric) -> None:
-        if isinstance(metric, InContextLearningMetric):
-            if batch.get('mode', None) == 'icl_task':
-                # only apply ICL metrics to specially constructed
-                # icl_task batches
-                targets = self.get_targets(batch)
-                metric.update(batch, outputs, targets)
-        else:
-            outputs = outputs.view(-1, outputs.size(-1))
-            targets = self.get_targets(batch).view(-1)
-            metric.update(outputs, targets)
-
-    def add_eval_metrics(self, evaluator):
-        evaluator_metrics = {
-            m: METRIC_DEFAULT_CTORS[m]() for m in evaluator.metric_names
-        }
-        if self.eval_metrics is not None:
-            self.eval_metrics.update(evaluator_metrics)
-        else:
-            self.eval_metrics = evaluator_metrics
 
     def _compute_num_fwd_flops(self):
         n_params = sum(p.numel() for p in self.parameters())

@@ -686,6 +686,64 @@ def test_save_from_pretrained(tmp_path):
     check_hf_model_equivalence(mosaic_gpt, mosaic_gpt2)
 
 
+def test_forward_with_cache_and_padding():
+    # Tests that the result is the same with or without padding when using kv caching
+    hf_config = MosaicGPTConfig(
+        init_device='cpu',
+        d_model=128,
+        n_heads=4,
+        n_layers=2,
+        mlp_ratio=2,
+        max_seq_len=2048,
+        emb_pdrop=0.1,
+        resid_pdrop=0.2,
+        attn_impl='torch',
+    )
+
+    mosaic_gpt = MosaicGPT(hf_config)
+    mosaic_gpt.eval()
+
+    first_input_ids_no_padding = torch.tensor([[11274, 16390, 11]])
+    first_attention_mask_no_padding = torch.tensor([[1, 1, 1]]).bool()
+
+    # start with passing the first three tokens through (no padding)
+    first_output_no_padding = mosaic_gpt(
+        first_input_ids_no_padding,
+        attention_mask=first_attention_mask_no_padding)
+
+    second_input_ids_no_padding = torch.tensor([[11274, 16390, 11, 11274]])
+    second_attention_mask_no_padding = torch.tensor([[1, 1, 1, 1]]).bool()
+
+    # pass through the fourth token by itself, using the key-value cache (no padding)
+    second_output_no_padding = mosaic_gpt(
+        second_input_ids_no_padding[:, -1].unsqueeze(-1),
+        attention_mask=second_attention_mask_no_padding,
+        past_key_values=first_output_no_padding.past_key_values)
+
+    first_input_ids_padding = torch.tensor([[50256, 11274, 16390, 11]])
+    first_attention_mask_padding = torch.tensor([[0, 1, 1, 1]]).bool()
+
+    # start with passing the first three tokens through (with left padding)
+    first_output_padding = mosaic_gpt(
+        first_input_ids_padding, attention_mask=first_attention_mask_padding)
+
+    second_input_ids_padding = torch.tensor([[50256, 11274, 16390, 11, 11274]])
+    second_attention_mask_padding = torch.tensor([[0, 1, 1, 1, 1]]).bool()
+
+    # pass through the fourth token by itself, using the key-value cache (with left padding)
+    second_output_padding = mosaic_gpt(
+        second_input_ids_padding[:, -1].unsqueeze(-1),
+        attention_mask=second_attention_mask_padding,
+        past_key_values=first_output_padding.past_key_values)
+
+    # check that the outputs are the same with or without padding
+    torch.testing.assert_close(second_output_no_padding.logits,
+                               second_output_padding.logits[:,
+                                                            -1, :].unsqueeze(1),
+                               atol=1e-6,
+                               rtol=1e-6)
+
+
 @pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),
                                                    ('flash', 'gpu'),
                                                    ('triton', 'gpu'),

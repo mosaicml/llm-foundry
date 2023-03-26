@@ -272,11 +272,10 @@ class MosaicGPT(PreTrainedModel):
                                S + past_position,
                                dtype=torch.long,
                                device=input_ids.device).unsqueeze(0)
-
             if attention_mask is not None:
                 # adjust the position indices to account for padding tokens
                 pos = torch.clamp(pos - torch.cumsum(
-                    (attention_mask == 0)[:, past_position:], dim=1),
+                    (attention_mask == 0), dim=1)[:, past_position:],
                                   min=0)
 
             pos_emb = self.transformer.wpe(pos)  # type: ignore

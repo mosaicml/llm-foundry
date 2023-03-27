@@ -30,13 +30,14 @@ This folder contains starter code for training a CIFAR ResNet architecture. You 
 ## Overview
 
 The files in this folder are:
-* `model.py` - Creates a [ComposerModel](https://docs.mosaicml.com/en/stable/composer_model.html) from a CIFAR ResNet model defined in the script
-* `data.py` - Creates either a Torchvision dataset or a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/stable/) for CIFAR10
-* `main.py` - Trains a CIFAR ResNet on CIFAR10 using the [Composer](https://github.com/mosaicml/composer) [Trainer](https://docs.mosaicml.com/en/stable/api_reference/generated/composer.Trainer.html#trainer)
-* `tests/` - A suite of tests to check each training component
-* `yamls/`
-  * `resnet56.yaml` - Configuration for a CIFAR ResNet56 training run, to be used as the first argument to `main.py`
-  * `mcloud_run.yaml` - yaml to use if running on the [MosaicML platform](https://www.mosaicml.com/blog/introducing-mosaicml-cloud)
+
+- `model.py` - Creates a [ComposerModel](https://docs.mosaicml.com/en/stable/composer_model.html) from a CIFAR ResNet model defined in the script
+- `data.py` - Creates either a Torchvision dataset or a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/stable/) for CIFAR10
+- `main.py` - Trains a CIFAR ResNet on CIFAR10 using the [Composer](https://github.com/mosaicml/composer) [Trainer](https://docs.mosaicml.com/en/stable/api_reference/generated/composer.Trainer.html#trainer)
+- `tests/` - A suite of tests to check each training component
+- `yamls/`
+  - `resnet56.yaml` - Configuration for a CIFAR ResNet56 training run, to be used as the first argument to `main.py`
+  - `mcloud_run.yaml` - yaml to use if running on the [MosaicML platform](https://www.mosaicml.com/blog/introducing-mosaicml-cloud)
 
 Now that you've explored the code, let's get training.
 
@@ -46,21 +47,26 @@ If you're using the MosaicML platform, all you need to install is [`mcli`](https
 
 ```bash
 pip install --upgrade mosaicml-cli
+mcli init
 ```
 
 Then, just fill in a few fields in [yamls/mcloud_run.yaml](./yamls/mcloud_run.yaml):
 
 ```yaml
-cluster:   # Add the name of the cluster to use for this run
-gpu_type:   # Type of GPU to use; usually a100_40gb
-...
-  git_repo: mosaicml/examples  # Replace with your fork to use custom code
-  git_branch: main             # Replace with your branch to use custom code
+cluster: # Add the name of the cluster to use for this run
+gpu_type: # Type of GPU to use; usually a100_40gb
+integrations:
+  - integration_type: git_repo
+    git_repo: mosaicml/examples # Replace with your fork to use custom code
+    git_branch: main # Replace with your branch to use custom code
+    ssh_clone: false # Should be true if using a private repo
 ```
 
 These tell `mcli` where to get your code and what cluster your organization is using.
+If you are using a private github repository, you'll need to set up [github secrets](https://mcli.docs.mosaicml.com/en/latest/secrets/ssh.html#git-ssh-secrets)
 
 With this information provided, you can now run the code in this directory on a remote machine like so:
+
 ```bash
 mcli run -f yamls/mcloud_run.yaml
 ```
@@ -73,14 +79,14 @@ You're done. You can skip the rest of the instructions except [saving and loadin
 
 If you're not using the MosaicML platform, here's what you need to start training:
 
-* Docker image with PyTorch 1.12+, e.g. [MosaicML's PyTorch image](https://hub.docker.com/r/mosaicml/pytorch/tags)
-  * Recommended tag: `mosaicml/pytorch:1.12.1_cu116-python3.9-ubuntu20.04`
-  * The image comes pre-configured with the following dependencies:
-    * PyTorch Version: 1.12.1
-    * CUDA Version: 11.6
-    * Python Version: 3.9
-    * Ubuntu Version: 20.04
-* System with NVIDIA GPUs
+- Docker image with PyTorch 1.12+, e.g. [MosaicML's PyTorch image](https://hub.docker.com/r/mosaicml/pytorch/tags)
+  - Recommended tag: `mosaicml/pytorch:1.12.1_cu116-python3.9-ubuntu20.04`
+  - The image comes pre-configured with the following dependencies:
+    - PyTorch Version: 1.12.1
+    - CUDA Version: 11.6
+    - Python Version: 3.9
+    - Ubuntu Version: 20.04
+- System with NVIDIA GPUs
 
 ### Installation
 
@@ -153,4 +159,5 @@ train          Epoch   0:    3%|▋                        | 17/625 [00:17<07:23
 At the bottom of `yamls/resnet56.yaml`, we provide arguments for saving and loading model weights. Please specify the `save_folder` or `load_path` arguments if you need to save or load checkpoints!
 
 ## Contact Us
+
 If you run into any problems with the code, please file Github issues directly to this repo.

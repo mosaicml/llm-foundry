@@ -13,7 +13,9 @@ integrations:
 - integration_type: git_repo
   git_repo: mosaicml/examples
   git_branch: main # TODO: Update with tag for v0.0.4 release
+  # git_commit: # OR use your commit hash
   pip_install: '.'
+  ssh_clone: false # Should be true if using a private repo
 
 command: |
   cd examples/examples/common

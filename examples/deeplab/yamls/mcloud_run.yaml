@@ -8,6 +8,7 @@ integrations:
   git_repo: mosaicml/examples
   git_branch: v0.0.3
   pip_install: .[deeplab]
+  ssh_clone: false # Should be true if using a private repo
 command: |
   cd examples/examples/deeplab
   composer main.py /mnt/config/parameters.yaml

@@ -8,10 +8,12 @@ integrations:
   git_repo: EleutherAI/gpt-neox
   git_commit: 72c80715c366cc4ad623050d6bcb984fe6638814 # main as of 02-27-2023
   path: /workspace/gpt-neox
+  ssh_clone: false
 - integration_type: git_repo
   git_repo: EleutherAI/DeeperSpeed
   git_commit: 7069d10d2c9abac50576c84cb7e45910fafa218c # main as of 02-27-2023
   path: /workspace/DeeperSpeed
+  ssh_clone: false
 
 command: |
   # Install the requirements for GPT-NeoX

@@ -866,3 +866,38 @@ def test_generate_with_past_kv():
         assert len(kwargs['past_key_values']) == hf_config.n_layers
         assert kwargs['past_key_values'][0][0].shape == (1, 3,
                                                          hf_config.d_model)
+
+
+@pytest.mark.parametrize('generation_kwargs', [{
+    'max_new_tokens': 2,
+    'num_beams': 4
+}, {
+    'max_new_tokens': 2,
+    'top_k': 5,
+    'penalty_alpha': 0.4
+}, {
+    'do_sample': True,
+    'top_p': 0.95
+}])
+def test_generation_kwargs_dont_crash(generation_kwargs):
+    hf_config = MosaicGPTConfig(
+        init_device='cpu',
+        d_model=128,
+        n_heads=4,
+        n_layers=2,
+        mlp_ratio=2,
+        max_seq_len=2048,
+        emb_pdrop=0.1,
+        resid_pdrop=0.2,
+        attn_impl='torch',
+    )
+    mosaic_gpt = MosaicGPT(hf_config)
+    mosaic_gpt.eval()
+
+    # no padding in the input
+    no_padding_input_ids = torch.tensor([[11274, 16390, 11]])
+    no_padding_attention_mask = torch.tensor([[1, 1, 1]])
+
+    _ = mosaic_gpt.generate(input_ids=no_padding_input_ids,
+                            attention_mask=no_padding_attention_mask,
+                            **generation_kwargs)

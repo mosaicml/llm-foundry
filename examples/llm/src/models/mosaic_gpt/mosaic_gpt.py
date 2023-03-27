@@ -228,9 +228,6 @@ class MosaicGPT(PreTrainedModel):
         if output_attentions:
             raise NotImplementedError(
                 'output_attentions is not implemented yet for MosaicGPT')
-        if output_hidden_states:
-            raise NotImplementedError(
-                'output_hidden_states is not implemented yet for MosaicGPT')
 
         if attention_mask is not None and attention_mask[:, 0].sum(
         ) != attention_mask.shape[0] and self.training:
@@ -301,7 +298,11 @@ class MosaicGPT(PreTrainedModel):
             past_key_values = [() for _ in range(self.config.n_layers)
                               ]  # type: ignore
 
+        all_hidden_states = () if output_hidden_states else None
         for b_idx, block in enumerate(self.transformer.blocks):  # type: ignore
+            if output_hidden_states:
+                assert all_hidden_states is not None  # pyright
+                all_hidden_states = all_hidden_states + (x,)
             past_key_value = past_key_values[
                 b_idx] if past_key_values is not None else None
             x, past_key_value = block(x,
@@ -327,7 +328,8 @@ class MosaicGPT(PreTrainedModel):
             logits *= self.logit_scale
 
         return CausalLMOutputWithPast(logits=logits,
-                                      past_key_values=past_key_values)
+                                      past_key_values=past_key_values,
+                                      hidden_states=all_hidden_states)
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
@@ -380,6 +382,22 @@ class MosaicGPT(PreTrainedModel):
             'past_key_values': past_key_values,
             'use_cache': kwargs.get('use_cache'),
         }
+
+    @staticmethod
+    def _reorder_cache(past_key_values, beam_idx):
+        """Used by HuggingFace generate when using beam search with kv-caching.
+
+        See https://github.com/huggingface/transformers/blob/3ec7a47664ebe40c40f4b722f6bb1cd30c3821ec/src/transformers/models/gpt2/modeling_gpt2.py#L1122-L1133
+        for an example in transformers.
+        """
+        reordered_past = []
+        for layer_past in past_key_values:
+            reordered_past += [
+                tuple(
+                    past_state.index_select(0, beam_idx)
+                    for past_state in layer_past)
+            ]
+        return reordered_past
 
 
 class ComposerMosaicGPT(HuggingFaceModel):

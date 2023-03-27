@@ -7,7 +7,9 @@ integrations:
 - integration_type: git_repo
   git_repo: mosaicml/examples  # Replace with your fork to use custom code
   git_branch: v0.0.3   # Replace with your branch to use custom code
+  # git_commit: # OR use your commit hash
   pip_install: -e .[resnet-cifar]
+  ssh_clone: false # Should be true if using a private repo
 command: |
   cd examples/examples/resnet_cifar
   composer main.py yamls/resnet56.yaml

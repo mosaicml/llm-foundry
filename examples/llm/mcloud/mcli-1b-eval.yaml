@@ -4,7 +4,7 @@ integrations:
   git_branch: v0.0.3 # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e .[llm]
-  ssh_clone: false
+  ssh_clone: false # Should be true if using a private repo
 
 command: |
   cd examples/examples/llm/icl_eval

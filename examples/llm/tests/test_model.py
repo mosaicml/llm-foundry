@@ -901,3 +901,15 @@ def test_generation_kwargs_dont_crash(generation_kwargs):
     _ = mosaic_gpt.generate(input_ids=no_padding_input_ids,
                             attention_mask=no_padding_attention_mask,
                             **generation_kwargs)
+
+
+def test_tokenizer_max_length_load(max_seq_len=2048):
+    conf_path = 'yamls/mosaic_gpt/testing.yaml'
+    with open(conf_path) as f:
+        test_cfg = om.load(f)
+
+    test_cfg.max_seq_len = max_seq_len
+
+    model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
+                                                         test_cfg.tokenizer)
+    assert model.tokenizer.model_max_length == max_seq_len

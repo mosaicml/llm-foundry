@@ -417,6 +417,12 @@ class ComposerMosaicGPT(HuggingFaceModel):
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
                                                   **tokenizer_kwargs)
 
+        # HuggingFace does not respect the model_max_length kwarg, and overrides it with
+        # min(kwargs['model_max_length'], original_config['model_max_length']), so we explicitly
+        # set it here
+        if 'model_max_length' in tokenizer_kwargs:
+            tokenizer.model_max_length = tokenizer_kwargs['model_max_length']
+
         train_metrics = [
             LanguageCrossEntropy(hf_config.vocab_size),
             LanguagePerplexity(hf_config.vocab_size)

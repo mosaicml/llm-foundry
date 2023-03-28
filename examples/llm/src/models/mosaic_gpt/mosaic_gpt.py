@@ -145,22 +145,25 @@ class MosaicGPT(PreTrainedModel):
         if self.attn_impl == 'flash':
             return self.attn_bias, attention_mask
 
-        # If using torch or triton, we incorporate the prefix_mask (if
-        # appropriate), then any attention_mask. This will output None
-        # in place of attention_mask since it will not be futher needed
-        # in the attention modules.
+        attn_bias = self.attn_bias
+
+        # If using torch or triton, we incorporate the prefix_mask (if appropriate)
         if self.prefix_lm:
-            assert isinstance(self.attn_bias, torch.Tensor)  # pyright
+            assert isinstance(attn_bias, torch.Tensor)  # pyright
             assert isinstance(prefix_mask, torch.Tensor)  # pyright
-            attn_bias = self._apply_prefix_mask(self.attn_bias, prefix_mask)
-        else:
-            attn_bias = self.attn_bias
+            attn_bias = self._apply_prefix_mask(attn_bias, prefix_mask)
+
+        # If using torch or triton, we incorporate attention_mask. This will output
+        # None in place of attention_mask since it will not be futher needed in the
+        # attention modules.
         if attention_mask is not None:
             s_k = attention_mask.shape[-1]
             if attn_bias is None:
                 attn_bias = torch.zeros((1, 1, 1, s_k),
                                         device=device,
                                         dtype=dtype)
+            else:
+                attn_bias = attn_bias[:, :, :, -s_k:]
             if prefix_mask is not None and (attention_mask.shape !=
                                             prefix_mask.shape):
                 raise ValueError(

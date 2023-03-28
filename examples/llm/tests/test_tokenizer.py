@@ -27,6 +27,10 @@ def test_load_tokenizer():
     assert tokenizer.vocab_size == 50257
     assert tokenizer.name_or_path == 'gpt2'
 
+    # HuggingFace overrides model_max_length, so this check would fail. We explicitly reset the
+    # model_max_length in ComposerMosaicGPT
+    # assert tokenizer.model_max_length == resolved_om_tokenizer_config['kwargs']['model_max_length']
+
     in_str = 'hello\n\nhello'
     out_token_key = [31373, 198, 198, 31373]
 

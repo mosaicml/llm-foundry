@@ -61,7 +61,8 @@ def build_composer_model(model_cfg, tokenizer_cfg):
     try:
         return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer_cfg)
     except:
-        raise ValueError(f'Not sure how to build model with name={cfg.name}')
+        raise ValueError(
+            f'Not sure how to build model with name={model_cfg.name}')
 
 
 def build_dataloader(cfg, device_batch_size):

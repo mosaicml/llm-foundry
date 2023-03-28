@@ -457,12 +457,15 @@ def test_mosaic_gpt_creation():
                                                    ('flash', 'gpu'),
                                                    ('triton', 'gpu'),
                                                    ('torch', 'gpu')])
-def test_forward_with_padding(attention_impl, device):
+@pytest.mark.parametrize('alibi', [True, False])
+def test_forward_with_padding(attention_impl, device, alibi):
     # Test that different placement of padding does not affect the output.
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
         )
+    if alibi and attention_impl == 'flash':
+        pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     reproducibility.seed_all(1234)
     device = get_device(device)
@@ -477,6 +480,7 @@ def test_forward_with_padding(attention_impl, device):
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_impl=attention_impl,
+        alibi=alibi,
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()
@@ -543,31 +547,40 @@ def test_forward_with_padding(attention_impl, device):
         assert torch.allclose(right_padding_output[0, :3],
                               left_padding_output[0, 3:],
                               atol=1e-6 if attention_impl == 'torch' else 1e-8)
-        # check that right padding and middle padding produce the same output
-        assert torch.allclose(right_padding_output[0, :3],
-                              middle_padding_output[0, [0, 1, 5]],
-                              atol=1e-6 if attention_impl == 'torch' else 1e-8)
+        if not alibi:
+            # check that right padding and middle padding produce the same output
+            # Note: alibi not implemented for middle padding.
+            assert torch.allclose(
+                right_padding_output[0, :3],
+                middle_padding_output[0, [0, 1, 5]],
+                atol=1e-6 if attention_impl == 'torch' else 1e-8)
         # check that right padding and right padding in a batch produce the same output
         assert torch.allclose(right_padding_output[0, :3],
                               batched_output[0, :3],
                               atol=1e-6 if attention_impl == 'torch' else 1e-8)
-        # check that middle padding and middle padding in a batch produce the same output
-        assert torch.allclose(middle_padding_output[0],
-                              batched_output[1, :],
-                              atol=1e-6 if attention_impl == 'torch' else 1e-8)
+        if not alibi:
+            # check that middle padding and middle padding in a batch produce the same output
+            # Note: alibi not implemented for middle padding.
+            assert torch.allclose(
+                middle_padding_output[0],
+                batched_output[1, :],
+                atol=1e-6 if attention_impl == 'torch' else 1e-8)
 
 
 @pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),
                                                    ('flash', 'gpu'),
                                                    ('triton', 'gpu'),
                                                    ('torch', 'gpu')])
-def test_generate(attention_impl, device):
+@pytest.mark.parametrize('alibi', [True, False])
+def test_generate(attention_impl, device, alibi):
     # Test that generate works, and produces the same output with or without
     # padding in the input.
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
         )
+    if alibi and attention_impl == 'flash':
+        pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     reproducibility.seed_all(1234)
     device = get_device(device)
@@ -582,6 +595,7 @@ def test_generate(attention_impl, device):
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_impl=attention_impl,
+        alibi=alibi,
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()
@@ -686,7 +700,8 @@ def test_save_from_pretrained(tmp_path):
     check_hf_model_equivalence(mosaic_gpt, mosaic_gpt2)
 
 
-def test_forward_with_cache_and_padding():
+@pytest.mark.parametrize('alibi', [True, False])
+def test_forward_with_cache_and_padding(alibi):
     # Tests that the result is the same with or without padding when using kv caching
     hf_config = MosaicGPTConfig(
         init_device='cpu',
@@ -698,6 +713,7 @@ def test_forward_with_cache_and_padding():
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_impl='torch',
+        alibi=alibi,
     )
 
     mosaic_gpt = MosaicGPT(hf_config)
@@ -748,13 +764,16 @@ def test_forward_with_cache_and_padding():
                                                    ('flash', 'gpu'),
                                                    ('triton', 'gpu'),
                                                    ('torch', 'gpu')])
-def test_forward_with_cache(attention_impl, device):
+@pytest.mark.parametrize('alibi', [True, False])
+def test_forward_with_cache(attention_impl, device, alibi):
     # Test that model forward with and without the key-value cache produces the
     # same output.
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
         )
+    if alibi and attention_impl == 'flash':
+        pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     device = get_device(device)
 
@@ -768,6 +787,7 @@ def test_forward_with_cache(attention_impl, device):
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_impl=attention_impl,
+        alibi=alibi,
     )
     reproducibility.seed_all(1234)
     mosaic_gpt = MosaicGPT(hf_config)
@@ -828,7 +848,8 @@ def test_forward_with_cache(attention_impl, device):
                                    rtol=1e-2)
 
 
-def test_generate_with_past_kv():
+@pytest.mark.parametrize('alibi', [True, False])
+def test_generate_with_past_kv(alibi):
     hf_config = MosaicGPTConfig(
         init_device='cpu',
         d_model=128,
@@ -839,6 +860,7 @@ def test_generate_with_past_kv():
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_impl='torch',
+        alibi=alibi,
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()
@@ -879,7 +901,8 @@ def test_generate_with_past_kv():
     'do_sample': True,
     'top_p': 0.95
 }])
-def test_generation_kwargs_dont_crash(generation_kwargs):
+@pytest.mark.parametrize('alibi', [True, False])
+def test_generation_kwargs_dont_crash(generation_kwargs, alibi):
     hf_config = MosaicGPTConfig(
         init_device='cpu',
         d_model=128,
@@ -890,6 +913,7 @@ def test_generation_kwargs_dont_crash(generation_kwargs):
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_impl='torch',
+        alibi=alibi,
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()

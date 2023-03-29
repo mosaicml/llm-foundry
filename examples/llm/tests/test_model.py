@@ -714,6 +714,7 @@ def test_forward_with_cache_and_padding(alibi):
         resid_pdrop=0.2,
         attn_impl='torch',
         alibi=alibi,
+        use_cache=True,
     )
 
     mosaic_gpt = MosaicGPT(hf_config)
@@ -788,6 +789,7 @@ def test_forward_with_cache(attention_impl, device, alibi):
         resid_pdrop=0.2,
         attn_impl=attention_impl,
         alibi=alibi,
+        use_cache=True,
     )
     reproducibility.seed_all(1234)
     mosaic_gpt = MosaicGPT(hf_config)
@@ -861,6 +863,7 @@ def test_generate_with_past_kv(alibi):
         resid_pdrop=0.2,
         attn_impl='torch',
         alibi=alibi,
+        use_cache=True,
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()
@@ -914,6 +917,7 @@ def test_generation_kwargs_dont_crash(generation_kwargs, alibi):
         resid_pdrop=0.2,
         attn_impl='torch',
         alibi=alibi,
+        use_cache=True,
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()

@@ -44,7 +44,7 @@ class MosaicGPTConfig(PretrainedConfig):
         init_nonlinearity: str = 'leaky_relu',
         embedding_fraction: float = 1.0,
         low_precision_layernorm: bool = False,
-        use_cache: bool = True,
+        use_cache: bool = False,
         **kwargs,
     ):
         """The MosaicGPT configuration class.

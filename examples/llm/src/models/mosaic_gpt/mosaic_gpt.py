@@ -434,7 +434,7 @@ class MosaicGPT(PreTrainedModel):
             'prefix_mask': prefix_mask,
             'sequence_id': sequence_id,
             'past_key_values': past_key_values,
-            'use_cache': kwargs.get('use_cache'),
+            'use_cache': kwargs.get('use_cache', True),
         }
 
     @staticmethod

@@ -43,8 +43,10 @@ class DecoupledLionW(Optimizer):
             betas: Tuple[float, float] = (0.9, 0.99),
             weight_decay: float = 0.0,
     ):
-        assert lr > 0.
-        assert all([0. <= beta <= 1. for beta in betas])
+        if lr <= 0.:
+            raise Exception(f"Invalid LR: {lr}. LR must be > 0")
+        if not all([0. <= beta <= 1. for beta in betas]):
+            raise Exception(f"Invalid beta values: {betas} All betas must be between 0 and 1.")
         if weight_decay >= 1e-3:
             log.warning(
                 f'You are using a high value of `weight_decay={weight_decay}` for the `DecoupledLionW` optimizer. Are you sure you want to do this? '

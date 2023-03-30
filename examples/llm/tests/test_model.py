@@ -567,6 +567,57 @@ def test_forward_with_padding(attention_impl, device, alibi):
                 atol=1e-6 if attention_impl == 'torch' else 1e-8)
 
 
+@pytest.mark.parametrize('attention_impl', ['torch', 'triton'])
+def test_advanced_mask_building(attention_impl):
+    # Test that the correct attention mask is created when both
+    # prefix_mask and sequence_id are used
+    hf_config = MosaicGPTConfig(init_device='cpu',
+                                d_model=16,
+                                n_heads=1,
+                                n_layers=1,
+                                mlp_ratio=1,
+                                max_seq_len=256,
+                                emb_pdrop=0.0,
+                                resid_pdrop=0.0,
+                                attn_impl=attention_impl,
+                                prefix_lm=True,
+                                attn_uses_sequence_id=True,
+                                alibi=False)
+    mosaic_gpt = MosaicGPT(hf_config)
+    mosaic_gpt.eval()
+
+    prefix_mask = torch.ByteTensor([[1, 1, 0, 0, 1, 1, 1, 0]])
+    sequence_id = torch.LongTensor([[0, 0, 0, 0, 1, 1, 1, 1]])
+
+    attn_bias, _ = mosaic_gpt._attn_bias(device=mosaic_gpt.device,
+                                         dtype=torch.float32,
+                                         attention_mask=None,
+                                         prefix_mask=prefix_mask,
+                                         sequence_id=sequence_id)
+
+    assert isinstance(attn_bias, torch.Tensor)
+    assert attn_bias.shape == torch.Size([1, 1, 8, 8])
+
+    # We'll construct the expected value of attn_bias and then compare.
+    can_attend = torch.tensor([
+        [1, 1, 0, 0, 0, 0, 0, 0],
+        [1, 1, 0, 0, 0, 0, 0, 0],
+        [1, 1, 1, 0, 0, 0, 0, 0],
+        [1, 1, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 1, 0],
+        [0, 0, 0, 0, 1, 1, 1, 0],
+        [0, 0, 0, 0, 1, 1, 1, 0],
+        [0, 0, 0, 0, 1, 1, 1, 1],
+    ])
+    can_attend = can_attend.bool().view(1, 1, 8, 8)
+    expected_attn_bias = torch.zeros_like(attn_bias)
+    expected_attn_bias = expected_attn_bias.masked_fill(
+        torch.logical_not(can_attend),
+        torch.finfo(attn_bias.dtype).min)
+
+    assert torch.equal(attn_bias, expected_attn_bias)
+
+
 @pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),
                                                    ('flash', 'gpu'),
                                                    ('triton', 'gpu'),

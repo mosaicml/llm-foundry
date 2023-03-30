@@ -62,6 +62,7 @@ def test_attn_impl(attn_impl_0,
                                        s,
                                        alibi,
                                        prefix_lm=False,
+                                       use_sequence_id=False,
                                        causal=causal)
         if bs is not None:
             attn_bias = torch.zeros(*bs, device=device)

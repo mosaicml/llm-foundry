@@ -5,7 +5,7 @@
 
 import os
 from itertools import islice
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 import torch
@@ -137,13 +137,57 @@ class StreamingTextDataset(StreamingDataset):
         return token_sample
 
 
+class ConcatenatedSequenceCollatorWrapper:
+    """Collator wrapper to add sequence_id to batch."""
+
+    def __init__(self,
+                 base_collator: Callable,
+                 eos_token_id: Optional[int] = None,
+                 bos_token_id: Optional[int] = None):
+        self.base_collator = base_collator
+        if (eos_token_id is None) and (bos_token_id is None):
+            raise ValueError(
+                'Must supply a value for either eos_token_id or bos_token_id, but got None for both.'
+            )
+        if (eos_token_id is not None) and (bos_token_id is not None):
+            raise ValueError(
+                'Cannot use *both* EOS and BOS tokens for detecting sequence boundaries. ' +\
+                'Please supply `eos_token_id` if sequences end with an EOS token, or use ' +\
+                '`bos_token_id` if sequences start with a BOS token.'
+            )
+        if eos_token_id is None:
+            self.split_token_id = bos_token_id
+            self.bos_mode = True
+        else:
+            self.split_token_id = eos_token_id
+            self.bos_mode = False
+
+    def __call__(self, examples: List[Any]) -> Dict[str, torch.Tensor]:
+        batch = self.base_collator(examples)
+        batch['sequence_id'] = self.get_sequence_id_from_batch(batch)
+        return batch
+
+    def get_sequence_id_from_batch(
+            self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
+        is_separator = torch.eq(batch['input_ids'], self.split_token_id)
+        cumulative_sep = torch.cumsum(is_separator,
+                                      dim=1).to(batch['input_ids'].dtype)
+        # If separator token is bos, we're already done
+        if self.bos_mode:
+            return cumulative_sep
+
+        # If separator token is eos, right shift 1 space
+        left_zeros = cumulative_sep.new_zeros((cumulative_sep.shape[0], 1))
+        return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
+
+
 def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
     if cfg.dataset.get('group_method', None) is not None:
         raise NotImplementedError(
             'group_method is deprecated and has been removed.\nTo ' +
             'concatenate, use the --concat_tokens ' +
-            'argument when creating your MDS dataset with concat_c4.py')
+            'argument when creating your MDS dataset with convert_dataset.py')
     dataset = StreamingTextDataset(
         local=cfg.dataset.local,
         tokenizer_name=cfg.dataset.tokenizer_name,
@@ -165,6 +209,15 @@ def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
         tokenizer=dataset.tokenizer,
         mlm=mlm_probability is not None,
         mlm_probability=mlm_probability)
+
+    eos_token_id = cfg.dataset.get('eos_token_id')
+    bos_token_id = cfg.dataset.get('bos_token_id')
+    if (eos_token_id is not None) or (bos_token_id is not None):
+        # Note: Will raise an error if both are non-None
+        collate_fn = ConcatenatedSequenceCollatorWrapper(
+            base_collator=collate_fn,
+            eos_token_id=eos_token_id,
+            bos_token_id=bos_token_id)
 
     return DataLoader(
         dataset,

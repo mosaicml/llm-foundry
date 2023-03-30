@@ -41,6 +41,7 @@ class MosaicGPT(PreTrainedModel):
 
         self.attn_impl = config.attn_impl
         self.prefix_lm = config.prefix_lm
+        self.attn_uses_sequence_id = config.attn_uses_sequence_id
         self.alibi = config.alibi
         self.alibi_bias_max = config.alibi_bias_max
 
@@ -107,7 +108,8 @@ class MosaicGPT(PreTrainedModel):
             config.max_seq_len,
             self.alibi,
             prefix_lm=self.prefix_lm,
-            causal=self.is_causal)
+            causal=self.is_causal,
+            use_sequence_id=self.attn_uses_sequence_id)
 
         if config.no_bias:
             for module in self.modules():
@@ -120,11 +122,13 @@ class MosaicGPT(PreTrainedModel):
         if config.verbose and config.verbose > 2:
             print(self)
 
+    @torch.no_grad()
     def _attn_bias(self,
                    device,
                    dtype,
                    attention_mask: Optional[torch.ByteTensor] = None,
-                   prefix_mask: Optional[torch.ByteTensor] = None):
+                   prefix_mask: Optional[torch.ByteTensor] = None,
+                   sequence_id: Optional[torch.LongTensor] = None):
         if not self._attn_bias_initialized:
             if self.attn_bias_shape:
                 self.attn_bias = torch.zeros(self.attn_bias_shape,
@@ -153,8 +157,13 @@ class MosaicGPT(PreTrainedModel):
             assert isinstance(prefix_mask, torch.Tensor)  # pyright
             attn_bias = self._apply_prefix_mask(attn_bias, prefix_mask)
 
+        # If using torch or triton, we incorporate sequence_id (if appropriate)
+        if self.attn_uses_sequence_id and sequence_id is not None:
+            assert isinstance(attn_bias, torch.Tensor)  # pyright
+            attn_bias = self._apply_sequence_id(attn_bias, sequence_id)
+
         # If using torch or triton, we incorporate attention_mask. This will output
-        # None in place of attention_mask since it will not be futher needed in the
+        # None in place of attention_mask since it will not be further needed in the
         # attention modules.
         if attention_mask is not None:
             s_k = attention_mask.shape[-1]
@@ -209,12 +218,34 @@ class MosaicGPT(PreTrainedModel):
 
         return attn_bias
 
+    def _apply_sequence_id(self, attn_bias: torch.Tensor,
+                           sequence_id: torch.LongTensor):
+        seq_len = sequence_id.shape[-1]
+        if seq_len > self.config.max_seq_len:
+            raise ValueError(
+                f'sequence_id sequence length cannot exceed max_seq_len={self.config.max_seq_len}'
+            )
+
+        # select seq_len subset of attn mask
+        attn_bias = attn_bias[..., :seq_len, :seq_len]
+
+        # Restrict attention to tokens that share the same value
+        # in sequence_id
+        cannot_attend = torch.logical_not(
+            torch.eq(sequence_id.view(-1, seq_len, 1),
+                     sequence_id.view(-1, 1, seq_len))).unsqueeze(1)
+        min_val = torch.finfo(attn_bias.dtype).min
+        attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
+
+        return attn_bias
+
     def forward(
             self,
             input_ids: torch.LongTensor,
             past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
             attention_mask: Optional[torch.ByteTensor] = None,
             prefix_mask: Optional[torch.ByteTensor] = None,
+            sequence_id: Optional[torch.LongTensor] = None,
             return_dict: Optional[bool] = None,
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
@@ -241,6 +272,19 @@ class MosaicGPT(PreTrainedModel):
             raise ValueError(
                 'prefix_mask is a required argument when MosaicGPT is configured with prefix_lm=True.'
             )
+
+        if self.training:
+            if self.attn_uses_sequence_id and sequence_id is None:
+                raise ValueError(
+                    'sequence_id is a required argument when MosaicGPT is configured with attn_uses_sequence_id=True ' +\
+                    'and the model is in train mode.'
+                )
+            elif (self.attn_uses_sequence_id is False) and (sequence_id
+                                                            is not None):
+                warnings.warn(
+                    'MosaicGPT received non-None input for `sequence_id` but is configured with attn_uses_sequence_id=False. ' +\
+                    'This input will be ignored. If you want the model to use `sequence_id`, set attn_uses_sequence_id to True.'
+                )
 
         S = input_ids.size(1)
 
@@ -294,7 +338,8 @@ class MosaicGPT(PreTrainedModel):
             device=x.device,
             dtype=x.dtype,
             attention_mask=attention_mask,
-            prefix_mask=prefix_mask)
+            prefix_mask=prefix_mask,
+            sequence_id=sequence_id)
 
         # initialize the past key values cache if it should be used
         if use_cache and past_key_values is None:
@@ -364,6 +409,11 @@ class MosaicGPT(PreTrainedModel):
             raise NotImplementedError(
                 'MosaicGPT does not support generation with right padding.')
 
+        if self.attn_uses_sequence_id and self.training:
+            sequence_id = torch.zeros_like(input_ids[:1])
+        else:
+            sequence_id = None
+
         if past_key_values is not None:
             input_ids = input_ids[:, -1].unsqueeze(-1)
 
@@ -382,6 +432,7 @@ class MosaicGPT(PreTrainedModel):
             'input_ids': input_ids,
             'attention_mask': attention_mask,
             'prefix_mask': prefix_mask,
+            'sequence_id': sequence_id,
             'past_key_values': past_key_values,
             'use_cache': kwargs.get('use_cache'),
         }
@@ -477,12 +528,14 @@ class ComposerMosaicGPT(HuggingFaceModel):
         input_ids = batch['input_ids']
         attention_mask = batch['attention_mask'].bool(
         ) if 'attention_mask' in batch else None
+        sequence_id = batch.get('sequence_id', None)
         prefix_mask = batch['bidirectional_mask'].bool(
         ) if 'bidirectional_mask' in batch else None
         # Note: prefix_mask is only used if model.prefix_lm is True
         return self.model(input_ids=input_ids,
                           attention_mask=attention_mask,
-                          prefix_mask=prefix_mask)
+                          prefix_mask=prefix_mask,
+                          sequence_id=sequence_id)
 
     def loss(self, outputs, batch):
         targets = self.get_targets(batch)

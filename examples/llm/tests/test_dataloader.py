@@ -8,7 +8,8 @@ import pytest
 import torch
 from omegaconf import OmegaConf as om
 
-from examples.common.text_data import build_text_dataloader
+from examples.common.text_data import (ConcatenatedSequenceCollatorWrapper,
+                                       build_text_dataloader)
 from examples.llm.src import build_text_denoising_dataloader
 
 
@@ -71,6 +72,29 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     a = attention_mask == 0
     b = batch['labels'] == -100
     assert torch.equal(a, b)
+
+
+@pytest.mark.parametrize(('eos_token_id', 'bos_token_id'),
+                         [(5, None), (None, 5),
+                          pytest.param(5, 5, marks=pytest.mark.xfail)])
+def test_sequence_id_wrapper(eos_token_id, bos_token_id):
+    wrapper = ConcatenatedSequenceCollatorWrapper(
+        lambda x: x,  # placeholder
+        eos_token_id=eos_token_id,
+        bos_token_id=bos_token_id,
+    )
+
+    batch = {'input_ids': torch.Tensor([[0, 1, 2, 5, 0, 1, 5, 0, 6]])}
+    sequence_id = wrapper.get_sequence_id_from_batch(batch)
+
+    if eos_token_id is not None:
+        assert torch.equal(sequence_id,
+                           torch.Tensor([[0, 0, 0, 0, 1, 1, 1, 2, 2]]))
+    elif bos_token_id is not None:
+        assert torch.equal(sequence_id,
+                           torch.Tensor([[0, 0, 0, 1, 1, 1, 2, 2, 2]]))
+    else:
+        raise NotImplementedError()
 
 
 @pytest.mark.parametrize('decoder_only_format', [True, False])

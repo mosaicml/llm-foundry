@@ -28,6 +28,7 @@ class MosaicGPTConfig(PretrainedConfig):
         attn_clip_qkv: Optional[float] = None,
         softmax_scale: Optional[float] = None,
         prefix_lm: Optional[bool] = False,
+        attn_uses_sequence_id: Optional[bool] = False,
         alibi: bool = False,
         alibi_bias_max: int = 8,
         init_device: str = 'cpu',
@@ -70,6 +71,10 @@ class MosaicGPTConfig(PretrainedConfig):
             prefix_lm (Optional[bool]): Whether the model should operate as a Prefix LM. This requires passing an
                 extra `prefix_mask` argument which indicates which tokens belong to the prefix. Tokens in the prefix
                 can attend to one another bi-directionally. Tokens outside the prefix use causal attention.
+            attn_uses_sequence_id (Optional[bool]): Whether to restrict attention to tokens that have the same sequence_id.
+                When the model is in `train` mode, this requires passing an extra `sequence_id` argument which indicates
+                which sub-sequence each token belongs to.
+                Defaults to ``False`` meaning any provided `sequence_id` will be ignored.
             alibi (bool): Whether to use the alibi bias instead of position embeddings.
             alibi_bias_max (int): The maximum value of the alibi bias.
             init_device (str): The device to use for parameter initialization.
@@ -104,6 +109,7 @@ class MosaicGPTConfig(PretrainedConfig):
         self.attn_clip_qkv = attn_clip_qkv
         self.softmax_scale = softmax_scale
         self.prefix_lm = prefix_lm
+        self.attn_uses_sequence_id = attn_uses_sequence_id
         self.alibi = alibi
         self.alibi_bias_max = alibi_bias_max
         self.init_device = init_device
@@ -145,6 +151,12 @@ class MosaicGPTConfig(PretrainedConfig):
         if self.alibi and self.attn_impl not in ['torch', 'triton']:
             raise NotImplementedError(
                 'alibi only implemented with torch and triton attention.')
+        if self.attn_uses_sequence_id and self.attn_impl not in [
+                'torch', 'triton'
+        ]:
+            raise NotImplementedError(
+                'attn_uses_sequence_id only implemented with torch and triton attention.'
+            )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
                 'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!'

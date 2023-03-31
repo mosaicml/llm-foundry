@@ -99,12 +99,16 @@ def test_sequence_id_wrapper(eos_token_id, bos_token_id):
 
 @pytest.mark.parametrize('decoder_only_format', [True, False])
 @pytest.mark.parametrize('pretokenize', [True, False])
-def test_denoising_dataloader(decoder_only_format, pretokenize):
+@pytest.mark.parametrize('packing_ratio', [None, 5.5])
+def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
     # Use the datasets just built in the last test
     tokenizer_name = 'facebook/opt-125m'
     data_local = get_data_local(tokenizer_name, pretokenize)
     path = get_abs_data_path(data_local)
     max_seq_len = 256 if decoder_only_format else 128
+
+    if (decoder_only_format is False) and (packing_ratio is not None):
+        pytest.xfail('packing_ratio only supported for decoder-only format.')
 
     cfg = {
         'name': 'text_denoising',
@@ -115,6 +119,7 @@ def test_denoising_dataloader(decoder_only_format, pretokenize):
             'shuffle': False,
             'tokenizer_name': tokenizer_name,
             'max_seq_len': max_seq_len,
+            'packing_ratio': packing_ratio,
             'predownload': 1000,
             'keep_zip': False,  # in case we need compressed files after testing
         },
@@ -134,6 +139,9 @@ def test_denoising_dataloader(decoder_only_format, pretokenize):
         expected_keys += ['bidirectional_mask']
     else:
         expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
+
+    if packing_ratio is not None:
+        expected_keys += ['sequence_id']
 
     loader = build_text_denoising_dataloader(cfg, device_batch_size)
     batch_ix = 0

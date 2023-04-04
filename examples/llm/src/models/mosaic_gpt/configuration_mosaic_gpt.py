@@ -19,7 +19,6 @@ class MosaicGPTConfig(PretrainedConfig):
         mlp_ratio: int = 4,
         max_seq_len: int = 2048,
         vocab_size: int = 50368,
-        init_std: float = 0.02,
         attn_pdrop: float = 0.0,
         resid_pdrop: float = 0.0,
         emb_pdrop: float = 0.0,
@@ -35,16 +34,17 @@ class MosaicGPTConfig(PretrainedConfig):
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
         verbose: int = 0,
-        param_init_fn: str = 'baseline_',
+        param_init_fn: str = 'kaiming_normal_',
         init_div_is_residual: Union[int, float, str, bool] = True,
+        init_std: float = 0.02,
         emb_init_std: Optional[float] = None,
         emb_init_uniform_lim: Optional[Union[Tuple[float, float],
                                              float]] = None,
         init_gain: float = 0,
         fan_mode: str = 'fan_in',
-        init_nonlinearity: str = 'leaky_relu',
+        init_nonlinearity: str = 'relu',
         embedding_fraction: float = 1.0,
-        low_precision_layernorm: bool = False,
+        low_precision_layernorm: bool = True,
         use_cache: bool = False,
         **kwargs,
     ):
@@ -57,8 +57,6 @@ class MosaicGPTConfig(PretrainedConfig):
             mlp_ratio (int): The ratio of the up/down scale in the MLP.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
-            init_std (float): The standard deviation of the normal distribution used to initialize the model,
-                if using the normal parameter initialization scheme.
             attn_pdrop (float): The dropout probability for the attention layers.
             resid_pdrop (float): The dropout probability applied to the attention output before combining with residual.
             emb_pdrop (float): The dropout probability for the embedding layer.
@@ -84,6 +82,8 @@ class MosaicGPTConfig(PretrainedConfig):
             param_init_fn (str): The parameter initialization scheme to use. One of 'default_', 'baseline_', 'kaiming_uniform_',
                 'kaiming_normal_', 'neox_init_', 'small_init_', 'xavier_uniform_', or 'xavier_normal_'.
             init_div_is_residual (Union[int, float, str, bool]): Value to divide initial weights by if ``module._is_residual`` is True.
+            init_std (float): The standard deviation of the normal distribution used to initialize the model,
+                if using the baseline_ parameter initialization scheme.
             emb_init_std (Optional[float]): The standard deviation of the normal distribution used to initialize the embedding layer.
             emb_init_uniform_lim (Optional[Union[Tuple[float, float], float]]): The lower and upper limits of the uniform distribution
                 used to initialize the embedding layer. Mutually exclusive with ``emb_init_std``.
@@ -100,7 +100,6 @@ class MosaicGPTConfig(PretrainedConfig):
         self.mlp_ratio = mlp_ratio
         self.max_seq_len = max_seq_len
         self.vocab_size = vocab_size
-        self.init_std = init_std
         self.attn_pdrop = attn_pdrop
         self.resid_pdrop = resid_pdrop
         self.emb_pdrop = emb_pdrop
@@ -118,6 +117,7 @@ class MosaicGPTConfig(PretrainedConfig):
         self.verbose = verbose
         self.param_init_fn = param_init_fn
         self.init_div_is_residual = init_div_is_residual
+        self.init_std = init_std
         self.emb_init_std = emb_init_std
         self.emb_init_uniform_lim = emb_init_uniform_lim
         self.init_std = init_std

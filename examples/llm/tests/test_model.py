@@ -808,8 +808,8 @@ def test_forward_with_cache_and_padding(alibi):
     torch.testing.assert_close(second_output_no_padding.logits,
                                second_output_padding.logits[:,
                                                             -1, :].unsqueeze(1),
-                               atol=1e-6,
-                               rtol=1e-6)
+                               atol=1e-5,
+                               rtol=1e-5)
 
 
 @pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),

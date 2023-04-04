@@ -22,33 +22,34 @@ cluster: r0z0 # replace with your cluster here!
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
+  tokenizer_name: gpt2
+  max_seq_len: 2048
+
   tokenizer:
     type: hftokenizer
     args:
-      tokenizer_name: gpt2
-      max_seq_len: 2048
+      tokenizer_name: ${tokenizer_name}
+      max_seq_len: ${max_seq_len}
 
   model:
     name: mosaic_gpt
     init_device: meta
-    tokenizer_name: gpt2
+    tokenizer_name: ${tokenizer_name}
     d_model: 2048
     n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
     n_layers: 24
     mlp_ratio: 4
-    max_seq_len: 2048
+    max_seq_len: ${max_seq_len}
     vocab_size: 50368
-    init_std: 0.02
-    attn_pdrop: 0.0
-    resid_pdrop: 0.0
-    emb_pdrop: 0.0
-    attn_impl: flash
+    attn_impl: triton
 
   load_path: # Add your (optional) Composer checkpoint path here!
 
   # FSDP config for model sharding
   fsdp_config:
     sharding_strategy: FULL_SHARD
+    mixed_precision: PURE
+
 
   icl_tasks:
   -

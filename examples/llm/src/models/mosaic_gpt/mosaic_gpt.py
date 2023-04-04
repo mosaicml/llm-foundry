@@ -498,7 +498,7 @@ class ComposerMosaicGPT(HuggingFaceModel):
             allow_embedding_resizing=True,
         )
 
-        self.num_fwd_flops = self._compute_num_fwd_flops()
+        self.n_active_params = sum(p.numel() for p in self.parameters())
 
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
@@ -542,20 +542,15 @@ class ComposerMosaicGPT(HuggingFaceModel):
         return self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
                             targets.view(-1))
 
-    def _compute_num_fwd_flops(self):
-        n_params = sum(p.numel() for p in self.parameters())
-        # the number of paramters is approximately the number of multiply-accumulates (MAC) in the network
-        # each MAC has 2 FLOPs - we multiply by 2 ie 2 * n_param
-        # this gets us FLOPs / token
-        params_flops_per_token = 2 * n_params
-        params_flops_per_seq = params_flops_per_token * self.model.config.max_seq_len
-        # there are 2 FLOPS per mac; there is A=Q*K^T and out=A*V ops (ie mult by 2)
-        attn_flops_per_seq = self.model.config.n_layers * 2 * 2 * (
-            self.model.config.d_model * (self.model.config.max_seq_len**2))
-        return params_flops_per_seq + attn_flops_per_seq
-
     def flops_per_batch(self, batch):
         # Note: this computation does not take into account padding, and assumes
         # that the dataset has been constructed without padding. Additionally, we
         # assume the backward pass is approximately 2x the forward pass
-        return self.num_fwd_flops * 3 * batch['input_ids'].shape[0]
+
+        bs, msl = batch['input_ids'].shape[0:2]
+        params_flops_per_token = 2 * self.n_active_params
+        params_flops_per_seq = params_flops_per_token * msl
+        attn_flops_per_seq = self.model.config.n_layers * 2 * 2 * (
+            self.model.config.d_model * (msl**2))
+
+        return (params_flops_per_seq + attn_flops_per_seq) * 3 * bs

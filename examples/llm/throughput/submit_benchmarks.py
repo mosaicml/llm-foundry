@@ -7,6 +7,7 @@ import os
 
 import requests
 import yaml
+from mcli.models.run_config import SchedulingConfig
 from mcli.sdk import RunConfig, create_run, get_clusters
 
 
@@ -15,9 +16,9 @@ def _get_cluster_info():
     cluster_info = {}
 
     for cluster in clusters:
-        cluster_info[cluster.name] = [(ci.gpu_type.value, max(ci.gpu_nums))
+        cluster_info[cluster.name] = [(ci.gpu_type, max(ci.gpu_nums))
                                       for ci in cluster.cluster_instances
-                                      if ci.gpu_type.value is not None]
+                                      if ci.gpu_type is not None]
 
     return cluster_info
 
@@ -26,6 +27,7 @@ CLUSTER_INFO = _get_cluster_info()
 
 
 def str_to_bool(value):
+    # helper fn
     if isinstance(value, bool):
         return value
     if value.lower() in {'false', 'f', '0', 'no', 'n'}:
@@ -63,7 +65,7 @@ def parse_args():
                         choices=['bf16', 'fp16'])
     parser.add_argument('--fsdp_config_mixed_precision',
                         type=str,
-                        default='DEFAULT')
+                        default='PURE')
     parser.add_argument('--fsdp_config_activation_checkpointing',
                         type=str_to_bool,
                         nargs='?',
@@ -73,18 +75,30 @@ def parse_args():
         '-s',
         '--seq_len_exp',
         type=int,
-        default=[9, 14],
+        default=[11, 11],
         nargs=2,
-        help=
-        'exponent of seq lengths to be tested (default: [9, 14] = 2^9 to 2^13)')
+        help='exponent of seq lengths to be tested (default: [11, 11] = 2048)')
     parser.add_argument(
         '-b',
         '--batch_size_exp',
         type=int,
-        default=[23, 23],
+        default=None,
         nargs=2,
         help=
         'exponent of batch size (in tokens) to be tested (default: [19, 23] = 2^19 to 2^23)'
+    )
+    parser.add_argument(
+        '--batch_sizes',
+        type=int,
+        nargs='+',
+        default=[],
+        help='batch sizes to run.',
+    )
+    parser.add_argument(
+        '--accum',
+        type=int,
+        default=None,
+        help='batch sizes multiplier (accumulations before step).',
     )
     parser.add_argument('-m',
                         '--model_yamls',
@@ -101,6 +115,8 @@ def parse_args():
                         ],
                         nargs='+',
                         help='model sizes to test')
+
+    parser.add_argument('--attn_impl', type=str, default='triton')
 
     parser.add_argument('-c',
                         '--clusters',
@@ -142,6 +158,8 @@ def parse_args():
                         const=True,
                         default=True)
 
+    parser.add_argument('--priority', type=str, default='low')
+
     parser.add_argument('--RUN',
                         type=str_to_bool,
                         nargs='?',
@@ -155,11 +173,13 @@ def get_max_seq_lens(pows=[9, 14]):
     return [2**n for n in range(pows[0], pows[1] + 1)]
 
 
-def get_global_train_batch_sizes(max_seq_len, pows=[19, 23]):
-    # global batch size in tokens (defualt: .5M thru 8M)
-    global_train_token_counts = [2**n for n in range(pows[0], pows[1] + 1)]
-    return [t // max_seq_len for t in global_train_token_counts
-           ]  # global batch size in samples
+def get_global_train_batch_sizes(max_seq_len, pows, batch_sizes=[]):
+    if pows:
+        # global batch size in tokens (defualt: .5M thru 8M)
+        global_train_token_counts = [2**n for n in range(pows[0], pows[1] + 1)]
+        batch_sizes += [t // max_seq_len for t in global_train_token_counts
+                       ]  # global batch size in samples
+    return batch_sizes
 
 
 def get_parameters(yaml_file):
@@ -239,9 +259,15 @@ def mod_parameters(parameters,
     else:
         parameters['train_loader']['dataset'][
             'split'] = 'train_small'  # for throughput testing purposes
+        parameters['eval_loader']['dataset'][
+            'split'] = 'val_small'  # for throughput testing purposes
     # set max_seq_len
     parameters['max_seq_len'] = max_seq_len
     parameters['model']['max_seq_len'] = max_seq_len
+
+    parameters['model']['attn_impl'] = args.attn_impl
+
+    parameters['model']['low_precision_layernorm'] = True
 
     # Pad vocab size to multiple of N for A100 perf
     if pad_vocab_multiple:
@@ -249,7 +275,7 @@ def mod_parameters(parameters,
         parameters['model']['vocab_size'] = math.ceil(
             vocab_size / pad_vocab_multiple) * pad_vocab_multiple
 
-    parameters['tokenizer']['args']['max_seq_len'] = max_seq_len
+    parameters['tokenizer']['kwargs']['model_max_length'] = max_seq_len
     parameters['train_loader']['dataset']['max_seq_len'] = max_seq_len
     parameters['eval_loader']['dataset']['max_seq_len'] = max_seq_len
 
@@ -273,6 +299,9 @@ def mod_parameters(parameters,
     if fsdp_config_activation_checkpointing is not None:
         parameters['fsdp_config'][
             'activation_checkpointing'] = fsdp_config_activation_checkpointing
+
+    parameters['fsdp_config']['activation_checkpointing_reentrant'] = False
+    parameters['fsdp_config']['limit_all_gathers'] = True
 
     if wandb:
         # add wandb
@@ -327,10 +356,10 @@ def run_config(config, args):
         composer examples/llm/main.py /mnt/config/parameters.yaml
         """
     else:
-        command = """
+        command = f"""
         cd examples
 
-        python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
+        python examples/common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
 
         composer examples/llm/main.py /mnt/config/parameters.yaml
         """
@@ -369,24 +398,23 @@ def run_config(config, args):
         pad_vocab_multiple=args.pad_vocab_multiple)
 
     # Create run config mcli sdk/api
-    config = RunConfig(
-        run_name=name,
-        name=name,
-        gpu_type=gpu_type,
-        gpu_num=gpu_num,
-        cpus=None,
-        platform=None,
-        cluster=cluster,
-        image=args.image,
-        optimization_level=0,
-        integrations=integrations,
-        command=command,
-        parameters=parameters,
-    )
+    config = RunConfig(run_name=name,
+                       name=name,
+                       gpu_type=gpu_type,
+                       gpu_num=gpu_num,
+                       cpus=None,
+                       platform=None,
+                       cluster=cluster,
+                       image=args.image,
+                       optimization_level=0,
+                       integrations=integrations,
+                       command=command,
+                       parameters=parameters,
+                       scheduling=SchedulingConfig(priority=args.priority))
 
     if args.RUN:
         # Create the run from a config
-        run = create_run(config)  # , _priority='low'
+        run = create_run(config)
         print(f'Launching run {run.name}')
     else:
         print(f'run = {name}')
@@ -412,18 +440,34 @@ def run_check_capacity(model_yaml, gpu_num, gpu_type, p_multiplier=16):
     return True
 
 
+def run_check_dtms(num_gpus, dtms, batch_size):
+    if num_gpus * dtms > batch_size:
+        print(
+            f'WARNING: Cannot run with {batch_size=} on {num_gpus=} with {dtms=} ({num_gpus*dtms=}).'
+        )
+        return False
+    return True
+
+
 if __name__ == '__main__':
     args = parse_args()
 
     n_jobs = 0
     for max_seq_len in get_max_seq_lens(args.seq_len_exp):
-        for global_train_batch_size in get_global_train_batch_sizes(
-                max_seq_len, args.batch_size_exp):
-            for cluster in args.clusters:
-                for gpu_type in get_cluster_gpu_types(cluster):
-                    ng_lim = get_valid_gpu_lim(cluster, gpu_type)
-                    _gpu_nums = [ng for ng in args.gpu_nums if ng <= ng_lim]
-                    for gpu_num in _gpu_nums:
+        for cluster in args.clusters:
+            for gpu_type in get_cluster_gpu_types(cluster):
+                ng_lim = get_valid_gpu_lim(cluster, gpu_type)
+                _gpu_nums = [ng for ng in args.gpu_nums if ng <= ng_lim]
+                for gpu_num in _gpu_nums:
+                    global_train_batch_sizes = get_global_train_batch_sizes(
+                        max_seq_len, args.batch_size_exp, args.batch_sizes)
+                    if not global_train_batch_sizes and args.microbatch_size is not None:
+                        accum = args.accum or 1
+                        global_train_batch_sizes = [
+                            accum * gpu_num * args.microbatch_size
+                        ]
+
+                    for global_train_batch_size in global_train_batch_sizes:
                         for precision in args.precisions:
                             for model_yaml in args.model_yamls:
 
@@ -431,6 +475,11 @@ if __name__ == '__main__':
                                                          gpu_num,
                                                          gpu_type,
                                                          p_multiplier=4)
+                                if args.microbatch_size is not None:
+                                    run = run and run_check_dtms(
+                                        gpu_num, args.microbatch_size,
+                                        global_train_batch_size)
+
                                 if run:
                                     config = (model_yaml, max_seq_len,
                                               global_train_batch_size, cluster,

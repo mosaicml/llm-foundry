@@ -99,6 +99,7 @@ callbacks:
     window_size: 10
   lr_monitor: {}
   memory_monitor: {}
+  runtime_estimator: {}
 
 # loggers:
 #   wandb: {}

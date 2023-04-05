@@ -345,8 +345,10 @@ def test_loss_fn():
     with open(conf_path) as f:
         test_cfg = om.load(f)
 
-    test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
+    test_cfg.model.init_device = 'cuda:0'
+    test_cfg.model.param_init_fn = 'baseline_'
+    test_cfg.model.init_std = 0.02
 
     model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                            test_cfg.tokenizer)
@@ -481,6 +483,8 @@ def test_forward_with_padding(attention_impl, device, alibi):
         resid_pdrop=0.2,
         attn_impl=attention_impl,
         alibi=alibi,
+        param_init_fn='baseline_',
+        init_std=0.02,
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()
@@ -766,6 +770,8 @@ def test_forward_with_cache_and_padding(alibi):
         attn_impl='torch',
         alibi=alibi,
         use_cache=True,
+        param_init_fn='baseline_',
+        init_std=0.02,
     )
 
     mosaic_gpt = MosaicGPT(hf_config)
@@ -808,8 +814,8 @@ def test_forward_with_cache_and_padding(alibi):
     torch.testing.assert_close(second_output_no_padding.logits,
                                second_output_padding.logits[:,
                                                             -1, :].unsqueeze(1),
-                               atol=1e-5,
-                               rtol=1e-5)
+                               atol=1e-6,
+                               rtol=1e-6)
 
 
 @pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),
@@ -841,13 +847,15 @@ def test_forward_with_cache(attention_impl, device, alibi):
         attn_impl=attention_impl,
         alibi=alibi,
         use_cache=True,
+        param_init_fn='baseline_',
+        init_std=0.02,
     )
     reproducibility.seed_all(1234)
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()
     mosaic_gpt = device.module_to_device(mosaic_gpt)
 
-    with get_precision_context('amp_bf16'):
+    with get_precision_context('amp_bf16' if device.name == 'gpu' else 'fp32'):
         reproducibility.seed_all(1234)
         first_input_ids = torch.tensor([[11274, 16390, 11]])
         first_input_ids = device.tensor_to_device(first_input_ids)
@@ -915,6 +923,8 @@ def test_generate_with_past_kv(alibi):
         attn_impl='torch',
         alibi=alibi,
         use_cache=True,
+        param_init_fn='baseline_',
+        init_std=0.02,
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()

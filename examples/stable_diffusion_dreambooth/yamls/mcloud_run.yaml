@@ -6,9 +6,8 @@ image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 
 integrations:
 - integration_type: git_repo
-  git_repo: A-Jacobson/examples
+  git_repo: mosaicml/examples
   pip_install: .[stable-diffusion-dreambooth]
-  git_branch: dreambooth
   ssh_clone: false
 command: |
   cd examples/examples/stable_diffusion_dreambooth

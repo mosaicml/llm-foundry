@@ -28,6 +28,7 @@ jobs:
         - llm
         - resnet_imagenet
         - stable_diffusion
+        - stable_diffusion_dreambooth
         - nemo
         - gpt_neox
     steps:

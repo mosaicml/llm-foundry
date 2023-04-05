@@ -1,0 +1,67 @@
+run_name: stable-diffusion-dreambooth
+
+seed: 42 # Random seed
+
+max_duration: 200ba # Duration to train specified as a Time string 800 default
+# eval_interval: 25ba # uncomment to enable online eval
+
+global_train_batch_size: 2 # Training total batch size (2 per 40gb A100)
+global_eval_batch_size: 1 # each prompt generates 4 images by default
+
+# Amount of gradient accumulation, auto (GPU only) means Composer will set the optimal value, set to 1 for cpu
+device: gpu # gpu, mps, cpu (mps is experimental)
+use_fsdp: false
+grad_accum: auto
+precision: amp # (GPU only), set to fp32 if training on cpu
+
+use_prior_preservation: true
+prior_loss_weight: 1.0
+num_class_images: 200
+
+dataset:
+  instance_prompt: a photo of sks dog
+  class_prompt: a photo of dog
+
+  instance_data_root: ./data/instance_data
+  class_data_root: ./data/class_data
+  resolution: 512 # training image size
+  center_crop: false
+
+  eval_prompts: # a list of prompts to use for evaluation
+  - ${dataset.instance_prompt} in Paris
+  - ${dataset.instance_prompt} wearing a blue sweater
+  - ${dataset.instance_prompt} in mountain Fuji
+  - ${dataset.instance_prompt} in the Verasilles hall of mirrors
+  - ${dataset.instance_prompt} in a doghouse
+  - ${dataset.instance_prompt} in space
+  - ${dataset.instance_prompt} wearing sunglasses
+  - ${dataset.instance_prompt} in a chef outfit
+
+model:
+  # commonly CompVis/stable-diffusion-v1-4 or stabilityai/stable-diffusion-2-1 use 2-1 for sizes > 512
+  name: CompVis/stable-diffusion-v1-4
+  train_text_encoder: true
+  train_unet: true
+  num_images_per_prompt: 4 # number of images to generate per prompt at evaluation time
+  image_key: image_tensor
+  caption_key: input_ids
+
+optimizer:
+  lr: 1.0e-06
+  weight_decay: 1.0e-2
+
+# wandb:     # Uncomment and fill below arguments to use WandB logger
+#   entity:  # Name of WandB entity, usually username or organization name
+#   project: stable-diffusion-dreambooth-lab # Name of WandB project
+#   group:   # Name of WandB group
+#   rank_zero_only: false
+
+# Save checkpoint parameters
+save_folder:  # e.g. ./{run_name}/ckpt (local) or oci://mybucket/mydir/{run_name}/ckpt (remote)
+save_interval: ${max_duration} # Interval to checkpoint based on time string
+save_num_checkpoints_to_keep: 1 # Cleans up checkpoints saved locally only!
+save_filename: best.pt
+save_weights_only: true # Weights only reduces checkpoint size from 11gb -> 4gb but doesn't save optimizer parameters.
+
+# Load checkpoint parameters
+load_path: # e.g. ./ckpt/latest-rank{rank}.pt (local) or s3://mybucket/mydir/ckpt/latest-rank{rank}.pt (remote)

@@ -38,6 +38,9 @@ jobs:
         - name: stable-diffusion-pytest
           container: mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
           subdir: stable_diffusion
+        - name: stable-diffusion-dreambooth-pytest
+          container: mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
+          subdir: stable_diffusion_dreambooth
 
     name: ${{ matrix.name }}
     container: ${{ matrix.container }}

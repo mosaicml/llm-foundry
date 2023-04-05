@@ -903,10 +903,12 @@ def test_forward_with_cache(attention_impl, device, alibi):
                                  attention_mask=second_attention_mask)
 
         # check that the output is the same whether using the key-value cache or not
-        torch.testing.assert_close(second_output.logits,
-                                   full_output.logits[:, -1, :].unsqueeze(1),
-                                   atol=1e-2,
-                                   rtol=1e-2)
+        torch.testing.assert_close(
+            second_output.logits,
+            full_output.logits[:, -1, :].unsqueeze(1),
+            atol=1e-2,
+            rtol=1e-2,
+        )
 
 
 @pytest.mark.parametrize('alibi', [True, False])

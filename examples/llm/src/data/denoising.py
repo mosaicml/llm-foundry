@@ -481,12 +481,21 @@ def build_text_denoising_dataloader(cfg: DictConfig,
             raise NotImplementedError(
                 'On-the-fly packing is currently only supported for decoder-only formats.'
             )
-        collate_fn = BinPackWrapper(collator=collate_fn,
-                                    target_batch_size=device_batch_size,
-                                    max_seq_len=cfg.dataset.max_seq_len,
-                                    pad_token_id=dataset.tokenizer.pad_token_id,
-                                    padding_side=dataset.tokenizer.padding_side)
+        collate_fn = BinPackWrapper(
+            collator=collate_fn,
+            target_batch_size=device_batch_size,
+            max_seq_len=cfg.dataset.max_seq_len,
+            pad_token_id=dataset.tokenizer.pad_token_id,
+            padding_side=dataset.tokenizer.padding_side,
+            max_leftover_bins_to_keep=cfg.dataset.get(
+                'max_leftover_bins_to_keep'),
+        )
         device_batch_size = n_examples_to_pack
+    elif cfg.dataset.get('max_leftover_bins_to_keep') is not None:
+        raise ValueError(
+            'cfg.dataset.max_leftover_bins_to_keep has been defined, ' +\
+            'but cfg.dataset.packing_ratio has not been set. Please set ' +\
+            'the latter to turn on packing or remove the former from the config.')
 
     return DataLoader(
         dataset,
@@ -827,7 +836,7 @@ if __name__ == '__main__':
             'shuffle': False,
             'tokenizer_name': 'gpt2' if decoder_only else 't5-base',
             'max_seq_len': 2048 if decoder_only else 1024,
-            'packing_ratio': 5.0,
+            'packing_ratio': 4.5,
             'predownload': 1000,
             'keep_zip': True,  # in case we need compressed files after testing
         },

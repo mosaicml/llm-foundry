@@ -17,6 +17,14 @@ from torch.utils.data import DataLoader, IterableDataset, get_worker_info
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+try:
+    from examples.llm.src.models.utils import make_llama_work
+    make_llama_work()
+except ImportError:
+    import warnings
+    warnings.warn('Couldn\'t make Llama/Custom SentencePiece tokenizers work' +
+                  ' (this is expected if you\'re not using them).')
+
 
 class ConcatMode(Enum):
     NO_CONCAT = 'NO_CONCAT'

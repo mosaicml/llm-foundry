@@ -187,6 +187,8 @@ def main(cfg):
                                              'auto'),
         fsdp_config=fsdp_config,  # type: ignore
         save_folder=cfg.get('save_folder', None),
+        save_filename=cfg.get('save_filename',
+                              'ep{epoch}-ba{batch}-rank{rank}.pt'),
         save_interval=cfg.get('save_interval', '1000ba'),
         save_num_checkpoints_to_keep=cfg.get('save_num_checkpoints_to_keep',
                                              -1),

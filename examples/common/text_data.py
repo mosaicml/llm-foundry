@@ -15,14 +15,6 @@ from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 
-try:
-    from examples.llm.src.models.utils import make_llama_work
-    make_llama_work()
-except ImportError:
-    import warnings
-    warnings.warn('Couldn\'t make Llama/Custom SentencePiece tokenizers work' +
-                  ' (this is expected if you\'re not using them).')
-
 
 class StreamingTextDataset(StreamingDataset):
     """Generic text dataset using MosaicML's StreamingDataset.

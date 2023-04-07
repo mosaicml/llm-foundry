@@ -210,8 +210,7 @@ class MosaicGPT(PreTrainedModel):
                        dtype=torch.bool,
                        device=prefix_mask.device)).view(1, 1, seq_len, seq_len)
         prefix = prefix_mask.view(-1, 1, 1, seq_len)
-        cannot_attend = torch.logical_not(
-            torch.logical_or(causal, prefix.bool()))
+        cannot_attend = ~torch.logical_or(causal, prefix.bool())
 
         min_val = torch.finfo(attn_bias.dtype).min
         attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
@@ -319,7 +318,8 @@ class MosaicGPT(PreTrainedModel):
             if attention_mask is not None:
                 # adjust the position indices to account for padding tokens
                 pos = torch.clamp(pos - torch.cumsum(
-                    (attention_mask == 0), dim=1)[:, past_position:],
+                    (~attention_mask).to(torch.int32), dim=1)[:,
+                                                              past_position:],
                                   min=0)
 
             pos_emb = self.transformer.wpe(pos)  # type: ignore

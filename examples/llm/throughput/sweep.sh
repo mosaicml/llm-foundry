@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PROJECT="tput"
-GIT_COMMIT="release/v0.0.4"
+GIT_COMMIT="v0.0.4"
 IMAGE="mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04"
 CLUSTER_80GB=YOUR_CLUSTER_80GB
 CLUSTER_40GB=YOUR_CLUSTER_40GB

@@ -17,13 +17,20 @@ image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/examples
-  git_branch: v0.0.3 # use your branch
+  git_branch: v0.0.4 # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e .[bert]
   ssh_clone: false # Should be true if using a private repo
+
+# We are fetching, converting, and training on the 'train_small' split
+# as it is small and quick to get going for this demo.
+# For real training runs, follow the instructions in `examples/bert/README.md`
+# to convert and host the full 'train' dataset.
 command: |
   cd examples/examples/bert
-  composer main.py /mnt/config/parameters.yaml
+  python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val
+  composer main.py /mnt/config/parameters.yaml \
+    train_loader.dataset.split=train_small
 
 # Starting `parameters` copied from `yamls/main/mosaic-bert-base-uncased.yaml`.
 # Changes to `parameters` will be reflected in `/mnt/config/parameters.yaml`, which
@@ -33,7 +40,7 @@ parameters:
   run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
 
   # Supply a path to your remote data path
-  data_local: /tmp/mds-cache/
+  data_local: ./my-copy-c4
   data_remote: # If blank, files must be present in data_local
 
   max_seq_len: 128

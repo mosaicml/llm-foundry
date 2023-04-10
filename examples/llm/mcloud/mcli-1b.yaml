@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/examples
-  git_branch: v0.0.3 # use your branch
+  git_branch: v0.0.4 # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e .[llm]
   ssh_clone: false # Should be true if using a private repo
@@ -12,7 +12,7 @@ integrations:
 # to convert and host the full 'train' dataset.
 command: |
   cd examples/examples/llm
-  python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val \
+  python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val \
     --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
   composer main.py yamls/mosaic_gpt/1b.yaml \
     train_loader.dataset.split=train_small \

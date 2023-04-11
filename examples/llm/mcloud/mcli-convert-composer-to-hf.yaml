@@ -10,7 +10,8 @@ command: |
   cd examples/examples/llm/inference
   python convert_composer_to_hf.py \
     --composer_path s3://bucket/folder/checkpoint-path.pt \
-    --hf_output_path s3://bucket/folder/hf/
+    --hf_output_path s3://bucket/folder/hf/ \
+    --output_precision bf16 \
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 optimization_level: 0

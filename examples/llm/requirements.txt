@@ -1,7 +1,7 @@
 torch==1.13.1
 einops==0.5.0
-mosaicml==0.13.2
-mosaicml-streaming==0.3.0
+mosaicml==0.13.4
+mosaicml-streaming==0.4.0
 flash-attn==0.2.8
 mosaicml-cli>=0.2.32,<1
 # need a newer version of triton
@@ -11,4 +11,7 @@ omegaconf==2.2.3
 wandb==0.13.6
 pytest>=7.2.1,<8
 torchmetrics==0.11.3
+sentencepiece==0.1.97
 xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v0.2.8#subdirectory=csrc/xentropy
+onnx==1.13.1
+onnxruntime==1.14.1

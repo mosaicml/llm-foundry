@@ -1,2 +1,2 @@
-mosaicml[streaming,wandb]>=0.13.2,<0.14
+mosaicml[streaming,wandb]>=0.13.4,<0.14
 omegaconf

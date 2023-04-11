@@ -120,8 +120,6 @@ def main(cfg):
     model = build_composer_model(cfg.model, cfg.tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')
-    if hasattr(model, 'num_fwd_flops'):
-        print(f'{model.num_fwd_flops=:.2e}')
 
     # Dataloaders
     print('Building train loader...')
@@ -189,6 +187,10 @@ def main(cfg):
                                              'auto'),
         fsdp_config=fsdp_config,  # type: ignore
         save_folder=cfg.get('save_folder', None),
+        save_filename=cfg.get('save_filename',
+                              'ep{epoch}-ba{batch}-rank{rank}.pt'),
+        save_latest_filename=cfg.get('save_latest_filename',
+                                     'latest-rank{rank}.pt'),
         save_interval=cfg.get('save_interval', '1000ba'),
         save_num_checkpoints_to_keep=cfg.get('save_num_checkpoints_to_keep',
                                              -1),

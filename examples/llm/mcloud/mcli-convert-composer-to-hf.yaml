@@ -1,0 +1,23 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/examples
+  git_branch: v0.0.4 # use your branch
+  # git_commit: # OR use your commit hash
+  pip_install: -e .[llm-cpu]
+  ssh_clone: false # Should be true if using a private repo
+
+command: |
+  cd examples/examples/llm/inference
+  python convert_composer_to_hf.py \
+    --composer_path s3://bucket/folder/checkpoint-path.pt \
+    --hf_output_path s3://bucket/folder/hf/ \
+    --output_precision bf16 \
+
+image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+optimization_level: 0
+
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
+run_name: convert-composer-hf
+
+gpu_num: 8
+cluster: r0z0 # replace with your cluster here!

@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/examples
-  git_branch: v0.0.3 # use your branch
+  git_branch: v0.0.4 # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e .[llm]
   ssh_clone: false # Should be true if using a private repo
@@ -12,11 +12,10 @@ integrations:
 # to convert and host the full 'train' dataset.
 command: |
   cd examples/examples/llm
-  python ../common/convert_c4.py --out_root ./my-copy-c4 --splits train_small val \
+  python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val \
     --concat_tokens 8192 --tokenizer gpt2 --eos_text '<|endoftext|>'
   composer main.py /mnt/config/parameters.yaml
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
-optimization_level: 0
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
 run_name: mosaic-gpt-1b-ctx-8k-gpus-8
@@ -46,18 +45,13 @@ parameters:
     mlp_ratio: 4
     max_seq_len: ${max_seq_len}
     vocab_size: 50368
-    init_std: 0.02
-    attn_pdrop: 0.0
-    resid_pdrop: 0.0
-    emb_pdrop: 0.0
-    attn_impl: flash
+    attn_impl: triton
 
   # Tokenizer
   tokenizer:
-    type: hftokenizer
-    args:
-      tokenizer_name: ${tokenizer_name}
-      max_seq_len: ${max_seq_len}
+    name: ${tokenizer_name}
+    kwargs:
+      model_max_length: ${max_seq_len}
 
   # Dataloaders
   train_loader:
@@ -108,6 +102,7 @@ parameters:
 
   max_duration: 24800ba # ~ 26B tokens
   eval_interval: 2000ba
+  eval_first: false
   eval_subset_num_batches: -1
   global_train_batch_size: 128 # ~1M tokens
 
@@ -121,9 +116,11 @@ parameters:
   # FSDP
   fsdp_config:
     sharding_strategy: FULL_SHARD
-    mixed_precision: DEFAULT
+    mixed_precision: PURE
     activation_checkpointing: false
+    activation_checkpointing_reentrant: false
     activation_cpu_offload: false
+    limit_all_gathers: true
     verbose: false
 
   # Logging
@@ -136,6 +133,7 @@ parameters:
       window_size: 10
     lr_monitor: {}
     memory_monitor: {}
+    runtime_estimator: {}
 
 #   loggers:
 #     wandb: {}

@@ -3,12 +3,14 @@
 
 from examples.llm.src.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                         ComposerHFT5)
-from examples.llm.src.models.mosaic_gpt import ComposerMosaicGPT, MosaicGPT
+from examples.llm.src.models.mosaic_gpt import (ComposerMosaicGPT, MosaicGPT,
+                                                MosaicGPTConfig)
 
 __all__ = [
     'ComposerHFCausalLM',
     'ComposerHFPrefixLM',
     'ComposerHFT5',
+    'MosaicGPTConfig',
     'MosaicGPT',
     'ComposerMosaicGPT',
 ]

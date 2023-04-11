@@ -67,6 +67,7 @@ def get_hf_tokenizer_from_composer_state_dict(
 def write_huggingface_pretrained_from_composer_checkpoint(
         checkpoint_path: Union[Path, str],
         output_path: Union[Path, str],
+        output_precision: str = 'fp32',
         local_checkpoint_save_location: Optional[Union[Path,
                                                        str]] = None) -> None:
     """Convert a Composer checkpoint to a pretrained HF checkpoint folder.
@@ -107,6 +108,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
             supported by :meth:`composer.utils.maybe_create_object_store_from_uri`.
         output_path (Union[Path, str]): Path to the folder to write the output to. Can be a local path, or a remote path beginning with ``s3://``, or another backend
             supported by :meth:`composer.utils.maybe_create_object_store_from_uri`.
+        output_precision (str, optional): The precision of the output weights saved to `pytorch_model.bin`. Can be one of ``fp32``, ``fp16``, or ``bf16``.
         local_checkpoint_save_location (Optional[Union[Path, str]], optional): If specified, where to save the checkpoint file to locally.
                                                                                 If the input ``checkpoint_path`` is already a local path, this will be a symlink.
                                                                                 Defaults to None, which will use a temporary file.
@@ -155,7 +157,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     else:
         print('Warning! No HF Tokenizer found!')
 
-    # Extract and save the HF model weights
+    # Extract the HF model weights
     print('#' * 30)
     print('Saving HF Model Weights...')
     weights_state_dict = composer_state_dict
@@ -163,6 +165,18 @@ def write_huggingface_pretrained_from_composer_checkpoint(
         weights_state_dict = weights_state_dict['state']['model']
     torch.nn.modules.utils.consume_prefix_in_state_dict_if_present(
         weights_state_dict, prefix='model.')
+
+    # Convert weights to desired dtype
+    dtype = {
+        'fp32': torch.float32,
+        'fp16': torch.float16,
+        'bf16': torch.bfloat16,
+    }[output_precision]
+    for k, v in weights_state_dict.items():
+        if isinstance(v, torch.Tensor):
+            weights_state_dict[k] = v.to(dtype=dtype)
+
+    # Save weights
     torch.save(weights_state_dict,
                Path(local_output_path) / 'pytorch_model.bin')
 
@@ -193,6 +207,10 @@ def parse_args() -> Namespace:
     parser.add_argument('--local_checkpoint_save_location',
                         type=str,
                         default=None)
+    parser.add_argument('--output_precision',
+                        type=str,
+                        choices=['fp32', 'fp16', 'bf16'],
+                        default='fp32')
 
     return parser.parse_args()
 
@@ -201,6 +219,7 @@ def main(args: Namespace) -> None:
     write_huggingface_pretrained_from_composer_checkpoint(
         checkpoint_path=args.composer_path,
         output_path=args.hf_output_path,
+        output_precision=args.output_precision,
         local_checkpoint_save_location=args.local_checkpoint_save_location)
 
 

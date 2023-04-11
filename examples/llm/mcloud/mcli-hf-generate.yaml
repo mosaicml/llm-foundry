@@ -12,7 +12,16 @@ command: |
   aws s3 cp --recursive s3://bucket/folder/hf/ local_hf_folder
   python hf_generate.py \
     --name_or_path local_hf_folder \
-    --max_new_tokens 512
+    --temperature 1.0 \
+    --top_p 0.95 \
+    --top_k 50 \
+    --seed 1 \
+    --max_new_tokens 256 \
+    --prompts \
+      "The answer to life, the universe, and happiness is" \
+      "MosaicML is an ML training efficiency startup that is known for" \
+      "Here's a quick recipe for baking chocolate chip cookies: Start by" \
+      "The best 5 cities to visit in Europe are"
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 optimization_level: 0

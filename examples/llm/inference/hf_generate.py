@@ -50,6 +50,7 @@ def parse_args() -> Namespace:
                         const=True,
                         default=True)
     parser.add_argument('--eos_token_id', type=str, default=None)
+    parser.add_argument('--pad_token_id', type=str, default=None)
     parser.add_argument('--dtype',
                         type=str,
                         choices=['fp32', 'fp16', 'bf16'],
@@ -99,7 +100,8 @@ def main(args: Namespace) -> None:
         'top_k': args.top_k,
         'use_cache': args.use_cache,
         'do_sample': args.do_sample,
-        'eos_token_id': args.eos_token_id or tokenizer.eos_token_id
+        'eos_token_id': args.eos_token_id or tokenizer.eos_token_id,
+        'pad_token_id': args.pad_token_id or tokenizer.pad_token_id,
     }
     print(f'\nGenerate kwargs:\n{generate_kwargs}')
 

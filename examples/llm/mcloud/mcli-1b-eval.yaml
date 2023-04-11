@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/examples
-  git_branch: v0.0.3 # use your branch
+  git_branch: v0.0.4 # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e .[llm]
   ssh_clone: false # Should be true if using a private repo
@@ -11,7 +11,6 @@ command: |
   composer evaluate_model.py /mnt/config/parameters.yaml
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
-optimization_level: 0
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
 run_name: mosaic-gpt-1b-eval
@@ -22,33 +21,33 @@ cluster: r0z0 # replace with your cluster here!
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
+  tokenizer_name: gpt2
+  max_seq_len: 2048
+
   tokenizer:
-    type: hftokenizer
-    args:
-      tokenizer_name: gpt2
-      max_seq_len: 2048
+    name: ${tokenizer_name}
+    kwargs:
+      model_max_length: ${max_seq_len}
 
   model:
     name: mosaic_gpt
     init_device: meta
-    tokenizer_name: gpt2
+    tokenizer_name: ${tokenizer_name}
     d_model: 2048
     n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
     n_layers: 24
     mlp_ratio: 4
-    max_seq_len: 2048
+    max_seq_len: ${max_seq_len}
     vocab_size: 50368
-    init_std: 0.02
-    attn_pdrop: 0.0
-    resid_pdrop: 0.0
-    emb_pdrop: 0.0
-    attn_impl: flash
+    attn_impl: triton
 
   load_path: # Add your (optional) Composer checkpoint path here!
 
   # FSDP config for model sharding
   fsdp_config:
     sharding_strategy: FULL_SHARD
+    mixed_precision: PURE
+
 
   icl_tasks:
   -
@@ -74,4 +73,4 @@ parameters:
     - InContextLearningLMAccuracy
     prompt_string: '' # this goes at the beginning of each input
     example_delimiter: '\n' # this goes between fewshot examples
-    continuation_delimiter: '' # this separates contexts from continuations
+    continuation_delimiter: ' ' # this separates contexts from continuations

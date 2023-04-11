@@ -7,7 +7,7 @@
 
 # Mosaic Large Language Models
 
-This folder contains starter code for training LLMs with Composer + FSDP (in beta, use `mosaicml>=0.12.0`).
+This folder contains starter code for training LLMs with Composer + FSDP.
 
 Our goal was to build the simplest, most flexible, and still performant stack for training LLMs ([see our blog post](https://www.mosaicml.com/blog/gpt-3-quality-for-500k)).
 To emphasize that flexibility, we designed this folder as a simple but feature-complete example of GPT pre-training
@@ -15,15 +15,18 @@ that you should feel free to download, fork, and customize for your application.
 We even packed in a few tricks (e.g. [FlashAttention](https://github.com/HazyResearch/flash-attention)) to make training efficient, and there will be more to come!
 
 You'll find in this folder:
-* `src/mosaic_gpt.py` - a simple PyTorch GPT model, wrapped in `ComposerModel`, that can scale up to 70B parameters
-* `main.py` - a script that builds a [Composer](https://github.com/mosaicml/composer) Trainer and calls `trainer.fit()`.
+* `src/models/mosaic_gpt/` - a simple PyTorch GPT model, wrapped in `ComposerModel`, that can scale up to 70B+ parameters
+* `main.py` - a training script that builds a [Composer](https://github.com/mosaicml/composer) `Trainer` and calls `trainer.fit()`.
 * `yamls/` - configs for training compute-optimal LLMs from 125M up to 70B parameters.
-* `throughput/` - data on the throughput of our models on different cluster configurations.
-* `mcloud/` - examples of how to use [MosaicML platform](https://www.mosaicml.com/platform) to seamlessly launch training :)
+* `throughput/` - data on the training throughput of MosaicGPT on different cluster configurations.
+* `inference/` - scripts to convert models to HuggingFace or ONNX format, and view generations.
+* `mcloud/` - examples of how to use [MosaicML platform](https://www.mosaicml.com/platform) to seamlessly launch training, eval, and inference jobs :)
 
 
 In the [common](../common) folder, you will also find:
+* `common/builders.py`- A collection of convenient string-to-object mappings used to create objects that get passed to `Trainer`.
 * `common/text_data.py`- a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/stable/) that can be used with a vanilla PyTorch dataloader.
+* `common/convert_dataset.py`- an example of converting generic text data into `StreamingDataset` `.mds` shard files.
 
 At all model scales, we are training the exact same [vanilla PyTorch GPT model](./src/mosaic_gpt.py#L106), with no special parallelism strategies.
 Composer + FSDP does all the heavy lifting to make sure we can scale up without running out of memory and while maintaining high performance.
@@ -193,7 +196,7 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/t
 
 # How many GPUs do I need to train a LLM?
 This is a complicated question in general, but if we assume that you are using FSDP with `FULL_SHARD`,
-activation checkpointing, but NOT `cpu_offload` (coming soon!), then a good rule of thumb is:
+activation checkpointing, and `DecoupledAdamW`, then a good rule of thumb is:
 
 > Your total cluster memory in GB should be larger than  16 * N (# billions of params).
 

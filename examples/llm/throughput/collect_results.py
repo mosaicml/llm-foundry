@@ -11,6 +11,17 @@ from mcli import sdk as msdk
 GPU_AVAILABLE_FLOPS = 312_000_000_000_000
 
 
+def str_to_bool(value):
+    # helper fn
+    if isinstance(value, bool):
+        return value
+    if value.lower() in {'false', 'f', '0', 'no', 'n'}:
+        return False
+    elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
+        return True
+    raise ValueError(f'{value} is not a valid boolean value')
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="""
         Parse run configs to get MosaicGPT training throughput.
@@ -24,6 +35,12 @@ def parse_args():
                         '--save-path',
                         type=str,
                         default='benchmark_results')
+    parser.add_argument('-p',
+                        '--print-results',
+                        type=str_to_bool,
+                        nargs='?',
+                        const=True,
+                        default=False)
 
     return parser.parse_args()
 
@@ -34,7 +51,7 @@ def get_runs(args):
         runs = [r for r in runs if filter in r.name]
 
     def sort_key(r):
-        model_name = [s for s in r.name.split('-') if 'gpt' in s][0]
+        model_name = r.name.split('-')[2]
         num_gpu = r.config.gpu_num
         if model_name[-1] == 'm':
             model_name_size = 1e6
@@ -43,7 +60,7 @@ def get_runs(args):
         else:
             print(model_name)
             raise ValueError
-        model_size = int(model_name[3:-1])
+        model_size = int(model_name[:-1])
         return (model_name_size, model_size, r.config.parameters['max_seq_len'],
                 num_gpu, r.config.parameters['global_train_batch_size'])
 
@@ -88,7 +105,7 @@ def filter_runs(runs):
 def parse_run(run) -> Dict[str, Any]:
     n_params = micro_batchsize = throughput = -1
 
-    model_name = [s for s in run.name.split('-') if 'gpt' in s][0]
+    model_name = run.name.split('-')[2]
     gpu_num = run.config.gpu_num
     gpu_type = run.config.gpu_type
 
@@ -198,27 +215,32 @@ def main(args):
             print(f'{run.name=} not parsed')
             print(e)
 
-    csv_name = args.save_path + '.csv'
-    with open(csv_name, 'w') as f:
-        writer = csv.DictWriter(f, fieldnames=results[0].keys())
-        writer.writeheader()
-        for result in results:
-            writer.writerow(result)
+    if results:
+        csv_name = args.save_path + '.csv'
+        with open(csv_name, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=results[0].keys())
+            writer.writeheader()
+            for result in results:
+                writer.writerow(result)
 
-    md_name = args.save_path + '.md'
-    fieldnames = results[0].keys()
-    with open(md_name, 'w') as f:
-        fmt = '| ' + ' {} |' * len(fieldnames) + '\n'
+        md_name = args.save_path + '.md'
+        fieldnames = results[0].keys()
+        with open(md_name, 'w') as f:
+            fmt = '| ' + ' {} |' * len(fieldnames) + '\n'
 
-        f.write(fmt.format(*fieldnames))
-        f.write(fmt.format(*['---' for _ in fieldnames]))
-        for result in results:
-            f.write(fmt.format(*result.values()))
+            f.write(fmt.format(*fieldnames))
+            f.write(fmt.format(*['---' for _ in fieldnames]))
+            if args.print_results:
+                print(fmt.format(*fieldnames), end='')
+                print(fmt.format(*['---' for _ in fieldnames]), end='')
+            for result in results:
+                if args.print_results:
+                    print(fmt.format(*result.values()), end='')
+                f.write(fmt.format(*result.values()))
+    else:
+        print('WARNING: No results parsed.')
 
 
 if __name__ == '__main__':
     args = parse_args()
     main(args)
-
-    from mcli.api.engine.engine import MAPIConnection
-    MAPIConnection.get_current_connection().close()

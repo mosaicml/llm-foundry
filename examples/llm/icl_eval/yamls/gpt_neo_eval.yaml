@@ -1,9 +1,8 @@
 # Tokenizer
 tokenizer:
-  type: hftokenizer
-  args:
-    tokenizer_name: gpt2
-    max_seq_len: 2048
+  name: gpt2
+  kwargs:
+    model_max_length: 2048
 
 model:
   name: hf_causal_lm
@@ -16,6 +15,7 @@ load_path: # Add your (optional) Composer checkpoint path here!
 # FSDP config for model sharding
 # fsdp_config:
 #   sharding_strategy: FULL_SHARD
+#   mixed_precision: PURE
 
 icl_tasks:
 -

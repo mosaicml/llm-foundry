@@ -1,30 +1,30 @@
+max_seq_len: 2048
+tokenizer_name: gpt2
+
+# Tokenizer
 tokenizer:
-  type: hftokenizer
-  args:
-    tokenizer_name: gpt2
-    max_seq_len: 2048
+  name: ${tokenizer_name}
+  kwargs:
+    model_max_length: ${max_seq_len}
 
 model:
   name: mosaic_gpt
   init_device: meta
-  tokenizer_name: gpt2
+  tokenizer_name: ${tokenizer_name}
   d_model: 768
   n_heads: 12
   n_layers: 12
   mlp_ratio: 4
-  max_seq_len: 2048
-  vocab_size: 50257
-  init_std: 0.02
-  attn_pdrop: 0.0
-  resid_pdrop: 0.0
-  emb_pdrop: 0.0
-  attn_impl: flash
+  max_seq_len: ${max_seq_len}
+  vocab_size: 50368
+  attn_impl: triton
 
 load_path: # Add your (optional) Composer checkpoint path here!
 
 # FSDP config for model sharding
 # fsdp_config:
 #   sharding_strategy: FULL_SHARD
+#   mixed_precision: PURE
 
 icl_tasks:
 -

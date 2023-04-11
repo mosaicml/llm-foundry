@@ -18,11 +18,7 @@ model:
   mlp_ratio: 4
   max_seq_len: ${max_seq_len}
   vocab_size: 50368
-  init_std: 0.02
-  attn_pdrop: 0.0
-  resid_pdrop: 0.0
-  emb_pdrop: 0.0
-  attn_impl: flash
+  attn_impl: triton
 
 # Tokenizer
 tokenizer:
@@ -79,6 +75,7 @@ algorithms:
 
 max_duration: 51500ba # ~ 54B tokens
 eval_interval: 5000ba
+eval_first: false
 eval_subset_num_batches: -1
 global_train_batch_size: 512
 
@@ -92,9 +89,11 @@ precision: amp_bf16
 # FSDP
 fsdp_config:
   sharding_strategy: FULL_SHARD
-  mixed_precision: DEFAULT
+  mixed_precision: PURE
   activation_checkpointing: true
+  activation_checkpointing_reentrant: false
   activation_cpu_offload: false
+  limit_all_gathers: true
   verbose: false
 
 # Logging
@@ -107,6 +106,7 @@ callbacks:
     window_size: 10
   lr_monitor: {}
   memory_monitor: {}
+  runtime_estimator: {}
 
 # loggers:
 #   wandb: {}

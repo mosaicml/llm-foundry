@@ -1,11 +1,11 @@
 max_seq_len: 2048
 tokenizer_name: gpt2
 
+# Tokenizer
 tokenizer:
-  type: hftokenizer
-  args:
-    tokenizer_name: ${tokenizer_name}
-    max_seq_len: ${max_seq_len}
+  name: ${tokenizer_name}
+  kwargs:
+    model_max_length: 2048
 
 model:
   name: mosaic_gpt

@@ -29,8 +29,11 @@ class ScheduledGarbageCollector(Callback):
 
         # disable automatic garbage collection
         gc.disable()
+        gc.collect()
 
     def fit_end(self, state: State, logger: Logger):
+        gc.collect()
+
         # reset automatic garbage collection at fit_end
         if self.gc_init_state:
             gc.enable()
@@ -42,9 +45,11 @@ class ScheduledGarbageCollector(Callback):
             gc.collect()
 
     def eval_start(self, state: State, logger: Logger):
+        gc.collect()
         if not self.eval_keep_disabled:
             gc.enable()
 
     def eval_end(self, state: State, logger: Logger):
         if not self.eval_keep_disabled:
             gc.disable()
+        gc.collect()

@@ -3,8 +3,16 @@
 
 import gc
 
+import torch
 from composer.core import Callback, State
 from composer.loggers import Logger
+
+
+def gc_cuda():
+    """Gargage collect Torch (CUDA) memory."""
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
 
 class ScheduledGarbageCollector(Callback):
@@ -29,10 +37,10 @@ class ScheduledGarbageCollector(Callback):
 
         # disable automatic garbage collection
         gc.disable()
-        gc.collect()
+        gc_cuda()
 
     def fit_end(self, state: State, logger: Logger):
-        gc.collect()
+        gc_cuda()
 
         # reset automatic garbage collection at fit_end
         if self.gc_init_state:
@@ -42,14 +50,15 @@ class ScheduledGarbageCollector(Callback):
 
     def before_dataloader(self, state: State, logger: Logger):
         if state.timestamp.batch.value % self.batch_interval == 0:
-            gc.collect()
+            gc_cuda()
 
     def eval_start(self, state: State, logger: Logger):
-        gc.collect()
+        gc_cuda()
         if not self.eval_keep_disabled:
             gc.enable()
 
     def eval_end(self, state: State, logger: Logger):
         if not self.eval_keep_disabled:
             gc.disable()
-        gc.collect()
+
+        gc_cuda()

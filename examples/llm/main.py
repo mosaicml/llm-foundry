@@ -206,7 +206,8 @@ def main(cfg):
     print('Logging config...')
     log_config(cfg)
 
-    if cfg.get('eval_first', False):
+    if cfg.get('eval_first',
+               False) and trainer.state.timestamp.batch.value == 0:
         trainer.eval()
 
     print('Starting training...')

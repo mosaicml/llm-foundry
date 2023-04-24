@@ -1,0 +1,39 @@
+benchmark_name: MosaicDeepspeed_1xA100-40GB-bf16-GPT-7B
+
+max_seq_len: 2048
+tokenizer_name: gpt2
+
+# Tokenizer
+tokenizer:
+  name: ${tokenizer_name}
+  kwargs:
+    model_max_length: ${max_seq_len}
+  non_eos_token_id: 17
+
+model:
+  name: mosaic_gpt
+  init_device: cpu
+  tokenizer_name: ${tokenizer_name}
+  d_model: 4096
+  n_heads: 32
+  n_layers: 32
+  mlp_ratio: 4
+  max_seq_len: ${max_seq_len}
+  vocab_size: 50368
+  init_std: 0.02
+  attn_pdrop: 0.0
+  resid_pdrop: 0.0
+  emb_pdrop: 0.0
+  attn_impl: triton
+
+autocast_precision: bf16
+model_dtype: fp32
+
+batch_sizes: [1, 2, 4, 8, 16, 32, 64]
+input_lengths: [128]
+output_lengths: [8]
+num_runs: 5
+
+num_warmup_batches: 3
+
+use_deepspeed: True

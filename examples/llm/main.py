@@ -58,11 +58,10 @@ def build_composer_model(model_cfg, tokenizer_cfg):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
-    try:
-        return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer_cfg)
-    except:
+    if model_cfg.name not in COMPOSER_MODEL_REGISTRY:
         raise ValueError(
             f'Not sure how to build model with name={model_cfg.name}')
+    return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer_cfg)
 
 
 def build_dataloader(cfg, device_batch_size):

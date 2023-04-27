@@ -2,7 +2,6 @@
 
 This folder contains helper scripts for exporting and generating outputs with your Composer-trained LLMs.
 
-
 ## Converting a Composer checkpoint to an HF checkpoint folder
 
 The LLMs trained with this codebase are all HuggingFace (HF) `PreTrainedModel`s, which we wrap with a `HuggingFaceModel` wrapper class to make compatible with Composer. See [docs](https://docs.mosaicml.com/en/latest/api_reference/generated/composer.models.HuggingFaceModel.html) and an [example](https://docs.mosaicml.com/en/latest/examples/pretrain_finetune_huggingface.html) for more details.
@@ -10,11 +9,13 @@ The LLMs trained with this codebase are all HuggingFace (HF) `PreTrainedModel`s,
 At the end of your training runs, you will see a collection of Composer `Trainer` checkpoints such as `ep0-ba2000-rank0.pt`. These checkpoints contain the entire training state, including the model, tokenizer, optimizer state, schedulers, timestamp, metrics, etc. Though these Composer checkpoints are useful during training, at inference time we usually just want the model, tokenizer, and metadata.
 
 To extract these pieces, we provide a script `convert_composer_to_hf.py` that converts a Composer checkpoint directly to a standard HF checkpoint folder. For example:
+
 ```bash
 python convert_composer_to_hf.py --composer_path ep0-ba2000-rank0.pt --hf_output_path my_hf_model/ --output_precision bf16
 ```
 
 This will produce a folder like:
+
 ```
 my_hf_model/
   config.json
@@ -25,11 +26,13 @@ my_hf_model/
   tokenizer_config.json
   vocab.json
 ```
+
 which can be loaded with standard HF utilities like `AutoModelForCausalLM.from_pretrained('my_hf_model')`.
 
 You can also pass object store URIs for both `--composer_path` and `--hf_output_path` to easily convert checkpoints stored in S3, OCI, etc.
 
-### IMPORTANT NOTE:
+### IMPORTANT NOTE
+
 If you trained and saved a custom HF model such as `MosaicGPT`, then in any external inference codebase, you need to import and register the new model class and config before auto classes like `AutoModel` will work. For example:
 
 ```python
@@ -45,7 +48,6 @@ model = AutoModelForCausalLM.from_pretrained('my_hf_model')
 ```
 
 (Coming soon) we will add the ability to save custom model source code within the HF folder, which will remove the need for this step!
-
 
 ## Interactive generation with `model.generate(...)`
 
@@ -105,12 +107,19 @@ output_tok_per_sec=292.03tok/sec
 
 The argument for `--name_or_path` can be either the name of a model that exists on the HF Hub, such as `gpt2`, `facebook/opt-350m`, etc. or the path to a HF checkpoint folder, such as `my_hf_model/` like we exported above.
 
+## Interacting with chat models
+
+Chat models need to pass conversation history back to the model for multi-turn conversations. To make that easier, we include `hf_chat.py`. Chat models usually require an introductory/system prompt, as well as a wrapper around user and model messages, to fit the training format. Default values work with our ChatML-trained models, but you can specify these values with CLI args:
+
+`python hf_chat.py -n my_hf_model/ --system_prompt="You are a helpful assistant\n" --user_msg_fmt="user: {}\n" --assistant_msg_fmt="assistant: {}\n" --max_new_tokens=512 --dtype=bf16`
+
 ## Converting your HF model to ONNX
 
 We include a script `convert_hf_to_onnx.py` that demonstrates how to convert your HF model to ONNX format. For more details and examples
-of exporting and working with HuggingFace models with ONNX, see https://huggingface.co/docs/transformers/serialization#export-to-onnx.
+of exporting and working with HuggingFace models with ONNX, see <https://huggingface.co/docs/transformers/serialization#export-to-onnx>.
 
 Here a couple examples of using the script:
+
 ```bash
 # 1) Local export
 python inference/convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggingface/folder --output_folder local/folder

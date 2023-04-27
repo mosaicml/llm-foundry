@@ -113,6 +113,12 @@ def write_huggingface_pretrained_from_composer_checkpoint(
                                                                                 If the input ``checkpoint_path`` is already a local path, this will be a symlink.
                                                                                 Defaults to None, which will use a temporary file.
     """
+    dtype = {
+        'fp32': torch.float32,
+        'fp16': torch.float16,
+        'bf16': torch.bfloat16,
+    }[output_precision]
+
     # default local path to a tempfile if path is not provided
     if local_checkpoint_save_location is None:
         tmp_dir = tempfile.TemporaryDirectory()
@@ -143,6 +149,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     print('#' * 30)
     print('Saving HF Model Config...')
     hf_config = get_hf_config_from_composer_state_dict(composer_state_dict)
+    hf_config.torch_dtype = dtype
     hf_config.save_pretrained(local_output_path)
     print(hf_config)
 
@@ -167,11 +174,6 @@ def write_huggingface_pretrained_from_composer_checkpoint(
         weights_state_dict, prefix='model.')
 
     # Convert weights to desired dtype
-    dtype = {
-        'fp32': torch.float32,
-        'fp16': torch.float16,
-        'bf16': torch.bfloat16,
-    }[output_precision]
     for k, v in weights_state_dict.items():
         if isinstance(v, torch.Tensor):
             weights_state_dict[k] = v.to(dtype=dtype)

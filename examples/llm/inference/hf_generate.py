@@ -12,6 +12,19 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from examples.llm import MosaicGPT, MosaicGPTConfig
 
 
+def get_dtype(dtype):
+    if dtype == 'fp32':
+        return torch.float32
+    elif dtype == 'fp16':
+        return torch.float16
+    elif dtype == 'bf16':
+        return torch.bfloat16
+    else:
+        raise NotImplementedError(
+            f'dtype {dtype} is not supported. '
+            f'We only support fp32, fp16, and bf16 currently')
+
+
 def str2bool(v):
     if isinstance(v, bool):
         return v
@@ -64,15 +77,14 @@ def parse_args() -> Namespace:
                         default=True)
     parser.add_argument('--eos_token_id', type=int, default=None)
     parser.add_argument('--pad_token_id', type=int, default=None)
-    parser.add_argument('--dtype',
+    parser.add_argument('--model_dtype',
                         type=str,
                         choices=['fp32', 'fp16', 'bf16'],
-                        default='bf16')
-    parser.add_argument('--autocast',
-                        type=str2bool,
-                        nargs='?',
-                        const=True,
-                        default=False)
+                        default=None)
+    parser.add_argument('--autocast_dtype',
+                        type=str,
+                        choices=['fp32', 'fp16', 'bf16'],
+                        default=None)
     parser.add_argument('--warmup',
                         type=str2bool,
                         nargs='?',
@@ -156,13 +168,16 @@ def main(args: Namespace) -> None:
         device = args.device
     else:
         device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    dtype = {
-        'fp16': torch.float16,
-        'bf16': torch.bfloat16,
-        'fp32': torch.float32,
-    }[args.dtype]
-    print(f'\nMoving model and inputs to device={device} and dtype={dtype}...')
-    model.to(device, dtype)
+
+    if args.model_dtype is not None:
+        model_dtype = get_dtype(args.model_dtype)
+    else:
+        model_dtype = model.config.torch_dtype or torch.float32
+
+    print(
+        f'\nMoving model and inputs to device={device} and dtype={model_dtype}...'
+    )
+    model.to(device, model_dtype)
 
     print(f'\nTokenizing prompts...')
     maybe_synchronize()
@@ -176,9 +191,10 @@ def main(args: Namespace) -> None:
                              axis=1).numpy(force=True)  # type: ignore
 
     # Autocast
-    if args.autocast:
-        autocast_context = torch.autocast(device, dtype)
-        print(f'Using autocast amp_{args.dtype}...')
+    if args.autocast_dtype is not None:
+        autocast_dtype = get_dtype(args.autocast_dtype)
+        autocast_context = torch.autocast(device, autocast_dtype)
+        print(f'Using autocast with dtype={autocast_dtype}...')
     else:
         autocast_context = nullcontext()
         print('NOT using autocast...')

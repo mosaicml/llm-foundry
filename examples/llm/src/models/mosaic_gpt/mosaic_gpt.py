@@ -13,8 +13,6 @@ from typing import List, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.algorithms.low_precision_layernorm.low_precision_layernorm import \
-    LPLayerNorm
 from composer.metrics import (InContextLearningLMAccuracy,
                               InContextLearningMultipleChoiceAccuracy)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
@@ -27,6 +25,7 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 
 import examples.llm.src.models.layers.attention as attention
 import examples.llm.src.models.layers.gpt_blocks as gpt_blocks
+from examples.llm.src.models.layers.norm import NORM_CLASS_REGISTRY
 from examples.llm.src.models.mosaic_gpt.configuration_mosaic_gpt import \
     MosaicGPTConfig
 from examples.llm.src.models.utils import (MODEL_INIT_REGISTRY,
@@ -48,7 +47,12 @@ class MosaicGPT(PreTrainedModel):
         self.alibi = config.alibi
         self.alibi_bias_max = config.alibi_bias_max
 
-        layernorm_class = LPLayerNorm if config.low_precision_layernorm else nn.LayerNorm
+        if config.norm_type.lower() not in NORM_CLASS_REGISTRY.keys():
+            norm_options = ' | '.join(NORM_CLASS_REGISTRY.keys())
+            raise NotImplementedError(
+                f'Requested norm type ({config.norm_type}) is not implemented within this repo (Options: {norm_options}).'
+            )
+        norm_class = NORM_CLASS_REGISTRY[config.norm_type.lower()]
 
         # CogView (https://arxiv.org/abs/2105.13290) and GLM-130B (https://arxiv.org/abs/2210.02414)
         # both report this helping with stabilizing training
@@ -76,9 +80,8 @@ class MosaicGPT(PreTrainedModel):
                     for _ in range(config.n_layers)
                 ])
         })
-        self.transformer.update({
-            'ln_f': layernorm_class(config.d_model, device=config.init_device)
-        })
+        self.transformer.update(
+            {'norm_f': norm_class(config.d_model, device=config.init_device)})
 
         # enables scaling output logits; similar to a softmax "temperature"
         # PaLM paper uses scale 1/sqrt(config.d_model)
@@ -369,7 +372,7 @@ class MosaicGPT(PreTrainedModel):
             if past_key_values is not None:
                 past_key_values[b_idx] = past_key_value
 
-        x = self.transformer.ln_f(x)  # type: ignore
+        x = self.transformer.norm_f(x)  # type: ignore
 
         # output embedding weight tied to input embedding
         assert isinstance(self.transformer.wte, nn.Module)  # pyright

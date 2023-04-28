@@ -44,7 +44,7 @@ class MosaicGPTConfig(PretrainedConfig):
         fan_mode: str = 'fan_in',
         init_nonlinearity: str = 'relu',
         embedding_fraction: float = 1.0,
-        low_precision_layernorm: bool = True,
+        norm_type: str = 'low_precision_layernorm',
         use_cache: bool = False,
         **kwargs,
     ):
@@ -91,7 +91,7 @@ class MosaicGPTConfig(PretrainedConfig):
             fan_mode (str): The fan mode to use for parameter initialization with kaiming initialization schemes.
             init_nonlinearity (str): The nonlinearity to use for parameter initialization with kaiming initialization schemes.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
-            low_precision_layernorm (bool): Whether to use low precision layer normalization.
+            norm_type (str): choose type of norm to use
             use_cache (bool): Whether or not the model should return the last key/values attentions
         """
         self.d_model = d_model
@@ -125,7 +125,7 @@ class MosaicGPTConfig(PretrainedConfig):
         self.fan_mode = fan_mode
         self.init_nonlinearity = init_nonlinearity
         self.embedding_fraction = embedding_fraction
-        self.low_precision_layernorm = low_precision_layernorm
+        self.norm_type = norm_type
         self.use_cache = use_cache
         if 'name' in kwargs:
             del kwargs['name']

@@ -9,6 +9,8 @@ from typing import Optional, Tuple, Union
 import torch
 from torch import nn
 
+from examples.llm.src.models.layers.norm import NORM_CLASS_REGISTRY
+
 
 def torch_default_param_init_fn_(
     module: nn.Module,
@@ -140,15 +142,16 @@ def generic_param_init_fn_(
 
         emb_init_fn_(module.weight)
 
-    elif isinstance(module, nn.LayerNorm):
-        # LayerNorm
+    elif isinstance(module, tuple(set(NORM_CLASS_REGISTRY.values()))):
+        # Norm
         if verbose > 1:
             warnings.warn(
-                f'LayerNorm gamma weights are set to 1. If the layer has a bias it is initialized to 0.'
+                f'Norm weights are set to 1. If the layer has a bias it is initialized to 0.'
             )
-        torch.nn.init.ones_(module.weight)
-        if module.bias is not None:
-            torch.nn.init.zeros_(module.bias)
+        if hasattr(module, 'weight') and module.weight is not None:
+            torch.nn.init.ones_(module.weight)  # type: ignore
+        if hasattr(module, 'bias') and module.bias is not None:
+            torch.nn.init.zeros_(module.bias)  # type: ignore
 
     elif isinstance(module, nn.MultiheadAttention):
         # torch's MultiheadAttention

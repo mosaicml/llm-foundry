@@ -20,7 +20,7 @@ from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
 from examples.llm import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                           ComposerHFPrefixLM)
-from examples.llm.src.models.layers import alibi_bias
+from examples.llm.src.models.layers import NORM_CLASS_REGISTRY, alibi_bias
 from examples.llm.src.models.mosaic_gpt import MosaicGPT, MosaicGPTConfig
 
 
@@ -166,7 +166,7 @@ def test_attention_mechanism(batch_size=2):
         device=x.device, dtype=x.dtype, attention_mask=attention_mask)
 
     for block in model.model.transformer.blocks:
-        a = block.ln_1(x)
+        a = block.norm_1(x)
         b, attention_weights, _ = block.attn(a,
                                              past_key_value=None,
                                              attn_bias=attn_bias,
@@ -178,7 +178,7 @@ def test_attention_mechanism(batch_size=2):
         assert torch.equal(expected_zerod_weights.expand(*zerod_weights.shape),
                            zerod_weights)
         x = x + block.resid_attn_dropout(b)
-        m = block.ln_2(x)
+        m = block.norm_2(x)
         n = block.mlp(m)
         x = x + block.resid_mlp_dropout(n)
 
@@ -417,7 +417,9 @@ def test_opt_wrapping(prefixlm):
     assert not model.model.lm_head._fsdp_wrap
 
 
-def test_mosaic_gpt_creation():
+@pytest.mark.parametrize('norm_type', NORM_CLASS_REGISTRY.keys())
+@pytest.mark.parametrize('no_bias', [False, True])
+def test_mosaic_gpt_creation(norm_type, no_bias):
     # Test that the config constructs the model as expected.
     hf_config = MosaicGPTConfig(
         init_device='cpu',
@@ -429,6 +431,8 @@ def test_mosaic_gpt_creation():
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_impl='torch',
+        norm_type=norm_type,
+        no_bias=no_bias,
     )
     mosaic_gpt = MosaicGPT(hf_config)
 
@@ -447,8 +451,10 @@ def test_mosaic_gpt_creation():
 
     d_model = hf_config.d_model
     for block in mosaic_gpt.transformer.blocks:  # type: ignore
-        assert block.ln_1.weight.shape == torch.Size([d_model])  # type: ignore
-        assert block.ln_2.weight.shape == torch.Size([d_model])  # type: ignore
+        assert block.norm_1.weight.shape == torch.Size([d_model
+                                                       ])  # type: ignore
+        assert block.norm_2.weight.shape == torch.Size([d_model
+                                                       ])  # type: ignore
         assert block.mlp.mlp_up.weight.shape == torch.Size(  # type: ignore
             [hf_config.d_model * hf_config.mlp_ratio, hf_config.d_model])
         assert block.mlp.mlp_down.weight.shape == torch.Size(  # type: ignore

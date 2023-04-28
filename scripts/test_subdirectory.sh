@@ -19,12 +19,7 @@ source "$ENV_NAME/bin/activate"
 
 echo "Installing requirements..."
 pip install --upgrade 'pip<23'
-target=$(echo $1 | tr '_' '-')
-pip install -I ".[$target-cpu]"  # we rely on docker image to handle flash-attn, etc
-
-DIRECTORY="$1"
-cp pyproject.toml "$DIRECTORY"
-cd "$DIRECTORY"
+pip install -I ".[llm-cpu]"  # we rely on docker image to handle flash-attn, etc
 
 # run tests using project pytest config
 python -m pytest tests

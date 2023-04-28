@@ -29,4 +29,4 @@ jobs:
     - name: Test
       run: |
         export PATH=/composer-python:$PATH
-        bash scripts/test_subdirectory.sh llm
+        bash scripts/test_subdirectory.sh

@@ -33,9 +33,9 @@ style:  ## Apply autoformating and run style checks via pre-commit
 
 .PHONY: lint
 lint:  ## Apply autoformating and run style checks via pre-commit
-	bash scripts/lint_subdirectory.sh llm
+	bash scripts/lint_subdirectory.sh
 
 # we don't test the BERT examples since there are no tests yet...
 .PHONY: test
 test:  ## Run all the tests
-	bash scripts/test_subdirectory.sh llm
+	bash scripts/test_subdirectory.sh

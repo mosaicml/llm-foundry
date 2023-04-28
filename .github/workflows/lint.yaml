@@ -28,4 +28,4 @@ jobs:
         python -m pip install --upgrade 'pip<23' wheel
     - name: Lint
       run: |
-        bash scripts/lint_subdirectory.sh llm
+        bash scripts/lint_subdirectory.sh

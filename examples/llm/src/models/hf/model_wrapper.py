@@ -16,11 +16,14 @@ import torch
 import transformers
 from composer.models.huggingface import HuggingFaceModel
 from torchmetrics import Metric
+from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
 from examples.common.hf_fsdp import prepare_hf_model_for_fsdp
 
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
+
+Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
 class HuggingFaceModelWithZLoss(HuggingFaceModel):
@@ -41,9 +44,7 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
 
     def __init__(self,
                  model: transformers.PreTrainedModel,
-                 tokenizer: Optional[
-                     Union[transformers.PreTrainedTokenizer,
-                           transformers.PreTrainedTokenizerFast]] = None,
+                 tokenizer: Optional[Tokenizer] = None,
                  metrics: Optional[List[Metric]] = None,
                  eval_metrics: Optional[List[Metric]] = None,
                  z_loss: float = 0.0):

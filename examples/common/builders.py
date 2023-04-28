@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
-
 import os
+from typing import Union
 
 from composer import algorithms
 from composer.callbacks import (HealthChecker, LRMonitor, MemoryMonitor,
@@ -15,6 +15,10 @@ from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
                                       LinearWithWarmupScheduler)
+from omegaconf import DictConfig
+from omegaconf import OmegaConf as om
+from transformers import (AutoTokenizer, PreTrainedTokenizer,
+                          PreTrainedTokenizerFast)
 
 from examples.common.fdiff import FDiffMetrics
 from examples.common.generate_callback import Generate
@@ -23,7 +27,9 @@ from examples.common.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                                    DecoupledLionW)
 from examples.common.resumption_callbacks import GlobalLRScaling, LayerFreezing
 from examples.common.scheduled_gc_callback import ScheduledGarbageCollector
-from examples.common.text_data import build_text_dataloader
+from examples.common.text_data import Tokenizer, build_text_dataloader
+
+Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
 def build_callback(name, kwargs):
@@ -125,16 +131,37 @@ def build_scheduler(cfg):
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
 
 
-def build_dataloader(cfg, device_batch_size):
+def build_tokenizer(om_tokenizer_config: DictConfig,) -> Tokenizer:
+    os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
+    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
+    resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
+                                                   resolve=True)
+    tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
+        'kwargs', {})
+    tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+                                              **tokenizer_kwargs)
+
+    # HuggingFace does not respect the model_max_length kwarg, and overrides it with
+    # min(kwargs['model_max_length'], original_config['model_max_length']), so we
+    # explicitly set it here
+    tokenizer.model_max_length = tokenizer_kwargs.get(
+        'model_max_length',
+        int(1e30),
+    )
+
+    return tokenizer
+
+
+def build_dataloader(cfg, tokenizer, device_batch_size):
     if cfg.name == 'text':
-        return build_text_dataloader(cfg, device_batch_size)
+        return build_text_dataloader(cfg, tokenizer, device_batch_size)
     else:
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
 def build_icl_evaluators(cfg, tokenizer):
-    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-
     evaluators = []
     logger_keys = []
 
@@ -164,7 +191,7 @@ def build_icl_evaluators(cfg, tokenizer):
                 icl_cfg.dataset_uri,
                 tokenizer,
                 batch_size=icl_cfg.batch_size,
-                max_seq_len=tokenizer.model_max_length,
+                max_seq_len=cfg.max_seq_len,
                 pad_tok_id=pad_tok_id,
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,

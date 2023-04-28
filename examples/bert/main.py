@@ -55,10 +55,17 @@ def main(cfg: DictConfig,
 
     # Dataloaders
     print('Building train loader...')
-    train_loader = build_dataloader(cfg.train_loader,
-                                    cfg.device_train_batch_size)
+    train_loader = build_dataloader(
+        cfg.train_loader,
+        model.tokenizer,
+        cfg.device_train_batch_size,
+    )
     print('Building eval loader...')
-    eval_loader = build_dataloader(cfg.eval_loader, cfg.device_eval_batch_size)
+    eval_loader = build_dataloader(
+        cfg.eval_loader,
+        model.tokenizer,
+        cfg.device_eval_batch_size,
+    )
 
     # Optimizer
     optimizer = build_optimizer(cfg.optimizer, model)

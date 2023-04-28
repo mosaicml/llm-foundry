@@ -21,18 +21,16 @@ cluster: r0z0 # replace with your cluster here!
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
-  tokenizer_name: gpt2
   max_seq_len: 2048
 
   tokenizer:
-    name: ${tokenizer_name}
+    name: gpt2
     kwargs:
       model_max_length: ${max_seq_len}
 
   model:
     name: mosaic_gpt
     init_device: meta
-    tokenizer_name: ${tokenizer_name}
     d_model: 2048
     n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
     n_layers: 24

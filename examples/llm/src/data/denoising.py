@@ -141,6 +141,9 @@ class MixtureOfDenoisersCollator:
         prefix_function: Optional[PREFIX_FUNCTION] = ul2_prefix_function,
         context_eos: Optional[bool] = None,
     ):
+        # Prepare the tokenizer for denoising tasks
+        utils.adapt_tokenizer_for_denoising(tokenizer)
+
         self.tokenizer = tokenizer
         self.max_seq_length = max_seq_length
         self.decoder_only_format = decoder_only_format
@@ -151,9 +154,6 @@ class MixtureOfDenoisersCollator:
         self._seen_first_batch = False
 
         self.context_eos = bool(context_eos) if decoder_only_format else True
-
-        # Prepare the tokenizer for denoising tasks
-        utils.adapt_tokenizer_for_denoising(self.tokenizer)
 
         # Process the span_mean_lengths_and_ratios argument
         if span_mean_lengths_and_ratios is None:
@@ -350,8 +350,11 @@ class MixtureOfDenoisersCollator:
         return batch
 
 
-def build_text_denoising_dataloader(cfg: DictConfig,
-                                    device_batch_size: int) -> DataLoader:
+def build_text_denoising_dataloader(
+    cfg: DictConfig,
+    tokenizer: Tokenizer,
+    device_batch_size: int,
+) -> DataLoader:
     """Constructor function for a Mixture of Denoisers dataloader.
 
     This function constructs a dataloader that can be used to train an
@@ -368,9 +371,6 @@ def build_text_denoising_dataloader(cfg: DictConfig,
         cfg (DictConfig): An omegaconf dictionary used to configure the loader:
             cfg.name (str): The type of dataloader to build. Must = "text_denoising".
             ---
-            cfg.dataset.tokenizer_name (str): The name of the tokenizer to use
-                for tokenizing raw text. Or, if using pre-tokenized data, the
-                name of the tokenizer used to prepare the data.
             cfg.dataset.max_seq_len (int): The maximum length of sequences
                 in the batch. See :class:`MixtureOfDenoisersCollator` docstring
                 for details.
@@ -409,14 +409,16 @@ def build_text_denoising_dataloader(cfg: DictConfig,
             ---
             See :class:`DataLoader` for standard argument options to the pytorch
                 dataloader, such as `cfg.drop_last`, `cfg.num_workers`, etc.
+        tokenizer (transformers.PreTrainedTokenizer): The tokenizer used to
+            prepare the data from raw text. Any missing sentinel tokens will
+            be added by the collator.
         device_batch_size (int): The size of the batches (number of examples)
             that the dataloader will produce.
     """
     assert cfg.name == 'text_denoising', f'Tried to build_denoising text dataloader with cfg.name={cfg.name}'
 
     collate_fn = MixtureOfDenoisersCollator(
-        tokenizer=utils.AutoTokenizerForMOD.from_pretrained(
-            cfg.dataset.tokenizer_name),
+        tokenizer=tokenizer,
         max_seq_length=cfg.dataset.max_seq_len,
         decoder_only_format=cfg.mixture_of_denoisers.decoder_only_format,
         span_mean_lengths_and_ratios=cfg.mixture_of_denoisers.get(
@@ -456,7 +458,7 @@ def build_text_denoising_dataloader(cfg: DictConfig,
 
     dataset = StreamingTextDataset(
         local=cfg.dataset.local,
-        tokenizer_name=cfg.dataset.tokenizer_name,
+        tokenizer=tokenizer,
         max_seq_len=truncate_to,
         remote=cfg.dataset.get('remote'),
         split=cfg.dataset.get('split'),
@@ -815,14 +817,16 @@ def _format_tokens_for_decoder_only(
 
 
 # Helpful to test if your dataloader is working locally
-# Run `python denoising.py [remote] [local, optional]` and verify that batches
+# Run `python denoising.py [local] [remote, optional]` and verify that batches
 # are printed out
 if __name__ == '__main__':
-    remote = sys.argv[1]
+    from examples.common.builders import build_tokenizer
+
+    local = sys.argv[1]
     if len(sys.argv) > 2:
-        local = sys.argv[2]
+        remote = sys.argv[2]
     else:
-        local = remote
+        remote = local
     print(f'Reading val split from {remote} -> {local}')
 
     decoder_only = True
@@ -834,7 +838,6 @@ if __name__ == '__main__':
             'remote': remote,
             'split': 'val',  # 'val_small',
             'shuffle': False,
-            'tokenizer_name': 'gpt2' if decoder_only else 't5-base',
             'max_seq_len': 2048 if decoder_only else 1024,
             'packing_ratio': 4.5,
             'predownload': 1000,
@@ -851,7 +854,15 @@ if __name__ == '__main__':
     cfg = om.create(cfg)
     device_batch_size = 2
 
-    loader = build_text_denoising_dataloader(cfg, device_batch_size)
+    tokenizer_cfg = {
+        'name': 'gpt2' if decoder_only else 't5-base',
+        'kwargs': {}
+    }
+    tokenizer_cfg['kwargs'] = {'model_max_length': cfg.dataset.max_seq_len}
+    tokenizer_cfg = om.create(tokenizer_cfg)
+    tokenizer = build_tokenizer(tokenizer_cfg)
+
+    loader = build_text_denoising_dataloader(cfg, tokenizer, device_batch_size)
 
     print(
         f'\n\nTRUNCATING TO: {loader.dataset.max_seq_len}\n\n')  # type: ignore

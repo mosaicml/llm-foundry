@@ -6,7 +6,7 @@ import re
 from setuptools import setup
 
 _PACKAGE_NAME = 'mosaicml-llm'
-_PACKAGE_DIR = 'llm'
+_PACKAGE_DIR = 'llmfoundry'
 _REPO_REAL_PATH = os.path.dirname(os.path.realpath(__file__))
 _PACKAGE_REAL_PATH = os.path.join(_REPO_REAL_PATH, _PACKAGE_DIR)
 

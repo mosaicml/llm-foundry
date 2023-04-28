@@ -30,7 +30,6 @@ cluster: r0z0 # replace with your cluster here!
 parameters:
   data_local: ./my-copy-c4
   data_remote: # If blank, files must be present in data_local
-  tokenizer_name: gpt2
   max_seq_len: 8192
   global_seed: 17
 
@@ -38,7 +37,6 @@ parameters:
   model:
     name: mosaic_gpt
     init_device: meta
-    tokenizer_name: ${tokenizer_name}
     d_model: 2048
     n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
     n_layers: 24
@@ -49,7 +47,7 @@ parameters:
 
   # Tokenizer
   tokenizer:
-    name: ${tokenizer_name}
+    name: gpt2
     kwargs:
       model_max_length: ${max_seq_len}
 
@@ -61,7 +59,6 @@ parameters:
       remote: ${data_remote}
       split: train_small # Using 'train_small' for this demo
       shuffle: true
-      tokenizer_name: ${tokenizer_name}
       max_seq_len: ${max_seq_len}
       shuffle_seed: ${global_seed}
     drop_last: true
@@ -74,7 +71,6 @@ parameters:
       remote: ${data_remote}
       split: val
       shuffle: false
-      tokenizer_name: ${tokenizer_name}
       max_seq_len: ${max_seq_len}
       shuffle_seed: ${global_seed}
     drop_last: false

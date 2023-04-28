@@ -5,7 +5,7 @@
 
 import os
 from itertools import islice
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -14,13 +14,16 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
+from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+
+Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
 class StreamingTextDataset(StreamingDataset):
     """Generic text dataset using MosaicML's StreamingDataset.
 
     Args:
-        tokenizer_name (str): The name of the HuggingFace tokenizer to use to
+        tokenizer (Tokenizer): HuggingFace tokenizer to
             tokenize samples.
         max_seq_len (int): The max sequence length of each sample.
         streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
@@ -62,7 +65,7 @@ class StreamingTextDataset(StreamingDataset):
     """
 
     def __init__(self,
-                 tokenizer_name: str,
+                 tokenizer: Tokenizer,
                  max_seq_len: int,
                  streams: Optional[Sequence[Stream]] = None,
                  remote: Optional[str] = None,
@@ -123,16 +126,8 @@ class StreamingTextDataset(StreamingDataset):
             shuffle_algo=shuffle_algo,
             shuffle_seed=shuffle_seed,
         )
+        self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
-
-        # Build tokenizer
-        os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
-        os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
-            tokenizer_name)
-
-        # suppress warnings when using longer 'max_seq_len'
-        self.tokenizer.model_max_length = int(1e30)
 
     # How to tokenize a text sample to a token sample
     def _tokenize(self, text_sample):
@@ -209,7 +204,11 @@ class ConcatenatedSequenceCollatorWrapper:
         return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
 
 
-def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
+def build_text_dataloader(
+    cfg: DictConfig,
+    tokenizer: Tokenizer,
+    device_batch_size: int,
+):
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
     if cfg.dataset.get('group_method', None) is not None:
         raise NotImplementedError(
@@ -248,7 +247,7 @@ def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
 
     # build dataset potentially with streams
     dataset = StreamingTextDataset(
-        tokenizer_name=cfg.dataset.tokenizer_name,
+        tokenizer=tokenizer,
         max_seq_len=cfg.dataset.max_seq_len,
         streams=streams,
         remote=cfg.dataset.get('remote', None),
@@ -302,6 +301,8 @@ def build_text_dataloader(cfg: DictConfig, device_batch_size: int):
 if __name__ == '__main__':
     import argparse
 
+    from examples.common.builders import build_tokenizer
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--tokenizer',
                         type=str,
@@ -341,7 +342,6 @@ if __name__ == '__main__':
             'remote': args.remote_path,
             'split': args.split,
             'shuffle': False,
-            'tokenizer_name': args.tokenizer,
             'max_seq_len': args.max_seq_len,
             'keep_zip': True,  # in case we need compressed files after testing
         },
@@ -351,7 +351,12 @@ if __name__ == '__main__':
     cfg = om.create(cfg)
     device_batch_size = 2
 
-    loader = build_text_dataloader(cfg, device_batch_size)
+    tokenizer_cfg = {'name': args.tokenizer, 'kwargs': {}}
+    tokenizer_cfg['kwargs'] = {'model_max_length': args.max_seq_len}
+    tokenizer_cfg = om.create(tokenizer_cfg)
+    tokenizer = build_tokenizer(tokenizer_cfg)
+
+    loader = build_text_dataloader(cfg, tokenizer, device_batch_size)
     tokenizer = loader.dataset.tokenizer  # type: ignore
     for batch_ix, batch in enumerate(islice(loader, 5)):
         print('\n')

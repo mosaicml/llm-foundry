@@ -8,6 +8,7 @@ import pytest
 import torch
 from omegaconf import OmegaConf as om
 
+from examples.common.builders import build_tokenizer
 from examples.common.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader)
 from examples.llm.src import build_text_denoising_dataloader
@@ -55,12 +56,21 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
         raise RuntimeError(f'c4 dataset at {path} not set up as expected')
 
     test_cfg = get_config(conf_path='yamls/mosaic_gpt/125m.yaml')
-    test_cfg.tokenizer_name = tokenizer_name
     test_cfg.data_local = data_local
     test_cfg.eval_loader.dataset.split = split
 
+    tokenizer = build_tokenizer(
+        om.create({
+            'name': tokenizer_name,
+            'kwargs': {}
+        }))
+
     # Dataloaders
-    eval_loader = build_text_dataloader(test_cfg.eval_loader, batch_size)
+    eval_loader = build_text_dataloader(
+        test_cfg.eval_loader,
+        tokenizer,
+        batch_size,
+    )
     batch = next(iter(eval_loader))
 
     assert batch['input_ids'].shape == torch.Size([batch_size, 2048])
@@ -117,7 +127,6 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
             'remote': path,
             'split': 'val_small',
             'shuffle': False,
-            'tokenizer_name': tokenizer_name,
             'max_seq_len': max_seq_len,
             'packing_ratio': packing_ratio,
             'predownload': 1000,
@@ -143,7 +152,15 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
     if packing_ratio is not None:
         expected_keys += ['sequence_id']
 
-    loader = build_text_denoising_dataloader(cfg, device_batch_size)
+    tokenizer = build_tokenizer(
+        om.create({
+            'name': tokenizer_name,
+            'kwargs': {
+                'model_max_length': max_seq_len
+            }
+        }))
+
+    loader = build_text_denoising_dataloader(cfg, tokenizer, device_batch_size)
     batch_ix = 0
     for batch in loader:
         for k in expected_keys:

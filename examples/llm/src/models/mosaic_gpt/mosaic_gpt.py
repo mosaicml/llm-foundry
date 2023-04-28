@@ -8,7 +8,7 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 import math
 import warnings
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -21,7 +21,8 @@ from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import AutoTokenizer, PreTrainedModel
+from transformers import (PreTrainedModel, PreTrainedTokenizer,
+                          PreTrainedTokenizerFast)
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 import examples.llm.src.models.layers.attention as attention
@@ -30,6 +31,8 @@ from examples.llm.src.models.mosaic_gpt.configuration_mosaic_gpt import \
     MosaicGPTConfig
 from examples.llm.src.models.utils import (MODEL_INIT_REGISTRY,
                                            add_bidirectional_mask_if_missing)
+
+Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
 class MosaicGPT(PreTrainedModel):
@@ -461,26 +464,15 @@ class MosaicGPT(PreTrainedModel):
 
 class ComposerMosaicGPT(HuggingFaceModel):
 
-    def __init__(self, om_model_config: DictConfig,
-                 om_tokenizer_config: DictConfig):
+    def __init__(
+        self,
+        om_model_config: DictConfig,
+        tokenizer: Optional[Tokenizer] = None,
+    ):
         resolved_om_model_config = om.to_container(om_model_config,
                                                    resolve=True)
         hf_config = MosaicGPTConfig.from_dict(resolved_om_model_config)
         model = MosaicGPT(hf_config)
-
-        resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
-                                                       resolve=True)
-        tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
-            'kwargs', {})
-        tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                                  **tokenizer_kwargs)
-
-        # HuggingFace does not respect the model_max_length kwarg, and overrides it with
-        # min(kwargs['model_max_length'], original_config['model_max_length']), so we explicitly
-        # set it here
-        if 'model_max_length' in tokenizer_kwargs:
-            tokenizer.model_max_length = tokenizer_kwargs['model_max_length']
 
         train_metrics = [
             LanguageCrossEntropy(hf_config.vocab_size),

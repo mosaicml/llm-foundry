@@ -1,18 +1,18 @@
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
-
 from typing import Union
 
 from transformers import (AutoTokenizer, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
+
+Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 # For consistency with T5 Tokenizer, which is what this adaptation aims to mimic,
 # we hardcode there to be 100 sentinel tokens
 NUM_SENTINEL_TOKENS: int = 100
 
 
-def adapt_tokenizer_for_denoising(tokenizer: Union[PreTrainedTokenizer,
-                                                   PreTrainedTokenizerFast]):
+def adapt_tokenizer_for_denoising(tokenizer: Tokenizer):
     """Adds sentinel tokens and padding token (if missing).
 
     Expands the tokenizer vocabulary to include sentinel tokens

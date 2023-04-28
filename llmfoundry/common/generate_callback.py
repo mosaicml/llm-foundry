@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 """Periodically log generations to wandb from a set of prompts."""
 from typing import List

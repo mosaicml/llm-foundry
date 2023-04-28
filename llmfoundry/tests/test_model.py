@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import copy
 import os
 import warnings
@@ -15,10 +18,10 @@ from omegaconf import OmegaConf as om
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
-from llm import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
-                          ComposerHFPrefixLM)
-from llm.src.models.layers import NORM_CLASS_REGISTRY, alibi_bias
-from llm.src.models.mosaic_gpt import MosaicGPT, MosaicGPTConfig
+from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
+                        ComposerHFPrefixLM)
+from llmfoundry.models.layers import NORM_CLASS_REGISTRY, alibi_bias
+from llmfoundry.models.mosaic_gpt import MosaicGPT, MosaicGPTConfig
 
 
 def get_config(conf_path='yamls/mosaic_gpt/testing.yaml') -> DictConfig:

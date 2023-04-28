@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
@@ -7,7 +10,7 @@ import torch
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           PreTrainedTokenizer, PreTrainedTokenizerFast)
 
-from llm import MosaicGPT, MosaicGPTConfig
+from llmfoundry import MosaicGPT, MosaicGPTConfig
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 

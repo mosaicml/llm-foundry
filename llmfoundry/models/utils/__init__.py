@@ -1,5 +1,8 @@
-from llm.src.models.utils.adapt_tokenizer import (
-    AutoTokenizerForMOD, adapt_tokenizer_for_denoising)
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
+from llm.src.models.utils.adapt_tokenizer import (AutoTokenizerForMOD,
+                                                  adapt_tokenizer_for_denoising)
 from llm.src.models.utils.hf_prefixlm_converter import (
     add_bidirectional_mask_if_missing, convert_hf_causal_lm_to_prefix_lm)
 from llm.src.models.utils.meta_init_context import init_empty_weights

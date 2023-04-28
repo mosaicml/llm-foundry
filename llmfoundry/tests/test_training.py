@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import warnings
 
@@ -5,7 +8,7 @@ import pytest
 import torch
 from omegaconf import OmegaConf as om
 
-from llm.main import main
+from llmfoundry.main import main
 
 
 def gpt_tiny_cfg(conf_path='yamls/mosaic_gpt/125m.yaml'):

@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Union
 
 from transformers import (AutoTokenizer, PreTrainedTokenizer,

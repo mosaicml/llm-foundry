@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import logging
 import math
 from typing import Callable, Optional, Tuple
@@ -41,9 +44,11 @@ class DecoupledLionW(Optimizer):
             weight_decay: float = 0.0,
     ):
         if lr <= 0.:
-            raise Exception(f"Invalid LR: {lr}. LR must be > 0")
+            raise Exception(f'Invalid LR: {lr}. LR must be > 0')
         if not all([0. <= beta <= 1. for beta in betas]):
-            raise Exception(f"Invalid beta values: {betas} All betas must be between 0 and 1.")
+            raise Exception(
+                f'Invalid beta values: {betas} All betas must be between 0 and 1.'
+            )
         if weight_decay >= 1e-3:
             log.warning(
                 f'You are using a high value of `weight_decay={weight_decay}` for the `DecoupledLionW` optimizer. Are you sure you want to do this? '

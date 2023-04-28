@@ -7,7 +7,7 @@ integrations:
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  cd llm-foundry/llm/inference
+  cd llm-foundry/llmfoundry/inference
   python convert_composer_to_hf.py \
     --composer_path s3://bucket/folder/checkpoint-path.pt \
     --hf_output_path s3://bucket/folder/hf/ \

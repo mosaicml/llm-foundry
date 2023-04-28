@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 import contextlib
 import sys
@@ -5,10 +7,9 @@ import time
 
 import numpy as np
 import torch
+from llm.src import COMPOSER_MODEL_REGISTRY
 # You can use this to load the model weights
 from omegaconf import OmegaConf as om
-
-from llm.src import COMPOSER_MODEL_REGISTRY
 
 
 def get_precision(precision):

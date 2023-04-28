@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 import logging
 from typing import Union
@@ -8,9 +10,9 @@ from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
-from llm.src.data.finetuning.collator import Seq2SeqFinetuningCollator
-from llm.src.data.finetuning.tasks import dataset_constructor
-from llm.src.data.packing import BinPackWrapper
+from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
+from llmfoundry.data.finetuning.tasks import dataset_constructor
+from llmfoundry.data.packing import BinPackWrapper
 
 log = logging.getLogger(__name__)
 
@@ -190,9 +192,8 @@ def _build_collate_fn(dataset_cfg: DictConfig, tokenizer: Tokenizer,
 
 if __name__ == '__main__':
     import torch
-    from omegaconf import OmegaConf as om
-
     from examples.common import build_tokenizer
+    from omegaconf import OmegaConf as om
     cfg = om.create({
         'dataset': {
             'name': 'tatsu-lab/alpaca',

@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import sys
 import time
 from typing import List
@@ -9,8 +12,8 @@ from composer.utils import reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llm.common.builders import build_icl_evaluators, build_logger
-from llm.src.model_registry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.common.builders import build_icl_evaluators, build_logger
+from llmfoundry.model_registry import COMPOSER_MODEL_REGISTRY
 
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]

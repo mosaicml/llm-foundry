@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 """GPT Blocks used for the GPT Model."""
 
 from typing import Optional, Tuple
@@ -5,9 +8,9 @@ from typing import Optional, Tuple
 import torch
 import torch.nn as nn
 
-from llm.src.models.layers.attention import (MultiheadAttention,
-                                                      MultiQueryAttention)
-from llm.src.models.layers.norm import NORM_CLASS_REGISTRY
+from llmfoundry.models.layers.attention import (MultiheadAttention,
+                                                MultiQueryAttention)
+from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
 class GPTMLP(nn.Module):

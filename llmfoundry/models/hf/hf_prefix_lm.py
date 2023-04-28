@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 """Implements a Hugging Prefix LM wrapped inside a :class:`.ComposerModel`."""
 
@@ -8,11 +10,11 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from llm.src.models.hf.model_wrapper import HuggingFaceModelWithZLoss
-from llm.src.models.utils import (AutoTokenizerForMOD,
-                                           add_bidirectional_mask_if_missing,
-                                           convert_hf_causal_lm_to_prefix_lm,
-                                           init_empty_weights)
+from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
+from llmfoundry.models.utils import (AutoTokenizerForMOD,
+                                     add_bidirectional_mask_if_missing,
+                                     convert_hf_causal_lm_to_prefix_lm,
+                                     init_empty_weights)
 
 __all__ = ['ComposerHFPrefixLM']
 

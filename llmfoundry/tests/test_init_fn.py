@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 import math
 from collections import OrderedDict
@@ -10,8 +12,7 @@ from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
 from torch import nn
 
-from llm.src.models.utils import (MODEL_INIT_REGISTRY,
-                                           generic_param_init_fn_)
+from llmfoundry.models.utils import MODEL_INIT_REGISTRY, generic_param_init_fn_
 
 
 class MLP(nn.Module):

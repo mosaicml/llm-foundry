@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 """Code for task-specific seq-to-seq data formatting.
 
 As explained in `README.md`, you can add to this file to define/register

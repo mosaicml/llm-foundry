@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import random
 import time
 import warnings
@@ -7,7 +10,7 @@ from contextlib import nullcontext
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from llm import MosaicGPT, MosaicGPTConfig
+from llmfoundry import MosaicGPT, MosaicGPTConfig
 
 
 def get_dtype(dtype):

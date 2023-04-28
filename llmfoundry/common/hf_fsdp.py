@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 # helper functions from https://github.com/CarperAI/trlx/blob/main/trlx/utils/modeling.py
 # which is MIT licensed

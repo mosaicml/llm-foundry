@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 """Implements a Hugging Face T5 wrapped inside a :class:`.ComposerModel`."""
 
@@ -8,8 +10,8 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import AutoConfig, AutoTokenizer, T5ForConditionalGeneration
 
-from examples.llm.src.models.hf.model_wrapper import HuggingFaceModelWithZLoss
-from examples.llm.src.models.utils import init_empty_weights
+from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
+from llmfoundry.models.utils import init_empty_weights
 
 __all__ = ['ComposerHFT5']
 

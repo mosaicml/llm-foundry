@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 """Basic HuggingFace -> ONNX export script.
 
@@ -34,7 +36,7 @@ from composer.utils import (maybe_create_object_store_from_uri, parse_uri,
                             reproducibility)
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from llm import MosaicGPT, MosaicGPTConfig
+from llmfoundry import MosaicGPT, MosaicGPTConfig
 
 
 def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):

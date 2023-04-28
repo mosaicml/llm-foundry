@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 """Streaming dataset conversion scripts for C4 and The Pile."""
 import os
 import platform

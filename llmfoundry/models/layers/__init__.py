@@ -1,10 +1,12 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
-from examples.llm.src.models.layers.attention import (
+from llmfoundry.models.layers.attention import (
     MultiheadAttention, MultiQueryAttention, alibi_bias, attn_bias,
     attn_bias_shape, flash_attn_fn, scaled_multihead_dot_product_attention,
     triton_flash_attn_fn)
-from examples.llm.src.models.layers.gpt_blocks import GPTMLP, GPTBlock
-from examples.llm.src.models.layers.norm import NORM_CLASS_REGISTRY
+from llmfoundry.models.layers.gpt_blocks import GPTMLP, GPTBlock
+from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 __all__ = [
     'scaled_multihead_dot_product_attention',

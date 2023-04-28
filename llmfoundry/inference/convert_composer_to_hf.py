@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 import json
 import os
@@ -13,7 +15,7 @@ from composer.utils import (get_file, maybe_create_object_store_from_uri,
 from transformers import (AutoConfig, AutoTokenizer, PretrainedConfig,
                           PreTrainedTokenizer)
 
-from llm import MosaicGPTConfig
+from llmfoundry import MosaicGPTConfig
 
 
 # TODO: maybe move this functionality to Composer

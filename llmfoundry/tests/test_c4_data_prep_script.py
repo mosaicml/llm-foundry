@@ -1,9 +1,11 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 import os
 import shutil
 from argparse import Namespace
 
-from llm.common.convert_dataset import main
+from llmfoundry.common.convert_dataset import main
 
 
 def test_download_script_from_api():

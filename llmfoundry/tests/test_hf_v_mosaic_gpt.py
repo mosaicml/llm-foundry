@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 import warnings
 
@@ -6,7 +8,7 @@ import torch
 from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
 
-from llm import COMPOSER_MODEL_REGISTRY
+from llmfoundry import COMPOSER_MODEL_REGISTRY
 
 
 @pytest.mark.gpu

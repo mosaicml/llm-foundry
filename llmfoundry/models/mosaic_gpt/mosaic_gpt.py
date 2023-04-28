@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 """A simple, flexible implementation of a GPT model.
 
@@ -21,13 +23,13 @@ from transformers import (PreTrainedModel, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-import llm.src.models.layers.attention as attention
-import llm.src.models.layers.gpt_blocks as gpt_blocks
-from llm.src.models.layers.norm import NORM_CLASS_REGISTRY
-from llm.src.models.mosaic_gpt.configuration_mosaic_gpt import \
+import llmfoundry.models.layers.attention as attention
+import llmfoundry.models.layers.gpt_blocks as gpt_blocks
+from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
+from llmfoundry.models.mosaic_gpt.configuration_mosaic_gpt import \
     MosaicGPTConfig
-from llm.src.models.utils import (MODEL_INIT_REGISTRY,
-                                           add_bidirectional_mask_if_missing)
+from llmfoundry.models.utils import (MODEL_INIT_REGISTRY,
+                                     add_bidirectional_mask_if_missing)
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 

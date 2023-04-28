@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import math
 import warnings
 from collections.abc import Sequence
@@ -7,7 +10,7 @@ from typing import Optional, Tuple, Union
 import torch
 from torch import nn
 
-from llm.src.models.layers.norm import NORM_CLASS_REGISTRY
+from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
 def torch_default_param_init_fn_(

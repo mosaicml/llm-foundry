@@ -1,9 +1,11 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 import torch
 from composer.utils import reproducibility
 from transformers import AutoConfig, AutoModelForCausalLM
 
-from llm import MosaicGPT, MosaicGPTConfig
+from llmfoundry import MosaicGPT, MosaicGPTConfig
 
 
 def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):

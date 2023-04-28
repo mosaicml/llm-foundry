@@ -2,7 +2,6 @@
 
 import os
 import re
-from typing import Dict, List
 
 from setuptools import setup
 
@@ -46,7 +45,6 @@ classifiers = [
     'Programming Language :: Python :: 3.10',
 ]
 
-
 install_requires = [
     'mosaicml==0.13.4',
     'omegaconf>=2.2.3,<3',
@@ -87,7 +85,6 @@ extra_deps['llm'] = [
     'onnxruntime==1.14.1',
 ]
 
-
 extra_deps['llm-cpu'] = [
     'torch==1.13.1',
     'einops==0.5.0',
@@ -104,7 +101,6 @@ extra_deps['llm-cpu'] = [
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
-
 
 setup(
     name=_PACKAGE_NAME,

@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 """Re-usable :class:`.ComposerModel` for LLM HF Models."""
 
@@ -13,7 +15,7 @@ from composer.models.huggingface import HuggingFaceModel
 from torchmetrics import Metric
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
-from examples.common.hf_fsdp import prepare_hf_model_for_fsdp
+from llmfoundry.common.hf_fsdp import prepare_hf_model_for_fsdp
 
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100

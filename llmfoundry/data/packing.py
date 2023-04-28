@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 from typing import Callable, Dict, List, Literal, Optional, Tuple
 
@@ -256,11 +259,10 @@ def repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
 if __name__ == '__main__':
     from argparse import ArgumentParser, Namespace
 
-    from omegaconf import OmegaConf as om
-
     from examples.common import build_text_dataloader, build_tokenizer
     from examples.llm.src import (build_finetuning_dataloader,
                                   build_text_denoising_dataloader)
+    from omegaconf import OmegaConf as om
 
     def parse_args() -> Namespace:
         """Parse commandline arguments."""

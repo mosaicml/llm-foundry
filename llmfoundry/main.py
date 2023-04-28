@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 import os
 import sys
@@ -8,15 +10,14 @@ from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import OmegaConf as om
 
-from llm.common.builders import (build_algorithm, build_callback,
-                                      build_icl_evaluators, build_logger,
-                                      build_optimizer, build_scheduler,
-                                      build_tokenizer)
-from llm.common.config_utils import log_config, update_batch_size_info
-from llm.common.text_data import build_text_dataloader
-from llm.src import (COMPOSER_MODEL_REGISTRY,
-                              build_finetuning_dataloader,
-                              build_text_denoising_dataloader)
+from llmfoundry import (COMPOSER_MODEL_REGISTRY, build_finetuning_dataloader,
+                        build_text_denoising_dataloader)
+from llmfoundry.common.builders import (build_algorithm, build_callback,
+                                        build_icl_evaluators, build_logger,
+                                        build_optimizer, build_scheduler,
+                                        build_tokenizer)
+from llmfoundry.common.config_utils import log_config, update_batch_size_info
+from llmfoundry.common.text_data import build_text_dataloader
 
 
 def validate_config(cfg):

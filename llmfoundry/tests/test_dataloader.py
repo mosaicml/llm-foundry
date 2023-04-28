@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import shutil
 
@@ -5,11 +8,11 @@ import pytest
 import torch
 from omegaconf import OmegaConf as om
 
-from llm.common.builders import build_tokenizer
-from llm.common.text_data import (ConcatenatedSequenceCollatorWrapper,
-                                       build_text_dataloader)
-from llm.src import (build_finetuning_dataloader,
-                              build_text_denoising_dataloader)
+from llmfoundry import (build_finetuning_dataloader,
+                        build_text_denoising_dataloader)
+from llmfoundry.common.builders import build_tokenizer
+from llmfoundry.common.text_data import (ConcatenatedSequenceCollatorWrapper,
+                                         build_text_dataloader)
 
 
 def get_config(conf_path='yamls/mosaic_gpt/125m.yaml'):

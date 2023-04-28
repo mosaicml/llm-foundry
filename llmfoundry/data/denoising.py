@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 """Streaming dataloader for (mixture of) denoising task(s)."""
 
 import logging
@@ -12,9 +15,9 @@ from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
-from llm.common.text_data import StreamingTextDataset
-from llm.data.packing import BinPackWrapper
-from llm.models import utils
+from llmfoundry.common.text_data import StreamingTextDataset
+from llmfoundry.data.packing import BinPackWrapper
+from llmfoundry.models import utils
 
 __all__ = ['MixtureOfDenoisersCollator', 'build_text_denoising_dataloader']
 

@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 import os
 from argparse import ArgumentParser, Namespace
@@ -8,7 +10,7 @@ from streaming import MDSWriter
 from torch.utils.data import IterableDataset
 from tqdm import tqdm
 
-from llm.common.convert_dataset import build_dataloader, generate_samples
+from llmfoundry.common.convert_dataset import build_dataloader, generate_samples
 
 
 def parse_args() -> Namespace:

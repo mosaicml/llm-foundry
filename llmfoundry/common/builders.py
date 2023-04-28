@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 from typing import Union
 
@@ -18,14 +21,15 @@ from omegaconf import OmegaConf as om
 from transformers import (AutoTokenizer, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
 
-from llm.common.fdiff import FDiffMetrics
-from llm.common.generate_callback import Generate
-from llm.common.monolithic_ckpt_callback import MonolithicCheckpointSaver
-from llm.common.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                                   DecoupledLionW)
-from llm.common.resumption_callbacks import GlobalLRScaling, LayerFreezing
-from llm.common.scheduled_gc_callback import ScheduledGarbageCollector
-from llm.common.text_data import Tokenizer, build_text_dataloader
+from llmfoundry.common.fdiff import FDiffMetrics
+from llmfoundry.common.generate_callback import Generate
+from llmfoundry.common.monolithic_ckpt_callback import MonolithicCheckpointSaver
+from llmfoundry.common.optim import (DecoupledAdaLRLion, DecoupledClipLion,
+                                     DecoupledLionW)
+from llmfoundry.common.resumption_callbacks import (GlobalLRScaling,
+                                                    LayerFreezing)
+from llmfoundry.common.scheduled_gc_callback import ScheduledGarbageCollector
+from llmfoundry.common.text_data import Tokenizer, build_text_dataloader
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 

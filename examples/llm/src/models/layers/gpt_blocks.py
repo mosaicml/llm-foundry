@@ -8,7 +8,8 @@ from typing import Optional, Tuple
 import torch
 import torch.nn as nn
 
-from examples.llm.src.models.layers.attention import MultiheadAttention
+from examples.llm.src.models.layers.attention import (MultiheadAttention,
+                                                      MultiQueryAttention)
 from examples.llm.src.models.layers.norm import NORM_CLASS_REGISTRY
 
 
@@ -42,15 +43,17 @@ class GPTBlock(nn.Module):
                  alibi: bool = False,
                  resid_pdrop: float = 0.0,
                  norm_type: str = 'low_precision_layernorm',
+                 multiquery_attention: bool = False,
                  device: Optional[str] = None,
                  **kwargs):
         del kwargs  # unused, just to capture any extra args from the config
         super().__init__()
 
         norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
+        attn_class = MultiQueryAttention if multiquery_attention else MultiheadAttention
 
         self.norm_1 = norm_class(d_model, device=device)
-        self.attn = MultiheadAttention(
+        self.attn = attn_class(
             attn_impl=attn_impl,
             attn_clip_qkv=attn_clip_qkv,
             attn_qk_ln=attn_qk_ln,

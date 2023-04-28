@@ -15,7 +15,7 @@ source "$ENV_NAME/bin/activate"
 
 echo "Installing requirements..."
 pip install --upgrade 'pip<23'
-pip install -I ".[llm-cpu]"  # setup.py merges repo + subdir deps + strips gpu deps
+pip install -I ".[dev]"  # setup.py merges repo + subdir deps + strips gpu deps
 
 echo "Running checks on files:"
 pre-commit run --files $FILES && pyright $FILES

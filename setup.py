@@ -53,6 +53,17 @@ install_requires = [
     'mosaicml-streaming==0.4.0',
     'pynvml<12',
     'slack-sdk<4',
+    'torch==1.13.1',
+    'einops==0.5.0',
+    'mosaicml-cli>=0.2.32,<1',
+    'transformers==4.28.1',
+    'omegaconf==2.2.3',
+    'wandb==0.13.6',
+    'pytest>=7.2.1,<8',
+    'torchmetrics==0.11.3',
+    'sentencepiece==0.1.97',
+    'onnx==1.13.1',
+    'onnxruntime==1.14.1',
 ]
 
 extra_deps = {}
@@ -67,37 +78,10 @@ extra_deps['dev'] = [
     'packaging>=21,<23',
 ]
 
-extra_deps['llm'] = [
-    'torch==1.13.1',
-    'einops==0.5.0',
-    'mosaicml-streaming==0.4.0',
+extra_deps['llm-gpu'] = [
     'flash-attn==v1.0.3.post0',
-    'mosaicml-cli>=0.2.32,<1',
     'triton==2.0.0.dev20221202',
-    'transformers==4.28.1',
-    'omegaconf==2.2.3',
-    'wandb==0.13.6',
-    'pytest>=7.2.1,<8',
-    'torchmetrics==0.11.3',
-    'sentencepiece==0.1.97',
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v0.2.8#subdirectory=csrc/xentropy',
-    'onnx==1.13.1',
-    'onnxruntime==1.14.1',
-]
-
-extra_deps['llm-cpu'] = [
-    'torch==1.13.1',
-    'einops==0.5.0',
-    'mosaicml-streaming==0.4.0',
-    'mosaicml-cli>=0.2.32,<1',
-    'transformers==4.28.1',
-    'omegaconf==2.2.3',
-    'wandb==0.13.6',
-    'pytest>=7.2.1,<8',
-    'torchmetrics==0.11.3',
-    'sentencepiece==0.1.97',
-    'onnx==1.13.1',
-    'onnxruntime==1.14.1',
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)

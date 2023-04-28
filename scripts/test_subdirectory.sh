@@ -19,7 +19,7 @@ source "$ENV_NAME/bin/activate"
 
 echo "Installing requirements..."
 pip install --upgrade 'pip<23'
-pip install -I ".[llm-cpu]"  # we rely on docker image to handle flash-attn, etc
+pip install -I ".[dev]"  # we rely on docker image to handle flash-attn, etc
 
 # run tests using project pytest config
 python -m pytest tests

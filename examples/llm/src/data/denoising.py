@@ -386,6 +386,8 @@ def build_text_denoising_dataloader(
                     packing.
                     Select packing_ratio **carefully** based on the dataset
                     statistics, max_seq_len, and tolerance for discarding samples!
+                    The packing code in `./packing.py` provides a script that can help
+                    you choose the best packing_ratio.
             See :class:`StreamingTextDataset` for info on other standard config
                 options within `cfg.dataset`.
             ---
@@ -414,6 +416,11 @@ def build_text_denoising_dataloader(
             be added by the collator.
         device_batch_size (int): The size of the batches (number of examples)
             that the dataloader will produce.
+
+    Note:
+        You can run the script inside `./packing.py` to quickly test the
+        padding/waste rates for different `cfg.dataset.packing_ratio` choices,
+        given a starting workload YAML.
     """
     assert cfg.name == 'text_denoising', f'Tried to build_denoising text dataloader with cfg.name={cfg.name}'
 

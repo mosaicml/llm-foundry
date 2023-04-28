@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from examples.llm.src.data import (MixtureOfDenoisersCollator,
+                                   Seq2SeqFinetuningCollator,
+                                   build_finetuning_dataloader,
                                    build_text_denoising_dataloader)
 from examples.llm.src.model_registry import COMPOSER_MODEL_REGISTRY
 from examples.llm.src.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
@@ -15,9 +17,11 @@ from examples.llm.src.models.mosaic_gpt import (ComposerMosaicGPT, MosaicGPT,
 
 __all__ = [
     'build_text_denoising_dataloader',
+    'build_finetuning_dataloader',
     'flash_attn_fn',
     'triton_flash_attn_fn',
     'MixtureOfDenoisersCollator',
+    'Seq2SeqFinetuningCollator',
     'ComposerHFCausalLM',
     'ComposerHFPrefixLM',
     'ComposerHFT5',

@@ -1,8 +1,10 @@
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 from typing import Callable, Dict, List, Literal, Optional, Tuple
 
+import numpy as np
 import torch
 
 
@@ -134,19 +136,41 @@ def first_fit_bin_packing(
 
     starting_total_bin_sizes = sum([bin_size for bin_size, _ in bins])
 
-    required_num_examples = max(0, num_bins - len(bins))
-    num_examples = len(sizes)
-    if num_examples < required_num_examples:
-        raise ValueError(
-            f'Cannot pack {num_examples} examples into {num_bins} bins, starting from {len(bins)} existing bins.'
-        )
-
     sizes_and_examples = [
         (size, example) for size, example in zip(sizes, examples)
     ]
     sorted_sizes_and_examples = sorted(sizes_and_examples,
                                        key=lambda x: x[0],
                                        reverse=True)
+
+    required_num_examples = max(0, num_bins - len(bins))
+    num_examples = len(sizes)
+    if num_examples < required_num_examples:
+        for size, example in sorted_sizes_and_examples:
+            # Can't keep packing. All remaining items get their own bin.
+            bins.append((size, example))
+
+        total_bin_sizes = sum([bin_size for bin_size, _ in bins])
+        total_new_bin_sizes = total_bin_sizes - starting_total_bin_sizes
+        total_example_sizes = sum(sizes)
+        if total_new_bin_sizes != total_example_sizes:
+            raise AssertionError(
+                f'Error in packing. {total_example_sizes=} does not equal {total_new_bin_sizes=}.'
+            )
+
+        sorted_bins = sorted(bins, key=lambda x: x[0], reverse=True)
+        bin_sizes, packed_examples = [], []
+        for bin_size, packed_example in sorted_bins:
+            bin_sizes.append(bin_size)
+            packed_examples.append(packed_example)
+
+        # Return:
+        #  - the num_bins largest packed examples
+        #  - the total tokens in those examples
+        #  - the total size of all new examples
+        #  - leftover bins
+        return packed_examples[:num_bins], sum(
+            bin_sizes[:num_bins]), sum(sizes), sorted_bins[num_bins:]
 
     # Go through each item from longest to shortest.
     # Note: all items will either go into an existing or new bin.
@@ -230,3 +254,155 @@ def repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
             for example in packed_examples
         ])
     return batch
+
+
+if __name__ == '__main__':
+    from argparse import ArgumentParser, Namespace
+
+    from omegaconf import OmegaConf as om
+
+    from examples.common import build_text_dataloader, build_tokenizer
+    from examples.llm.src import (build_finetuning_dataloader,
+                                  build_text_denoising_dataloader)
+
+    def parse_args() -> Namespace:
+        """Parse commandline arguments."""
+        parser = ArgumentParser(
+            description=
+            'Profile packing_ratio choices for a particular workload.')
+        parser.add_argument(
+            '--yaml-path',
+            type=str,
+            required=True,
+            help='Path to the YAML that defines the workload to profile.')
+        parser.add_argument('--num-devices',
+                            type=int,
+                            default=None,
+                            help='How many devices your run will use.')
+        parser.add_argument('--min',
+                            type=float,
+                            required=True,
+                            help='Smallest packing_ratio to test. Must be >=1.')
+        parser.add_argument(
+            '--max',
+            type=float,
+            required=True,
+            help='Largest packing_ratio to test. Must be larger than `min`.')
+        parser.add_argument(
+            '--num-packing-ratios',
+            type=int,
+            default=10,
+            help=
+            'Number of packing_ratio values (spaced between `min` and `max) to try.'
+        )
+
+        args = parser.parse_args()
+
+        if not os.path.isfile(args.yaml_path):
+            raise FileNotFoundError(
+                '`yaml_path` does not correspond to any existing file.')
+        if args.num_devices < 1:
+            raise ValueError('`num_devices` must be a positive integer.')
+        if args.min < 1.0:
+            raise ValueError('`min` must be >=1.0.')
+        if args.max < args.min:
+            raise ValueError('`max` cannot be less than `min`.')
+        if args.num_packing_ratios < 1:
+            raise ValueError('`num_packing_ratios` must be a positive integer.')
+        return args
+
+    def build_dataloader(cfg, tokenizer, device_batch_size):
+        if cfg.name == 'text':
+            return build_text_dataloader(cfg, tokenizer, device_batch_size)
+        elif cfg.name == 'text_denoising':
+            return build_text_denoising_dataloader(cfg, tokenizer,
+                                                   device_batch_size)
+        elif cfg.name == 'finetuning':
+            return build_finetuning_dataloader(cfg, tokenizer,
+                                               device_batch_size)
+        else:
+            raise ValueError(
+                f'Not sure how to build dataloader with config: {cfg}')
+
+    args = parse_args()
+
+    with open(args.yaml_path) as f:
+        cfg = om.load(f)
+    if 'parameters' in cfg:
+        cfg = om.to_container(cfg.parameters)
+        cfg = om.create(cfg)
+    device_batch_size = cfg.global_train_batch_size // args.num_devices
+
+    # Determine the packing_ratio values we'll try
+    packing_ratios, raw_batch_sizes = [], []
+    for packing_ratio in np.linspace(args.min,
+                                     args.max,
+                                     args.num_packing_ratios,
+                                     endpoint=True):
+        packing_ratio = np.round(10 * packing_ratio) / 10
+        raw_batch_size = int(packing_ratio * device_batch_size)
+        if raw_batch_size not in raw_batch_sizes:
+            packing_ratios.append(packing_ratio)
+            raw_batch_sizes.append(raw_batch_size)
+
+    # Fetch a bunch of raw examples once, which we'll re-use
+    if 'train_loader' not in cfg:
+        raise ValueError('config must define train_loader')
+    dataloader_cfg = cfg.train_loader
+
+    max_leftovers_to_keep = dataloader_cfg.dataset.get('max_leftovers_to_keep',
+                                                       None)
+
+    # build tokenizer
+    if 'tokenizer' not in cfg:
+        raise ValueError('config must define tokenizer')
+    tokenizer = build_tokenizer(cfg.tokenizer)
+
+    # Turn off packing for the dataloader (we want raw, pre-packed examples)
+    dataloader_cfg.dataset.packing_ratio = None
+    dataloader_cfg.dataset.max_leftovers_to_keep = None
+    train_dataloader = build_dataloader(dataloader_cfg, tokenizer,
+                                        max(raw_batch_sizes) * 100)
+
+    # Get a bunch of raw examples
+    big_batch = next(iter(train_dataloader))
+
+    def split_big_batch(raw_batch_size: int) -> List:
+        input_ids = big_batch['input_ids'].split(raw_batch_size)
+        batches = [{'input_ids': x} for x in input_ids]
+
+        for key in big_batch.keys():
+            if key == 'input_ids':
+                continue
+            for idx, split in enumerate(big_batch[key].split(raw_batch_size)):
+                batches[idx].update({key: split})
+        return batches
+
+    def profile_packing(raw_batch_size: int) -> Tuple[float, float]:
+        packer = BinPackWrapper(
+            collator=lambda x: x,
+            target_batch_size=device_batch_size,
+            max_seq_len=dataloader_cfg.dataset.max_seq_len,
+            pad_token_id=0,  # <-- Doesn't need to be correct for profiling
+            padding_side='left',  # <-- Doesn't need to be correct for profiling
+            max_leftover_bins_to_keep=max_leftovers_to_keep)
+
+        # Simulate feeding the packing collator a bunch of data
+        for batch in split_big_batch(raw_batch_size):
+            if batch['input_ids'].shape[0] < device_batch_size:
+                continue
+            _ = packer(batch)
+
+        # Return the padding / waste stats over that bunch of data
+        padding_percent = 100 * (1 - packer.efficiency)
+        waste_percent = 100 * packer.waste
+        return padding_percent, waste_percent
+
+    header = '\n\n\n packing_ratio | % PADDING | % WASTE'
+    fstr = '        {:5.1f}  |  {:5.2f}%   | {:6.2f}%'
+
+    print(header)
+    print('-' * len(header))
+    for packing_ratio, raw_batch_size in zip(packing_ratios, raw_batch_sizes):
+        padding, waste = profile_packing(raw_batch_size)
+        print(fstr.format(packing_ratio, padding, waste))

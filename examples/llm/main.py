@@ -17,6 +17,7 @@ from examples.common.builders import (build_algorithm, build_callback,
 from examples.common.config_utils import log_config, update_batch_size_info
 from examples.common.text_data import build_text_dataloader
 from examples.llm.src import (COMPOSER_MODEL_REGISTRY,
+                              build_finetuning_dataloader,
                               build_text_denoising_dataloader)
 
 
@@ -78,6 +79,13 @@ def build_dataloader(cfg, tokenizer, device_batch_size):
             tokenizer,
             device_batch_size,
         )
+    elif cfg.name == 'finetuning':
+        return build_finetuning_dataloader(
+            cfg,
+            tokenizer,
+            device_batch_size,
+        )
+
     else:
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 

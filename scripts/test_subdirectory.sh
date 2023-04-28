@@ -22,7 +22,7 @@ pip install --upgrade 'pip<23'
 target=$(echo $1 | tr '_' '-')
 pip install -I ".[$target-cpu]"  # we rely on docker image to handle flash-attn, etc
 
-DIRECTORY="examples/$1"
+DIRECTORY="$1"
 cp pyproject.toml "$DIRECTORY"
 cd "$DIRECTORY"
 

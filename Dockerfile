@@ -5,7 +5,7 @@ FROM mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 
 ARG EXAMPLE
 COPY requirements.txt requirements.txt
-COPY examples/${EXAMPLE}/requirements.txt ${EXAMPLE}-requirements.txt
+COPY llm-foundry/${EXAMPLE}/requirements.txt ${EXAMPLE}-requirements.txt
 
 RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir -r ${EXAMPLE}-requirements.txt && \

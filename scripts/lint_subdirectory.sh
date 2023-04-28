@@ -19,7 +19,7 @@ target=$(echo $1 | tr '_' '-')
 pip install -I ".[$target-cpu]"  # setup.py merges repo + subdir deps + strips gpu deps
 
 echo "Running checks on files:"
-FILES=$(find "examples/$1" -type f | grep -v '.pyc')
+FILES=$(find "$1" -type f | grep -v '.pyc')
 echo $FILES
 pre-commit run --files $FILES && pyright $FILES
 STATUS=$?

@@ -17,33 +17,8 @@ jobs:
   pytest:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      matrix:
-        include:
-        - name: bert-pytest
-          container: mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
-          subdir: bert
-        - name: resnet-cifar-pytest
-          container: mosaicml/pytorch_vision:1.13.1_cpu-python3.10-ubuntu20.04
-          subdir: resnet_cifar
-        - name: deeplab-pytest
-          container: mosaicml/pytorch_vision:1.13.1_cpu-python3.10-ubuntu20.04
-          subdir: deeplab
-        - name: llm-pytest
-          container: mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
-          subdir: llm
-        - name: resnet-imagenet-pytest
-          container: mosaicml/pytorch_vision:1.13.1_cpu-python3.10-ubuntu20.04
-          subdir: resnet_imagenet
-        - name: stable-diffusion-pytest
-          container: mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
-          subdir: stable_diffusion
-        - name: stable-diffusion-dreambooth-pytest
-          container: mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
-          subdir: stable_diffusion_dreambooth
-
     name: ${{ matrix.name }}
-    container: ${{ matrix.container }}
+    container: mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
     steps:
     - uses: actions/checkout@v3
     - name: Setup
@@ -54,4 +29,4 @@ jobs:
     - name: Test
       run: |
         export PATH=/composer-python:$PATH
-        bash scripts/test_subdirectory.sh ${{ matrix.subdir }}
+        bash scripts/test.sh

@@ -1,15 +1,12 @@
-"""MosaicML examples package setup."""
+"""MosaicML LLM Foundry package setup."""
 
 import os
 import re
-from typing import Dict, List
 
 from setuptools import setup
 
-_PACKAGE_NAME = 'mosaicml-examples'
-_PACKAGE_DIR = 'examples'
-_EXAMPLE_SUBDIRS = ('resnet_cifar', 'resnet_imagenet', 'deeplab', 'bert', 'llm',
-                    'stable_diffusion', 'stable_diffusion_dreambooth')
+_PACKAGE_NAME = 'mosaicml-llm'
+_PACKAGE_DIR = 'llmfoundry'
 _REPO_REAL_PATH = os.path.dirname(os.path.realpath(__file__))
 _PACKAGE_REAL_PATH = os.path.join(_REPO_REAL_PATH, _PACKAGE_DIR)
 
@@ -48,54 +45,53 @@ classifiers = [
     'Programming Language :: Python :: 3.10',
 ]
 
-with open(os.path.join(_REPO_REAL_PATH, 'requirements.txt'), 'r') as f:
-    install_requires = f.readlines()
-
-
-def _dependencies_as_dict(deps: List[str]) -> Dict[str, str]:
-    """map, e.g., 'foo>=1.5,<1.6' -> {'foo': '>=1.5,<1.6'}"""
-    ret = {}
-    for dep in deps:
-        elems = re.split('([=><@])', dep.strip())
-        ret[elems[0]] = ''.join(elems[1:])
-    return ret
-
-
-def _merge_dependencies(deps_base: List[str],
-                        deps_update: List[str],
-                        cpu_only: bool = False):
-    """Subdir requirements.txt supersedes repo requirements."""
-    base_dict = _dependencies_as_dict(deps_base)
-    base_dict.update(_dependencies_as_dict(deps_update))
-    base_dict.pop(_PACKAGE_NAME, None)  # avoid circular dependencies
-    if cpu_only:
-        # these packages can't even be installed unless there's actually
-        # a GPU on your machine
-        base_dict.pop('flash-attn', None)
-        base_dict.pop('triton', None)
-        base_dict.pop('xentropy-cuda-lib', None)
-    return [k + v for k, v in base_dict.items()]  # 'foo': '>3' -> 'foo>3'
-
+install_requires = [
+    'mosaicml==0.13.4',
+    'omegaconf>=2.2.3,<3',
+    'datasets==2.10.1',
+    'transformers>=4.25.1,<4.29',
+    'mosaicml-streaming==0.4.0',
+    'pynvml<12',
+    'slack-sdk<4',
+    'torch==1.13.1',
+    'einops==0.5.0',
+    'mosaicml-cli>=0.2.32,<1',
+    'transformers==4.28.1',
+    'omegaconf==2.2.3',
+    'wandb==0.13.6',
+    'pytest>=7.2.1,<8',
+    'torchmetrics==0.11.3',
+    'sentencepiece==0.1.97',
+    'onnx==1.13.1',
+    'onnxruntime==1.14.1',
+]
 
 extra_deps = {}
-for name in _EXAMPLE_SUBDIRS:
-    subdir_path = os.path.join(_PACKAGE_REAL_PATH, name, 'requirements.txt')
-    with open(subdir_path, 'r') as f:
-        name = name.replace('_', '-')
-        lines = f.readlines()
-        extra_deps[name] = _merge_dependencies(install_requires,
-                                               lines,
-                                               cpu_only=False)
-        extra_deps[f'{name}-cpu'] = _merge_dependencies(install_requires,
-                                                        lines,
-                                                        cpu_only=True)
+
+extra_deps['dev'] = [
+    'pre-commit>=2.18.1,<3',
+    'pytest>=7.2.1,<8',
+    'pytest_codeblocks>=0.16.1,<0.17',
+    'pytest-cov>=4,<5',
+    'pyright==1.1.296',
+    'toml>=0.10.2,<0.11',
+    'packaging>=21,<23',
+]
+
+extra_deps['gpu'] = [
+    'flash-attn==v1.0.3.post0',
+    'triton==2.0.0.dev20221202',
+    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v0.2.8#subdirectory=csrc/xentropy',
+]
+
+extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
 
 setup(
     name=_PACKAGE_NAME,
     version=repo_version,
     author='MosaicML',
     author_email='team@mosaicml.com',
-    description='Optimized starter code for deep learning training + evaluation',
+    description='LLM Foundry',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/mosaicml/examples/',

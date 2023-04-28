@@ -17,30 +17,15 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      matrix:
-        python_version:
-        - '3.9'
-        subdir:
-        - bert
-        - resnet_cifar
-        - deeplab
-        - llm
-        - resnet_imagenet
-        - stable_diffusion
-        - stable_diffusion_dreambooth
-        - nemo
-        - gpt_neox
-        - trlx
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python_version }}
+        python-version: 3.9
     - name: Setup
       run: |
         set -ex
         python -m pip install --upgrade 'pip<23' wheel
     - name: Lint
       run: |
-        bash scripts/lint_subdirectory.sh ${{ matrix.subdir }}
+        bash scripts/lint.sh

@@ -1,6 +1,5 @@
 # Data
 my-copy-c4*/
-examples/deeplab/ade20k
 *.jsonl*
 
 # WandB

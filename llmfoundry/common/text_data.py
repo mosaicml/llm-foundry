@@ -166,8 +166,8 @@ class ConcatenatedSequenceCollatorWrapper:
     def __init__(
         self,
         base_collator: Callable,
-        eos_token_id: int = None,
-        bos_token_id: int = None,
+        eos_token_id=None,
+        bos_token_id=None,
     ):
         self.base_collator = base_collator
         if (eos_token_id is None) and (bos_token_id is None):
@@ -194,7 +194,7 @@ class ConcatenatedSequenceCollatorWrapper:
 
     def get_sequence_id_from_batch(
             self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
-        is_separator = torch.eq(batch['input_ids'], self.split_token_id)
+        is_separator = torch.eq(batch['input_ids'], self.split_token_id)  # type: ignore
         cumulative_sep = torch.cumsum(is_separator,
                                       dim=1).to(batch['input_ids'].dtype)
         # If separator token is bos, we're already done

@@ -324,7 +324,7 @@ def get_integrations(project, git_branch=None, git_commit=None, wandb=True):
     git_integration.update({
         'integration_type': 'git_repo',
         'git_repo': 'mosaicml/examples',
-        'pip_install': '-e .[llm]'
+        'pip_install': '-e .[gpu]'
     })
 
     integrations = [git_integration]

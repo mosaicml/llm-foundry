@@ -25,23 +25,22 @@ class FDiffMetrics(Callback):
 
     def batch_end(self, state: State, logger: Logger):
         if self.diff_train_metrics:
+            loss = state.loss.item()  # type: ignore
             if self.train_prev_loss:
-                logger.log_metrics({
-                    'loss/train/total_fdiff':
-                        state.loss.item() - self.train_prev_loss
-                })
-
-            self.train_prev_loss = state.loss.item()
+                logger.log_metrics(
+                    {'loss/train/total_fdiff': loss - self.train_prev_loss})
+            self.train_prev_loss = loss
 
             for k in self.train_prev_metric.keys():
                 logger.log_metrics({
                     f'metrics/train/{k}_fdiff':
-                        state.train_metric_values[k].item() -
+                        state.train_metric_values[k].item() -  # type: ignore
                         self.train_prev_metric[k]
                 })
 
             for k in state.train_metric_values.keys():
-                self.train_prev_metric[k] = state.train_metric_values[k].item()
+                value = state.train_metric_values[k].item()  # type: ignore
+                self.train_prev_metric[k] = value
 
     def eval_end(self, state: State, logger: Logger):
         if self.diff_eval_metrics:

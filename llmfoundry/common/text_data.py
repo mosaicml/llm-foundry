@@ -178,12 +178,12 @@ class ConcatenatedSequenceCollatorWrapper:
                 'Please supply `eos_token_id` if sequences end with an EOS token, or use ' +\
                 '`bos_token_id` if sequences start with a BOS token.'
             )
+
+        self.split_token_id = eos_token_id
+        self.bos_mode = False
         if eos_token_id is None:
             self.split_token_id = bos_token_id
             self.bos_mode = True
-        else:
-            self.split_token_id = eos_token_id
-            self.bos_mode = False
 
     def __call__(self, examples: List[Any]) -> Dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
@@ -301,7 +301,7 @@ def build_text_dataloader(
 if __name__ == '__main__':
     import argparse
 
-    from examples.common.builders import build_tokenizer
+    from llmfoundry.common.builders import build_tokenizer
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--tokenizer',

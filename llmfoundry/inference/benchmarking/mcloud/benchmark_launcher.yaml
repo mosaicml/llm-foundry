@@ -5,7 +5,7 @@ image: mosaicml/composer:0.13.4
 integrations:
   - integration_type: git_repo
     git_repo: mosaicml/llm-foundry
-    pip_install: ".[gpu]"
+    pip_install: '.[gpu]'
 
   - integration_type: git_repo
     git_repo: mosaicml/composer
@@ -14,7 +14,7 @@ integrations:
     # We will remove this install when we have a release
     # with the appropriate changes.
     git_commit: 20fb86b476d91749528a989265c3e211eb1d774d
-    pip_install: ".[all]"
+    pip_install: '.[all]'
 
 command: |
   cd llm-foundry/llm/inference/benchmarking/

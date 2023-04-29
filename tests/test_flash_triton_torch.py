@@ -126,7 +126,7 @@ def test_attn_impl(attn_impl_0,
 @pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
 def test_vs_mha(attn_impl, device='cuda'):
     """Compare diff attn_impl to torch.nn.MultiheadAttention."""
-    from llm.src.models.layers import attention  # type: ignore
+    from llmfoundry.models.layers import attention  # type: ignore
 
     reproducibility.seed_all(17)
 

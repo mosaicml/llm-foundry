@@ -130,7 +130,7 @@ class StreamingTextDataset(StreamingDataset):
         self.max_seq_len = max_seq_len
 
     # How to tokenize a text sample to a token sample
-    def _tokenize(self, text_sample) -> Dict[str, Any]:
+    def _tokenize(self, text_sample):
         if self.tokenizer._pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             raise RuntimeError(
@@ -141,13 +141,13 @@ class StreamingTextDataset(StreamingDataset):
                               padding='max_length',
                               max_length=self.max_seq_len)
 
-    def _read_binary_tokenized_sample(self, sample) -> Dict[str, Any]:
+    def _read_binary_tokenized_sample(self, sample):
         return torch.from_numpy(
             np.frombuffer(sample['tokens'],
                           dtype=np.int64)[:self.max_seq_len].copy())
 
     # How to process a sample
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def __getitem__(self, idx: int):
         sample = super().__getitem__(idx)
         if 'text' in sample:
             token_sample = self._tokenize(sample)

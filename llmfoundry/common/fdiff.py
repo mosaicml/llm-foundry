@@ -57,6 +57,6 @@ class FDiffMetrics(Callback):
                     })
 
             for k in metrics:
-                mkey = '/'.join(['metrics', evaluator, k])
+                mkey = '/'.join(['metrics', evaluator, k])  # type: ignore
                 value = state.eval_metric_values[k].item()  # type: ignore
                 self.eval_prev_metric[mkey] = value

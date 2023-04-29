@@ -45,18 +45,18 @@ class FDiffMetrics(Callback):
     def eval_end(self, state: State, logger: Logger):
         if self.diff_eval_metrics:
             evaluator = state.dataloader_label
-            metrics = list(state.eval_metrics[evaluator].keys())
+            metrics = list(state.eval_metrics[evaluator].keys())  # type: ignore
 
             for k in metrics:
-                mkey = '/'.join(['metrics', evaluator, k])
+                mkey = '/'.join(['metrics', evaluator, k])  # type: ignore
                 if mkey in self.eval_prev_metric.keys():
                     logger.log_metrics({
                         f'{mkey}_fdiff':
-                            state.eval_metric_values[k].item() -
+                            state.eval_metric_values[k].item() -  # type: ignore
                             self.eval_prev_metric[mkey]
                     })
 
             for k in metrics:
                 mkey = '/'.join(['metrics', evaluator, k])
-                value = state.eval_metric_values[k].item()
+                value = state.eval_metric_values[k].item()  # type: ignore
                 self.eval_prev_metric[mkey] = value

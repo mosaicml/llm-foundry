@@ -130,7 +130,7 @@ class StreamingTextDataset(StreamingDataset):
         self.max_seq_len = max_seq_len
 
     # How to tokenize a text sample to a token sample
-    def _tokenize(self, text_sample):
+    def _tokenize(self, text_sample) -> Dict[str, Any]:
         if self.tokenizer._pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             raise RuntimeError(
@@ -141,7 +141,7 @@ class StreamingTextDataset(StreamingDataset):
                               padding='max_length',
                               max_length=self.max_seq_len)
 
-    def _read_binary_tokenized_sample(self, sample):
+    def _read_binary_tokenized_sample(self, sample) -> Dict[str, Any]:
         return torch.from_numpy(
             np.frombuffer(sample['tokens'],
                           dtype=np.int64)[:self.max_seq_len].copy())
@@ -163,10 +163,12 @@ class StreamingTextDataset(StreamingDataset):
 class ConcatenatedSequenceCollatorWrapper:
     """Collator wrapper to add sequence_id to batch."""
 
-    def __init__(self,
-                 base_collator: Callable,
-                 eos_token_id: Optional[int] = None,
-                 bos_token_id: Optional[int] = None):
+    def __init__(
+        self,
+        base_collator: Callable,
+        eos_token_id: int = None,
+        bos_token_id: int = None,
+    ):
         self.base_collator = base_collator
         if (eos_token_id is None) and (bos_token_id is None):
             raise ValueError(

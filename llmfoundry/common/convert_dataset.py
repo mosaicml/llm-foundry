@@ -270,15 +270,17 @@ class ConcatTokensDataset(IterableDataset):
                 }
 
 
-def build_hf_dataset(dataset_name: str,
-                     split: str,
-                     mode: ConcatMode,
-                     max_length: int = None,
-                     bos_text: str = '',
-                     eos_text: str = '',
-                     no_wrap: bool = False,
-                     tokenizer: PreTrainedTokenizerBase = None,
-                     data_subset: Union[str, None] = None) -> IterableDataset:
+def build_hf_dataset(
+    dataset_name: str,
+    split: str,
+    mode: ConcatMode,
+    max_length: int = 0,
+    bos_text: str = '',
+    eos_text: str = '',
+    no_wrap: bool = False,
+    tokenizer: PreTrainedTokenizerBase = None,
+    data_subset: Union[str, None] = None,
+) -> IterableDataset:
     """Build an IterableDataset over the HF C4 or pile source data.
 
     Args:
@@ -301,9 +303,10 @@ def build_hf_dataset(dataset_name: str,
                                   split=split)
     else:
         if not isinstance(tokenizer, PreTrainedTokenizerBase):
-            raise ValueError(f'{tokenizer=} must be of type PreTrainedTokenizerBase')
-        if max_length is None:
-            raise ValueError(f'please set {max_length=}')
+            raise ValueError(
+                f'{tokenizer=} must be of type PreTrainedTokenizerBase')
+        if max_length == 0:
+            raise ValueError(f'max_length must be set.')
         if bos_text + eos_text == '':
             test_tokens = tokenizer('test')
             if test_tokens['input_ids'][

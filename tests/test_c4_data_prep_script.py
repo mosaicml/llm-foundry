@@ -33,8 +33,9 @@ def test_download_script_from_cmdline():
     # test calling it via the cmd line interface
     path = os.path.join(os.getcwd(), 'my-copy-c4-2')
     shutil.rmtree(path, ignore_errors=True)
+    print(os.getcwd())
     os.system(
-        'python ../llmfoundry/common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
+        'python llmfoundry/common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
     )
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)

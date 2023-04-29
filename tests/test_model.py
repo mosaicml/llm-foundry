@@ -24,7 +24,8 @@ from llmfoundry.models.layers import NORM_CLASS_REGISTRY, alibi_bias
 from llmfoundry.models.mosaic_gpt import MosaicGPT, MosaicGPTConfig
 
 
-def get_config(conf_path='llmfoundry/yamls/mosaic_gpt/testing.yaml') -> DictConfig:
+def get_config(
+        conf_path='llmfoundry/yamls/mosaic_gpt/testing.yaml') -> DictConfig:
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     print(conf_path)
     with open(conf_path) as f:
@@ -129,7 +130,8 @@ def test_full_forward_and_backward(batch_size=2):
 
 
 def test_attention_mechanism(batch_size=2):
-    test_cfg, model, _ = get_objs(conf_path='llmfoundry/yamls/mosaic_gpt/testing.yaml')
+    test_cfg, model, _ = get_objs(
+        conf_path='llmfoundry/yamls/mosaic_gpt/testing.yaml')
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -343,7 +345,7 @@ def test_loss_fn():
 
     reproducibility.seed_all(1111)
 
-    conf_path = 'yamls/mosaic_gpt/testing.yaml'
+    conf_path = 'llmfoundry/yamls/mosaic_gpt/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
 

@@ -15,7 +15,7 @@ that you should feel free to download, fork, and customize for your application.
 We even packed in a few tricks (e.g. [FlashAttention](https://github.com/HazyResearch/flash-attention)) to make training efficient, and there will be more to come!
 
 You'll find in this folder:
-* `models/mosaic_gpt/` - a simple PyTorch GPT model, wrapped in `ComposerModel`, that can scale up to 70B+ parameters
+* `src/models/mosaic_gpt/` - a simple PyTorch GPT model, wrapped in `ComposerModel`, that can scale up to 70B+ parameters
 * `main.py` - a training script that builds a [Composer](https://github.com/mosaicml/composer) `Trainer` and calls `trainer.fit()`.
 * `yamls/` - configs for training compute-optimal LLMs from 125M up to 70B parameters.
 * `throughput/` - data on the training throughput of MosaicGPT on different cluster configurations.
@@ -23,7 +23,7 @@ You'll find in this folder:
 * `mcloud/` - examples of how to use [MosaicML platform](https://www.mosaicml.com/platform) to seamlessly launch training, eval, and inference jobs :)
 
 
-In the [common](llmfoundry/common) folder, you will also find:
+In the [common](../common) folder, you will also find:
 * `common/builders.py`- A collection of convenient string-to-object mappings used to create objects that get passed to `Trainer`.
 * `common/text_data.py`- a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/stable/) that can be used with a vanilla PyTorch dataloader.
 * `common/convert_dataset.py`- an example of converting generic text data into `StreamingDataset` `.mds` shard files.
@@ -34,7 +34,7 @@ Composer + FSDP does all the heavy lifting to make sure we can scale up without 
 Feel free to edit any or all of these files, and get a feel for using the LLM stack!
 In `src/mosaic_gpt.py` you can see how easy it is to modify the architecture and replace a layer like `torch.nn.MultiheadAttention` with
 a new one like `FlashMHA`. If you want to try and change the FSDP wrapping strategy (e.g. wrap all `GPTMLP` layers in addition to `GPTBlock`),
-go ahead and [edit it here](./src/mosaic_gpt.py#L182)! You'll find a full guide on how to build custom models for Composer + FSDP under [src/README.md](llmfoundry/README.md).
+go ahead and [edit it here](./src/mosaic_gpt.py#L182)! You'll find a full guide on how to build custom models for Composer + FSDP under [src/README.md](./src/README.md).
 
 Now that you've had a chance to explore the code, let's jump into actually running a training job:
 
@@ -64,9 +64,9 @@ cd examples/llm
 # Dataset preparation
 To run training, you'll need to make yourself a copy of the pre-training dataset.
 If you only want to profile these LLMs, we recommend that you **download and prepare the `train_small` and `val` splits**,
-and skip the full `train` split. You'll just need to replace `split: train` with `split: train_small` in your run YAML, [e.g. here](llmfoundry/yamls/mosaic_gpt/125m.yaml#L40).
+and skip the full `train` split. You'll just need to replace `split: train` with `split: train_small` in your run YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L40).
 You can also accomplish this in your CLI command like so: `composer main.py ... train_loader.dataset.split=train_small`
-Alternatively, feel free to substitute our dataloader with one of your own in [main.py](llmfoundry/main.py#L96)!
+Alternatively, feel free to substitute our dataloader with one of your own in [main.py](./main.py#L96)!
 
 As an example, we train LLMs on the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
 We first convert the dataset from its native format (a collection of zipped JSONs)
@@ -82,16 +82,16 @@ To make yourself a copy of C4, use `convert_dataset.py` like so:
 # This will take 20-60 seconds depending on your Internet bandwidth
 # You should see two folders: `./my-copy-c4/train_small` and `./my-copy-c4/val` that are each ~0.5GB
 # Note: We are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
-python llmfoundry/common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
+python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
 # Download the 'train' split if you really want to train the model (not just profile)
 # This will take 1-to-many hours depending on bandwidth, # CPUs, etc.
 # The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
-# python llmfoundry/common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
+# python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
 # For any of the above commands, you can also choose to compress the .mds files.
 # This is useful if your plan is to store these in object store after conversion.
-# python llmfoundry/common/convert_dataset.py ... --compression zstd
+# python ../common/convert_dataset.py ... --compression zstd
 ```
 
 ### Test the Dataloader
@@ -102,12 +102,12 @@ To verify that the dataloader works, run a quick test on your `val` split like s
 # This will construct a `StreamingTextDataset` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
 # Since we only provide a local path, no streaming/copying takes place.
-python llmfoundry/common/text_data.py --local_path ./my-copy-c4
+python ../common/text_data.py --local_path ./my-copy-c4
 
 # This will do the same thing, but stream data to {local} from {remote}.
 # The remote path can be a filesystem or object store URI.
-python llmfoundry/common/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4  # stream from filesystem, e.g. a slow NFS volume to fast local disk
-# python llmfoundry/common/text_data.py --local_path /tmp/cache-c4 --remote_path s3://my-bucket/my-copy-c4  # stream from object store
+python ../common/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4  # stream from filesystem, e.g. a slow NFS volume to fast local disk
+# python ../common/text_data.py --local_path /tmp/cache-c4 --remote_path s3://my-bucket/my-copy-c4  # stream from object store
 ```
 
 # How to start training

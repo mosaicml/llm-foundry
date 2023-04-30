@@ -39,7 +39,7 @@ If you trained and saved a custom HF model such as `MosaicGPT`, then in any exte
 # MosaicGPT, MosaicGPTConfig source code live in this repo
 # pip install <my-awesome-repo>
 
-from llmfoundry.llm import MosaicGPT, MosaicGPTConfig
+from examples.llm import MosaicGPT, MosaicGPTConfig
 
 AutoConfig.register('mosaic_gpt', MosaicGPTConfig)
 AutoModelForCausalLM.register(MosaicGPTConfig, MosaicGPT)

@@ -76,6 +76,7 @@ You can read more about [the benefits of using mosaicml-streaming here](https://
 
 ### Converting C4 to streaming dataset `.mds` format
 To make yourself a copy of C4, use `convert_dataset.py` like so:
+<!--pytest.mark.skip-->
 ```bash
 # Download the 'train_small' and 'val' splits and convert to StreamingDataset format
 # This will take 20-60 seconds depending on your Internet bandwidth
@@ -96,7 +97,7 @@ python common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-c
 ### Test the Dataloader
 
 To verify that the dataloader works, run a quick test on your `val` split like so:
-
+<!--pytest.mark.skip-->
 ```bash
 # This will construct a `StreamingTextDataset` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
@@ -124,7 +125,7 @@ We run the `main.py` script using our `composer` launcher, which generates N pro
 
 
 If training on a single node, the `composer` launcher will autodetect the number of devices, so all you need to do is:
-
+<!--pytest.mark.skip-->
 ```bash
 composer main.py yamls/mosaic_gpt/125m.yaml
 ```
@@ -135,6 +136,8 @@ But if you really must try this manually on your own cluster, then just provide 
 either directly via CLI, or via environment variables that can be read. Then launch the appropriate command on each node:
 
 ### Multi-Node via CLI args
+
+<!--pytest.mark.skip-->
 ```bash
 # Using 2 nodes with 8 devices each
 # Total world size is 16
@@ -150,6 +153,7 @@ composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 
 
 ### Multi-Node via environment variables
 
+<!--pytest.mark.skip-->
 ```bash
 # Using 2 nodes with 8 devices each
 # Total world size is 16
@@ -174,6 +178,7 @@ You should see logs being printed to your terminal like so.
 You can also easily enable other experiment trackers like Weights and Biases or CometML,
 by using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/trainer/logging.html).
 
+<!--pytest.mark.skip-->
 ```bash
 [batch=1/100]:
          Train LanguageCrossEntropy: 10.9736

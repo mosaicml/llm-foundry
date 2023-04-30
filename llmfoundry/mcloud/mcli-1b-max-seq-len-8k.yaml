@@ -28,7 +28,7 @@ cluster: r0z0 # replace with your cluster here!
 # We use this to customize hparams like `max_seq_len=8192` at runtime
 parameters:
   data_local: ./my-copy-c4
-  data_remote: # If blank, files must be present in data_local
+  # data_remote: # or enable this (and remote below) to use a remote dataset
   max_seq_len: 8192
   global_seed: 17
 
@@ -55,7 +55,7 @@ parameters:
     name: text
     dataset:
       local: ${data_local}
-      remote: ${data_remote}
+      # remote: ${data_remote}  # enable to use remote dataset
       split: train_small # Using 'train_small' for this demo
       shuffle: true
       max_seq_len: ${max_seq_len}
@@ -67,7 +67,7 @@ parameters:
     name: text
     dataset:
       local: ${data_local}
-      remote: ${data_remote}
+      # remote: ${data_remote}  # enable to use remote dataset
       split: val
       shuffle: false
       max_seq_len: ${max_seq_len}

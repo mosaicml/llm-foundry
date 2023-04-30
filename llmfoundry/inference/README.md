@@ -40,6 +40,7 @@ If you trained and saved a custom HF model such as `MosaicGPT`, then in any exte
 # MosaicGPT, MosaicGPTConfig source code live in this repo
 # pip install <my-awesome-repo>
 
+from transformers import AutoConfig, AutoModelForCausalLM
 from llmfoundry import MosaicGPT, MosaicGPTConfig
 
 AutoConfig.register('mosaic_gpt', MosaicGPTConfig)
@@ -72,6 +73,7 @@ python hf_generate.py \
 
 which will produce output:
 
+<!--pytest.mark.skip-->
 ```bash
 Loading HF model...
 n_params=124439808

@@ -34,7 +34,7 @@ def my_tokenization_function(example: Dict, tokenizer: Tokenizer):
     # `text_target` is the target output the model should produce
     return tokenizer(
         text=example["input_text"],
-        text_target=example["output_text"],,
+        text_target=example["output_text"],
     )
 ```
 

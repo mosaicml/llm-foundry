@@ -25,6 +25,7 @@ A very similar auto wrap policy is provided for activation checkpointing, with a
 ## The FSDP Config
 The full spec and defaults for Composer's `fsdp_config` is here:
 
+<!--pytest.mark.skip-->
 ```python
 fsdp_config = {
   'sharding_strategy': str = 'FULL_SHARD' | 'SHARD_GRAD_OP' | 'NO_SHARD', # Default: 'FULL_SHARD'
@@ -48,6 +49,7 @@ All values come with defaults and can be optionally defined in the `fsdp_config`
 One Composer-specific pattern is that if `mixed_precision` is provided as a `str`, then we automatically infer the settings to use from the Trainer's `precision`, which is already being used for autocast, and we construct an associated MixedPrecision object for FSDP:
 
 ```python
+import torch
 from torch.distributed.fsdp import MixedPrecision
 
 # e.g. if composer.Trainer(precision='amp_bf16')

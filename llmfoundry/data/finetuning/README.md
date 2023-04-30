@@ -27,10 +27,11 @@ train_loader:
 
 `dataset.name` must refer to a function in `tasks.py` that you have registered under that name. For example:
 ```python
+from transformers import PreTrainedTokenizer
 from llmfoundry.data.finetuning.tasks import dataset_constructor
 
 @dataset_constructor.register('my-finetuning-task')
-def my_tokenization_function(example: Dict, tokenizer: Tokenizer):
+def my_tokenization_function(example: Dict, tokenizer: PreTrainedTokenizer):
     """Map the input/output fields to the correct tokenizer kwargs."""
     # `text` is the text the model receives (i.e. the prompt)
     # `text_target` is the target output the model should produce

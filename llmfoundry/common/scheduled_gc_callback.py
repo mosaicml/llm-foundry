@@ -30,6 +30,7 @@ class ScheduledGarbageCollector(Callback):
     ):
         self.batch_interval = batch_interval
         self.eval_keep_disabled = eval_keep_disabled
+        self.gc_init_state = None
 
     def fit_start(self, state: State, logger: Logger):
         # cache if automatic garbage collection is enabled; reset at fit_end

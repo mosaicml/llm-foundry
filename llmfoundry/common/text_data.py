@@ -147,7 +147,7 @@ class StreamingTextDataset(StreamingDataset):
                           dtype=np.int64)[:self.max_seq_len].copy())
 
     # How to process a sample
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def __getitem__(self, idx: int):
         sample = super().__getitem__(idx)
         if 'text' in sample:
             token_sample = self._tokenize(sample)
@@ -163,10 +163,12 @@ class StreamingTextDataset(StreamingDataset):
 class ConcatenatedSequenceCollatorWrapper:
     """Collator wrapper to add sequence_id to batch."""
 
-    def __init__(self,
-                 base_collator: Callable,
-                 eos_token_id: Optional[int] = None,
-                 bos_token_id: Optional[int] = None):
+    def __init__(
+        self,
+        base_collator: Callable,
+        eos_token_id=None,
+        bos_token_id=None,
+    ):
         self.base_collator = base_collator
         if (eos_token_id is None) and (bos_token_id is None):
             raise ValueError(
@@ -178,12 +180,12 @@ class ConcatenatedSequenceCollatorWrapper:
                 'Please supply `eos_token_id` if sequences end with an EOS token, or use ' +\
                 '`bos_token_id` if sequences start with a BOS token.'
             )
+
+        self.split_token_id = eos_token_id
+        self.bos_mode = False
         if eos_token_id is None:
             self.split_token_id = bos_token_id
             self.bos_mode = True
-        else:
-            self.split_token_id = eos_token_id
-            self.bos_mode = False
 
     def __call__(self, examples: List[Any]) -> Dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
@@ -192,7 +194,7 @@ class ConcatenatedSequenceCollatorWrapper:
 
     def get_sequence_id_from_batch(
             self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
-        is_separator = torch.eq(batch['input_ids'], self.split_token_id)
+        is_separator = torch.eq(batch['input_ids'], self.split_token_id)  # type: ignore
         cumulative_sep = torch.cumsum(is_separator,
                                       dim=1).to(batch['input_ids'].dtype)
         # If separator token is bos, we're already done
@@ -301,7 +303,7 @@ def build_text_dataloader(
 if __name__ == '__main__':
     import argparse
 
-    from examples.common.builders import build_tokenizer
+    from llmfoundry.common.builders import build_tokenizer
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--tokenizer',

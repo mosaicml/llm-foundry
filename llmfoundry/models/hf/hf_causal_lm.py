@@ -18,6 +18,7 @@ __all__ = ['ComposerHFCausalLM']
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
+
 class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
     """Configures a :class:`.HuggingFaceModel` around a Causal LM.
 
@@ -40,9 +41,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 to validation metrics. Default: ``False``.
     """
 
-    def __init__(self,
-                 om_model_config: DictConfig,
-                 tokenizer: Optional[Tokenizer]):
+    def __init__(self, om_model_config: DictConfig, tokenizer: Tokenizer):
         config = AutoConfig.from_pretrained(
             om_model_config.pretrained_model_name_or_path,
             **om_model_config.get('config_overrides', {}))

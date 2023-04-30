@@ -827,7 +827,7 @@ def _format_tokens_for_decoder_only(
 # Run `python denoising.py [local] [remote, optional]` and verify that batches
 # are printed out
 if __name__ == '__main__':
-    from examples.common.builders import build_tokenizer
+    from llmfoundry.common.builders import build_tokenizer
 
     local = sys.argv[1]
     if len(sys.argv) > 2:

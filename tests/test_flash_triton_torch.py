@@ -29,7 +29,7 @@ def test_attn_impl(attn_impl_0,
 
     Includes testing with and without attn_clip_qkv, attn_qk_ln, and alibi.
     """
-    from llmfoundry.models.layers import attention  # type: ignore
+    from llmfoundry.models.layers import attention
 
     if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'):
         pytest.xfail('flash attn does not support alibi')
@@ -126,7 +126,7 @@ def test_attn_impl(attn_impl_0,
 @pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
 def test_vs_mha(attn_impl, device='cuda'):
     """Compare diff attn_impl to torch.nn.MultiheadAttention."""
-    from llm.src.models.layers import attention  # type: ignore
+    from llmfoundry.models.layers import attention
 
     reproducibility.seed_all(17)
 

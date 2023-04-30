@@ -29,7 +29,7 @@ from llmfoundry.common.optim import (DecoupledAdaLRLion, DecoupledClipLion,
 from llmfoundry.common.resumption_callbacks import (GlobalLRScaling,
                                                     LayerFreezing)
 from llmfoundry.common.scheduled_gc_callback import ScheduledGarbageCollector
-from llmfoundry.common.text_data import Tokenizer, build_text_dataloader
+from llmfoundry.common.text_data import build_text_dataloader
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 

@@ -4,6 +4,7 @@
 """Monitor rate of change of loss."""
 from __future__ import annotations
 
+import torch
 from composer.core import Callback, State
 from composer.loggers import Logger
 
@@ -25,39 +26,38 @@ class FDiffMetrics(Callback):
 
     def batch_end(self, state: State, logger: Logger):
         if self.diff_train_metrics:
+            if not isinstance(state.loss, torch.Tensor):
+                raise NotImplementedError('Multiple losses not supported yet')
+            loss = state.loss.item()
             if self.train_prev_loss:
-                logger.log_metrics({
-                    'loss/train/total_fdiff':
-                        state.loss.item() - self.train_prev_loss
-                })
-
-            self.train_prev_loss = state.loss.item()
+                logger.log_metrics(
+                    {'loss/train/total_fdiff': loss - self.train_prev_loss})
+            self.train_prev_loss = loss
 
             for k in self.train_prev_metric.keys():
                 logger.log_metrics({
                     f'metrics/train/{k}_fdiff':
-                        state.train_metric_values[k].item() -
-                        self.train_prev_metric[k]
+                        state.train_metric_values[k] - self.train_prev_metric[k]
                 })
 
             for k in state.train_metric_values.keys():
-                self.train_prev_metric[k] = state.train_metric_values[k].item()
+                value = state.train_metric_values[k]
+                self.train_prev_metric[k] = value
 
     def eval_end(self, state: State, logger: Logger):
         if self.diff_eval_metrics:
             evaluator = state.dataloader_label
-            metrics = list(state.eval_metrics[evaluator].keys())
+            metrics = list(state.eval_metrics[evaluator].keys())  # type: ignore
 
             for k in metrics:
-                mkey = '/'.join(['metrics', evaluator, k])
+                mkey = '/'.join(['metrics', evaluator, k])  # type: ignore
                 if mkey in self.eval_prev_metric.keys():
                     logger.log_metrics({
                         f'{mkey}_fdiff':
-                            state.eval_metric_values[k].item() -
+                            state.eval_metric_values[k] -
                             self.eval_prev_metric[mkey]
                     })
 
             for k in metrics:
-                mkey = '/'.join(['metrics', evaluator, k])
-                value = state.eval_metric_values[k].item()
-                self.eval_prev_metric[mkey] = value
+                mkey = '/'.join(['metrics', evaluator, k])  # type: ignore
+                self.eval_prev_metric[mkey] = state.eval_metric_values[k]

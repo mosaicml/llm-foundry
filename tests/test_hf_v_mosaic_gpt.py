@@ -226,3 +226,4 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, alibi, mask_val,
                                         rtol=1e-04,
                                         atol=1e-06)
     assert hf_model_fwd.allclose(model_fwd, rtol=1e-02, atol=1e-02)
+    del model, hf_model

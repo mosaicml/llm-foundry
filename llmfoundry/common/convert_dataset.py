@@ -274,7 +274,7 @@ def build_hf_dataset(
     dataset_name: str,
     split: str,
     mode: ConcatMode,
-    max_length: int = 0,
+    max_length: Optional[int] = None,
     bos_text: str = '',
     eos_text: str = '',
     no_wrap: bool = False,
@@ -287,6 +287,7 @@ def build_hf_dataset(
         dataset_name (str): Dataset name
         split (str): Split name.
         mode (ConcatMode): NO_CONCAT, or CONCAT_TOKENS
+        max_length (int): The length of concatenated tokens
         bos_text (str): text to insert at the beginning of each sequence
         eos_text (str): text to insert at the end of each sequence
         no_wrap (bool): if concatenating, whether to wrap text across `max_length` boundaries
@@ -305,7 +306,7 @@ def build_hf_dataset(
         if not isinstance(tokenizer, PreTrainedTokenizerBase):
             raise ValueError(
                 f'{tokenizer=} must be of type PreTrainedTokenizerBase')
-        if max_length == 0:
+        if max_length is None:
             raise ValueError(f'max_length must be set.')
         if bos_text + eos_text == '':
             test_tokens = tokenizer('test')

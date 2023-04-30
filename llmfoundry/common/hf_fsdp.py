@@ -113,7 +113,7 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
     lm_head = model.get_output_embeddings()
     # some models (OPT) implement .get_input_embeddings for the causal subclass
     # but all of them implement it for the base model
-    tied_embeddings = causal_base_model.get_input_embeddings()
+    tied_embeddings = causal_base_model.get_input_embeddings()  # type: ignore
     modules = {
         'base_model': causal_base_model,
         'model_block': model_block,

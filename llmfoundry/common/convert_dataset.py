@@ -13,7 +13,7 @@ from typing import Dict, Iterable, Optional, Union
 import datasets as hf_datasets
 import numpy as np
 from streaming import MDSWriter
-from torch.utils.data import DataLoader, IterableDataset, get_worker_info
+from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
@@ -270,21 +270,24 @@ class ConcatTokensDataset(IterableDataset):
                 }
 
 
-def build_hf_dataset(dataset_name: str,
-                     split: str,
-                     mode: ConcatMode,
-                     max_length: Optional[int],
-                     bos_text: Optional[str],
-                     eos_text: Optional[str],
-                     no_wrap: Optional[bool],
-                     tokenizer: Optional[PreTrainedTokenizerBase],
-                     data_subset: Union[str, None] = None) -> IterableDataset:
+def build_hf_dataset(
+    dataset_name: str,
+    split: str,
+    mode: ConcatMode,
+    max_length: Optional[int] = None,
+    bos_text: str = '',
+    eos_text: str = '',
+    no_wrap: bool = False,
+    tokenizer: PreTrainedTokenizerBase = None,
+    data_subset: Union[str, None] = None,
+) -> IterableDataset:
     """Build an IterableDataset over the HF C4 or pile source data.
 
     Args:
         dataset_name (str): Dataset name
         split (str): Split name.
         mode (ConcatMode): NO_CONCAT, or CONCAT_TOKENS
+        max_length (int): The length of concatenated tokens
         bos_text (str): text to insert at the beginning of each sequence
         eos_text (str): text to insert at the end of each sequence
         no_wrap (bool): if concatenating, whether to wrap text across `max_length` boundaries
@@ -300,6 +303,11 @@ def build_hf_dataset(dataset_name: str,
                                   data_subset=data_subset,
                                   split=split)
     else:
+        if not isinstance(tokenizer, PreTrainedTokenizerBase):
+            raise ValueError(
+                f'{tokenizer=} must be of type PreTrainedTokenizerBase')
+        if max_length is None:
+            raise ValueError(f'max_length must be set.')
         if bos_text + eos_text == '':
             test_tokens = tokenizer('test')
             if test_tokens['input_ids'][

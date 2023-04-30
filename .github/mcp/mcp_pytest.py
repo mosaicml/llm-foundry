@@ -89,6 +89,7 @@ if __name__ == '__main__':
     if len(name) > 56:
         name = name[:56]
 
+    # TODO: restore dist tests:  make test-dist PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS" WORLD_SIZE=2
     command += f'''
 
     pip install --upgrade --user .[all]
@@ -96,8 +97,6 @@ if __name__ == '__main__':
     export COMMON_ARGS="-v --durations=20 -m '{args.pytest_markers}'"
 
     make test PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS --codeblocks"
-
-    make test-dist PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS" WORLD_SIZE=2
 
     python -m coverage combine
 

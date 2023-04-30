@@ -32,9 +32,12 @@ from llmfoundry import COMPOSER_MODEL_REGISTRY
                  False,
                  marks=pytest.mark.xfail(
                      reason='hf model is not implemented with alibi')),
-    ('torch', 0.0, False, 0, False),
-    ('triton', 0.0, False, 0, False),
-    ('triton', 0.1, False, 0, False),
+    pytest.param(*('torch', 0.0, False, 0, False),
+                 marks=pytest.mark.xfail('expected OOM')),
+    pytest.param(*('triton', 0.0, False, 0, False),
+                 marks=pytest.mark.xfail('expected OOM')),
+    pytest.param(*('triton', 0.1, False, 0, False),
+                 marks=pytest.mark.xfail('expected OOM')),
     ('flash', 0.0, False, None, True),
     ('torch', 0.0, False, None, True),
     ('triton', 0.0, False, None, True),
@@ -46,6 +49,7 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, alibi, mask_val,
         message='Torchmetrics v0.9 introduced a new argument class property')
     warnings.filterwarnings(action='ignore',
                             message='Using Fused Cross Entropy Loss.')
+
     conf_path = 'llmfoundry/yamls/mosaic_gpt/125m.yaml'  # set cfg path
     batch_size = 2  # set batch size
     device = 'cuda'  # set decive
@@ -222,5 +226,3 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, alibi, mask_val,
                                         rtol=1e-04,
                                         atol=1e-06)
     assert hf_model_fwd.allclose(model_fwd, rtol=1e-02, atol=1e-02)
-
-    del model

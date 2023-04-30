@@ -192,8 +192,9 @@ def _build_collate_fn(dataset_cfg: DictConfig, tokenizer: Tokenizer,
 
 if __name__ == '__main__':
     import torch
-    from examples.common import build_tokenizer
     from omegaconf import OmegaConf as om
+
+    from llmfoundry.common import build_tokenizer
     cfg = om.create({
         'dataset': {
             'name': 'tatsu-lab/alpaca',

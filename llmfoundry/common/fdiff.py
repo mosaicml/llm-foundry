@@ -4,6 +4,7 @@
 """Monitor rate of change of loss."""
 from __future__ import annotations
 
+import torch
 from composer.core import Callback, State
 from composer.loggers import Logger
 
@@ -25,7 +26,9 @@ class FDiffMetrics(Callback):
 
     def batch_end(self, state: State, logger: Logger):
         if self.diff_train_metrics:
-            loss = state.loss.item()  # type: ignore
+            if not isinstance(state.loss, torch.Tensor):
+                raise NotImplementedError('Multiple losses not supported yet')
+            loss = state.loss.item()
             if self.train_prev_loss:
                 logger.log_metrics(
                     {'loss/train/total_fdiff': loss - self.train_prev_loss})
@@ -34,12 +37,11 @@ class FDiffMetrics(Callback):
             for k in self.train_prev_metric.keys():
                 logger.log_metrics({
                     f'metrics/train/{k}_fdiff':
-                        state.train_metric_values[k].item() -  # type: ignore
-                        self.train_prev_metric[k]
+                        state.train_metric_values[k] - self.train_prev_metric[k]
                 })
 
             for k in state.train_metric_values.keys():
-                value = state.train_metric_values[k].item()  # type: ignore
+                value = state.train_metric_values[k]
                 self.train_prev_metric[k] = value
 
     def eval_end(self, state: State, logger: Logger):
@@ -52,11 +54,10 @@ class FDiffMetrics(Callback):
                 if mkey in self.eval_prev_metric.keys():
                     logger.log_metrics({
                         f'{mkey}_fdiff':
-                            state.eval_metric_values[k].item() -  # type: ignore
+                            state.eval_metric_values[k] -
                             self.eval_prev_metric[mkey]
                     })
 
             for k in metrics:
                 mkey = '/'.join(['metrics', evaluator, k])  # type: ignore
-                value = state.eval_metric_values[k].item()  # type: ignore
-                self.eval_prev_metric[mkey] = value
+                self.eval_prev_metric[mkey] = state.eval_metric_values[k]

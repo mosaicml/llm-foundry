@@ -20,29 +20,29 @@ jobs:
     runs-on: ubuntu-latest
     container: ${{ inputs.container }}
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
-      - name: Setup
-        run: |
-          set -ex
-          export PATH=/composer-python:$PATH
-          python -m pip install --upgrade 'pip<23' wheel
-          python -m pip install --upgrade .[all]
-      - name: Run Tests
-        id: tests
-        run: |
-          set -ex
-          export PATH=/composer-python:$PATH
-          export COMMON_ARGS="-v --durations=20 -m '${{ inputs.pytest-markers }}'"
+    - name: Checkout Repo
+      uses: actions/checkout@v3
+    - name: Setup
+      run: |
+        set -ex
+        export PATH=/composer-python:$PATH
+        python -m pip install --upgrade 'pip<23' wheel
+        python -m pip install --upgrade .[all]
+    - name: Run Tests
+      id: tests
+      run: |
+        set -ex
+        export PATH=/composer-python:$PATH
+        export COMMON_ARGS="-v --durations=20 -m '${{ inputs.pytest-markers }}'"
 
-          # Necessary to run git diff for doctests
-          git config --global --add safe.directory /__w/llm-foundry/llm-foundry
+        # Necessary to run git diff for doctests
+        git config --global --add safe.directory /__w/llm-foundry/llm-foundry
 
-          make test PYTEST='${{ inputs.pytest-command }}' EXTRA_ARGS="$COMMON_ARGS --codeblocks"
-          make test-dist PYTEST='${{ inputs.pytest-command }}' EXTRA_ARGS="$COMMON_ARGS" WORLD_SIZE=2
+        make test PYTEST='${{ inputs.pytest-command }}' EXTRA_ARGS="$COMMON_ARGS --codeblocks"
+        make test-dist PYTEST='${{ inputs.pytest-command }}' EXTRA_ARGS="$COMMON_ARGS" WORLD_SIZE=2
 
-          python -m coverage combine
-      - uses: actions/upload-artifact@v3
-        with:
-          name: coverage-${{ github.sha }}-${{ inputs.name }}
-          path: .coverage
+        python -m coverage combine
+    - uses: actions/upload-artifact@v3
+      with:
+        name: coverage-${{ github.sha }}-${{ inputs.name }}
+        path: .coverage

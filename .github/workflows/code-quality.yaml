@@ -24,21 +24,21 @@ jobs:
     strategy:
       matrix:
         python_version:
-          - "3.8"
-          - "3.9"
-          - "3.10"
+        - '3.8'
+        - '3.9'
+        - '3.10'
         pip_deps:
-          - "[dev]"
+        - '[dev]'
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python_version }}
-      - name: Setup
-        run: |
-          set -ex
-          python -m pip install --upgrade 'pip<23' wheel
-          python -m pip install --upgrade .${{ matrix.pip_deps }}
-      - name: Run checks
-        run: |
-          pre-commit run --all-files
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python_version }}
+    - name: Setup
+      run: |
+        set -ex
+        python -m pip install --upgrade 'pip<23' wheel
+        python -m pip install --upgrade .${{ matrix.pip_deps }}
+    - name: Run checks
+      run: |
+        pre-commit run --all-files

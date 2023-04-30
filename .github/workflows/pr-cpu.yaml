@@ -19,10 +19,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: 'cpu'
-            container: mosaicml/pytorch:latest
-            markers: 'not gpu'
-            pytest_command: 'coverage run -m pytest'
+        - name: 'cpu'
+          container: mosaicml/pytorch:latest
+          markers: 'not gpu'
+          pytest_command: 'coverage run -m pytest'
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     with:
@@ -34,6 +34,6 @@ jobs:
     uses: ./.github/workflows/coverage.yaml
     name: Coverage Results
     if: github.repository_owner == 'mosaicml'
-    needs: [ pytest-cpu ]
+    needs: [pytest-cpu]
     with:
       download-path: artifacts

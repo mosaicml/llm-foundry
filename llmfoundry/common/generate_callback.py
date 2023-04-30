@@ -81,9 +81,9 @@ class Generate(Callback):
 
         if dist.get_global_rank() == 0:
             if self.wandb_logger is not None:
-                artifact = wandb.Artifact('generate_samples_' +
-                                          str(wandb.run.id),
-                                          type='predictions')
+                artifact = wandb.Artifact(
+                    'generate_samples_' + str(wandb.run.id),  # type: ignore
+                    type='predictions')
 
                 rows = []
                 for i in range(len(self.prompts)):

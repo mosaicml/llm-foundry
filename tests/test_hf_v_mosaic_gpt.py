@@ -12,51 +12,39 @@ from llmfoundry import COMPOSER_MODEL_REGISTRY
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize(
-    'attn_impl,dropout,strict,alibi,mask_val,no_attn_mask',
-    [
-        ('flash', 0.0, True, False, 1, False),
-        ('flash', 0.1, True, False, 1, False),
-        ('torch', 0.0, False, False, 1,
-         False),  # requires strict=False to skip loading model.attn_mask
-        ('triton', 0.0, False, False, 1,
-         False),  # requires strict=False to skip loading model.attn_mask
-        ('triton', 0.1, False, False, 1,
-         False),  # requires strict=False to skip loading model.attn_mask
-        pytest.param('torch',
-                     0.0,
-                     False,
-                     True,
-                     1,
-                     False,
-                     marks=pytest.mark.xfail(
-                         reason='hf model is not implemented with alibi')),
-        pytest.param('triton',
-                     0.1,
-                     False,
-                     True,
-                     1,
-                     False,
-                     marks=pytest.mark.xfail(
-                         reason='hf model is not implemented with alibi')),
-        ('torch', 0.0, False, False, 0, False
-        ),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
-        ('triton', 0.0, False, False, 0, False
-        ),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
-        ('triton', 0.1, False, False, 0, False
-        ),  # requires strict=False to skip loading model.attn_mask, testing case where key_pad_mask is 0
-        ('flash', 0.0, True, False, None, True),
-        ('torch', 0.0, False, False, None,
-         True),  # requires strict=False to skip loading model.attn_mask
-        ('triton', 0.0, False, False, None,
-         True),  # requires strict=False to skip loading model.attn_mask
-    ])
-def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val,
+@pytest.mark.parametrize('attn_impl,dropout,alibi,mask_val,no_attn_mask', [
+    ('flash', 0.0, False, 1, False),
+    ('flash', 0.1, False, 1, False),
+    ('torch', 0.0, False, 1, False),
+    ('triton', 0.0, False, 1, False),
+    ('triton', 0.1, False, 1, False),
+    pytest.param('torch',
+                 0.0,
+                 True,
+                 1,
+                 False,
+                 marks=pytest.mark.xfail(
+                     reason='hf model is not implemented with alibi')),
+    pytest.param('triton',
+                 0.1,
+                 True,
+                 1,
+                 False,
+                 marks=pytest.mark.xfail(
+                     reason='hf model is not implemented with alibi')),
+    ('torch', 0.0, False, 0, False),
+    ('triton', 0.0, False, 0, False),
+    ('triton', 0.1, False, 0, False),
+    ('flash', 0.0, False, None, True),
+    ('torch', 0.0, False, None, True),
+    ('triton', 0.0, False, None, True),
+])
+def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, alibi, mask_val,
                                  no_attn_mask):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
-    conf_path = 'yamls/mosaic_gpt/125m.yaml'  # set cfg path
+    conf_path = 'llmfoundry/yamls/mosaic_gpt/125m.yaml'  # set cfg path
     batch_size = 2  # set batch size
     device = 'cuda'  # set decive
 
@@ -188,9 +176,10 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val,
         'model.transformer.h.': 'model.transformer.blocks.',
         '.mlp.c_fc.': '.mlp.mlp_up.',
         '.mlp.c_proj.': '.mlp.mlp_down.',
+        '.attn.c_attn.': '.attn.Wqkv.',
+        '.attn.c_proj.': '.attn.out_proj.',
+        '.ln_': '.norm_',
     }
-    hf_2_mosaic_key_mods['.attn.c_attn.'] = '.attn.Wqkv.'
-    hf_2_mosaic_key_mods['.attn.c_proj.'] = '.attn.out_proj.'
 
     # convert hf gpt statedict to mosaic gpt statedict using the dict and list above
     _hf_model_statedict = {}
@@ -211,7 +200,7 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, strict, alibi, mask_val,
             _hf_model_statedict[k] = v
 
     # load hf model weights into mosaic gpt model
-    model.load_state_dict(_hf_model_statedict, strict=strict)
+    model.load_state_dict(_hf_model_statedict)
 
     with torch.autocast(device_type=device, dtype=torch.float16):
         torch.manual_seed(seed)

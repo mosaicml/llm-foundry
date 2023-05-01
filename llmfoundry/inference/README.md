@@ -10,6 +10,7 @@ At the end of your training runs, you will see a collection of Composer `Trainer
 
 To extract these pieces, we provide a script `convert_composer_to_hf.py` that converts a Composer checkpoint directly to a standard HF checkpoint folder. For example:
 
+<!--pytest.mark.skip-->
 ```bash
 python convert_composer_to_hf.py --composer_path ep0-ba2000-rank0.pt --hf_output_path my_hf_model/ --output_precision bf16
 ```
@@ -35,11 +36,13 @@ You can also pass object store URIs for both `--composer_path` and `--hf_output_
 
 If you trained and saved a custom HF model such as `MosaicGPT`, then in any external inference codebase, you need to import and register the new model class and config before auto classes like `AutoModel` will work. For example:
 
+<!--pytest.mark.skip-->
 ```python
 # MosaicGPT, MosaicGPTConfig source code live in this repo
 # pip install <my-awesome-repo>
 
-from examples.llm import MosaicGPT, MosaicGPTConfig
+from transformers import AutoConfig, AutoModelForCausalLM
+from llmfoundry import MosaicGPT, MosaicGPTConfig
 
 AutoConfig.register('mosaic_gpt', MosaicGPTConfig)
 AutoModelForCausalLM.register(MosaicGPTConfig, MosaicGPT)
@@ -53,6 +56,7 @@ model = AutoModelForCausalLM.from_pretrained('my_hf_model')
 
 To make it easy to inspect the generations produced by your HF model, we include a script `hf_generate.py` that allows you to run custom prompts through your HF model, like so:
 
+<!--pytest.mark.skip-->
 ```bash
 python hf_generate.py \
     --name_or_path gpt2 \
@@ -70,6 +74,7 @@ python hf_generate.py \
 
 which will produce output:
 
+<!--pytest.mark.skip-->
 ```bash
 Loading HF model...
 n_params=124439808
@@ -120,6 +125,7 @@ of exporting and working with HuggingFace models with ONNX, see <https://hugging
 
 Here a couple examples of using the script:
 
+<!--pytest.mark.skip-->
 ```bash
 # 1) Local export
 python inference/convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggingface/folder --output_folder local/folder

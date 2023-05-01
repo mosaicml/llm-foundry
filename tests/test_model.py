@@ -351,8 +351,10 @@ def test_loss_fn():
 
     test_cfg.device = 'cuda:0'
     test_cfg.model.init_device = 'cuda:0'
-    test_cfg.model.param_init_fn = 'baseline_'
-    test_cfg.model.init_std = 0.02
+    test_cfg.model.init_config = {
+        'name': 'baseline_',
+        'init_std': 0.02,
+    }
 
     model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                            test_cfg.tokenizer)
@@ -493,8 +495,10 @@ def test_forward_with_padding(attention_impl, device, alibi):
         resid_pdrop=0.2,
         attn_impl=attention_impl,
         alibi=alibi,
-        param_init_fn='baseline_',
-        init_std=0.02,
+        init_config={
+            'name': 'baseline_',
+            'init_std': 0.02,
+        },
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()
@@ -780,8 +784,10 @@ def test_forward_with_cache_and_padding(alibi):
         attn_impl='torch',
         alibi=alibi,
         use_cache=True,
-        param_init_fn='baseline_',
-        init_std=0.02,
+        init_config={
+            'name': 'baseline_',
+            'init_std': 0.02,
+        },
     )
 
     mosaic_gpt = MosaicGPT(hf_config)
@@ -857,8 +863,10 @@ def test_forward_with_cache(attention_impl, device, alibi):
         attn_impl=attention_impl,
         alibi=alibi,
         use_cache=True,
-        param_init_fn='baseline_',
-        init_std=0.02,
+        init_config={
+            'name': 'baseline_',
+            'init_std': 0.02,
+        },
     )
     reproducibility.seed_all(1234)
     mosaic_gpt = MosaicGPT(hf_config)

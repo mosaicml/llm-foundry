@@ -90,8 +90,8 @@ def generic_param_init_fn_(
     if init_div_is_residual is not False:
         if verbose > 1:
             warnings.warn(
-                f'Initializing _is_residual layers then dividing them by {div_is_residual}.' +\
-                f'set `init_div_is_residual: false` in model config to disable this.'
+                f'Initializing _is_residual layers then dividing them by {div_is_residual:.3f}. ' +\
+                f'Set `init_div_is_residual: false` in init config to disable this.'
             )
 
     if isinstance(module, nn.Linear):
@@ -147,7 +147,7 @@ def generic_param_init_fn_(
         # Norm
         if verbose > 1:
             warnings.warn(
-                f'Norm weights are set to 1. If the layer has a bias it is initialized to 0.'
+                f'Norm weights are set to 1. If norm layer has a bias it is initialized to 0.'
             )
         if hasattr(module, 'weight') and module.weight is not None:
             torch.nn.init.ones_(module.weight)  # type: ignore
@@ -245,7 +245,7 @@ def baseline_param_init_fn_(
     del kwargs  # unused, just to capture any extra args from the config
     if init_std is None:
         raise ValueError(
-            'You must set model.init_std to a float value to use the default initialization scheme.'
+            "You must set model.init_config['init_std'] to a float value to use the default initialization scheme."
         )
     _normal_param_init_fn_(
         module=module,

@@ -13,6 +13,8 @@ The first example, `mcli-1b.yaml`, simply clones this repo, checks out a particu
 The second example, `mcli-1b-custom.yaml`, shows how to inject a custom config at runtime (`/mnt/config/parameters.yaml`) and pass that file to the `main.py` training script. This workflow allows you to quickly customize a training run without needing to commit and push changes to the repository.
 
 Here's how easy it is to launch an LLM training run with MCLI:
+
+<!--pytest.mark.skip-->
 ```bash
 mcli run -f mcli-1b.yaml --cluster CLUSTER --gpus GPUS --name NAME --follow
 ```

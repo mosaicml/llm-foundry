@@ -392,11 +392,15 @@ class MosaicGPT(PreTrainedModel):
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
-        init_fn_name = self.config.param_init_fn
-        if self.config.verbose > 1:
+        init_fn_name = self.config.init_config['name']
+        if 'verbose' not in self.config.init_config:
+            self.config.init_config['verbose'] = self.config.verbose
+        if self.config.init_config['verbose'] > 1:
             warnings.warn(f'Using {init_fn_name} initialization.')
         MODEL_INIT_REGISTRY[init_fn_name](module=module,
-                                          **self.config.to_dict())
+                                          n_layers=self.config.n_layers,
+                                          d_model=self.config.d_model,
+                                          **self.config.init_config)
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module):

@@ -3,7 +3,7 @@
 
 """A HuggingFace-style model configuration."""
 
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
@@ -34,19 +34,15 @@ class MosaicGPTConfig(PretrainedConfig):
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
         verbose: int = 0,
-        param_init_fn: str = 'kaiming_normal_',
-        init_div_is_residual: Union[int, float, str, bool] = True,
-        init_std: float = 0.02,
-        emb_init_std: Optional[float] = None,
-        emb_init_uniform_lim: Optional[Union[Tuple[float, float],
-                                             float]] = None,
-        init_gain: float = 0,
-        fan_mode: str = 'fan_in',
-        init_nonlinearity: str = 'relu',
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
         multiquery_attention: bool = False,
         use_cache: bool = False,
+        init_config: Dict = {
+            'name': 'kaiming_normal_',
+            'fan_mode': 'fan_in',
+            'init_nonlinearity': 'relu',
+        },
         **kwargs,
     ):
         """The MosaicGPT configuration class.
@@ -80,21 +76,25 @@ class MosaicGPTConfig(PretrainedConfig):
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
             verbose (int): The verbosity level. 0 is silent.
-            param_init_fn (str): The parameter initialization scheme to use. One of 'default_', 'baseline_', 'kaiming_uniform_',
-                'kaiming_normal_', 'neox_init_', 'small_init_', 'xavier_uniform_', or 'xavier_normal_'.
-            init_div_is_residual (Union[int, float, str, bool]): Value to divide initial weights by if ``module._is_residual`` is True.
-            init_std (float): The standard deviation of the normal distribution used to initialize the model,
-                if using the baseline_ parameter initialization scheme.
-            emb_init_std (Optional[float]): The standard deviation of the normal distribution used to initialize the embedding layer.
-            emb_init_uniform_lim (Optional[Union[Tuple[float, float], float]]): The lower and upper limits of the uniform distribution
-                used to initialize the embedding layer. Mutually exclusive with ``emb_init_std``.
-            init_gain (float): The gain to use for parameter initialization with kaiming or xavier initialization schemes.
-            fan_mode (str): The fan mode to use for parameter initialization with kaiming initialization schemes.
-            init_nonlinearity (str): The nonlinearity to use for parameter initialization with kaiming initialization schemes.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
             multiquery_attention (bool): Whether to use multiquery attention implementation.
             use_cache (bool): Whether or not the model should return the last key/values attentions
+            init_config (Dict): An omegaconf dictionary used to configure the model initialization:
+                init_config.name: The parameter initialization scheme to use. Options: 'default_', 'baseline_',
+                    'kaiming_uniform_', 'kaiming_normal_', 'neox_init_', 'small_init_', 'xavier_uniform_', or
+                    'xavier_normal_'. These mimic the parameter initialization methods in PyTorch.
+                init_div_is_residual (Union[int, float, str, bool]): Value to divide initial weights by if ``module._is_residual`` is True.
+                emb_init_std (Optional[float]): The standard deviation of the normal distribution used to initialize the embedding layer.
+                emb_init_uniform_lim (Optional[Union[Tuple[float, float], float]]): The lower and upper limits of the uniform distribution
+                    used to initialize the embedding layer. Mutually exclusive with ``emb_init_std``.
+                init_std (float): The standard deviation of the normal distribution used to initialize the model,
+                    if using the baseline_ parameter initialization scheme.
+                init_gain (float): The gain to use for parameter initialization with kaiming or xavier initialization schemes.
+                fan_mode (str): The fan mode to use for parameter initialization with kaiming initialization schemes.
+                init_nonlinearity (str): The nonlinearity to use for parameter initialization with kaiming initialization schemes.
+                ---
+                See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -117,19 +117,11 @@ class MosaicGPTConfig(PretrainedConfig):
         self.logit_scale = logit_scale
         self.no_bias = no_bias
         self.verbose = verbose
-        self.param_init_fn = param_init_fn
-        self.init_div_is_residual = init_div_is_residual
-        self.init_std = init_std
-        self.emb_init_std = emb_init_std
-        self.emb_init_uniform_lim = emb_init_uniform_lim
-        self.init_std = init_std
-        self.init_gain = init_gain
-        self.fan_mode = fan_mode
-        self.init_nonlinearity = init_nonlinearity
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
         self.multiquery_attention = multiquery_attention
         self.use_cache = use_cache
+        self.init_config = init_config
         if 'name' in kwargs:
             del kwargs['name']
         if 'loss_fn' in kwargs:
@@ -169,3 +161,5 @@ class MosaicGPTConfig(PretrainedConfig):
             raise ValueError(
                 f"{self.logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'."
             )
+        if self.init_config.get('name', None) is None:
+            raise ValueError(f"{self.init_config=} 'name' needs to be set.")

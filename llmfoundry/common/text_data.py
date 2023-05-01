@@ -194,7 +194,8 @@ class ConcatenatedSequenceCollatorWrapper:
 
     def get_sequence_id_from_batch(
             self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
-        is_separator = torch.eq(batch['input_ids'], self.split_token_id)  # type: ignore
+        is_separator = torch.eq(batch['input_ids'],
+                                self.split_token_id)  # type: ignore
         cumulative_sep = torch.cumsum(is_separator,
                                       dim=1).to(batch['input_ids'].dtype)
         # If separator token is bos, we're already done

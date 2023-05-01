@@ -3,9 +3,9 @@
 With the 0.11.0 release of Composer, we have integrated PyTorch's [FullyShardedDataParallel](https://pytorch.org/docs/stable/fsdp.html) engine with some syntactic sugar to make it easy to write custom models that work with Composer + FSDP.
 
 ## How the Trainer prepares your model for FSDP
-At a high level, when you use the Composer Trainer, you must pass it a `ComposerModel` like [`ComposerMosaicGPT`](./mosaic_gpt.py#L190) that defines certain functions like `forward`, `eval_forward`, `loss`, etc. that are called during the training loop.
+At a high level, when you use the Composer Trainer, you must pass it a `ComposerModel` like [`ComposerMosaicGPT`](./models/mosaic_gpt/mosaic_gpt.py#L190) that defines certain functions like `forward`, `eval_forward`, `loss`, etc. that are called during the training loop.
 
-Inside that `ComposerModel` you may have one or many submodules, such as a `.model` or `.language_model` or `.classifier` that is the actual `torch.nn.Module` that you will be deploying at inference time. In our case, this is the [`MosaicGPT`](./mosaic_gpt.py#L106) module that we build and attach `ComposerMosaicGPT.model`.
+Inside that `ComposerModel` you may have one or many submodules, such as a `.model` or `.language_model` or `.classifier` that is the actual `torch.nn.Module` that you will be deploying at inference time. In our case, this is the [`MosaicGPT`](./models/mosaic_gpt/mosaic_gpt.py) module that we build and attach `ComposerMosaicGPT.model`.
 
 When you provide an `fsdp_config={...}` dictionary to the Composer Trainer, then on `__init__`, the Trainer will attempt to wrap **each of the submodules** of your `ComposerModel` with an FSDP auto wrap policy. This wrapping is recursive, so not only is `MosaicGPT` wrapped, but all submodules of `MosaicGPT` may/may not be wrapped too. See the [FSDP documentation](https://pytorch.org/docs/stable/fsdp.html) for more details on how auto wrap policies work.
 
@@ -18,12 +18,14 @@ To make auto-wrapping easier on users, Composer uses a custom auto wrap policy t
 
 These rules are meant to make it easy for users to modify existing models for usage with FSDP. You can either add attributes to modules you want to wrap (#1), define a filter (#2), or make no changes at all and just use the size-based policy via `fsdp_config['min_params'] = ...` (#3).
 
-In `mosaic_gpt.py`, you can see that [we used rule #2](./mosaic_gpt.py#L182) to specify that all `GPTBlock` modules within `GPT` should be wrapped. Alternatively, we could have easily attributed each of the blocks with `block._fsdp_wrap = True` and it would have accomplished the same thing. Whatever style you prefer, it's up to you!
+In [mosaic_gpt.py](./models/mosaic_gpt/mosaic_gpt.py), we used rule #2 (see `fsdp_wrap_fn`) to specify that all `GPTBlock` modules within `GPT` should be wrapped. Alternatively, we could have easily attributed each of the blocks with `block._fsdp_wrap = True` and it would have accomplished the same thing. Whatever style you prefer, it's up to you!
 
 A very similar auto wrap policy is provided for activation checkpointing, with analgous rule #1 that looks for `module._activation_checkpointing = True | False` and rule #2 that looks for `def activation_checkpointing_fn(module: torch.nn.Module) -> bool`.
 
 ## The FSDP Config
 The full spec and defaults for Composer's `fsdp_config` is here:
+
+<!--pytest.mark.skip-->
 ```python
 fsdp_config = {
   'sharding_strategy': str = 'FULL_SHARD' | 'SHARD_GRAD_OP' | 'NO_SHARD', # Default: 'FULL_SHARD'
@@ -47,6 +49,12 @@ All values come with defaults and can be optionally defined in the `fsdp_config`
 One Composer-specific pattern is that if `mixed_precision` is provided as a `str`, then we automatically infer the settings to use from the Trainer's `precision`, which is already being used for autocast, and we construct an associated MixedPrecision object for FSDP:
 
 ```python
+import torch
+from torch.distributed.fsdp import MixedPrecision
+
+# e.g. if composer.Trainer(precision='amp_bf16')
+autocast_precision = torch.bfloat16
+
 # If mixed_precision = 'FULL'
 mixed_precision = MixedPrecision(
   param_dtype=torch.float32,

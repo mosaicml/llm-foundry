@@ -9,6 +9,16 @@ multi_line_output = 0
 line_length = 80
 skip = [ "env", "wandb", "runs", "build", "node_modules" ]
 
+# Coverage
+[tool.coverage.run]
+parallel = true
+branch = true
+relative_files = true
+concurrency = ["thread"]
+include = [
+    "llmfoundry/*"
+]
+
 # Pyright
 [tool.pyright]
 exclude = ['env-**']

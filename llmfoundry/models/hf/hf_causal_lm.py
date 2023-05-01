@@ -7,6 +7,8 @@ from typing import Optional
 
 from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   InContextLearningMultipleChoiceAccuracy,
+                                  InContextLearningQAAccuracy, InContextLearningLMExpectedCalibrationError,
+                                  InContextLearningMCExpectedCalibrationError,
                                   LanguageCrossEntropy, LanguagePerplexity)
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
@@ -64,6 +66,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             LanguagePerplexity(len(tokenizer)),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
+            InContextLearningQAAccuracy(),
+            InContextLearningLMExpectedCalibrationError(),
+            InContextLearningMCExpectedCalibrationError()
         ]
 
         init_device = om_model_config.get('init_device', 'cpu')

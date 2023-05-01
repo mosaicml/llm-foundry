@@ -188,23 +188,46 @@ def build_icl_evaluators(cfg, tokenizer):
                 pad_tok_id = tokenizer.pad_token_id
             label = f'{icl_cfg.label}/{num_fewshot}-shot'
             metric_names = list(icl_cfg.metric_names)
-            dataloader = get_icl_task_dataloader(
-                icl_cfg.icl_task_type,
-                icl_cfg.dataset_uri,
-                tokenizer,
-                batch_size=icl_cfg.batch_size,
-                max_seq_len=cfg.max_seq_len,
-                pad_tok_id=pad_tok_id,
-                num_fewshot=num_fewshot,
-                prompt_string=icl_cfg.prompt_string,
-                example_delimiter=icl_cfg.example_delimiter,
-                continuation_delimiter=icl_cfg.continuation_delimiter,
-                destination_path=f'{icl_cfg.label}-{num_fewshot}.jsonl',
-            )
-            logger_keys.extend([f'metrics/{label}/{m}' for m in metric_names])
-            evaluators.append(
-                Evaluator(label=label,
-                          dataloader=dataloader,
-                          metric_names=metric_names))
+            if hasattr(icl_cfg, 'has_categories') and icl_cfg.has_categories:
+                dataloaders = get_icl_task_dataloader(
+                    icl_cfg.icl_task_type,
+                    icl_cfg.dataset_uri,
+                    tokenizer,
+                    batch_size=icl_cfg.batch_size,
+                    max_seq_len=tokenizer.model_max_length,
+                    pad_tok_id=pad_tok_id,
+                    num_fewshot=num_fewshot,
+                    prompt_string=icl_cfg.prompt_string,
+                    example_delimiter=icl_cfg.example_delimiter,
+                    continuation_delimiter=icl_cfg.continuation_delimiter,
+                    destination_path=f'{icl_cfg.label}-{num_fewshot}.jsonl',
+                    has_categories=True
+                )
+                for category in dataloaders.keys():
+                    logger_keys.extend([f'metrics/{label}/{category}/{m}' for m in metric_names])
+                    evaluators.append(
+                        Evaluator(label=f"{label}/{category}",
+                                dataloader=dataloaders[category],
+                                metric_names=metric_names))
+            else: 
+                dataloader = get_icl_task_dataloader(
+                    icl_cfg.icl_task_type,
+                    icl_cfg.dataset_uri,
+                    tokenizer,
+                    batch_size=icl_cfg.batch_size,
+                    max_seq_len=tokenizer.model_max_length,
+                    pad_tok_id=pad_tok_id,
+                    num_fewshot=num_fewshot,
+                    prompt_string=icl_cfg.prompt_string,
+                    example_delimiter=icl_cfg.example_delimiter,
+                    continuation_delimiter=icl_cfg.continuation_delimiter,
+                    destination_path=f'{icl_cfg.label}-{num_fewshot}.jsonl',
+
+                )
+                logger_keys.extend([f'metrics/{label}/{m}' for m in metric_names])
+                evaluators.append(
+                    Evaluator(label=label,
+                            dataloader=dataloader,
+                            metric_names=metric_names))
 
     return evaluators, logger_keys

@@ -38,7 +38,11 @@ class MosaicGPTConfig(PretrainedConfig):
         norm_type: str = 'low_precision_layernorm',
         multiquery_attention: bool = False,
         use_cache: bool = False,
-        init_config: Optional[Dict] = {},
+        init_config: Dict = {
+            'name': 'kaiming_normal_',
+            'fan_mode': 'fan_in',
+            'init_nonlinearity': 'relu',
+        },
         **kwargs,
     ):
         """The MosaicGPT configuration class.

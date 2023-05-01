@@ -326,7 +326,7 @@ def kaiming_uniform_param_init_fn_(
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     init_gain: float = 0,
     fan_mode: str = 'fan_in',
-    init_nonlinearity: str = 'relu',
+    init_nonlinearity: str = 'leaky_relu',
     verbose: int = 0,
     **kwargs,
 ):
@@ -364,7 +364,7 @@ def kaiming_normal_param_init_fn_(
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     init_gain: float = 0,
     fan_mode: str = 'fan_in',
-    init_nonlinearity: str = 'relu',
+    init_nonlinearity: str = 'leaky_relu',
     verbose: int = 0,
     **kwargs,
 ):

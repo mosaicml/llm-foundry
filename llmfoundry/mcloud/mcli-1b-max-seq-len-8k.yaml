@@ -1,10 +1,10 @@
 integrations:
-  - integration_type: git_repo
-    git_repo: mosaicml/llm-foundry
-    # git_branch: # use your branch
-    # git_commit: # OR use your commit hash
-    pip_install: -e .[gpu]
-    ssh_clone: false # Should be true if using a private repo
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  # git_branch: # use your branch
+  # git_commit: # OR use your commit hash
+  pip_install: -e .[gpu]
+  ssh_clone: false # Should be true if using a private repo
 
 # We are fetching, converting, and training on the 'val' split
 # as it is small and quick to get going for this demo.
@@ -85,8 +85,8 @@ parameters:
     name: decoupled_adamw
     lr: 2.0e-4
     betas:
-      - 0.9
-      - 0.95
+    - 0.9
+    - 0.95
     eps: 1.0e-08
     weight_decay: 0.0
 

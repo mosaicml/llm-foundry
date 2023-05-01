@@ -5,17 +5,16 @@ cluster: r0z0 # Update with your cluster here!
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 
 integrations:
-  - integration_type: pip_packages
-    # Install necessary oci-cli
-    packages:
-      - oci-cli==3.23.2
-
-  - integration_type: git_repo
-    git_repo: mosaicml/llm-foundry
-    # git_branch:
-    # git_commit: # OR use your commit hash
-    pip_install: '.'
-    ssh_clone: false # Should be true if using a private repo
+- integration_type: pip_packages
+  # Install necessary oci-cli
+  packages:
+  - oci-cli==3.23.2
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  # git_branch:
+  # git_commit: # OR use your commit hash
+  pip_install: '.'
+  ssh_clone: false # Should be true if using a private repo
 
 command: |
   cd llm-foundry/common

@@ -1,0 +1,36 @@
+name: PR GPU tests
+on:
+  push:
+    branches:
+    - main
+    - release/*
+  pull_request:
+    branches:
+    - main
+    - release/**
+  workflow_dispatch:
+# Cancel old runs when a new commit is pushed to the same branch if not on main or dev
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+jobs:
+  pytest-gpu:
+    uses: ./.github/workflows/pytest-gpu.yaml
+    strategy:
+      matrix:
+        include:
+        - name: 'gpu'
+          container: mosaicml/pytorch:latest
+          markers: 'gpu'
+          pytest_command: 'coverage run -m pytest'
+    name: ${{ matrix.name }}
+    if: github.repository_owner == 'mosaicml'
+    with:
+      container: ${{ matrix.container }}
+      mcloud-timeout: 1200
+      name: ${{ matrix.name }}
+      pytest-command: ${{ matrix.pytest_command }}
+      pytest-markers: ${{ matrix.markers }}
+      python-version: 3.9
+    secrets:
+      mcloud-api-key: ${{ secrets.MCLOUD_API_KEY }}

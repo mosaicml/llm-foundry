@@ -161,3 +161,5 @@ class MosaicGPTConfig(PretrainedConfig):
             raise ValueError(
                 f"{self.logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'."
             )
+        if self.init_config.get('name', None) is not None:
+            raise ValueError(f"{self.init_config=} 'name' needs to be set.")

@@ -392,7 +392,7 @@ class MosaicGPT(PreTrainedModel):
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
-        init_fn_name = self.config.init_config.get('name', 'kaiming_normal_')
+        init_fn_name = self.config.init_config['name']
         if 'verbose' not in self.config.init_config:
             self.config.init_config['verbose'] = self.config.verbose
         if self.config.init_config['verbose'] > 1:

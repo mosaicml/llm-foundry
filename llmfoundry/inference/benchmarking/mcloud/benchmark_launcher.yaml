@@ -3,18 +3,17 @@ gpu_num: 8
 cluster: r0z0 # Update with your cluster here!
 image: mosaicml/composer:0.13.4
 integrations:
-  - integration_type: git_repo
-    git_repo: mosaicml/llm-foundry
-    pip_install: '.[gpu]'
-
-  - integration_type: git_repo
-    git_repo: mosaicml/composer
-    # 0.13.4 doesn't have the right HF changes rn
-    # So this is the current commit hash as of 04/17/2023
-    # We will remove this install when we have a release
-    # with the appropriate changes.
-    git_commit: 20fb86b476d91749528a989265c3e211eb1d774d
-    pip_install: '.[all]'
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  pip_install: '.[gpu]'
+- integration_type: git_repo
+  git_repo: mosaicml/composer
+  # 0.13.4 doesn't have the right HF changes rn
+  # So this is the current commit hash as of 04/17/2023
+  # We will remove this install when we have a release
+  # with the appropriate changes.
+  git_commit: 20fb86b476d91749528a989265c3e211eb1d774d
+  pip_install: '.[all]'
 
 command: |
   cd llm-foundry/llm/inference/benchmarking/

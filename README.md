@@ -28,13 +28,13 @@ In the [common](../common) folder, you will also find:
 * `common/text_data.py`- a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/stable/) that can be used with a vanilla PyTorch dataloader.
 * `common/convert_dataset.py`- an example of converting generic text data into `StreamingDataset` `.mds` shard files.
 
-At all model scales, we are training the exact same [vanilla PyTorch GPT model](./src/mosaic_gpt.py#L106), with no special parallelism strategies.
+At all model scales, we are training the exact same [vanilla PyTorch GPT model](./llmfoundry/models/mosaic_gpt/mosaic_gpt.py), with no special parallelism strategies.
 Composer + FSDP does all the heavy lifting to make sure we can scale up without running out of memory and while maintaining high performance.
 
 Feel free to edit any or all of these files, and get a feel for using the LLM stack!
-In `src/mosaic_gpt.py` you can see how easy it is to modify the architecture and replace a layer like `torch.nn.MultiheadAttention` with
+In `llmfoundry/models/mosaic_gpt/mosaic_gpt.py` you can see how easy it is to modify the architecture and replace a layer like `torch.nn.MultiheadAttention` with
 a new one like `FlashMHA`. If you want to try and change the FSDP wrapping strategy (e.g. wrap all `GPTMLP` layers in addition to `GPTBlock`),
-go ahead and [edit it here](./src/mosaic_gpt.py#L182)! You'll find a full guide on how to build custom models for Composer + FSDP under [src/README.md](./src/README.md).
+go ahead and edit it directly in `mosaic_gpt.py`! You'll find a full guide on how to build custom models for Composer + FSDP under [llmfoundry/README.md](./llmfoundry/README.md).
 
 Now that you've had a chance to explore the code, let's jump into actually running a training job:
 
@@ -55,16 +55,15 @@ Here's what you need to get started with our LLM stack:
 To get started, clone this repo and install the requirements:
 
 ```bash
-git clone https://github.com/mosaicml/examples.git
-cd examples
+git clone https://github.com/mosaicml/llmfoundry.git
 pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
-cd examples/llm
+cd llmfoundry
 ```
 
 # Dataset preparation
 To run training, you'll need to make yourself a copy of the pre-training dataset.
 If you only want to profile these LLMs, we recommend that you **download and prepare the `train_small` and `val` splits**,
-and skip the full `train` split. You'll just need to replace `split: train` with `split: train_small` in your run YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L40).
+and skip the full `train` split. You'll just need to replace `split: train` with `split: train_small` in your run YAML's dataloader config, [e.g. here](./llmfoundry/yamls/mosaic_gpt/125m.yaml).
 You can also accomplish this in your CLI command like so: `composer main.py ... train_loader.dataset.split=train_small`
 Alternatively, feel free to substitute our dataloader with one of your own in [main.py](./main.py#L96)!
 
@@ -77,12 +76,13 @@ You can read more about [the benefits of using mosaicml-streaming here](https://
 
 ### Converting C4 to streaming dataset `.mds` format
 To make yourself a copy of C4, use `convert_dataset.py` like so:
+<!--pytest.mark.skip-->
 ```bash
 # Download the 'train_small' and 'val' splits and convert to StreamingDataset format
 # This will take 20-60 seconds depending on your Internet bandwidth
 # You should see two folders: `./my-copy-c4/train_small` and `./my-copy-c4/val` that are each ~0.5GB
 # Note: We are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
-python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
+python common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
 # Download the 'train' split if you really want to train the model (not just profile)
 # This will take 1-to-many hours depending on bandwidth, # CPUs, etc.
@@ -97,16 +97,16 @@ python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./m
 ### Test the Dataloader
 
 To verify that the dataloader works, run a quick test on your `val` split like so:
-
+<!--pytest.mark.skip-->
 ```bash
 # This will construct a `StreamingTextDataset` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
 # Since we only provide a local path, no streaming/copying takes place.
-python ../common/text_data.py --local_path ./my-copy-c4
+python common/text_data.py --local_path ./my-copy-c4
 
 # This will do the same thing, but stream data to {local} from {remote}.
 # The remote path can be a filesystem or object store URI.
-python ../common/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4  # stream from filesystem, e.g. a slow NFS volume to fast local disk
+python common/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4  # stream from filesystem, e.g. a slow NFS volume to fast local disk
 # python ../common/text_data.py --local_path /tmp/cache-c4 --remote_path s3://my-bucket/my-copy-c4  # stream from object store
 ```
 
@@ -117,7 +117,7 @@ Now that you've installed dependencies and built a local copy of the C4 dataset,
 **Please remember** to edit the `data_local` and (optionally) `data_remote` paths in your YAML.
 Our streaming dataloader always streams to `data_local` <- from <- `data_remote`, and if the remote path is missing, the files are expected to be present in `data_local`.
 
-**Also remember** that if you only downloaded the `train_small` split, you need to make sure your train_loader uses that split. Just change `split: train` to `split: train_small` in your YAML, [e.g. here](./yamls/mosaic_gpt/125m.yaml#L40). Or alternatively, pass it in via CLI arg: `composer main.py ... train_loader.dataset.split=train_small`.
+**Also remember** that if you only downloaded the `train_small` split, you need to make sure your train_loader uses that split. Just change `split: train` to `split: train_small` in your YAML, [e.g. here](./llmfoundry/yamls/mosaic_gpt/125m.yaml#L40). Or alternatively, pass it in via CLI arg: `composer main.py ... train_loader.dataset.split=train_small`.
 
 
 ### Single-Node training
@@ -125,7 +125,7 @@ We run the `main.py` script using our `composer` launcher, which generates N pro
 
 
 If training on a single node, the `composer` launcher will autodetect the number of devices, so all you need to do is:
-
+<!--pytest.mark.skip-->
 ```bash
 composer main.py yamls/mosaic_gpt/125m.yaml
 ```
@@ -136,6 +136,8 @@ But if you really must try this manually on your own cluster, then just provide 
 either directly via CLI, or via environment variables that can be read. Then launch the appropriate command on each node:
 
 ### Multi-Node via CLI args
+
+<!--pytest.mark.skip-->
 ```bash
 # Using 2 nodes with 8 devices each
 # Total world size is 16
@@ -151,6 +153,7 @@ composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 
 
 ### Multi-Node via environment variables
 
+<!--pytest.mark.skip-->
 ```bash
 # Using 2 nodes with 8 devices each
 # Total world size is 16
@@ -175,6 +178,7 @@ You should see logs being printed to your terminal like so.
 You can also easily enable other experiment trackers like Weights and Biases or CometML,
 by using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/trainer/logging.html).
 
+<!--pytest.mark.skip-->
 ```bash
 [batch=1/100]:
          Train LanguageCrossEntropy: 10.9736

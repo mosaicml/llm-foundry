@@ -35,7 +35,7 @@ class MosaicGPTConfig(PretrainedConfig):
         d_model: int = 2048,
         n_heads: int = 16,
         n_layers: int = 24,
-        expantion_ratio: int = 4,
+        expansion_ratio: int = 4,
         max_seq_len: int = 2048,
         vocab_size: int = 50368,
         resid_pdrop: float = 0.0,
@@ -58,7 +58,7 @@ class MosaicGPTConfig(PretrainedConfig):
             d_model (int): The size of the embedding dimension of the model.
             n_heads (int): The number of attention heads.
             n_layers (int): The number of layers in the model.
-            expantion_ratio (int): The ratio of the up/down scale in the MLP.
+            expansion_ratio (int): The ratio of the up/down scale in the MLP.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
             resid_pdrop (float): The dropout probability applied to the attention output before combining with residual.
@@ -119,7 +119,7 @@ class MosaicGPTConfig(PretrainedConfig):
         self.d_model = d_model
         self.n_heads = n_heads
         self.n_layers = n_layers
-        self.expantion_ratio = expantion_ratio
+        self.expansion_ratio = expansion_ratio
         self.max_seq_len = max_seq_len
         self.vocab_size = vocab_size
         self.resid_pdrop = resid_pdrop

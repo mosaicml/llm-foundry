@@ -16,14 +16,14 @@ class GPTMLP(nn.Module):
 
     def __init__(self,
                  d_model: int,
-                 expantion_ratio: int,
+                 expansion_ratio: int,
                  device: Optional[str] = None):
         super().__init__()
         self.up_proj = nn.Linear(d_model,
-                                 expantion_ratio * d_model,
+                                 expansion_ratio * d_model,
                                  device=device)
         self.act = nn.GELU(approximate='none')
-        self.down_proj = nn.Linear(expantion_ratio * d_model,
+        self.down_proj = nn.Linear(expansion_ratio * d_model,
                                    d_model,
                                    device=device)
         self.down_proj._is_residual = True  # type: ignore
@@ -38,7 +38,7 @@ class GPTBlock(nn.Module):
             self,
             d_model: int,
             n_heads: int,
-            expantion_ratio: int,
+            expansion_ratio: int,
             attn_config: Dict = {
                 'attn_type': 'multihead_attention',
                 'attn_pdrop': 0.0,
@@ -75,7 +75,7 @@ class GPTBlock(nn.Module):
         self.norm_2 = norm_class(d_model, device=device)
         self.ffn = GPTMLP(
             d_model=d_model,
-            expantion_ratio=expantion_ratio,
+            expansion_ratio=expansion_ratio,
             device=device,
         )
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)

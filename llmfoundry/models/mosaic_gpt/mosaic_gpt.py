@@ -23,8 +23,8 @@ from transformers import (PreTrainedModel, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-import llmfoundry.models.layers.attention as attention
-import llmfoundry.models.layers.gpt_blocks as gpt_blocks
+from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
+from llmfoundry.models.layers.gpt_blocks import GPTBlock
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.mosaic_gpt.configuration_mosaic_gpt import \
     MosaicGPTConfig
@@ -76,9 +76,10 @@ class MosaicGPT(PreTrainedModel):
         self.transformer.update({
             'blocks':
                 nn.ModuleList([
-                    gpt_blocks.GPTBlock(device=config.init_device,
-                                        **config.to_dict())
-                    for _ in range(config.n_layers)
+                    GPTBlock(
+                        device=config.init_device,
+                        **config.to_dict(),
+                    ) for _ in range(config.n_layers)
                 ])
         })
         self.transformer.update(
@@ -109,7 +110,7 @@ class MosaicGPT(PreTrainedModel):
         # define attn mask
         self._attn_bias_initialized = False
         self.attn_bias = None
-        self.attn_bias_shape = attention.attn_bias_shape(
+        self.attn_bias_shape = attn_bias_shape(
             self.attn_impl,
             config.n_heads,
             config.max_seq_len,
@@ -141,7 +142,7 @@ class MosaicGPT(PreTrainedModel):
                 self.attn_bias = torch.zeros(self.attn_bias_shape,
                                              device=device,
                                              dtype=dtype)
-                self.attn_bias = attention.build_attn_bias(
+                self.attn_bias = build_attn_bias(
                     self.attn_impl,
                     self.attn_bias,
                     self.config.n_heads,
@@ -406,11 +407,11 @@ class MosaicGPT(PreTrainedModel):
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module):
-        return isinstance(module, gpt_blocks.GPTBlock)
+        return isinstance(module, GPTBlock)
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module):
-        return isinstance(module, gpt_blocks.GPTBlock)
+        return isinstance(module, GPTBlock)
 
     def prepare_inputs_for_generation(self,
                                       input_ids,

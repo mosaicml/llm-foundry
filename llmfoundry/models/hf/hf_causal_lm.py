@@ -3,13 +3,14 @@
 
 """Implements a Hugging Causal LM wrapped inside a :class:`.ComposerModel`."""
 
-from typing import Optional, Union
+from typing import Union
 
 from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   InContextLearningMultipleChoiceAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
 from omegaconf import DictConfig
-from transformers import AutoConfig, AutoModelForCausalLM, PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedTokenizer,
+                          PreTrainedTokenizerFast)
 
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import init_empty_weights

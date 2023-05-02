@@ -43,12 +43,3 @@ class HFInstructorLargeModel(BaseModelHandler):
 
         embeddings = self.model.encode(inputs['input_strings'])
         return embeddings.tolist()
-    
-
-def test_model_setup():
-    test = HFInstructorLargeModel()
-    print(test.model._model_config)
-
-
-if __name__ == "__main__":
-    test_model_setup()

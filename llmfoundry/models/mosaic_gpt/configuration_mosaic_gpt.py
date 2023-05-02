@@ -7,6 +7,25 @@ from typing import Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
+attn_config_defaults: Dict = {
+    'attn_type': 'multihead_attention',
+    'attn_pdrop': 0.0,
+    'attn_impl': 'triton',
+    'qk_ln': False,
+    'clip_qkv': None,
+    'softmax_scale': None,
+    'prefix_lm': False,
+    'attn_uses_sequence_id': False,
+    'alibi': False,
+    'alibi_bias_max': 8,
+}
+
+init_config_defaults: Dict = {
+    'name': 'kaiming_normal_',
+    'fan_mode': 'fan_in',
+    'init_nonlinearity': 'relu',
+}
+
 
 class MosaicGPTConfig(PretrainedConfig):
     model_type = 'mosaic_gpt'
@@ -14,26 +33,15 @@ class MosaicGPTConfig(PretrainedConfig):
     def __init__(
         self,
         d_model: int = 2048,
+        n_heads: int = 16,
         n_layers: int = 24,
-        mlp_ratio: int = 4,
+        expantion_ratio: int = 4,
         max_seq_len: int = 2048,
         vocab_size: int = 50368,
         resid_pdrop: float = 0.0,
         emb_pdrop: float = 0.0,
         learned_pos_emb: bool = True,
-        attn_config: Dict = {
-            'attn_type': 'multihead_attention',
-            'n_heads': 16,
-            'attn_pdrop': 0.0,
-            'attn_impl': 'triton',
-            'qk_ln': False,
-            'clip_qkv': None,
-            'softmax_scale': None,
-            'prefix_lm': False,
-            'attn_uses_sequence_id': False,
-            'alibi': False,
-            'alibi_bias_max': 8,
-        },
+        attn_config: Dict = attn_config_defaults,
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
@@ -41,19 +49,16 @@ class MosaicGPTConfig(PretrainedConfig):
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
         use_cache: bool = False,
-        init_config: Dict = {
-            'name': 'kaiming_normal_',
-            'fan_mode': 'fan_in',
-            'init_nonlinearity': 'relu',
-        },
+        init_config: Dict = init_config_defaults,
         **kwargs,
     ):
         """The MosaicGPT configuration class.
 
         Args:
             d_model (int): The size of the embedding dimension of the model.
+            n_heads (int): The number of attention heads.
             n_layers (int): The number of layers in the model.
-            mlp_ratio (int): The ratio of the up/down scale in the MLP.
+            expantion_ratio (int): The ratio of the up/down scale in the MLP.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
             resid_pdrop (float): The dropout probability applied to the attention output before combining with residual.
@@ -61,7 +66,6 @@ class MosaicGPTConfig(PretrainedConfig):
             learned_pos_emb (bool): Whether to use learned positional embeddings
             attn_config (Dict):  A dictionary used to configure the model's attention module:
                 attn_type (str): type of attention to use. Options: multihead_attention, multiquery_attention
-                n_heads (int): The number of attention heads.
                 attn_pdrop (float): The dropout probability for the attention layers.
                 attn_impl (str): The attention implementation to use. One of 'torch', 'flash', or 'triton'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
@@ -102,9 +106,18 @@ class MosaicGPTConfig(PretrainedConfig):
                 ---
                 See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
         """
+        # set attn_config and init_config defaults
+        for k, v in attn_config_defaults.items():
+            if k not in attn_config:
+                attn_config[k] = v
+        for k, v in init_config_defaults.items():
+            if k not in init_config:
+                init_config[k] = v
+
         self.d_model = d_model
+        self.n_heads = n_heads
         self.n_layers = n_layers
-        self.mlp_ratio = mlp_ratio
+        self.expantion_ratio = expantion_ratio
         self.max_seq_len = max_seq_len
         self.vocab_size = vocab_size
         self.resid_pdrop = resid_pdrop
@@ -128,7 +141,7 @@ class MosaicGPTConfig(PretrainedConfig):
         self._validate_config()
 
     def _validate_config(self):
-        if self.d_model % self.attn_config['n_heads'] != 0:
+        if self.d_model % self.n_heads != 0:
             raise ValueError('d_model must be divisible by n_heads')
         if any(
                 prob < 0 or prob > 1 for prob in

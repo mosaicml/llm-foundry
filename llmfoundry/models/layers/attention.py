@@ -518,13 +518,15 @@ def attn_bias_shape(attn_impl, n_heads, seq_len, alibi, prefix_lm, causal,
         raise ValueError(f'{attn_impl=} is an invalid setting.')
 
 
-def attn_bias(attn_impl,
-              attn_bias,
-              n_heads,
-              seq_len,
-              causal=False,
-              alibi=False,
-              alibi_bias_max=8):
+def build_attn_bias(
+    attn_impl,
+    attn_bias,
+    n_heads,
+    seq_len,
+    causal=False,
+    alibi=False,
+    alibi_bias_max=8,
+):
     if attn_impl == 'flash':
         return None
     elif attn_impl in ['torch', 'triton']:
@@ -532,12 +534,14 @@ def attn_bias(attn_impl,
             # in place add alibi to attn bias
             device, dtype = attn_bias.device, attn_bias.dtype
             attn_bias = attn_bias.add(
-                alibi_bias(n_heads,
-                           seq_len,
-                           full=not causal,
-                           alibi_bias_max=alibi_bias_max,
-                           device=device,
-                           dtype=dtype))
+                build_alibi_bias(
+                    n_heads,
+                    seq_len,
+                    full=not causal,
+                    alibi_bias_max=alibi_bias_max,
+                    device=device,
+                    dtype=dtype,
+                ))
         return attn_bias
     else:
         raise ValueError(f'{attn_impl=} is an invalid setting.')
@@ -558,12 +562,14 @@ def gen_slopes(n_heads, alibi_bias_max=8, device=None):
     return slopes.view(1, n_heads, 1, 1)
 
 
-def alibi_bias(n_heads,
-               seq_len,
-               full=False,
-               alibi_bias_max=8,
-               device=None,
-               dtype=None):
+def build_alibi_bias(
+    n_heads,
+    seq_len,
+    full=False,
+    alibi_bias_max=8,
+    device=None,
+    dtype=None,
+):
     alibi_bias = torch.arange(1 - seq_len, 1, dtype=torch.int32,
                               device=device).view(1, 1, 1, seq_len)
     if full:

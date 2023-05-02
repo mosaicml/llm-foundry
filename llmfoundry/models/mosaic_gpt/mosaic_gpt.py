@@ -110,7 +110,7 @@ class MosaicGPT(PreTrainedModel):
         self.attn_bias = None
         self.attn_bias_shape = attention.attn_bias_shape(
             self.attn_impl,
-            config.attn_config['n_heads'],
+            config.n_heads,
             config.max_seq_len,
             self.alibi,
             prefix_lm=self.prefix_lm,
@@ -140,14 +140,15 @@ class MosaicGPT(PreTrainedModel):
                 self.attn_bias = torch.zeros(self.attn_bias_shape,
                                              device=device,
                                              dtype=dtype)
-                self.attn_bias = attention.attn_bias(
+                self.attn_bias = attention.build_attn_bias(
                     self.attn_impl,
                     self.attn_bias,
-                    self.config.attn_config['n_heads'],
+                    self.config.n_heads,
                     self.config.max_seq_len,
                     causal=self.is_causal,
                     alibi=self.alibi,
-                    alibi_bias_max=self.alibi_bias_max)
+                    alibi_bias_max=self.alibi_bias_max,
+                )
             self._attn_bias_initialized = True
 
         # flash does not support prefix_lm and will incorporate any

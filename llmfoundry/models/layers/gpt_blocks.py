@@ -16,16 +16,20 @@ class GPTMLP(nn.Module):
 
     def __init__(self,
                  d_model: int,
-                 mlp_ratio: int,
+                 expantion_ratio: int,
                  device: Optional[str] = None):
         super().__init__()
-        self.mlp_up = nn.Linear(d_model, mlp_ratio * d_model, device=device)
-        self.mlp_act = nn.GELU(approximate='none')
-        self.mlp_down = nn.Linear(mlp_ratio * d_model, d_model, device=device)
-        self.mlp_down._is_residual = True  # type: ignore
+        self.up_proj = nn.Linear(d_model,
+                                 expantion_ratio * d_model,
+                                 device=device)
+        self.act = nn.GELU(approximate='none')
+        self.down_proj = nn.Linear(expantion_ratio * d_model,
+                                   d_model,
+                                   device=device)
+        self.down_proj._is_residual = True  # type: ignore
 
     def forward(self, x):
-        return self.mlp_down(self.mlp_act(self.mlp_up(x)))
+        return self.down_proj(self.act(self.up_proj(x)))
 
 
 class GPTBlock(nn.Module):
@@ -33,10 +37,10 @@ class GPTBlock(nn.Module):
     def __init__(
             self,
             d_model: int,
-            mlp_ratio: int,
+            n_heads: int,
+            expantion_ratio: int,
             attn_config: Dict = {
                 'attn_type': 'multihead_attention',
-                'n_heads': 16,
                 'attn_pdrop': 0.0,
                 'attn_impl': 'triton',
                 'qk_ln': False,
@@ -65,17 +69,17 @@ class GPTBlock(nn.Module):
             softmax_scale=attn_config['softmax_scale'],
             attn_pdrop=attn_config['attn_pdrop'],
             d_model=d_model,
-            n_heads=attn_config['n_heads'],
+            n_heads=n_heads,
             device=device,
         )
         self.norm_2 = norm_class(d_model, device=device)
         self.ffn = GPTMLP(
             d_model=d_model,
-            mlp_ratio=mlp_ratio,
+            expantion_ratio=expantion_ratio,
             device=device,
         )
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)
-        self.resid_mlp_dropout = nn.Dropout(resid_pdrop)
+        self.resid_ffn_dropout = nn.Dropout(resid_pdrop)
 
     def forward(
         self,
@@ -94,5 +98,5 @@ class GPTBlock(nn.Module):
         x = x + self.resid_attn_dropout(b)
         m = self.norm_2(x)
         n = self.ffn(m)
-        x = x + self.resid_mlp_dropout(n)
+        x = x + self.resid_ffn_dropout(n)
         return x, past_key_value

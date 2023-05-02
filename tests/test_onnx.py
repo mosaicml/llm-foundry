@@ -38,11 +38,13 @@ def test_onnx_export(tmp_path):
         max_seq_len=2048,
         emb_pdrop=0.0,
         resid_pdrop=0.0,
-        attn_impl='torch',
-        alibi=True,
+        attn_config={
+            'attn_impl': 'torch',
+            'alibi': True,
+        },
         use_cache=True,
         vocab_size=50368,
-        low_precision_layernorm=False,
+        norm_type='layernorm',
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()

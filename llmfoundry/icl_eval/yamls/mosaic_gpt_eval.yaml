@@ -101,7 +101,6 @@ icl_tasks:
     metric_names:
     - InContextLearningMultipleChoiceAccuracy
     - InContextLearningMCExpectedCalibrationError
-
     prompt_string: '' # this goes at the beginning of each input
     example_delimiter: '\n' # this goes between fewshot examples
     continuation_delimiter: 'Answer: ' # this separates questions from answers

@@ -178,7 +178,9 @@ def build_icl_evaluators(icl_tasks, tokenizer, default_max_seq_len,
             if icl_cfg.icl_task_type == 'language_modeling':
                 icl_cfg.metric_names = ['InContextLearningLMAccuracy']
             elif icl_cfg.icl_task_type == 'multiple_choice':
-                icl_cfg.metric_names = ['InContextLearningMultipleChoiceAccuracy']
+                icl_cfg.metric_names = [
+                    'InContextLearningMultipleChoiceAccuracy'
+                ]
             else:
                 raise ValueError(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg.icl_task_type}.'

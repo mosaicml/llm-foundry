@@ -637,8 +637,8 @@ def _get_max_starting_length(max_length: int, mask_ratio: float,
         total_inp_tokens, total_targ_tokens = sequence_stats(length)
         if decoder_only_format:
             return (total_inp_tokens + total_targ_tokens) <= max_length
-        return (total_inp_tokens <= max_length) and (total_targ_tokens
-                                                     <= max_length)
+        return (total_inp_tokens <= max_length) and (total_targ_tokens <=
+                                                     max_length)
 
     # Start with a definitely too-long sequence and reduce until it fits
     num_raw_tokens = max_length * 2

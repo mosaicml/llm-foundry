@@ -58,7 +58,7 @@ class MosaicGPTConfig(PretrainedConfig):
             d_model (int): The size of the embedding dimension of the model.
             n_heads (int): The number of attention heads.
             n_layers (int): The number of layers in the model.
-            expantion_ratio (int): The ratio of the up/down scale in the MLP.
+            expansion_ratio (int): The ratio of the up/down scale in the MLP.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
             resid_pdrop (float): The dropout probability applied to the attention output before combining with residual.

@@ -2,7 +2,7 @@ name: instructor-large
 cluster: r7z13
 gpu_num: 1
 gpu_type: a100_40gb
-image: mosaicml/inference-testing:a6409984-b6e2-422f-bba9-57323851d42b
+image: mosaicml/inference:latest
 replicas: 1
 command: |
   cd llm-foundry
@@ -11,13 +11,12 @@ command: |
   uvicorn serve:app --host 0.0.0.0 --port 8080
 integrations:
 - integration_type: git_repo
-  git_branch: main
   git_repo: mosaicml/llm-foundry
-  pip_install: -r /code/llm-foundry/inference/requirements.txt
+  pip_install: -r /code/llm-foundry/llm-foundry/inference/mosaic_server/requirements.txt
 model:
   checkpoint_path: hkunlp/instructor-large
   custom_model:
-    model_handler: llm-foundry.inference.src.hf_instructor_model_class.HFInstructorLargeModel
+    model_handler: llm-foundry.llm-foundry.inference.mosaic_server.hf_instructor_model_class.HFInstructorLargeModel
 metadata:
   version: 1
   model_name: Instructor-Large

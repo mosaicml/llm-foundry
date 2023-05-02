@@ -22,8 +22,8 @@ Deploying the model is as simple as running `mcli deploy -f yamls/instructor_mod
 The logs for a successful deployment should look something like:
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/instructor_model_logs.png">
-  <img alt="Logs from single node NeMo trianing." src="./assets/instructor_model_logs.png">
+  <source media="(prefers-color-scheme: dark)" srcset="./instructor_model_logs.png">
+  <img alt="Logs from starting server." src="./instructor_model_logs.png">
 </picture>
 
 # Running Inference

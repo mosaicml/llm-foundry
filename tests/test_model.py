@@ -20,7 +20,7 @@ from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         ComposerHFPrefixLM)
-from llmfoundry.models.layers import NORM_CLASS_REGISTRY, alibi_bias
+from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
 from llmfoundry.models.mosaic_gpt import MosaicGPT, MosaicGPTConfig
 
 
@@ -51,7 +51,9 @@ def get_objs(conf_path='llmfoundry/yamls/mosaic_gpt/testing.yaml'):
     print('Initializing model...')
     device = 'cpu'
     test_cfg.precision = 'fp32'
-    test_cfg.model.attn_impl = 'torch'
+    test_cfg.model.attn_config = {
+        'attn_impl': 'torch',
+    }
     # device = 'cuda'
     # test_cfg.precision = 'amp'
     test_cfg.model.init_device = device
@@ -181,8 +183,8 @@ def test_attention_mechanism(batch_size=2):
                            zerod_weights)
         x = x + block.resid_attn_dropout(b)
         m = block.norm_2(x)
-        n = block.mlp(m)
-        x = x + block.resid_mlp_dropout(n)
+        n = block.ffn(m)
+        x = x + block.resid_ffn_dropout(n)
 
 
 @pytest.mark.parametrize('prefixlm', [False, True])
@@ -280,11 +282,11 @@ def test_full_forward_and_backward_t5_small(batch_size=2):
 
 
 @pytest.mark.parametrize(
-    'attention_type,precision',
+    'attn_impl,precision',
     [('torch', torch.float16), ('torch', torch.bfloat16),
      pytest.param('flash', torch.float16, marks=pytest.mark.gpu),
      pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu)])
-def test_determinism(attention_type: str, precision):
+def test_determinism(attn_impl: str, precision):
     if not torch.cuda.is_available():
         pytest.skip(
             'This test requires CUDA to be available in order to run with bfloat16 precision.'
@@ -295,7 +297,9 @@ def test_determinism(attention_type: str, precision):
     with open(conf_path) as f:
         test_cfg = om.load(f)
 
-    test_cfg.model.attn_impl = attention_type
+    test_cfg.model.attn_config = {
+        'attn_impl': attn_impl,
+    }
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
@@ -430,11 +434,13 @@ def test_mosaic_gpt_creation(norm_type, no_bias):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        mlp_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
-        attn_impl='torch',
+        attn_config={
+            'attn_impl': 'torch',
+        },
         norm_type=norm_type,
         no_bias=no_bias,
     )
@@ -443,7 +449,7 @@ def test_mosaic_gpt_creation(norm_type, no_bias):
     assert mosaic_gpt.config.d_model == 128
     assert mosaic_gpt.config.n_heads == 4
     assert mosaic_gpt.config.n_layers == 2
-    assert mosaic_gpt.config.mlp_ratio == 2
+    assert mosaic_gpt.config.expansion_ratio == 2
     assert mosaic_gpt.config.max_seq_len == 2048
 
     assert mosaic_gpt.transformer.wte.weight.shape == torch.Size(  # type: ignore
@@ -459,12 +465,12 @@ def test_mosaic_gpt_creation(norm_type, no_bias):
                                                        ])  # type: ignore
         assert block.norm_2.weight.shape == torch.Size([d_model
                                                        ])  # type: ignore
-        assert block.mlp.mlp_up.weight.shape == torch.Size(  # type: ignore
-            [hf_config.d_model * hf_config.mlp_ratio, hf_config.d_model])
-        assert block.mlp.mlp_down.weight.shape == torch.Size(  # type: ignore
-            [hf_config.d_model, hf_config.d_model * hf_config.mlp_ratio])
+        assert block.ffn.up_proj.weight.shape == torch.Size(  # type: ignore
+            [hf_config.d_model * hf_config.expansion_ratio, hf_config.d_model])
+        assert block.ffn.down_proj.weight.shape == torch.Size(  # type: ignore
+            [hf_config.d_model, hf_config.d_model * hf_config.expansion_ratio])
         assert block.resid_attn_dropout.p == 0.2  # type: ignore
-        assert block.resid_mlp_dropout.p == 0.2  # type: ignore
+        assert block.resid_ffn_dropout.p == 0.2  # type: ignore
 
 
 @pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),
@@ -489,12 +495,14 @@ def test_forward_with_padding(attention_impl, device, alibi):
         d_model=128,
         n_heads=1,
         n_layers=2,
-        mlp_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
-        attn_impl=attention_impl,
-        alibi=alibi,
+        attn_config={
+            'attn_impl': attention_impl,
+            'alibi': alibi,
+        },
         init_config={
             'name': 'baseline_',
             'init_std': 0.02,
@@ -589,18 +597,22 @@ def test_forward_with_padding(attention_impl, device, alibi):
 def test_advanced_mask_building(attention_impl):
     # Test that the correct attention mask is created when both
     # prefix_mask and sequence_id are used
-    hf_config = MosaicGPTConfig(init_device='cpu',
-                                d_model=16,
-                                n_heads=1,
-                                n_layers=1,
-                                mlp_ratio=1,
-                                max_seq_len=256,
-                                emb_pdrop=0.0,
-                                resid_pdrop=0.0,
-                                attn_impl=attention_impl,
-                                prefix_lm=True,
-                                attn_uses_sequence_id=True,
-                                alibi=False)
+    hf_config = MosaicGPTConfig(
+        init_device='cpu',
+        d_model=16,
+        n_heads=1,
+        n_layers=1,
+        expansion_ratio=1,
+        max_seq_len=256,
+        emb_pdrop=0.0,
+        resid_pdrop=0.0,
+        attn_config={
+            'attn_impl': attention_impl,
+            'prefix_lm': True,
+            'attn_uses_sequence_id': True,
+            'alibi': False,
+        },
+    )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()
 
@@ -659,12 +671,14 @@ def test_generate(attention_impl, device, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        mlp_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
-        attn_impl=attention_impl,
-        alibi=alibi,
+        attn_config={
+            'attn_impl': attention_impl,
+            'alibi': alibi,
+        },
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()
@@ -755,11 +769,13 @@ def test_save_from_pretrained(tmp_path):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        mlp_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
-        attn_impl='torch',
+        attn_config={
+            'attn_impl': 'torch',
+        },
     )
     mosaic_gpt = MosaicGPT(hf_config)
 
@@ -777,12 +793,14 @@ def test_forward_with_cache_and_padding(alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        mlp_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
-        attn_impl='torch',
-        alibi=alibi,
+        attn_config={
+            'attn_impl': 'torch',
+            'alibi': alibi,
+        },
         use_cache=True,
         init_config={
             'name': 'baseline_',
@@ -856,10 +874,14 @@ def test_forward_with_cache(attention_impl, device, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        mlp_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
+        attn_config={
+            'attn_impl': attention_impl,
+            'alibi': alibi,
+        },
         attn_impl=attention_impl,
         alibi=alibi,
         use_cache=True,
@@ -936,15 +958,19 @@ def test_generate_with_past_kv(alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        mlp_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
-        attn_impl='torch',
-        alibi=alibi,
+        attn_config={
+            'attn_impl': 'torch',
+            'alibi': alibi,
+        },
         use_cache=True,
-        param_init_fn='baseline_',
-        init_std=0.02,
+        init_config={
+            'name': 'baseline_',
+            'init_std': 0.02,
+        },
     )
     mosaic_gpt = MosaicGPT(hf_config)
     mosaic_gpt.eval()
@@ -992,12 +1018,14 @@ def test_generation_kwargs_dont_crash(generation_kwargs, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        mlp_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
-        attn_impl='torch',
-        alibi=alibi,
+        attn_config={
+            'attn_impl': 'torch',
+            'alibi': alibi,
+        },
         use_cache=True,
     )
     mosaic_gpt = MosaicGPT(hf_config)
@@ -1029,15 +1057,19 @@ def test_model_to(attention_impl, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        mlp_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
-        attn_impl=attention_impl,
-        alibi=alibi,
+        attn_config={
+            'attn_impl': attention_impl,
+            'alibi': alibi,
+        },
         use_cache=True,
-        param_init_fn='baseline_',
-        init_std=0.02,
+        init_config={
+            'name': 'baseline_',
+            'init_std': 0.02,
+        },
     )
     reproducibility.seed_all(1234)
     mosaic_gpt = MosaicGPT(hf_config)
@@ -1092,7 +1124,9 @@ def test_alibi_vs_hf():
                 dim=2, keepdim=True).values
 
             # mosaicml alibi bais
-            alibi_bias_m = alibi_bias(n_heads, seq_len, dtype=torch.float32)
+            alibi_bias_m = build_alibi_bias(n_heads,
+                                            seq_len,
+                                            dtype=torch.float32)
             alibi_bias_m = alibi_bias_m[0]
 
             torch.testing.assert_close(alibi_bias_hf, alibi_bias_m)

@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from llmfoundry.models.layers.attention import (
-    MultiheadAttention, MultiQueryAttention, alibi_bias, attn_bias,
-    attn_bias_shape, flash_attn_fn, scaled_multihead_dot_product_attention,
-    triton_flash_attn_fn)
+    ATTN_CLASS_REGISTRY, MultiheadAttention, MultiQueryAttention,
+    attn_bias_shape, build_alibi_bias, build_attn_bias, flash_attn_fn,
+    scaled_multihead_dot_product_attention, triton_flash_attn_fn)
 from llmfoundry.models.layers.gpt_blocks import GPTMLP, GPTBlock
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
@@ -15,8 +15,9 @@ __all__ = [
     'MultiheadAttention',
     'MultiQueryAttention',
     'attn_bias_shape',
-    'attn_bias',
-    'alibi_bias',
+    'build_attn_bias',
+    'build_alibi_bias',
+    'ATTN_CLASS_REGISTRY',
     'GPTMLP',
     'GPTBlock',
     'NORM_CLASS_REGISTRY',

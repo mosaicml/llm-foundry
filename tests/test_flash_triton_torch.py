@@ -14,14 +14,14 @@ def allclose_helper(t0, t1, rtol=1e-2, atol=1e-2):
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl_0', ['flash', 'triton', 'torch'])
 @pytest.mark.parametrize('attn_impl_1', ['flash', 'triton', 'torch'])
-@pytest.mark.parametrize('attn_clip_qkv', [True, False])
-@pytest.mark.parametrize('attn_qk_ln', [True, False])
+@pytest.mark.parametrize('clip_qkv', [True, False])
+@pytest.mark.parametrize('qk_ln', [True, False])
 @pytest.mark.parametrize('alibi', [True, False])
 @pytest.mark.parametrize('multiquery', [True, False])
 def test_attn_impl(attn_impl_0,
                    attn_impl_1,
-                   attn_clip_qkv,
-                   attn_qk_ln,
+                   clip_qkv,
+                   qk_ln,
                    alibi,
                    multiquery,
                    device='cuda'):
@@ -41,8 +41,8 @@ def test_attn_impl(attn_impl_0,
         'd_model': 128,
         'n_heads': 2,
         'attn_pdrop': 0,
-        'attn_clip_qkv': attn_clip_qkv,
-        'attn_qk_ln': attn_qk_ln,
+        'clip_qkv': clip_qkv,
+        'qk_ln': qk_ln,
     })
 
     n, s, f = 2, 16, cfg.d_model
@@ -74,13 +74,15 @@ def test_attn_impl(attn_impl_0,
                                        causal=causal)
         if bs is not None:
             attn_bias = torch.zeros(*bs, device=device)
-            attn_bias = attention.attn_bias(attn_impl,
-                                            attn_bias,
-                                            cfg.n_heads,
-                                            s,
-                                            causal=causal,
-                                            alibi=alibi,
-                                            alibi_bias_max=8)
+            attn_bias = attention.build_attn_bias(
+                attn_impl,
+                attn_bias,
+                cfg.n_heads,
+                s,
+                causal=causal,
+                alibi=alibi,
+                alibi_bias_max=8,
+            )
 
         return attn_bias
 
@@ -135,8 +137,8 @@ def test_vs_mha(attn_impl, device='cuda'):
         'd_model': 256,
         'n_heads': 2,
         'attn_pdrop': 0,
-        'attn_clip_qkv': False,
-        'attn_qk_ln': False,
+        'clip_qkv': False,
+        'qk_ln': False,
     })
 
     n, s, f = 2, 16, cfg.d_model

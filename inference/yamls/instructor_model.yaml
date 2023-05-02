@@ -11,9 +11,9 @@ command: |
   uvicorn serve:app --host 0.0.0.0 --port 8080
 integrations:
 - integration_type: git_repo
-  git_branch: roshan/inference_hf_model
-  git_repo: mosaicml/examples
-  pip_install: -r /code/examples/examples/inference/requirements.txt
+  git_branch: main
+  git_repo: mosaicml/llm-foundry
+  pip_install: -r /code/llm-foundry/inference/requirements.txt
 model:
   checkpoint_path: hkunlp/instructor-large
   custom_model:

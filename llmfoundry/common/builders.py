@@ -163,7 +163,8 @@ def build_dataloader(cfg, tokenizer, device_batch_size):
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
-def build_icl_evaluators(cfg, tokenizer, default_batch_size):
+def build_icl_evaluators(icl_tasks, tokenizer, default_max_seq_len,
+                         default_batch_size):
     evaluators = []
     logger_keys = []
 
@@ -189,12 +190,13 @@ def build_icl_evaluators(cfg, tokenizer, default_batch_size):
             icl_cfg.example_delimiter = '\n'
         if 'continuation_delimiter' not in icl_cfg:
             icl_cfg.continuation_delimiter = ' '
+        if 'max_seq_len' not in icl_cfg:
+            icl_cfg.max_seq_len = default_max_seq_len
         if 'batch_size' not in icl_cfg:
             icl_cfg.batch_size = default_batch_size
 
-    for icl_cfg in cfg.icl_tasks:
+    for icl_cfg in icl_tasks:
         _validate_cfg(icl_cfg)
-        print(icl_cfg)
         for num_fewshot in list(icl_cfg.num_fewshot):
             if tokenizer.pad_token_id is None:
                 # Current workaround to support GPT2 tokenizer with `pad_token_id = None`
@@ -208,7 +210,7 @@ def build_icl_evaluators(cfg, tokenizer, default_batch_size):
                 icl_cfg.dataset_uri,
                 tokenizer,
                 batch_size=icl_cfg.batch_size,
-                max_seq_len=cfg.max_seq_len,
+                max_seq_len=icl_cfg.max_seq_len,
                 pad_tok_id=pad_tok_id,
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,

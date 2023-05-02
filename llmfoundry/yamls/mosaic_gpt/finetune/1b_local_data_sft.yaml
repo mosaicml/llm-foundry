@@ -38,10 +38,10 @@ train_loader: &train_loader
   dataset:
     <<: *hf_dataset
     split: train
-    max_seq_length: ${max_seq_len}
+    max_seq_len: ${max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
-    packing_ratio: 3.5
+    # packing_ratio:  # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...` to find this run's optimal packing_ratio
     shuffle: true
   drop_last: true
   num_workers: 8
@@ -123,4 +123,4 @@ callbacks:
 
 # Load from remote object store
 # REPLACE THE BELOW with you own checkpoint!
-load_path: oci://my-bucket/my-folder/gpt-7b/checkpoints/some_checkpoint.ckpt
+load_path: oci://my-bucket/my-folder/mpt-7b/checkpoints/some_checkpoint.pt

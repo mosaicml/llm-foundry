@@ -1,4 +1,4 @@
-## In-context learning evaluaton
+## In-context learning (ICL) evaluaton
 What is this module for?
 
 

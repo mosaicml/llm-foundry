@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import os
 import sys
 import warnings
@@ -18,6 +19,7 @@ from llmfoundry.common.builders import (build_algorithm, build_callback,
                                         build_tokenizer)
 from llmfoundry.common.config_utils import log_config, update_batch_size_info
 from llmfoundry.common.text_data import build_text_dataloader
+from llmfoundry.models.utils import init_empty_weights
 
 
 def validate_config(cfg):
@@ -135,7 +137,11 @@ def main(cfg):
 
     # Build Model
     print('Initializing model...')
-    model = build_composer_model(cfg.model, tokenizer)
+    init_context = contextlib.nullcontext()
+    if init_device == 'meta':
+        init_context = init_empty_weights()
+    with init_context:
+        model = build_composer_model(cfg.model, tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')
 

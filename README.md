@@ -72,7 +72,7 @@ We first convert the dataset from its native format (a collection of zipped JSON
 to MosaicML's streaming dataset format (a collection of binary `.mds` files).
 Once in `.mds` format, we can store the dataset in a central location (filesystem, S3, GCS, etc.)
 and stream the data to any compute cluster, with any number of devices, and any number of CPU workers, and it all ~ just works ~ .
-You can read more about [the benefits of using mosaicml-streaming here](https://streaming.docs.mosaicml.com/en/stable/):
+You can read more about the benefits of using mosaicml-streaming [here](https://streaming.docs.mosaicml.com/en/stable/).
 
 ### Converting C4 to streaming dataset `.mds` format
 To make yourself a copy of C4, use `convert_dataset.py` like so:
@@ -225,7 +225,7 @@ In general, larger microbatch sizes and disabling `activation_checkpointing` lea
 Note that each YAML specifies a `global_train_batch_size`, which is an optimization choice, i.e. the **math** being performed,
 and a `device_train_microbatch_size`, which is a system choice, i.e. how we **execute** that math.
 
-Given these two values, our code automatically adjusts the # of gradient accumulation steps baed on the # of devices,
+Given these two values, our code automatically adjusts the # of gradient accumulation steps based on the # of devices,
 so you should be able to run the exact same YAML on 8 or 16 or 256 GPUs and get the same training results (within numerics).
 This is nice because it means you can write device-count-agnostic training configs,
 and not worry about OOM-ing or accidentally changing the optimization math.
@@ -239,4 +239,4 @@ and may not always work with Auto Grad Accum (but we are working on it!).
 # Contact Us
 If you run into any problems with the code, please file Github issues directly to this repo.
 
-you want train LLMs on the MosaicML platform, reach out to us at [llm-early-access@mosaicml.com](mailto:llm-early-access@mosaicml.com)!
+If you want to train LLMs on the MosaicML platform, reach out to us at [llm-early-access@mosaicml.com](mailto:llm-early-access@mosaicml.com)!

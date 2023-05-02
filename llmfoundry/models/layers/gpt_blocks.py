@@ -3,13 +3,12 @@
 
 """GPT Blocks used for the GPT Model."""
 
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
 
-from llmfoundry.models.layers.attention import (MultiheadAttention,
-                                                MultiQueryAttention)
+from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
@@ -31,40 +30,46 @@ class GPTMLP(nn.Module):
 
 class GPTBlock(nn.Module):
 
-    def __init__(self,
-                 attn_impl: str,
-                 d_model: int,
-                 n_heads: int,
-                 mlp_ratio: int,
-                 attn_clip_qkv: Optional[float] = None,
-                 attn_qk_ln: bool = False,
-                 softmax_scale: Optional[float] = None,
-                 attn_pdrop: float = 0.0,
-                 alibi: bool = False,
-                 resid_pdrop: float = 0.0,
-                 norm_type: str = 'low_precision_layernorm',
-                 multiquery_attention: bool = False,
-                 device: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+            self,
+            d_model: int,
+            mlp_ratio: int,
+            attn_config: Dict = {
+                'attn_type': 'multihead_attention',
+                'n_heads': 16,
+                'attn_pdrop': 0.0,
+                'attn_impl': 'triton',
+                'qk_ln': False,
+                'clip_qkv': None,
+                'softmax_scale': None,
+                'prefix_lm': False,
+                'attn_uses_sequence_id': False,
+                'alibi': False,
+                'alibi_bias_max': 8,
+            },
+            resid_pdrop: float = 0.0,
+            norm_type: str = 'low_precision_layernorm',
+            device: Optional[str] = None,
+            **kwargs):
         del kwargs  # unused, just to capture any extra args from the config
         super().__init__()
 
         norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
-        attn_class = MultiQueryAttention if multiquery_attention else MultiheadAttention
+        attn_class = ATTN_CLASS_REGISTRY[attn_config['attn_type']]
 
         self.norm_1 = norm_class(d_model, device=device)
         self.attn = attn_class(
-            attn_impl=attn_impl,
-            attn_clip_qkv=attn_clip_qkv,
-            attn_qk_ln=attn_qk_ln,
-            softmax_scale=softmax_scale,
-            attn_pdrop=attn_pdrop,
+            attn_impl=attn_config['attn_impl'],
+            clip_qkv=attn_config['clip_qkv'],
+            qk_ln=attn_config['qk_ln'],
+            softmax_scale=attn_config['softmax_scale'],
+            attn_pdrop=attn_config['attn_pdrop'],
             d_model=d_model,
-            n_heads=n_heads,
+            n_heads=attn_config['n_heads'],
             device=device,
         )
         self.norm_2 = norm_class(d_model, device=device)
-        self.mlp = GPTMLP(
+        self.ffn = GPTMLP(
             d_model=d_model,
             mlp_ratio=mlp_ratio,
             device=device,
@@ -88,6 +93,6 @@ class GPTBlock(nn.Module):
                                          is_causal=is_causal)
         x = x + self.resid_attn_dropout(b)
         m = self.norm_2(x)
-        n = self.mlp(m)
+        n = self.ffn(m)
         x = x + self.resid_mlp_dropout(n)
         return x, past_key_value

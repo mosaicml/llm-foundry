@@ -41,11 +41,11 @@ class MosaicGPT(PreTrainedModel):
     def __init__(self, config: MosaicGPTConfig):
         super().__init__(config)
 
-        self.attn_impl = config.attn_impl
-        self.prefix_lm = config.prefix_lm
-        self.attn_uses_sequence_id = config.attn_uses_sequence_id
-        self.alibi = config.alibi
-        self.alibi_bias_max = config.alibi_bias_max
+        self.attn_impl = config.attn_config['attn_impl']
+        self.prefix_lm = config.attn_config['prefix_lm']
+        self.attn_uses_sequence_id = config.attn_config['attn_uses_sequence_id']
+        self.alibi = config.attn_config['alibi']
+        self.alibi_bias_max = config.attn_config['alibi_bias_max']
 
         if config.norm_type.lower() not in NORM_CLASS_REGISTRY.keys():
             norm_options = ' | '.join(NORM_CLASS_REGISTRY.keys())
@@ -110,7 +110,7 @@ class MosaicGPT(PreTrainedModel):
         self.attn_bias = None
         self.attn_bias_shape = attention.attn_bias_shape(
             self.attn_impl,
-            config.n_heads,
+            config.attn_config['n_heads'],
             config.max_seq_len,
             self.alibi,
             prefix_lm=self.prefix_lm,
@@ -143,7 +143,7 @@ class MosaicGPT(PreTrainedModel):
                 self.attn_bias = attention.attn_bias(
                     self.attn_impl,
                     self.attn_bias,
-                    self.config.n_heads,
+                    self.config.attn_config['n_heads'],
                     self.config.max_seq_len,
                     causal=self.is_causal,
                     alibi=self.alibi,

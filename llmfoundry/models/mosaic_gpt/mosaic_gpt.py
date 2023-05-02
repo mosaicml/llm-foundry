@@ -23,8 +23,8 @@ from transformers import (PreTrainedModel, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-import llmfoundry.models.layers.attention as attention
-import llmfoundry.models.layers.gpt_blocks as gpt_blocks
+from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
+from llmfoundry.models.layers.gpt_blocks import GPTBlock
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.mosaic_gpt.configuration_mosaic_gpt import \
     MosaicGPTConfig
@@ -39,13 +39,14 @@ class MosaicGPT(PreTrainedModel):
     base_model_prefix = 'mosaic_gpt'
 
     def __init__(self, config: MosaicGPTConfig):
+        config._validate_config()
         super().__init__(config)
 
-        self.attn_impl = config.attn_impl
-        self.prefix_lm = config.prefix_lm
-        self.attn_uses_sequence_id = config.attn_uses_sequence_id
-        self.alibi = config.alibi
-        self.alibi_bias_max = config.alibi_bias_max
+        self.attn_impl = config.attn_config['attn_impl']
+        self.prefix_lm = config.attn_config['prefix_lm']
+        self.attn_uses_sequence_id = config.attn_config['attn_uses_sequence_id']
+        self.alibi = config.attn_config['alibi']
+        self.alibi_bias_max = config.attn_config['alibi_bias_max']
 
         if config.norm_type.lower() not in NORM_CLASS_REGISTRY.keys():
             norm_options = ' | '.join(NORM_CLASS_REGISTRY.keys())
@@ -75,9 +76,10 @@ class MosaicGPT(PreTrainedModel):
         self.transformer.update({
             'blocks':
                 nn.ModuleList([
-                    gpt_blocks.GPTBlock(device=config.init_device,
-                                        **config.to_dict())
-                    for _ in range(config.n_layers)
+                    GPTBlock(
+                        device=config.init_device,
+                        **config.to_dict(),
+                    ) for _ in range(config.n_layers)
                 ])
         })
         self.transformer.update(
@@ -108,7 +110,7 @@ class MosaicGPT(PreTrainedModel):
         # define attn mask
         self._attn_bias_initialized = False
         self.attn_bias = None
-        self.attn_bias_shape = attention.attn_bias_shape(
+        self.attn_bias_shape = attn_bias_shape(
             self.attn_impl,
             config.n_heads,
             config.max_seq_len,
@@ -140,14 +142,15 @@ class MosaicGPT(PreTrainedModel):
                 self.attn_bias = torch.zeros(self.attn_bias_shape,
                                              device=device,
                                              dtype=dtype)
-                self.attn_bias = attention.attn_bias(
+                self.attn_bias = build_attn_bias(
                     self.attn_impl,
                     self.attn_bias,
                     self.config.n_heads,
                     self.config.max_seq_len,
                     causal=self.is_causal,
                     alibi=self.alibi,
-                    alibi_bias_max=self.alibi_bias_max)
+                    alibi_bias_max=self.alibi_bias_max,
+                )
             self._attn_bias_initialized = True
 
         # flash does not support prefix_lm and will incorporate any
@@ -404,11 +407,11 @@ class MosaicGPT(PreTrainedModel):
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module):
-        return isinstance(module, gpt_blocks.GPTBlock)
+        return isinstance(module, GPTBlock)
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module):
-        return isinstance(module, gpt_blocks.GPTBlock)
+        return isinstance(module, GPTBlock)
 
     def prepare_inputs_for_generation(self,
                                       input_ids,

@@ -434,7 +434,7 @@ def test_mosaic_gpt_creation(norm_type, no_bias):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expantion_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
@@ -449,7 +449,7 @@ def test_mosaic_gpt_creation(norm_type, no_bias):
     assert mosaic_gpt.config.d_model == 128
     assert mosaic_gpt.config.n_heads == 4
     assert mosaic_gpt.config.n_layers == 2
-    assert mosaic_gpt.config.expantion_ratio == 2
+    assert mosaic_gpt.config.expansion_ratio == 2
     assert mosaic_gpt.config.max_seq_len == 2048
 
     assert mosaic_gpt.transformer.wte.weight.shape == torch.Size(  # type: ignore
@@ -466,9 +466,9 @@ def test_mosaic_gpt_creation(norm_type, no_bias):
         assert block.norm_2.weight.shape == torch.Size([d_model
                                                        ])  # type: ignore
         assert block.ffn.up_proj.weight.shape == torch.Size(  # type: ignore
-            [hf_config.d_model * hf_config.expantion_ratio, hf_config.d_model])
+            [hf_config.d_model * hf_config.expansion_ratio, hf_config.d_model])
         assert block.ffn.down_proj.weight.shape == torch.Size(  # type: ignore
-            [hf_config.d_model, hf_config.d_model * hf_config.expantion_ratio])
+            [hf_config.d_model, hf_config.d_model * hf_config.expansion_ratio])
         assert block.resid_attn_dropout.p == 0.2  # type: ignore
         assert block.resid_ffn_dropout.p == 0.2  # type: ignore
 
@@ -495,7 +495,7 @@ def test_forward_with_padding(attention_impl, device, alibi):
         d_model=128,
         n_heads=1,
         n_layers=2,
-        expantion_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
@@ -602,7 +602,7 @@ def test_advanced_mask_building(attention_impl):
         d_model=16,
         n_heads=1,
         n_layers=1,
-        expantion_ratio=1,
+        expansion_ratio=1,
         max_seq_len=256,
         emb_pdrop=0.0,
         resid_pdrop=0.0,
@@ -671,7 +671,7 @@ def test_generate(attention_impl, device, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expantion_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
@@ -769,7 +769,7 @@ def test_save_from_pretrained(tmp_path):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expantion_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
@@ -793,7 +793,7 @@ def test_forward_with_cache_and_padding(alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expantion_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
@@ -874,7 +874,7 @@ def test_forward_with_cache(attention_impl, device, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expantion_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
@@ -958,7 +958,7 @@ def test_generate_with_past_kv(alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expantion_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
@@ -1018,7 +1018,7 @@ def test_generation_kwargs_dont_crash(generation_kwargs, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expantion_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
@@ -1057,7 +1057,7 @@ def test_model_to(attention_impl, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expantion_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,

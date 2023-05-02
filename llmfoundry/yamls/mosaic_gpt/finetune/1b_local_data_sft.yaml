@@ -15,7 +15,8 @@ model:
   mlp_ratio: 4
   max_seq_len: ${max_seq_len}
   vocab_size: 50368
-  attn_impl: triton
+  attn_config:
+    attn_impl: triton
 
 # Tokenizer
 tokenizer:

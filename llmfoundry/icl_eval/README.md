@@ -50,7 +50,7 @@ Question: What star sign is Jamie Lee Curtis? Answer:
 
 The model would then be expected to generate a series of tokens beginning with either of the aliases: Scorpio/Skorpio.
 
-Below is a complete YAML that works with the TriviaQA datset in `local_data/triviaqa.jsonl`
+Below is a complete YAML section that works with the TriviaQA dataset in `local_data/triviaqa.jsonl`
 
 > 
     label: triviaqa

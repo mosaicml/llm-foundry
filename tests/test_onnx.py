@@ -34,7 +34,7 @@ def test_onnx_export(tmp_path):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        mlp_ratio=2,
+        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.0,
         resid_pdrop=0.0,

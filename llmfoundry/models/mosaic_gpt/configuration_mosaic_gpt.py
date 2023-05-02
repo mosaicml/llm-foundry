@@ -106,8 +106,15 @@ class MosaicGPTConfig(PretrainedConfig):
                 ---
                 See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
         """
-        attn_config = self._updt_attn_config(attn_config)
-        init_config = self._updt_init_config(init_config)
+        # set config defaults
+        attn_config = self._set_config_defaults(
+            attn_config,
+            attn_config_defaults,
+        )
+        init_config = self._set_config_defaults(
+            init_config,
+            init_config_defaults,
+        )
 
         self.d_model = d_model
         self.n_heads = n_heads
@@ -135,29 +142,12 @@ class MosaicGPTConfig(PretrainedConfig):
 
         self._validate_config()
 
-    def _updt_attn_config(self, attn_config):
-        # validate attn_config inputs
-        for k in attn_config.keys():
-            if k not in attn_config_defaults.keys():
-                raise ValueError(f'Invalid input ({k}) to attn_config.')
-        # set attn_config defaults
-        for k, v in attn_config_defaults.items():
-            if k not in attn_config:
-                attn_config[k] = v
-
-        return attn_config
-
-    def _updt_init_config(self, init_config):
-        # validate init_config inputs
-        for k in init_config.keys():
-            if k not in init_config_defaults.keys():
-                raise ValueError(f'Invalid input ({k}) to init_config.')
-        # set init_config defaults
-        for k, v in init_config_defaults.items():
-            if k not in init_config:
-                init_config[k] = v
-
-        return init_config
+    def _set_config_defaults(self, config, config_defaults):
+        # set config defaults
+        for k, v in config_defaults.items():
+            if k not in config:
+                config[k] = v
+        return config
 
     def _validate_config(self):
         if self.d_model % self.n_heads != 0:

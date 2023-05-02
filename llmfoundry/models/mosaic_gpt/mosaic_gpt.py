@@ -39,6 +39,7 @@ class MosaicGPT(PreTrainedModel):
     base_model_prefix = 'mosaic_gpt'
 
     def __init__(self, config: MosaicGPTConfig):
+        config._validate_config()
         super().__init__(config)
 
         self.attn_impl = config.attn_config['attn_impl']

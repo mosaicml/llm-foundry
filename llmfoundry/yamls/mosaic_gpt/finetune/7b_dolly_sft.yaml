@@ -32,8 +32,10 @@ train_loader:
     max_seq_len: ${max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
-    # packing_ratio:  # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...` to find this run's optimal packing_ratio
     shuffle: true
+    # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...` to profile
+    # this run's optimal packing_ratio
+    # packing_ratio:
   drop_last: true
   num_workers: 8
   pin_memory: false

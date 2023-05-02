@@ -6,7 +6,7 @@ What is this module for?
 
 ICL evaluation measures a model’s ability to solve novel problems by being provided examples in-context without ever being specifically trained to answer such questions.
 
-Composer supports a number of different standard ICL formats and allows and allows users to upload their own datasets that correspond to those formats.
+Composer supports a number of different standard ICL formats and allows users to upload their own datasets that correspond to those formats.
 
 This document will explain the available composer ICL formats, give some basic pointers on adding new datasets in those formats, and catalog the datasets currently used by the research team to assess our hero runs.
 

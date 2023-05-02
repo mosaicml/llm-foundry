@@ -1,0 +1,25 @@
+name: instructor-large
+cluster: r7z13
+gpu_num: 1
+gpu_type: a100_40gb
+image: mosaicml/inference-testing:a6409984-b6e2-422f-bba9-57323851d42b
+replicas: 1
+command: |
+  cd llm-foundry
+  touch __init__.py
+  cd ..
+  uvicorn serve:app --host 0.0.0.0 --port 8080
+integrations:
+- integration_type: git_repo
+  git_branch: roshan/inference_hf_model
+  git_repo: mosaicml/examples
+  pip_install: -r /code/examples/examples/inference/requirements.txt
+model:
+  checkpoint_path: hkunlp/instructor-large
+  custom_model:
+    model_handler: llm-foundry.inference.src.hf_instructor_model_class.HFInstructorLargeModel
+metadata:
+  version: 1
+  model_name: Instructor-Large
+  task_type: feature-extraction
+  tag: mosaic-hosted-model

@@ -12,7 +12,7 @@ try:
     from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                       ComposerHFT5)
     from llmfoundry.models.layers.attention import (
-        MultiheadAttention, alibi_bias, attn_bias, attn_bias_shape,
+        MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
         flash_attn_fn, scaled_multihead_dot_product_attention,
         triton_flash_attn_fn)
     from llmfoundry.models.layers.gpt_blocks import GPTMLP, GPTBlock

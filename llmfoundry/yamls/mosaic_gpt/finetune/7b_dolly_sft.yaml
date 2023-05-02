@@ -1,5 +1,3 @@
-# data_local: ./my-copy-c4
-# data_remote: # If blank, files must be present in data_local
 max_seq_len: 2048
 global_seed: 17
 
@@ -31,11 +29,13 @@ train_loader:
   dataset:
     name: HuggingFaceH4/databricks_dolly_15k
     split: train
-    max_seq_length: ${max_seq_len}
+    max_seq_len: ${max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
-    packing_ratio: 3.5
     shuffle: true
+    # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...` to profile
+    # this run's optimal packing_ratio
+    # packing_ratio:
   drop_last: true
   num_workers: 8
   pin_memory: false
@@ -112,4 +112,4 @@ callbacks:
 
 # Load from remote object store
 # REPLACE THE BELOW with you own checkpoint!
-load_path: oci://my-bucket/my-folder/gpt-7b/checkpoints/some_checkpoint.ckpt
+load_path: oci://my-bucket/my-folder/mpt-7b/checkpoints/some_checkpoint.pt

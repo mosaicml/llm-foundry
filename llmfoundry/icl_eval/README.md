@@ -71,7 +71,7 @@ Below is a complete YAML that works with the TriviaQA datset in `local_data/triv
 
 ### InContextLearningLMTaskDataset
 
-The ICL language modeling (LM) task assesses the model’s ability to predict a precise sequence of tokens (called a continuation) preceding some context using the model’s `forward` function. An LM dataset consists of a list of JSONs containing a context (under the key “context”) and a continuation (under the key “continuation” that the model must correctly predict conditioned on the context. The LM task works with the NLP metric: [InContextLearningLMAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningLMAccuracy.html) which assigns a model's output to be "correct" if, conditioned on the context tokens, the model's argmax output logits exactly match the tokens in the continuation.
+The ICL language modeling (LM) task assesses the model’s ability to predict a precise sequence of tokens (called a continuation) following some context using the model’s `forward` function. An LM dataset consists of a list of JSONs containing a context (under the key “context”) and a continuation (under the key “continuation” that the model must correctly predict conditioned on the context. The LM task works with the NLP metric: [InContextLearningLMAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningLMAccuracy.html) which assigns a model's output to be "correct" if, conditioned on the context tokens, the model's argmax output logits exactly match the tokens in the continuation.
 
 --------
 Required keys for each datum:

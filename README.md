@@ -5,38 +5,28 @@
   </picture>
 </p>
 
-# Mosaic Large Language Models
+# LLM Foundry
 
-This folder contains starter code for training LLMs with Composer + FSDP.
+This repo contains code for training, finetuning, evaluating, and deploying LLMs for inference with Composer and the MosaicML platform.
 
-Our goal was to build the simplest, most flexible, and still performant stack for training LLMs ([see our blog post](https://www.mosaicml.com/blog/gpt-3-quality-for-500k)).
-To emphasize that flexibility, we designed this folder as a simple but feature-complete example of GPT pre-training
-that you should feel free to download, fork, and customize for your application.
-We even packed in a few tricks (e.g. [FlashAttention](https://github.com/HazyResearch/flash-attention)) to make training efficient, and there will be more to come!
-
-You'll find in this folder:
-* `src/models/mosaic_gpt/` - a simple PyTorch GPT model, wrapped in `ComposerModel`, that can scale up to 70B+ parameters
-* `main.py` - a training script that builds a [Composer](https://github.com/mosaicml/composer) `Trainer` and calls `trainer.fit()`.
-* `yamls/` - configs for training compute-optimal LLMs from 125M up to 70B parameters.
-* `throughput/` - data on the training throughput of MosaicGPT on different cluster configurations.
-* `inference/` - scripts to convert models to HuggingFace or ONNX format, and view generations.
-* `mcloud/` - examples of how to use [MosaicML platform](https://www.mosaicml.com/platform) to seamlessly launch training, eval, and inference jobs :)
+You'll find in this repo:
+* `data_prep/` - convert text data from original sources to StreamingDataset format
+* `train/` - train or finetune HuggingFace and MPT models from 125M - 70B parameters
+  * `train/benchmarking` - profile training throughput and MFU
+* `inference/` - convert models to HuggingFace or ONNX format, and generate responses
+  * `inference/benchmarking` - profile inference latency and throughput
+* `eval/` - evaluate LLMs on academic (or custom) in-context-learning tasks
+* `mcli/` - launch any of these workloads using [MCLI](https://docs.mosaicml.com/projects/mcli/en/latest/) and the [MosaicML platform](https://www.mosaicml.com/platform)
+* `llmfoundry/` - source code for models, datasets, callbacks, utilities, etc.
 
 
-In the [common](../common) folder, you will also find:
-* `common/builders.py`- A collection of convenient string-to-object mappings used to create objects that get passed to `Trainer`.
-* `common/text_data.py`- a [MosaicML streaming dataset](https://streaming.docs.mosaicml.com/en/stable/) that can be used with a vanilla PyTorch dataloader.
-* `common/convert_dataset.py`- an example of converting generic text data into `StreamingDataset` `.mds` shard files.
+# Latest News
+* [Blog: Benchmarking LLMs on H100](https://www.mosaicml.com/blog/coreweave-nvidia-h100-part-1)
+* [Blog: Blazingly Fast LLM Evaluation](https://www.mosaicml.com/blog/llm-evaluation-for-icl)
+* [Blog: GPT3 Quality for $500k](https://www.mosaicml.com/blog/gpt-3-quality-for-500k)
+* [Blog: Billion parameter GPT training made easy](https://www.mosaicml.com/blog/billion-parameter-gpt-training-made-easy)
 
-At all model scales, we are training the exact same [vanilla PyTorch GPT model](./llmfoundry/models/mosaic_gpt/mosaic_gpt.py), with no special parallelism strategies.
-Composer + FSDP does all the heavy lifting to make sure we can scale up without running out of memory and while maintaining high performance.
 
-Feel free to edit any or all of these files, and get a feel for using the LLM stack!
-In `llmfoundry/models/mosaic_gpt/mosaic_gpt.py` you can see how easy it is to modify the architecture and replace a layer like `torch.nn.MultiheadAttention` with
-a new one like `FlashMHA`. If you want to try and change the FSDP wrapping strategy (e.g. wrap all `GPTMLP` layers in addition to `GPTBlock`),
-go ahead and edit it directly in `mosaic_gpt.py`! You'll find a full guide on how to build custom models for Composer + FSDP under [llmfoundry/README.md](./llmfoundry/README.md).
-
-Now that you've had a chance to explore the code, let's jump into actually running a training job:
 
 # Prerequisites
 Here's what you need to get started with our LLM stack:
@@ -65,7 +55,7 @@ pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 
 Here is a simple end-to-end workflow for preparing a subset of the C4 dataset, training an MPT-1B model for 10 batches, converting the model to HuggingFace format, and generating responses to prompts.
 
-(Note this is just a quickstart to get a feel for the tools. To get good responses, the model must be trained for longer than 10 batches :)
+(Remember this is just a quickstart to demonstrate the tools -- To get good responses, the model must be trained for longer than 10 batches :)
 
 ```bash
 # Convert C4 dataset to StreamingDataset format

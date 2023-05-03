@@ -8,7 +8,7 @@ import os
 import pytest
 
 TMP_FOLDER = 'tmp_data'
-def load_icl_config(conf_path='llmfoundry/icl_eval/yamls/tasks.yaml'):
+def load_icl_config(conf_path='tests/test_tasks.yaml'):
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return test_cfg
@@ -28,11 +28,12 @@ def test_icl_task_loading_gpt2_tokenizer():
     
     tokenizer = AutoTokenizer.from_pretrained('gpt2')
     task_cfg = load_icl_config()
-    evaluators, _ = build_icl_evaluators(task_cfg, tokenizer, destination_dir=f"{os.getcwd()}/{TMP_FOLDER}")
+    evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks, tokenizer, 1024, 8, destination_dir=f"{os.getcwd()}/{TMP_FOLDER}")
 
     for e in evaluators:
-        inputs = next(e.dataloader.dataloader.__iter__())['input_ids'][0]
-        continuation_indices = list(next(e.dataloader.dataloader.__iter__())['continuation_indices'][0])
+        batch = next(e.dataloader.dataloader.__iter__())
+        inputs = batch['input_ids'][0]
+        continuation_indices = list(batch['continuation_indices'][0])
         full_example = tokenizer.decode(inputs[0:continuation_indices[-1]])
         answer = tokenizer.decode(inputs[continuation_indices[0]:continuation_indices[-1]])
 

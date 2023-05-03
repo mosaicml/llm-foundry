@@ -5,8 +5,6 @@ icl_tasks:
       num_fewshot:
       - 0
       - 1
-      - 5
-      - 10
       batch_size: 8
       icl_task_type: language_modeling
       metric_names:
@@ -33,8 +31,6 @@ icl_tasks:
       num_fewshot:
       - 0
       - 1
-      - 5
-      - 10
       batch_size: 8
       icl_task_type: multiple_choice
       metric_names:
@@ -48,8 +44,6 @@ icl_tasks:
       num_fewshot:
       - 0
       - 1
-      - 5
-      - 10
       batch_size: 8
       icl_task_type: multiple_choice
       metric_names:
@@ -63,8 +57,6 @@ icl_tasks:
       num_fewshot:
       - 0
       - 1
-      - 5
-      - 10
       batch_size: 8
       icl_task_type: multiple_choice
       metric_names:
@@ -78,8 +70,6 @@ icl_tasks:
       num_fewshot:
       - 0
       - 1
-      - 5
-      - 10
       batch_size: 8
       icl_task_type: multiple_choice
       metric_names:
@@ -93,8 +83,6 @@ icl_tasks:
       num_fewshot:
       - 0
       - 1
-      - 5
-      - 10
       batch_size: 8
       icl_task_type: multiple_choice
       metric_names:
@@ -108,8 +96,6 @@ icl_tasks:
       num_fewshot:
       - 0
       - 1
-      - 5
-      - 10
       batch_size: 8
       icl_task_type: multiple_choice
       metric_names:
@@ -123,8 +109,6 @@ icl_tasks:
       num_fewshot:
       - 0
       - 1
-      - 5
-      - 10
       batch_size: 8
       icl_task_type: multiple_choice
       metric_names:
@@ -139,8 +123,6 @@ icl_tasks:
       num_fewshot:
       - 0
       - 1
-      - 5
-      - 10
       batch_size: 8
       icl_task_type: schema
       metric_names:
@@ -154,8 +136,6 @@ icl_tasks:
       num_fewshot:
       - 0
       - 1
-      - 5
-      - 10
       batch_size: 8
       icl_task_type: schema
       metric_names:
@@ -169,8 +149,6 @@ icl_tasks:
       num_fewshot:
       - 0
       - 1
-      - 5
-      - 10
       batch_size: 8
       icl_task_type: question_answering
       metric_names:

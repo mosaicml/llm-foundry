@@ -1,0 +1,54 @@
+icl_tasks:
+    -
+      label: jeopardy
+      dataset_uri: llmfoundry/icl_eval/local_data/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+      num_fewshot:
+      - 0
+      - 1
+      batch_size: 8
+      icl_task_type: language_modeling
+      metric_names:
+      - InContextLearningLMAccuracy
+      prompt_string: "" # this goes at the beginning of each input
+      example_delimiter: "\n" # this goes between fewshot examples
+      continuation_delimiter: "\nAnswer: " # this separates questions from answers
+      has_categories: true
+    -
+      label: copa
+      dataset_uri:  llmfoundry/icl_eval/local_data/copa.jsonl  # ADD YOUR OWN DATASET URI
+      num_fewshot:
+      - 0
+      - 1
+      batch_size: 8
+      icl_task_type: multiple_choice
+      metric_names:
+      - InContextLearningMultipleChoiceAccuracy
+      prompt_string: "" # this goes at the beginning of each input
+      example_delimiter: "\n" # this goes between fewshot examples
+      continuation_delimiter: "Answer: " # this separates questions from answers
+    -
+      label: winograd
+      dataset_uri: llmfoundry/icl_eval/local_data/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
+      num_fewshot:
+      - 0
+      - 1
+      batch_size: 8
+      icl_task_type: schema
+      metric_names:
+      - InContextLearningMultipleChoiceAccuracy
+      prompt_string: "" # this goes at the beginning of each input
+      example_delimiter: "\n" # this goes between fewshot examples
+      continuation_delimiter: "" # this separates questions from answers
+    -
+      label: triviaqa
+      dataset_uri: llmfoundry/icl_eval/local_data/triviaqa.jsonl # ADD YOUR OWN DATASET URI
+      num_fewshot:
+      - 0
+      - 1
+      batch_size: 8
+      icl_task_type: question_answering
+      metric_names:
+      - InContextLearningQAAccuracy
+      prompt_string: "" # this goes at the beginning of each input
+      example_delimiter: "\n" # this goes between fewshot examples
+      continuation_delimiter: " " # this separates questions from answers

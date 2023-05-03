@@ -8,7 +8,6 @@ try:
                                  Seq2SeqFinetuningCollator,
                                  build_finetuning_dataloader,
                                  build_text_denoising_dataloader)
-    from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
     from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                       ComposerHFT5)
     from llmfoundry.models.layers.attention import (
@@ -16,6 +15,7 @@ try:
         flash_attn_fn, scaled_multihead_dot_product_attention,
         triton_flash_attn_fn)
     from llmfoundry.models.layers.gpt_blocks import GPTMLP, GPTBlock
+    from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
     from llmfoundry.models.mosaic_gpt import (ComposerMosaicGPT, MosaicGPT,
                                               MosaicGPTConfig)
 

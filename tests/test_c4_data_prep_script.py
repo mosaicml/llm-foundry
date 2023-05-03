@@ -33,7 +33,7 @@
 #     shutil.rmtree(path, ignore_errors=True)
 #     print(os.getcwd())
 #     os.system(
-#         'python llmfoundry/common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
+#         'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
 #     )
 #     assert os.path.exists(path)
 #     shutil.rmtree(path, ignore_errors=False)

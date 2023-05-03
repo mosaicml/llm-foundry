@@ -8,13 +8,15 @@ integrations:
 
 # We are fetching, converting, and training on the 'val' split
 # as it is small and quick to get going for this demo.
-# For real training runs, follow the instructions in `examples/llm/README.md`
+# For real training runs, follow the instructions in `llm-foundry/scripts/train/README.md`
 # to convert and host the full 'train' dataset.
 command: |
-  cd llm-foundry/llmfoundry
-  python common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val \
+  cd llm-foundry/scripts
+  python data_prep/convert_dataset.py \
+    --dataset c4 --data_subset en \
+    --out_root ./my-copy-c4 --splits train_small val_small \
     --concat_tokens 8192 --tokenizer gpt2 --eos_text '<|endoftext|>'
-  composer main.py /mnt/config/parameters.yaml
+  composer train/train.py /mnt/config/parameters.yaml
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
 run_name: mosaic-gpt-1b-ctx-8k-gpus-8
@@ -69,7 +71,7 @@ parameters:
     dataset:
       local: ${data_local}
       remote: ${data_remote}
-      split: val
+      split: val_small
       shuffle: false
       max_seq_len: ${max_seq_len}
       shuffle_seed: ${global_seed}

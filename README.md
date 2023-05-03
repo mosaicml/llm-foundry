@@ -10,14 +10,15 @@
 This repo contains code for training, finetuning, evaluating, and deploying LLMs for inference with Composer and the MosaicML platform.
 
 You'll find in this repo:
-* `data_prep/` - convert text data from original sources to StreamingDataset format
-* `train/` - train or finetune HuggingFace and MPT models from 125M - 70B parameters
-  * `train/benchmarking` - profile training throughput and MFU
-* `inference/` - convert models to HuggingFace or ONNX format, and generate responses
-  * `inference/benchmarking` - profile inference latency and throughput
-* `eval/` - evaluate LLMs on academic (or custom) in-context-learning tasks
-* `mcli/` - launch any of these workloads using [MCLI](https://docs.mosaicml.com/projects/mcli/en/latest/) and the [MosaicML platform](https://www.mosaicml.com/platform)
 * `llmfoundry/` - source code for models, datasets, callbacks, utilities, etc.
+* `scripts/` - scripts to run LLM workloads
+  * `data_prep/` - convert text data from original sources to StreamingDataset format
+  * `train/` - train or finetune HuggingFace and MPT models from 125M - 70B parameters
+    * `train/benchmarking` - profile training throughput and MFU
+  * `inference/` - convert models to HuggingFace or ONNX format, and generate responses
+    * `inference/benchmarking` - profile inference latency and throughput
+  * `eval/` - evaluate LLMs on academic (or custom) in-context-learning tasks
+* `mcli/` - launch any of these workloads using [MCLI](https://docs.mosaicml.com/projects/mcli/en/latest/) and the [MosaicML platform](https://www.mosaicml.com/platform)
 
 
 # Latest News
@@ -45,8 +46,8 @@ Here's what you need to get started with our LLM stack:
 To get started, clone this repo and install the requirements:
 
 ```bash
-git clone https://github.com/mosaicml/llmfoundry.git
-cd llmfoundry
+git clone https://github.com/mosaicml/llm-foundry.git
+cd llm-foundry
 pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 ```
 
@@ -57,20 +58,24 @@ Here is a simple end-to-end workflow for preparing a subset of the C4 dataset, t
 
 (Remember this is just a quickstart to demonstrate the tools -- To get good responses, the model must be trained for longer than 10 batches :)
 
+<!--pytest.mark.skip-->
 ```bash
+cd scripts
+
 # Convert C4 dataset to StreamingDataset format
 python data_prep/convert_dataset.py \
   --dataset c4 --data_subset en \
-  --out_root my-copy-c4 --splits train_small val \
+  --out_root my-copy-c4 --splits train_small val_small \
   --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
-# Train an MPT-1B model for 10 batches
+# Train an MPT-1B model for 1 batch
 composer train/train.py \
   train/yamls/mosaic_gpt/1b.yaml \
   data_local=my-copy-c4 \
   train_loader.dataset.split=train_small \
+  eval_loader.dataset.split=val_small \
   max_duration=10ba \
-  eval_interval=0 \
+  eval_subset_num_batches=1 \
   save_folder=mpt-1b
 
 # Convert the model to HuggingFace format

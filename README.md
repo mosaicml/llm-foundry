@@ -59,14 +59,16 @@ Here is a simple end-to-end workflow for preparing a subset of the C4 dataset, t
 (Remember this is just a quickstart to demonstrate the tools -- To get good responses, the model must be trained for longer than 10 batches :)
 
 ```bash
+cd scripts
+
 # Convert C4 dataset to StreamingDataset format
-python scripts/data_prep/convert_dataset.py \
+python data_prep/convert_dataset.py \
   --dataset c4 --data_subset en \
   --out_root my-copy-c4 --splits train_small val_small \
   --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
 # Train an MPT-1B model for 10 batches
-composer scripts/train/train.py \
+composer train/train.py \
   train/yamls/mosaic_gpt/1b.yaml \
   data_local=my-copy-c4 \
   train_loader.dataset.split=train_small \
@@ -76,13 +78,13 @@ composer scripts/train/train.py \
   save_folder=mpt-1b
 
 # Convert the model to HuggingFace format
-python scripts/inference/convert_composer_to_hf.py \
+python inference/convert_composer_to_hf.py \
   --composer_path mpt-1b/ep0-ba10-rank0.pt \
   --hf_output_path mpt-1b/hf \
   --output_precision bf16
 
 # Generate responses to prompts
-python scripts/inference/hf_generate.py \
+python inference/hf_generate.py \
   --name_or_path mpt-1b/hf \
   --max_new_tokens 256 \
   --prompts \

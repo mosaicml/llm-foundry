@@ -12,9 +12,9 @@ from composer.utils import reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.common.builders import (build_icl_evaluators, build_logger,
-                                        build_tokenizer)
-from llmfoundry.model_registry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
+                                       build_tokenizer)
 
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]

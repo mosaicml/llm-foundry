@@ -13,13 +13,13 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
-from llmfoundry.common.builders import (build_algorithm, build_callback,
-                                        build_icl_evaluators, build_logger,
-                                        build_optimizer, build_scheduler,
-                                        build_tokenizer)
-from llmfoundry.common.config_utils import log_config, update_batch_size_info
-from llmfoundry.common.text_data import build_text_dataloader
+from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.utils.builders import (build_algorithm, build_callback,
+                                       build_icl_evaluators, build_logger,
+                                       build_optimizer, build_scheduler,
+                                       build_tokenizer)
+from llmfoundry.utils.config_utils import log_config, update_batch_size_info
 
 
 def validate_config(cfg):

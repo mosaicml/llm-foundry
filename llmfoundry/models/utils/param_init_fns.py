@@ -143,7 +143,8 @@ def generic_param_init_fn_(
 
         emb_init_fn_(module.weight)
 
-    elif isinstance(module, tuple(set(NORM_CLASS_REGISTRY.values()))):
+    elif isinstance(module,
+                    tuple(set(NORM_CLASS_REGISTRY.values()))):  # type: ignore
         # Norm
         if verbose > 1:
             warnings.warn(

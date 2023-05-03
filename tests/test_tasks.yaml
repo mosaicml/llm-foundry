@@ -25,7 +25,7 @@ icl_tasks:
       - InContextLearningMultipleChoiceAccuracy
       prompt_string: "" # this goes at the beginning of each input
       example_delimiter: "\n" # this goes between fewshot examples
-      continuation_delimiter: "Answer: " # this separates questions from answers
+      continuation_delimiter: " " # this separates questions from answers
     -
       label: winograd
       dataset_uri: llmfoundry/icl_eval/local_data/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
@@ -38,7 +38,7 @@ icl_tasks:
       - InContextLearningMultipleChoiceAccuracy
       prompt_string: "" # this goes at the beginning of each input
       example_delimiter: "\n" # this goes between fewshot examples
-      continuation_delimiter: "" # this separates questions from answers
+      continuation_delimiter: " " # this separates questions from answers
     -
       label: triviaqa
       dataset_uri: llmfoundry/icl_eval/local_data/triviaqa.jsonl # ADD YOUR OWN DATASET URI

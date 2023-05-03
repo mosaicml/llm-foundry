@@ -167,6 +167,11 @@ def build_icl_evaluators(icl_tasks, tokenizer, default_max_seq_len,
                          default_batch_size, destination_dir=os.getcwd()):
     evaluators = []
     logger_keys = []
+    if isinstance(icl_tasks, str):
+        print(f"Extracting ICL task config from path: {icl_tasks}")
+        with open(icl_tasks, 'r') as icl_f:
+            icl_task_cfg = om.load(icl_f)
+        icl_tasks = icl_task_cfg.icl_tasks
 
     def _validate_cfg(icl_cfg):
         assert 'label' in icl_cfg

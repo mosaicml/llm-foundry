@@ -9,8 +9,7 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-from composer.algorithms.low_precision_layernorm.low_precision_layernorm import \
-    LPLayerNorm
+from llmfoundry.models.layers.norm import LPLayerNorm
 from einops import rearrange
 from torch import nn
 

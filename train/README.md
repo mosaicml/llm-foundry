@@ -11,9 +11,9 @@ pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 ```
 
 ## Dataset preparation
-To run pretraining, you'll need to make yourself a copy of a pretraining dataset.
+To run pretraining, you'll need to make yourself a copy of a pretraining dataset. Check out the `llm-foundry/data_prep` folder for detailed instructions.
 
-As an example, here is how to prepare the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
+As a quickstart, here is how to prepare the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
 We first convert the dataset from its native format (a collection of zipped JSONs)
 to MosaicML's streaming dataset format (a collection of binary `.mds` files).
 Once in `.mds` format, we can store the dataset in a central location (filesystem, S3, GCS, etc.)

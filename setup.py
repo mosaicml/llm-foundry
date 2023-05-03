@@ -5,7 +5,7 @@ import re
 
 from setuptools import setup
 
-_PACKAGE_NAME = 'mosaicml-llm-foundry'
+_PACKAGE_NAME = 'llm-foundry'
 _PACKAGE_DIR = 'llmfoundry'
 _REPO_REAL_PATH = os.path.dirname(os.path.realpath(__file__))
 _PACKAGE_REAL_PATH = os.path.join(_REPO_REAL_PATH, _PACKAGE_DIR)
@@ -46,22 +46,15 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml==0.13.4',
-    'omegaconf>=2.2.3,<3',
+    'mosaicml[nlp,streaming,wandb]>=0.14.0,<0.15',
+    'torch==1.13.1',
     'datasets==2.10.1',
-    'transformers>=4.25.1,<4.29',
-    'mosaicml-streaming==0.4.0',
+    'sentencepiece==0.1.97',
+    'einops==0.5.0',
+    'omegaconf>=2.2.3,<3',
     'pynvml<12',
     'slack-sdk<4',
-    'torch==1.13.1',
-    'einops==0.5.0',
-    'mosaicml-cli>=0.2.32,<1',
-    'transformers==4.28.1',
-    'omegaconf==2.2.3',
-    'wandb==0.13.6',
-    'pytest>=7.2.1,<8',
-    'torchmetrics==0.11.3',
-    'sentencepiece==0.1.97',
+    'mosaicml-cli>=0.3,<1',
     'onnx==1.13.1',
     'onnxruntime==1.14.1',
 ]

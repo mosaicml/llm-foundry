@@ -475,9 +475,10 @@ def build_text_denoising_dataloader(
         download_retry=cfg.dataset.get('download_retry', 2),
         download_timeout=cfg.dataset.get('download_timeout', 60),
         validate_hash=cfg.dataset.get('validate_hash'),
-        shuffle_seed=cfg.dataset.get('shuffle_seed'),
+        shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
         num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', 128),
-        batch_size=device_batch_size)
+        batch_size=device_batch_size,
+    )
 
     if dataset.tokenizer.pad_token is None:  # type: ignore
         dataset.tokenizer.pad_token = dataset.tokenizer.eos_token

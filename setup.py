@@ -46,7 +46,7 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml==0.13.4',
+    'mosaicml==0.14.0',
     'omegaconf>=2.2.3,<3',
     'datasets==2.10.1',
     'transformers>=4.25.1,<4.29',

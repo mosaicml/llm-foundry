@@ -163,7 +163,7 @@ def build_dataloader(cfg, tokenizer, device_batch_size):
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
-def build_icl_evaluators(cfg, tokenizer):
+def build_icl_evaluators(cfg, tokenizer, destination_dir=os.getcwd()):
     evaluators = []
     logger_keys = []
 
@@ -199,7 +199,7 @@ def build_icl_evaluators(cfg, tokenizer):
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
-                destination_path=f'{icl_cfg.label}-{num_fewshot}.jsonl',
+                destination_path=f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl',
                 has_categories=icl_cfg.get('has_categories', False),
             )
 
@@ -217,7 +217,7 @@ def build_icl_evaluators(cfg, tokenizer):
                 evaluators.append(
                     Evaluator(
                         label=label,
-                        dataloader=dataloader,
+                        dataloader=dataloaders,
                         metric_names=metric_names),
                     )
 

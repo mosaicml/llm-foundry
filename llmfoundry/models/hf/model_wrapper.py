@@ -15,7 +15,7 @@ from composer.models.huggingface import HuggingFaceModel
 from torchmetrics import Metric
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
-from llmfoundry.common.hf_fsdp import prepare_hf_model_for_fsdp
+from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
 
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100

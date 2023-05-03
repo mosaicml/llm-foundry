@@ -9,7 +9,7 @@ import torch
 from composer.utils import dist
 from torch.optim.optimizer import Optimizer
 
-from llmfoundry.common.optim.outlier_detection import OutlierDetector
+from llmfoundry.optim.outlier_detection import OutlierDetector
 
 log = logging.getLogger(__name__)
 

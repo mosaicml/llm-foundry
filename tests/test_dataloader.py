@@ -10,9 +10,9 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
-from llmfoundry.common.builders import build_tokenizer
-from llmfoundry.common.text_data import (ConcatenatedSequenceCollatorWrapper,
-                                         build_text_dataloader)
+from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
+                                       build_text_dataloader)
+from llmfoundry.utils.builders import build_tokenizer
 
 
 def get_config(conf_path='yamls/mosaic_gpt/125m.yaml'):
@@ -47,16 +47,16 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     shutil.rmtree(path, ignore_errors=True)
     if pretokenize:
         os.system(
-            f'python llmfoundry/common/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits val_small --concat_tokens 2048 --tokenizer {tokenizer_name} {tokenizer_args}'
+            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits val_small --concat_tokens 2048 --tokenizer {tokenizer_name} {tokenizer_args}'
         )
     else:
         os.system(
-            f'python llmfoundry/common/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits val_small'
+            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits val_small'
         )
     if not os.path.isdir(path):
         raise RuntimeError(f'c4 dataset at {path} not set up as expected')
 
-    test_cfg = get_config(conf_path='llmfoundry/yamls/mosaic_gpt/125m.yaml')
+    test_cfg = get_config(conf_path='scripts/train/yamls/mosaic_gpt/125m.yaml')
     test_cfg.data_local = data_local
     test_cfg.eval_loader.dataset.split = split
 

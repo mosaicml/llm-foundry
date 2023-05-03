@@ -5,7 +5,7 @@ import re
 
 from setuptools import setup
 
-_PACKAGE_NAME = 'mosaicml-llm'
+_PACKAGE_NAME = 'mosaicml-llm-foundry'
 _PACKAGE_DIR = 'llmfoundry'
 _REPO_REAL_PATH = os.path.dirname(os.path.realpath(__file__))
 _PACKAGE_REAL_PATH = os.path.join(_REPO_REAL_PATH, _PACKAGE_DIR)
@@ -94,7 +94,7 @@ setup(
     description='LLM Foundry',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/mosaicml/examples/',
+    url='https://github.com/mosaicml/llm-foundry/',
     package_dir={_PACKAGE_DIR: _PACKAGE_REAL_PATH},
     classifiers=classifiers,
     install_requires=install_requires,

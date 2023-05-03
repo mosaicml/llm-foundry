@@ -13,7 +13,8 @@ from composer.utils import reproducibility, dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.common.builders import build_icl_evaluators, build_logger
+from llmfoundry.common.builders import (build_icl_evaluators, build_logger,
+                                        build_tokenizer)
 from llmfoundry.model_registry import COMPOSER_MODEL_REGISTRY
 
 if __name__ == '__main__':
@@ -25,12 +26,14 @@ if __name__ == '__main__':
 
     cfg.dist_timeout = cfg.get('dist_timeout', 1800.0)
 
-    reproducibility.seed_all(cfg.get('seed', 1234))
-    dist.initialize_dist(get_device(None), timeout=cfg.dist_timeout)
+    # Build tokenizer and model
+    tokenizer = build_tokenizer(cfg.tokenizer)
     composer_model = COMPOSER_MODEL_REGISTRY[cfg.model.name](cfg.model,
-                                                             cfg.tokenizer)
-    evaluators, logger_keys = build_icl_evaluators(cfg,
-                                                   composer_model.tokenizer)
+                                                             tokenizer)
+
+    evaluators, logger_keys = build_icl_evaluators(cfg.icl_tasks, tokenizer,
+                                                   cfg.max_seq_len,
+                                                   cfg.device_eval_batch_size)
 
     in_memory_logger = InMemoryLogger()  # track metrics in the in_memory_logger
     loggers: List[LoggerDestination] = [

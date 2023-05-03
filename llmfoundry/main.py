@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import os
 import sys
 import warnings
@@ -18,6 +19,7 @@ from llmfoundry.common.builders import (build_algorithm, build_callback,
                                         build_tokenizer)
 from llmfoundry.common.config_utils import log_config, update_batch_size_info
 from llmfoundry.common.text_data import build_text_dataloader
+from llmfoundry.models.utils import init_empty_weights
 
 
 def validate_config(cfg):
@@ -101,7 +103,7 @@ def main(cfg):
         f'torch.distributed.*_base is a private function and will be deprecated.*'
     )
 
-    cfg.dist_timeout = cfg.get('dist_timeout', 1800.0)
+    cfg.dist_timeout = cfg.get('dist_timeout', 600.0)
 
     reproducibility.seed_all(cfg.seed)
     dist.initialize_dist(get_device(None), timeout=cfg.dist_timeout)
@@ -135,7 +137,11 @@ def main(cfg):
 
     # Build Model
     print('Initializing model...')
-    model = build_composer_model(cfg.model, tokenizer)
+    init_context = contextlib.nullcontext()
+    if init_device == 'meta':
+        init_context = init_empty_weights()
+    with init_context:
+        model = build_composer_model(cfg.model, tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')
 
@@ -157,7 +163,9 @@ def main(cfg):
         evaluators.append(eval_loader)
 
     if 'icl_tasks' in cfg:
-        icl_evaluators, _ = build_icl_evaluators(cfg, tokenizer)
+        icl_evaluators, _ = build_icl_evaluators(cfg.icl_tasks, tokenizer,
+                                                 cfg.max_seq_len,
+                                                 cfg.device_eval_batch_size)
         evaluators.extend(icl_evaluators)
 
     # Optimizer

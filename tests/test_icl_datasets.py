@@ -32,6 +32,8 @@ def test_icl_task_loading_gpt2_tokenizer():
 
     for e in evaluators:
         batch = next(e.dataloader.dataloader.__iter__())
+        if 'continuation_indices' not in batch:
+            continue
         inputs = batch['input_ids'][0]
         continuation_indices = list(batch['continuation_indices'][0])
         full_example = tokenizer.decode(inputs[0:continuation_indices[-1]])

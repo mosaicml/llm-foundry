@@ -30,7 +30,7 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(cfg.tokenizer)
     composer_model = COMPOSER_MODEL_REGISTRY[cfg.model.name](cfg.model,
                                                              tokenizer)
-
+    
     evaluators, logger_keys = build_icl_evaluators(cfg.icl_tasks, tokenizer,
                                                    cfg.max_seq_len,
                                                    cfg.device_eval_batch_size)

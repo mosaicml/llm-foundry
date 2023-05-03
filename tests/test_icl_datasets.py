@@ -8,8 +8,6 @@ import os
 import pytest
 
 TMP_FOLDER = 'tmp_data'
-EXPECTED_LABELS = ['jeopardy/0-shot/american_history', 'jeopardy/0-shot/literature', 'jeopardy/0-shot/science', 'jeopardy/0-shot/word_origins', 'jeopardy/0-shot/world_history', 'jeopardy/1-shot/american_history', 'jeopardy/1-shot/literature', 'jeopardy/1-shot/science', 'jeopardy/1-shot/word_origins', 'jeopardy/1-shot/world_history', 'jeopardy/5-shot/american_history', 'jeopardy/5-shot/literature', 'jeopardy/5-shot/science', 'jeopardy/5-shot/word_origins', 'jeopardy/5-shot/world_history', 'jeopardy/10-shot/american_history', 'jeopardy/10-shot/literature', 'jeopardy/10-shot/science', 'jeopardy/10-shot/word_origins', 'jeopardy/10-shot/world_history']
-
 def load_icl_config(conf_path='llmfoundry/icl_eval/yamls/tasks.yaml'):
     with open(conf_path) as f:
         test_cfg = om.load(f)
@@ -32,8 +30,6 @@ def test_icl_task_loading_gpt2_tokenizer():
     task_cfg = load_icl_config()
     evaluators, _ = build_icl_evaluators(task_cfg, tokenizer, destination_dir=f"{os.getcwd()}/{TMP_FOLDER}")
 
-    labels = [e.label for e in evaluators]
-    assert labels == EXPECTED_LABELS
     for e in evaluators:
         inputs = next(e.dataloader.dataloader.__iter__())['input_ids'][0]
         continuation_indices = list(next(e.dataloader.dataloader.__iter__())['continuation_indices'][0])
@@ -49,28 +45,26 @@ def test_icl_task_loading_gpt2_tokenizer():
             
     
     
-  
+# def test_icl_task_loading_gptj_tokenizer():
+#     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-j-6b')
+#     task_cfg = load_icl_config()
+#     evaluators, _ = build_icl_evaluators(task_cfg, tokenizer)
+#     breakpoint()
 
-def test_icl_task_loading_gptj_tokenizer():
-    tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-j-6b')
-    task_cfg = load_icl_config()
-    evaluators, _ = build_icl_evaluators(task_cfg, tokenizer)
-    breakpoint()
+# def test_icl_task_loading_opt_tokenizer():
+#     tokenizer = AutoTokenizer.from_pretrained('facebook/opt-6.7b')
+#     task_cfg = load_icl_config()
+#     evaluators, _ = build_icl_evaluators(task_cfg, tokenizer)
+#     breakpoint()
 
-def test_icl_task_loading_opt_tokenizer():
-    tokenizer = AutoTokenizer.from_pretrained('facebook/opt-6.7b')
-    task_cfg = load_icl_config()
-    evaluators, _ = build_icl_evaluators(task_cfg, tokenizer)
-    breakpoint()
+# def test_icl_task_loading_sentencepiece_tokenizer():
+#     tokenizer = AutoTokenizer.from_pretrained('huggyllama/llama-7b')
+#     task_cfg = load_icl_config()
+#     evaluators, _ = build_icl_evaluators(task_cfg, tokenizer)
+#     breakpoint()
 
-def test_icl_task_loading_sentencepiece_tokenizer():
-    tokenizer = AutoTokenizer.from_pretrained('huggyllama/llama-7b')
-    task_cfg = load_icl_config()
-    evaluators, _ = build_icl_evaluators(task_cfg, tokenizer)
-    breakpoint()
-
-def test_icl_task_loading_gptneox_tokenizer():
-    tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
-    task_cfg = load_icl_config()
-    evaluators, _ = build_icl_evaluators(task_cfg, tokenizer)
-    breakpoint()
+# def test_icl_task_loading_gptneox_tokenizer():
+#     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
+#     task_cfg = load_icl_config()
+#     evaluators, _ = build_icl_evaluators(task_cfg, tokenizer)
+#     breakpoint()

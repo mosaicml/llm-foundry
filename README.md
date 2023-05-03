@@ -54,10 +54,11 @@ pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 
 # Quickstart
 
-Here is a simple end-to-end workflow for preparing a subset of the C4 dataset, training an MPT-1B model for 1 batch, converting the model to HuggingFace format, and generating responses to prompts.
+Here is a simple end-to-end workflow for preparing a subset of the C4 dataset, training an MPT-1B model for 10 batches, converting the model to HuggingFace format, and generating responses to prompts.
 
 (Remember this is just a quickstart to demonstrate the tools -- To get good responses, the model must be trained for longer than 10 batches :)
 
+<!--pytest.mark.skip-->
 ```bash
 cd scripts
 
@@ -73,7 +74,7 @@ composer train/train.py \
   data_local=my-copy-c4 \
   train_loader.dataset.split=train_small \
   eval_loader.dataset.split=val_small \
-  max_duration=1ba \
+  max_duration=10ba \
   eval_subset_num_batches=1 \
   save_folder=mpt-1b
 
@@ -86,7 +87,7 @@ python inference/convert_composer_to_hf.py \
 # Generate responses to prompts
 python inference/hf_generate.py \
   --name_or_path mpt-1b/hf \
-  --max_new_tokens 32 \
+  --max_new_tokens 256 \
   --prompts \
     "The answer to life, the universe, and happiness is" \
     "Here's a quick recipe for baking chocolate chip cookies: Start by"

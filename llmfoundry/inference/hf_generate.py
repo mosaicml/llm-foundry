@@ -117,22 +117,16 @@ def main(args: Namespace) -> None:
     AutoConfig.register('mosaic_gpt', MosaicGPTConfig)
     AutoModelForCausalLM.register(MosaicGPTConfig, MosaicGPT)
 
-    print('Loading HF model...')
+    # Grab config first
+    print(f'Loading HF Config...')
     from_pretrained_kwargs = {
         'use_auth_token': args.use_auth_token,
         'trust_remote_code': args.trust_remote_code,
         'revision': args.revision,
     }
-    model_kwargs = {
-        'attn_impl': args.attn_impl,
-        'max_seq_len': args.max_seq_len,
-    }
-    model_kwargs = {k: v for k, v in model_kwargs.items() if v is not None}
-
     try:
-        model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
-                                                     **from_pretrained_kwargs,
-                                                     **model_kwargs)
+        config = AutoConfig.from_pretrained(args.name_or_path,
+                                            **from_pretrained_kwargs)
     except Exception as e:
         raise RuntimeError(
             'If you are having auth problems, try logging in via `huggingface-cli login` '
@@ -140,8 +134,39 @@ def main(args: Namespace) -> None:
             'using your access token from https://huggingface.co/settings/tokens.'
         ) from e
 
-    model.eval()
-    print(f'n_params={sum(p.numel() for p in model.parameters())}')
+    # Set device and model_dtype
+    if args.device is not None:
+        device = args.device
+    else:
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
+    if args.model_dtype is not None:
+        model_dtype = get_dtype(args.model_dtype)
+    else:
+        model_dtype = config.torch_dtype or torch.float32
+
+    # Load HF Model
+    print(f'Loading HF model to device={device} and dtype={model_dtype}...')
+    model_kwargs = {
+        'attn_impl': args.attn_impl,
+        'max_seq_len': args.max_seq_len,
+        'torch_dtype': model_dtype,
+    }
+    model_kwargs = {k: v for k, v in model_kwargs.items() if v is not None}
+
+    try:
+        model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
+                                                     **from_pretrained_kwargs,
+                                                     **model_kwargs)
+        model.to(device)
+        model.eval()
+        print(f'n_params={sum(p.numel() for p in model.parameters())}')
+    except Exception as e:
+        raise RuntimeError(
+            'If you are having auth problems, try logging in via `huggingface-cli login` '
+            'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
+            'using your access token from https://huggingface.co/settings/tokens.'
+        ) from e
 
     print('\nLoading HF tokenizer...')
     tokenizer = AutoTokenizer.from_pretrained(args.name_or_path,
@@ -164,21 +189,6 @@ def main(args: Namespace) -> None:
         'pad_token_id': args.pad_token_id or tokenizer.pad_token_id,
     }
     print(f'\nGenerate kwargs:\n{generate_kwargs}')
-
-    if args.device is not None:
-        device = args.device
-    else:
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
-    if args.model_dtype is not None:
-        model_dtype = get_dtype(args.model_dtype)
-    else:
-        model_dtype = model.config.torch_dtype or torch.float32
-
-    print(
-        f'\nMoving model and inputs to device={device} and dtype={model_dtype}...'
-    )
-    model.to(device, model_dtype)
 
     print(f'\nTokenizing prompts...')
     maybe_synchronize()

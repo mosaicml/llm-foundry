@@ -21,15 +21,11 @@ from omegaconf import OmegaConf as om
 from transformers import (AutoTokenizer, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
 
-from llmfoundry.common.fdiff import FDiffMetrics
-from llmfoundry.common.generate_callback import Generate
-from llmfoundry.common.monolithic_ckpt_callback import MonolithicCheckpointSaver
-from llmfoundry.common.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                                     DecoupledLionW)
-from llmfoundry.common.resumption_callbacks import (GlobalLRScaling,
-                                                    LayerFreezing)
-from llmfoundry.common.scheduled_gc_callback import ScheduledGarbageCollector
-from llmfoundry.common.text_data import build_text_dataloader
+from llmfoundry.callbacks import (FDiffMetrics, Generate, GlobalLRScaling,
+                                  LayerFreezing, MonolithicCheckpointSaver,
+                                  ScheduledGarbageCollector)
+from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
+                              DecoupledLionW)
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
@@ -154,13 +150,6 @@ def build_tokenizer(om_tokenizer_config: DictConfig,) -> Tokenizer:
     )
 
     return tokenizer
-
-
-def build_dataloader(cfg, tokenizer, device_batch_size):
-    if cfg.name == 'text':
-        return build_text_dataloader(cfg, tokenizer, device_batch_size)
-    else:
-        raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
 def build_icl_evaluators(icl_tasks, tokenizer, default_max_seq_len,

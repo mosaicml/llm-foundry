@@ -5,8 +5,14 @@ from llmfoundry.data.denoising import (MixtureOfDenoisersCollator,
                                        build_text_denoising_dataloader)
 from llmfoundry.data.finetuning import (Seq2SeqFinetuningCollator,
                                         build_finetuning_dataloader)
+from llmfoundry.data.text_data import (StreamingTextDataset,
+                                       build_text_dataloader)
 
 __all__ = [
-    'build_text_denoising_dataloader', 'MixtureOfDenoisersCollator',
-    'Seq2SeqFinetuningCollator', 'build_finetuning_dataloader'
+    'MixtureOfDenoisersCollator',
+    'build_text_denoising_dataloader',
+    'Seq2SeqFinetuningCollator',
+    'build_finetuning_dataloader',
+    'StreamingTextDataset',
+    'build_text_dataloader',
 ]

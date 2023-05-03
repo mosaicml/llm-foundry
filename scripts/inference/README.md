@@ -80,7 +80,7 @@ Loading HF model...
 n_params=124439808
 
 Loading HF tokenizer...
-/mnt/workdisk/abhi/examples/examples/llm/inference/hf_generate.py:89: UserWarning: pad_token_id is not set for the tokenizer. Using eos_token_id as pad_token_id.
+/mnt/workdisk/llm-foundry/scripts/inference/hf_generate.py:89: UserWarning: pad_token_id is not set for the tokenizer. Using eos_token_id as pad_token_id.
   warnings.warn(
 Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
 Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
@@ -128,16 +128,16 @@ Here a couple examples of using the script:
 <!--pytest.mark.skip-->
 ```bash
 # 1) Local export
-python inference/convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggingface/folder --output_folder local/folder
+python convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggingface/folder --output_folder local/folder
 
 # 2) Remote export
-python inference/convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggingface/folder --output_folder s3://bucket/remote/folder
+python convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggingface/folder --output_folder s3://bucket/remote/folder
 
 # 3) Verify the exported model
-python inference/convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggingface/folder --output_folder local/folder --verify_export
+python convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggingface/folder --output_folder local/folder --verify_export
 
 # 4) Change the batch size or max sequence length
-python inference/convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggingface/folder --output_folder local/folder --export_batch_size 1 --max_seq_len 32000
+python convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggingface/folder --output_folder local/folder --export_batch_size 1 --max_seq_len 32000
 ```
 
 Please open a Github issue if you discover any problems!

@@ -36,7 +36,8 @@ def parse_args() -> Namespace:
                         help='E.g. "all" or "en"')
     parser.add_argument('--splits',
                         nargs='+',
-                        default=['train', 'train_small', 'val'])
+                        default=['train', 'train_small', 'val'
+                                 'val_small'])
     parser.add_argument('--out_root', type=str, required=True)
     parser.add_argument('--compression', type=str, default=None)
 

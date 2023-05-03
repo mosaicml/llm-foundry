@@ -52,7 +52,7 @@ def convert_examples_ckpt(
     conversion_dict: Dict[str, str],
     local_ckpt_path: Optional[Union[Path, str]] = None,
 ) -> None:
-    """Convert a Composer checkpoint created by the examples repo into an llmfoundry compatible checkpoint
+    """Convert a ckpt created in examples repo to an llmfoundry compat ckpt.
 
     Args:
         checkpoint_path (Union[Path, str]): Path to the composer checkpoint, can be a local path, or a remote path beginning with ``s3://``, or another backend
@@ -66,8 +66,7 @@ def convert_examples_ckpt(
     # default local path to a tempfile if path is not provided
     if local_ckpt_path is None:
         tmp_dir = tempfile.TemporaryDirectory()
-        local_ckpt_path = Path(
-            tmp_dir.name) / 'local-composer-checkpoint.pt'
+        local_ckpt_path = Path(tmp_dir.name) / 'local-composer-checkpoint.pt'
 
     # create object store if output_path
     object_store = maybe_create_object_store_from_uri(str(output_path))
@@ -80,9 +79,7 @@ def convert_examples_ckpt(
     os.makedirs(local_output_path)
 
     # download the checkpoint file
-    print(
-        f'Downloading checkpoint from {checkpoint_path} -> {local_ckpt_path}'
-    )
+    print(f'Downloading checkpoint from {checkpoint_path} -> {local_ckpt_path}')
     get_file(str(checkpoint_path), str(local_ckpt_path))
 
     # Load the Composer checkpoint state dict
@@ -90,20 +87,30 @@ def convert_examples_ckpt(
     composer_state_dict = safe_torch_load(local_ckpt_path)
 
     # Convert examples state dict to llm-foundry
-    model_state = convert_examples_ckpt_state_dict(composer_state_dict['state']['model'], conversion_dict)
+    model_state = convert_examples_ckpt_state_dict(
+        composer_state_dict['state']['model'], conversion_dict)
     composer_state_dict['state']['model'] = model_state
 
     for opt in composer_state_dict['state']['optimizers'].keys():
 
-        opt_state = convert_examples_ckpt_state_dict(composer_state_dict['state']['optimizers'][opt]['state'], conversion_dict)
+        opt_state = convert_examples_ckpt_state_dict(
+            composer_state_dict['state']['optimizers'][opt]['state'],
+            conversion_dict,
+        )
         composer_state_dict['state']['optimizers'][opt]['state'] = opt_state
 
-        for pg_idx in range(len(composer_state_dict['state']['optimizers'][opt]['param_groups'])):
-            for param_idx in range(len(composer_state_dict['state']['optimizers'][opt]['param_groups'][pg_idx]['params'])):
-                param_name = composer_state_dict['state']['optimizers'][opt]['param_groups'][pg_idx]['params'][param_idx]
+        for pg_idx in range(
+                len(composer_state_dict['state']['optimizers'][opt]
+                    ['param_groups'])):
+            for param_idx in range(
+                    len(composer_state_dict['state']['optimizers'][opt]
+                        ['param_groups'][pg_idx]['params'])):
+                param_name = composer_state_dict['state']['optimizers'][opt][
+                    'param_groups'][pg_idx]['params'][param_idx]
                 for old, new in conversion_dict.items():
                     param_name = param_name.replace(old, new)
-                composer_state_dict['state']['optimizers'][opt]['param_groups'][pg_idx]['params'][param_idx] = param_name
+                composer_state_dict['state']['optimizers'][opt]['param_groups'][
+                    pg_idx]['params'][param_idx] = param_name
 
     # Save weights
     torch.save(composer_state_dict,
@@ -130,5 +137,5 @@ if __name__ == '__main__':
     parser.add_argument('--local_ckpt_path', type=str, default=None)
 
     args = parser.parse_args()
-    
+
     main(args)

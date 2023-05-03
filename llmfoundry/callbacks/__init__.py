@@ -9,7 +9,7 @@ try:
     from llmfoundry.callbacks.scheduled_gc_callback import ScheduledGarbageCollector
 except ImportError as e:
     raise ImportError(
-        'Please make sure to pip install . to get the common requirements for all examples.'
+        'Please make sure to pip install . to get requirements for llm-foundry.'
     ) from e
 
 __all__ = [

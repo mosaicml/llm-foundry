@@ -11,7 +11,7 @@ try:
                                                update_batch_size_info)
 except ImportError as e:
     raise ImportError(
-        'Please make sure to pip install . to get the common requirements for all examples.'
+        'Please make sure to pip install . to get requirements for llm-foundry.'
     ) from e
 
 __all__ = [

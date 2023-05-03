@@ -353,15 +353,15 @@ def run_config(config, args):
         command = """
         cd examples
 
-        composer examples/llm/main.py /mnt/config/parameters.yaml
+        composer scripts/train/train.py /mnt/config/parameters.yaml
         """
     else:
         command = f"""
         cd examples
 
-        python examples/common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
+        python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
 
-        composer examples/llm/main.py /mnt/config/parameters.yaml
+        composer scripts/train/train.py /mnt/config/parameters.yaml
         """
 
     path = os.path.join('../yamls/mosaic_gpt', model_yaml)

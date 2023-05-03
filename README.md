@@ -62,7 +62,7 @@ Here is a simple end-to-end workflow for preparing a subset of the C4 dataset, t
 # Convert C4 dataset to StreamingDataset format
 python scripts/data_prep/convert_dataset.py \
   --dataset c4 --data_subset en \
-  --out_root my-copy-c4 --splits train_small val \
+  --out_root my-copy-c4 --splits train_small val_small \
   --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
 # Train an MPT-1B model for 10 batches
@@ -70,8 +70,9 @@ composer scripts/train/train.py \
   train/yamls/mosaic_gpt/1b.yaml \
   data_local=my-copy-c4 \
   train_loader.dataset.split=train_small \
+  eval_loader.dataset.split=eval_small \
   max_duration=10ba \
-  eval_interval=0 \
+  eval_subset_num_batches=1 \
   save_folder=mpt-1b
 
 # Convert the model to HuggingFace format

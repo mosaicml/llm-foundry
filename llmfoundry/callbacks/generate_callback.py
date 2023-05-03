@@ -9,8 +9,7 @@ import wandb
 from composer.core import Callback, State
 from composer.loggers import Logger, WandBLogger
 from composer.utils import dist, ensure_tuple
-
-from transformers import (PreTrainedTokenizer, PreTrainedTokenizerFast)
+from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 

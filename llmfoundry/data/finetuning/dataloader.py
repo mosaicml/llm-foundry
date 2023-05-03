@@ -261,8 +261,8 @@ if __name__ == '__main__':
                             tokenizer.decode(batch['input_ids'][
                                 j,
                                 torch.logical_and(
-                                    is_subseq, batch['labels'][j] !=
-                                    _HF_IGNORE_INDEX)],
+                                    is_subseq,
+                                    batch['labels'][j] != _HF_IGNORE_INDEX)],
                                              skip_special_tokens=False))
                 else:
                     print(

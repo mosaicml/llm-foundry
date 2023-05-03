@@ -15,8 +15,8 @@ from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
-from llmfoundry.data.text_data import StreamingTextDataset
 from llmfoundry.data.packing import BinPackWrapper
+from llmfoundry.data.text_data import StreamingTextDataset
 from llmfoundry.models import utils
 
 __all__ = ['MixtureOfDenoisersCollator', 'build_text_denoising_dataloader']

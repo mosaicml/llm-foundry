@@ -1,6 +1,6 @@
-# Using MosaicML platform to train LLMs
+# Using MosaicML platform
 
-This folder contains examples of how to use [MosaicML platform](https://www.mosaicml.com/platform) to launch LLM training runs.
+This folder contains examples of how to use [MosaicML platform](https://www.mosaicml.com/platform) to launch LLM workloads.
 
 Full documentation on MosaicML platform can be found at https://mcli.docs.mosaicml.com/.
 

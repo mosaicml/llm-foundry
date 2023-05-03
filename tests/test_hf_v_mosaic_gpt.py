@@ -48,7 +48,7 @@ def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, alibi, mask_val,
     warnings.filterwarnings(action='ignore',
                             message='Using Fused Cross Entropy Loss.')
 
-    conf_path = 'llmfoundry/yamls/mosaic_gpt/125m.yaml'  # set cfg path
+    conf_path = 'scripts/train/yamls/mosaic_gpt/125m.yaml'  # set cfg path
     batch_size = 2  # set batch size
     device = 'cuda'  # set decive
 

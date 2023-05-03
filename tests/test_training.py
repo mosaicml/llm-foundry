@@ -10,11 +10,7 @@
 
 # from llmfoundry.main import main
 
-<<<<<<< HEAD
-# def gpt_tiny_cfg(conf_path='scripts/train/yamls/mosaic_gpt/125m.yaml'):
-=======
 # def gpt_tiny_cfg(conf_path='scripts/train/yamls/mpt/125m.yaml'):
->>>>>>> d6ef48e (mosaicgpt to mpt)
 #     """Create gpt tiny cfg."""
 #     with open(conf_path) as f:
 #         test_cfg = om.load(f)

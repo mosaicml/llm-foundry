@@ -103,7 +103,7 @@ def main(cfg):
         f'torch.distributed.*_base is a private function and will be deprecated.*'
     )
 
-    cfg.dist_timeout = cfg.get('dist_timeout', 1800.0)
+    cfg.dist_timeout = cfg.get('dist_timeout', 600.0)
 
     reproducibility.seed_all(cfg.seed)
     dist.initialize_dist(get_device(None), timeout=cfg.dist_timeout)
@@ -163,7 +163,9 @@ def main(cfg):
         evaluators.append(eval_loader)
 
     if 'icl_tasks' in cfg:
-        icl_evaluators, _ = build_icl_evaluators(cfg, tokenizer)
+        icl_evaluators, _ = build_icl_evaluators(cfg.icl_tasks, tokenizer,
+                                                 cfg.max_seq_len,
+                                                 cfg.device_eval_batch_size)
         evaluators.extend(icl_evaluators)
 
     # Optimizer

@@ -163,22 +163,41 @@ def build_dataloader(cfg, tokenizer, device_batch_size):
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
-def build_icl_evaluators(cfg, tokenizer):
+def build_icl_evaluators(icl_tasks, tokenizer, default_max_seq_len,
+                         default_batch_size):
     evaluators = []
     logger_keys = []
 
     def _validate_cfg(icl_cfg):
+        assert 'label' in icl_cfg
         assert 'dataset_uri' in icl_cfg and icl_cfg.dataset_uri is not None
         assert 'icl_task_type' in icl_cfg
         assert 'num_fewshot' in icl_cfg
-        assert 'batch_size' in icl_cfg
-        assert 'metric_names' in icl_cfg
-        assert 'prompt_string' in icl_cfg
-        assert 'example_delimiter' in icl_cfg
-        assert 'continuation_delimiter' in icl_cfg
-        assert 'label' in icl_cfg
 
-    for icl_cfg in cfg.icl_tasks:
+        if 'metric_names' not in icl_cfg:
+            if icl_cfg.icl_task_type == 'language_modeling':
+                icl_cfg.metric_names = ['InContextLearningLMAccuracy']
+            elif icl_cfg.icl_task_type == 'multiple_choice':
+                icl_cfg.metric_names = [
+                    'InContextLearningMultipleChoiceAccuracy'
+                ]
+            else:
+                raise ValueError(
+                    f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg.icl_task_type}.'
+                )
+
+        if 'prompt_string' not in icl_cfg:
+            icl_cfg.prompt_string = ''
+        if 'example_delimiter' not in icl_cfg:
+            icl_cfg.example_delimiter = '\n'
+        if 'continuation_delimiter' not in icl_cfg:
+            icl_cfg.continuation_delimiter = ' '
+        if 'max_seq_len' not in icl_cfg:
+            icl_cfg.max_seq_len = default_max_seq_len
+        if 'batch_size' not in icl_cfg:
+            icl_cfg.batch_size = default_batch_size
+
+    for icl_cfg in icl_tasks:
         _validate_cfg(icl_cfg)
         for num_fewshot in list(icl_cfg.num_fewshot):
             if tokenizer.pad_token_id is None:
@@ -193,7 +212,7 @@ def build_icl_evaluators(cfg, tokenizer):
                 icl_cfg.dataset_uri,
                 tokenizer,
                 batch_size=icl_cfg.batch_size,
-                max_seq_len=cfg.max_seq_len,
+                max_seq_len=icl_cfg.max_seq_len,
                 pad_tok_id=pad_tok_id,
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,

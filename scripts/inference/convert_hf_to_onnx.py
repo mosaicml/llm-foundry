@@ -36,7 +36,7 @@ from composer.utils import (maybe_create_object_store_from_uri, parse_uri,
                             reproducibility)
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from llmfoundry import MPTForCausalLM, MPTConfig
+from llmfoundry import MPTConfig, MPTForCausalLM
 
 
 def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):

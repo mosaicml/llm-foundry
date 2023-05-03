@@ -3,8 +3,8 @@
 
 from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                   ComposerHFT5)
-from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTPreTrainedModel,
-                                   MPTModel, MPTForCausalLM, MPTConfig)
+from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
+                                   MPTForCausalLM, MPTModel, MPTPreTrainedModel)
 
 __all__ = [
     'ComposerHFCausalLM',

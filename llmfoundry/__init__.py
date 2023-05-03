@@ -14,10 +14,11 @@ try:
         MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
         flash_attn_fn, scaled_multihead_dot_product_attention,
         triton_flash_attn_fn)
-    from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
     from llmfoundry.models.layers.blocks import MPTMLP, MPTBlock
-    from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTPreTrainedModel,
-                                       MPTModel, MPTForCausalLM, MPTConfig)
+    from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
+    from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
+                                       MPTForCausalLM, MPTModel,
+                                       MPTPreTrainedModel)
 
 except ImportError as e:
     try:

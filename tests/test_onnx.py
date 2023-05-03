@@ -5,7 +5,7 @@ import torch
 from composer.utils import reproducibility
 from transformers import AutoConfig, AutoModelForCausalLM
 
-from llmfoundry import MPTForCausalLM, MPTConfig
+from llmfoundry import MPTConfig, MPTForCausalLM
 
 
 def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):

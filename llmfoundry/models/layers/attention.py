@@ -9,9 +9,10 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-from llmfoundry.models.layers.norm import LPLayerNorm
 from einops import rearrange
 from torch import nn
+
+from llmfoundry.models.layers.norm import LPLayerNorm
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,

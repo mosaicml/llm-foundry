@@ -21,13 +21,13 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import (PreTrainedModel, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
-from transformers.modeling_outputs import CausalLMOutputWithPast, BaseModelOutputWithPast
+from transformers.modeling_outputs import (BaseModelOutputWithPast,
+                                           CausalLMOutputWithPast)
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-from llmfoundry.models.mpt.configuration_mpt import \
-    MPTConfig
+from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 from llmfoundry.models.utils import (MODEL_INIT_REGISTRY,
                                      add_bidirectional_mask_if_missing)
 
@@ -178,8 +178,8 @@ class MPTModel(MPTPreTrainedModel):
                                         dtype=dtype)
             else:
                 attn_bias = attn_bias[:, :, :, -s_k:]
-            if prefix_mask is not None and (attention_mask.shape
-                                            != prefix_mask.shape):
+            if prefix_mask is not None and (attention_mask.shape !=
+                                            prefix_mask.shape):
                 raise ValueError(
                     f'attention_mask shape={attention_mask.shape} ' +\
                     f'and prefix_mask shape={prefix_mask.shape} are not equal.'

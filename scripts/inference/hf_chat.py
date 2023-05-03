@@ -10,7 +10,7 @@ import torch
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           PreTrainedTokenizer, PreTrainedTokenizerFast)
 
-from llmfoundry import MPTForCausalLM, MPTConfig
+from llmfoundry import MPTConfig, MPTForCausalLM
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 

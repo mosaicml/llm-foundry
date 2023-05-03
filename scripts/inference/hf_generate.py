@@ -10,7 +10,7 @@ from contextlib import nullcontext
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from llmfoundry import MPTForCausalLM, MPTConfig
+from llmfoundry import MPTConfig, MPTForCausalLM
 
 
 def get_dtype(dtype):

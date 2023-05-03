@@ -21,7 +21,7 @@ from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         ComposerHFPrefixLM)
 from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
-from llmfoundry.models.mpt import MPTForCausalLM, MPTConfig
+from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 
 
 def get_config(conf_path='scripts/train/yamls/mpt/testing.yaml') -> DictConfig:

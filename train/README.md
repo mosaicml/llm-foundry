@@ -5,8 +5,8 @@
 If you haven't already, make sure to install the requirements:
 
 ```bash
-git clone https://github.com/mosaicml/llmfoundry.git
-cd llmfoundry
+git clone https://github.com/mosaicml/llm-foundry.git
+cd llm-foundry
 pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 ```
 
@@ -20,25 +20,26 @@ Once in `.mds` format, we can store the dataset in a central location (filesyste
 and stream the data to any compute cluster, with any number of devices, and any number of CPU workers, and it all ~ just works ~ .
 You can read more about the benefits of using mosaicml-streaming [here](https://streaming.docs.mosaicml.com/en/stable/).
 
-NOTE: If you only want to profile these LLMs, we recommend that you **download and prepare the `train_small` and `val` splits**,
-and skip the full `train` split. You'll just need to replace `split: train` with `split: train_small` in your run YAML's dataloader config, [e.g. here](./llmfoundry/yamls/mosaic_gpt/125m.yaml).
-You can also accomplish this in your CLI command like so: `composer train.py ... train_loader.dataset.split=train_small`
+NOTE: If you only want to profile these LLMs, we recommend that you **download and prepare the `train_small` and `val_small` splits**,
+and skip the full `train` and `val` splits. You'll just need to replace `split: train` with `split: train_small`
+and `split: val` with `split: val_small` in your run YAML's dataloader config.
+You can also accomplish this in your CLI command like so: `composer train.py ... train_loader.dataset.split=train_small eval_loader.dataset.split=val_small`
 Alternatively, feel free to substitute our dataloader with one of your own in `train.py`.
 
 ### Converting C4 to streaming dataset `.mds` format
 To make yourself a copy of C4, use `convert_dataset.py` like so:
 <!--pytest.mark.skip-->
 ```bash
-# Download the 'train_small' and 'val' splits and convert to StreamingDataset format
+# Download the 'train_small' and 'val_small' splits and convert to StreamingDataset format
 # This will take 20-60 seconds depending on your Internet bandwidth
 # You should see two folders: `./my-copy-c4/train_small` and `./my-copy-c4/val` that are each ~0.5GB
 # Note: We are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
-python ../data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
+python ../data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
-# Download the 'train' split if you really want to train the model (not just profile)
+# Download the 'train' and 'val' splits if you really want to train the model (not just profile)
 # This will take 1-to-many hours depending on bandwidth, # CPUs, etc.
 # The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
-# python ../data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
+# python ../data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
 # For any of the above commands, you can also choose to compress the .mds files.
 # This is useful if your plan is to store these in object store after conversion.
@@ -47,17 +48,17 @@ python ../data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root 
 
 ### Test the Dataloader
 
-To verify that the dataloader works, run a quick test on your `val` split like so:
+To verify that the dataloader works, run a quick test on your `val_small` split like so:
 <!--pytest.mark.skip-->
 ```bash
 # This will construct a `StreamingTextDataset` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
 # Since we only provide a local path, no streaming/copying takes place.
-python ../data_prep/text_data.py --local_path ./my-copy-c4
+python ../data_prep/text_data.py --local_path ./my-copy-c4 --split val_small
 
 # This will do the same thing, but stream data to {local} from {remote}.
 # The remote path can be a filesystem or object store URI.
-python ../data_prep/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4  # stream from filesystem, e.g. a slow NFS volume to fast local disk
+python ../data_prep/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4  --split val_small # stream from filesystem, e.g. a slow NFS volume to fast local disk
 # python ../data_prep/text_data.py --local_path /tmp/cache-c4 --remote_path s3://my-bucket/my-copy-c4  # stream from object store
 ```
 
@@ -68,7 +69,8 @@ Now that you've installed dependencies and built a local copy of the C4 dataset,
 **Please remember** to edit the `data_local` and (optionally) `data_remote` paths in your YAML.
 Our streaming dataloader always streams to `data_local` <- from <- `data_remote`, and if the remote path is missing, the files are expected to be present in `data_local`.
 
-**Also remember** that if you only downloaded the `train_small` split, you need to make sure your train_loader uses that split. Just change `split: train` to `split: train_small` in your YAML, [e.g. here](./llmfoundry/yamls/mosaic_gpt/125m.yaml#L40). Or alternatively, pass it in via CLI arg: `composer train.py ... train_loader.dataset.split=train_small`.
+**Also remember** that if you only downloaded the `train_small` split, you need to make sure your train_loader uses that split. Just change `split: train` to `split: train_small` in your YAML.
+And similarly for `val` and `val_small`.
 
 
 ### Single-Node training

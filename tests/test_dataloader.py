@@ -133,7 +133,7 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
                 'max_seq_len': max_seq_len,
                 'packing_ratio': packing_ratio,
                 'predownload': 1000,
-                'keep_zip': False,  # in case we need compressed files after testing
+                'keep_zip': False,
             },
             'mixture_of_denoisers': {
                 'decoder_only_format': decoder_only_format,
@@ -163,7 +163,8 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
                 }
             }))
 
-        loader = build_text_denoising_dataloader(cfg, tokenizer, device_batch_size)
+        loader = build_text_denoising_dataloader(cfg, tokenizer,
+                                                 device_batch_size)
         batch_ix = 0
         for batch in loader:
             for k in expected_keys:

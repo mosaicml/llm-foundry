@@ -12,7 +12,7 @@ from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
-class GPTMLP(nn.Module):
+class MPTMLP(nn.Module):
 
     def __init__(self,
                  d_model: int,
@@ -32,7 +32,7 @@ class GPTMLP(nn.Module):
         return self.down_proj(self.act(self.up_proj(x)))
 
 
-class GPTBlock(nn.Module):
+class MPTBlock(nn.Module):
 
     def __init__(
             self,
@@ -73,7 +73,7 @@ class GPTBlock(nn.Module):
             device=device,
         )
         self.norm_2 = norm_class(d_model, device=device)
-        self.ffn = GPTMLP(
+        self.ffn = MPTMLP(
             d_model=d_model,
             expansion_ratio=expansion_ratio,
             device=device,

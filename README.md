@@ -10,14 +10,15 @@
 This repo contains code for training, finetuning, evaluating, and deploying LLMs for inference with Composer and the MosaicML platform.
 
 You'll find in this repo:
-* `data_prep/` - convert text data from original sources to StreamingDataset format
-* `train/` - train or finetune HuggingFace and MPT models from 125M - 70B parameters
-  * `train/benchmarking` - profile training throughput and MFU
-* `inference/` - convert models to HuggingFace or ONNX format, and generate responses
-  * `inference/benchmarking` - profile inference latency and throughput
-* `eval/` - evaluate LLMs on academic (or custom) in-context-learning tasks
-* `mcli/` - launch any of these workloads using [MCLI](https://docs.mosaicml.com/projects/mcli/en/latest/) and the [MosaicML platform](https://www.mosaicml.com/platform)
 * `llmfoundry/` - source code for models, datasets, callbacks, utilities, etc.
+* `scripts/` - scripts to run LLM workloads
+  * `data_prep/` - convert text data from original sources to StreamingDataset format
+  * `train/` - train or finetune HuggingFace and MPT models from 125M - 70B parameters
+    * `train/benchmarking` - profile training throughput and MFU
+  * `inference/` - convert models to HuggingFace or ONNX format, and generate responses
+    * `inference/benchmarking` - profile inference latency and throughput
+  * `eval/` - evaluate LLMs on academic (or custom) in-context-learning tasks
+* `mcli/` - launch any of these workloads using [MCLI](https://docs.mosaicml.com/projects/mcli/en/latest/) and the [MosaicML platform](https://www.mosaicml.com/platform)
 
 
 # Latest News
@@ -59,13 +60,13 @@ Here is a simple end-to-end workflow for preparing a subset of the C4 dataset, t
 
 ```bash
 # Convert C4 dataset to StreamingDataset format
-python data_prep/convert_dataset.py \
+python scripts/data_prep/convert_dataset.py \
   --dataset c4 --data_subset en \
   --out_root my-copy-c4 --splits train_small val \
   --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
 # Train an MPT-1B model for 10 batches
-composer train/train.py \
+composer scripts/train/train.py \
   train/yamls/mosaic_gpt/1b.yaml \
   data_local=my-copy-c4 \
   train_loader.dataset.split=train_small \
@@ -74,13 +75,13 @@ composer train/train.py \
   save_folder=mpt-1b
 
 # Convert the model to HuggingFace format
-python inference/convert_composer_to_hf.py \
+python scripts/inference/convert_composer_to_hf.py \
   --composer_path mpt-1b/ep0-ba10-rank0.pt \
   --hf_output_path mpt-1b/hf \
   --output_precision bf16
 
 # Generate responses to prompts
-python inference/hf_generate.py \
+python scripts/inference/hf_generate.py \
   --name_or_path mpt-1b/hf \
   --max_new_tokens 256 \
   --prompts \

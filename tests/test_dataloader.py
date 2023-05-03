@@ -10,9 +10,9 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
-from llmfoundry.common.builders import build_tokenizer
-from llmfoundry.common.text_data import (ConcatenatedSequenceCollatorWrapper,
-                                         build_text_dataloader)
+from llmfoundry.utils.builders import build_tokenizer
+from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
+                                       build_text_dataloader)
 
 
 def get_config(conf_path='yamls/mosaic_gpt/125m.yaml'):

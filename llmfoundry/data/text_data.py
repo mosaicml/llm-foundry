@@ -304,7 +304,7 @@ def build_text_dataloader(
 if __name__ == '__main__':
     import argparse
 
-    from llmfoundry.common.builders import build_tokenizer
+    from llmfoundry.utils.builders import build_tokenizer
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--tokenizer',

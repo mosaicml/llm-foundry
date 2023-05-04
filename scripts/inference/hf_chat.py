@@ -10,8 +10,6 @@ import torch
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           PreTrainedTokenizer, PreTrainedTokenizerFast)
 
-from llmfoundry import MPTConfig, MPTForCausalLM
-
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
@@ -24,6 +22,17 @@ def str2bool(v):
         return False
     else:
         raise ArgumentTypeError('Boolean value expected.')
+
+
+def str_or_bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        return v
 
 
 SYSTEM_PROMPT = """<|im_start|>system
@@ -70,6 +79,17 @@ def parse_args() -> Namespace:
                         nargs='?',
                         const=True,
                         default=True)
+    parser.add_argument('--trust_remote_code',
+                        type=str2bool,
+                        nargs='?',
+                        const=True,
+                        default=True)
+    parser.add_argument('--use_auth_token',
+                        type=str_or_bool,
+                        nargs='?',
+                        const=True,
+                        default=None)
+    parser.add_argument('--revision', type=str, default=None)
     parser.add_argument('--device', type=str, default=None)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--system_prompt', type=str, default=SYSTEM_PROMPT)
@@ -85,8 +105,7 @@ def maybe_synchronize():
         torch.cuda.synchronize()
 
 
-def conversation(model: MPTForCausalLM, tokenizer: Tokenizer, user_inp: str,
-                 history: str,
+def conversation(model, tokenizer: Tokenizer, user_inp: str, history: str,
                  **generate_kwargs: Dict[str, Any]) -> Tuple[str, str, float]:
     if history != '':
         user_inp = USER_MSG_FMT.format(user_inp)
@@ -108,7 +127,7 @@ def conversation(model: MPTForCausalLM, tokenizer: Tokenizer, user_inp: str,
     return output_text, conversation, end - start
 
 
-def have_conversation(model: MPTForCausalLM, tokenizer: Tokenizer,
+def have_conversation(model, tokenizer: Tokenizer,
                       **generate_kwargs: Dict[str, Any]) -> None:
     history = ''
     while True:
@@ -138,16 +157,20 @@ def have_conversation(model: MPTForCausalLM, tokenizer: Tokenizer,
 
 
 def main(args: Namespace) -> None:
-    AutoConfig.register('mpt', MPTConfig)
-    AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
-
     print('Loading HF model...')
-    model = AutoModelForCausalLM.from_pretrained(args.name_or_path)
+    from_pretrained_kwargs = {
+        'use_auth_token': args.use_auth_token,
+        'trust_remote_code': args.trust_remote_code,
+        'revision': args.revision,
+    }
+    model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
+                                                 **from_pretrained_kwargs)
     model.eval()
     print(f'n_params={sum(p.numel() for p in model.parameters())}')
 
     print('\nLoading HF tokenizer...')
-    tokenizer = AutoTokenizer.from_pretrained(args.name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.name_or_path,
+                                              **from_pretrained_kwargs)
     if tokenizer.pad_token_id is None:
         warnings.warn(
             'pad_token_id is not set for the tokenizer. Using eos_token_id as pad_token_id.'

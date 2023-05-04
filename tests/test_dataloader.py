@@ -65,6 +65,7 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     test_cfg.eval_loader.dataset.split = split
     test_cfg.dataset = om.create({
         'num_canonical_nodes': 1,
+        'predownload': 3000,
     })
 
     tokenizer = build_tokenizer(
@@ -94,6 +95,7 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     b = batch['labels'] == -100
     assert torch.equal(a, b)
     print(f'Time to run test: {time.time() - start_time}')
+    assert False
 
 
 @pytest.mark.parametrize(('eos_token_id', 'bos_token_id'),

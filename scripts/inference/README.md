@@ -4,7 +4,7 @@ This folder contains helper scripts for exporting and generating outputs with yo
 
 ## Converting a Composer checkpoint to an HF checkpoint folder
 
-The LLMs trained with this codebase are all HuggingFace (HF) `PreTrainedModel`s, which we wrap with a `HuggingFaceModel` wrapper class to make compatible with Composer. See [docs](https://docs.mosaicml.com/en/latest/api_reference/generated/composer.models.HuggingFaceModel.html) and an [example](https://docs.mosaicml.com/en/latest/examples/pretrain_finetune_huggingface.html) for more details.
+The LLMs trained with this codebase are all HuggingFace (HF) `PreTrainedModel`s, which we wrap with a `HuggingFaceModel` wrapper class to make compatible with Composer. See [docs](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.models.HuggingFaceModel.html#huggingfacemodel) and an [example](https://docs.mosaicml.com/projects/composer/en/latest/examples/pretrain_finetune_huggingface.html) for more details.
 
 At the end of your training runs, you will see a collection of Composer `Trainer` checkpoints such as `ep0-ba2000-rank0.pt`. These checkpoints contain the entire training state, including the model, tokenizer, optimizer state, schedulers, timestamp, metrics, etc. Though these Composer checkpoints are useful during training, at inference time we usually just want the model, tokenizer, and metadata.
 

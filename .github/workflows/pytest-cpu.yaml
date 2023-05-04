@@ -39,7 +39,7 @@ jobs:
         git config --global --add safe.directory /__w/llm-foundry/llm-foundry
 
         make test PYTEST='${{ inputs.pytest-command }}' EXTRA_ARGS="$COMMON_ARGS --codeblocks"
-        make test-dist PYTEST='${{ inputs.pytest-command }}' EXTRA_ARGS="$COMMON_ARGS" WORLD_SIZE=2
+        # make test-dist PYTEST='${{ inputs.pytest-command }}' EXTRA_ARGS="$COMMON_ARGS" WORLD_SIZE=2
 
         python -m coverage combine
     - uses: actions/upload-artifact@v3

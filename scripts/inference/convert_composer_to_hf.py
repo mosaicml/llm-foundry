@@ -241,17 +241,27 @@ def process_file(file_path: str, folder_path: str) -> List[str]:
             module_path = find_module_file(node.module)
             node.module = convert_to_relative_import(node.module)
             new_files_to_process.append(module_path)
-        elif isinstance(node,
-                        ast.ImportFrom) and node.module.startswith('composer'):
+        elif isinstance(
+                node, ast.ImportFrom) and (node.module.startswith('composer') or
+                                           node.module.startswith('omegaconf')):
             nodes_to_remove.append(node)
         elif isinstance(node,
                         ast.ClassDef) and node.name.startswith('Composer'):
+            nodes_to_remove.append(node)
+        elif isinstance(node,
+                        ast.Assign) and len(node.targets) == 1 and isinstance(
+                            node.targets[0],
+                            ast.Name) and node.targets[0].id == '__all__':
             nodes_to_remove.append(node)
 
     transformer = DeleteSpecificNodes(nodes_to_remove)
     new_tree = transformer.visit(tree)
 
-    new_file_path = os.path.join(folder_path, os.path.basename(file_path))
+    new_filename = os.path.basename(file_path)
+    # special case for __init__.py to mimic the original submodule
+    if new_filename == '__init__.py':
+        new_filename = file_path.split('/')[-2] + '.py'
+    new_file_path = os.path.join(folder_path, new_filename)
     with open(new_file_path, 'w') as f:
         f.write(ast.unparse(new_tree))
 
@@ -354,24 +364,31 @@ def main(args: Namespace) -> None:
 
         if args.test_uploaded_model:
             print('Testing uploaded model...')
-            model = transformers.AutoModelForCausalLM.from_pretrained(
+            hub_model = transformers.AutoModelForCausalLM.from_pretrained(
                 args.hf_repo_for_upload,
                 trust_remote_code=True,
                 use_auth_token=True,
                 torch_dtype=dtype)
-            tokenizer = transformers.AutoTokenizer.from_pretrained(
+            hub_tokenizer = transformers.AutoTokenizer.from_pretrained(
                 args.hf_repo_for_upload,
                 trust_remote_code=True,
                 use_auth_token=True)
 
+            assert sum(p.numel() for p in hub_model.parameters()) == sum(
+                p.numel() for p in loaded_hf_model.parameters())
+            assert all(
+                str(type(module1)).split('.')[-2:] == str(type(module2)).split(
+                    '.')[-2:] for module1, module2 in zip(
+                        hub_model.modules(), loaded_hf_model.modules()))
+
             assert next(
-                model.parameters()
-            ).dtype == dtype, f'Expected model dtype to be {dtype}, but got {next(model.parameters()).dtype}'
+                hub_model.parameters()
+            ).dtype == dtype, f'Expected model dtype to be {dtype}, but got {next(hub_model.parameters()).dtype}'
             print(
-                tokenizer.batch_decode(
-                    model.generate(tokenizer('MosaicML is',
-                                             return_tensors='pt').input_ids,
-                                   max_new_tokens=10)))
+                hub_tokenizer.batch_decode(
+                    hub_model.generate(hub_tokenizer(
+                        'MosaicML is', return_tensors='pt').input_ids,
+                                       max_new_tokens=10)))
 
 
 if __name__ == '__main__':

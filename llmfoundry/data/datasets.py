@@ -1,15 +1,15 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Datasets for converting to MDS Shards"""
+"""Datasets for converting to MDS Shards."""
 
 import warnings
-from typing import Iterable, Union, Dict
+from typing import Dict, Iterable, Union
 
 import datasets as hf_datasets
+import numpy as np
 from torch.utils.data import IterableDataset
 from transformers import PreTrainedTokenizerBase
-import numpy as np
 
 
 class NoConcatDataset(IterableDataset):
@@ -18,7 +18,8 @@ class NoConcatDataset(IterableDataset):
     Returns dicts of {'text': bytes}
     """
 
-    def __init__(self, hf_dataset: Union[hf_datasets.IterableDataset, hf_datasets.Dataset]):
+    def __init__(self, hf_dataset: Union[hf_datasets.IterableDataset,
+                                         hf_datasets.Dataset]):
         self.hf_dataset = hf_dataset
 
     def __iter__(self) -> Iterable[Dict[str, bytes]]:
@@ -50,13 +51,15 @@ class ConcatTokensDataset(IterableDataset):
     ```
     """
 
-    def __init__(self,
-                 hf_dataset: Union[hf_datasets.IterableDataset, hf_datasets.Dataset],
-                 tokenizer: PreTrainedTokenizerBase,
-                 max_length: int,
-                 bos_text: str,
-                 eos_text: str,
-                 no_wrap: bool,):
+    def __init__(
+        self,
+        hf_dataset: Union[hf_datasets.IterableDataset, hf_datasets.Dataset],
+        tokenizer: PreTrainedTokenizerBase,
+        max_length: int,
+        bos_text: str,
+        eos_text: str,
+        no_wrap: bool,
+    ):
         self.tokenizer = tokenizer
         os.environ['TOKENIZERS_PARALLELISM'] = 'false'
         self.max_length = max_length

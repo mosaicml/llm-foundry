@@ -4,7 +4,6 @@
 """Streaming dataset conversion scripts for C4 and The Pile."""
 import os
 import platform
-import warnings
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
 from enum import Enum
@@ -17,7 +16,8 @@ from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.data import NoConcatDataset, ConcatTokensDataset
+from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
+
 
 class ConcatMode(Enum):
     NO_CONCAT = 'NO_CONCAT'
@@ -162,8 +162,6 @@ c4constants.splits['val_small'] = DataSplitConstants(hf_split='validation',
 CONSTS = {'c4': c4constants, 'the_pile': pileconstants}
 
 
-
-
 def build_hf_dataset(
     dataset_name: str,
     split: str,
@@ -194,9 +192,9 @@ def build_hf_dataset(
     """
 
     hf_dataset = hf_datasets.load_dataset(path=dataset_name,
-                                                name=data_subset,
-                                                split=split,
-                                                streaming=True)
+                                          name=data_subset,
+                                          split=split,
+                                          streaming=True)
     if mode == ConcatMode.NO_CONCAT:
         dataset = NoConcatDataset(hf_dataset)
     else:
@@ -346,7 +344,9 @@ def main(args: Namespace) -> None:
 
         # Write samples
         print(f'Converting {folder_split} to MDS format...')
-        print(f'Note that the progress bar is based on the dataset length before tokenization.')
+        print(
+            f'Note that the progress bar is based on the dataset length before tokenization.'
+        )
         print(f'It will finish at a value below 100% if tokenizing')
         with MDSWriter(columns=columns,
                        out=os.path.join(args.out_root, folder_split),

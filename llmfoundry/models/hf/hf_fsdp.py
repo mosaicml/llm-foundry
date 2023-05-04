@@ -78,14 +78,17 @@ def hf_get_hidden_layers(model: PreTrainedModel):
         - model.decoder.layers: (OPTForCausalLM)
         - gpt_neox.layers: (GPTNeoXForCausalLM)
         - model.layers: (LLaMaForCausalLM)
+        - transformer.blocks: (MPTForCausalLM)
     """
+    print(model)
     hidden_layers_attrs = (
-        'transformer.h',
-        'model.decoder.layers',
-        'gpt_neox.layers',
+        'transformer.h',  # BOOM, GPT2, GPTJ
+        'model.decoder.layers',  # OPT
+        'gpt_neox.layers',  # GPTNeoX
         'block',  # T5, BART, Pegasus (from encoder)
         'layers',  # ProphetNet, Marian (from encoder)
-        'model.layers'  # LLaMa
+        'model.layers',  # LLaMa
+        'transformer.blocks',  # MPT
     )
     return findattr(model, hidden_layers_attrs)
 

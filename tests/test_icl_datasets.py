@@ -1,17 +1,19 @@
-
 from pathlib import Path
 import shutil
 from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer
-from llmfoundry.common.builders import build_icl_evaluators
+from llmfoundry.utils.builders import build_icl_evaluators
 import os
 import pytest
 
 TMP_FOLDER = 'tmp_data'
+
+
 def load_icl_config(conf_path='tests/test_tasks.yaml'):
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return test_cfg
+
 
 @pytest.fixture(autouse=True)
 def cleanup():
@@ -24,20 +26,27 @@ def cleanup():
     if dirpath.exists() and dirpath.is_dir():
         shutil.rmtree(dirpath)
 
+
 def test_icl_task_loading_gpt2_tokenizer():
-    
+
     tokenizer = AutoTokenizer.from_pretrained('gpt2')
     task_cfg = load_icl_config()
-    evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks, tokenizer, 1024, 8, destination_dir=f"{os.getcwd()}/{TMP_FOLDER}")
+    evaluators, _ = build_icl_evaluators(
+        task_cfg.icl_tasks,
+        tokenizer,
+        1024,
+        8,
+        destination_dir=f"{os.getcwd()}/{TMP_FOLDER}")
 
     for e in evaluators:
         batch = next(e.dataloader.dataloader.__iter__())
-        
+
         inputs = batch['input_ids'][0]
         if 'continuation_indices' in batch:
             continuation_indices = list(batch['continuation_indices'][0])
             full_example = tokenizer.decode(inputs[0:continuation_indices[-1]])
-            answer = tokenizer.decode(inputs[continuation_indices[0]:continuation_indices[-1]])
+            answer = tokenizer.decode(
+                inputs[continuation_indices[0]:continuation_indices[-1]])
         else:
             start_idx = (inputs == tokenizer.eos_token_id).tolist().index(False)
             full_example = tokenizer.decode(inputs[start_idx:])
@@ -67,7 +76,8 @@ def test_icl_task_loading_gpt2_tokenizer():
         elif e.label == 'winograd/1-shot':
             assert full_example == "Tom gave Ralph a lift to school so Ralph wouldn't have to walk.\nThe city councilmen refused the demonstrators a permit because the city councilmen feared violence"
             assert answer == ' feared violence'
-    
+
+
 # def test_icl_task_loading_gptj_tokenizer():
 #     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-j-6b')
 #     task_cfg = load_icl_config()

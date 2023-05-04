@@ -7,8 +7,8 @@ integrations:
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  cd llm-foundry
-  composer llmfoundry/icl_eval/evaluate_model.py /mnt/config/parameters.yaml
+  cd llm-foundry/scripts
+  composer eval/eval.py /mnt/config/parameters.yaml
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 
@@ -20,7 +20,7 @@ gpu_type: a100_40gb
 cluster: r7z2 # replace with your cluster here!
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
-parameters: 
+parameters:
     # Tokenizer
   tokenizer:
       # name: EleutherAI/gpt-j-6b
@@ -56,4 +56,4 @@ parameters:
     sharding_strategy: FULL_SHARD
     mixed_precision: PURE
 
-  icl_tasks: "llmfoundry/icl_eval/yamls/tasks.yaml"
+  icl_tasks: "eval/yamls/tasks.yaml"

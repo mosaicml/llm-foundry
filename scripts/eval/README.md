@@ -1,9 +1,9 @@
 # In-context learning (ICL) evaluaton
 This is the MosaicML LLM evaluation suite. It is the world's fastest, multi-GPU compatible ICL evaluaton suite with built in support for using [FSDP](https://engineering.fb.com/2021/07/15/open-source/fsdp/) with any model on the HuggingFace hub or for any PyTorch model that implements the MosaicGPT model interface.
 
-Run a model by preparing an evaluaton YAML following the format of the examples in the `llmfoundry/icl_eval/yamls` directory.
+Run a model by preparing an evaluaton YAML following the format of the examples in the `scripts/eval/yamls` directory.
 
-You can run the evaluation script via `composer evaluate_model.py YOUR_YAML` or launch it on the mosaic cloud using a an MCLI YAML following the format of `llmfoundry/mcloud/mcli-1b-eval.yaml`
+You can run the evaluation script via `composer eval.py YOUR_YAML` or launch it on the mosaic cloud using a an MCLI YAML following the format of `llmfoundry/mcloud/mcli-1b-eval.yaml`
 
 ----
 
@@ -53,13 +53,13 @@ prompt_string: "Answer the following trivia question:\n", example_delimiter: "\n
 Question: What is the Japanese share index called? Answer: Nikkei
 Question: Who was the man behind The Chipmunks? Answer: David Seville
 Question: What star sign is Jamie Lee Curtis? Answer:
-> 
+>
 
 The model would then be expected to generate a series of tokens beginning with either of the aliases: Scorpio/Skorpio.
 
-Below is a complete YAML section that works with the TriviaQA dataset in `llmfoundry/icl_eval/local_data/triviaqa.jsonl`
+Below is a complete YAML section that works with the TriviaQA dataset in `scripts/eval/local_data/triviaqa.jsonl`
 
-> 
+>
     label: triviaqa
     dataset_uri: local_data/triviaqa.jsonl
     num_fewshot:
@@ -97,15 +97,15 @@ The LM task expects a **prompt string**, a **continuation delimiter** to separat
 
 > With Tristran's next step he was standing beside a lake, and the candlelight shone brightly on the water; and then he was walking through the mountains, through lonely crags, where the candlelight was reflected in the eyes of the creatures of the high snows; and then he was walking through the clouds, which, while not entirely substantial, still supported his weight in comfort; and then, holding tightly to his candle, he was underground, and the candlelight glinted back at him from the wet cave walls; now he was in the mountains once more; and then he was on a road through wild forest, and he glimpsed a chariot being pulled by two goats, being driven by a woman in a red dress who looked, for the glimpse he got of her, the way Boadicea was drawn in his history books; and another step and he was in a leafy glen, and he could hear the chuckle of water as it splashed and sang its way into a small brook.
 He took another step, but he was still in the
-> 
+>
 
 The model would then be expected output “ glen”
 
-Below is a YAML section that works with the Lambada OpenAI datset in `llmfoundry/icl_eval/local_data/lambada_openai.jsonl`
+Below is a YAML section that works with the Lambada OpenAI datset in `scripts/eval/local_data/lambada_openai.jsonl`
 
-> 
+>
     label: lambada_openai
-    dataset_uri: local_data/lambada_openai.jsonl 
+    dataset_uri: local_data/lambada_openai.jsonl
     num_fewshot:
     - 0
     batch_size: 4
@@ -135,19 +135,19 @@ An example datum is below:
 The MC task expects a **prompt string**, a **continuation delimiter** to separate continuation from context, and an **example delimiter** to separate few shot examples from one another. If using the following settings, with 0 few shot examples in context, the above datum may be rendered as four different inputs to the model:
 
 > High jump: A boy is running down a track. The boy runs into a car.
-> 
+>
 > High jump: A boy is running down a track. The boy gets in a mat.
-> 
+>
 > High jump: A boy is running down a track. The boy lifts his body above the height of a pole.
 >
 > High jump: A boy is running down a track. The boy stands on his hands and springs.
-> 
+>
 
-The model would be assigned correct if it assigns the lowest per token perplexity to the sequence " lifts his body above the height of a pole." 
+The model would be assigned correct if it assigns the lowest per token perplexity to the sequence " lifts his body above the height of a pole."
 
-Below is a YAML section that works with the HellaSwag dataset in `llmfoundry/icl_eval/local_data/hellaswag.jsonl`
+Below is a YAML section that works with the HellaSwag dataset in `scripts/eval/local_data/hellaswag.jsonl`
 
-> 
+>
     label: hellaswag
     dataset_uri: local_data/hellaswag.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot:
@@ -185,16 +185,16 @@ An example datum is below:
 The Schema task expects a **prompt string**, a **continuation delimiter** to separate continuation from context, and an **example delimiter** to separate few shot examples from one another. If using the following settings, with 0 few shot examples in context, the above datum may be rendered as two different inputs to the model:
 
 > Jim comforted Kevin because Jim was so upset.
-> 
+>
 > Jim comforted Kevin because Kevin was so upset.
-> 
+>
 
 
 The model would be assigned correct if per token perplexity of the sequence " was so upset" is lower in the second version than it is in the first version.
 
-Below is a YAML section that works with the Winograd dataset in `llmfoundry/icl_eval/local_data/winograd_wsc.jsonl`
+Below is a YAML section that works with the Winograd dataset in `scripts/eval/local_data/winograd_wsc.jsonl`
 
-> 
+>
     label: winograd
     dataset_uri: local_data/winograd_wsc.jsonl
     num_fewshot:
@@ -213,7 +213,7 @@ Below is a YAML section that works with the Winograd dataset in `llmfoundry/icl_
 >
 
 ### Build your own dataset (BYOD)
-Building a dataset compatible with our eval suite is very easy if it fits with one of the four supported task types. Simply choose the appropriate task type (LM, MC, QA, or Schema) and process each dataset into a jsonl format where each row has the format described above. 
+Building a dataset compatible with our eval suite is very easy if it fits with one of the four supported task types. Simply choose the appropriate task type (LM, MC, QA, or Schema) and process each dataset into a jsonl format where each row has the format described above.
 
 Below is a minimal script which prepares the [Winograd schema challenge](https://cdn.aaai.org/ocs/4492/4492-21843-1-PB.pdf) hosted on [HuggingFace](https://huggingface.co/datasets/winograd_wsc). This script can be modified to generate other datasets based on the HuggingFace dataset hub.
 ```jsx
@@ -232,10 +232,10 @@ upper_pronouns = [
         "Her",
         "Their",
     ]
-    
+
 def __normalize_option(doc, option):
         # this function adapted from EleutherAI/lm-evaluation-harness
-        
+
         # Append `'s` to possessive determiner based options.
         if doc["pronoun"].lower() in ["my", "his", "her", "our", "their"]:
             option += "'s"
@@ -251,7 +251,7 @@ def lower_first_letter(s):
 
 def prep_winograd_wsc(row):
     # this function adapted from EleutherAI/lm-evaluation-harness
-        
+
     prefix = row['text'][:row['pronoun_loc']]
     continuation = row['text'][row['pronoun_loc'] + len(row['pronoun']):]
 
@@ -264,13 +264,13 @@ def prep_winograd_wsc(row):
         "continuation": continuation,
         "gold": row['label']
     }
-    
+
 def prep_dataset(out_file):
         dataset_name = ('winograd_wsc', 'wsc273')
         dataset = load_dataset(*dataset_name)
 
         with open(out_file, "w", encoding='utf8') as f:
-            
+
             if dataset_name[0] == 'winogrande':
                 split = dataset['validation']
             else:
@@ -284,21 +284,21 @@ def prep_dataset(out_file):
 Similarly, you can compile a dataset directly from the `EleutherAI/lm-evaluation-harness` by modifying the script below:
 ```jsx
 def prep_triviaqa(row):
-    
+
     return {
         "context": f"Question: {row['question']}\nAnswer:",
         "answer": row['answer']['value'],
         "aliases": row['answer']['aliases']
     }
-    
+
 def prep_dataset(out_file):
     task = lm_eval_tasks.get_task_dict(['triviaqa'])['triviaqa']
 
     if task.has_test_docs():
         task_doc_func = task.test_docs
-        task_set = "test" 
+        task_set = "test"
     elif task.has_validation_docs():
-        task_set = "val" 
+        task_set = "val"
         task_doc_func = task.validation_docs
     with open(out_file, "w", encoding='utf8') as f:
             for row in task_doc_func():
@@ -307,8 +307,7 @@ def prep_dataset(out_file):
 ```
 
 #### A note on delimiters and tokenizers
- 
+
 When formatting samples, `prompt_string` is prepended to the beginning, then `num_fewshot` examples from the dataset are concatenated. Each few shot example is formatted with the context/continuation of each being separated by `continuation_delimiter`, then each example is separated from the others by the `example_delimiter`. Finally, we append the context/query/question/context options of the current sample to be evaluated and the `continuation_delimiter`.
 
-Thus the structure of each question's preamble is `prompt | few shot examples | context | continuation delimiter`. The continuation (aka choices for MC) is then tokenized separately and the tokens of the preamble and tokens of the continuation are concatenated. It is important to note that if the continuation delimiter has a trailing space, it is stripped and instead prepended to the continuation. Furthermore, if the continuation does not have a leading space, one will be prepended. 
-
+Thus the structure of each question's preamble is `prompt | few shot examples | context | continuation delimiter`. The continuation (aka choices for MC) is then tokenized separately and the tokens of the preamble and tokens of the continuation are concatenated. It is important to note that if the continuation delimiter has a trailing space, it is stripped and instead prepended to the continuation. Furthermore, if the continuation does not have a leading space, one will be prepended.

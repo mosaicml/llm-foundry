@@ -16,11 +16,8 @@ from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
 
-if __name__ == '__main__':
-    yaml_path, args_list = sys.argv[1], sys.argv[2:]
-    with open(yaml_path) as f:
-        yaml_cfg = om.load(f)
-    cli_cfg = om.from_cli(args_list)
+
+def main(cfg):
     cfg.dist_timeout = cfg.get('dist_timeout', 600.0)
 
     reproducibility.seed_all(cfg.seed)
@@ -73,3 +70,12 @@ if __name__ == '__main__':
         if key in in_memory_logger.data:
             result = in_memory_logger.data[key][0][1].item()
             print(f'{key}: {result}')
+
+
+if __name__ == '__main__':
+    yaml_path, args_list = sys.argv[1], sys.argv[2:]
+    with open(yaml_path) as f:
+        yaml_cfg = om.load(f)
+    cli_cfg = om.from_cli(args_list)
+    cfg = om.merge(yaml_cfg, cli_cfg)
+    main(cfg)

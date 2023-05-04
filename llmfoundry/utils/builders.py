@@ -219,7 +219,10 @@ def build_icl_evaluators(icl_tasks,
                 f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl',
                 has_categories=icl_cfg.get('has_categories', False),
             )
-            if hasattr(icl_cfg, 'has_categories') and icl_cfg.has_categories:
+            if hasattr(
+                    icl_cfg,
+                    'has_categories') and icl_cfg.has_categories and isinstance(
+                        dataloaders, dict):
                 for category in dataloaders.keys():
                     logger_keys.extend([
                         f'metrics/{label}/{category}/{m}' for m in metric_names

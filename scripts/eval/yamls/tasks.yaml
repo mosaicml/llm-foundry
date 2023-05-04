@@ -1,7 +1,7 @@
 icl_tasks:
   -
     label: jeopardy
-    dataset_uri: llmfoundry/icl_eval/local_data/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+    dataset_uri: eval/local_data/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot:
     - 0
     - 1
@@ -17,7 +17,7 @@ icl_tasks:
     has_categories: true
   -
     label: lambada_openai
-    dataset_uri: llmfoundry/icl_eval/local_data/lambada_openai.jsonl 
+    dataset_uri: eval/local_data/lambada_openai.jsonl
     num_fewshot:
     - 0
     batch_size: 8
@@ -29,7 +29,7 @@ icl_tasks:
     continuation_delimiter: " " # this separates contexts from continuations
   -
     label: piqa
-    dataset_uri:  llmfoundry/icl_eval/local_data/piqa.jsonl  # ADD YOUR OWN DATASET URI
+    dataset_uri:  eval/local_data/piqa.jsonl  # ADD YOUR OWN DATASET URI
     num_fewshot:
     - 0
     - 1
@@ -44,7 +44,7 @@ icl_tasks:
     continuation_delimiter: "Answer: " # this separates questions from answers
   -
     label: hellaswag
-    dataset_uri: llmfoundry/icl_eval/local_data/hellaswag.jsonl # ADD YOUR OWN DATASET URI
+    dataset_uri: eval/local_data/hellaswag.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot:
     - 0
     - 1
@@ -59,7 +59,7 @@ icl_tasks:
     continuation_delimiter: " " # this separates questions from answers
   -
     label: arc_easy
-    dataset_uri: llmfoundry/icl_eval/local_data/arc_easy.jsonl # ADD YOUR OWN DATASET URI
+    dataset_uri: eval/local_data/arc_easy.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot:
     - 0
     - 1
@@ -74,7 +74,7 @@ icl_tasks:
     continuation_delimiter: "Answer: " # this separates questions from answers
   -
     label: arc_challenge
-    dataset_uri: llmfoundry/icl_eval/local_data/arc_challenge.jsonl # ADD YOUR OWN DATASET URI
+    dataset_uri: eval/local_data/arc_challenge.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot:
     - 0
     - 1
@@ -89,7 +89,7 @@ icl_tasks:
     continuation_delimiter: "Answer: " # this separates questions from answers
   -
     label: copa
-    dataset_uri: llmfoundry/icl_eval/local_data/copa.jsonl # ADD YOUR OWN DATASET URI
+    dataset_uri: eval/local_data/copa.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot:
     - 0
     - 1
@@ -104,7 +104,7 @@ icl_tasks:
     continuation_delimiter: " " # this separates questions from answers
   -
     label: boolq
-    dataset_uri: llmfoundry/icl_eval/local_data/boolq.jsonl # ADD YOUR OWN DATASET URI
+    dataset_uri: eval/local_data/boolq.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot:
     - 0
     - 1
@@ -119,7 +119,7 @@ icl_tasks:
     continuation_delimiter: "Answer: " # this separates questions from answers
   -
     label: mmlu
-    dataset_uri: llmfoundry/icl_eval/local_data/mmlu.jsonl # ADD YOUR OWN DATASET URI
+    dataset_uri: eval/local_data/mmlu.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot:
     - 0
     - 1
@@ -135,7 +135,7 @@ icl_tasks:
     has_categories: true
   -
     label: winograd
-    dataset_uri: llmfoundry/icl_eval/local_data/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
+    dataset_uri: eval/local_data/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot:
     - 0
     - 1
@@ -150,7 +150,7 @@ icl_tasks:
     continuation_delimiter: " " # this separates questions from answers
   -
     label: winogrande
-    dataset_uri: llmfoundry/icl_eval/local_data/winogrande.jsonl # ADD YOUR OWN DATASET URI
+    dataset_uri: eval/local_data/winogrande.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot:
     - 0
     - 1
@@ -165,7 +165,7 @@ icl_tasks:
     continuation_delimiter: " " # this separates questions from answers
   -
     label: triviaqa
-    dataset_uri: llmfoundry/icl_eval/local_data/triviaqa.jsonl # ADD YOUR OWN DATASET URI
+    dataset_uri: eval/local_data/triviaqa.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot:
     - 0
     - 1

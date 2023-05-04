@@ -1,7 +1,7 @@
 icl_tasks:
     -
       label: jeopardy
-      dataset_uri: llmfoundry/icl_eval/local_data/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+      dataset_uri: scripts/eval/local_data/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
       num_fewshot:
       - 0
       - 1
@@ -15,7 +15,7 @@ icl_tasks:
       has_categories: true
     -
       label: copa
-      dataset_uri:  llmfoundry/icl_eval/local_data/copa.jsonl  # ADD YOUR OWN DATASET URI
+      dataset_uri:  scripts/eval/local_data/copa.jsonl  # ADD YOUR OWN DATASET URI
       num_fewshot:
       - 0
       - 1
@@ -28,7 +28,7 @@ icl_tasks:
       continuation_delimiter: " " # this separates questions from answers
     -
       label: winograd
-      dataset_uri: llmfoundry/icl_eval/local_data/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
+      dataset_uri: scripts/eval/local_data/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
       num_fewshot:
       - 0
       - 1
@@ -41,7 +41,7 @@ icl_tasks:
       continuation_delimiter: " " # this separates questions from answers
     -
       label: triviaqa
-      dataset_uri: llmfoundry/icl_eval/local_data/triviaqa.jsonl # ADD YOUR OWN DATASET URI
+      dataset_uri: scripts/eval/local_data/triviaqa.jsonl # ADD YOUR OWN DATASET URI
       num_fewshot:
       - 0
       - 1

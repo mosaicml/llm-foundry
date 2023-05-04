@@ -32,8 +32,67 @@ def get_hf_config_from_composer_state_dict(
 
     AutoConfig.register('mpt', MPTConfig)
 
+    # backwards compatibility changes
     if hf_config_dict['model_type'] == 'mosaic_gpt':
         hf_config_dict['model_type'] = 'mpt'
+
+    if 'attn_config' not in hf_config_dict:
+        attn_config = {}
+        attn_config['attn_type'] = 'multihead_attention'
+        attn_config['attn_pdrop'] = hf_config_dict['attn_pdrop']
+        del hf_config_dict['attn_pdrop']
+        attn_config['attn_impl'] = hf_config_dict['attn_impl']
+        del hf_config_dict['attn_impl']
+        attn_config['qk_ln'] = hf_config_dict['attn_qk_ln']
+        del hf_config_dict['attn_qk_ln']
+        attn_config['clip_qkv'] = hf_config_dict['attn_clip_qkv']
+        del hf_config_dict['attn_clip_qkv']
+        attn_config['softmax_scale'] = hf_config_dict['softmax_scale']
+        del hf_config_dict['softmax_scale']
+        attn_config['prefix_lm'] = hf_config_dict['prefix_lm']
+        del hf_config_dict['prefix_lm']
+        attn_config['attn_uses_sequence_id'] = hf_config_dict[
+            'attn_uses_sequence_id']
+        del hf_config_dict['attn_uses_sequence_id']
+        attn_config['alibi'] = hf_config_dict['alibi']
+        del hf_config_dict['alibi']
+        attn_config['alibi_bias_max'] = hf_config_dict['alibi_bias_max']
+        del hf_config_dict['alibi_bias_max']
+
+        hf_config_dict['attn_config'] = attn_config
+
+    if 'init_config' not in hf_config_dict:
+        init_config = {}
+
+        init_config['param_init_fn'] = hf_config_dict['init_name']
+        del hf_config_dict['init_name']
+        init_config['fan_mode'] = hf_config_dict['fan_mode']
+        del hf_config_dict['fan_mode']
+        init_config['init_nonlinearity'] = hf_config_dict['init_nonlinearity']
+        del hf_config_dict['init_nonlinearity']
+        init_config['init_gain'] = hf_config_dict['init_gain']
+        del hf_config_dict['init_gain']
+        init_config['init_std'] = hf_config_dict['init_std']
+        del hf_config_dict['init_std']
+        init_config['init_div_is_residual'] = hf_config_dict[
+            'init_div_is_residual']
+        del hf_config_dict['init_div_is_residual']
+        init_config['emb_init_std'] = hf_config_dict['emb_init_std']
+        del hf_config_dict['emb_init_std']
+        init_config['emb_init_uniform_lim'] = hf_config_dict[
+            'emb_init_uniform_lim']
+        del hf_config_dict['emb_init_uniform_lim']
+
+    if 'mlp_ratio' in hf_config_dict:
+        hf_config_dict['expansion_ratio'] = hf_config_dict['mlp_ratio']
+        del hf_config_dict['mlp_ratio']
+
+    if 'low_precision_layernorm' in hf_config_dict:
+        if hf_config_dict['low_precision_layernorm']:
+            hf_config_dict['norm_type'] = 'low_precision_layernorm'
+        else:
+            hf_config_dict['norm_type'] = 'layernorm'
+        del hf_config_dict['low_precision_layernorm']
 
     return AutoConfig.for_model(**hf_config_dict)
 

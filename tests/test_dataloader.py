@@ -16,7 +16,7 @@ from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
 from llmfoundry.utils.builders import build_tokenizer
 
 
-def get_config(conf_path='yamls/mosaic_gpt/125m.yaml'):
+def get_config(conf_path='yamls/mpt/125m.yaml'):
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     with open(conf_path) as f:
         test_cfg = om.load(f)
@@ -57,7 +57,7 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     if not os.path.isdir(path):
         raise RuntimeError(f'c4 dataset at {path} not set up as expected')
 
-    test_cfg = get_config(conf_path='scripts/train/yamls/mosaic_gpt/125m.yaml')
+    test_cfg = get_config(conf_path='scripts/train/yamls/mpt/125m.yaml')
     test_cfg.data_local = data_local
     test_cfg.eval_loader.dataset.split = split
 

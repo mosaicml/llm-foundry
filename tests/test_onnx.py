@@ -5,7 +5,7 @@ import torch
 from composer.utils import reproducibility
 from transformers import AutoConfig, AutoModelForCausalLM
 
-from llmfoundry import MosaicGPT, MosaicGPTConfig
+from llmfoundry import MPTConfig, MPTForCausalLM
 
 
 def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):
@@ -26,10 +26,10 @@ def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):
 
 def test_onnx_export(tmp_path):
     reproducibility.seed_all(42)
-    AutoConfig.register('mosaic_gpt', MosaicGPTConfig)
-    AutoModelForCausalLM.register(MosaicGPTConfig, MosaicGPT)
+    AutoConfig.register('mpt', MPTConfig)
+    AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
 
-    hf_config = MosaicGPTConfig(
+    hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=4,
@@ -46,8 +46,8 @@ def test_onnx_export(tmp_path):
         vocab_size=50368,
         norm_type='layernorm',
     )
-    mosaic_gpt = MosaicGPT(hf_config)
-    mosaic_gpt.eval()
+    mpt = MPTForCausalLM(hf_config)
+    mpt.eval()
 
     print('Creating random batch...')
     sample_input = gen_random_batch(
@@ -57,29 +57,29 @@ def test_onnx_export(tmp_path):
     )
 
     with torch.no_grad():
-        mosaic_gpt(**sample_input)
+        mpt(**sample_input)
 
     torch.onnx.export(
-        mosaic_gpt,
+        mpt,
         (sample_input,),
-        str(tmp_path / 'mosaic_gpt.onnx'),
+        str(tmp_path / 'mpt.onnx'),
         input_names=['input_ids', 'attention_mask'],
         output_names=['output'],
         opset_version=16,
     )
 
     with torch.no_grad():
-        orig_out = mosaic_gpt(**sample_input)
+        orig_out = mpt(**sample_input)
 
     import onnx  # type: ignore
     import onnx.checker  # type: ignore
     import onnxruntime as ort  # type: ignore
 
-    _ = onnx.load(str(tmp_path / 'mosaic_gpt.onnx'))
+    _ = onnx.load(str(tmp_path / 'mpt.onnx'))
 
-    onnx.checker.check_model(str(tmp_path / 'mosaic_gpt.onnx'))
+    onnx.checker.check_model(str(tmp_path / 'mpt.onnx'))
 
-    ort_session = ort.InferenceSession(str(tmp_path / 'mosaic_gpt.onnx'))
+    ort_session = ort.InferenceSession(str(tmp_path / 'mpt.onnx'))
 
     for key, value in sample_input.items():
         sample_input[key] = value.cpu().numpy()

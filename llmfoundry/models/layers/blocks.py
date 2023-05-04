@@ -53,6 +53,7 @@ class MPTBlock(nn.Module):
             },
             resid_pdrop: float = 0.0,
             norm_type: str = 'low_precision_layernorm',
+            verbose: int = 0,
             device: Optional[str] = None,
             **kwargs):
         del kwargs  # unused, just to capture any extra args from the config
@@ -70,6 +71,7 @@ class MPTBlock(nn.Module):
             attn_pdrop=attn_config['attn_pdrop'],
             d_model=d_model,
             n_heads=n_heads,
+            verbose=verbose,
             device=device,
         )
         self.norm_2 = norm_class(d_model, device=device)

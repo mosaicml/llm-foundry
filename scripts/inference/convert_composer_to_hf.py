@@ -424,10 +424,19 @@ def main(args: Namespace) -> None:
                         private=True,
                         exist_ok=True)
         print('Repo created.')
+
+        # ignore the full checkpoint file if we now have sharded checkpoint files
+        ignore_patterns = []
+        if any(
+                f.startswith('pytorch_model-00001')
+                for f in os.listdir(args.hf_output_path)):
+            ignore_patterns.append('pytorch_model.bin')
+
         api.upload_folder(folder_path=args.hf_output_path,
                           repo_id=args.hf_repo_for_upload,
                           use_auth_token=True,
-                          repo_type='model')
+                          repo_type='model',
+                          ignore_patterns=ignore_patterns)
         print('Folder uploaded.')
 
         if args.test_uploaded_model:

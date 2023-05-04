@@ -21,24 +21,27 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import (PreTrainedModel, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
-from transformers.modeling_outputs import CausalLMOutputWithPast
+from transformers.modeling_outputs import (BaseModelOutputWithPast,
+                                           CausalLMOutputWithPast)
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
-from llmfoundry.models.layers.gpt_blocks import GPTBlock
+from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-from llmfoundry.models.mosaic_gpt.configuration_mosaic_gpt import \
-    MosaicGPTConfig
+from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 from llmfoundry.models.utils import (MODEL_INIT_REGISTRY,
                                      add_bidirectional_mask_if_missing)
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
-class MosaicGPT(PreTrainedModel):
-    config_class = MosaicGPTConfig
-    base_model_prefix = 'mosaic_gpt'
+class MPTPreTrainedModel(PreTrainedModel):
+    config_class = MPTConfig
+    base_model_prefix = 'model'
 
-    def __init__(self, config: MosaicGPTConfig):
+
+class MPTModel(MPTPreTrainedModel):
+
+    def __init__(self, config: MPTConfig):
         config._validate_config()
         super().__init__(config)
 
@@ -59,45 +62,21 @@ class MosaicGPT(PreTrainedModel):
         # both report this helping with stabilizing training
         self.embedding_fraction = config.embedding_fraction
 
-        self.transformer = nn.ModuleDict({
-            'wte':
-                nn.Embedding(config.vocab_size,
-                             config.d_model,
-                             device=config.init_device)
-        })
+        self.wte = nn.Embedding(config.vocab_size,
+                                config.d_model,
+                                device=config.init_device)
         if not self.alibi:
-            self.transformer.update({
-                'wpe':
-                    nn.Embedding(config.max_seq_len,
-                                 config.d_model,
-                                 device=config.init_device)
-            })
-        self.transformer.update({'emb_drop': nn.Dropout(config.emb_pdrop)})
-        self.transformer.update({
-            'blocks':
-                nn.ModuleList([
-                    GPTBlock(
-                        device=config.init_device,
-                        **config.to_dict(),
-                    ) for _ in range(config.n_layers)
-                ])
-        })
-        self.transformer.update(
-            {'norm_f': norm_class(config.d_model, device=config.init_device)})
-
-        # enables scaling output logits; similar to a softmax "temperature"
-        # PaLM paper uses scale 1/sqrt(config.d_model)
-        self.logit_scale = None
-        if config.logit_scale is not None:
-            logit_scale = config.logit_scale
-            if isinstance(logit_scale, str):
-                if logit_scale == 'inv_sqrt_d_model':
-                    logit_scale = 1 / math.sqrt(config.d_model)
-                else:
-                    raise ValueError(
-                        f"{logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'."
-                    )
-            self.logit_scale = logit_scale
+            self.wpe = nn.Embedding(config.max_seq_len,
+                                    config.d_model,
+                                    device=config.init_device)
+        self.emb_drop = nn.Dropout(config.emb_pdrop)
+        self.blocks = nn.ModuleList([
+            MPTBlock(
+                device=config.init_device,
+                **config.to_dict(),
+            ) for _ in range(config.n_layers)
+        ])
+        self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         if config.init_device != 'meta':
             print(
@@ -127,8 +106,20 @@ class MosaicGPT(PreTrainedModel):
                         print(f'Removing bias ({module.bias}) from {module}.')
                     module.register_parameter('bias', None)
 
+        # Print verbose info
         if config.verbose and config.verbose > 2:
             print(self)
+        if 'verbose' not in self.config.init_config:
+            self.config.init_config['verbose'] = self.config.verbose
+        if self.config.init_config['verbose'] > 1:
+            init_fn_name = self.config.init_config['name']
+            warnings.warn(f'Using {init_fn_name} initialization.')
+
+    def get_input_embeddings(self):
+        return self.wte
+
+    def set_input_embeddings(self, value):
+        self.wte = value
 
     @torch.no_grad()
     def _attn_bias(self,
@@ -268,34 +259,34 @@ class MosaicGPT(PreTrainedModel):
 
         # These args are passed in by keyword in huggingface's generate function
         # https://github.com/huggingface/transformers/blob/68287689f2f0d8b7063c400230b3766987abf18d/src/transformers/generation/utils.py#L2201-L2206
-        # but have not yet been fully implemented in MosaicGPT
+        # but have not yet been fully implemented in MPTModel
         if not return_dict:
             raise NotImplementedError(
-                'return_dict False is not implemented yet for MosaicGPT')
+                'return_dict False is not implemented yet for MPT')
         if output_attentions:
             raise NotImplementedError(
-                'output_attentions is not implemented yet for MosaicGPT')
+                'output_attentions is not implemented yet for MPT')
 
         if attention_mask is not None and attention_mask[:, 0].sum(
         ) != attention_mask.shape[0] and self.training:
             raise NotImplementedError(
-                'MosaicGPT does not support training with left padding.')
+                'MPT does not support training with left padding.')
 
         if self.prefix_lm and prefix_mask is None:
             raise ValueError(
-                'prefix_mask is a required argument when MosaicGPT is configured with prefix_lm=True.'
+                'prefix_mask is a required argument when MPT is configured with prefix_lm=True.'
             )
 
         if self.training:
             if self.attn_uses_sequence_id and sequence_id is None:
                 raise ValueError(
-                    'sequence_id is a required argument when MosaicGPT is configured with attn_uses_sequence_id=True ' +\
+                    'sequence_id is a required argument when MPT is configured with attn_uses_sequence_id=True ' +\
                     'and the model is in train mode.'
                 )
             elif (self.attn_uses_sequence_id is False) and (sequence_id
                                                             is not None):
                 warnings.warn(
-                    'MosaicGPT received non-None input for `sequence_id` but is configured with attn_uses_sequence_id=False. ' +\
+                    'MPT received non-None input for `sequence_id` but is configured with attn_uses_sequence_id=False. ' +\
                     'This input will be ignored. If you want the model to use `sequence_id`, set attn_uses_sequence_id to True.'
                 )
 
@@ -305,7 +296,7 @@ class MosaicGPT(PreTrainedModel):
             S <= self.config.max_seq_len
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
-        tok_emb = self.transformer.wte(input_ids)  # type: ignore
+        tok_emb = self.wte(input_ids)  # type: ignore
         if self.alibi:
             x = tok_emb
         else:
@@ -336,17 +327,17 @@ class MosaicGPT(PreTrainedModel):
                                                               past_position:],
                                   min=0)
 
-            pos_emb = self.transformer.wpe(pos)  # type: ignore
+            pos_emb = self.wpe(pos)  # type: ignore
             x = tok_emb + pos_emb
 
         if self.embedding_fraction == 1:
-            x = self.transformer.emb_drop(x)  # type: ignore
+            x = self.emb_drop(x)  # type: ignore
         else:
             # this implementation is proposed on page 7 of the GLM-130B paper https://arxiv.org/abs/2210.02414
             x_shrunk = (x * self.embedding_fraction) + (
                 x.detach() * (1 - self.embedding_fraction))
-            assert isinstance(self.transformer.emb_drop, nn.Module)  # pyright
-            x = self.transformer.emb_drop(x_shrunk)
+            assert isinstance(self.emb_drop, nn.Module)  # pyright
+            x = self.emb_drop(x_shrunk)
 
         attn_bias, attention_mask = self._attn_bias(
             device=x.device,
@@ -361,7 +352,7 @@ class MosaicGPT(PreTrainedModel):
                               ]  # type: ignore
 
         all_hidden_states = () if output_hidden_states else None
-        for b_idx, block in enumerate(self.transformer.blocks):  # type: ignore
+        for b_idx, block in enumerate(self.blocks):  # type: ignore
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
                 all_hidden_states = all_hidden_states + (x,)
@@ -375,12 +366,100 @@ class MosaicGPT(PreTrainedModel):
             if past_key_values is not None:
                 past_key_values[b_idx] = past_key_value
 
-        x = self.transformer.norm_f(x)  # type: ignore
+        x = self.norm_f(x)  # type: ignore
 
-        # output embedding weight tied to input embedding
-        assert isinstance(self.transformer.wte, nn.Module)  # pyright
-        assert isinstance(self.transformer.wte.weight, torch.Tensor)  # pyright
-        logits = F.linear(x, self.transformer.wte.weight, None)
+        return BaseModelOutputWithPast(
+            last_hidden_state=x,
+            past_key_values=past_key_values,
+            hidden_states=all_hidden_states,
+        )
+
+    # Param Initialization, needed for device='meta' fast initialization
+    def param_init_fn(self, module):
+        init_fn_name = self.config.init_config['name']
+        MODEL_INIT_REGISTRY[init_fn_name](module=module,
+                                          n_layers=self.config.n_layers,
+                                          d_model=self.config.d_model,
+                                          **self.config.init_config)
+
+    # FSDP Wrap function
+    def fsdp_wrap_fn(self, module):
+        return isinstance(module, MPTBlock)
+
+    # Activation Checkpointing
+    def activation_checkpointing_fn(self, module):
+        return isinstance(module, MPTBlock)
+
+
+class MPTForCausalLM(MPTPreTrainedModel):
+
+    def __init__(self, config: MPTConfig):
+        super().__init__(config)
+        if not config.tie_word_embeddings:
+            raise ValueError(
+                'MPTForCausalLM only supports tied word embeddings')
+
+        self.transformer = MPTModel(config)
+
+        # enables scaling output logits; similar to a softmax "temperature"
+        # PaLM paper uses scale 1/sqrt(config.d_model)
+        self.logit_scale = None
+        if config.logit_scale is not None:
+            logit_scale = config.logit_scale
+            if isinstance(logit_scale, str):
+                if logit_scale == 'inv_sqrt_d_model':
+                    logit_scale = 1 / math.sqrt(config.d_model)
+                else:
+                    raise ValueError(
+                        f"{logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'."
+                    )
+            self.logit_scale = logit_scale
+
+    def get_input_embeddings(self):
+        return self.transformer.wte
+
+    def set_input_embeddings(self, value):
+        self.transformer.wte = value
+
+    def get_output_embeddings(self):
+        return self.transformer.wte
+
+    def set_output_embeddings(self, new_embeddings):
+        self.transformer.wte = new_embeddings
+
+    def set_decoder(self, decoder):
+        self.transformer = decoder
+
+    def get_decoder(self):
+        return self.transformer
+
+    def forward(
+            self,
+            input_ids: torch.LongTensor,
+            past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
+            attention_mask: Optional[torch.ByteTensor] = None,
+            prefix_mask: Optional[torch.ByteTensor] = None,
+            sequence_id: Optional[torch.LongTensor] = None,
+            return_dict: Optional[bool] = None,
+            output_attentions: Optional[bool] = None,
+            output_hidden_states: Optional[bool] = None,
+            use_cache: Optional[bool] = None):
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
+        use_cache = use_cache if use_cache is not None else self.config.use_cache
+
+        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+        outputs = self.transformer(input_ids=input_ids,
+                                   past_key_values=past_key_values,
+                                   attention_mask=attention_mask,
+                                   prefix_mask=prefix_mask,
+                                   sequence_id=sequence_id,
+                                   return_dict=return_dict,
+                                   output_attentions=output_attentions,
+                                   output_hidden_states=output_hidden_states,
+                                   use_cache=use_cache)
+
+        logits = F.linear(outputs.last_hidden_state,
+                          self.transformer.wte.weight)
 
         if self.logit_scale is not None:
             if self.logit_scale == 0:
@@ -390,16 +469,12 @@ class MosaicGPT(PreTrainedModel):
             logits *= self.logit_scale
 
         return CausalLMOutputWithPast(logits=logits,
-                                      past_key_values=past_key_values,
-                                      hidden_states=all_hidden_states)
+                                      past_key_values=outputs.past_key_values,
+                                      hidden_states=outputs.hidden_states)
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
         init_fn_name = self.config.init_config['name']
-        if 'verbose' not in self.config.init_config:
-            self.config.init_config['verbose'] = self.config.verbose
-        if self.config.init_config['verbose'] > 1:
-            warnings.warn(f'Using {init_fn_name} initialization.')
         MODEL_INIT_REGISTRY[init_fn_name](module=module,
                                           n_layers=self.config.n_layers,
                                           d_model=self.config.d_model,
@@ -407,11 +482,11 @@ class MosaicGPT(PreTrainedModel):
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module):
-        return isinstance(module, GPTBlock)
+        return isinstance(module, MPTBlock)
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module):
-        return isinstance(module, GPTBlock)
+        return isinstance(module, MPTBlock)
 
     def prepare_inputs_for_generation(self,
                                       input_ids,
@@ -420,14 +495,14 @@ class MosaicGPT(PreTrainedModel):
                                       **kwargs):
         if inputs_embeds is not None:
             raise NotImplementedError(
-                'inputs_embeds is not implemented for MosaicGPT yet')
+                'inputs_embeds is not implemented for MPT yet')
 
         attention_mask = kwargs['attention_mask'].bool()
         if attention_mask[:, -1].sum() != attention_mask.shape[0]:
             raise NotImplementedError(
-                'MosaicGPT does not support generation with right padding.')
+                'MPT does not support generation with right padding.')
 
-        if self.attn_uses_sequence_id and self.training:
+        if self.transformer.attn_uses_sequence_id and self.training:
             sequence_id = torch.zeros_like(input_ids[:1])
         else:
             sequence_id = None
@@ -435,14 +510,13 @@ class MosaicGPT(PreTrainedModel):
         if past_key_values is not None:
             input_ids = input_ids[:, -1].unsqueeze(-1)
 
-        if self.prefix_lm:
+        if self.transformer.prefix_lm:
             # Leverage a convenience of sequential generation!
             prefix_mask = torch.ones_like(attention_mask)
             # This requires that we're using the cache
             if kwargs.get('use_cache') == False:
                 raise NotImplementedError(
-                    'MosaicGPT with prefix_lm=True does not support use_cache=False.'
-                )
+                    'MPT with prefix_lm=True does not support use_cache=False.')
         else:
             prefix_mask = None
 
@@ -472,7 +546,7 @@ class MosaicGPT(PreTrainedModel):
         return reordered_past
 
 
-class ComposerMosaicGPT(HuggingFaceModel):
+class ComposerMPTCausalLM(HuggingFaceModel):
 
     def __init__(
         self,
@@ -481,8 +555,8 @@ class ComposerMosaicGPT(HuggingFaceModel):
     ):
         resolved_om_model_config = om.to_container(om_model_config,
                                                    resolve=True)
-        hf_config = MosaicGPTConfig.from_dict(resolved_om_model_config)
-        model = MosaicGPT(hf_config)
+        hf_config = MPTConfig.from_dict(resolved_om_model_config)
+        model = MPTForCausalLM(hf_config)
 
         train_metrics = [
             LanguageCrossEntropy(hf_config.vocab_size),
@@ -530,7 +604,7 @@ class ComposerMosaicGPT(HuggingFaceModel):
         return targets
 
     def forward(self, batch):
-        if self.model.prefix_lm:
+        if self.model.transformer.prefix_lm:
             add_bidirectional_mask_if_missing(batch)
         input_ids = batch['input_ids']
         attention_mask = batch['attention_mask'].bool(

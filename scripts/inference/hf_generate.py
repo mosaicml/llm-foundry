@@ -10,7 +10,7 @@ from contextlib import nullcontext
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from llmfoundry import MosaicGPT, MosaicGPTConfig
+from llmfoundry import MPTConfig, MPTForCausalLM
 
 
 def get_dtype(dtype):
@@ -114,8 +114,8 @@ def maybe_synchronize():
 
 
 def main(args: Namespace) -> None:
-    AutoConfig.register('mosaic_gpt', MosaicGPTConfig)
-    AutoModelForCausalLM.register(MosaicGPTConfig, MosaicGPT)
+    AutoConfig.register('mpt', MPTConfig)
+    AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
 
     # Grab config first
     print(f'Loading HF Config...')

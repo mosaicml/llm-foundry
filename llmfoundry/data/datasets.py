@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Datasets for converting to MDS Shards."""
-
+import os
 import warnings
 from typing import Dict, Iterable, Union
 
@@ -24,6 +24,7 @@ class NoConcatDataset(IterableDataset):
 
     def __iter__(self) -> Iterable[Dict[str, bytes]]:
         for sample in self.hf_dataset:
+            # print(sample)
             # convert to bytes to store in MDS binary format
             yield {'text': sample['text'].encode('utf-8')}
 
@@ -60,6 +61,7 @@ class ConcatTokensDataset(IterableDataset):
         eos_text: str,
         no_wrap: bool,
     ):
+        self.hf_dataset = hf_dataset
         self.tokenizer = tokenizer
         os.environ['TOKENIZERS_PARALLELISM'] = 'false'
         self.max_length = max_length

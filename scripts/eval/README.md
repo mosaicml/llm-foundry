@@ -14,6 +14,9 @@ icl_tasks:
     dataset_uri: # ADD YOUR OWN DATASET URI
     num_fewshot: [5]
     icl_task_type: multiple_choice
+    continuation_delimiter: ' '
+    example_delimiter: "\n"
+    prompt_string: ''
   -
     label: lambada
     dataset_uri: # ADD YOUR OWN DATASET URI
@@ -22,6 +25,14 @@ icl_tasks:
 ```
 
 or a local path pointing to a YAML containing an icl\_tasks config.
+
+Note that if continuation\_delimiter, example\_delimiter, or prompt\_string are omitted they will default to the values below:
+```jsx
+continuation_delimiter: ' '
+example_delimiter: "\n"
+prompt_string: ''
+```
+
 
 **Evaluation during training**
 You can also add ICL evaluation to your training runs by adding an `icl_tasks` config to your training config at the same depth as the `model` subconfig.

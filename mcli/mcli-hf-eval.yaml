@@ -21,20 +21,20 @@ cluster: r7z2 # replace with your cluster here!
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
-    # Tokenizer
+  # Tokenizer
   tokenizer:
-      # name: EleutherAI/gpt-j-6b
-      # name: EleutherAI/pythia-6.9b
-      # name: facebook/opt-6.7b
-      # name: cerebras/Cerebras-GPT-6.7B
-      # name: StabilityAI/stablelm-base-alpha-7b
-      name: huggyllama/llama-7b
-      # name: EleutherAI/gpt-neox-20b
-      # name: EleutherAI/pythia-12b
-      # name: facebook/opt-13b
-      # name: cerebras/Cerebras-GPT-13B
-      kwargs:
-        model_max_length: 1024
+    # name: EleutherAI/gpt-j-6b
+    # name: EleutherAI/pythia-6.9b
+    # name: facebook/opt-6.7b
+    # name: cerebras/Cerebras-GPT-6.7B
+    # name: StabilityAI/stablelm-base-alpha-7b
+    name: huggyllama/llama-7b
+    # name: EleutherAI/gpt-neox-20b
+    # name: EleutherAI/pythia-12b
+    # name: facebook/opt-13b
+    # name: cerebras/Cerebras-GPT-13B
+    kwargs:
+      model_max_length: 1024
 
   model:
     name: hf_causal_lm
@@ -56,4 +56,4 @@ parameters:
     sharding_strategy: FULL_SHARD
     mixed_precision: PURE
 
-  icl_tasks: "eval/yamls/tasks.yaml"
+  icl_tasks: 'eval/yamls/tasks.yaml'

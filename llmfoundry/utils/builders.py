@@ -178,6 +178,12 @@ def build_icl_evaluators(icl_tasks,
                 icl_cfg.metric_names = [
                     'InContextLearningMultipleChoiceAccuracy'
                 ]
+            elif icl_cfg.icl_task_type == 'schema':
+                icl_cfg.metric_names = [
+                    'InContextLearningMultipleChoiceAccuracy'
+                ]
+            elif icl_cfg.icl_task_type == 'question_answering':
+                icl_cfg.metric_names = ['InContextLearningQAAccuracy']
             else:
                 raise ValueError(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg.icl_task_type}.'

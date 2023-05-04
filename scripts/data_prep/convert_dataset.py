@@ -34,10 +34,10 @@ def parse_args() -> Namespace:
                         type=str,
                         default=None,
                         help='E.g. "all" or "en"')
-    parser.add_argument('--splits',
-                        nargs='+',
-                        default=['train', 'train_small', 'val'
-                                 'val_small'])
+    parser.add_argument(
+        '--splits',
+        nargs='+',
+        default=['train', 'train_small', 'val', 'val_small', 'val_xsmall'])
     parser.add_argument('--out_root', type=str, required=True)
     parser.add_argument('--compression', type=str, default=None)
 
@@ -114,6 +114,16 @@ class ValSmallConstants(DataSplitConstants):
         super().__init__(hf_split, folder_split, raw_samples, truncated_samples)
 
 
+class ValXSmallConstants(DataSplitConstants):
+
+    def __init__(self,
+                 hf_split: str = 'validation',
+                 folder_split: str = 'val_xsmall',
+                 raw_samples: int = 3000,
+                 truncated_samples: int = 3000):
+        super().__init__(hf_split, folder_split, raw_samples, truncated_samples)
+
+
 pileconstants = DatasetConstants(
     chars_per_sample=6212,  # Computed over validation set
     chars_per_token=4  # OpenAI estimate
@@ -135,6 +145,11 @@ pileconstants.splits['val_small'] = DataSplitConstants(hf_split='validation',
                                                        folder_split='val_small',
                                                        raw_samples=10000,
                                                        truncated_samples=10000)
+pileconstants.splits['val_xsmall'] = DataSplitConstants(
+    hf_split='validation',
+    folder_split='val_xsmall',
+    raw_samples=3000,
+    truncated_samples=3000)
 
 c4constants = DatasetConstants(
     chars_per_sample=2163,  # Computed over validation set
@@ -157,6 +172,10 @@ c4constants.splits['val_small'] = DataSplitConstants(hf_split='validation',
                                                      folder_split='val_small',
                                                      raw_samples=10000,
                                                      truncated_samples=10000)
+c4constants.splits['val_xsmall'] = DataSplitConstants(hf_split='validation',
+                                                      folder_split='val_xsmall',
+                                                      raw_samples=3000,
+                                                      truncated_samples=3000)
 
 CONSTS = {'c4': c4constants, 'the_pile': pileconstants}
 

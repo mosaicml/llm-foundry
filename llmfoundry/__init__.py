@@ -19,6 +19,8 @@ try:
     from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
                                        MPTForCausalLM, MPTModel,
                                        MPTPreTrainedModel)
+    from llmfoundry import optim
+    from llmfoundry import utils
 
 except ImportError as e:
     try:
@@ -54,6 +56,8 @@ __all__ = [
     'attn_bias_shape',
     'build_attn_bias',
     'build_alibi_bias',
+    'optim',
+    'utils',
 ]
 
 __version__ = '0.0.4'

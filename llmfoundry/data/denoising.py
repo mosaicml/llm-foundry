@@ -863,7 +863,7 @@ if __name__ == '__main__':
     device_batch_size = 2
 
     tokenizer_cfg = {
-        'name': 'gpt2' if decoder_only else 't5-base',
+        'name': 'EleutherAI/gpt-neox-20b' if decoder_only else 't5-base',
         'kwargs': {}
     }
     tokenizer_cfg['kwargs'] = {'model_max_length': cfg.dataset.max_seq_len}

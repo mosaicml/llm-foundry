@@ -24,15 +24,15 @@ def test_load_tokenizer():
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
                                               **tokenizer_kwargs)
     tokenizer.pad_token = tokenizer.eos_token
-    assert tokenizer.vocab_size == 50257
-    assert tokenizer.name_or_path == 'gpt2'
+    assert tokenizer.vocab_size == 50254
+    assert tokenizer.name_or_path == 'EleutherAI/gpt-neox-20b'
 
     # HuggingFace overrides model_max_length, so this check would fail. We explicitly reset the
     # model_max_length in ComposerMPTCausalLM
     # assert tokenizer.model_max_length == resolved_om_tokenizer_config['kwargs']['model_max_length']
 
     in_str = 'hello\n\nhello'
-    out_token_key = [31373, 198, 198, 31373]
+    out_token_key = [25521, 187, 187, 25521]
 
     # test explicitly call tokenizer
     out = tokenizer.encode(in_str)
@@ -48,7 +48,7 @@ def test_load_tokenizer():
         truncation=truncation,
         padding=padding,
         max_length=tokenizer.model_max_length)['input_ids']
-    out_pad_tokens = out_token_key + [50256] * (tokenizer.model_max_length - 4)
+    out_pad_tokens = out_token_key + [0] * (tokenizer.model_max_length - 4)
     assert padded_tokenize == out_pad_tokens
 
     # wrapper class __call__

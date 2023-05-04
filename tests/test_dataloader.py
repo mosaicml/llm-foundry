@@ -38,7 +38,7 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
         pytest.xfail('Must pretokenize data if using "gpt2" tokenizer')
 
     data_local = get_data_local(tokenizer_name, pretokenize)
-    split = 'val_small'
+    split = 'val_xsmall'
     tokenizer_args = {
         'gpt2': '--eos_text "<|endoftext|>"',
         'facebook/opt-125m': '--bos_text "</s>"'
@@ -48,11 +48,11 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     shutil.rmtree(path, ignore_errors=True)
     if pretokenize:
         os.system(
-            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits val_small --concat_tokens 2048 --tokenizer {tokenizer_name} {tokenizer_args}'
+            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits {split} --concat_tokens 2048 --tokenizer {tokenizer_name} {tokenizer_args}'
         )
     else:
         os.system(
-            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits val_small'
+            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits {split}'
         )
     if not os.path.isdir(path):
         raise RuntimeError(f'c4 dataset at {path} not set up as expected')
@@ -60,6 +60,10 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     test_cfg = get_config(conf_path='scripts/train/yamls/mpt/125m.yaml')
     test_cfg.data_local = data_local
     test_cfg.eval_loader.dataset.split = split
+    test_cfg.dataset = om.create({
+        'num_canonical_nodes': 1,
+        'predownload': 3000,
+    })
 
     tokenizer = build_tokenizer(
         om.create({
@@ -128,7 +132,7 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
             'dataset': {
                 'local': tmpdir,
                 'remote': path,
-                'split': 'val_small',
+                'split': 'val_xsmall',
                 'shuffle': False,
                 'max_seq_len': max_seq_len,
                 'packing_ratio': packing_ratio,

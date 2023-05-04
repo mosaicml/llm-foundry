@@ -47,52 +47,52 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     }[tokenizer_name]
     print(f'Time to get data_local: {time.time() - start_time}')
 
-    path = get_abs_data_path(data_local)
-    shutil.rmtree(path, ignore_errors=True)
-    if pretokenize:
-        os.system(
-            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits {split} --concat_tokens 2048 --tokenizer {tokenizer_name} {tokenizer_args}'
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, data_local)
+        shutil.rmtree(path, ignore_errors=True)
+        if pretokenize:
+            os.system(
+                f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits {split} --concat_tokens 2048 --tokenizer {tokenizer_name} {tokenizer_args}'
+            )
+        else:
+            os.system(
+                f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits {split}'
+            )
+        if not os.path.isdir(path):
+            raise RuntimeError(f'c4 dataset at {path} not set up as expected')
+        print(f'Time to download data: {time.time() - start_time}')
+
+        test_cfg = get_config(conf_path='scripts/train/yamls/mpt/125m.yaml')
+        test_cfg.data_local = data_local
+        test_cfg.eval_loader.dataset.split = split
+
+        tokenizer = build_tokenizer(
+            om.create({
+                'name': tokenizer_name,
+                'kwargs': {}
+            }))
+        print(f'Time to build tokenizer: {time.time() - start_time}')
+
+        # Dataloaders
+        eval_loader = build_text_dataloader(
+            test_cfg.eval_loader,
+            tokenizer,
+            batch_size,
         )
-    else:
-        os.system(
-            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits {split}'
-        )
-    if not os.path.isdir(path):
-        raise RuntimeError(f'c4 dataset at {path} not set up as expected')
-    print(f'Time to download data: {time.time() - start_time}')
+        print(f'Time to build dataloader: {time.time() - start_time}')
+        batch = next(iter(eval_loader))
+        print(f'Time to get batch: {time.time() - start_time}')
 
-    test_cfg = get_config(conf_path='scripts/train/yamls/mpt/125m.yaml')
-    test_cfg.data_local = data_local
-    test_cfg.eval_loader.dataset.split = split
+        assert batch['input_ids'].shape == torch.Size([batch_size, 2048])
+        assert batch['input_ids'].type() == 'torch.LongTensor'
 
-    tokenizer = build_tokenizer(
-        om.create({
-            'name': tokenizer_name,
-            'kwargs': {}
-        }))
-    print(f'Time to build tokenizer: {time.time() - start_time}')
-
-    # Dataloaders
-    eval_loader = build_text_dataloader(
-        test_cfg.eval_loader,
-        tokenizer,
-        batch_size,
-    )
-    print(f'Time to build dataloader: {time.time() - start_time}')
-    batch = next(iter(eval_loader))
-    print(f'Time to get batch: {time.time() - start_time}')
-
-    assert batch['input_ids'].shape == torch.Size([batch_size, 2048])
-    assert batch['input_ids'].type() == 'torch.LongTensor'
-
-    # we follow the convention (from huggingface) that non-attended tokens are 0 in the attn mask and -100 in the labels
-    attention_mask = batch.get(
-        'attention_mask', torch.ones_like(batch['input_ids'], dtype=torch.bool))
-    a = attention_mask == 0
-    b = batch['labels'] == -100
-    assert torch.equal(a, b)
-    print(f'Time to run test: {time.time() - start_time}')
-    assert False
+        # we follow the convention (from huggingface) that non-attended tokens are 0 in the attn mask and -100 in the labels
+        attention_mask = batch.get(
+            'attention_mask', torch.ones_like(batch['input_ids'], dtype=torch.bool))
+        a = attention_mask == 0
+        b = batch['labels'] == -100
+        assert torch.equal(a, b)
+        print(f'Time to run test: {time.time() - start_time}')
 
 
 @pytest.mark.parametrize(('eos_token_id', 'bos_token_id'),

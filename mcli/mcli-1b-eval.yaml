@@ -55,6 +55,7 @@ parameters:
     dataset_uri: # ADD YOUR OWN DATASET URI
     num_fewshot: [5]
     icl_task_type: multiple_choice
+    continuation_delimiter: 'Answer: '
   -
     label: lambada
     dataset_uri: # ADD YOUR OWN DATASET URI

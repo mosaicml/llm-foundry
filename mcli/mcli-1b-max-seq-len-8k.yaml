@@ -15,7 +15,7 @@ command: |
   python data_prep/convert_dataset.py \
     --dataset c4 --data_subset en \
     --out_root ./my-copy-c4 --splits train_small val_small \
-    --concat_tokens 8192 --tokenizer gpt2 --eos_text '<|endoftext|>'
+    --concat_tokens 8192 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
   composer train/train.py /mnt/config/parameters.yaml
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
@@ -49,7 +49,7 @@ parameters:
 
   # Tokenizer
   tokenizer:
-    name: gpt2
+    name: EleutherAI/gpt-neox-20b
     kwargs:
       model_max_length: ${max_seq_len}
 

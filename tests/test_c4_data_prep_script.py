@@ -1,39 +1,45 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# import os
-# import shutil
-# from argparse import Namespace
+import os
+import shutil
+import sys
+from argparse import Namespace
 
-# from llmfoundry.common.convert_dataset import main
+# Add repo root to path so we can import scripts and test it
+repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(repo_dir)
+from scripts.data_prep.convert_dataset import main
 
-# def test_download_script_from_api():
-#     # test calling it directly
-#     path = os.path.join(os.getcwd(), 'my-copy-c4-1')
-#     shutil.rmtree(path, ignore_errors=True)
-#     main(
-#         Namespace(
-#             **{
-#                 'dataset': 'c4',
-#                 'data_subset': 'en',
-#                 'splits': ['val_small'],
-#                 'out_root': './my-copy-c4-1',
-#                 'compression': None,
-#                 'concat_tokens': None,
-#                 'bos_text': None,
-#                 'eos_text': None,
-#                 'no_wrap': False
-#             }))
-#     assert os.path.exists(path)
-#     shutil.rmtree(path, ignore_errors=False)
 
-# def test_download_script_from_cmdline():
-#     # test calling it via the cmd line interface
-#     path = os.path.join(os.getcwd(), 'my-copy-c4-2')
-#     shutil.rmtree(path, ignore_errors=True)
-#     print(os.getcwd())
-#     os.system(
-#         'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
-#     )
-#     assert os.path.exists(path)
-#     shutil.rmtree(path, ignore_errors=False)
+def test_download_script_from_api():
+    # test calling it directly
+    path = os.path.join(os.getcwd(), 'my-copy-c4-1')
+    shutil.rmtree(path, ignore_errors=True)
+    main(
+        Namespace(
+            **{
+                'dataset': 'c4',
+                'data_subset': 'en',
+                'splits': ['val_small'],
+                'out_root': './my-copy-c4-1',
+                'compression': None,
+                'concat_tokens': None,
+                'bos_text': None,
+                'eos_text': None,
+                'no_wrap': False
+            }))
+    assert os.path.exists(path)
+    shutil.rmtree(path, ignore_errors=False)
+
+
+def test_download_script_from_cmdline():
+    # test calling it via the cmd line interface
+    path = os.path.join(os.getcwd(), 'my-copy-c4-2')
+    shutil.rmtree(path, ignore_errors=True)
+    print(os.getcwd())
+    os.system(
+        'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
+    )
+    assert os.path.exists(path)
+    shutil.rmtree(path, ignore_errors=False)

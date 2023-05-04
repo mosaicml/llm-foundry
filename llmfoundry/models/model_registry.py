@@ -3,10 +3,10 @@
 
 from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                   ComposerHFT5)
-from llmfoundry.models.mosaic_gpt import ComposerMosaicGPT
+from llmfoundry.models.mpt import ComposerMPTCausalLM
 
 COMPOSER_MODEL_REGISTRY = {
-    'mosaic_gpt': ComposerMosaicGPT,
+    'mpt_causal_lm': ComposerMPTCausalLM,
     'hf_causal_lm': ComposerHFCausalLM,
     'hf_prefix_lm': ComposerHFPrefixLM,
     'hf_t5': ComposerHFT5,

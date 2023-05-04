@@ -80,7 +80,7 @@ We run the `train.py` script using our `composer` launcher, which generates N pr
 If training on a single node, the `composer` launcher will autodetect the number of devices, so all you need to do is:
 <!--pytest.mark.skip-->
 ```bash
-composer train.py yamls/mosaic_gpt/125m.yaml
+composer train.py yamls/mpt/125m.yaml
 ```
 
 To train with high performance on multi-node clusters, the easiest way is with the MosaicML platform ;) Check out the `mcloud/` folder for examples!
@@ -97,10 +97,10 @@ either directly via CLI, or via environment variables that can be read. Then lau
 # IP Address for Node 0 = [0.0.0.0]
 
 # Node 0
-composer --world_size 16 --node_rank 0 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mosaic_gpt/125m.yaml
+composer --world_size 16 --node_rank 0 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mpt/125m.yaml
 
 # Node 1
-composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mosaic_gpt/125m.yaml
+composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mpt/125m.yaml
 
 ```
 
@@ -117,14 +117,14 @@ composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 
 # export NODE_RANK=0
 # export MASTER_ADDR=0.0.0.0
 # export MASTER_PORT=7501
-composer train.py yamls/mosaic_gpt/125m.yaml
+composer train.py yamls/mpt/125m.yaml
 
 # Node 1
 # export WORLD_SIZE=16
 # export NODE_RANK=1
 # export MASTER_ADDR=0.0.0.0
 # export MASTER_PORT=7501
-composer train.py yamls/mosaic_gpt/125m.yaml
+composer train.py yamls/mpt/125m.yaml
 ```
 
 You should see logs being printed to your terminal like so.
@@ -162,7 +162,7 @@ In this section, we'll cover how to use the finetuning utilities.
 
 ## Usage
 
-You activate finetuning via the `train_loader` and `eval_loader` fields in your configuration YAML. We include some reference examples inside `llm/yamls/mosaic_gpt/finetuning/`.
+You activate finetuning via the `train_loader` and `eval_loader` fields in your configuration YAML. We include some reference examples inside `llm/yamls/mpt/finetuning/`.
 
 There are 3 different types of data sources you can use for finetuning: (1) [the HuggingFace Hub](#1-using-a-dataset-on-the-huggingface-hub), (2) [a local dataset](#2-using-a-local-dataset), and (3) [a local or remote streaming dataset](#3-using-an-mds-formatted-dataset-locally-or-in-an-object-store). We'll cover these more below, but first will describe some important steps for all 3.
 
@@ -206,7 +206,7 @@ Let's say you want to finetune using a dataset available on the HuggingFace Hub.
 
 1. In `tasks.py`, write a tokenization function for processing the dataset, to split it into prompt and response
 1. Register this function using `@dataset_constructor.register('hf-hub/identifier')` -- the registered name ("hf-hub/identifier") needs to match the name of the model on the Hub
-1. Reference this in a training yaml, such as the one in `yamls/mosaic_gpt/finetune/7b_dolly_sft.yaml`
+1. Reference this in a training yaml, such as the one in `yamls/mpt/finetune/7b_dolly_sft.yaml`
 ```yaml
 train_loader:
     name: finetuning
@@ -222,7 +222,7 @@ Let's say you have your finetuning dataset stored in local `jsonl` files.
 
 1. In `tasks.py`, write a function for processing the dataset, to split it into prompt and response
 1. Register this function using `@dataset_constructor.register('some_name')` -- you can register this under any name you want, just set `dataset.name` in your yaml to have the same name
-1. Reference this in a training yaml, such as the one in `yamls/mosaic_gpt/finetune/1b_local_data_sft.yaml`
+1. Reference this in a training yaml, such as the one in `yamls/mpt/finetune/1b_local_data_sft.yaml`
 ```yaml
 train_loader:
     name: finetuning

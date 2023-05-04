@@ -5,14 +5,14 @@ from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer
 
 
-def get_config(conf_path='scripts/train/yamls/mosaic_gpt/125m.yaml'):
+def get_config(conf_path='scripts/train/yamls/mpt/125m.yaml'):
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return test_cfg
 
 
 def test_load_tokenizer():
-    test_cfg = get_config(conf_path='scripts/train/yamls/mosaic_gpt/125m.yaml')
+    test_cfg = get_config(conf_path='scripts/train/yamls/mpt/125m.yaml')
     truncation = True
     padding = 'max_length'
 
@@ -28,7 +28,7 @@ def test_load_tokenizer():
     assert tokenizer.name_or_path == 'gpt2'
 
     # HuggingFace overrides model_max_length, so this check would fail. We explicitly reset the
-    # model_max_length in ComposerMosaicGPT
+    # model_max_length in ComposerMPTCausalLM
     # assert tokenizer.model_max_length == resolved_om_tokenizer_config['kwargs']['model_max_length']
 
     in_str = 'hello\n\nhello'

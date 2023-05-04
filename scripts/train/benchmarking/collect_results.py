@@ -24,7 +24,7 @@ def str_to_bool(value):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="""
-        Parse run configs to get MosaicGPT training throughput.
+        Parse run configs to get MPT training throughput.
         MFU and HFU are defined in https://arxiv.org/abs/2205.05198
         All FLOP calculations do not include norm, act, residual, etc.
         """)

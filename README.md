@@ -68,9 +68,9 @@ python data_prep/convert_dataset.py \
   --out_root my-copy-c4 --splits train_small val_small \
   --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
 
-# Train an MPT-1B model for 1 batch
+# Train an MPT-1B model for 10 batches
 composer train/train.py \
-  train/yamls/mosaic_gpt/1b.yaml \
+  train/yamls/mpt/1b.yaml \
   data_local=my-copy-c4 \
   train_loader.dataset.split=train_small \
   eval_loader.dataset.split=val_small \

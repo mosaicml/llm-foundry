@@ -21,6 +21,7 @@ cluster: r0z0 # replace with your cluster here!
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
+  seed: 1
   max_seq_len: 2048
 
   tokenizer:

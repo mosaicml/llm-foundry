@@ -5,12 +5,16 @@ import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 import torch
 from composer.utils import (get_file, maybe_create_object_store_from_uri,
                             safe_torch_load)
+
+from llmfoundry.models.mpt.configuration_mpt import (attn_config_defaults,
+                                                     init_config_defaults)
 
 # define state dict key changes
 # old_state_dict_key: new_state_dict_key
@@ -55,13 +59,19 @@ def convert_examples_ckpt(
     """Convert a ckpt created in examples repo to an llmfoundry compat ckpt.
 
     Args:
-        checkpoint_path (Union[Path, str]): Path to the composer checkpoint, can be a local path, or a remote path beginning with ``s3://``, or another backend
-            supported by :meth:`composer.utils.maybe_create_object_store_from_uri`.
-        output_path (Union[Path, str]): Path to the folder to write the output to. Can be a local path, or a remote path beginning with ``s3://``, or another backend
-            supported by :meth:`composer.utils.maybe_create_object_store_from_uri`.
+        checkpoint_path (Union[Path, str]): Path to the composer checkpoint, can
+            be a local path, or a remote path beginning with ``s3://``, or
+            another backend supported by
+            :meth:`composer.utils.maybe_create_object_store_from_uri`.
+        output_path (Union[Path, str]): Path to the folder to write the output to.
+            Can be a local path, or a remote path beginning with ``s3://``, or
+            another backend supported by
+            :meth:`composer.utils.maybe_create_object_store_from_uri`.
         conversion_dict (Dict): defines state dict key changes
-        local_ckpt_path (Optional[Union[Path, str]], optional): If specified, where to save the checkpoint file to locally.
-            If the input ``checkpoint_path`` is already a local path, this will be a symlink. Defaults to None, which will use a temporary file.
+        local_ckpt_path (Optional[Union[Path, str]], optional): If specified,
+            where to save the checkpoint file to locally. If the input
+            ``checkpoint_path`` is already a local path, this will be a
+            symlink. Defaults to None, which will use a temporary file.
     """
     # default local path to a tempfile if path is not provided
     if local_ckpt_path is None:
@@ -86,31 +96,88 @@ def convert_examples_ckpt(
     print('Loading checkpoint into CPU RAM...')
     composer_state_dict = safe_torch_load(local_ckpt_path)
 
-    # Convert examples state dict to llm-foundry
+    # Convert examples model state dict to llm-foundry
     model_state = convert_examples_ckpt_state_dict(
-        composer_state_dict['state']['model'], conversion_dict)
+        composer_state_dict['state']['model'],
+        conversion_dict,
+    )
     composer_state_dict['state']['model'] = model_state
 
-    for opt in composer_state_dict['state']['optimizers'].keys():
+    # Convert HF config in state dict
+    if 'huggingface' in composer_state_dict['state']['integrations']:
+        hf_config = composer_state_dict['state']['integrations']['huggingface'][
+            'model']['config']['content']
 
-        opt_state = convert_examples_ckpt_state_dict(
-            composer_state_dict['state']['optimizers'][opt]['state'],
-            conversion_dict,
-        )
-        composer_state_dict['state']['optimizers'][opt]['state'] = opt_state
+        if hf_config['model_type'] == 'mosaic_gpt':
+            hf_config['model_type'] = 'mpt'
 
-        for pg_idx in range(
-                len(composer_state_dict['state']['optimizers'][opt]
-                    ['param_groups'])):
-            for param_idx in range(
+        if 'mlp_ratio' in hf_config:
+            hf_config['expansion_ratio'] = hf_config.pop('mlp_ratio')
+
+        # Convert attention config
+        if 'attn_config' not in hf_config:
+            hf_config['attn_config'] = deepcopy(attn_config_defaults)
+            hf_config['attn_config']['attn_type'] = 'multihead_attention'
+            hf_config['attn_config']['qk_ln'] = hf_config.pop(
+                'attn_qk_ln', attn_config_defaults['qk_ln'])
+            hf_config['attn_config']['clip_qkv'] = hf_config.pop(
+                'attn_clip_qkv', attn_config_defaults['clip_qkv'])
+
+            for k in [
+                    'attn_pdrop', 'attn_impl', 'softmax_scale', 'prefix_lm',
+                    'attn_uses_sequence_id', 'alibi', 'alibi_bias_max'
+            ]:
+                if k in hf_config:
+                    hf_config['attn_config'][k] = hf_config.pop(k)
+
+        # convert norm config
+        if 'low_precision_layernorm' in hf_config:
+            if hf_config.pop('low_precision_layernorm'):
+                hf_config['norm_type'] = 'low_precision_layernorm'
+            else:
+                hf_config['norm_type'] = 'layernorm'
+
+        # Convert init config
+        if 'init_config' not in hf_config:
+            hf_config['init_config'] = deepcopy(init_config_defaults)
+            hf_config['init_config']['name'] = hf_config.pop('param_init_fn')
+
+            for k in [
+                    'fan_mode', 'init_nonlinearity', 'init_gain', 'init_std',
+                    'init_div_is_residual', 'emb_init_std',
+                    'emb_init_uniform_lim'
+            ]:
+                if k in hf_config:
+                    hf_config['init_config'][k] = hf_config.pop(k)
+
+        print(f'Setting hf_config: {hf_config}')
+        composer_state_dict['state']['integrations']['huggingface']['model'][
+            'config']['content'] = hf_config
+
+    # Convert optimizer state dict
+    if 'optimizers' in composer_state_dict['state'].keys():
+        print(f'Updating optimizer state dict')
+        for opt in composer_state_dict['state']['optimizers'].keys():
+
+            opt_state = convert_examples_ckpt_state_dict(
+                composer_state_dict['state']['optimizers'][opt]['state'],
+                conversion_dict,
+            )
+            composer_state_dict['state']['optimizers'][opt]['state'] = opt_state
+
+            for pg_idx in range(
                     len(composer_state_dict['state']['optimizers'][opt]
-                        ['param_groups'][pg_idx]['params'])):
-                param_name = composer_state_dict['state']['optimizers'][opt][
-                    'param_groups'][pg_idx]['params'][param_idx]
-                for old, new in conversion_dict.items():
-                    param_name = param_name.replace(old, new)
-                composer_state_dict['state']['optimizers'][opt]['param_groups'][
-                    pg_idx]['params'][param_idx] = param_name
+                        ['param_groups'])):
+                for param_idx in range(
+                        len(composer_state_dict['state']['optimizers'][opt]
+                            ['param_groups'][pg_idx]['params'])):
+                    param_name = composer_state_dict['state']['optimizers'][
+                        opt]['param_groups'][pg_idx]['params'][param_idx]
+                    for old, new in conversion_dict.items():
+                        param_name = param_name.replace(old, new)
+                    composer_state_dict['state']['optimizers'][opt][
+                        'param_groups'][pg_idx]['params'][
+                            param_idx] = param_name
 
     # Save weights
     torch.save(composer_state_dict,
@@ -127,10 +194,9 @@ def main(args: Namespace) -> None:
 
 
 if __name__ == '__main__':
-    """Parse commandline arguments."""
     parser = ArgumentParser(
         description=
-        'Convert Composer ckpt created with the examples repo into one usable by llmfoundry.'
+        'Convert ckpt created with the examples repo into one usable by llmfoundry.'
     )
     parser.add_argument('--checkpoint_path', type=str, required=True)
     parser.add_argument('--output_path', type=str, required=True)

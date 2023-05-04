@@ -3,8 +3,8 @@
 
 """Basic HuggingFace -> ONNX export script.
 
-This scripts show a basic HuggingFace -> ONNX export workflow. This works for a MosaicGPT model
-that has been saved using `MosaicGPT.save_pretrained`. For more details and examples
+This scripts show a basic HuggingFace -> ONNX export workflow. This works for a MPT model
+that has been saved using `MPT.save_pretrained`. For more details and examples
 of exporting and working with HuggingFace models with ONNX, see https://huggingface.co/docs/transformers/serialization#export-to-onnx.
 
 Example usage:
@@ -36,7 +36,7 @@ from composer.utils import (maybe_create_object_store_from_uri, parse_uri,
                             reproducibility)
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from llmfoundry import MosaicGPT, MosaicGPTConfig
+from llmfoundry import MPTConfig, MPTForCausalLM
 
 
 def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):
@@ -66,8 +66,8 @@ def export_to_onnx(
     save_object_store = maybe_create_object_store_from_uri(output_folder)
     _, _, parsed_save_path = parse_uri(output_folder)
 
-    AutoConfig.register('mosaic_gpt', MosaicGPTConfig)
-    AutoModelForCausalLM.register(MosaicGPTConfig, MosaicGPT)
+    AutoConfig.register('mpt', MPTConfig)
+    AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
 
     print('Loading HF config/model/tokenizer...')
     tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path)

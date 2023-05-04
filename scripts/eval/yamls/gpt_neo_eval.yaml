@@ -11,7 +11,7 @@ tokenizer:
 model:
   name: hf_causal_lm
   pretrained_model_name_or_path: ${model_name_or_path}
-  device: cpu
+  init_device: cpu
   pretrained: true
 
 load_path: # Add your (optional) Composer checkpoint path here!
@@ -29,6 +29,7 @@ icl_tasks:
   dataset_uri: eval/local_data/piqa.jsonl
   num_fewshot: [5]
   icl_task_type: multiple_choice
+  continuation_delimiter: 'Answer: '
 -
   label: lambada_openai
   dataset_uri: eval/local_data/lambada_openai.jsonl

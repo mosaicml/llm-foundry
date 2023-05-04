@@ -21,10 +21,11 @@ cluster: r0z0 # replace with your cluster here!
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
+  seed: 1
   max_seq_len: 2048
 
   tokenizer:
-    name: gpt2
+    name: EleutherAI/gpt-neox-20b
     kwargs:
       model_max_length: ${max_seq_len}
 
@@ -55,6 +56,7 @@ parameters:
     dataset_uri: # ADD YOUR OWN DATASET URI
     num_fewshot: [5]
     icl_task_type: multiple_choice
+    continuation_delimiter: 'Answer: '
   -
     label: lambada
     dataset_uri: # ADD YOUR OWN DATASET URI

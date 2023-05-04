@@ -64,8 +64,8 @@ def get_hf_config_from_composer_state_dict(
     if 'init_config' not in hf_config_dict:
         init_config = {}
 
-        init_config['param_init_fn'] = hf_config_dict['init_name']
-        del hf_config_dict['init_name']
+        init_config['name'] = hf_config_dict['param_init_fn']
+        del hf_config_dict['param_init_fn']
         init_config['fan_mode'] = hf_config_dict['fan_mode']
         del hf_config_dict['fan_mode']
         init_config['init_nonlinearity'] = hf_config_dict['init_nonlinearity']
@@ -82,6 +82,8 @@ def get_hf_config_from_composer_state_dict(
         init_config['emb_init_uniform_lim'] = hf_config_dict[
             'emb_init_uniform_lim']
         del hf_config_dict['emb_init_uniform_lim']
+
+        hf_config_dict['init_config'] = init_config
 
     if 'mlp_ratio' in hf_config_dict:
         hf_config_dict['expansion_ratio'] = hf_config_dict['mlp_ratio']

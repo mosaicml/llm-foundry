@@ -77,7 +77,7 @@ def hf_get_hidden_layers(model: PreTrainedModel):
         - transformer.h: (BloomForCausalLM, GPT2LMHeadModel, GPTJForCausalLM)
         - model.decoder.layers: (OPTForCausalLM)
         - gpt_neox.layers: (GPTNeoXForCausalLM)
-        - model.layers: (LLaMaForCausalLM)
+        - model.layers: (LlaMaForCausalLM)
         - transformer.blocks: (MPTForCausalLM)
     """
     hidden_layers_attrs = (

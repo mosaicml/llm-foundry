@@ -4,7 +4,7 @@ This folder contains helper scripts for exporting and generating outputs with yo
 
 ## Converting a Composer checkpoint to an HF checkpoint folder
 
-The LLMs trained with this codebase are all HuggingFace (HF) `PreTrainedModel`s, which we wrap with a `HuggingFaceModel` wrapper class to make compatible with Composer. See [docs](https://docs.mosaicml.com/en/latest/api_reference/generated/composer.models.HuggingFaceModel.html) and an [example](https://docs.mosaicml.com/en/latest/examples/pretrain_finetune_huggingface.html) for more details.
+The LLMs trained with this codebase are all HuggingFace (HF) `PreTrainedModel`s, which we wrap with a `HuggingFaceModel` wrapper class to make compatible with Composer. See [docs](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.models.HuggingFaceModel.html#huggingfacemodel) and an [example](https://docs.mosaicml.com/projects/composer/en/latest/examples/pretrain_finetune_huggingface.html) for more details.
 
 At the end of your training runs, you will see a collection of Composer `Trainer` checkpoints such as `ep0-ba2000-rank0.pt`. These checkpoints contain the entire training state, including the model, tokenizer, optimizer state, schedulers, timestamp, metrics, etc. Though these Composer checkpoints are useful during training, at inference time we usually just want the model, tokenizer, and metadata.
 
@@ -26,31 +26,12 @@ my_hf_model/
   tokenizer.json
   tokenizer_config.json
   vocab.json
+  modeling_code.py
 ```
 
 which can be loaded with standard HF utilities like `AutoModelForCausalLM.from_pretrained('my_hf_model')`.
 
 You can also pass object store URIs for both `--composer_path` and `--hf_output_path` to easily convert checkpoints stored in S3, OCI, etc.
-
-### IMPORTANT NOTE
-
-If you trained and saved a custom HF model such as `MPTForCausalLM `, then in any external inference codebase, you need to import and register the new model class and config before auto classes like `AutoModel` will work. For example:
-
-<!--pytest.mark.skip-->
-```python
-# MPTForCausalLM MPTConfig source code live in this repo
-# pip install <my-awesome-repo>
-
-from transformers import AutoConfig, AutoModelForCausalLM
-from llmfoundry import MPTForCausalLM, MPTConfig
-
-AutoConfig.register('mpt', MPTConfig)
-AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
-
-model = AutoModelForCausalLM.from_pretrained('my_hf_model')
-```
-
-(Coming soon) we will add the ability to save custom model source code within the HF folder, which will remove the need for this step!
 
 ## Interactive generation with `model.generate(...)`
 

@@ -236,18 +236,24 @@ def process_file(file_path: str, folder_path: str) -> List[str]:
     new_files_to_process = []
     nodes_to_remove = []
     for node in ast.walk(tree):
+        # convert any llmfoundry imports into relative imports
         if isinstance(node,
                       ast.ImportFrom) and node.module.startswith('llmfoundry'):
             module_path = find_module_file(node.module)
             node.module = convert_to_relative_import(node.module)
+            # recursively process any llmfoundry files
             new_files_to_process.append(module_path)
+        # remove any imports from composer or omegaconf
         elif isinstance(
                 node, ast.ImportFrom) and (node.module.startswith('composer') or
                                            node.module.startswith('omegaconf')):
             nodes_to_remove.append(node)
+        # remove the Composer* class
         elif isinstance(node,
                         ast.ClassDef) and node.name.startswith('Composer'):
             nodes_to_remove.append(node)
+        # remove the __all__ declaration in any __init__.py files, whose enclosing module
+        # will be converted to a single file of the same name
         elif isinstance(node,
                         ast.Assign) and len(node.targets) == 1 and isinstance(
                             node.targets[0],
@@ -290,7 +296,7 @@ def parse_args() -> Namespace:
     """Parse commandline arguments."""
     parser = ArgumentParser(
         description=
-        'Convert Composer checkpoint and Omegaconf model config into a standard HuggingFace checkpoint folder.'
+        'Convert Composer checkpoint and Omegaconf model config into a standard HuggingFace checkpoint folder, and optionally upload to the hub.'
     )
     parser.add_argument('--composer_path', type=str, required=True)
     parser.add_argument('--hf_output_path', type=str, required=True)

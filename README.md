@@ -66,7 +66,7 @@ cd scripts
 python data_prep/convert_dataset.py \
   --dataset c4 --data_subset en \
   --out_root my-copy-c4 --splits train_small val_small \
-  --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
+  --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 
 # Train an MPT-1B model for 10 batches
 composer train/train.py \

@@ -638,8 +638,8 @@ def _get_max_starting_length(max_length: int, mask_ratio: float,
         total_inp_tokens, total_targ_tokens = sequence_stats(length)
         if decoder_only_format:
             return (total_inp_tokens + total_targ_tokens) <= max_length
-        return (total_inp_tokens <= max_length) and (total_targ_tokens <=
-                                                     max_length)
+        return (total_inp_tokens <= max_length) and (total_targ_tokens
+                                                     <= max_length)
 
     # Start with a definitely too-long sequence and reduce until it fits
     num_raw_tokens = max_length * 2
@@ -863,7 +863,7 @@ if __name__ == '__main__':
     device_batch_size = 2
 
     tokenizer_cfg = {
-        'name': 'gpt2' if decoder_only else 't5-base',
+        'name': 'EleutherAI/gpt-neox-20b' if decoder_only else 't5-base',
         'kwargs': {}
     }
     tokenizer_cfg['kwargs'] = {'model_max_length': cfg.dataset.max_seq_len}

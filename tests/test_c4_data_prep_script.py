@@ -9,7 +9,7 @@ from argparse import Namespace
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
-from scripts.data_prep.convert_dataset import main
+from scripts.data_prep.convert_dataset_hf import main
 
 
 def test_download_script_from_api():
@@ -39,7 +39,7 @@ def test_download_script_from_cmdline():
     shutil.rmtree(path, ignore_errors=True)
     print(os.getcwd())
     os.system(
-        'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
+        'python scripts/data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
     )
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)

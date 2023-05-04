@@ -22,6 +22,7 @@ cluster: # replace with your cluster here!
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   seed: 1
+  max_seq_len: 1024
   model_name_or_path: huggyllama/llama-7b
   # model_name_or_path: EleutherAI/gpt-j-6b
   # model_name_or_path: EleutherAI/pythia-6.9b
@@ -37,7 +38,7 @@ parameters:
   tokenizer:
     name: ${model_name_or_path}
     kwargs:
-      model_max_length: 1024
+      model_max_length: ${max_seq_len}
 
   model:
     name: hf_causal_lm

@@ -114,7 +114,8 @@ class MPTModel(MPTPreTrainedModel):
                 if hasattr(module, 'bias') and isinstance(
                         module.bias, nn.Parameter):
                     if config.verbose:
-                        print(f'Removing bias ({module.bias}) from {module}.')
+                        warnings.warn(
+                            f'Removing bias ({module.bias}) from {module}.')
                     module.register_parameter('bias', None)
 
         # Print verbose info
@@ -599,7 +600,8 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         if loss_fn_config == 'fused_crossentropy':
             try:
                 from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
-                warnings.warn('Using Fused Cross Entropy Loss.')
+                if hf_config.verbose > 1:
+                    warnings.warn('Using Fused Cross Entropy Loss.')
                 self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
             except:
                 raise ValueError(

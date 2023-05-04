@@ -4,6 +4,7 @@
 try:
     import torch
 
+    from llmfoundry import optim, utils
     from llmfoundry.data import (MixtureOfDenoisersCollator,
                                  Seq2SeqFinetuningCollator,
                                  build_finetuning_dataloader,
@@ -54,6 +55,8 @@ __all__ = [
     'attn_bias_shape',
     'build_attn_bias',
     'build_alibi_bias',
+    'optim',
+    'utils',
 ]
 
 __version__ = '0.0.4'

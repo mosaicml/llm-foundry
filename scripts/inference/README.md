@@ -26,31 +26,12 @@ my_hf_model/
   tokenizer.json
   tokenizer_config.json
   vocab.json
+  modeling_code.py
 ```
 
 which can be loaded with standard HF utilities like `AutoModelForCausalLM.from_pretrained('my_hf_model')`.
 
 You can also pass object store URIs for both `--composer_path` and `--hf_output_path` to easily convert checkpoints stored in S3, OCI, etc.
-
-### IMPORTANT NOTE
-
-If you trained and saved a custom HF model such as `MPTForCausalLM `, then in any external inference codebase, you need to import and register the new model class and config before auto classes like `AutoModel` will work. For example:
-
-<!--pytest.mark.skip-->
-```python
-# MPTForCausalLM MPTConfig source code live in this repo
-# pip install <my-awesome-repo>
-
-from transformers import AutoConfig, AutoModelForCausalLM
-from llmfoundry import MPTForCausalLM, MPTConfig
-
-AutoConfig.register('mpt', MPTConfig)
-AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
-
-model = AutoModelForCausalLM.from_pretrained('my_hf_model')
-```
-
-(Coming soon) we will add the ability to save custom model source code within the HF folder, which will remove the need for this step!
 
 ## Interactive generation with `model.generate(...)`
 
@@ -116,7 +97,7 @@ The argument for `--name_or_path` can be either the name of a model that exists 
 
 Chat models need to pass conversation history back to the model for multi-turn conversations. To make that easier, we include `hf_chat.py`. Chat models usually require an introductory/system prompt, as well as a wrapper around user and model messages, to fit the training format. Default values work with our ChatML-trained models, but you can specify these values with CLI args:
 
-`python hf_chat.py -n my_hf_model/ --system_prompt="You are a helpful assistant\n" --user_msg_fmt="user: {}\n" --assistant_msg_fmt="assistant: {}\n" --max_new_tokens=512 --dtype=bf16`
+`python hf_chat.py -n ../mpt-1b/hf/ --system_prompt="You are a helpful assistant\n" --user_msg_fmt="user: {}\n" --assistant_msg_fmt="assistant: {}\n" --max_new_tokens=512 --dtype=bf16`
 
 ## Converting your HF model to ONNX
 

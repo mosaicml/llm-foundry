@@ -1,0 +1,59 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  git_branch: main # use your branch
+  # git_commit: # OR use your commit hash
+  pip_install: -e ".[gpu]"
+  ssh_clone: false # Should be true if using a private repo
+
+command: |
+  cd llm-foundry/scripts
+  composer eval/eval.py /mnt/config/parameters.yaml
+
+image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
+# run_name: mpt-7b-eval
+run_name: llama-eval
+gpu_num: 32
+gpu_type: a100_40gb
+cluster: # replace with your cluster here!
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+parameters:
+  # Tokenizer
+  tokenizer:
+    # name: EleutherAI/gpt-j-6b
+    # name: EleutherAI/pythia-6.9b
+    # name: facebook/opt-6.7b
+    # name: cerebras/Cerebras-GPT-6.7B
+    # name: StabilityAI/stablelm-base-alpha-7b
+    name: huggyllama/llama-7b
+    # name: EleutherAI/gpt-neox-20b
+    # name: EleutherAI/pythia-12b
+    # name: facebook/opt-13b
+    # name: cerebras/Cerebras-GPT-13B
+    kwargs:
+      model_max_length: 1024
+
+  model:
+    name: hf_causal_lm
+    # pretrained_model_name_or_path: EleutherAI/gpt-j-6b
+    # pretrained_model_name_or_path: EleutherAI/pythia-6.9b
+    # pretrained_model_name_or_path: facebook/opt-6.7b
+    # pretrained_model_name_or_path: cerebras/Cerebras-GPT-6.7B
+    # pretrained_model_name_or_path: StabilityAI/stablelm-base-alpha-7b
+    pretrained_model_name_or_path: huggyllama/llama-7b
+    # pretrained_model_name_or_path: EleutherAI/gpt-neox-20b
+    # pretrained_model_name_or_path: EleutherAI/pythia-12b
+    # pretrained_model_name_or_path: facebook/opt-13b
+    # pretrained_model_name_or_path: cerebras/Cerebras-GPT-13B
+    device: cpu
+    pretrained: true
+
+  # FSDP config for model sharding
+  fsdp_config:
+    sharding_strategy: FULL_SHARD
+    mixed_precision: PURE
+
+  icl_tasks: 'eval/yamls/tasks.yaml'

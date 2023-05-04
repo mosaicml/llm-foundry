@@ -38,7 +38,6 @@ from composer.utils import (maybe_create_object_store_from_uri, parse_uri,
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 
-
 def str2bool(v):
     if isinstance(v, bool):
         return v

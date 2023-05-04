@@ -283,7 +283,7 @@ python ../data_prep/convert_finetuning_dataset.py \
     --out_root s3://my-bucket/my-copy-alpaca
 ```
 
-> **NOTE!**
+> **Note**
 > Streaming datasets *must* follow the required "prompt"/"response" format, but you can preprocess during conversion by setting the `--preprocessor` argument.
 > <!--pytest.mark.skip-->
 > ```bash

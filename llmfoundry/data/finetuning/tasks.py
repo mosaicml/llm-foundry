@@ -3,10 +3,10 @@
 
 """Includes code for task-specific seq-to-seq data formatting.
 
-As explained in `README.md`, this file provides some templates/examples
-of preprocessing functions that format examples for use in seq-to-seq
-finetuning tasks. These preprocessing functions take individual examples
-that contain raw text and process them into formatted examples.
+This file provides some templates/examples of preprocessing functions
+that format examples for use in seq-to-seq finetuning tasks.
+These preprocessing functions take individual examples that contain raw
+text and process them into formatted examples.
 
 These functions have this basic structure:
 
@@ -263,16 +263,6 @@ def dolly_preprocessing_function(inp: Dict):
         raise ValueError(
             f'Unable to extract prompt/response from {inp=}') from e
     return {'prompt': prompt, 'response': response}
-
-
-# @dataset_constructor.register('sam-mosaic/full-hh-rlhf-chatml',
-#                               'sam-mosaic/vicuna_alpaca_hc3_chatml')
-# def simple_tokenize_function(inp: Dict, tokenizer: Tokenizer):
-#     """Already split, just tokenize."""
-#     return tokenizer(
-#         text=inp['prompt'],
-#         text_target=inp['response'],
-#     )
 
 
 @dataset_constructor.register('bigscience/P3')

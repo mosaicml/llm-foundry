@@ -22,7 +22,6 @@ _HF_IGNORE_INDEX = -100
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
-# TODO: Update this
 def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                                 device_batch_size: int) -> DataLoader:
     """Builds a finetuning dataloader for training or evaluating.

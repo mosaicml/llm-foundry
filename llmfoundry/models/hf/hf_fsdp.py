@@ -80,7 +80,6 @@ def hf_get_hidden_layers(model: PreTrainedModel):
         - model.layers: (LLaMaForCausalLM)
         - transformer.blocks: (MPTForCausalLM)
     """
-    print(model)
     hidden_layers_attrs = (
         'transformer.h',  # BOOM, GPT2, GPTJ
         'model.decoder.layers',  # OPT

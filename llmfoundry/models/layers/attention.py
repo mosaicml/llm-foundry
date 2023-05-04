@@ -127,10 +127,9 @@ def flash_attn_fn(
     multiquery=False,
 ):
     try:
-        from flash_attn import bert_padding  # type: ignore
-        from flash_attn import flash_attn_interface  # type: ignore
-    except ImportError as e:
-        raise e
+        from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
+    except:
+        raise RuntimeError('Please install flash-attn==1.0.3.post0')
 
     check_valid_inputs(query, key, value)
 
@@ -209,8 +208,10 @@ def triton_flash_attn_fn(
 ):
     try:
         from flash_attn import flash_attn_triton  # type: ignore
-    except ImportError as e:
-        raise e
+    except:
+        raise RuntimeError(
+            'Please install flash-attn==1.0.3.post0 and triton==2.0.0.dev20221202'
+        )
 
     check_valid_inputs(query, key, value)
 

@@ -1,21 +1,24 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import ast
+import importlib
 import json
 import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import sentencepiece as spm
 import torch
+import transformers
 from composer.utils import (get_file, maybe_create_object_store_from_uri,
                             parse_uri, safe_torch_load)
 from transformers import (AutoConfig, AutoTokenizer, PretrainedConfig,
                           PreTrainedTokenizer)
 
-from llmfoundry import MPTConfig
+from llmfoundry import MPTConfig, MPTForCausalLM
 
 
 # TODO: maybe move this functionality to Composer
@@ -28,6 +31,71 @@ def get_hf_config_from_composer_state_dict(
     hf_config_dict['init_device'] = 'cpu'
 
     AutoConfig.register('mpt', MPTConfig)
+
+    # backwards compatibility changes
+    if hf_config_dict['model_type'] == 'mosaic_gpt':
+        hf_config_dict['model_type'] = 'mpt'
+
+    if 'attn_config' not in hf_config_dict:
+        attn_config = {}
+        attn_config['attn_type'] = 'multihead_attention'
+        attn_config['attn_pdrop'] = hf_config_dict['attn_pdrop']
+        del hf_config_dict['attn_pdrop']
+        attn_config['attn_impl'] = hf_config_dict['attn_impl']
+        del hf_config_dict['attn_impl']
+        attn_config['qk_ln'] = hf_config_dict['attn_qk_ln']
+        del hf_config_dict['attn_qk_ln']
+        attn_config['clip_qkv'] = hf_config_dict['attn_clip_qkv']
+        del hf_config_dict['attn_clip_qkv']
+        attn_config['softmax_scale'] = hf_config_dict['softmax_scale']
+        del hf_config_dict['softmax_scale']
+        attn_config['prefix_lm'] = hf_config_dict['prefix_lm']
+        del hf_config_dict['prefix_lm']
+        attn_config['attn_uses_sequence_id'] = hf_config_dict[
+            'attn_uses_sequence_id']
+        del hf_config_dict['attn_uses_sequence_id']
+        attn_config['alibi'] = hf_config_dict['alibi']
+        del hf_config_dict['alibi']
+        attn_config['alibi_bias_max'] = hf_config_dict['alibi_bias_max']
+        del hf_config_dict['alibi_bias_max']
+
+        hf_config_dict['attn_config'] = attn_config
+
+    if 'init_config' not in hf_config_dict:
+        init_config = {}
+
+        init_config['name'] = hf_config_dict['param_init_fn']
+        del hf_config_dict['param_init_fn']
+        init_config['fan_mode'] = hf_config_dict['fan_mode']
+        del hf_config_dict['fan_mode']
+        init_config['init_nonlinearity'] = hf_config_dict['init_nonlinearity']
+        del hf_config_dict['init_nonlinearity']
+        init_config['init_gain'] = hf_config_dict['init_gain']
+        del hf_config_dict['init_gain']
+        init_config['init_std'] = hf_config_dict['init_std']
+        del hf_config_dict['init_std']
+        init_config['init_div_is_residual'] = hf_config_dict[
+            'init_div_is_residual']
+        del hf_config_dict['init_div_is_residual']
+        init_config['emb_init_std'] = hf_config_dict['emb_init_std']
+        del hf_config_dict['emb_init_std']
+        init_config['emb_init_uniform_lim'] = hf_config_dict[
+            'emb_init_uniform_lim']
+        del hf_config_dict['emb_init_uniform_lim']
+
+        hf_config_dict['init_config'] = init_config
+
+    if 'mlp_ratio' in hf_config_dict:
+        hf_config_dict['expansion_ratio'] = hf_config_dict['mlp_ratio']
+        del hf_config_dict['mlp_ratio']
+
+    if 'low_precision_layernorm' in hf_config_dict:
+        if hf_config_dict['low_precision_layernorm']:
+            hf_config_dict['norm_type'] = 'low_precision_layernorm'
+        else:
+            hf_config_dict['norm_type'] = 'layernorm'
+        del hf_config_dict['low_precision_layernorm']
+
     return AutoConfig.for_model(**hf_config_dict)
 
 
@@ -198,11 +266,98 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     print('#' * 30)
 
 
+class DeleteSpecificNodes(ast.NodeTransformer):
+
+    def __init__(self, nodes_to_remove: List[ast.AST]):
+        self.nodes_to_remove = nodes_to_remove
+
+    def visit(self, node: ast.AST):
+        if node in self.nodes_to_remove:
+            return None
+
+        return super().visit(node)
+
+
+def convert_to_relative_import(module_name: str) -> str:
+    parts = module_name.split('.')
+    return '.' + parts[-1]
+
+
+def find_module_file(module_name: str) -> str:
+    module = importlib.import_module(module_name)
+    module_file = module.__file__
+    return module_file
+
+
+def process_file(file_path: str, folder_path: str) -> List[str]:
+    with open(file_path, 'r') as f:
+        source = f.read()
+
+    tree = ast.parse(source)
+    new_files_to_process = []
+    nodes_to_remove = []
+    for node in ast.walk(tree):
+        # convert any llmfoundry imports into relative imports
+        if isinstance(node,
+                      ast.ImportFrom) and node.module.startswith('llmfoundry'):
+            module_path = find_module_file(node.module)
+            node.module = convert_to_relative_import(node.module)
+            # recursively process any llmfoundry files
+            new_files_to_process.append(module_path)
+        # remove any imports from composer or omegaconf
+        elif isinstance(
+                node, ast.ImportFrom) and (node.module.startswith('composer') or
+                                           node.module.startswith('omegaconf')):
+            nodes_to_remove.append(node)
+        # remove the Composer* class
+        elif isinstance(node,
+                        ast.ClassDef) and node.name.startswith('Composer'):
+            nodes_to_remove.append(node)
+        # remove the __all__ declaration in any __init__.py files, whose enclosing module
+        # will be converted to a single file of the same name
+        elif isinstance(node,
+                        ast.Assign) and len(node.targets) == 1 and isinstance(
+                            node.targets[0],
+                            ast.Name) and node.targets[0].id == '__all__':
+            nodes_to_remove.append(node)
+
+    transformer = DeleteSpecificNodes(nodes_to_remove)
+    new_tree = transformer.visit(tree)
+
+    new_filename = os.path.basename(file_path)
+    # special case for __init__.py to mimic the original submodule
+    if new_filename == '__init__.py':
+        new_filename = file_path.split('/')[-2] + '.py'
+    new_file_path = os.path.join(folder_path, new_filename)
+    with open(new_file_path, 'w') as f:
+        f.write(ast.unparse(new_tree))
+
+    return new_files_to_process
+
+
+def edit_files_for_hf_compatibility(folder: str):
+    files_to_process = [
+        os.path.join(folder, filename)
+        for filename in os.listdir(folder)
+        if filename.endswith('.py')
+    ]
+    files_processed_and_queued = set(files_to_process)
+
+    while len(files_to_process) > 0:
+        to_process = files_to_process.pop()
+        if os.path.isfile(to_process) and to_process.endswith('.py'):
+            to_add = process_file(to_process, folder)
+            for file in to_add:
+                if file not in files_processed_and_queued:
+                    files_to_process.append(file)
+                    files_processed_and_queued.add(file)
+
+
 def parse_args() -> Namespace:
     """Parse commandline arguments."""
     parser = ArgumentParser(
         description=
-        'Convert Composer checkpoint and Omegaconf model config into a standard HuggingFace checkpoint folder.'
+        'Convert Composer checkpoint and Omegaconf model config into a standard HuggingFace checkpoint folder, and optionally upload to the hub.'
     )
     parser.add_argument('--composer_path', type=str, required=True)
     parser.add_argument('--hf_output_path', type=str, required=True)
@@ -213,6 +368,8 @@ def parse_args() -> Namespace:
                         type=str,
                         choices=['fp32', 'fp16', 'bf16'],
                         default='fp32')
+    parser.add_argument('--hf_repo_for_upload', type=str, default=None)
+    parser.add_argument('--test_uploaded_model', action='store_true')
 
     return parser.parse_args()
 
@@ -223,6 +380,92 @@ def main(args: Namespace) -> None:
         output_path=args.hf_output_path,
         output_precision=args.output_precision,
         local_checkpoint_save_location=args.local_checkpoint_save_location)
+
+    dtype = {
+        'fp32': torch.float32,
+        'fp16': torch.float16,
+        'bf16': torch.bfloat16,
+    }[args.output_precision]
+
+    # register config auto class
+    MPTConfig.register_for_auto_class()
+
+    # register model auto class
+    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
+
+    print(f'Loading model from {args.hf_output_path}')
+    config = MPTConfig.from_pretrained(args.hf_output_path)
+    # You have to edit the config this way, because attn_config is a nested dictionary
+    config.attn_config['attn_impl'] = 'torch'
+    loaded_hf_model = MPTForCausalLM.from_pretrained(args.hf_output_path,
+                                                     config=config,
+                                                     torch_dtype=dtype)
+    delattr(loaded_hf_model.config, '_name_or_path')
+
+    loaded_hf_model.save_pretrained(args.hf_output_path)
+
+    print(f'Loading tokenizer from {args.hf_output_path}')
+    tokenizer = transformers.AutoTokenizer.from_pretrained(args.hf_output_path)
+    tokenizer.save_pretrained(args.hf_output_path)
+
+    print('Editing files for HF compatibility...')
+    edit_files_for_hf_compatibility(args.hf_output_path)
+
+    if args.hf_repo_for_upload is not None:
+        from huggingface_hub import HfApi
+        api = HfApi()
+
+        print(
+            f'Uploading {args.hf_output_path} to HuggingFace Hub at {args.hf_repo_for_upload}'
+        )
+        api.create_repo(repo_id=args.hf_repo_for_upload,
+                        use_auth_token=True,
+                        repo_type='model',
+                        private=True,
+                        exist_ok=True)
+        print('Repo created.')
+
+        # ignore the full checkpoint file if we now have sharded checkpoint files
+        ignore_patterns = []
+        if any(
+                f.startswith('pytorch_model-00001')
+                for f in os.listdir(args.hf_output_path)):
+            ignore_patterns.append('pytorch_model.bin')
+
+        api.upload_folder(folder_path=args.hf_output_path,
+                          repo_id=args.hf_repo_for_upload,
+                          use_auth_token=True,
+                          repo_type='model',
+                          ignore_patterns=ignore_patterns)
+        print('Folder uploaded.')
+
+        if args.test_uploaded_model:
+            print('Testing uploaded model...')
+            hub_model = transformers.AutoModelForCausalLM.from_pretrained(
+                args.hf_repo_for_upload,
+                trust_remote_code=True,
+                use_auth_token=True,
+                torch_dtype=dtype)
+            hub_tokenizer = transformers.AutoTokenizer.from_pretrained(
+                args.hf_repo_for_upload,
+                trust_remote_code=True,
+                use_auth_token=True)
+
+            assert sum(p.numel() for p in hub_model.parameters()) == sum(
+                p.numel() for p in loaded_hf_model.parameters())
+            assert all(
+                str(type(module1)).split('.')[-2:] == str(type(module2)).split(
+                    '.')[-2:] for module1, module2 in zip(
+                        hub_model.modules(), loaded_hf_model.modules()))
+
+            assert next(
+                hub_model.parameters()
+            ).dtype == dtype, f'Expected model dtype to be {dtype}, but got {next(hub_model.parameters()).dtype}'
+            print(
+                hub_tokenizer.batch_decode(
+                    hub_model.generate(hub_tokenizer(
+                        'MosaicML is', return_tensors='pt').input_ids,
+                                       max_new_tokens=10)))
 
 
 if __name__ == '__main__':

@@ -127,8 +127,7 @@ def flash_attn_fn(
     multiquery=False,
 ):
     try:
-        from flash_attn import bert_padding  # type: ignore
-        from flash_attn import flash_attn_interface
+        from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
     except:
         raise RuntimeError('Please install flash-attn==1.0.3.post0')
 

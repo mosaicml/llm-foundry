@@ -5,7 +5,7 @@ import os
 import shutil
 from argparse import Namespace
 
-from llmfoundry.common.convert_dataset import main
+from llmfoundry.data.convert_dataset import main
 
 
 def test_download_script_from_api():
@@ -35,7 +35,7 @@ def test_download_script_from_cmdline():
     shutil.rmtree(path, ignore_errors=True)
     print(os.getcwd())
     os.system(
-        'python llmfoundry/common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
+        'python llmfoundry/data/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
     )
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)

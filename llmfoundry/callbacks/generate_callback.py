@@ -2,13 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Periodically log generations to wandb from a set of prompts."""
-from typing import List
+from typing import List, Union, cast
 
 import torch
 import wandb
 from composer.core import Callback, State
 from composer.loggers import Logger, WandBLogger
 from composer.utils import dist, ensure_tuple
+from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+
+Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
 class Generate(Callback):
@@ -51,7 +54,7 @@ class Generate(Callback):
         model = state.model
         original_mode = model.training
         model.eval()
-        tokenizer = state.model.tokenizer
+        tokenizer = cast(Tokenizer, state.model.tokenizer)
         device = state.device
 
         # stash the original original value of padding_side because generation requires left padding
@@ -70,9 +73,9 @@ class Generate(Callback):
         dummy_input = torch.tensor([[0]], dtype=torch.long)
         dummy_input = device.tensor_to_device(dummy_input)
         with torch.no_grad():
-            _ = model.model(input_ids=dummy_input)
+            _ = model.model(input_ids=dummy_input)  # type: ignore
 
-        output_token_ids = model.model.generate(
+        output_token_ids = model.model.generate(  # type: ignore
             input_ids=tokenized_input['input_ids'],
             attention_mask=tokenized_input['attention_mask'],
             synced_gpus=True,

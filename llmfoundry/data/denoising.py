@@ -15,8 +15,8 @@ from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
-from llmfoundry.common.text_data import StreamingTextDataset
 from llmfoundry.data.packing import BinPackWrapper
+from llmfoundry.data.text_data import StreamingTextDataset
 from llmfoundry.models import utils
 
 __all__ = ['MixtureOfDenoisersCollator', 'build_text_denoising_dataloader']
@@ -475,9 +475,10 @@ def build_text_denoising_dataloader(
         download_retry=cfg.dataset.get('download_retry', 2),
         download_timeout=cfg.dataset.get('download_timeout', 60),
         validate_hash=cfg.dataset.get('validate_hash'),
-        shuffle_seed=cfg.dataset.get('shuffle_seed'),
+        shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
         num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', 128),
-        batch_size=device_batch_size)
+        batch_size=device_batch_size,
+    )
 
     if dataset.tokenizer.pad_token is None:  # type: ignore
         dataset.tokenizer.pad_token = dataset.tokenizer.eos_token
@@ -827,7 +828,7 @@ def _format_tokens_for_decoder_only(
 # Run `python denoising.py [local] [remote, optional]` and verify that batches
 # are printed out
 if __name__ == '__main__':
-    from llmfoundry.common.builders import build_tokenizer
+    from llmfoundry.utils.builders import build_tokenizer
 
     local = sys.argv[1]
     if len(sys.argv) > 2:

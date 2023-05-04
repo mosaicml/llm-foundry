@@ -263,7 +263,8 @@ if __name__ == '__main__':
 
     from llmfoundry import (build_finetuning_dataloader,
                             build_text_denoising_dataloader)
-    from llmfoundry.common import build_text_dataloader, build_tokenizer
+    from llmfoundry.data import build_text_dataloader
+    from llmfoundry.utils import build_tokenizer
 
     def parse_args() -> Namespace:
         """Parse commandline arguments."""

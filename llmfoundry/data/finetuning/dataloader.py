@@ -194,7 +194,7 @@ if __name__ == '__main__':
     import torch
     from omegaconf import OmegaConf as om
 
-    from llmfoundry.common import build_tokenizer
+    from llmfoundry.utils import build_tokenizer
     cfg = om.create({
         'dataset': {
             'name': 'tatsu-lab/alpaca',

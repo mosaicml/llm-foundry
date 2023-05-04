@@ -25,7 +25,7 @@ from llmfoundry.models.mosaic_gpt import MosaicGPT, MosaicGPTConfig
 
 
 def get_config(
-        conf_path='llmfoundry/yamls/mosaic_gpt/testing.yaml') -> DictConfig:
+        conf_path='scripts/train/yamls/mosaic_gpt/testing.yaml') -> DictConfig:
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     print(conf_path)
     with open(conf_path) as f:
@@ -33,7 +33,7 @@ def get_config(
     return cast(DictConfig, test_cfg)
 
 
-def get_objs(conf_path='llmfoundry/yamls/mosaic_gpt/testing.yaml'):
+def get_objs(conf_path='scripts/train/yamls/mosaic_gpt/testing.yaml'):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
@@ -115,7 +115,7 @@ def gen_random_enc_dec_batch(batch_size, vocab_size, max_seq_len, device):
 
 def test_full_forward_and_backward(batch_size=2):
     test_cfg, model, optimizer = get_objs(
-        conf_path='llmfoundry/yamls/mosaic_gpt/testing.yaml')
+        conf_path='scripts/train/yamls/mosaic_gpt/testing.yaml')
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -133,7 +133,7 @@ def test_full_forward_and_backward(batch_size=2):
 
 def test_attention_mechanism(batch_size=2):
     test_cfg, model, _ = get_objs(
-        conf_path='llmfoundry/yamls/mosaic_gpt/testing.yaml')
+        conf_path='scripts/train/yamls/mosaic_gpt/testing.yaml')
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -192,7 +192,7 @@ def test_full_forward_and_backward_gpt2_small(prefixlm, batch_size=2):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
-    conf_path = 'llmfoundry/yamls/hf_causal_lm/gpt2-small.yaml'
+    conf_path = 'scripts/train/yamls/hf_causal_lm/gpt2-small.yaml'
     with open(conf_path) as f:
         neo_cfg = om.load(f)
 
@@ -293,7 +293,7 @@ def test_determinism(attn_impl: str, precision):
         )
     reproducibility.seed_all(1111)
 
-    conf_path = 'llmfoundry/yamls/mosaic_gpt/testing.yaml'
+    conf_path = 'scripts/train/yamls/mosaic_gpt/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
 
@@ -349,7 +349,7 @@ def test_loss_fn():
 
     reproducibility.seed_all(1111)
 
-    conf_path = 'llmfoundry/yamls/mosaic_gpt/testing.yaml'
+    conf_path = 'scripts/train/yamls/mosaic_gpt/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
 

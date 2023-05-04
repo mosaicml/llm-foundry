@@ -10,7 +10,7 @@ from streaming import MDSWriter
 from torch.utils.data import IterableDataset
 from tqdm import tqdm
 
-from llmfoundry.common.convert_dataset import build_dataloader, generate_samples
+from .convert_dataset import build_dataloader, generate_samples
 
 
 def parse_args() -> Namespace:

@@ -351,17 +351,17 @@ def run_config(config, args):
     # Define our command
     if args.data_remote is not None:
         command = """
-        cd examples
+        cd examples/scripts
 
-        composer examples/llm/main.py /mnt/config/parameters.yaml
+        composer train/train.py /mnt/config/parameters.yaml
         """
     else:
         command = f"""
-        cd examples
+        cd examples/scripts
 
-        python examples/common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
+        python data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
 
-        composer examples/llm/main.py /mnt/config/parameters.yaml
+        composer train/train.py /mnt/config/parameters.yaml
         """
 
     path = os.path.join('../yamls/mosaic_gpt', model_yaml)

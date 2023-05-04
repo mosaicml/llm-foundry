@@ -4,6 +4,7 @@
 try:
     import torch
 
+    from llmfoundry import optim, utils
     from llmfoundry.data import (MixtureOfDenoisersCollator,
                                  Seq2SeqFinetuningCollator,
                                  build_finetuning_dataloader,
@@ -19,8 +20,6 @@ try:
     from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
                                        MPTForCausalLM, MPTModel,
                                        MPTPreTrainedModel)
-    from llmfoundry import optim
-    from llmfoundry import utils
 
 except ImportError as e:
     try:

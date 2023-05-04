@@ -34,28 +34,32 @@ def get_abs_data_path(data_local):
 @pytest.mark.parametrize('tokenizer_name', ['gpt2', 'facebook/opt-125m'])
 @pytest.mark.parametrize('pretokenize', [False, True])
 def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
+    import time
+    start_time = time.time()
     if tokenizer_name == 'gpt2' and not pretokenize:
         pytest.xfail('Must pretokenize data if using "gpt2" tokenizer')
 
     data_local = get_data_local(tokenizer_name, pretokenize)
-    split = 'val_small'
+    split = 'val_xsmall'
     tokenizer_args = {
         'gpt2': '--eos_text "<|endoftext|>"',
         'facebook/opt-125m': '--bos_text "</s>"'
     }[tokenizer_name]
+    print(f'Time to get data_local: {time.time() - start_time}')
 
     path = get_abs_data_path(data_local)
     shutil.rmtree(path, ignore_errors=True)
     if pretokenize:
         os.system(
-            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits val_small --concat_tokens 2048 --tokenizer {tokenizer_name} {tokenizer_args}'
+            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits {split} --concat_tokens 2048 --tokenizer {tokenizer_name} {tokenizer_args}'
         )
     else:
         os.system(
-            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits val_small'
+            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits {split}'
         )
     if not os.path.isdir(path):
         raise RuntimeError(f'c4 dataset at {path} not set up as expected')
+    print(f'Time to download data: {time.time() - start_time}')
 
     test_cfg = get_config(conf_path='scripts/train/yamls/mpt/125m.yaml')
     test_cfg.data_local = data_local
@@ -66,6 +70,7 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
             'name': tokenizer_name,
             'kwargs': {}
         }))
+    print(f'Time to build tokenizer: {time.time() - start_time}')
 
     # Dataloaders
     eval_loader = build_text_dataloader(
@@ -73,7 +78,9 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
         tokenizer,
         batch_size,
     )
+    print(f'Time to build dataloader: {time.time() - start_time}')
     batch = next(iter(eval_loader))
+    print(f'Time to get batch: {time.time() - start_time}')
 
     assert batch['input_ids'].shape == torch.Size([batch_size, 2048])
     assert batch['input_ids'].type() == 'torch.LongTensor'
@@ -84,6 +91,8 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     a = attention_mask == 0
     b = batch['labels'] == -100
     assert torch.equal(a, b)
+    print(f'Time to run test: {time.time() - start_time}')
+    assert False
 
 
 @pytest.mark.parametrize(('eos_token_id', 'bos_token_id'),

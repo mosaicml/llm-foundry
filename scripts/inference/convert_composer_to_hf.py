@@ -394,8 +394,9 @@ def main(args: Namespace) -> None:
     MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
 
     print(f'Loading model from {args.hf_output_path}')
-    config = MPTConfig.from_pretrained(args.hf_output_path,
-                                       attn_config={'attn_impl': 'torch'})
+    config = MPTConfig.from_pretrained(args.hf_output_path)
+    # You have to edit the config this way, because attn_config is a nested dictionary
+    config.attn_config['attn_impl'] = 'torch'
     loaded_hf_model = MPTForCausalLM.from_pretrained(args.hf_output_path,
                                                      config=config,
                                                      torch_dtype=dtype)

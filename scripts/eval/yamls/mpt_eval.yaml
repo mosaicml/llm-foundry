@@ -11,7 +11,6 @@ tokenizer:
 model:
   name: mpt_causal_lm
   init_device: meta
-  tokenizer_name: ${tokenizer_name}
   d_model: 768
   n_heads: 12
   n_layers: 12

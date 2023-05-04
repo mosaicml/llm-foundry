@@ -1,15 +1,16 @@
 max_seq_len: 2048
 seed: 1
+model_name_or_path: EleutherAI/gpt-neo-125M
 
 # Tokenizer
 tokenizer:
-  name: gpt2
+  name: ${model_name_or_path}
   kwargs:
     model_max_length: ${max_seq_len}
 
 model:
   name: hf_causal_lm
-  pretrained_model_name_or_path: EleutherAI/gpt-neo-125M
+  pretrained_model_name_or_path: ${model_name_or_path}
   device: cpu
   pretrained: true
 

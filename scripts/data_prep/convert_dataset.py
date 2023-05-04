@@ -114,7 +114,7 @@ class ValSmallConstants(DataSplitConstants):
         super().__init__(hf_split, folder_split, raw_samples, truncated_samples)
 
 
-class ValSmallConstants(DataSplitConstants):
+class ValXSmallConstants(DataSplitConstants):
 
     def __init__(self,
                  hf_split: str = 'validation',

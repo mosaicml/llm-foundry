@@ -157,6 +157,10 @@ class DatasetConstructor:
 
         return wrapper
 
+    def print_registered_tasks(self):
+        tasks = sorted(self._task_preprocessing_registry.keys())
+        print('\n'.join(tasks))
+
     def get_preprocessing_fn_from_str(self,
                                       preprocessor: Optional[str],
                                       dataset_name: Optional[str] = None,
@@ -236,6 +240,7 @@ def alpaca_preprocessing_function(inp: Dict):
     """Split out prompt/response from text."""
     try:
         prompt, response = inp['text'].split('### Response:')
+        prompt += '### Response:'
     except Exception as e:
         raise ValueError(
             f"Unable to extract prompt/response from 'text'={inp['text']}"

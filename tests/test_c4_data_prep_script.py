@@ -39,7 +39,7 @@ def test_download_script_from_cmdline():
     shutil.rmtree(path, ignore_errors=True)
     print(os.getcwd())
     os.system(
-        'python scripts/data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_small'
+        'python scripts/data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4-2 --splits val_xsmall'
     )
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)

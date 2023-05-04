@@ -219,7 +219,7 @@ class DeleteSpecificNodes(ast.NodeTransformer):
 
 def convert_to_relative_import(module_name: str) -> str:
     parts = module_name.split('.')
-    return '..' + parts[-1]
+    return '.' + parts[-1]
 
 
 def find_module_file(module_name: str) -> str:

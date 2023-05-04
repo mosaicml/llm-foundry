@@ -166,12 +166,15 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
 
 
 def _validate_config(dataset_cfg: DictConfig):
-    """
-    Validates the dataset configuration for either a HuggingFace dataset or a streaming dataset.
-    
+    """Validates the dataset configuration.
+
+    Makes sure that the dataset is properly configured for either
+    a HuggingFace dataset or a streaming dataset. Must be valid for one or
+    the other.
+
     Args:
         dataset_cfg (DictConfig): The dataset configuration to be validated.
-    
+
     Raises:
         ValueError: If the dataset configuration does not meet the requirements.
     """

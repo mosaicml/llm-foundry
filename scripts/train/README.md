@@ -169,7 +169,7 @@ We include some reference examples inside `llm/yamls/mpt/finetuning/`.
 There are 3 different types of data sources you can use for finetuning:
 (1) [the HuggingFace Hub](#1-using-a-dataset-on-the-huggingface-hub),
 (2) [a local dataset](#2-using-a-local-dataset), and
-(3) [a local or remote streaming dataset](#3-using-an-mds-formatted-dataset-locally-or-in-an-object-store).
+(3) [a local or remote streaming dataset](#3-using-an-mds-formatted-streaming-dataset----locally-or-in-an-object-store).
 We'll cover these more below, but first will describe an important consideration for all 3: data formatting!
 
 The finetuning dataloader requires training examples to be formatted as dictionaries with the following key-value structure:

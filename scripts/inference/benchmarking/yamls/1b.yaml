@@ -1,7 +1,7 @@
 benchmark_name: MosaicDeepspeed_1xA100-80GB-bf16-GPT-1B
 
 max_seq_len: 2048
-tokenizer_name: gpt2
+tokenizer_name: EleutherAI/gpt-neox-20b
 
 # Tokenizer
 tokenizer:

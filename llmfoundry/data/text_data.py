@@ -309,7 +309,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--tokenizer',
                         type=str,
-                        default='gpt2',
+                        default='EleutherAI/gpt-neox-20b',
                         help='the name of the tokenizer to use')
     parser.add_argument('--local_path',
                         type=str,

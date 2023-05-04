@@ -1,9 +1,9 @@
 # In-context learning (ICL) evaluaton
-This is the MosaicML LLM evaluation suite. It is the world's fastest, multi-GPU compatible ICL evaluaton suite with built in support for using [FSDP](https://pytorch.org/docs/stable/fsdp.html) with any model on the HuggingFace hub or for any PyTorch model that implements the `ComposerModel` interface.
+This folder contains the MosaicML LLM evaluation suite. It is a [blazingly fast](https://www.mosaicml.com/blog/llm-evaluation-for-icl), multi-GPU-enabled ICL evaluaton suite with native [FSDP](https://pytorch.org/docs/stable/fsdp.html) compatibility with any model on the HuggingFace hub and any PyTorch model that implements the [`ComposerModel` interface](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.ComposerModel.html#composermodel).
 
-Run a model by preparing an evaluaton YAML following the format of the examples in the `scripts/eval/yamls` directory.
+You can evaluate a model by preparing an evaluaton YAML following the format of the examples in the [`scripts/eval/yamls` directory](https://github.com/mosaicml/llm-foundry/tree/main/scripts/eval/yamls).
 
-You can run the evaluation script via `composer eval.py YOUR_YAML` or launch it on the mosaic cloud using a an MCLI YAML following the format of `llmfoundry/mcloud/mcli-1b-eval.yaml`
+You can run the evaluation script via `composer eval.py YOUR_YAML` or launch it on the MosaicML Cloud Platform using a an MCLI YAML following the format of [`llmfoundry/mcli/mcli-1b-eval.yaml`](https://github.com/mosaicml/llm-foundry/blob/main/mcli/mcli-1b-eval.yaml).
 
 ----
 
@@ -13,7 +13,7 @@ ICL evaluation measures a model’s ability to solve novel problems by being pro
 
 Composer supports a number of different standard ICL formats and allows users to upload their own datasets that correspond to those formats.
 
-This document will explain the available composer ICL formats, give some basic pointers on adding new datasets in those formats, and catalog the datasets currently used by the research team to assess our hero runs.
+This document explains the ICL formats compatible with [Composer](https://github.com/mosaicml/composer), summarizes how to add new datasets in those formats, and catalogs the datasets currently used by the research team to evaluate models.
 
 ----
 
@@ -30,12 +30,12 @@ Composer currently supports four ICL formats
 
 ### InContextLearningQATaskDataset
 
-The ICL question answering (QA) task supports free response question answering evaluation using the model’s generate function. A QA dataset consists of a list of JSONs containing a question (under the key “context”), a correct answer (under the key “answer”), and a list of alternative spellings of the answer that would be considered permissible (under the key “aliases”). The QA task works with the NLP metric: [InContextLearningQAAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningQAAccuracy.html)  which assigns a model's output to be "correct" if, conditioned on the context, the model's generate method produces a string that is a normalized prefix for either the "answer" or any of the "aliases".
+The ICL question answering (QA) task supports free response question answering evaluation using the model’s generate function. A QA dataset consists of a list of JSONs containing a question (under the key `context`), a correct answer (under the key `answer`), and a list of alternative spellings of the answer that would be considered permissible (under the key `aliases`). The QA task works with the NLP metric: [InContextLearningQAAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningQAAccuracy.html) which assigns a model's output to be "correct" if, conditioned on the context, the model's generate method produces a string that is a normalized prefix for either the `answer` or any of the `aliases`.
 
 Required keys for each datum:
-* context: str
-* answer: str
-* aliases: List[str]
+* `context`: str
+* `answer`: str
+* `aliases`: List[str]
 
 An example datum is below:
 
@@ -43,7 +43,7 @@ An example datum is below:
 {"context": "What star sign is Jamie Lee Curtis?", "answer": "Scorpio", "aliases": ["Scorpio", "Skorpio"]}
 ```
 
-The QA task expects a **prompt string**, a **continuation delimiter** to separate questions from answers, an **example delimiter** to separate few shot examples from one another, and a **question prelimiter** to put before each question. If using the following settings, with 2 few shot examples in context, the above datum may be rendered to the model as:
+The QA task expects a **prompt string**, a **continuation delimiter** to separate questions from answers, an **example delimiter** to separate few shot examples from one another, and a **question prelimiter** to put before each question. If using the following settings, with 2 examples in context, the above datum may be rendered to the model as:
 
 ```jsx
 prompt_string: "Answer the following trivia question:\n", example_delimiter: "\n", continuation_delimiter: " Answer: ", question_prelimiter: "Question: "
@@ -55,9 +55,9 @@ Question: Who was the man behind The Chipmunks? Answer: David Seville
 Question: What star sign is Jamie Lee Curtis? Answer:
 >
 
-The model would then be expected to generate a series of tokens beginning with either of the aliases: Scorpio/Skorpio.
+The model would then be expected to generate a series of tokens beginning with either of the aliases: `Scorpio/Skorpio`.
 
-Below is a complete YAML section that works with the TriviaQA dataset in `scripts/eval/local_data/triviaqa.jsonl`
+Below is a complete YAML section that works with the TriviaQA dataset in [`scripts/eval/local_data/triviaqa.jsonl`](https://github.com/mosaicml/llm-foundry/blob/main/scripts/eval/local_data/triviaqa.jsonl):
 
 >
     label: triviaqa
@@ -80,28 +80,28 @@ Below is a complete YAML section that works with the TriviaQA dataset in `script
 
 ### InContextLearningLMTaskDataset
 
-The ICL language modeling (LM) task assesses the model’s ability to predict a precise sequence of tokens (called a continuation) following some context using the model’s `forward` function. An LM dataset consists of a list of JSONs containing a context (under the key “context”) and a continuation (under the key “continuation” that the model must correctly predict conditioned on the context. The LM task works with the NLP metric: [InContextLearningLMAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningLMAccuracy.html) which assigns a model's output to be "correct" if, conditioned on the context tokens, the model's argmax output logits exactly match the tokens in the continuation.
+The ICL language modeling (LM) task assesses the model’s ability to predict a precise sequence of tokens (called a continuation) following some context using the model’s `forward` function. An LM dataset consists of a list of JSONs containing a context (under the key `context`) and a continuation (under the key `continuation` that the model must correctly predict conditioned on the context. The LM task uses the NLP metric [InContextLearningLMAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningLMAccuracy.html), which assigns a model's output to be "correct" if, conditioned on the context tokens, the model's argmax output logits exactly match the tokens in the continuation.
 
 Required keys for each datum:
-* context: str
-* continuation: str
+* `context`: str
+* `continuation`: str
 
 
 An example datum is below:
 
 ```jsx
-{"context": "With Tristran's next step he was standing beside a lake, and the candlelight shone brightly on the water; and then he was walking through the mountains, through lonely crags, where the candlelight was reflected in the eyes of the creatures of the high snows; and then he was walking through the clouds, which, while not entirely substantial, still supported his weight in comfort; and then, holding tightly to his candle, he was underground, and the candlelight glinted back at him from the wet cave walls; now he was in the mountains once more; and then he was on a road through wild forest, and he glimpsed a chariot being pulled by two goats, being driven by a woman in a red dress who looked, for the glimpse he got of her, the way Boadicea was drawn in his history books; and another step and he was in a leafy glen, and he could hear the chuckle of water as it splashed and sang its way into a small brook.\n\nHe took another step, but he was still in the", "continuation": "glen"}
+{"context": "With Tristran's next step he was standing beside a lake, and the candlelight shone brightly on the water; and then he was walking through the mountains, through lonely crags, where the candlelight was reflected in the eyes of the creatures of the high snows; and then he was walking through the clouds, which, while not entirely substantial, still supported his weight in comfort; and then, holding tightly to his candle, he was underground, and the candlelight glinted back at him from the wet cave walls; now he was in the mountains once more; and then he was on a road through wild forest, and he glimpsed a chariot being pulled by two goats, being driven by a woman in a red dress who looked, for the glimpse he got of her, the way Boadicea was drawn in his history books; and another step and he was in a leafy glen, and he could hear the chuckle of water as it splashed and sang its way into a small brook.\n\nHe took another step, but he was still in the", "continuation": " glen"}
 ```
 
-The LM task expects a **prompt string**, a **continuation delimiter** to separate continuation from context and an **example delimiter** to separate few shot examples from one another. If using the following settings, with 0 few shot examples in context, the above datum may be rendered to the model as:
+The LM task expects a **prompt string**, a **continuation delimiter** to separate continuation from context, and an **example delimiter** to separate few shot examples from one another. If using the following settings, with 0 examples in context, the above datum may be rendered to the model as:
 
 > With Tristran's next step he was standing beside a lake, and the candlelight shone brightly on the water; and then he was walking through the mountains, through lonely crags, where the candlelight was reflected in the eyes of the creatures of the high snows; and then he was walking through the clouds, which, while not entirely substantial, still supported his weight in comfort; and then, holding tightly to his candle, he was underground, and the candlelight glinted back at him from the wet cave walls; now he was in the mountains once more; and then he was on a road through wild forest, and he glimpsed a chariot being pulled by two goats, being driven by a woman in a red dress who looked, for the glimpse he got of her, the way Boadicea was drawn in his history books; and another step and he was in a leafy glen, and he could hear the chuckle of water as it splashed and sang its way into a small brook.
 He took another step, but he was still in the
 >
 
-The model would then be expected output “ glen”
+The model would then be expected output “ glen”.
 
-Below is a YAML section that works with the Lambada OpenAI datset in `scripts/eval/local_data/lambada_openai.jsonl`
+Below is a YAML section that works with the Lambada OpenAI dataset in [`scripts/eval/local_data/lambada_openai.jsonl`](https://github.com/mosaicml/llm-foundry/blob/main/scripts/eval/local_data/lambada_openai.jsonl):
 
 >
     label: lambada_openai
@@ -121,18 +121,18 @@ Below is a YAML section that works with the Lambada OpenAI datset in `scripts/ev
 
 ### InContextLearningMultipleChoiceTaskDataset
 
-The ICL multiple choice (MC) task assesses the model’s ability to answer multiple choice questions by assigning highest per token probability to the correct answer. An MC dataset consists of a list of JSONs containing a query (under the key “query”), a list of choices (under the key “choices”), and the index indicating the correct answer (under the key "gold"). The MC task works with the NLP metric: [InContextLearningMultipleChoiceAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningMultipleChoiceAccuracy.html) which separately runs model `forward` on the query prepended to each choice, and then assigns the model to be correct if the correct choice has the lowest per token perplexity conditioned on the query.
+The ICL multiple choice (MC) task assesses the model’s ability to answer multiple choice questions by assigning highest per token probability to the correct answer. An MC dataset consists of a list of JSONs containing a query (under the key `query`), a list of choices (under the key `choices`), and the index indicating the correct answer (under the key `gold`). The MC task works with the NLP metric [InContextLearningMultipleChoiceAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningMultipleChoiceAccuracy.html), which separately runs the model's `forward()` method on the query prepended to each choice, and then determines the model to be correct if the correct choice has the lowest per token perplexity conditioned on the query.
 
 Required keys for each datum:
-* query: str
-* choices: str
-* gold: int
+*` query`: str
+* `choices`: str
+* `gold`: int
 
 An example datum is below:
 ```jsx
 {"query": "High jump: A boy is running down a track. The boy", "choices": ["runs into a car.", "gets in a mat.", "lifts his body above the height of a pole.", "stands on his hands and springs."], "gold": 2}
 ```
-The MC task expects a **prompt string**, a **continuation delimiter** to separate continuation from context, and an **example delimiter** to separate few shot examples from one another. If using the following settings, with 0 few shot examples in context, the above datum may be rendered as four different inputs to the model:
+The MC task expects a **prompt string**, a **continuation delimiter** to separate continuation from context, and an **example delimiter** to separate few shot examples from one another. If using the following settings, with 0 examples in context, the above datum may be rendered as four different inputs to the model:
 
 > High jump: A boy is running down a track. The boy runs into a car.
 >
@@ -143,9 +143,9 @@ The MC task expects a **prompt string**, a **continuation delimiter** to separat
 > High jump: A boy is running down a track. The boy stands on his hands and springs.
 >
 
-The model would be assigned correct if it assigns the lowest per token perplexity to the sequence " lifts his body above the height of a pole."
+The model would be deemed correct if it assigns the lowest per token perplexity to the sequence " lifts his body above the height of a pole."
 
-Below is a YAML section that works with the HellaSwag dataset in `scripts/eval/local_data/hellaswag.jsonl`
+Below is a YAML section that works with the HellaSwag dataset in [`scripts/eval/local_data/hellaswag.jsonl`](https://raw.githubusercontent.com/mosaicml/llm-foundry/main/scripts/eval/local_data/hellaswag.jsonl):
 
 >
     label: hellaswag
@@ -169,9 +169,9 @@ Below is a YAML section that works with the HellaSwag dataset in `scripts/eval/l
 
 ### InContextLearningSchemaTaskDataset
 
-The ICL schema task assesses the model’s ability to determine which of some set of possible contexts (under the key "context\_options") makes a sequence of tokens (under the key "continuation") most likely, with the correct context indicated by "gold". Based on: [A Simple Method for Commonsense Reasoning](https://arxiv.org/abs/1806.02847)
+The ICL schema task assesses the model’s ability to determine which of some set of possible contexts (under the key `context_options`) makes a sequence of tokens (under the key `continuation`) most likely, with the correct context indicated by "gold". This task is based on [A Simple Method for Commonsense Reasoning](https://arxiv.org/abs/1806.02847).
 
-The schema task works with the NLP metric: [InContextLearningMultipleChoiceAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningMultipleChoiceAccuracy.html) which separately runs model `forward` on each context option prepended to the continuation and rates the model correct if it assigns minimum per token perplexity to the continuation conditioned on the true context.
+The schema task works with the NLP metric [InContextLearningMultipleChoiceAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningMultipleChoiceAccuracy.html), which separately runs the model's `forward()` method on each context option prepended to the continuation and rates the model correct if it assigns minimum per token perplexity to the continuation conditioned on the true context.
 
 Required keys for each datum:
 * query: str
@@ -192,7 +192,7 @@ The Schema task expects a **prompt string**, a **continuation delimiter** to sep
 
 The model would be assigned correct if per token perplexity of the sequence " was so upset" is lower in the second version than it is in the first version.
 
-Below is a YAML section that works with the Winograd dataset in `scripts/eval/local_data/winograd_wsc.jsonl`
+Below is a YAML section that works with the Winograd dataset in [`scripts/eval/local_data/winograd_wsc.jsonl`](https://github.com/mosaicml/llm-foundry/blob/main/scripts/eval/local_data/winograd_wsc.jsonl):
 
 >
     label: winograd
@@ -213,7 +213,7 @@ Below is a YAML section that works with the Winograd dataset in `scripts/eval/lo
 >
 
 ### Build your own dataset (BYOD)
-Building a dataset compatible with our eval suite is very easy if it fits with one of the four supported task types. Simply choose the appropriate task type (LM, MC, QA, or Schema) and process each dataset into a jsonl format where each row has the format described above.
+Building a dataset compatible with our eval suite is very easy if it fits with one of the four supported task types. Simply choose the appropriate task type (LM, MC, QA, or Schema) and process each dataset into a jsonl format in which each row has the format described above.
 
 Below is a minimal script which prepares the [Winograd schema challenge](https://cdn.aaai.org/ocs/4492/4492-21843-1-PB.pdf) hosted on [HuggingFace](https://huggingface.co/datasets/winograd_wsc). This script can be modified to generate other datasets based on the HuggingFace dataset hub.
 ```python
@@ -281,7 +281,7 @@ def prep_dataset(out_file):
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
 ```
 
-Similarly, you can compile a dataset directly from the `EleutherAI/lm-evaluation-harness` by modifying the script below:
+Similarly, you can compile a dataset directly from [`EleutherAI/lm-evaluation-harness`](https://github.com/EleutherAI/lm-evaluation-harness) by modifying the script below:
 ```python
 def prep_triviaqa(row):
 

@@ -10,8 +10,6 @@ from contextlib import nullcontext
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from llmfoundry import MPTConfig, MPTForCausalLM
-
 
 def get_dtype(dtype):
     if dtype == 'fp32':
@@ -114,9 +112,6 @@ def maybe_synchronize():
 
 
 def main(args: Namespace) -> None:
-    AutoConfig.register('mpt', MPTConfig)
-    AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
-
     # Grab config first
     print(f'Loading HF Config...')
     from_pretrained_kwargs = {

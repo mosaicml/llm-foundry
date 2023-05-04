@@ -36,32 +36,12 @@ def _add_option(parser: pytest.Parser,
     )
 
 
-def _get_option(config: pytest.Config,
-                name: str,
-                default: Optional[str] = None) -> str:  # type: ignore
-    val = config.getoption(name)
-    if val is not None:
-        assert isinstance(val, str)
-        return val
-    val = config.getini(name)
-    if val == []:
-        val = None
-    if val is None:
-        if default is None:
-            pytest.fail(
-                f'Config option {name} is not specified but is required')
-        val = default
-    assert isinstance(val, str)
-    return val
-
-
 def pytest_addoption(parser: pytest.Parser) -> None:
     _add_option(parser,
                 'seed',
                 help="""\
         Rank zero seed to use. `reproducibility.seed_all(seed + dist.get_global_rank())` will be invoked
         before each test.""")
-    _add_option(parser, 's3_bucket', help='S3 Bucket for integration tests')
 
 
 def _get_world_size(item: pytest.Item):

@@ -10,7 +10,7 @@ import torch
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           PreTrainedTokenizer, PreTrainedTokenizerFast)
 
-from llmfoundry import MosaicGPT, MosaicGPTConfig
+from llmfoundry import MPTConfig, MPTForCausalLM
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
@@ -85,7 +85,7 @@ def maybe_synchronize():
         torch.cuda.synchronize()
 
 
-def conversation(model: MosaicGPT, tokenizer: Tokenizer, user_inp: str,
+def conversation(model: MPTForCausalLM, tokenizer: Tokenizer, user_inp: str,
                  history: str,
                  **generate_kwargs: Dict[str, Any]) -> Tuple[str, str, float]:
     if history != '':
@@ -108,7 +108,7 @@ def conversation(model: MosaicGPT, tokenizer: Tokenizer, user_inp: str,
     return output_text, conversation, end - start
 
 
-def have_conversation(model: MosaicGPT, tokenizer: Tokenizer,
+def have_conversation(model: MPTForCausalLM, tokenizer: Tokenizer,
                       **generate_kwargs: Dict[str, Any]) -> None:
     history = ''
     while True:
@@ -138,8 +138,8 @@ def have_conversation(model: MosaicGPT, tokenizer: Tokenizer,
 
 
 def main(args: Namespace) -> None:
-    AutoConfig.register('mosaic_gpt', MosaicGPTConfig)
-    AutoModelForCausalLM.register(MosaicGPTConfig, MosaicGPT)
+    AutoConfig.register('mpt', MPTConfig)
+    AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
 
     print('Loading HF model...')
     model = AutoModelForCausalLM.from_pretrained(args.name_or_path)

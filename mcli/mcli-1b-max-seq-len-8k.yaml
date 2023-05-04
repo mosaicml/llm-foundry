@@ -36,7 +36,7 @@ parameters:
 
   # Model
   model:
-    name: mosaic_gpt
+    name: mpt_causal_lm
     init_device: meta
     d_model: 2048
     n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention

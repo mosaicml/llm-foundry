@@ -3,14 +3,16 @@
 
 from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                   ComposerHFT5)
-from llmfoundry.models.mosaic_gpt import (ComposerMosaicGPT, MosaicGPT,
-                                          MosaicGPTConfig)
+from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
+                                   MPTForCausalLM, MPTModel, MPTPreTrainedModel)
 
 __all__ = [
     'ComposerHFCausalLM',
     'ComposerHFPrefixLM',
     'ComposerHFT5',
-    'MosaicGPTConfig',
-    'MosaicGPT',
-    'ComposerMosaicGPT',
+    'MPTConfig',
+    'MPTPreTrainedModel',
+    'MPTModel',
+    'MPTForCausalLM',
+    'ComposerMPTCausalLM',
 ]

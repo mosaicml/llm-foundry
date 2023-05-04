@@ -21,11 +21,10 @@ from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         ComposerHFPrefixLM)
 from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
-from llmfoundry.models.mosaic_gpt import MosaicGPT, MosaicGPTConfig
+from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 
 
-def get_config(
-        conf_path='scripts/train/yamls/mosaic_gpt/testing.yaml') -> DictConfig:
+def get_config(conf_path='scripts/train/yamls/mpt/testing.yaml') -> DictConfig:
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     print(conf_path)
     with open(conf_path) as f:
@@ -33,7 +32,7 @@ def get_config(
     return cast(DictConfig, test_cfg)
 
 
-def get_objs(conf_path='scripts/train/yamls/mosaic_gpt/testing.yaml'):
+def get_objs(conf_path='scripts/train/yamls/mpt/testing.yaml'):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
@@ -115,7 +114,7 @@ def gen_random_enc_dec_batch(batch_size, vocab_size, max_seq_len, device):
 
 def test_full_forward_and_backward(batch_size=2):
     test_cfg, model, optimizer = get_objs(
-        conf_path='scripts/train/yamls/mosaic_gpt/testing.yaml')
+        conf_path='scripts/train/yamls/mpt/testing.yaml')
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -133,7 +132,7 @@ def test_full_forward_and_backward(batch_size=2):
 
 def test_attention_mechanism(batch_size=2):
     test_cfg, model, _ = get_objs(
-        conf_path='scripts/train/yamls/mosaic_gpt/testing.yaml')
+        conf_path='scripts/train/yamls/mpt/testing.yaml')
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -166,17 +165,18 @@ def test_attention_mechanism(batch_size=2):
         axis=1)
     expected_zerod_weights |= torch_key_padding
 
-    attn_bias, attention_mask = model.model._attn_bias(
+    attn_bias, attention_mask = model.model.transformer._attn_bias(
         device=x.device, dtype=x.dtype, attention_mask=attention_mask)
 
     for block in model.model.transformer.blocks:
         a = block.norm_1(x)
-        b, attention_weights, _ = block.attn(a,
-                                             past_key_value=None,
-                                             attn_bias=attn_bias,
-                                             attention_mask=attention_mask,
-                                             is_causal=model.model.is_causal,
-                                             needs_weights=True)
+        b, attention_weights, _ = block.attn(
+            a,
+            past_key_value=None,
+            attn_bias=attn_bias,
+            attention_mask=attention_mask,
+            is_causal=model.model.transformer.is_causal,
+            needs_weights=True)
 
         zerod_weights = (attention_weights == 0)
         assert torch.equal(expected_zerod_weights.expand(*zerod_weights.shape),
@@ -293,7 +293,7 @@ def test_determinism(attn_impl: str, precision):
         )
     reproducibility.seed_all(1111)
 
-    conf_path = 'scripts/train/yamls/mosaic_gpt/testing.yaml'
+    conf_path = 'scripts/train/yamls/mpt/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
 
@@ -349,7 +349,7 @@ def test_loss_fn():
 
     reproducibility.seed_all(1111)
 
-    conf_path = 'scripts/train/yamls/mosaic_gpt/testing.yaml'
+    conf_path = 'scripts/train/yamls/mpt/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
 
@@ -427,9 +427,9 @@ def test_opt_wrapping(prefixlm):
 
 @pytest.mark.parametrize('norm_type', NORM_CLASS_REGISTRY.keys())
 @pytest.mark.parametrize('no_bias', [False, True])
-def test_mosaic_gpt_creation(norm_type, no_bias):
+def test_mpt_creation(norm_type, no_bias):
     # Test that the config constructs the model as expected.
-    hf_config = MosaicGPTConfig(
+    hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=4,
@@ -444,23 +444,23 @@ def test_mosaic_gpt_creation(norm_type, no_bias):
         norm_type=norm_type,
         no_bias=no_bias,
     )
-    mosaic_gpt = MosaicGPT(hf_config)
+    mpt = MPTForCausalLM(hf_config)
 
-    assert mosaic_gpt.config.d_model == 128
-    assert mosaic_gpt.config.n_heads == 4
-    assert mosaic_gpt.config.n_layers == 2
-    assert mosaic_gpt.config.expansion_ratio == 2
-    assert mosaic_gpt.config.max_seq_len == 2048
+    assert mpt.config.d_model == 128
+    assert mpt.config.n_heads == 4
+    assert mpt.config.n_layers == 2
+    assert mpt.config.expansion_ratio == 2
+    assert mpt.config.max_seq_len == 2048
 
-    assert mosaic_gpt.transformer.wte.weight.shape == torch.Size(  # type: ignore
+    assert mpt.transformer.wte.weight.shape == torch.Size(  # type: ignore
         [hf_config.vocab_size, hf_config.d_model])
-    assert mosaic_gpt.transformer.wpe.weight.shape == torch.Size(  # type: ignore
+    assert mpt.transformer.wpe.weight.shape == torch.Size(  # type: ignore
         [hf_config.max_seq_len, hf_config.d_model])
-    assert mosaic_gpt.transformer.emb_drop.p == 0.1  # type: ignore
-    assert len(mosaic_gpt.transformer.blocks) == 2  # type: ignore
+    assert mpt.transformer.emb_drop.p == 0.1  # type: ignore
+    assert len(mpt.transformer.blocks) == 2  # type: ignore
 
     d_model = hf_config.d_model
-    for block in mosaic_gpt.transformer.blocks:  # type: ignore
+    for block in mpt.transformer.blocks:  # type: ignore
         assert block.norm_1.weight.shape == torch.Size([d_model
                                                        ])  # type: ignore
         assert block.norm_2.weight.shape == torch.Size([d_model
@@ -490,7 +490,7 @@ def test_forward_with_padding(attention_impl, device, alibi):
     reproducibility.seed_all(1234)
     device = get_device(device)
 
-    hf_config = MosaicGPTConfig(
+    hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=1,
@@ -508,9 +508,9 @@ def test_forward_with_padding(attention_impl, device, alibi):
             'init_std': 0.02,
         },
     )
-    mosaic_gpt = MosaicGPT(hf_config)
-    mosaic_gpt.eval()
-    mosaic_gpt = device.module_to_device(mosaic_gpt)
+    mpt = MPTForCausalLM(hf_config)
+    mpt.eval()
+    mpt = device.module_to_device(mpt)
 
     with get_precision_context('amp_bf16' if device.name == 'gpu' else 'fp32'):
         # padding on the right side of the input
@@ -557,17 +557,17 @@ def test_forward_with_padding(attention_impl, device, alibi):
                                                [1, 1, 0, 0, 0, 1]]).bool()
         batched_attention_mask = device.tensor_to_device(batched_attention_mask)
 
-        right_padding_output = mosaic_gpt(
+        right_padding_output = mpt(
             right_padding_input_ids,
             attention_mask=right_padding_attention_mask).logits
-        middle_padding_output = mosaic_gpt(
+        middle_padding_output = mpt(
             middle_padding_input_ids,
             attention_mask=middle_padding_attention_mask).logits
-        left_padding_output = mosaic_gpt(
+        left_padding_output = mpt(
             left_padding_input_ids,
             attention_mask=left_padding_attention_mask).logits
-        batched_output = mosaic_gpt(
-            batched_input_ids, attention_mask=batched_attention_mask).logits
+        batched_output = mpt(batched_input_ids,
+                             attention_mask=batched_attention_mask).logits
 
         # check that right padding and left padding produce the same output
         assert torch.allclose(right_padding_output[0, :3],
@@ -597,7 +597,7 @@ def test_forward_with_padding(attention_impl, device, alibi):
 def test_advanced_mask_building(attention_impl):
     # Test that the correct attention mask is created when both
     # prefix_mask and sequence_id are used
-    hf_config = MosaicGPTConfig(
+    hf_config = MPTConfig(
         init_device='cpu',
         d_model=16,
         n_heads=1,
@@ -613,17 +613,17 @@ def test_advanced_mask_building(attention_impl):
             'alibi': False,
         },
     )
-    mosaic_gpt = MosaicGPT(hf_config)
-    mosaic_gpt.eval()
+    mpt = MPTForCausalLM(hf_config)
+    mpt.eval()
 
     prefix_mask = torch.ByteTensor([[1, 1, 0, 0, 1, 1, 1, 0]])
     sequence_id = torch.LongTensor([[0, 0, 0, 0, 1, 1, 1, 1]])
 
-    attn_bias, _ = mosaic_gpt._attn_bias(device=mosaic_gpt.device,
-                                         dtype=torch.float32,
-                                         attention_mask=None,
-                                         prefix_mask=prefix_mask,
-                                         sequence_id=sequence_id)
+    attn_bias, _ = mpt.transformer._attn_bias(device=mpt.device,
+                                              dtype=torch.float32,
+                                              attention_mask=None,
+                                              prefix_mask=prefix_mask,
+                                              sequence_id=sequence_id)
 
     assert isinstance(attn_bias, torch.Tensor)
     assert attn_bias.shape == torch.Size([1, 1, 8, 8])
@@ -666,7 +666,7 @@ def test_generate(attention_impl, device, alibi):
     reproducibility.seed_all(1234)
     device = get_device(device)
 
-    hf_config = MosaicGPTConfig(
+    hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=4,
@@ -680,9 +680,9 @@ def test_generate(attention_impl, device, alibi):
             'alibi': alibi,
         },
     )
-    mosaic_gpt = MosaicGPT(hf_config)
-    mosaic_gpt.eval()
-    mosaic_gpt = device.module_to_device(mosaic_gpt)
+    mpt = MPTForCausalLM(hf_config)
+    mpt.eval()
+    mpt = device.module_to_device(mpt)
 
     # padding on the left of the input
     left_padding_input_ids = torch.tensor(
@@ -713,22 +713,21 @@ def test_generate(attention_impl, device, alibi):
     with get_precision_context('amp_bf16' if device.name == 'gpu' else 'fp32'):
         # check that a batch with different amounts of padding doesn't crash
         # and produces the right output shape
-        batched_generation = mosaic_gpt.generate(
-            input_ids=batched_input_ids,
-            attention_mask=batched_attention_mask,
-            max_new_tokens=5,
-            use_cache=False)
+        batched_generation = mpt.generate(input_ids=batched_input_ids,
+                                          attention_mask=batched_attention_mask,
+                                          max_new_tokens=5,
+                                          use_cache=False)
         assert batched_generation.shape == (2, 6 + 5)
 
         reproducibility.seed_all(1234)
-        generation_with_left_padding = mosaic_gpt.generate(
+        generation_with_left_padding = mpt.generate(
             input_ids=left_padding_input_ids,
             attention_mask=left_padding_attention_mask,
             max_new_tokens=5,
             use_cache=False)
         assert generation_with_left_padding.shape == (2, 6 + 5)
         reproducibility.seed_all(1234)
-        generation_with_no_padding = mosaic_gpt.generate(
+        generation_with_no_padding = mpt.generate(
             input_ids=no_padding_input_ids,
             attention_mask=no_padding_attention_mask,
             max_new_tokens=5,
@@ -762,9 +761,9 @@ def check_hf_model_equivalence(model1, model2):
 
 
 def test_save_from_pretrained(tmp_path):
-    # Test that MosaicGPT can be used with the HuggingFace
+    # Test that MPT can be used with the HuggingFace
     # save_pretrained/from_pretrained api.
-    hf_config = MosaicGPTConfig(
+    hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=4,
@@ -777,18 +776,18 @@ def test_save_from_pretrained(tmp_path):
             'attn_impl': 'torch',
         },
     )
-    mosaic_gpt = MosaicGPT(hf_config)
+    mpt = MPTForCausalLM(hf_config)
 
-    mosaic_gpt.save_pretrained(tmp_path / 'test-save-pretrained')
-    mosaic_gpt2 = MosaicGPT.from_pretrained(tmp_path / 'test-save-pretrained')
+    mpt.save_pretrained(tmp_path / 'test-save-pretrained')
+    mpt2 = MPTForCausalLM.from_pretrained(tmp_path / 'test-save-pretrained')
 
-    check_hf_model_equivalence(mosaic_gpt, mosaic_gpt2)
+    check_hf_model_equivalence(mpt, mpt2)
 
 
 @pytest.mark.parametrize('alibi', [True, False])
 def test_forward_with_cache_and_padding(alibi):
     # Tests that the result is the same with or without padding when using kv caching
-    hf_config = MosaicGPTConfig(
+    hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=4,
@@ -808,14 +807,14 @@ def test_forward_with_cache_and_padding(alibi):
         },
     )
 
-    mosaic_gpt = MosaicGPT(hf_config)
-    mosaic_gpt.eval()
+    mpt = MPTForCausalLM(hf_config)
+    mpt.eval()
 
     first_input_ids_no_padding = torch.tensor([[11274, 16390, 11]])
     first_attention_mask_no_padding = torch.tensor([[1, 1, 1]]).bool()
 
     # start with passing the first three tokens through (no padding)
-    first_output_no_padding = mosaic_gpt(
+    first_output_no_padding = mpt(
         first_input_ids_no_padding,
         attention_mask=first_attention_mask_no_padding)
 
@@ -823,7 +822,7 @@ def test_forward_with_cache_and_padding(alibi):
     second_attention_mask_no_padding = torch.tensor([[1, 1, 1, 1]]).bool()
 
     # pass through the fourth token by itself, using the key-value cache (no padding)
-    second_output_no_padding = mosaic_gpt(
+    second_output_no_padding = mpt(
         second_input_ids_no_padding[:, -1].unsqueeze(-1),
         attention_mask=second_attention_mask_no_padding,
         past_key_values=first_output_no_padding.past_key_values)
@@ -832,14 +831,14 @@ def test_forward_with_cache_and_padding(alibi):
     first_attention_mask_padding = torch.tensor([[0, 1, 1, 1]]).bool()
 
     # start with passing the first three tokens through (with left padding)
-    first_output_padding = mosaic_gpt(
-        first_input_ids_padding, attention_mask=first_attention_mask_padding)
+    first_output_padding = mpt(first_input_ids_padding,
+                               attention_mask=first_attention_mask_padding)
 
     second_input_ids_padding = torch.tensor([[50256, 11274, 16390, 11, 11274]])
     second_attention_mask_padding = torch.tensor([[0, 1, 1, 1, 1]]).bool()
 
     # pass through the fourth token by itself, using the key-value cache (with left padding)
-    second_output_padding = mosaic_gpt(
+    second_output_padding = mpt(
         second_input_ids_padding[:, -1].unsqueeze(-1),
         attention_mask=second_attention_mask_padding,
         past_key_values=first_output_padding.past_key_values)
@@ -869,7 +868,7 @@ def test_forward_with_cache(attention_impl, device, alibi):
 
     device = get_device(device)
 
-    hf_config = MosaicGPTConfig(
+    hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=4,
@@ -891,9 +890,9 @@ def test_forward_with_cache(attention_impl, device, alibi):
         },
     )
     reproducibility.seed_all(1234)
-    mosaic_gpt = MosaicGPT(hf_config)
-    mosaic_gpt.eval()
-    mosaic_gpt = device.module_to_device(mosaic_gpt)
+    mpt = MPTForCausalLM(hf_config)
+    mpt.eval()
+    mpt = device.module_to_device(mpt)
 
     with get_precision_context('amp_bf16' if device.name == 'gpu' else 'fp32'):
         reproducibility.seed_all(1234)
@@ -903,8 +902,7 @@ def test_forward_with_cache(attention_impl, device, alibi):
         first_attention_mask = device.tensor_to_device(first_attention_mask)
 
         # start with passing the first three tokens through
-        first_output = mosaic_gpt(first_input_ids,
-                                  attention_mask=first_attention_mask)
+        first_output = mpt(first_input_ids, attention_mask=first_attention_mask)
 
         assert first_output.logits.shape == (1, 3, hf_config.vocab_size)
         assert len(first_output.past_key_values) == 2
@@ -923,9 +921,9 @@ def test_forward_with_cache(attention_impl, device, alibi):
         second_attention_mask = device.tensor_to_device(second_attention_mask)
 
         # pass through the fourth token by itself, using the key-value cache
-        second_output = mosaic_gpt(second_input_ids[:, -1].unsqueeze(-1),
-                                   attention_mask=second_attention_mask,
-                                   past_key_values=first_output.past_key_values)
+        second_output = mpt(second_input_ids[:, -1].unsqueeze(-1),
+                            attention_mask=second_attention_mask,
+                            past_key_values=first_output.past_key_values)
 
         assert second_output.logits.shape == (1, 1, hf_config.vocab_size)
         assert len(second_output.past_key_values) == 2
@@ -939,8 +937,8 @@ def test_forward_with_cache(attention_impl, device, alibi):
 
         reproducibility.seed_all(1234)
         # pass through the first four tokens without the key-value cache
-        full_output = mosaic_gpt(second_input_ids,
-                                 attention_mask=second_attention_mask)
+        full_output = mpt(second_input_ids,
+                          attention_mask=second_attention_mask)
 
         # check that the output is the same whether using the key-value cache or not
         torch.testing.assert_close(
@@ -953,7 +951,7 @@ def test_forward_with_cache(attention_impl, device, alibi):
 
 @pytest.mark.parametrize('alibi', [True, False])
 def test_generate_with_past_kv(alibi):
-    hf_config = MosaicGPTConfig(
+    hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=4,
@@ -972,23 +970,23 @@ def test_generate_with_past_kv(alibi):
             'init_std': 0.02,
         },
     )
-    mosaic_gpt = MosaicGPT(hf_config)
-    mosaic_gpt.eval()
+    mpt = MPTForCausalLM(hf_config)
+    mpt.eval()
 
     # no padding in the input
     no_padding_input_ids = torch.tensor([[11274, 16390, 11]])
     no_padding_attention_mask = torch.tensor([[1, 1, 1]])
 
-    with mock.patch.object(MosaicGPT, 'forward',
+    with mock.patch.object(MPTForCausalLM, 'forward',
                            autospec=True) as forward_mocked:
         forward_mocked.return_value = CausalLMOutputWithPast(
             logits=torch.randn((1, 3, hf_config.vocab_size)),
             past_key_values=[(torch.randn(1, 3, hf_config.d_model),
                               torch.randn(1, 3, hf_config.d_model))
                              for _ in range(hf_config.n_layers)])
-        _ = mosaic_gpt.generate(input_ids=no_padding_input_ids,
-                                attention_mask=no_padding_attention_mask,
-                                max_new_tokens=2)
+        _ = mpt.generate(input_ids=no_padding_input_ids,
+                         attention_mask=no_padding_attention_mask,
+                         max_new_tokens=2)
 
         assert forward_mocked.call_count == 2
         _, _, kwargs = forward_mocked.mock_calls[0]
@@ -1013,7 +1011,7 @@ def test_generate_with_past_kv(alibi):
 }])
 @pytest.mark.parametrize('alibi', [True, False])
 def test_generation_kwargs_dont_crash(generation_kwargs, alibi):
-    hf_config = MosaicGPTConfig(
+    hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=4,
@@ -1028,16 +1026,16 @@ def test_generation_kwargs_dont_crash(generation_kwargs, alibi):
         },
         use_cache=True,
     )
-    mosaic_gpt = MosaicGPT(hf_config)
-    mosaic_gpt.eval()
+    mpt = MPTForCausalLM(hf_config)
+    mpt.eval()
 
     # no padding in the input
     no_padding_input_ids = torch.tensor([[11274, 16390, 11]])
     no_padding_attention_mask = torch.tensor([[1, 1, 1]])
 
-    _ = mosaic_gpt.generate(input_ids=no_padding_input_ids,
-                            attention_mask=no_padding_attention_mask,
-                            **generation_kwargs)
+    _ = mpt.generate(input_ids=no_padding_input_ids,
+                     attention_mask=no_padding_attention_mask,
+                     **generation_kwargs)
 
 
 @pytest.mark.gpu
@@ -1052,7 +1050,7 @@ def test_model_to(attention_impl, alibi):
     if alibi and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
-    hf_config = MosaicGPTConfig(
+    hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=4,
@@ -1072,45 +1070,43 @@ def test_model_to(attention_impl, alibi):
         },
     )
     reproducibility.seed_all(1234)
-    mosaic_gpt = MosaicGPT(hf_config)
-    mosaic_gpt = mosaic_gpt.bfloat16()
-    mosaic_gpt = mosaic_gpt.to('cuda')
-    mosaic_gpt.eval()
+    mpt = MPTForCausalLM(hf_config)
+    mpt = mpt.bfloat16()
+    mpt = mpt.to('cuda')
+    mpt.eval()
 
     # gen input data
     input_ids = torch.tensor([[11274, 16390, 11]]).to('cuda')
     attention_mask = torch.tensor([[1, 1, 1]]).bool().to('cuda')
 
-    _ = mosaic_gpt(input_ids, attention_mask=attention_mask)
+    _ = mpt(input_ids, attention_mask=attention_mask)
 
     # move the model around using different methods
-    mosaic_gpt = mosaic_gpt.to('cpu')
+    mpt = mpt.to('cpu')
 
     # verify the model still works
     if attention_impl == 'torch':
-        _ = mosaic_gpt(input_ids.to('cpu'),
-                       attention_mask=attention_mask.to('cpu'))
+        _ = mpt(input_ids.to('cpu'), attention_mask=attention_mask.to('cpu'))
 
-    mosaic_gpt = mosaic_gpt.cuda()
-
-    # verify the model still works
-    if attention_impl == 'torch':
-        _ = mosaic_gpt(input_ids, attention_mask=attention_mask)
-
-    mosaic_gpt = mosaic_gpt.to('cpu')
-    mosaic_gpt = mosaic_gpt.float()
+    mpt = mpt.cuda()
 
     # verify the model still works
     if attention_impl == 'torch':
-        _ = mosaic_gpt(input_ids.to('cpu'),
-                       attention_mask=attention_mask.to('cpu'))
+        _ = mpt(input_ids, attention_mask=attention_mask)
 
-    mosaic_gpt = mosaic_gpt.half()
-    mosaic_gpt = mosaic_gpt.to(0)  # move to rank0
-    mosaic_gpt = mosaic_gpt.bfloat16()
+    mpt = mpt.to('cpu')
+    mpt = mpt.float()
 
     # verify the model still works
-    _ = mosaic_gpt(input_ids, attention_mask=attention_mask)
+    if attention_impl == 'torch':
+        _ = mpt(input_ids.to('cpu'), attention_mask=attention_mask.to('cpu'))
+
+    mpt = mpt.half()
+    mpt = mpt.to(0)  # move to rank0
+    mpt = mpt.bfloat16()
+
+    # verify the model still works
+    _ = mpt(input_ids, attention_mask=attention_mask)
 
 
 def test_alibi_vs_hf():

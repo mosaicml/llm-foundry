@@ -40,7 +40,7 @@ def str_to_bool(value):
 def parse_args():
     parser = argparse.ArgumentParser(
         description=
-        'Generate and run configurations to test MosaicGPT training throughput on Mosaic Cloud.'
+        'Generate and run configurations to test MPT training throughput on Mosaic Cloud.'
     )
 
     parser.add_argument('--project', type=str, default='tput')
@@ -364,7 +364,7 @@ def run_config(config, args):
         composer train/train.py /mnt/config/parameters.yaml
         """
 
-    path = os.path.join('../yamls/mosaic_gpt', model_yaml)
+    path = os.path.join('../yamls/mpt', model_yaml)
     parameters = get_parameters(path)
 
     model_name = '-'.join(model_yaml.split('.')[-2].split('/')[-2:]).replace(

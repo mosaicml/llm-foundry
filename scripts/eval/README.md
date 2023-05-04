@@ -1,5 +1,5 @@
 # LLM Evaluation
-This is the MosaicML LLM evaluation suite. It is the world's fastest, multi-GPU compatible in-context-learning (ICL) evaluaton suite with support for using [FSDP](https://engineering.fb.com/2021/07/15/open-source/fsdp/) with any model on the HuggingFace hub or for any PyTorch model that implements the MosaicGPT model interface.
+This is the MosaicML LLM evaluation suite. It is the world's fastest, multi-GPU compatible in-context-learning (ICL) evaluaton suite with support for using [FSDP](https://engineering.fb.com/2021/07/15/open-source/fsdp/) with any model on the HuggingFace hub or for any PyTorch model that implements the MPT model interface.
 
 To evaluate a model, perpare a YAML following the format of the examples in the `llmfoundry/eval/yamls` directory.
 

@@ -24,10 +24,10 @@ command: |
     --dataset c4 --data_subset en \
     --out_root ./my-copy-c4 \
     --splits val_small val train_small train \
-    --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
+    --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 
   # Upload the dataset to OCI
   oci os object bulk-upload \
     -bn YOUR_BUCKET_HERE --region BUCKET_REGION \
-    --object-prefix c4/base/pretok-gpt2-2k/ \
+    --object-prefix c4/base/pretok-neox-2k/ \
     --src-dir my-copy-c4/

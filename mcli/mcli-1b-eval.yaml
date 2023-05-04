@@ -24,7 +24,7 @@ parameters:
   max_seq_len: 2048
 
   tokenizer:
-    name: gpt2
+    name: EleutherAI/gpt-neox-20b
     kwargs:
       model_max_length: ${max_seq_len}
 

@@ -56,6 +56,11 @@ pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 
 Here is a simple end-to-end workflow for preparing a subset of the C4 dataset, training an MPT-1B model for 10 batches, converting the model to HuggingFace format, and generating responses to prompts.
 
+If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can also upload your model to the Hub! Just export your token like this:
+```bash
+export HUGGING_FACE_HUB_TOKEN=your-auth-token
+```
+
 (Remember this is just a quickstart to demonstrate the tools -- To get good responses, the model must be trained for longer than 10 batches :)
 
 <!--pytest.mark.skip-->
@@ -66,7 +71,7 @@ cd scripts
 python data_prep/convert_dataset.py \
   --dataset c4 --data_subset en \
   --out_root my-copy-c4 --splits train_small val_small \
-  --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
+  --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 
 # Train an MPT-1B model for 10 batches
 composer train/train.py \
@@ -81,12 +86,13 @@ composer train/train.py \
 # Convert the model to HuggingFace format
 python inference/convert_composer_to_hf.py \
   --composer_path mpt-1b/ep0-ba10-rank0.pt \
-  --hf_output_path mpt-1b/hf \
-  --output_precision bf16
+  --hf_output_path mpt-1b-hf \
+  --output_precision bf16 \
+  # --hf_repo_for_upload user-org/repo-name
 
 # Generate responses to prompts
 python inference/hf_generate.py \
-  --name_or_path mpt-1b/hf \
+  --name_or_path mpt-1b-hf \
   --max_new_tokens 256 \
   --prompts \
     "The answer to life, the universe, and happiness is" \

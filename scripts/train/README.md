@@ -129,7 +129,7 @@ composer train.py yamls/mpt/125m.yaml
 
 You should see logs being printed to your terminal like so.
 You can also easily enable other experiment trackers like Weights and Biases or CometML,
-by using [Composer's logging integrations](hhttps://docs.mosaicml.com/projects/composer/en/latest/trainer/logging.html).
+by using [Composer's logging integrations](https://docs.mosaicml.com/projects/composer/en/latest/trainer/logging.html).
 
 <!--pytest.mark.skip-->
 ```bash

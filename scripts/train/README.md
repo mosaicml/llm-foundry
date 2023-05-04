@@ -80,7 +80,7 @@ We run the `train.py` script using our `composer` launcher, which generates N pr
 If training on a single node, the `composer` launcher will autodetect the number of devices, so all you need to do is:
 <!--pytest.mark.skip-->
 ```bash
-composer train.py yamls/mpt/125m.yaml
+composer train.py yamls/mosaic_gpt/125m.yaml
 ```
 
 To train with high performance on multi-node clusters, the easiest way is with the MosaicML platform ;) Check out the `mcloud/` folder for examples!
@@ -97,10 +97,10 @@ either directly via CLI, or via environment variables that can be read. Then lau
 # IP Address for Node 0 = [0.0.0.0]
 
 # Node 0
-composer --world_size 16 --node_rank 0 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mpt/125m.yaml
+composer --world_size 16 --node_rank 0 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mosaic_gpt/125m.yaml
 
 # Node 1
-composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mpt/125m.yaml
+composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mosaic_gpt/125m.yaml
 
 ```
 
@@ -117,14 +117,14 @@ composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 
 # export NODE_RANK=0
 # export MASTER_ADDR=0.0.0.0
 # export MASTER_PORT=7501
-composer train.py yamls/mpt/125m.yaml
+composer train.py yamls/mosaic_gpt/125m.yaml
 
 # Node 1
 # export WORLD_SIZE=16
 # export NODE_RANK=1
 # export MASTER_ADDR=0.0.0.0
 # export MASTER_PORT=7501
-composer train.py yamls/mpt/125m.yaml
+composer train.py yamls/mosaic_gpt/125m.yaml
 ```
 
 You should see logs being printed to your terminal like so.
@@ -156,103 +156,158 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/t
 
 This repo also contains utilities for Seq2Seq finetuning for LLMs, for example, Supervised Finetuning (SFT) (aka Instruction(Fine)Tuning (IFT)), or finetuning a base LLM to focus on a specific task like summarization.
 
-You can use the same `train.py` script to do finetuning. If you are unfamiliar with that script, or the LLM Foundry in general, you should first go through the instructions above.
+You can use the same `train.py` script to do finetuning.
+If you are unfamiliar with that script, or the LLM Foundry in general, you should first go through the instructions above.
 
 In this section, we'll cover how to use the finetuning utilities.
 
+## Data formatting
+
+You activate finetuning via the `train_loader` and `eval_loader` fields in your configuration YAML.
+We include some reference examples inside `llm/yamls/mpt/finetuning/`.
+
+There are 3 different types of data sources you can use for finetuning:
+(1) [the HuggingFace Hub](#1-using-a-dataset-on-the-huggingface-hub),
+(2) [a local dataset](#2-using-a-local-dataset), and
+(3) [a local or remote streaming dataset](#3-using-an-mds-formatted-dataset-locally-or-in-an-object-store).
+We'll cover these more below, but first will describe an important consideration for all 3: data formatting!
+
+The finetuning dataloader requires training examples to be formatted as dictionaries with the following key-value structure:
+<!--pytest.mark.skip-->
+```python
+formatted_example = {'prompt': <prompt_text>, 'response': <response_text>}
+```
+- "prompt" refers to the text that you feed into the model, e.g. *Tell me a few facts about dogs.*
+- "response" refers to the text that the model is trained to produce in response to the prompt, e.g. *Dogs are great pets. They love to play fetch. They are better than cats...*
+
+**How to ensure that your data follows that format.**
+Our tooling attempts to simplify any reformatting by making it easy to insert **preprocessing functions** into the data pipeline. Here's a (simplified) example of a preprocessing function in `llmfoundry.data.finetuning.tasks`:
+<!--pytest.mark.skip-->
+```python
+@dataset_constructor.register('tatsu-lab/alpaca')
+def alpaca_preprocessing_function(inp: Dict):
+    """Split out prompt/response from text."""
+    prompt, response = inp['text'].split('### Response:')
+    prompt +=  '### Response:'
+    return {'prompt': prompt, 'response': response}
+```
+
+### Pre-defined preprocessing functions
+
+As shown above, the preprocessing functions in `llmfoundry.data.finetuning.tasks` use the `register()` decorator to connect them to the HuggingFace datasets they apply to.
+To get a list of all the HuggingFace datasets that already have preprocessing functions registered for them, you can run:
+
+<!--pytest.mark.skip-->
+```bash
+python -c "from llmfoundry.data.finetuning.tasks import dataset_constructor; dataset_constructor.print_registered_tasks()"
+```
+
+### Custom data preprocessing
+
+If the dataset you want to use is in that list, or if it already has the "prompt"/"response" format, you're in luck!
+You can skip the rest of this section.
+
+If not, you just need to write your own processing function.
+You can write the function wherever is convenient for you, as long as it importable.
+
+Let's say you want to finetune on a HuggingFace dataset named `mosaicml/doge-facts` (which, sadly, is made up for this example), and it contains examples that look like this:
+<!--pytest.mark.skip-->
+```python
+>>> import datasets
+>>> dogefacts = datasets.load_dataset('mosaicml/doge-facts', split='train')
+>>> dogefacts[0]
+{'question': 'What doge is the best doge?', 'answer': 'All of them!'}
+>>> dogefacts[1]
+{'question': 'When was the first doge?', 'answer': 'The original doge meme is based on a photograph taken in 2010.'}
+```
+
+The only preprocessing required here is to map "question"-->"prompt" and "answer"-->"response".
+<!--pytest.mark.skip-->
+```python
+def dogefacts_prep_fn(inp: Dict):
+    return {'prompt': inp['question'], 'response': inp['answer']}
+```
+For this example, let's say we add this function to a file that we can import from. For example, with
+`from my_data.formatting import dogefacts_prep_fn`
+
 ## Usage
 
-You activate finetuning via the `train_loader` and `eval_loader` fields in your configuration YAML. We include some reference examples inside `llm/yamls/mpt/finetuning/`.
+Now we'll cover the different ways you can use the finetuning utilities. This will mostly focus on how to configure your YAML, assuming you have already prepared any custom preprocessing functions as described above.
+### **1) Using a dataset on the HuggingFace Hub**
 
-There are 3 different types of data sources you can use for finetuning: (1) [the HuggingFace Hub](#1-using-a-dataset-on-the-huggingface-hub), (2) [a local dataset](#2-using-a-local-dataset), and (3) [a local or remote streaming dataset](#3-using-an-mds-formatted-dataset-locally-or-in-an-object-store). We'll cover these more below, but first will describe some important steps for all 3.
-
-In all cases, you'll activate the finetuning dataloading codepath by setting `{train,eval}_loader.name` to `finetuning`, and providing the `dataset.name` like so:
+Let's say you want to finetune using a dataset available on the HuggingFace Hub.
+If the dataset has a [pre-defined preprocessing function](#pre-defined-preprocessing-functions), e.g., `tatsu-lab/alpaca`, or if the dataset already has the "prompt"/"response" format, simply point the dataloader to that dataset.
 ```yaml
 train_loader:
     name: finetuning
     dataset:
-        name: my-finetuning-task
-        ...
-```
-
-**IMPORTANT:** The subfield `dataset.name` has a special meaning. It tells the finetuning dataloader what function to use when tokenizing each example into the input and output sequences.
-- "input" refers to the text that you feed into the model, e.g. *Tell me a few facts about dogs.*
-- "output" refers to the text that the model is trained to produce in response to the input, e.g. *Dogs are great pets. They love to play fetch. They are better than cats...*
-
-`dataset.name` must refer to a function in `tasks.py` that you have registered under that name. For example:
-```python
-from typing import Dict
-from transformers import PreTrainedTokenizer
-from llmfoundry.data.finetuning.tasks import dataset_constructor
-
-@dataset_constructor.register('my-finetuning-task')
-def my_tokenization_function(example: Dict, tokenizer: PreTrainedTokenizer):
-    """Map the input/output fields to the correct tokenizer kwargs."""
-    # `text` is the text the model receives (i.e. the prompt)
-    # `text_target` is the target output the model should produce
-    return tokenizer(
-        text=example["input_text"],
-        text_target=example["output_text"],
-    )
-```
-
-These tokenization functions simply serve to handle dataset-specific formatting, where different field names are used to represent the input/output, the input/output need to be split out of a single text sequence, and so on. **You should look through `tasks.py` to see other examples and to build a clearer intuition.**
-
-Now that we've covered that concept, we'll describe the 3 different usage patterns...
-
-### 1) Using a dataset on the HuggingFace Hub
-
-Let's say you want to finetune using a dataset available on the HuggingFace Hub. We'll pretend this dataset on the Hub is called `hf-hub/identifier`.
-
-1. In `tasks.py`, write a tokenization function for processing the dataset, to split it into prompt and response
-1. Register this function using `@dataset_constructor.register('hf-hub/identifier')` -- the registered name ("hf-hub/identifier") needs to match the name of the model on the Hub
-1. Reference this in a training yaml, such as the one in `yamls/mpt/finetune/7b_dolly_sft.yaml`
-```yaml
-train_loader:
-    name: finetuning
-    dataset:
-        name: hf-hub/identifier
+        hf_name: tatsu-lab/alpaca
         split: train
         ...
 ```
 
-### 2) Using a local dataset
+If the dataset requires a [custom preprocessing function](#custom-data-preprocessing), such as in the example described above, use `preprocessing_fn` to tell the dataloader where it should import the function from.
+```yaml
+train_loader:
+    name: finetuning
+    dataset:
+        hf_name: mosaiml/doge-facts
+        preprocessing_fn: my_data.formatting:dogefacts_prep_fn
+        split: train
+        ...
+```
+
+### **2) Using a local dataset**
 
 Let's say you have your finetuning dataset stored in local `jsonl` files.
-
-1. In `tasks.py`, write a function for processing the dataset, to split it into prompt and response
-1. Register this function using `@dataset_constructor.register('some_name')` -- you can register this under any name you want, just set `dataset.name` in your yaml to have the same name
-1. Reference this in a training yaml, such as the one in `yamls/mpt/finetune/1b_local_data_sft.yaml`
+Reference this in your YAML, such as the one in `yamls/mpt/finetune/1b_local_data_sft.yaml`
 ```yaml
 train_loader:
     name: finetuning
     dataset:
-        name: some_name
-        kwargs:
+        hf_name: my-local-dataset
+        hf_kwargs:
             data_files:
                 train: /path/to/train.jsonl
+        preprocessing_fn: my.import.path:my_preprocessing_fn
         split: train
         ...
 ```
+As before, if your local dataset already has the "prompt"/"response" format, you don't need to include `preprocessing_fn` since no preprocessing is needed.
 
-### 3) Using an MDS-formatted (streaming) dataset -- locally or in an object store
+### **3) Using an MDS-formatted (streaming) dataset -- locally or in an object store**
 
-Let's say you made an [MDS-formatted dataset](https://github.com/mosaicml/streaming) (which you totally should -- they're amazing). For example, maybe you used the `convert_finetuning_dataset.py` script to convert a large HuggingFace dataset into a streaming format and saved it to S3.
+To enable streaming, you must first use the `convert_finetuning_dataset.py` script to convert a HuggingFace dataset into an [MDS-formatted dataset](https://github.com/mosaicml/streaming) (which you totally should -- they're amazing).
 
-1. In `tasks.py`, write a function for processing the dataset, to split it into prompt and response
-1. Register this function using `@dataset_constructor.register('some_name')` -- you can register this under any name you want, just set `dataset.name` in your yaml to have the same name
-1. Set the `dataset.remote` and `dataset.local` values in your YAML
+<!--pytest.mark.skip-->
+```bash
+python ../data_prep/convert_finetuning_dataset.py \
+    --dataset tatsu-lab/alpaca \
+    --splits train \
+    --out_root s3://my-bucket/my-copy-alpaca
+```
+
+> **Note**
+> Streaming datasets *must* follow the required "prompt"/"response" format, but you can preprocess during conversion by setting the `--preprocessor` argument.
+> <!--pytest.mark.skip-->
+> ```bash
+> python ../data_prep/convert_finetuning_dataset.py \
+>     --dataset mosaicml/doge-facts \
+>     --preprocessor my_data.formatting:dogefacts_prep_fn \
+>     --splits train \
+>     --out_root s3://my-bucket/my-copy-doge-facts
+>```
+
+Once you have converted your HuggingFace dataset to a streaming dataset, just update your YAML like so:
 ```yaml
 train_loader:
     name: finetuning
     dataset:
-        name: some_name
-        remote: s3://path/to/mds/dataset/
+        remote: s3://my-bucket/my-copy-doge-facts
         local: /tmp/mds-cache/
         split: train
         ...
 ```
-Note: `convert_finetuning_dataset.py` is a handy script for converting a HuggingFace dataset to MDS format. If you already wrote/registered a tokenization function for that dataset, you can skip steps 1 & 2 and continue using the name of the HuggingFace dataset for `dataset.name`. Setting `dataset.remote` and `dataset.local` will activate the streaming codepath.
 
 
 # How many GPUs do I need to train a LLM?

@@ -1,37 +1,38 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Code for task-specific seq-to-seq data formatting.
+"""Includes code for task-specific seq-to-seq data formatting.
 
-As explained in `README.md`, you can add to this file to define/register
-tokenization functions for new seq-to-seq finetuning tasks. These tokenization
-functions take individual examples that contain raw text and tokenize them in a
-way that yields a consistent format.
+This file provides some templates/examples of preprocessing functions
+that format examples for use in seq-to-seq finetuning tasks.
+These preprocessing functions take individual examples that contain raw
+text and process them into formatted examples.
 
-When adding a new function, make sure to decorate it with:
-    `@dataset_constructor.register()`,
-where you can pass one or more names of datasets that should
-use the decorated tokenization function.
+These functions have this basic structure:
 
-Tokenization functions should take 2 arguments:
-1. An input example
-2. The tokenizer
+    def preprocessing_fn(example: Dict) -> Dict[str, str]:
+        # code to extract prompt/response from `example`
+        ...
+        return {
+            'prompt': <prompt>,
+            'response': <response>,
+        }
 
-Tokenization functions should end with:
-    `return tokenizer(text=<prompt>, text_target=<response>)`,
 where `<prompt>` is a placeholder for the prompt text string that you
 extracted from the input example, and '<response>' is a placeholder for
 the response text string.
-You do not need to handle padding, truncation, etc. That will be handled
-automatically elsewhere.
 
 Just to be clear, "prompt" represents the text you would give the model
 at inference time, and "response" represents the text you are training
 it to produce given the prompt.
+
+The key requirement of these functions is that they return a dictionary
+with "prompt" and "response" keys, and that the values associated with
+those keys are strings (i.e. text).
 """
 
+import importlib
 import os
-from functools import partial
 from typing import Any, Callable, Dict, Optional, Union
 
 import datasets
@@ -44,6 +45,16 @@ __all__ = ['dataset_constructor']
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
+def _tokenize_formatted_example(example: Dict[str, Any], tokenizer: Tokenizer):
+    if ('prompt' not in example) or ('response' not in example):
+        raise KeyError(
+            'Unable to tokenize example because it has not been properly formatted. ' +\
+            '"prompt" and "response" are required keys but at least one was missing ' +\
+            f'from {example=}.'
+        )
+    return tokenizer(text=example['prompt'], text_target=example['response'])
+
+
 class StreamingFinetuningDataset(StreamingDataset):
     """Finetuning dataset with flexible tokenization using StreamingDataset.
 
@@ -51,10 +62,6 @@ class StreamingFinetuningDataset(StreamingDataset):
         local (str): Local dataset directory where shards are cached by split.
         tokenizer (Tokenizer): The name of the HuggingFace tokenizer to use to
             tokenize samples.
-        tokenize_function (callable): A function that takes a text sample (dict) and a tokenizer,
-            and returns the tokenized sample (dict). The tokenized sample must have `input_ids`
-            and `labels`, with `input_ids` providing the input sequence and `labels` providing the
-            (target) output sequence, in a sequence-to-sequence task.
         remote (str, optional): Download shards from this remote path or directory. If None, this
             rank and worker's partition of the dataset must all exist locally. Defaults to ``None``.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
@@ -79,7 +86,6 @@ class StreamingFinetuningDataset(StreamingDataset):
     def __init__(self,
                  local: str,
                  tokenizer: Tokenizer,
-                 tokenize_function: Callable[[Dict, Tokenizer], Dict],
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
                  shuffle: bool = False,
@@ -121,28 +127,27 @@ class StreamingFinetuningDataset(StreamingDataset):
                          batch_size=batch_size)
 
         self.tokenizer = tokenizer
-        self.tokenize_function = tokenize_function
 
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         sample = super().__getitem__(idx)
-        return self.tokenize_function(sample, self.tokenizer)
+        return _tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 
 
 class DatasetConstructor:
 
     def __init__(self):
-        self._task_tokenization_registry: Dict[str, Callable] = {}
+        self._task_preprocessing_registry: Dict[str, Callable] = {}
 
     def register(self, *names: str):
-        """Decorator for registering tokenization functions."""
+        """Decorator for registering preprocessing functions."""
 
         def _register_func(name: str, func: Callable) -> None:
-            if name in self._task_tokenization_registry:
+            if name in self._task_preprocessing_registry:
                 raise ValueError(
                     f'A tokenization function has already been registered with {name=}.'
                 )
-            self._task_tokenization_registry[name] = func
+            self._task_preprocessing_registry[name] = func
             return
 
         def wrapper(func: Callable) -> Callable:
@@ -152,65 +157,124 @@ class DatasetConstructor:
 
         return wrapper
 
-    def build(self, cfg: DictConfig, tokenizer: Tokenizer):
-        dataset_name = cfg.name
-        split = cfg.split
-        kwargs = cfg.get('kwargs', {})
+    def print_registered_tasks(self):
+        tasks = sorted(self._task_preprocessing_registry.keys())
+        print('\n'.join(tasks))
 
-        if dataset_name not in self._task_tokenization_registry:
+    def get_preprocessing_fn_from_str(self,
+                                      preprocessor: Optional[str],
+                                      dataset_name: Optional[str] = None,
+                                      verbose: bool = False):
+        """Get a preprocessing function from a string.
+
+        String can be either a registered function or an import path.
+
+        Args:
+            preprocessor (Optional[str]): The name of the preprocessing function, or an import path.
+            dataset_name (Optional[str]): The dataset name to look up in the registry.
+            verbose (bool): Whether to print verbose messages or not.
+
+        Returns:
+            Callable: The preprocessing function or None if not found.
+
+        Raises:
+            ValueError: If the preprocessing function import from the provided string fails.
+        """
+        if preprocessor is None:
+            if dataset_name is None:
+                return None
+            if dataset_name in self._task_preprocessing_registry:
+                if verbose:
+                    print(
+                        f'Re-formatting dataset with "{dataset_name}" preprocessing function.'
+                    )
+                return self._task_preprocessing_registry[dataset_name]
+            else:
+                if verbose:
+                    print(
+                        'No preprocessor was supplied and no preprocessing function ' +\
+                        f'is registered for dataset name "{dataset_name}". No additional ' +\
+                        'preprocessing will be applied. If the dataset is already formatted ' +\
+                        'correctly, you can ignore this message.'
+                    )
+                return None
+        if preprocessor in self._task_preprocessing_registry:
+            if verbose:
+                print(
+                    f'Re-formatting dataset with "{preprocessor}" preprocessing function.'
+                )
+            return self._task_preprocessing_registry[preprocessor]
+
+        try:
+            import_path, function_name = preprocessor.split(':', maxsplit=1)
+            if verbose:
+                print(
+                    f'Importing preprocessing function via: `from {import_path} import {function_name}`'
+                )
+            module = importlib.import_module(import_path)
+            preprocessing_fn = getattr(module, function_name)
+        except Exception as e:
             raise ValueError(
-                f'{dataset_name} is not a registered dataset. ' +
-                f'Available datasets: {self._task_tokenization_registry.keys()}'
-            )
+                f'Failed to import preprocessing function from string = {preprocessor}.'
+            ) from e
+
+        return preprocessing_fn
+
+    def build_from_hf(self, cfg: DictConfig, tokenizer: Tokenizer):
+        """Load a HuggingFace Datasets, preprocess, and tokenize.
+
+        Args:
+            cfg (DictConfig): The dataset configuration.
+            tokenizer (Tokenizer): The tokenizer to be used for tokenizing the dataset.
+
+        Returns:
+            Dataset: The tokenized dataset.
+        """
+        dataset_name = cfg.hf_name
+        split = cfg.split
+        kwargs = cfg.get('hf_kwargs', {})
+        preprocessing_fn = self.get_preprocessing_fn_from_str(
+            cfg.get('preprocessing_fn'), dataset_name, verbose=True)
 
         dataset = datasets.load_dataset(dataset_name, split=split, **kwargs)
 
-        tokenize_function = partial(
-            self._task_tokenization_registry[dataset_name], tokenizer=tokenizer)
+        def dataset_mapper(example: Dict):
+            if preprocessing_fn is not None:
+                example = preprocessing_fn(example)
+            return _tokenize_formatted_example(example, tokenizer)
 
         columns_to_remove = list(dataset[0].keys())
-        dataset = dataset.map(
-            tokenize_function,
+        tokenized_dataset = dataset.map(
+            dataset_mapper,
             batched=False,
             remove_columns=columns_to_remove,
         )
-        return dataset
 
-    def build_from_streaming(self, dataset_name: str, tokenizer: Tokenizer,
-                             **kwargs: Any):
+        return tokenized_dataset
 
-        tokenize_function = self._task_tokenization_registry[dataset_name]
-
-        dataset = StreamingFinetuningDataset(
-            tokenizer=tokenizer,
-            tokenize_function=tokenize_function,
-            **kwargs,
-        )
-
-        return dataset
+    def build_from_streaming(self, *args: Any, **kwargs: Any):
+        return StreamingFinetuningDataset(*args, **kwargs)
 
 
 dataset_constructor = DatasetConstructor()
 
 
 @dataset_constructor.register('tatsu-lab/alpaca')
-def alpaca_tokenize_function(inp: Dict, tokenizer: Tokenizer):
-    """Split out prompt/response from text and tokenize."""
+def alpaca_preprocessing_function(inp: Dict):
+    """Split out prompt/response from text."""
     try:
         prompt, response = inp['text'].split('### Response:')
+        prompt += '### Response:'
     except Exception as e:
         raise ValueError(
             f"Unable to extract prompt/response from 'text'={inp['text']}"
         ) from e
-    return tokenizer(
-        text=prompt + '### Response:',
-        text_target=response,
-    )
+    return {'prompt': prompt, 'response': response}
 
 
 @dataset_constructor.register('HuggingFaceH4/databricks_dolly_15k')
-def dolly_tokenize_function(inp: Dict, tokenizer: Tokenizer):
-    """Format the text string and tokenize."""
+def dolly_preprocessing_function(inp: Dict):
+    """Format the text string."""
     PROMPT_FORMAT = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n{instruction}\n\n### Response:\n'
     try:
         if inp['input'] != '':
@@ -222,35 +286,22 @@ def dolly_tokenize_function(inp: Dict, tokenizer: Tokenizer):
     except Exception as e:
         raise ValueError(
             f'Unable to extract prompt/response from {inp=}') from e
-    return tokenizer(
-        text=prompt,
-        text_target=response,
-    )
-
-
-@dataset_constructor.register('sam-mosaic/full-hh-rlhf-chatml',
-                              'sam-mosaic/vicuna_alpaca_hc3_chatml')
-def simple_tokenize_function(inp: Dict, tokenizer: Tokenizer):
-    """Already split, just tokenize."""
-    return tokenizer(
-        text=inp['prompt'],
-        text_target=inp['response'],
-    )
+    return {'prompt': prompt, 'response': response}
 
 
 @dataset_constructor.register('bigscience/P3')
-def p3_tokenize_function(inp: Dict, tokenizer: Tokenizer):
-    """Format the already-split example and tokenize."""
-    return tokenizer(
-        text=inp['inputs'] + ':',
-        text_target=inp['targets'],
-    )
+def p3_preprocessing_function(inp: Dict):
+    """Format the already-split example."""
+    return {
+        'prompt': inp['inputs'] + ':',
+        'response': inp['targets'],
+    }
 
 
 # Muennighoff's P3 and flan datasets share a similar convention
 @dataset_constructor.register('Muennighoff/P3', 'Muennighoff/flan')
-def muennighoff_tokenize_function(inp: Dict, tokenizer: Tokenizer):
-    """Format the already-split example and tokenize."""
+def muennighoff_tokenize_function(inp: Dict):
+    """Format the already-split example."""
     try:
         prompt: str = inp['inputs']
         response: str = inp['targets']
@@ -262,7 +313,4 @@ def muennighoff_tokenize_function(inp: Dict, tokenizer: Tokenizer):
     except Exception as e:
         raise ValueError(
             f'Unable to process prompt/response from {inp=}') from e
-    return tokenizer(
-        text=prompt,
-        text_target=response,
-    )
+    return {'prompt': prompt, 'response': response}

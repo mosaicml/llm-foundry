@@ -139,7 +139,7 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
         'dataset': {
             'local': path,
             'remote': path,
-            'split': 'val_small',
+            'split': 'val_xsmall',
             'shuffle': False,
             'max_seq_len': max_seq_len,
             'packing_ratio': packing_ratio,

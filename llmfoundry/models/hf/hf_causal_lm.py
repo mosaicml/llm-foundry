@@ -49,7 +49,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         config = AutoConfig.from_pretrained(
             om_model_config.pretrained_model_name_or_path,
             trust_remote_code=om_model_config.get('trust_remote_code', True),
-            use_auth_token=om_model_config.get('use_auth_token', True),
+            use_auth_token=om_model_config.get('use_auth_token', False),
             **om_model_config.get('config_overrides', {}))
 
         train_metrics = [
@@ -73,7 +73,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     om_model_config.pretrained_model_name_or_path,
                     trust_remote_code=om_model_config.get(
                         'trust_remote_code', True),
-                    use_auth_token=om_model_config.get('use_auth_token', True),
+                    use_auth_token=om_model_config.get('use_auth_token', False),
                     config=config)
             else:
                 model = AutoModelForCausalLM.from_config(config)

@@ -1,10 +1,15 @@
-from pathlib import Path
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
+import os
 import shutil
+from pathlib import Path
+
+import pytest
 from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer
+
 from llmfoundry.utils.builders import build_icl_evaluators
-import os
-import pytest
 
 TMP_FOLDER = 'tmp_data'
 
@@ -28,7 +33,6 @@ def cleanup():
 
 
 def test_icl_task_loading_gpt2_tokenizer():
-
     tokenizer = AutoTokenizer.from_pretrained('gpt2')
     task_cfg = load_icl_config()
     evaluators, _ = build_icl_evaluators(
@@ -36,7 +40,7 @@ def test_icl_task_loading_gpt2_tokenizer():
         tokenizer,
         1024,
         8,
-        destination_dir=f"{os.getcwd()}/{TMP_FOLDER}")
+        destination_dir=f'{os.getcwd()}/{TMP_FOLDER}')
 
     for e in evaluators:
         batch = next(e.dataloader.dataloader.__iter__())
@@ -53,11 +57,11 @@ def test_icl_task_loading_gpt2_tokenizer():
             answer = batch['labels'][0][0]
 
         if e.label == 'jeopardy/0-shot/american_history':
-            assert full_example == "AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Treason"
-            assert answer == " Treason"
+            assert full_example == 'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Treason'
+            assert answer == ' Treason'
         elif e.label == 'jeopardy/1-shot/american_history':
-            assert full_example == "AMERICAN HISTORY: Witchcraft trials held in this town in 1692 led to the hangings of 19 people\nAnswer: Salem\nAMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Treason"
-            assert answer == " Treason"
+            assert full_example == 'AMERICAN HISTORY: Witchcraft trials held in this town in 1692 led to the hangings of 19 people\nAnswer: Salem\nAMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Treason'
+            assert answer == ' Treason'
         elif e.label == 'triviaqa/0-shot':
             assert full_example == 'Question: Who was the man behind The Chipmunks?\nAnswer:'
             assert answer == 'David Seville'

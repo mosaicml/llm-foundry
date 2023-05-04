@@ -8,7 +8,7 @@ from typing import List
 import torch
 from composer.loggers import InMemoryLogger, LoggerDestination
 from composer.trainer import Trainer
-from composer.utils import reproducibility, dist, get_device
+from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 

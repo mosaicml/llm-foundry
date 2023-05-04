@@ -160,7 +160,7 @@ def build_icl_evaluators(icl_tasks,
     evaluators = []
     logger_keys = []
     if isinstance(icl_tasks, str):
-        print(f"Extracting ICL task config from path: {icl_tasks}")
+        print(f'Extracting ICL task config from path: {icl_tasks}')
         with open(icl_tasks, 'r') as icl_f:
             icl_task_cfg = om.load(icl_f)
         icl_tasks = icl_task_cfg.icl_tasks
@@ -228,7 +228,7 @@ def build_icl_evaluators(icl_tasks,
                         f'metrics/{label}/{category}/{m}' for m in metric_names
                     ])
                     evaluators.append(
-                        Evaluator(label=f"{label}/{category}",
+                        Evaluator(label=f'{label}/{category}',
                                   dataloader=dataloaders[category],
                                   metric_names=metric_names),)
             else:

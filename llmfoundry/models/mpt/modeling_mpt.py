@@ -13,13 +13,11 @@ from typing import List, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.metrics import (
-    InContextLearningLMAccuracy,
-    InContextLearningMultipleChoiceAccuracy,
-    InContextLearningQAAccuracy,
-    InContextLearningLMExpectedCalibrationError,
-    InContextLearningMCExpectedCalibrationError,
-)
+from composer.metrics import (InContextLearningLMAccuracy,
+                              InContextLearningLMExpectedCalibrationError,
+                              InContextLearningMCExpectedCalibrationError,
+                              InContextLearningMultipleChoiceAccuracy,
+                              InContextLearningQAAccuracy)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from omegaconf import DictConfig
@@ -183,8 +181,8 @@ class MPTModel(MPTPreTrainedModel):
                                         dtype=dtype)
             else:
                 attn_bias = attn_bias[:, :, :, -s_k:]
-            if prefix_mask is not None and (attention_mask.shape
-                                            != prefix_mask.shape):
+            if prefix_mask is not None and (attention_mask.shape !=
+                                            prefix_mask.shape):
                 raise ValueError(
                     f'attention_mask shape={attention_mask.shape} ' +\
                     f'and prefix_mask shape={prefix_mask.shape} are not equal.'

@@ -6,10 +6,10 @@
 from typing import Union
 
 from composer.metrics.nlp import (InContextLearningLMAccuracy,
-                                  InContextLearningMultipleChoiceAccuracy,
-                                  InContextLearningQAAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
                                   InContextLearningMCExpectedCalibrationError,
+                                  InContextLearningMultipleChoiceAccuracy,
+                                  InContextLearningQAAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
 from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedTokenizer,

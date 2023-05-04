@@ -1,5 +1,5 @@
 max_seq_len: 2048
-tokenizer_name: gpt2
+tokenizer_name: EleutherAI/gpt-neo-125M
 seed: 1
 
 # Tokenizer

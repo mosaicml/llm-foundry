@@ -1,5 +1,5 @@
 # In-context learning (ICL) evaluaton
-This is the MosaicML LLM evaluation suite. It is the world's fastest, multi-GPU compatible ICL evaluaton suite with built in support for using [FSDP](https://engineering.fb.com/2021/07/15/open-source/fsdp/) with any model on the HuggingFace hub or for any PyTorch model that implements the MosaicGPT model interface.
+This is the MosaicML LLM evaluation suite. It is the world's fastest, multi-GPU compatible ICL evaluaton suite with built in support for using [FSDP](https://pytorch.org/docs/stable/fsdp.html) with any model on the HuggingFace hub or for any PyTorch model that implements the `ComposerModel` interface.
 
 Run a model by preparing an evaluaton YAML following the format of the examples in the `scripts/eval/yamls` directory.
 
@@ -72,7 +72,7 @@ Below is a complete YAML section that works with the TriviaQA dataset in `script
     metric_names:
     - InContextLearningQAAccuracy
     prompt_string: '' # this goes at the beginning of each input
-    example_delimiter: '\n' # this goes between fewshot examples
+    example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates questions from answers
 >
 
@@ -113,7 +113,7 @@ Below is a YAML section that works with the Lambada OpenAI datset in `scripts/ev
     metric_names:
     - InContextLearningLMAccuracy
     prompt_string: '' # this goes at the beginning of each input
-    example_delimiter: '\n' # this goes between fewshot examples
+    example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates contexts from continuations
 >
 
@@ -161,7 +161,7 @@ Below is a YAML section that works with the HellaSwag dataset in `scripts/eval/l
     - InContextLearningMultipleChoiceAccuracy
     - InContextLearningMCExpectedCalibrationError
     prompt_string: '' # this goes at the beginning of each input
-    example_delimiter: '\n' # this goes between fewshot examples
+    example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates questions from answers
 >
 
@@ -208,7 +208,7 @@ Below is a YAML section that works with the Winograd dataset in `scripts/eval/lo
     - InContextLearningMultipleChoiceAccuracy
     - InContextLearningMCExpectedCalibrationError
     prompt_string: '' # this goes at the beginning of each input
-    example_delimiter: '\n' # this goes between fewshot examples
+    example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates questions from answers
 >
 
@@ -216,7 +216,7 @@ Below is a YAML section that works with the Winograd dataset in `scripts/eval/lo
 Building a dataset compatible with our eval suite is very easy if it fits with one of the four supported task types. Simply choose the appropriate task type (LM, MC, QA, or Schema) and process each dataset into a jsonl format where each row has the format described above.
 
 Below is a minimal script which prepares the [Winograd schema challenge](https://cdn.aaai.org/ocs/4492/4492-21843-1-PB.pdf) hosted on [HuggingFace](https://huggingface.co/datasets/winograd_wsc). This script can be modified to generate other datasets based on the HuggingFace dataset hub.
-```jsx
+```python
 from datasets import load_dataset
 
 upper_pronouns = [
@@ -278,11 +278,11 @@ def prep_dataset(out_file):
                     else dataset['validation']
             for row in split:
                 row = prep_winograd_wsc(row)
-                f.write(json.dumps(row, ensure_ascii=False) + '\n')
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
 ```
 
 Similarly, you can compile a dataset directly from the `EleutherAI/lm-evaluation-harness` by modifying the script below:
-```jsx
+```python
 def prep_triviaqa(row):
 
     return {
@@ -303,7 +303,7 @@ def prep_dataset(out_file):
     with open(out_file, "w", encoding='utf8') as f:
             for row in task_doc_func():
                 row = prep_triviaqa(row)
-                f.write(json.dumps(row, ensure_ascii=False) + '\n')
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
 ```
 
 #### A note on delimiters and tokenizers

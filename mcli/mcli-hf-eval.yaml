@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: icl_eval_categories # use your branch
+  git_branch: main # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
@@ -17,7 +17,7 @@ image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 run_name: llama-eval
 gpu_num: 32
 gpu_type: a100_40gb
-cluster: r7z2 # replace with your cluster here!
+cluster: # replace with your cluster here!
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:

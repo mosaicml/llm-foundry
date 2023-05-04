@@ -152,10 +152,18 @@ def build_tokenizer(om_tokenizer_config: DictConfig,) -> Tokenizer:
     return tokenizer
 
 
-def build_icl_evaluators(icl_tasks, tokenizer, default_max_seq_len,
-                         default_batch_size):
+def build_icl_evaluators(icl_tasks,
+                         tokenizer,
+                         default_max_seq_len,
+                         default_batch_size,
+                         destination_dir=os.getcwd()):
     evaluators = []
     logger_keys = []
+    if isinstance(icl_tasks, str):
+        print(f'Extracting ICL task config from path: {icl_tasks}')
+        with open(icl_tasks, 'r') as icl_f:
+            icl_task_cfg = om.load(icl_f)
+        icl_tasks = icl_task_cfg.icl_tasks
 
     def _validate_cfg(icl_cfg):
         assert 'label' in icl_cfg
@@ -170,6 +178,12 @@ def build_icl_evaluators(icl_tasks, tokenizer, default_max_seq_len,
                 icl_cfg.metric_names = [
                     'InContextLearningMultipleChoiceAccuracy'
                 ]
+            elif icl_cfg.icl_task_type == 'schema':
+                icl_cfg.metric_names = [
+                    'InContextLearningMultipleChoiceAccuracy'
+                ]
+            elif icl_cfg.icl_task_type == 'question_answering':
+                icl_cfg.metric_names = ['InContextLearningQAAccuracy']
             else:
                 raise ValueError(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg.icl_task_type}.'
@@ -196,7 +210,11 @@ def build_icl_evaluators(icl_tasks, tokenizer, default_max_seq_len,
                 pad_tok_id = tokenizer.pad_token_id
             label = f'{icl_cfg.label}/{num_fewshot}-shot'
             metric_names = list(icl_cfg.metric_names)
-            dataloader = get_icl_task_dataloader(
+            # TODO: fix Composer bug when copying local paths and destination exists
+            destination_path = f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl'
+            if os.path.exists(destination_path):
+                os.remove(destination_path)
+            dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,
                 tokenizer,
@@ -207,12 +225,27 @@ def build_icl_evaluators(icl_tasks, tokenizer, default_max_seq_len,
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
-                destination_path=f'{icl_cfg.label}-{num_fewshot}.jsonl',
+                destination_path=destination_path,
+                has_categories=icl_cfg.get('has_categories', False),
             )
-            logger_keys.extend([f'metrics/{label}/{m}' for m in metric_names])
-            evaluators.append(
-                Evaluator(label=label,
-                          dataloader=dataloader,
-                          metric_names=metric_names))
+            if hasattr(
+                    icl_cfg,
+                    'has_categories') and icl_cfg.has_categories and isinstance(
+                        dataloaders, dict):
+                for category in dataloaders.keys():
+                    logger_keys.extend([
+                        f'metrics/{label}/{category}/{m}' for m in metric_names
+                    ])
+                    evaluators.append(
+                        Evaluator(label=f'{label}/{category}',
+                                  dataloader=dataloaders[category],
+                                  metric_names=metric_names),)
+            else:
+                logger_keys.extend(
+                    [f'metrics/{label}/{m}' for m in metric_names])
+                evaluators.append(
+                    Evaluator(label=label,
+                              dataloader=dataloaders,
+                              metric_names=metric_names),)
 
     return evaluators, logger_keys

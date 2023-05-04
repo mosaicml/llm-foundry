@@ -165,8 +165,9 @@ class DatasetConstructor:
                                       preprocessor: Optional[str],
                                       dataset_name: Optional[str] = None,
                                       verbose: bool = False):
-        """
-        Get a preprocessing function from a string, either a registered function or an import path.
+        """Get a preprocessing function from a string.
+
+        String can be either a registered function or an import path.
 
         Args:
             preprocessor (Optional[str]): The name of the preprocessing function, or an import path.
@@ -220,8 +221,7 @@ class DatasetConstructor:
         return preprocessing_fn
 
     def build_from_hf(self, cfg: DictConfig, tokenizer: Tokenizer):
-        """
-        Load a dataset from HuggingFace Datasets, apply preprocessing, and tokenize it.
+        """Load a HuggingFace Datasets, preprocess, and tokenize.
 
         Args:
             cfg (DictConfig): The dataset configuration.

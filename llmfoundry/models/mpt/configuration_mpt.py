@@ -106,16 +106,6 @@ class MPTConfig(PretrainedConfig):
                 ---
                 See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
         """
-        # set config defaults
-        attn_config = self._set_config_defaults(
-            attn_config,
-            attn_config_defaults,
-        )
-        init_config = self._set_config_defaults(
-            init_config,
-            init_config_defaults,
-        )
-
         self.d_model = d_model
         self.n_heads = n_heads
         self.n_layers = n_layers
@@ -150,6 +140,16 @@ class MPTConfig(PretrainedConfig):
         return config
 
     def _validate_config(self):
+        # set config defaults
+        self.attn_config = self._set_config_defaults(
+            self.attn_config,
+            attn_config_defaults,
+        )
+        self.init_config = self._set_config_defaults(
+            self.init_config,
+            init_config_defaults,
+        )
+
         if self.d_model % self.n_heads != 0:
             raise ValueError('d_model must be divisible by n_heads')
         if any(

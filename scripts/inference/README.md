@@ -26,31 +26,12 @@ my_hf_model/
   tokenizer.json
   tokenizer_config.json
   vocab.json
+  modeling_code.py
 ```
 
 which can be loaded with standard HF utilities like `AutoModelForCausalLM.from_pretrained('my_hf_model')`.
 
 You can also pass object store URIs for both `--composer_path` and `--hf_output_path` to easily convert checkpoints stored in S3, OCI, etc.
-
-### IMPORTANT NOTE
-
-If you trained and saved a custom HF model such as `MPTForCausalLM `, then in any external inference codebase, you need to import and register the new model class and config before auto classes like `AutoModel` will work. For example:
-
-<!--pytest.mark.skip-->
-```python
-# MPTForCausalLM MPTConfig source code live in this repo
-# pip install <my-awesome-repo>
-
-from transformers import AutoConfig, AutoModelForCausalLM
-from llmfoundry import MPTForCausalLM, MPTConfig
-
-AutoConfig.register('mpt', MPTConfig)
-AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
-
-model = AutoModelForCausalLM.from_pretrained('my_hf_model')
-```
-
-(Coming soon) we will add the ability to save custom model source code within the HF folder, which will remove the need for this step!
 
 ## Interactive generation with `model.generate(...)`
 

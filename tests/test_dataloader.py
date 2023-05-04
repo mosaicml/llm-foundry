@@ -42,6 +42,7 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     split = 'val_xsmall'
     tokenizer_args = {
         'gpt2': '--eos_text "<|endoftext|>"',
+        'EleutherAI/gpt-neox-20b': '--eos_text "<|endoftext|>"',
         'facebook/opt-125m': '--bos_text "</s>"'
     }[tokenizer_name]
 

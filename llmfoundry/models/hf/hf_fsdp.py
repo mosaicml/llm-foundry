@@ -81,7 +81,7 @@ def hf_get_hidden_layers(model: PreTrainedModel):
         - transformer.blocks: (MPTForCausalLM)
     """
     hidden_layers_attrs = (
-        'transformer.h',  # BOOM, GPT2, GPTJ
+        'transformer.h',  # BLOOM, GPT2, GPTJ
         'model.decoder.layers',  # OPT
         'gpt_neox.layers',  # GPTNeoX
         'block',  # T5, BART, Pegasus (from encoder)

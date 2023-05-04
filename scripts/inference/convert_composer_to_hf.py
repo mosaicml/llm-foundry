@@ -400,7 +400,7 @@ def main(args: Namespace) -> None:
     loaded_hf_model = MPTForCausalLM.from_pretrained(args.hf_output_path,
                                                      config=config,
                                                      torch_dtype=dtype)
-    loaded_hf_model.config._name_or_path = args.hf_repo_for_upload
+    delattr(loaded_hf_model.config, '_name_or_path')
 
     loaded_hf_model.save_pretrained(args.hf_output_path)
 

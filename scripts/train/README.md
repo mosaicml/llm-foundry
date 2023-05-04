@@ -173,6 +173,7 @@ There are 3 different types of data sources you can use for finetuning:
 We'll cover these more below, but first will describe an important consideration for all 3: data formatting!
 
 The finetuning dataloader requires training examples to be formatted as dictionaries with the following key-value structure:
+<!--pytest.mark.skip-->
 ```python
 formatted_example = {'prompt': <prompt_text>, 'response': <response_text>}
 ```
@@ -181,6 +182,7 @@ formatted_example = {'prompt': <prompt_text>, 'response': <response_text>}
 
 **How to ensure that your data follows that format.**
 Our tooling attempts to simplify any reformatting by making it easy to insert **preprocessing functions** into the data pipeline. Here's a (simplified) example of a preprocessing function in `llmfoundry.data.finetuning.tasks`:
+<!--pytest.mark.skip-->
 ```python
 @dataset_constructor.register('tatsu-lab/alpaca')
 def alpaca_preprocessing_function(inp: Dict):
@@ -209,6 +211,7 @@ If not, you just need to write your own processing function.
 You can write the function wherever is convenient for you, as long as it importable.
 
 Let's say you want to finetune on a HuggingFace dataset named `mosaicml/doge-facts` (which, sadly, is made up for this example), and it contains examples that look like this:
+<!--pytest.mark.skip-->
 ```python
 >>> import datasets
 >>> dogefacts = datasets.load_dataset('mosaicml/doge-facts', split='train')
@@ -219,6 +222,7 @@ Let's say you want to finetune on a HuggingFace dataset named `mosaicml/doge-fac
 ```
 
 The only preprocessing required here is to map "question"-->"prompt" and "answer"-->"response".
+<!--pytest.mark.skip-->
 ```python
 def dogefacts_prep_fn(inp: Dict):
     return {'prompt': inp['question'], 'response': inp['answer']}

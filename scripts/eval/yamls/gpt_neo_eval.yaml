@@ -29,6 +29,7 @@ icl_tasks:
   dataset_uri: eval/local_data/piqa.jsonl
   num_fewshot: [5]
   icl_task_type: multiple_choice
+  continuation_delimiter: 'Answer: '
 -
   label: lambada_openai
   dataset_uri: eval/local_data/lambada_openai.jsonl

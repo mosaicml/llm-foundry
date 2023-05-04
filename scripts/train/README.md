@@ -208,7 +208,7 @@ You can skip the rest of this section.
 If not, you just need to write your own processing function.
 You can write the function wherever is convenient for you, as long as it importable.
 
-Let's say you want to finetune on a HuggingFace dataset named `mosaicml/doge-facts`, and it contains examples that look like this:
+Let's say you want to finetune on a HuggingFace dataset named `mosaicml/doge-facts` (which, sadly, is made up for this example), and it contains examples that look like this:
 ```python
 >>> import datasets
 >>> dogefacts = datasets.load_dataset('mosaicml/doge-facts', split='train')
@@ -277,14 +277,21 @@ To enable streaming, you must first use the `convert_finetuning_dataset.py` scri
 
 <!--pytest.mark.skip-->
 ```bash
-python ../data_prep/convert_finetuning_dataset.py --dataset tatsu-lab/alpaca --splits train --out_root s3://my-bucket/my-copy-alpaca
+python ../data_prep/convert_finetuning_dataset.py \
+    --dataset tatsu-lab/alpaca \
+    --splits train \
+    --out_root s3://my-bucket/my-copy-alpaca
 ```
 
 > **NOTE!**
 > Streaming datasets *must* follow the required "prompt"/"response" format, but you can preprocess during conversion by setting the `--preprocessor` argument.
 > <!--pytest.mark.skip-->
 > ```bash
-> python ../data_prep/convert_finetuning_dataset.py --dataset mosaicml/doge-facts --preprocessor my_data.formatting:dogefacts_prep_fn --splits train --out_root s3://my-bucket/my-copy-doge-facts
+> python ../data_prep/convert_finetuning_dataset.py \
+>     --dataset mosaicml/doge-facts \
+>     --preprocessor my_data.formatting:dogefacts_prep_fn \
+>     --splits train \
+>     --out_root s3://my-bucket/my-copy-doge-facts
 >```
 
 Once you have converted your HuggingFace dataset to a streaming dataset, just update your YAML like so:

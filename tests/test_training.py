@@ -14,6 +14,7 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 from scripts.train.train import main
 
+
 def gpt_tiny_cfg(conf_path='scripts/train/yamls/mpt/125m.yaml'):
     """Create gpt tiny cfg."""
     with open(conf_path) as f:
@@ -40,6 +41,7 @@ def gpt_tiny_cfg(conf_path='scripts/train/yamls/mpt/125m.yaml'):
     test_cfg.eval_loader.dataset.max_seq_len = test_cfg.max_seq_len
 
     return test_cfg
+
 
 @pytest.mark.parametrize('device', [
     'cpu',

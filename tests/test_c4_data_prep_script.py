@@ -11,6 +11,7 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 from scripts.data_prep.convert_dataset import main
 
+
 def test_download_script_from_api():
     # test calling it directly
     path = os.path.join(os.getcwd(), 'my-copy-c4-1')
@@ -30,6 +31,7 @@ def test_download_script_from_api():
             }))
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)
+
 
 def test_download_script_from_cmdline():
     # test calling it via the cmd line interface

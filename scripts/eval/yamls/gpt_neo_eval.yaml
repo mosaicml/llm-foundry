@@ -11,7 +11,7 @@ tokenizer:
 model:
   name: hf_causal_lm
   pretrained_model_name_or_path: ${model_name_or_path}
-  device: cpu
+  init_device: cpu
   pretrained: true
 
 load_path: # Add your (optional) Composer checkpoint path here!

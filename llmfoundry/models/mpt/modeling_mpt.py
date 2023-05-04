@@ -31,8 +31,16 @@ from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
-from llmfoundry.models.utils import (MODEL_INIT_REGISTRY,
-                                     add_bidirectional_mask_if_missing)
+# NOTE: We import all the utils directly just so that HuggingFace will detect
+# all the files that it needs to copy into its modules folder. Otherwise it misses
+# the ones imported in the submodule
+from llmfoundry.models.utils.adapt_tokenizer import (
+    AutoTokenizerForMOD, adapt_tokenizer_for_denoising)
+from llmfoundry.models.utils.hf_prefixlm_converter import (
+    add_bidirectional_mask_if_missing, convert_hf_causal_lm_to_prefix_lm)
+from llmfoundry.models.utils.meta_init_context import init_empty_weights
+from llmfoundry.models.utils.param_init_fns import (  # type: ignore
+    MODEL_INIT_REGISTRY, generic_param_init_fn_)
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 

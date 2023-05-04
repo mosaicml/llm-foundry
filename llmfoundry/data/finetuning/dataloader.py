@@ -26,23 +26,41 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                                 device_batch_size: int) -> DataLoader:
     """Builds a finetuning dataloader for training or evaluating.
 
+    The underlying dataset can be built through one of two code paths:
+        1. As a HuggingFace dataset, via `datasets.load_dataset(...)`
+        2. As a streaming dataset
+    You will need to set slightly different dataset config fields depending
+    on which you intend to use, as explained below.
+
     Args:
         cfg (DictConfig): An omegaconf dictionary used to configure the loader:
             cfg.name (str): The type of dataloader to build. Must = "finetuning".
             ---
-            cfg.dataset.name (str): The name of the HuggingFace dataset to use
-                and/or the name of the tokenization function to use -- the
-                tokenization function must be registered in `tasks.py`.
-                See README for details.
-            cfg.dataset.kwargs (DictConfig, optional): Additional kwargs to
+            *** HuggingFace dataset config fields ***
+            cfg.dataset.hf_name (str, optional): The name of the HuggingFace dataset
+                to use.
+            cfg.dataset.hf_kwargs (DictConfig, optional): Additional kwargs to
                 pass to `datasets.load_dataset`, which can be used to load
                 a dataset from local files.
+            cfg.dataset.preprocessing_fn (str, optional): The name/import path of
+                the preprocessing function to use for formatting the data examples.
+                If ``None`` (default), the builder will use the preprocessing function
+                    registered under `hf_name` (see `tasks.py`), if one exists,
+                    otherwise it will skip preprocessing.
+                If `preprocessing_fn` corresponds to a registered preprocessing
+                    function in `tasks.py`, the builder will use that.
+                Otherwise, it will interpret `preprocessing_fn` as a
+                    "import.path:function_name" import path; e.g., it will call
+                    `from import.path import function_name` and use the imported
+                    function as the preprocessing function.
+            *** Streaming dataset config fields ***
             cfg.dataset.remote (str, optional): Location of a MDS-formatted
                 streaming dataset to use. Setting this will tell the builder
                 to create a streaming dataset rather than a HuggingFace dataset.
             cfg.dataset.local (str, optional): Local path where remote data
                 will be streamed to. Only valid if `cfg.dataset.remote` has
                 also been set.
+            *** Shared dataset configs fields ***
             cfg.dataset.max_seq_len (int): The maximum length of sequences
                 in the batch. See :class:`Seq2SeqFinetuningCollator` docstring
                 for details.
@@ -88,13 +106,14 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """
+    _validate_config(cfg.dataset)
+
     # Use EOS as the pad token if none exists
     if tokenizer.pad_token is None:  # type: ignore
         tokenizer.pad_token = tokenizer.eos_token
 
-    if cfg.dataset.get('local') is not None:
+    if cfg.dataset.get('remote') is not None:
         dataset = dataset_constructor.build_from_streaming(
-            cfg.dataset.name,
             tokenizer=tokenizer,
             local=cfg.dataset.local,
             remote=cfg.dataset.get('remote', None),
@@ -111,7 +130,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
         )
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
-            cfg, tokenizer, device_batch_size)
+            cfg.dataset, tokenizer, device_batch_size)
 
         return DataLoader(
             dataset,
@@ -126,11 +145,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
         )
 
     else:
-        if cfg.dataset.get('remote') is not None:
-            raise ValueError(
-                f'{cfg.dataset.remote=} but cfg.dataset.local is None.')
-
-        dataset = dataset_constructor.build(cfg.dataset, tokenizer)
+        dataset = dataset_constructor.build_from_hf(cfg.dataset, tokenizer)
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
             cfg.dataset, tokenizer, device_batch_size)
@@ -147,6 +162,60 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
             prefetch_factor=cfg.get('prefetch_factor', 2),
             persistent_workers=cfg.get('persistent_workers', True),
             timeout=cfg.get('timeout', 0),
+        )
+
+
+def _validate_config(dataset_cfg: DictConfig):
+    """Validates the dataset configuration.
+
+    Makes sure that the dataset is properly configured for either
+    a HuggingFace dataset or a streaming dataset. Must be valid for one or
+    the other.
+
+    Args:
+        dataset_cfg (DictConfig): The dataset configuration to be validated.
+
+    Raises:
+        ValueError: If the dataset configuration does not meet the requirements.
+    """
+    if dataset_cfg.get('hf_name') is not None:
+        # Using the HuggingFace dataset codepath
+        illegal_keys = ['local', 'remote']
+        discovered_illegal_keys = []
+        for key in illegal_keys:
+            if dataset_cfg.get(key) is not None:
+                discovered_illegal_keys.append('`' + key + '`')
+        if discovered_illegal_keys:
+            raise ValueError(
+                'The dataset config sets a value for `hf_name` as well as the ' +\
+                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                'Those keys are used when building from a streaming dataset, but ' +\
+                'setting `hf_name` instructs the dataset to build from a HuggingFace dataset.'
+            )
+    elif dataset_cfg.get('remote') is not None:
+        # Using the streaming dataset codepath
+        illegal_keys = ['hf_name', 'hf_kwargs', 'preprocessing_fn']
+        discovered_illegal_keys = []
+        for key in illegal_keys:
+            if dataset_cfg.get(key) is not None:
+                discovered_illegal_keys.append('`' + key + '`')
+        if discovered_illegal_keys:
+            raise ValueError(
+                'The dataset config sets a value for `remote` as well as the ' +\
+                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                'Those keys are used when building from a HuggingFace dataset, but ' +\
+                'setting `remote` instructs the dataset to build from a streaming dataset.'
+            )
+        if dataset_cfg.get('local') is not None:
+            raise ValueError(
+                'Using a streaming dataset requires setting both `remote` and `local`, ' +\
+                'but dataset.local is None.'
+            )
+    else:
+        raise ValueError(
+            'In the dataset config, you must set either `hf_name` to use a ' +\
+            'HuggingFace dataset or set `remote` to use a streaming ' +\
+            'dataset, but both were None.'
         )
 
 
@@ -197,15 +266,26 @@ if __name__ == '__main__':
     from llmfoundry.utils import build_tokenizer
     cfg = om.create({
         'dataset': {
-            'name': 'tatsu-lab/alpaca',
-            'split': 'train',
-            'packing_ratio': 18.0,
-            'max_seq_len': 2048,
-            'decoder_only_format': True,
-            'separator_text': False,
-            'allow_pad_trimming': False,
-            'num_canonical_nodes': 472,
-            'shuffle': True,
+            'hf_name':
+                'tatsu-lab/alpaca',
+            'preprocessing_fn':
+                'llmfoundry.data.finetuning.tasks:alpaca_preprocessing_function',
+            'split':
+                'train',
+            'packing_ratio':
+                18.0,
+            'max_seq_len':
+                2048,
+            'decoder_only_format':
+                True,
+            'separator_text':
+                False,
+            'allow_pad_trimming':
+                False,
+            'num_canonical_nodes':
+                472,
+            'shuffle':
+                True,
         },
         'drop_last': False,
         'num_workers': 0,

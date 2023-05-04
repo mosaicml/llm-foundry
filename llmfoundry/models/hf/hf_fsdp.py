@@ -55,12 +55,17 @@ def findattr(obj: Any, attrs: Iterable[str]):
 def hf_get_causal_base_model(model: PreTrainedModel):
     """Returns the causal decoder backbone of the specified HuggingFace model.
 
+    Newer HF models have a `self.get_decoder()` method. Older models do not.
+
     NOTE: Different model configurations have different causal decoder attribute
     names.
         - transformer: (GPT2LMHeadModel, GPTJConfig)
         - model.decoder: (OPTConfig, BloomConfig)
         - gpt_neox: (GPTNeoXConfig)
     """
+    if hasattr(model, 'get_decoder'):
+        return model.get_decoder()
+
     decoder_attrs = ('transformer', 'model.decoder', 'gpt_neox')
     return findattr(model, decoder_attrs)
 
@@ -72,13 +77,17 @@ def hf_get_hidden_layers(model: PreTrainedModel):
         - transformer.h: (BloomForCausalLM, GPT2LMHeadModel, GPTJForCausalLM)
         - model.decoder.layers: (OPTForCausalLM)
         - gpt_neox.layers: (GPTNeoXForCausalLM)
+        - model.layers: (LLaMaForCausalLM)
+        - transformer.blocks: (MPTForCausalLM)
     """
     hidden_layers_attrs = (
-        'transformer.h',
-        'model.decoder.layers',
-        'gpt_neox.layers',
+        'transformer.h',  # BLOOM, GPT2, GPTJ
+        'model.decoder.layers',  # OPT
+        'gpt_neox.layers',  # GPTNeoX
         'block',  # T5, BART, Pegasus (from encoder)
         'layers',  # ProphetNet, Marian (from encoder)
+        'model.layers',  # LLaMa
+        'transformer.blocks',  # MPT
     )
     return findattr(model, hidden_layers_attrs)
 

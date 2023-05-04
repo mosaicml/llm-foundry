@@ -192,7 +192,7 @@ def test_finetuning_dataloader(decoder_only_format, allow_pad_trimming,
     cfg = {
         'name': 'finetuning',
         'dataset': {
-            'name': 'tatsu-lab/alpaca',
+            'hf_name': 'tatsu-lab/alpaca',
             'split': 'train',
             'max_seq_len': max_seq_len,
             'decoder_only_format': decoder_only_format,

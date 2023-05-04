@@ -45,6 +45,7 @@ def test_download_script_from_cmdline():
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)
 
+
 def test_json_script_from_api():
     # test calling it directly
     path = os.path.join(os.getcwd(), 'my-copy-c4-1')
@@ -74,5 +75,3 @@ def test_json_script_from_cmdline():
     )
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)
-
-

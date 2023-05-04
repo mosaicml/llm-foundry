@@ -1,17 +1,16 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Streaming dataset conversion scripts for csv, json, parquet, and text files"""
+"""Streaming dataset conversion scripts for json files."""
 import os
 import platform
 from argparse import ArgumentParser, Namespace
-from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Iterable, Optional, Union
+from glob import glob
+from typing import Dict, Iterable, Optional
 
 import datasets as hf_datasets
 import numpy as np
-from glob import glob
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
@@ -71,11 +70,6 @@ def parse_args() -> Namespace:
     return parsed
 
 
-
-
-
-
-
 def build_hf_dataset(
     path: str,
     field: str,
@@ -104,7 +98,6 @@ def build_hf_dataset(
     Returns:
         An IterableDataset.
     """
-
     if os.path.isdir(path):
         data_files = glob(f'{path}/*')
     else:
@@ -217,20 +210,18 @@ def main(args: Namespace) -> None:
         tokenizer = None
         columns = {'text': 'str'}
 
-
     # Get samples
     dataset = build_hf_dataset(path=args.path,
-                                field=args.field,
-                                split=args.split,
-                                mode=mode,
-                                max_length=args.concat_tokens,
-                                bos_text=args.bos_text,
-                                eos_text=args.eos_text,
-                                no_wrap=args.no_wrap,
-                                tokenizer=tokenizer)
+                               field=args.field,
+                               split=args.split,
+                               mode=mode,
+                               max_length=args.concat_tokens,
+                               bos_text=args.bos_text,
+                               eos_text=args.eos_text,
+                               no_wrap=args.no_wrap,
+                               tokenizer=tokenizer)
 
     print('here')
-
 
     # Write samples
     print(f'Converting to MDS format...')
@@ -239,8 +230,8 @@ def main(args: Namespace) -> None:
     )
     print(f'It will finish at a value below 100% if tokenizing')
     with MDSWriter(columns=columns,
-                    out=os.path.join(args.out_root),
-                    compression=args.compression) as out:
+                   out=os.path.join(args.out_root),
+                   compression=args.compression) as out:
         for sample in tqdm(dataset):
             out.write(sample)
 

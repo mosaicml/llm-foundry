@@ -3,7 +3,28 @@ This is the MosaicML LLM evaluation suite. It is the world's fastest, multi-GPU 
 
 Run a model by preparing an evaluaton YAML following the format of the examples in the `scripts/eval/yamls` directory.
 
-You can run the evaluation script via `composer eval.py YOUR_YAML` or launch it on the mosaic cloud using a an MCLI YAML following the format of `llmfoundry/mcloud/mcli-1b-eval.yaml`
+**Offline evaluation**
+You can run the evaluation script on a model checkpoint via `composer eval/eval.py YOUR_YAML` from the `scripts` directory or launch it on the mosaic cloud using a an MCLI YAML following the format of `llm-foundry/mcli/mcli-1b-eval.yaml`.
+Your YAML must have a config section entitled `icl_tasks`, this can either be a dictionary of the form 
+
+```jsx
+icl_tasks:
+  -
+    label: piqa
+    dataset_uri: # ADD YOUR OWN DATASET URI
+    num_fewshot: [5]
+    icl_task_type: multiple_choice
+  -
+    label: lambada
+    dataset_uri: # ADD YOUR OWN DATASET URI
+    num_fewshot: [0]
+    icl_task_type: language_modeling
+```
+
+or a local path pointing to a YAML containing an icl\_tasks config.
+
+**Evaluation during training**
+You can also add ICL evaluation to your training runs by adding an `icl_tasks` config to your training config at the same depth as the `model` subconfig.
 
 ----
 

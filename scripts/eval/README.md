@@ -5,7 +5,7 @@ Run a model by preparing an evaluaton YAML following the format of the examples 
 
 **Offline evaluation**
 You can run the evaluation script on a model checkpoint via `composer eval/eval.py YOUR_YAML` from the `scripts` directory or launch it on the mosaic cloud using a an MCLI YAML following the format of `llm-foundry/mcli/mcli-1b-eval.yaml`.
-Your YAML must have a config section entitled `icl_tasks`, this can either be a dictionary of the form 
+Your YAML must have a config section entitled `icl_tasks`, this can either be a dictionary of the form
 
 ```jsx
 icl_tasks:

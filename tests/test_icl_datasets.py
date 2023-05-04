@@ -2,15 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import random
 import shutil
 from pathlib import Path
 
 import pytest
 from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer
-import random
-from llmfoundry.utils.builders import build_icl_evaluators
 
+from llmfoundry.utils.builders import build_icl_evaluators
 
 
 def load_icl_config(conf_path='tests/test_tasks.yaml'):
@@ -32,15 +32,13 @@ def tmp_dir():
         shutil.rmtree(dirpath)
 
 
-
-def run_test(dir, tokenizer, bos_tok = ''):
+def run_test(dir, tokenizer, bos_tok=''):
     task_cfg = load_icl_config()
-    evaluators, _ = build_icl_evaluators(
-        task_cfg.icl_tasks,
-        tokenizer,
-        1024,
-        8,
-        destination_dir=f'{os.getcwd()}/{dir}')
+    evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
+                                         tokenizer,
+                                         1024,
+                                         8,
+                                         destination_dir=f'{os.getcwd()}/{dir}')
 
     for e in evaluators:
         batch = next(e.dataloader.dataloader.__iter__())
@@ -53,9 +51,11 @@ def run_test(dir, tokenizer, bos_tok = ''):
                 inputs[continuation_indices[0]:continuation_indices[-1]])
         else:
             if tokenizer.pad_token_id:
-                start_idx = (inputs == tokenizer.pad_token_id).tolist().index(False)
+                start_idx = (
+                    inputs == tokenizer.pad_token_id).tolist().index(False)
             else:
-                start_idx = (inputs == tokenizer.eos_token_id).tolist().index(False)
+                start_idx = (
+                    inputs == tokenizer.eos_token_id).tolist().index(False)
             full_example = tokenizer.decode(inputs[start_idx:])
             answer = batch['labels'][0][0]
         if e.label == 'jeopardy/0-shot/american_history':
@@ -65,10 +65,10 @@ def run_test(dir, tokenizer, bos_tok = ''):
             assert full_example == bos_tok + 'AMERICAN HISTORY: Witchcraft trials held in this town in 1692 led to the hangings of 19 people\nAnswer: Salem\nAMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Treason'
             assert answer == ' Treason'
         elif e.label == 'triviaqa/0-shot':
-            assert full_example == bos_tok +  'Question: Who was the man behind The Chipmunks?\nAnswer:'
+            assert full_example == bos_tok + 'Question: Who was the man behind The Chipmunks?\nAnswer:'
             assert answer == 'David Seville'
         elif e.label == 'triviaqa/1-shot':
-            assert full_example == bos_tok +  'Question: High Willhays is the highest point of what National Park?\nAnswer: DARTMOOR\nQuestion: Who was the man behind The Chipmunks?\nAnswer:'
+            assert full_example == bos_tok + 'Question: High Willhays is the highest point of what National Park?\nAnswer: DARTMOOR\nQuestion: Who was the man behind The Chipmunks?\nAnswer:'
             assert answer == 'David Seville'
         elif e.label == 'copa/0-shot':
             assert full_example == bos_tok + 'The man turned on the faucet, therefore the toilet filled with water'
@@ -83,17 +83,21 @@ def run_test(dir, tokenizer, bos_tok = ''):
             assert full_example == bos_tok + "Tom gave Ralph a lift to school so Ralph wouldn't have to walk.\nThe city councilmen refused the demonstrators a permit because the city councilmen feared violence"
             assert answer == ' feared violence'
 
+
 def test_icl_task_loading_gpt2_tokenizer(tmp_dir):
     tokenizer = AutoTokenizer.from_pretrained('gpt2')
     run_test(tmp_dir, tokenizer)
+
 
 def test_icl_task_loading_gptj_tokenizer(tmp_dir):
     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-j-6b')
     run_test(tmp_dir, tokenizer)
 
+
 def test_icl_task_loading_opt_tokenizer(tmp_dir):
     tokenizer = AutoTokenizer.from_pretrained('facebook/opt-6.7b')
     run_test(tmp_dir, tokenizer, '</s>')
+
 
 def test_icl_task_loading_gptneox_tokenizer(tmp_dir):
     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')

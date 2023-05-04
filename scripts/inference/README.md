@@ -34,18 +34,18 @@ You can also pass object store URIs for both `--composer_path` and `--hf_output_
 
 ### IMPORTANT NOTE
 
-If you trained and saved a custom HF model such as `MosaicGPT`, then in any external inference codebase, you need to import and register the new model class and config before auto classes like `AutoModel` will work. For example:
+If you trained and saved a custom HF model such as `MPTForCausalLM `, then in any external inference codebase, you need to import and register the new model class and config before auto classes like `AutoModel` will work. For example:
 
 <!--pytest.mark.skip-->
 ```python
-# MosaicGPT, MosaicGPTConfig source code live in this repo
+# MPTForCausalLM MPTConfig source code live in this repo
 # pip install <my-awesome-repo>
 
 from transformers import AutoConfig, AutoModelForCausalLM
-from llmfoundry import MosaicGPT, MosaicGPTConfig
+from llmfoundry import MPTForCausalLM, MPTConfig
 
-AutoConfig.register('mosaic_gpt', MosaicGPTConfig)
-AutoModelForCausalLM.register(MosaicGPTConfig, MosaicGPT)
+AutoConfig.register('mpt', MPTConfig)
+AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
 
 model = AutoModelForCausalLM.from_pretrained('my_hf_model')
 ```

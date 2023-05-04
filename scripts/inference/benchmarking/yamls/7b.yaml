@@ -11,7 +11,7 @@ tokenizer:
   non_eos_token_id: 17
 
 model:
-  name: mosaic_gpt
+  name: mpt_causal_lm
   init_device: cpu
   tokenizer_name: ${tokenizer_name}
   d_model: 4096

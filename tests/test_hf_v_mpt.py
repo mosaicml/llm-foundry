@@ -40,15 +40,14 @@ from llmfoundry import COMPOSER_MODEL_REGISTRY
     ('torch', 0.0, False, None, True),
     ('triton', 0.0, False, None, True),
 ])
-def test_compare_hf_v_mosaic_gpt(attn_impl, dropout, alibi, mask_val,
-                                 no_attn_mask):
+def test_compare_hf_v_mpt(attn_impl, dropout, alibi, mask_val, no_attn_mask):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
     warnings.filterwarnings(action='ignore',
                             message='Using Fused Cross Entropy Loss.')
 
-    conf_path = 'scripts/train/yamls/mosaic_gpt/125m.yaml'  # set cfg path
+    conf_path = 'scripts/train/yamls/mpt/125m.yaml'  # set cfg path
     batch_size = 2  # set batch size
     device = 'cuda'  # set decive
 

@@ -15,7 +15,7 @@ from composer.utils import (get_file, maybe_create_object_store_from_uri,
 from transformers import (AutoConfig, AutoTokenizer, PretrainedConfig,
                           PreTrainedTokenizer)
 
-from llmfoundry import MosaicGPTConfig
+from llmfoundry import MPTConfig
 
 
 # TODO: maybe move this functionality to Composer
@@ -27,7 +27,7 @@ def get_hf_config_from_composer_state_dict(
     # Always set init_device='cpu'
     hf_config_dict['init_device'] = 'cpu'
 
-    AutoConfig.register('mosaic_gpt', MosaicGPTConfig)
+    AutoConfig.register('mpt', MPTConfig)
     return AutoConfig.for_model(**hf_config_dict)
 
 

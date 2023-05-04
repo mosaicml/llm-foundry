@@ -37,7 +37,6 @@ from composer.utils import (maybe_create_object_store_from_uri, parse_uri,
                             reproducibility)
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from llmfoundry import MPTConfig, MPTForCausalLM
 
 
 def str2bool(v):

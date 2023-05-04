@@ -21,5 +21,3 @@ icl_tasks:
   dataset_uri: scripts/eval/local_data/triviaqa.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0, 1]
   icl_task_type: question_answering
-  metric_names:
-  - InContextLearningQAAccuracy

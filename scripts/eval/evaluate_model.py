@@ -8,7 +8,7 @@ from typing import List
 import torch
 from composer.loggers import InMemoryLogger, LoggerDestination
 from composer.trainer import Trainer
-from composer.utils import reproducibility
+from composer.utils import reproducibility, dist, get_device
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -21,9 +21,10 @@ if __name__ == '__main__':
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
-    cfg = DictConfig(om.merge(yaml_cfg, cli_cfg))
+    cfg.dist_timeout = cfg.get('dist_timeout', 600.0)
 
-    reproducibility.seed_all(cfg.get('seed', 1234))
+    reproducibility.seed_all(cfg.seed)
+    dist.initialize_dist(get_device(None), timeout=cfg.dist_timeout)
 
     # Build tokenizer and model
     tokenizer = build_tokenizer(cfg.tokenizer)
@@ -54,7 +55,9 @@ if __name__ == '__main__':
         load_path=load_path,
         load_weights_only=True,
         progress_bar=False,
-        log_to_console=True)
+        log_to_console=True,
+        dist_timeout=cfg.dist_timeout,
+    )
 
     if torch.cuda.is_available():
         torch.cuda.synchronize()

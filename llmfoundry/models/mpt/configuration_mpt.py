@@ -27,8 +27,8 @@ init_config_defaults: Dict = {
 }
 
 
-class MosaicGPTConfig(PretrainedConfig):
-    model_type = 'mosaic_gpt'
+class MPTConfig(PretrainedConfig):
+    model_type = 'mpt'
 
     def __init__(
         self,
@@ -52,7 +52,7 @@ class MosaicGPTConfig(PretrainedConfig):
         init_config: Dict = init_config_defaults,
         **kwargs,
     ):
-        """The MosaicGPT configuration class.
+        """The MPT configuration class.
 
         Args:
             d_model (int): The size of the embedding dimension of the model.

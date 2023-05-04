@@ -14,10 +14,11 @@ try:
         MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
         flash_attn_fn, scaled_multihead_dot_product_attention,
         triton_flash_attn_fn)
-    from llmfoundry.models.layers.gpt_blocks import GPTMLP, GPTBlock
+    from llmfoundry.models.layers.blocks import MPTMLP, MPTBlock
     from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-    from llmfoundry.models.mosaic_gpt import (ComposerMosaicGPT, MosaicGPT,
-                                              MosaicGPTConfig)
+    from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
+                                       MPTForCausalLM, MPTModel,
+                                       MPTPreTrainedModel)
 
 except ImportError as e:
     try:
@@ -33,24 +34,15 @@ except ImportError as e:
 __all__ = [
     'build_text_denoising_dataloader',
     'build_finetuning_dataloader',
-    'flash_attn_fn',
-    'triton_flash_attn_fn',
     'MixtureOfDenoisersCollator',
     'Seq2SeqFinetuningCollator',
-    'ComposerHFCausalLM',
-    'ComposerHFPrefixLM',
-    'ComposerHFT5',
-    'COMPOSER_MODEL_REGISTRY',
-    'scaled_multihead_dot_product_attention',
-    'MultiheadAttention',
-    'attn_bias_shape',
-    'build_attn_bias',
-    'build_alibi_bias',
-    'GPTMLP',
-    'GPTBlock',
-    'MosaicGPTConfig',
-    'MosaicGPT',
-    'ComposerMosaicGPT',
+    'MPTMLP',
+    'MPTBlock',
+    'MPTConfig',
+    'MPTPreTrainedModel',
+    'MPTModel',
+    'MPTForCausalLM',
+    'ComposerMPTCausalLM',
     'ComposerHFCausalLM',
     'ComposerHFPrefixLM',
     'ComposerHFT5',
@@ -62,11 +54,6 @@ __all__ = [
     'attn_bias_shape',
     'build_attn_bias',
     'build_alibi_bias',
-    'GPTMLP',
-    'GPTBlock',
-    'MosaicGPT',
-    'MosaicGPTConfig',
-    'ComposerMosaicGPT',
 ]
 
 __version__ = '0.0.4'

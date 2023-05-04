@@ -8,7 +8,7 @@ integrations:
 
 command: |
   cd llm-foundry/llmfoundry/icl_eval
-  composer evaluate_model.py /mnt/config/parameters.yaml
+  composer eval.py /mnt/config/parameters.yaml
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 
@@ -55,6 +55,7 @@ parameters:
     dataset_uri: # ADD YOUR OWN DATASET URI
     num_fewshot: [5]
     icl_task_type: multiple_choice
+    continuation_delimiter: 'Answer: '
   -
     label: lambada
     dataset_uri: # ADD YOUR OWN DATASET URI

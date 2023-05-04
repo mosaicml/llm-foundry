@@ -26,11 +26,12 @@ tokenizer:
 
 # Local data to load into huggingface datasets
 dataset: &hf_dataset
-  name: mylocalset
-  kwargs:
+  hf_name: mylocalset
+  hf_kwargs:
     data_files:
       train: /path/to/train.jsonl
       test: /path/to/test.jsonl
+  preprocessing_fn: my.import.path:my_preprocessing_fn
 
 # Dataloaders
 train_loader: &train_loader

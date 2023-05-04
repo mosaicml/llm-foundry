@@ -31,7 +31,8 @@ def get_abs_data_path(data_local):
     return os.path.join(os.getcwd(), data_local)
 
 
-@pytest.mark.parametrize('tokenizer_name', ['gpt2', 'facebook/opt-125m', 'EleutherAI/gpt-neox-20b'])
+@pytest.mark.parametrize(
+    'tokenizer_name', ['gpt2', 'facebook/opt-125m', 'EleutherAI/gpt-neox-20b'])
 @pytest.mark.parametrize('pretokenize', [False, True])
 def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     if tokenizer_name == 'gpt2' and not pretokenize:

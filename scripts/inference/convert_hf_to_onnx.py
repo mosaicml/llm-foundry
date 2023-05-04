@@ -28,6 +28,7 @@ Example usage:
 
 import argparse
 import os
+from argparse import ArgumentTypeError
 from pathlib import Path
 from typing import Optional
 
@@ -36,7 +37,27 @@ from composer.utils import (maybe_create_object_store_from_uri, parse_uri,
                             reproducibility)
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from llmfoundry import MPTConfig, MPTForCausalLM
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise ArgumentTypeError('Boolean value expected.')
+
+
+def str_or_bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        return v
 
 
 def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):
@@ -61,20 +82,25 @@ def export_to_onnx(
     export_batch_size: int,
     max_seq_len: Optional[int],
     verify_export: bool,
+    from_pretrained_kwargs: dict,
 ):
     reproducibility.seed_all(42)
     save_object_store = maybe_create_object_store_from_uri(output_folder)
     _, _, parsed_save_path = parse_uri(output_folder)
 
-    AutoConfig.register('mpt', MPTConfig)
-    AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
-
     print('Loading HF config/model/tokenizer...')
-    tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path,
+                                              **from_pretrained_kwargs)
     config = AutoConfig.from_pretrained(pretrained_model_name_or_path,
-                                        attn_impl='torch')
+                                        **from_pretrained_kwargs)
+
+    # specifically for MPT, switch to the torch version of attention for ONNX export
+    if hasattr(config, 'attn_config'):
+        config.attn_config['attn_impl'] = 'torch'
+
     model = AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path,
-                                                 config=config)
+                                                 config=config,
+                                                 **from_pretrained_kwargs)
     model.eval()
 
     if max_seq_len is None and not hasattr(model.config, 'max_seq_len'):
@@ -169,17 +195,34 @@ def parse_args():
         '--verify_export',
         action='store_true',
     )
+    parser.add_argument('--trust_remote_code',
+                        type=str2bool,
+                        nargs='?',
+                        const=True,
+                        default=True)
+    parser.add_argument('--use_auth_token',
+                        type=str_or_bool,
+                        nargs='?',
+                        const=True,
+                        default=None)
+    parser.add_argument('--revision', type=str, default=None)
     return parser.parse_args()
 
 
 def main(args: argparse.Namespace):
+    from_pretrained_kwargs = {
+        'use_auth_token': args.use_auth_token,
+        'trust_remote_code': args.trust_remote_code,
+        'revision': args.revision,
+    }
+
     export_to_onnx(
         pretrained_model_name_or_path=args.pretrained_model_name_or_path,
         output_folder=args.output_folder,
         export_batch_size=args.export_batch_size,
         max_seq_len=args.max_seq_len,
         verify_export=args.verify_export,
-    )
+        from_pretrained_kwargs=from_pretrained_kwargs)
 
 
 if __name__ == '__main__':

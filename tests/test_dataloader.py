@@ -64,6 +64,7 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     test_cfg = get_config(conf_path='scripts/train/yamls/mpt/125m.yaml')
     test_cfg.data_local = data_local
     test_cfg.eval_loader.dataset.split = split
+    test_cfg.dataset.num_canonical_nodes = 1
 
     tokenizer = build_tokenizer(
         om.create({

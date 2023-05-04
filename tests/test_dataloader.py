@@ -3,7 +3,6 @@
 
 import os
 import shutil
-import tempfile
 
 import pytest
 import torch
@@ -64,7 +63,9 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     test_cfg = get_config(conf_path='scripts/train/yamls/mpt/125m.yaml')
     test_cfg.data_local = data_local
     test_cfg.eval_loader.dataset.split = split
-    test_cfg.dataset.num_canonical_nodes = 1
+    test_cfg.dataset = om.create({
+        'num_canonical_nodes': 1,
+    })
 
     tokenizer = build_tokenizer(
         om.create({
@@ -93,7 +94,6 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     b = batch['labels'] == -100
     assert torch.equal(a, b)
     print(f'Time to run test: {time.time() - start_time}')
-    assert False
 
 
 @pytest.mark.parametrize(('eos_token_id', 'bos_token_id'),
@@ -132,59 +132,57 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
     if (decoder_only_format is False) and (packing_ratio is not None):
         pytest.xfail('packing_ratio only supported for decoder-only format.')
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        cfg = {
-            'name': 'text_denoising',
-            'dataset': {
-                'local': tmpdir,
-                'remote': path,
-                'split': 'val_small',
-                'shuffle': False,
-                'max_seq_len': max_seq_len,
-                'packing_ratio': packing_ratio,
-                'predownload': 1000,
-                'keep_zip': False,
-            },
-            'mixture_of_denoisers': {
-                'decoder_only_format': decoder_only_format,
-                'span_mean_lengths_and_ratios': [[3, .15], [8, .5]],
-                'sequence_mask_ratios': 0.25,
-            },
-            'drop_last': False,
-            'num_workers': 0,
-        }
-        cfg = om.create(cfg)
-        device_batch_size = 2
+    cfg = {
+        'name': 'text_denoising',
+        'dataset': {
+            'local': path,
+            'remote': path,
+            'split': 'val_small',
+            'shuffle': False,
+            'max_seq_len': max_seq_len,
+            'packing_ratio': packing_ratio,
+            'predownload': 1000,
+            'keep_zip': False,
+        },
+        'mixture_of_denoisers': {
+            'decoder_only_format': decoder_only_format,
+            'span_mean_lengths_and_ratios': [[3, .15], [8, .5]],
+            'sequence_mask_ratios': 0.25,
+        },
+        'drop_last': False,
+        'num_workers': 0,
+    }
+    cfg = om.create(cfg)
+    device_batch_size = 2
 
-        expected_keys = ['input_ids', 'attention_mask', 'labels']
-        if decoder_only_format:
-            expected_keys += ['bidirectional_mask']
-        else:
-            expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+    if decoder_only_format:
+        expected_keys += ['bidirectional_mask']
+    else:
+        expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
 
-        if packing_ratio is not None:
-            expected_keys += ['sequence_id']
+    if packing_ratio is not None:
+        expected_keys += ['sequence_id']
 
-        tokenizer = build_tokenizer(
-            om.create({
-                'name': tokenizer_name,
-                'kwargs': {
-                    'model_max_length': max_seq_len
-                }
-            }))
+    tokenizer = build_tokenizer(
+        om.create({
+            'name': tokenizer_name,
+            'kwargs': {
+                'model_max_length': max_seq_len
+            }
+        }))
 
-        loader = build_text_denoising_dataloader(cfg, tokenizer,
-                                                 device_batch_size)
-        batch_ix = 0
-        for batch in loader:
-            for k in expected_keys:
-                assert k in batch
-                t = batch[k]
-                assert t.shape[0] == device_batch_size
-                assert t.shape[1] <= max_seq_len
-            batch_ix += 1
-            if batch_ix >= 5:
-                break
+    loader = build_text_denoising_dataloader(cfg, tokenizer, device_batch_size)
+    batch_ix = 0
+    for batch in loader:
+        for k in expected_keys:
+            assert k in batch
+            t = batch[k]
+            assert t.shape[0] == device_batch_size
+            assert t.shape[1] <= max_seq_len
+        batch_ix += 1
+        if batch_ix >= 5:
+            break
 
 
 @pytest.mark.parametrize('decoder_only_format', [True, False])

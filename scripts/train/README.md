@@ -343,7 +343,7 @@ This is nice because it means you can write device-count-agnostic training confi
 and not worry about OOM-ing or accidentally changing the optimization math.
 
 In previous blogs ([1](https://www.mosaicml.com/blog/farewell-oom), [2](https://www.mosaicml.com/blog/billion-parameter-gpt-training-made-easy))
-we also demonstrated Auto Grad Accum, which takes things a step further by letting Composer determine the `device_train_microbatch_size` on its own.
+we also demonstrated auto microbatching, which takes things a step further by letting Composer determine the `device_train_microbatch_size` on its own.
 This makes our configs not only device-count-agnostic, but hardware-agnostic too!
 You can try out this feature by setting `device_train_microbatch_size: auto`, but bear in mind that FSDP support is still in alpha mode
-and may not always work with Auto Grad Accum (we are working on it!).
+and may not always work with auto microbatching (we are working on it!).

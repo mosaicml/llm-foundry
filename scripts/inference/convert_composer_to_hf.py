@@ -239,7 +239,7 @@ def process_file(file_path: str, folder_path: str) -> List[str]:
         if isinstance(node,
                       ast.ImportFrom) and node.module.startswith('llmfoundry'):
             module_path = find_module_file(node.module)
-            # node.module = convert_to_relative_import(node.module)
+            node.module = convert_to_relative_import(node.module)
             new_files_to_process.append(module_path)
         elif isinstance(node,
                         ast.ImportFrom) and node.module.startswith('composer'):
@@ -317,8 +317,8 @@ def main(args: Namespace) -> None:
     MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
 
     print(f'Loading model from {args.hf_output_path}')
-    config = MPTConfig.from_pretrained(args.hf_output_path)
-    config.attn_config['attn_impl'] = 'torch'
+    config = MPTConfig.from_pretrained(args.hf_output_path,
+                                       attn_config={'attn_impl': 'torch'})
     loaded_hf_model = MPTForCausalLM.from_pretrained(args.hf_output_path,
                                                      config=config,
                                                      torch_dtype=dtype)

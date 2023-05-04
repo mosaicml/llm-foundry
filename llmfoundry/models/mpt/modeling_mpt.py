@@ -14,7 +14,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from composer.metrics import (InContextLearningLMAccuracy,
-                              InContextLearningMultipleChoiceAccuracy)
+                              InContextLearningLMExpectedCalibrationError,
+                              InContextLearningMCExpectedCalibrationError,
+                              InContextLearningMultipleChoiceAccuracy,
+                              InContextLearningQAAccuracy)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from omegaconf import DictConfig
@@ -567,6 +570,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             LanguagePerplexity(hf_config.vocab_size),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
+            InContextLearningQAAccuracy(),
+            InContextLearningLMExpectedCalibrationError(),
+            InContextLearningMCExpectedCalibrationError()
         ]
 
         super().__init__(

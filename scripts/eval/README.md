@@ -1,9 +1,9 @@
-# LLM Evaluation
-This is the MosaicML LLM evaluation suite. It is the world's fastest, multi-GPU compatible in-context-learning (ICL) evaluaton suite with support for using [FSDP](https://engineering.fb.com/2021/07/15/open-source/fsdp/) with any model on the HuggingFace hub or for any PyTorch model that implements the MPT model interface.
+# In-context learning (ICL) evaluaton
+This is the MosaicML LLM evaluation suite. It is the world's fastest, multi-GPU compatible ICL evaluaton suite with built in support for using [FSDP](https://pytorch.org/docs/stable/fsdp.html) with any model on the HuggingFace hub or for any PyTorch model that implements the `ComposerModel` interface.
 
-To evaluate a model, perpare a YAML following the format of the examples in the `llmfoundry/eval/yamls` directory.
+Run a model by preparing an evaluaton YAML following the format of the examples in the `scripts/eval/yamls` directory.
 
-You can run the evaluation script via `composer evaluate_model.py YOUR_YAML` or launch it on the mosaic cloud using a an MCLI YAML following the format of `llmfoundry/mcloud/mcli-1b-eval.yaml`
+You can run the evaluation script via `composer eval.py YOUR_YAML` or launch it on the mosaic cloud using a an MCLI YAML following the format of `llmfoundry/mcloud/mcli-1b-eval.yaml`
 
 ----
 
@@ -54,9 +54,10 @@ Question: What is the Japanese share index called? Answer: Nikkei
 Question: Who was the man behind The Chipmunks? Answer: David Seville
 Question: What star sign is Jamie Lee Curtis? Answer:
 >
+
 The model would then be expected to generate a series of tokens beginning with either of the aliases: Scorpio/Skorpio.
 
-Below is a complete YAML section that works with the TriviaQA dataset in `llmfoundry/icl_eval/local_data/triviaqa.jsonl`
+Below is a complete YAML section that works with the TriviaQA dataset in `scripts/eval/local_data/triviaqa.jsonl`
 
 >
     label: triviaqa
@@ -71,9 +72,10 @@ Below is a complete YAML section that works with the TriviaQA dataset in `llmfou
     metric_names:
     - InContextLearningQAAccuracy
     prompt_string: '' # this goes at the beginning of each input
-    example_delimiter: '\n' # this goes between fewshot examples
+    example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates questions from answers
 >
+
 ----
 
 ### InContextLearningLMTaskDataset
@@ -96,9 +98,10 @@ The LM task expects a **prompt string**, a **continuation delimiter** to separat
 > With Tristran's next step he was standing beside a lake, and the candlelight shone brightly on the water; and then he was walking through the mountains, through lonely crags, where the candlelight was reflected in the eyes of the creatures of the high snows; and then he was walking through the clouds, which, while not entirely substantial, still supported his weight in comfort; and then, holding tightly to his candle, he was underground, and the candlelight glinted back at him from the wet cave walls; now he was in the mountains once more; and then he was on a road through wild forest, and he glimpsed a chariot being pulled by two goats, being driven by a woman in a red dress who looked, for the glimpse he got of her, the way Boadicea was drawn in his history books; and another step and he was in a leafy glen, and he could hear the chuckle of water as it splashed and sang its way into a small brook.
 He took another step, but he was still in the
 >
+
 The model would then be expected output “ glen”
 
-Below is a YAML section that works with the Lambada OpenAI datset in `llmfoundry/icl_eval/local_data/lambada_openai.jsonl`
+Below is a YAML section that works with the Lambada OpenAI datset in `scripts/eval/local_data/lambada_openai.jsonl`
 
 >
     label: lambada_openai
@@ -110,9 +113,10 @@ Below is a YAML section that works with the Lambada OpenAI datset in `llmfoundry
     metric_names:
     - InContextLearningLMAccuracy
     prompt_string: '' # this goes at the beginning of each input
-    example_delimiter: '\n' # this goes between fewshot examples
+    example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates contexts from continuations
 >
+
 ----
 
 ### InContextLearningMultipleChoiceTaskDataset
@@ -138,9 +142,10 @@ The MC task expects a **prompt string**, a **continuation delimiter** to separat
 >
 > High jump: A boy is running down a track. The boy stands on his hands and springs.
 >
+
 The model would be assigned correct if it assigns the lowest per token perplexity to the sequence " lifts his body above the height of a pole."
 
-Below is a YAML section that works with the HellaSwag dataset in `llmfoundry/icl_eval/local_data/hellaswag.jsonl`
+Below is a YAML section that works with the HellaSwag dataset in `scripts/eval/local_data/hellaswag.jsonl`
 
 >
     label: hellaswag
@@ -156,9 +161,10 @@ Below is a YAML section that works with the HellaSwag dataset in `llmfoundry/icl
     - InContextLearningMultipleChoiceAccuracy
     - InContextLearningMCExpectedCalibrationError
     prompt_string: '' # this goes at the beginning of each input
-    example_delimiter: '\n' # this goes between fewshot examples
+    example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates questions from answers
 >
+
 ----
 
 ### InContextLearningSchemaTaskDataset
@@ -183,9 +189,10 @@ The Schema task expects a **prompt string**, a **continuation delimiter** to sep
 > Jim comforted Kevin because Kevin was so upset.
 >
 
+
 The model would be assigned correct if per token perplexity of the sequence " was so upset" is lower in the second version than it is in the first version.
 
-Below is a YAML section that works with the Winograd dataset in `llmfoundry/icl_eval/local_data/winograd_wsc.jsonl`
+Below is a YAML section that works with the Winograd dataset in `scripts/eval/local_data/winograd_wsc.jsonl`
 
 >
     label: winograd
@@ -201,15 +208,17 @@ Below is a YAML section that works with the Winograd dataset in `llmfoundry/icl_
     - InContextLearningMultipleChoiceAccuracy
     - InContextLearningMCExpectedCalibrationError
     prompt_string: '' # this goes at the beginning of each input
-    example_delimiter: '\n' # this goes between fewshot examples
+    example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates questions from answers
 >
+
 ### Build your own dataset (BYOD)
 Building a dataset compatible with our eval suite is very easy if it fits with one of the four supported task types. Simply choose the appropriate task type (LM, MC, QA, or Schema) and process each dataset into a jsonl format where each row has the format described above.
 
 Below is a minimal script which prepares the [Winograd schema challenge](https://cdn.aaai.org/ocs/4492/4492-21843-1-PB.pdf) hosted on [HuggingFace](https://huggingface.co/datasets/winograd_wsc). This script can be modified to generate other datasets based on the HuggingFace dataset hub.
-```jsx
+```python
 from datasets import load_dataset
+
 upper_pronouns = [
         "A",
         "An",
@@ -236,16 +245,20 @@ def __normalize_option(doc, option):
         if not start_of_sentence and pronoun in upper_pronouns:
             return option.replace(pronoun, pronoun.lower())
         return option
+
 def lower_first_letter(s):
     return s[0:1].lower() + s[1:]
+
 def prep_winograd_wsc(row):
     # this function adapted from EleutherAI/lm-evaluation-harness
 
     prefix = row['text'][:row['pronoun_loc']]
     continuation = row['text'][row['pronoun_loc'] + len(row['pronoun']):]
+
     context_options = [
         prefix + __normalize_option(row, o) for o in row['options']
     ]
+
     return {
         "context_options": context_options,
         "continuation": continuation,
@@ -255,6 +268,7 @@ def prep_winograd_wsc(row):
 def prep_dataset(out_file):
         dataset_name = ('winograd_wsc', 'wsc273')
         dataset = load_dataset(*dataset_name)
+
         with open(out_file, "w", encoding='utf8') as f:
 
             if dataset_name[0] == 'winogrande':
@@ -264,11 +278,11 @@ def prep_dataset(out_file):
                     else dataset['validation']
             for row in split:
                 row = prep_winograd_wsc(row)
-                f.write(json.dumps(row, ensure_ascii=False) + '\n')
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
 ```
 
 Similarly, you can compile a dataset directly from the `EleutherAI/lm-evaluation-harness` by modifying the script below:
-```jsx
+```python
 def prep_triviaqa(row):
 
     return {
@@ -279,6 +293,7 @@ def prep_triviaqa(row):
 
 def prep_dataset(out_file):
     task = lm_eval_tasks.get_task_dict(['triviaqa'])['triviaqa']
+
     if task.has_test_docs():
         task_doc_func = task.test_docs
         task_set = "test"
@@ -288,7 +303,7 @@ def prep_dataset(out_file):
     with open(out_file, "w", encoding='utf8') as f:
             for row in task_doc_func():
                 row = prep_triviaqa(row)
-                f.write(json.dumps(row, ensure_ascii=False) + '\n')
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
 ```
 
 #### A note on delimiters and tokenizers

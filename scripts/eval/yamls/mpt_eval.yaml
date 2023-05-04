@@ -26,16 +26,18 @@ load_path: # Add your (optional) Composer checkpoint path here!
 device_eval_batch_size: 16
 
 # FSDP config for model sharding
-# fsdp_config:
-#   sharding_strategy: FULL_SHARD
-#   mixed_precision: PURE
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: PURE
 
 icl_tasks:
-- label: piqa
+-
+  label: piqa
   dataset_uri: eval/local_data/piqa.jsonl
   num_fewshot: [5]
   icl_task_type: multiple_choice
-- label: lambada_openai
+-
+  label: lambada_openai
   dataset_uri: eval/local_data/lambada_openai.jsonl
   num_fewshot: [0]
   icl_task_type: language_modeling

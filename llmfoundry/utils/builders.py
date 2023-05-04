@@ -210,6 +210,10 @@ def build_icl_evaluators(icl_tasks,
                 pad_tok_id = tokenizer.pad_token_id
             label = f'{icl_cfg.label}/{num_fewshot}-shot'
             metric_names = list(icl_cfg.metric_names)
+            # TODO: fix Composer bug when copying local paths and destination exists
+            destination_path = f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl'
+            if os.path.exists(destination_path):
+                os.remove(destination_path)
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,
@@ -221,8 +225,7 @@ def build_icl_evaluators(icl_tasks,
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
-                destination_path=
-                f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl',
+                destination_path=destination_path,
                 has_categories=icl_cfg.get('has_categories', False),
             )
             if hasattr(

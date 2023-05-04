@@ -31,7 +31,7 @@ def get_abs_data_path(data_local):
     return os.path.join(os.getcwd(), data_local)
 
 
-@pytest.mark.parametrize('tokenizer_name', ['gpt2', 'facebook/opt-125m'])
+@pytest.mark.parametrize('tokenizer_name', ['gpt2', 'facebook/opt-125m', 'EleutherAI/gpt-neox-20b'])
 @pytest.mark.parametrize('pretokenize', [False, True])
 def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     if tokenizer_name == 'gpt2' and not pretokenize:
@@ -118,7 +118,7 @@ def test_sequence_id_wrapper(eos_token_id, bos_token_id):
 @pytest.mark.parametrize('packing_ratio', [None, 5.5])
 def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
     # Use the datasets just built in the last test
-    tokenizer_name = 'facebook/opt-125m'
+    tokenizer_name = 'EleutherAI/gpt-neox-20b'
     data_local = get_data_local(tokenizer_name, pretokenize)
     path = get_abs_data_path(data_local)
     max_seq_len = 256 if decoder_only_format else 128
@@ -187,7 +187,7 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
 def test_finetuning_dataloader(decoder_only_format, allow_pad_trimming,
                                packing_ratio):
     # Use the datasets just built in the last test
-    tokenizer_name = 'gpt2' if decoder_only_format else 't5-base'
+    tokenizer_name = 'EleutherAI/gpt-neox-20b' if decoder_only_format else 't5-base'
     max_seq_len = 2048 if decoder_only_format else 1024
 
     if (decoder_only_format is False) and (packing_ratio is not None):

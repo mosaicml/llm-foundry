@@ -69,7 +69,6 @@ def test_compare_hf_v_mpt(attn_impl, dropout, alibi, mask_val, no_attn_mask):
     })
 
     # get hf gpt2 model
-    print(hf_cfg)
     hf_model = COMPOSER_MODEL_REGISTRY[hf_cfg.model.name](
         hf_cfg.model, hf_cfg.tokenizer).to(device)
     hf_n_params = sum(p.numel() for p in hf_model.parameters())
@@ -113,9 +112,6 @@ def test_compare_hf_v_mpt(attn_impl, dropout, alibi, mask_val, no_attn_mask):
     model_cfg.attn_pdrop = hf_model.model.config.attn_pdrop
 
     # Build Model
-    print('Initializing model...')
-
-    print(model_cfg)
     model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg,
                                                     cfg.tokenizer).to(device)
     n_params = sum(p.numel() for p in model.parameters())
@@ -160,7 +156,6 @@ def test_compare_hf_v_mpt(attn_impl, dropout, alibi, mask_val, no_attn_mask):
         model_fwd = model(batch).logits
         if kpm is not None:
             model_fwd *= kpm
-    print(f'{hf_model_fwd.mean().item() = }\n{model_fwd.mean().item() = }')
     if hf_model_fwd.mean().allclose(model_fwd.mean()):
         warn_msg = f'WARNING: model_fwd ({model_fwd}) and hf_model_fwd ({hf_model_fwd}) are very close at init.'
         raise warnings.warn(warn_msg)  # type: ignore
@@ -214,9 +209,6 @@ def test_compare_hf_v_mpt(attn_impl, dropout, alibi, mask_val, no_attn_mask):
         model_fwd = model(batch).logits
         if kpm is not None:
             model_fwd *= kpm
-
-    print(f'{hf_model_fwd.mean().item() = }\n{model_fwd.mean().item() = }')
-    print(f'{hf_model_fwd = }\n{model_fwd = }')
 
     # given dropout seeded the same way, the mean of the outputs is extremely similar
     assert hf_model_fwd.mean().allclose(model_fwd.mean(),

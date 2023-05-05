@@ -72,7 +72,7 @@ def test_json_script_from_cmdline():
     shutil.rmtree(path, ignore_errors=True)
     print(os.getcwd())
     os.system(
-        'python scripts/data_prep/convert_dataset_json.py --path scripts/data_prep/example_data/arxiv.jsonl --split train --out_root ./my-copy-c4-2'
+        'python scripts/data_prep/convert_dataset_json.py --path scripts/data_prep/example_data/arxiv.jsonl --split train --out_root ./my-copy-c4-4'
     )
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)

@@ -446,16 +446,18 @@ class MPTForCausalLM(MPTPreTrainedModel):
         return self.transformer
 
     def forward(
-            self,
-            input_ids: torch.LongTensor,
-            past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
-            attention_mask: Optional[torch.ByteTensor] = None,
-            prefix_mask: Optional[torch.ByteTensor] = None,
-            sequence_id: Optional[torch.LongTensor] = None,
-            return_dict: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            use_cache: Optional[bool] = None):
+        self,
+        input_ids: torch.LongTensor,
+        past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
+        attention_mask: Optional[torch.ByteTensor] = None,
+        prefix_mask: Optional[torch.ByteTensor] = None,
+        sequence_id: Optional[torch.LongTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        return_dict: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        use_cache: Optional[bool] = None,
+    ):
         return_dict = return_dict if return_dict is not None else self.config.return_dict
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
@@ -480,9 +482,21 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 )
             logits *= self.logit_scale
 
-        return CausalLMOutputWithPast(logits=logits,
-                                      past_key_values=outputs.past_key_values,
-                                      hidden_states=outputs.hidden_states)
+        loss = None
+        if labels is not None:
+            labels = torch.roll(labels, shifts=-1)
+            labels[:, -1] = -100
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)),
+                                   labels.to(logits.device).view(-1))
+
+        outputs = CausalLMOutputWithPast(
+            loss=loss,
+            logits=logits,
+            past_key_values=outputs.past_key_values,
+            hidden_states=outputs.hidden_states,
+        )
+
+        return outputs
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
@@ -636,8 +650,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
     def loss(self, outputs, batch):
         targets = self.get_targets(batch)
-        return self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
-                            targets.view(-1))
+        model_output = self.loss_fn(
+            outputs.logits.view(-1, outputs.logits.size(-1)), targets.view(-1))
+        return model_output[0]
 
     def flops_per_batch(self, batch):
         # Note: this computation does not take into account padding, and assumes

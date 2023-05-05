@@ -17,7 +17,7 @@ integrations:
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  cd llm-foundry/common
+  cd llm-foundry/scripts/data_prep/
 
   # Run the dataset conversion
   python convert_dataset_hf.py \

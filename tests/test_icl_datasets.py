@@ -50,7 +50,7 @@ def run_test(dir, tokenizer, bos_tok=''):
             answer = tokenizer.decode(
                 inputs[continuation_indices[0]:continuation_indices[-1]])
         else:
-            if tokenizer.pad_token_id:
+            if tokenizer.pad_token_id is not None:
                 start_idx = (
                     inputs == tokenizer.pad_token_id).tolist().index(False)
             else:

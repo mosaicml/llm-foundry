@@ -4,12 +4,12 @@
 import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
+from contextlib import nullcontext
 from typing import Any, Dict, Tuple, Union
 
 import torch
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           PreTrainedTokenizer, PreTrainedTokenizerFast)
-from contextlib import nullcontext
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 

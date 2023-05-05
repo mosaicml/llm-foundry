@@ -65,7 +65,7 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
                     'out_root': path,
                     'compression': None,
                     'concat_tokens': 2048,
-                    'tokenizer_name': tokenizer_name,
+                    'tokenizer': tokenizer_name,
                     'bos_text': bos_text,
                     'eos_text': eos_text,
                     'no_wrap': False
@@ -83,7 +83,7 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
                     'out_root': path,
                     'compression': None,
                     'concat_tokens': None,
-                    'tokenizer_name': tokenizer_name,
+                    'tokenizer': tokenizer_name,
                     'bos_text': bos_text,
                     'eos_text': eos_text,
                     'no_wrap': False

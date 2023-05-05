@@ -79,6 +79,12 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
                     'data_subset': 'en',
                     'splits': [split],
                     'out_root': path,
+                    'compression': None,
+                    'concat_tokens': None,
+                    'tokenizer_name': tokenizer_name,
+                    'bos_text': bos_text,
+                    'eos_text': eos_text,
+                    'no_wrap': False
                 }))
     if not os.path.isdir(path):
         raise RuntimeError(f'c4 dataset at {path} not set up as expected')

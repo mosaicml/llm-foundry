@@ -1,6 +1,6 @@
 <p align="center">
   <picture>
-    <img alt="LLM Foundry" src="./assets/llm-foundry.png" width="75%">
+    <img alt="LLM Foundry" src="./assets/llm-foundry.png" width="95%">
   </picture>
 </p>
 

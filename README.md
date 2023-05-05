@@ -62,7 +62,7 @@ export HUGGING_FACE_HUB_TOKEN=your-auth-token
 ```
 and uncomment the line containing `--hf_repo_for_upload ...`.
 
-**(Remember this is a quickstart just to demonstrate the tools -- To get good quality, the LLM must be trained for longer than 10 batches :) )**
+**(Remember this is a quickstart just to demonstrate the tools -- To get good quality, the LLM must be trained for longer than 10 batches 😄)**
 
 <!--pytest.mark.skip-->
 ```bash

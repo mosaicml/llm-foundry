@@ -283,6 +283,7 @@ class MultiheadAttention(nn.Module):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         low_precision_layernorm: bool = False,
+        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__()
@@ -312,14 +313,16 @@ class MultiheadAttention(nn.Module):
             self.attn_fn = flash_attn_fn
         elif self.attn_impl == 'triton':
             self.attn_fn = triton_flash_attn_fn
-            warnings.warn(
-                'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
-                'it uses more memory. When training larger models this can trigger '  +\
-                'alloc retries which hurts performance. If encountered, we recommend ' +\
-                'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.')
+            if verbose:
+                warnings.warn(
+                    'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
+                    'it uses more memory. When training larger models this can trigger '  +\
+                    'alloc retries which hurts performance. If encountered, we recommend ' +\
+                    'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.'
+                )
         elif self.attn_impl == 'torch':
             self.attn_fn = scaled_multihead_dot_product_attention
-            if torch.cuda.is_available():
+            if torch.cuda.is_available() and verbose:
                 warnings.warn(
                     'Using `attn_impl: torch`. If your model does not use `alibi` or ' +\
                     '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' +\
@@ -397,6 +400,7 @@ class MultiQueryAttention(nn.Module):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         low_precision_layernorm: bool = False,
+        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__()
@@ -433,14 +437,16 @@ class MultiQueryAttention(nn.Module):
             self.attn_fn = flash_attn_fn
         elif self.attn_impl == 'triton':
             self.attn_fn = triton_flash_attn_fn
-            warnings.warn(
-                'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
-                'it uses more memory. When training larger models this can trigger '  +\
-                'alloc retries which hurts performance. If encountered, we recommend ' +\
-                'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.')
+            if verbose:
+                warnings.warn(
+                    'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
+                    'it uses more memory. When training larger models this can trigger '  +\
+                    'alloc retries which hurts performance. If encountered, we recommend ' +\
+                    'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.'
+                )
         elif self.attn_impl == 'torch':
             self.attn_fn = scaled_multihead_dot_product_attention
-            if torch.cuda.is_available():
+            if torch.cuda.is_available() and verbose:
                 warnings.warn(
                     'Using `attn_impl: torch`. If your model does not use `alibi` or ' +\
                     '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' +\

@@ -21,35 +21,31 @@ cluster: # replace with your cluster here!
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
+  seed: 1
+  max_seq_len: 1024
+  model_name_or_path: huggyllama/llama-7b
+  # model_name_or_path: EleutherAI/gpt-j-6b
+  # model_name_or_path: EleutherAI/pythia-6.9b
+  # model_name_or_path: facebook/opt-6.7b
+  # model_name_or_path: cerebras/Cerebras-GPT-6.7B
+  # model_name_or_path: StabilityAI/stablelm-base-alpha-7b
+  # model_name_or_path: EleutherAI/gpt-neox-20b
+  # model_name_or_path: EleutherAI/pythia-12b
+  # model_name_or_path: facebook/opt-13b
+  # model_name_or_path: cerebras/Cerebras-GPT-13B
+
   # Tokenizer
   tokenizer:
-    # name: EleutherAI/gpt-j-6b
-    # name: EleutherAI/pythia-6.9b
-    # name: facebook/opt-6.7b
-    # name: cerebras/Cerebras-GPT-6.7B
-    # name: StabilityAI/stablelm-base-alpha-7b
-    name: huggyllama/llama-7b
-    # name: EleutherAI/gpt-neox-20b
-    # name: EleutherAI/pythia-12b
-    # name: facebook/opt-13b
-    # name: cerebras/Cerebras-GPT-13B
+    name: ${model_name_or_path}
     kwargs:
-      model_max_length: 1024
+      model_max_length: ${max_seq_len}
 
   model:
     name: hf_causal_lm
-    # pretrained_model_name_or_path: EleutherAI/gpt-j-6b
-    # pretrained_model_name_or_path: EleutherAI/pythia-6.9b
-    # pretrained_model_name_or_path: facebook/opt-6.7b
-    # pretrained_model_name_or_path: cerebras/Cerebras-GPT-6.7B
-    # pretrained_model_name_or_path: StabilityAI/stablelm-base-alpha-7b
-    pretrained_model_name_or_path: huggyllama/llama-7b
-    # pretrained_model_name_or_path: EleutherAI/gpt-neox-20b
-    # pretrained_model_name_or_path: EleutherAI/pythia-12b
-    # pretrained_model_name_or_path: facebook/opt-13b
-    # pretrained_model_name_or_path: cerebras/Cerebras-GPT-13B
+    pretrained_model_name_or_path: ${model_name_or_path}
     device: cpu
     pretrained: true
+    use_auth_token: false
 
   # FSDP config for model sharding
   fsdp_config:

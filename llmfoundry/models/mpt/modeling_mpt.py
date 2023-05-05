@@ -489,14 +489,12 @@ class MPTForCausalLM(MPTPreTrainedModel):
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)),
                                    labels.to(logits.device).view(-1))
 
-        outputs = CausalLMOutputWithPast(
+        return CausalLMOutputWithPast(
             loss=loss,
             logits=logits,
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states,
         )
-
-        return outputs
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):

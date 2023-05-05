@@ -461,6 +461,11 @@ class MPTForCausalLM(MPTPreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.config.return_dict
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
+        if attention_mask is not None:
+            attention_mask = attention_mask.bool()
+        if prefix_mask is not None:
+            prefix_mask = prefix_mask.bool()
+
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.transformer(input_ids=input_ids,
                                    past_key_values=past_key_values,
@@ -635,16 +640,13 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         if self.model.transformer.prefix_lm:
             add_bidirectional_mask_if_missing(batch)
         input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask'].bool(
-        ) if 'attention_mask' in batch else None
-        sequence_id = batch.get('sequence_id', None)
-        prefix_mask = batch['bidirectional_mask'].bool(
-        ) if 'bidirectional_mask' in batch else None
         # Note: prefix_mask is only used if model.prefix_lm is True
-        return self.model(input_ids=input_ids,
-                          attention_mask=attention_mask,
-                          prefix_mask=prefix_mask,
-                          sequence_id=sequence_id)
+        return self.model(
+            input_ids=input_ids,
+            attention_mask=batch.get('attention_mask', None),
+            prefix_mask=batch.get('bidirectional_mask', None),
+            sequence_id=batch.get('sequence_id', None),
+        )
 
     def loss(self, outputs, batch):
         targets = self.get_targets(batch)

@@ -76,4 +76,3 @@ def test_json_script_from_cmdline():
     )
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)
-

@@ -27,23 +27,23 @@ You can also accomplish this in your CLI command like so: `composer train.py ...
 Alternatively, feel free to substitute our dataloader with one of your own in `train.py`.
 
 ### Converting C4 to streaming dataset `.mds` format
-To make yourself a copy of C4, use `convert_dataset.py` like so:
+To make yourself a copy of C4, use `convert_dataset_hf.py` like so:
 <!--pytest.mark.skip-->
 ```bash
 # Download the 'train_small' and 'val_small' splits and convert to StreamingDataset format
 # This will take 20-60 seconds depending on your Internet bandwidth
 # You should see two folders: `./my-copy-c4/train_small` and `./my-copy-c4/val_small` that are ~1.0GB total
 # Note: We are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
-python ../data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
+python ../data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 
 # Download the 'train' and 'val' splits if you really want to train the model (not just profile)
 # This will take 1-to-many hours depending on bandwidth, # CPUs, etc.
 # The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
-# python ../data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
+# python ../data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 
 # For any of the above commands, you can also choose to compress the .mds files.
 # This is useful if your plan is to store these in object store after conversion.
-# python ../data_prep/convert_dataset.py ... --compression zstd
+# python ../data_prep/convert_dataset_hf.py ... --compression zstd
 ```
 
 ### Test the Dataloader

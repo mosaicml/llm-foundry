@@ -217,7 +217,8 @@ def build_text_dataloader(
         raise NotImplementedError(
             'group_method is deprecated and has been removed.\nTo ' +
             'concatenate, use the --concat_tokens ' +
-            'argument when creating your MDS dataset with convert_dataset.py')
+            'argument when creating your MDS dataset with convert_dataset_hf.py'
+        )
 
     # build streams
     streams_dict = cfg.dataset.get('streams', None)

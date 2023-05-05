@@ -12,9 +12,9 @@ You'll find in this repo:
 * `llmfoundry/` - source code for models, datasets, callbacks, utilities, etc.
 * `scripts/` - scripts to run LLM workloads
   * `data_prep/` - convert text data from original sources to StreamingDataset format
-  * `train/` - train or finetune HuggingFace and MPT models from 125M - 70B parameters
+  * `train/` - train or finetune Hugging Face and MPT models from 125M - 70B parameters
     * `train/benchmarking` - profile training throughput and MFU
-  * `inference/` - convert models to HuggingFace or ONNX format, and generate responses
+  * `inference/` - convert models to Hugging Face or ONNX format, and generate responses
     * `inference/benchmarking` - profile inference latency and throughput
   * `eval/` - evaluate LLMs on academic (or custom) in-context-learning tasks
 * `mcli/` - launch any of these workloads using [MCLI](https://docs.mosaicml.com/projects/mcli/en/latest/) and the [MosaicML platform](https://www.mosaicml.com/platform)
@@ -68,9 +68,9 @@ pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 # Quickstart
 
 Here is an end-to-end workflow for preparing a subset of the C4 dataset, training an MPT-125M model for 10 batches,
-converting the model to HuggingFace format, evaluating the model on the Winograd challenge, and generating responses to prompts.
+converting the model to Hugging Face format, evaluating the model on the Winograd challenge, and generating responses to prompts.
 
-If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
+If you have a write-enabled [Hugging Face auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
 ```bash
 export HUGGING_FACE_HUB_TOKEN=your-auth-token
 ```
@@ -98,7 +98,7 @@ composer train/train.py \
   eval_interval=0 \
   save_folder=mpt-125m
 
-# Convert the model to HuggingFace format
+# Convert the model to Hugging Face format
 python inference/convert_composer_to_hf.py \
   --composer_path mpt-125m/ep0-ba10-rank0.pt \
   --hf_output_path mpt-125m-hf \

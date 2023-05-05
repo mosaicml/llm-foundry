@@ -46,8 +46,8 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
 
     data_local = get_data_local(tokenizer_name, pretokenize)
     split = 'val_xsmall'
-    eos_text = None
-    bos_text = None
+    eos_text = ''
+    bos_text = ''
     if tokenizer_name == 'gpt2':
         eos_text = '<|endoftext|>'
     elif tokenizer_name == 'facebook/opt-125m':

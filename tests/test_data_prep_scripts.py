@@ -54,7 +54,7 @@ def test_json_script_from_api():
         Namespace(
             **{
                 'path': 'scripts/data_prep/example_data/arxiv.jsonl',
-                'out_root': './my-copy-c4-1',
+                'out_root': './my-copy-c4-3',
                 'compression': None,
                 'split': 'train',
                 'concat_tokens': None,

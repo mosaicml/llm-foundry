@@ -32,7 +32,7 @@ To make yourself a copy of C4, use `convert_dataset.py` like so:
 ```bash
 # Download the 'train_small' and 'val_small' splits and convert to StreamingDataset format
 # This will take 20-60 seconds depending on your Internet bandwidth
-# You should see two folders: `./my-copy-c4/train_small` and `./my-copy-c4/val` that are each ~0.5GB
+# You should see two folders: `./my-copy-c4/train_small` and `./my-copy-c4/val_small` that are ~1.0GB total
 # Note: We are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
 python ../data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 
@@ -54,11 +54,11 @@ To verify that the dataloader works, run a quick test on your `val_small` split 
 # This will construct a `StreamingTextDataset` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
 # Since we only provide a local path, no streaming/copying takes place.
-python ../data_prep/text_data.py --local_path ./my-copy-c4 --split val_small
+python ../../llmfoundry/data/text_data.py --local_path ./my-copy-c4 --split val_small
 
 # This will do the same thing, but stream data to {local} from {remote}.
 # The remote path can be a filesystem or object store URI.
-python ../data_prep/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4  --split val_small # stream from filesystem, e.g. a slow NFS volume to fast local disk
+python ../../llmfoundry/data/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4  --split val_small # stream from filesystem, e.g. a slow NFS volume to fast local disk
 # python ../data_prep/text_data.py --local_path /tmp/cache-c4 --remote_path s3://my-bucket/my-copy-c4  # stream from object store
 ```
 
@@ -80,10 +80,10 @@ We run the `train.py` script using our `composer` launcher, which generates N pr
 If training on a single node, the `composer` launcher will autodetect the number of devices, so all you need to do is:
 <!--pytest.mark.skip-->
 ```bash
-composer train.py yamls/mosaic_gpt/125m.yaml
+composer train.py yamls/mpt/125m.yaml train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
 ```
 
-To train with high performance on multi-node clusters, the easiest way is with the MosaicML platform ;) Check out the `mcloud/` folder for examples!
+To train with high performance on multi-node clusters, the easiest way is with the MosaicML platform ;) Check out the `mcli/` folder for examples!
 
 But if you really must try this manually on your own cluster, then just provide a few variables to `composer`
 either directly via CLI, or via environment variables that can be read. Then launch the appropriate command on each node:
@@ -92,15 +92,15 @@ either directly via CLI, or via environment variables that can be read. Then lau
 
 <!--pytest.mark.skip-->
 ```bash
-# Using 2 nodes with 8 devices each
-# Total world size is 16
+# Using 2 nodes each with 8 devices
+# Total world size: 16
 # IP Address for Node 0 = [0.0.0.0]
 
 # Node 0
-composer --world_size 16 --node_rank 0 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mosaic_gpt/125m.yaml
+composer --world_size 16 --node_rank 0 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mpt/125m.yaml
 
 # Node 1
-composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mosaic_gpt/125m.yaml
+composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 train.py yamls/mpt/125m.yaml
 
 ```
 
@@ -117,19 +117,19 @@ composer --world_size 16 --node_rank 1 --master_addr 0.0.0.0 --master_port 7501 
 # export NODE_RANK=0
 # export MASTER_ADDR=0.0.0.0
 # export MASTER_PORT=7501
-composer train.py yamls/mosaic_gpt/125m.yaml
+composer train.py yamls/mpt/125m.yaml
 
 # Node 1
 # export WORLD_SIZE=16
 # export NODE_RANK=1
 # export MASTER_ADDR=0.0.0.0
 # export MASTER_PORT=7501
-composer train.py yamls/mosaic_gpt/125m.yaml
+composer train.py yamls/mpt/125m.yaml
 ```
 
 You should see logs being printed to your terminal like so.
 You can also easily enable other experiment trackers like Weights and Biases or CometML,
-by using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/trainer/logging.html).
+by using [Composer's logging integrations](https://docs.mosaicml.com/projects/composer/en/latest/trainer/logging.html).
 
 <!--pytest.mark.skip-->
 ```bash
@@ -157,14 +157,14 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/en/stable/t
 This repo also contains utilities for Seq2Seq finetuning for LLMs, for example, Supervised Finetuning (SFT) (aka Instruction(Fine)Tuning (IFT)), or finetuning a base LLM to focus on a specific task like summarization.
 
 You can use the same `train.py` script to do finetuning.
-If you are unfamiliar with that script, or the LLM Foundry in general, you should first go through the instructions above.
+If you are unfamiliar with that script, or the LLM-Foundry in general, you should first go through the instructions above.
 
 In this section, we'll cover how to use the finetuning utilities.
 
 ## Data formatting
 
 You activate finetuning via the `train_loader` and `eval_loader` fields in your configuration YAML.
-We include some reference examples inside `llm/yamls/mpt/finetuning/`.
+We include some reference examples inside `yamls/mpt/finetuning/`.
 
 There are 3 different types of data sources you can use for finetuning:
 (1) [the HuggingFace Hub](#1-using-a-dataset-on-the-huggingface-hub),
@@ -312,30 +312,30 @@ train_loader:
 
 # How many GPUs do I need to train a LLM?
 This is a complicated question in general, but if we assume that you are using FSDP with `FULL_SHARD`,
-activation checkpointing, and `DecoupledAdamW`, then a good rule of thumb is:
+activation checkpointing, and `DecoupledLionW`, then a good rule of thumb is:
 
-> Your total cluster memory in GB should be larger than  16 * N (# billions of params).
+> Your total cluster memory in GB should be larger than  12 * N (# billions of params).
 
 E.g. To train a GPT-13B model which has ~13 billion params,
-have at least 16 * 13 = 208 GB of total memory across your GPUs.
+have at least 12 * 13 = 156 GB of total memory across your GPUs.
 You can accomplish this with 8xA100-40GB, or 4xA100-80GB, etc.
 
 If you run into OOM errors when using small device counts, reduce `device_train_microbatch_size` until it succeeds.
 
 Keep in mind: even though training will work in these minimalist settings, you will get much better throughput_per_device
-if you use a larger cluster or devices with higher memory capacity,
-because more memory will enable you to use larger microbatch sizes.
+if you use a larger cluster or devices with higher memory capacity, because this will enable you to use larger microbatch sizes.
 
 # Optimizing Performance
 The YAMLs in this repo are relatively well tuned for medium-to-large NVIDIA A100-40GB clusters.
 
-If you are running with a CUDA-compatible GPU and have installed the LLM requirements, we turn on by default a kernel fusion optimization for the Cross Entropy loss function at the end of the model. This should not affect your model convergence, but if you would like to disable this, you can set `model.loss_fn=torch_crossentropy`. To re-enable, set `model.loss_fn=fused_crossentropy` or omit it from your YAML.
+If you are running with a CUDA-compatible GPU and have installed the LLM requirements, we turn on by default a kernel fusion optimization for the Cross Entropy loss function at the end of the model.
+This should not affect your model convergence, but if you would like to disable this, you can set `model.loss_fn=torch_crossentropy`. To re-enable, set `model.loss_fn=fused_crossentropy` or omit it from your YAML.
 
 On devices with more / less GPU memory, you may wish to edit the `device_train_microbatch_size` or `fsdp_config` values.
 In general, larger microbatch sizes and disabling `activation_checkpointing` lead to higher throughput.
 
 Note that each YAML specifies a `global_train_batch_size`, which is an optimization choice, i.e. the **math** being performed,
-and a `device_train_microbatch_size`, which is a system choice, i.e. how we **execute** that math.
+and a `device_train_microbatch_size`, which is a system choice, i.e. how to **execute** that math.
 
 Given these two values, our code automatically adjusts the # of gradient accumulation steps based on the # of devices,
 so you should be able to run the exact same YAML on 8 or 16 or 256 GPUs and get the same training results (within numerics).
@@ -343,7 +343,7 @@ This is nice because it means you can write device-count-agnostic training confi
 and not worry about OOM-ing or accidentally changing the optimization math.
 
 In previous blogs ([1](https://www.mosaicml.com/blog/farewell-oom), [2](https://www.mosaicml.com/blog/billion-parameter-gpt-training-made-easy))
-we also demonstrated Auto Grad Accum, which takes things a step further by letting Composer determine the `device_train_microbatch_size` on its own.
+we also demonstrated auto microbatching, which takes things a step further by letting Composer determine the `device_train_microbatch_size` on its own.
 This makes our configs not only device-count-agnostic, but hardware-agnostic too!
 You can try out this feature by setting `device_train_microbatch_size: auto`, but bear in mind that FSDP support is still in alpha mode
-and may not always work with Auto Grad Accum (but we are working on it!).
+and may not always work with auto microbatching (we are working on it!).

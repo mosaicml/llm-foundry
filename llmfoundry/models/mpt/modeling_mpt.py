@@ -652,7 +652,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         targets = self.get_targets(batch)
         model_output = self.loss_fn(
             outputs.logits.view(-1, outputs.logits.size(-1)), targets.view(-1))
-        return model_output[0]
+        return model_output
 
     def flops_per_batch(self, batch):
         # Note: this computation does not take into account padding, and assumes

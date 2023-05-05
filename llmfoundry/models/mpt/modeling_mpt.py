@@ -639,10 +639,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
     def forward(self, batch):
         if self.model.transformer.prefix_lm:
             add_bidirectional_mask_if_missing(batch)
-        input_ids = batch['input_ids']
         # Note: prefix_mask is only used if model.prefix_lm is True
         return self.model(
-            input_ids=input_ids,
+            input_ids=batch['input_ids'],
             attention_mask=batch.get('attention_mask', None),
             prefix_mask=batch.get('bidirectional_mask', None),
             sequence_id=batch.get('sequence_id', None),

@@ -20,7 +20,7 @@ command: |
   cd llm-foundry/common
 
   # Run the dataset conversion
-  python convert_dataset.py \
+  python convert_dataset_hf.py \
     --dataset c4 --data_subset en \
     --out_root ./my-copy-c4 \
     --splits val_small val train_small train \

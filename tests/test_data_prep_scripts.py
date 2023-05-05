@@ -22,7 +22,7 @@ def test_download_script_from_api():
             **{
                 'dataset': 'c4',
                 'data_subset': 'en',
-                'splits': ['val_small'],
+                'splits': ['val_xsmall'],
                 'out_root': './my-copy-c4-1',
                 'compression': None,
                 'concat_tokens': None,
@@ -48,7 +48,7 @@ def test_download_script_from_cmdline():
 
 def test_json_script_from_api():
     # test calling it directly
-    path = os.path.join(os.getcwd(), 'my-copy-c4-1')
+    path = os.path.join(os.getcwd(), 'my-copy-c4-3')
     shutil.rmtree(path, ignore_errors=True)
     main_json(
         Namespace(
@@ -68,7 +68,7 @@ def test_json_script_from_api():
 
 def test_json_script_from_cmdline():
     # test calling it via the cmd line interface
-    path = os.path.join(os.getcwd(), 'my-copy-c4-2')
+    path = os.path.join(os.getcwd(), 'my-copy-c4-4')
     shutil.rmtree(path, ignore_errors=True)
     print(os.getcwd())
     os.system(

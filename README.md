@@ -54,7 +54,7 @@ pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 # Quickstart
 
 Here is an end-to-end workflow for preparing a subset of the C4 dataset, training an MPT-125M model for 10 batches,
-converting the model to HuggingFace format, evaluating the model on some in-context-learning tasks, and generating responses to prompts.
+converting the model to HuggingFace format, evaluating the model on the Winograd challenge, and generating responses to prompts.
 
 If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
 ```bash

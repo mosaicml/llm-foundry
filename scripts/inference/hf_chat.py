@@ -4,6 +4,7 @@
 import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
+from contextlib import nullcontext
 from typing import Any, Dict, Tuple, Union
 
 import torch
@@ -11,6 +12,19 @@ from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           PreTrainedTokenizer, PreTrainedTokenizerFast)
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
+
+
+def get_dtype(dtype):
+    if dtype == 'fp32':
+        return torch.float32
+    elif dtype == 'fp16':
+        return torch.float16
+    elif dtype == 'bf16':
+        return torch.bfloat16
+    else:
+        raise NotImplementedError(
+            f'dtype {dtype} is not supported. '
+            f'We only support fp32, fp16, and bf16 currently')
 
 
 def str2bool(v):
@@ -50,6 +64,7 @@ def parse_args() -> Namespace:
         description='Load a HF CausalLM Model and use it to generate text.')
     parser.add_argument('-n', '--name_or_path', type=str, required=True)
     parser.add_argument('--max_new_tokens', type=int, default=512)
+    parser.add_argument('--max_seq_len', type=int, default=None)
     parser.add_argument('--temperature', type=float, default=1.0)
     parser.add_argument('--top_k', type=int, default=50)
     parser.add_argument('--top_p', type=float, default=1.0)
@@ -65,15 +80,14 @@ def parse_args() -> Namespace:
                         default=True)
     parser.add_argument('--eos_token_id', type=str, default=None)
     parser.add_argument('--pad_token_id', type=str, default=None)
-    parser.add_argument('--dtype',
+    parser.add_argument('--model_dtype',
                         type=str,
                         choices=['fp32', 'fp16', 'bf16'],
-                        default='bf16')
-    parser.add_argument('--autocast',
-                        type=str2bool,
-                        nargs='?',
-                        const=True,
-                        default=False)
+                        default=None)
+    parser.add_argument('--autocast_dtype',
+                        type=str,
+                        choices=['fp32', 'fp16', 'bf16'],
+                        default=None)
     parser.add_argument('--warmup',
                         type=str2bool,
                         nargs='?',
@@ -91,6 +105,7 @@ def parse_args() -> Namespace:
                         default=None)
     parser.add_argument('--revision', type=str, default=None)
     parser.add_argument('--device', type=str, default=None)
+    parser.add_argument('--attn_impl', type=str, default=None)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--system_prompt', type=str, default=SYSTEM_PROMPT)
     parser.add_argument('--user_msg_fmt', type=str, default=USER_MSG_FMT)
@@ -157,16 +172,55 @@ def have_conversation(model, tokenizer: Tokenizer,
 
 
 def main(args: Namespace) -> None:
-    print('Loading HF model...')
+    # Grab config first
+    print(f'Loading HF Config...')
     from_pretrained_kwargs = {
         'use_auth_token': args.use_auth_token,
         'trust_remote_code': args.trust_remote_code,
         'revision': args.revision,
     }
-    model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
-                                                 **from_pretrained_kwargs)
-    model.eval()
-    print(f'n_params={sum(p.numel() for p in model.parameters())}')
+    try:
+        config = AutoConfig.from_pretrained(args.name_or_path,
+                                            **from_pretrained_kwargs)
+        if args.attn_impl is not None and hasattr(config, 'attn_config'):
+            config.attn_config['attn_impl'] = args.attn_impl
+        if args.max_seq_len is not None and hasattr(config, 'max_seq_len'):
+            config.max_seq_len = args.max_seq_len
+
+    except Exception as e:
+        raise RuntimeError(
+            'If you are having auth problems, try logging in via `huggingface-cli login` '
+            'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
+            'using your access token from https://huggingface.co/settings/tokens.'
+        ) from e
+
+    # Set device and model_dtype
+    if args.device is not None:
+        device = args.device
+    else:
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
+    if args.model_dtype is not None:
+        model_dtype = get_dtype(args.model_dtype)
+    else:
+        model_dtype = config.torch_dtype or torch.float32
+
+    # Load HF Model
+    print(f'Loading HF model to device={device} and dtype={model_dtype}...')
+    try:
+        model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
+                                                     config=config,
+                                                     torch_dtype=model_dtype,
+                                                     **from_pretrained_kwargs)
+        model.to(device)
+        model.eval()
+        print(f'n_params={sum(p.numel() for p in model.parameters())}')
+    except Exception as e:
+        raise RuntimeError(
+            'If you are having auth problems, try logging in via `huggingface-cli login` '
+            'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
+            'using your access token from https://huggingface.co/settings/tokens.'
+        ) from e
 
     print('\nLoading HF tokenizer...')
     tokenizer = AutoTokenizer.from_pretrained(args.name_or_path,
@@ -188,35 +242,23 @@ def main(args: Namespace) -> None:
         'eos_token_id': args.eos_token_id or tokenizer.eos_token_id,
         'pad_token_id': args.pad_token_id,
     }
-
-    if args.dtype == 'fp32':
-        dtype = torch.float32
-    elif args.dtype == 'fp16':
-        dtype = torch.float16
-    elif args.dtype == 'bf16':
-        dtype = torch.bfloat16
+    # Autocast
+    if args.autocast_dtype is not None:
+        autocast_dtype = get_dtype(args.autocast_dtype)
+        autocast_context = torch.autocast(device, autocast_dtype)
+        print(f'Using autocast with dtype={autocast_dtype}...')
     else:
-        raise ValueError(f'Invalid dtype: {args.dtype}')
+        autocast_context = nullcontext()
+        print('NOT using autocast...')
 
-    if args.device is None:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    else:
-        device = torch.device(args.device)
-
-    if args.autocast:
-        autocast = torch.cuda.amp.autocast
-    else:
-        autocast = torch.no_grad
-
-    model.to(device, dtype=dtype)
-
+    # Warmup
     if args.warmup:
         print('Warming up...')
-        with autocast():
+        with autocast_context:
             conversation(model, tokenizer, 'hello', '', **generate_kwargs)
 
     print('Starting conversation...')
-    with autocast():
+    with autocast_context:
         have_conversation(model, tokenizer, **generate_kwargs)
 
 

@@ -122,6 +122,11 @@ def main(args: Namespace) -> None:
     try:
         config = AutoConfig.from_pretrained(args.name_or_path,
                                             **from_pretrained_kwargs)
+        if args.attn_impl is not None and hasattr(config, 'attn_config'):
+            config.attn_config['attn_impl'] = args.attn_impl
+        if args.max_seq_len is not None and hasattr(config, 'max_seq_len'):
+            config.max_seq_len = args.max_seq_len
+
     except Exception as e:
         raise RuntimeError(
             'If you are having auth problems, try logging in via `huggingface-cli login` '
@@ -142,17 +147,11 @@ def main(args: Namespace) -> None:
 
     # Load HF Model
     print(f'Loading HF model to device={device} and dtype={model_dtype}...')
-    model_kwargs = {
-        'attn_impl': args.attn_impl,
-        'max_seq_len': args.max_seq_len,
-        'torch_dtype': model_dtype,
-    }
-    model_kwargs = {k: v for k, v in model_kwargs.items() if v is not None}
-
     try:
         model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
-                                                     **from_pretrained_kwargs,
-                                                     **model_kwargs)
+                                                     config=config,
+                                                     torch_dtype=model_dtype,
+                                                     **from_pretrained_kwargs)
         model.to(device)
         model.eval()
         print(f'n_params={sum(p.numel() for p in model.parameters())}')

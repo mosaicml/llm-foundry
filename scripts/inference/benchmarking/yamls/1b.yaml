@@ -37,4 +37,4 @@ num_runs: 5
 
 num_warmup_batches: 3
 
-use_deepspeed: True
+use_deepspeed: false

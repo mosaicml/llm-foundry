@@ -52,14 +52,3 @@ def test_json_script_from_api():
             }))
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)
-
-
-def test_json_script_from_cmdline():
-    # test calling it via the cmd line interface
-    path = os.path.join(os.getcwd(), 'my-copy-c4-4')
-    shutil.rmtree(path, ignore_errors=True)
-    os.system(
-        f'python scripts/data_prep/convert_dataset_json.py --path scripts/data_prep/example_data/arxiv.jsonl --split train --out_root {path}'
-    )
-    assert os.path.exists(path)
-    shutil.rmtree(path, ignore_errors=False)

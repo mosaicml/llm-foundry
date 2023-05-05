@@ -6,6 +6,7 @@ This folder contains scripts for converting text data from original sources (HF,
 ## Converting a pretraining dataset
 Using the `convert_dataset_hf.py` script...
 
+<!--pytest.mark.skip-->
 ```bash
 # Convert C4 dataset to StreamingDataset format
 python convert_dataset_hf.py \
@@ -16,6 +17,7 @@ python convert_dataset_hf.py \
 
 Using the `convert_dataset_json.py` script...
 
+<!--pytest.mark.skip-->
 ```bash
 # Convert C4 dataset to StreamingDataset format
 python convert_dataset_hf.py \

@@ -23,6 +23,8 @@ cluster: # replace with your cluster here!
 parameters:
   seed: 1
   max_seq_len: 1024
+  device_eval_batch_size: 8
+
   model_name_or_path: huggyllama/llama-7b
   # model_name_or_path: EleutherAI/gpt-j-6b
   # model_name_or_path: EleutherAI/pythia-6.9b

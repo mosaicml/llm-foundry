@@ -79,13 +79,14 @@ composer train/train.py \
   data_local=my-copy-c4 \
   train_loader.dataset.split=train_small \
   eval_loader.dataset.split=val_small \
-  max_duration=10ba \
+  max_duration=4ba \
   eval_subset_num_batches=1 \
-  save_folder=mpt-1b
+  save_folder=mpt-1b \
+  global_train_batch_size=16
 
 # Convert the model to HuggingFace format
 python inference/convert_composer_to_hf.py \
-  --composer_path mpt-1b/ep0-ba10-rank0.pt \
+  --composer_path mpt-1b/ep0-ba4-rank0.pt \
   --hf_output_path mpt-1b-hf \
   --output_precision bf16 \
   # --hf_repo_for_upload user-org/repo-name
@@ -97,6 +98,19 @@ python inference/hf_generate.py \
   --prompts \
     "The answer to life, the universe, and happiness is" \
     "Here's a quick recipe for baking chocolate chip cookies: Start by"
+
+
+composer train/train.py \
+  train/yamls/hf_causal_lm/mpt-1b-hf.yaml \
+  data_local=my-copy-c4 \
+  train_loader.dataset.split=train_small \
+  eval_loader.dataset.split=val_small \
+  max_duration=8ba \
+  eval_subset_num_batches=1 \
+  save_folder=mpt-1b \
+  global_train_batch_size=16
+  device_train_microbatch_size=1
+
 ```
 
 # Contact Us

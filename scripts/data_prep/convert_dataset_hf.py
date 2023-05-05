@@ -16,6 +16,9 @@ from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+import sys
+print(sys.path)
+assert sys.path != '', str(sys.path)
 from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
 
 

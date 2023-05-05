@@ -269,6 +269,11 @@ class MPTModel(MPTPreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.config.return_dict
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
+        if attention_mask is not None:
+            attention_mask = attention_mask.bool()
+        if prefix_mask is not None:
+            prefix_mask = prefix_mask.bool()
+
         # These args are passed in by keyword in huggingface's generate function
         # https://github.com/huggingface/transformers/blob/68287689f2f0d8b7063c400230b3766987abf18d/src/transformers/generation/utils.py#L2201-L2206
         # but have not yet been fully implemented in MPTModel
@@ -460,11 +465,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
     ):
         return_dict = return_dict if return_dict is not None else self.config.return_dict
         use_cache = use_cache if use_cache is not None else self.config.use_cache
-
-        if attention_mask is not None:
-            attention_mask = attention_mask.bool()
-        if prefix_mask is not None:
-            prefix_mask = prefix_mask.bool()
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.transformer(input_ids=input_ids,

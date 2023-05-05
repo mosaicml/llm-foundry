@@ -4,7 +4,7 @@ This folder contains the MosaicML LLM evaluation suite. It is a [blazingly fast]
 You can evaluate a model by preparing an evaluaton YAML following the format of the examples in the [`scripts/eval/yamls` directory](https://github.com/mosaicml/llm-foundry/tree/main/scripts/eval/yamls).
 
 **Offline evaluation**
-You can run the evaluation script on a model checkpoint via `composer eval/eval.py YOUR_YAML` from the `scripts` directory or launch it on the mosaic cloud using a an MCLI YAML following the format of `llm-foundry/mcli/mcli-1b-eval.yaml`.
+You can run the evaluation script on a model checkpoint via `composer eval/eval.py YOUR_YAML` from the `scripts` directory or launch it on the MosaicML platform using a an MCLI YAML following the format of `llm-foundry/mcli/mcli-1b-eval.yaml`.
 Your YAML must have a config section entitled `icl_tasks`, this can either be a list of dictionaries of the form
 
 ```jsx

@@ -45,7 +45,6 @@ def parse_args() -> Namespace:
     parser.add_argument('--bos_text', type=str, required=False, default=None)
     parser.add_argument('--eos_text', type=str, required=False, default=None)
     parser.add_argument('--no_wrap', default=False, action='store_true')
-    parser.add_argument('--field', type=str, default=None)
 
     parsed = parser.parse_args()
 
@@ -72,7 +71,6 @@ def parse_args() -> Namespace:
 
 def build_hf_dataset(
     path: str,
-    field: str,
     split: str,
     mode: ConcatMode,
     max_length: Optional[int] = None,
@@ -105,7 +103,6 @@ def build_hf_dataset(
 
     hf_dataset = hf_datasets.load_dataset('json',
                                           data_files=data_files,
-                                          field=field,
                                           split=split)
 
     if mode == ConcatMode.NO_CONCAT:
@@ -212,7 +209,6 @@ def main(args: Namespace) -> None:
 
     # Get samples
     dataset = build_hf_dataset(path=args.path,
-                               field=args.field,
                                split=args.split,
                                mode=mode,
                                max_length=args.concat_tokens,

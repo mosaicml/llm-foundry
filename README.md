@@ -1,7 +1,6 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./assets/loss-curve-dark.png">
-    <img alt="Compute-optimal training curves for LLMs of various sizes (125M -> 3B)." src="./assets/loss-curve-light.png" width="75%">
+    <img alt="LLM Foundry" src="./assets/llm-foundry.png" width="75%">
   </picture>
 </p>
 

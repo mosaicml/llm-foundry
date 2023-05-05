@@ -74,7 +74,7 @@ python data_prep/convert_dataset.py \
   --out_root my-copy-c4 --splits train_small val_small \
   --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 
-# Train an MPT-1B model for 10 batches
+# Train an MPT-125m model for 10 batches
 composer train/train.py \
   train/yamls/mpt/125m.yaml \
   data_local=my-copy-c4 \
@@ -109,4 +109,4 @@ python inference/hf_generate.py \
 # Contact Us
 If you run into any problems with the code, please file Github issues directly to this repo.
 
-If you want to train LLMs on the MosaicML platform, reach out to us at [llm-early-access@mosaicml.com](mailto:llm-early-access@mosaicml.com)!
+If you want to train LLMs on the MosaicML platform, reach out to us at [demo@mosaicml.com](mailto:demo@mosaicml.com)!

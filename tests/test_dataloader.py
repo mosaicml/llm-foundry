@@ -3,7 +3,9 @@
 
 import os
 import shutil
+import sys
 import tempfile
+from argparse import Namespace
 
 import pytest
 import torch
@@ -14,6 +16,11 @@ from llmfoundry import (build_finetuning_dataloader,
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader)
 from llmfoundry.utils.builders import build_tokenizer
+
+# Add repo root to path so we can import scripts and test it
+repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(repo_dir)
+from scripts.data_prep.convert_dataset_hf import main as main_hf
 
 
 def get_config(conf_path='yamls/mpt/125m.yaml'):
@@ -39,21 +46,45 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
 
     data_local = get_data_local(tokenizer_name, pretokenize)
     split = 'val_xsmall'
-    tokenizer_args = {
-        'gpt2': '--eos_text "<|endoftext|>"',
-        'facebook/opt-125m': '--bos_text "</s>"'
-    }[tokenizer_name]
+    eos_text = ''
+    bos_text = ''
+    if tokenizer_name == 'gpt2':
+        eos_text = '<|endoftext|>'
+    elif tokenizer_name == 'facebook/opt-125m':
+        bos_text = '</s>'
 
     path = get_abs_data_path(data_local)
     shutil.rmtree(path, ignore_errors=True)
     if pretokenize:
-        os.system(
-            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits {split} --concat_tokens 2048 --tokenizer {tokenizer_name} {tokenizer_args}'
-        )
+        main_hf(
+            Namespace(
+                **{
+                    'dataset': 'c4',
+                    'data_subset': 'en',
+                    'splits': [split],
+                    'out_root': path,
+                    'compression': None,
+                    'concat_tokens': 2048,
+                    'tokenizer': tokenizer_name,
+                    'bos_text': bos_text,
+                    'eos_text': eos_text,
+                    'no_wrap': False
+                }))
     else:
-        os.system(
-            f'python scripts/data_prep/convert_dataset.py --dataset c4 --data_subset en --out_root {path} --splits {split}'
-        )
+        main_hf(
+            Namespace(
+                **{
+                    'dataset': 'c4',
+                    'data_subset': 'en',
+                    'splits': [split],
+                    'out_root': path,
+                    'compression': None,
+                    'concat_tokens': None,
+                    'tokenizer': tokenizer_name,
+                    'bos_text': bos_text,
+                    'eos_text': eos_text,
+                    'no_wrap': False
+                }))
     if not os.path.isdir(path):
         raise RuntimeError(f'c4 dataset at {path} not set up as expected')
 

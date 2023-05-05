@@ -4,7 +4,6 @@
 """Streaming dataset conversion scripts for C4 and The Pile."""
 import os
 import platform
-import warnings
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
 from enum import Enum
@@ -16,6 +15,8 @@ from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
+
+from llmfoundry.data.datasets import ConcatTokensDataset, NoConcatDataset
 
 
 class ConcatMode(Enum):
@@ -180,116 +181,6 @@ c4constants.splits['val_xsmall'] = DataSplitConstants(hf_split='validation',
 CONSTS = {'c4': c4constants, 'the_pile': pileconstants}
 
 
-class NoConcatDataset(IterableDataset):
-    """An IterableDataset that returns text samples for MDSWriter.
-
-    Returns dicts of {'text': bytes}
-    """
-
-    def __init__(self, dataset_name: str, data_subset: Union[str, None],
-                 split: str):
-        self.hf_dataset = hf_datasets.load_dataset(path=dataset_name,
-                                                   name=data_subset,
-                                                   split=split,
-                                                   streaming=True)
-
-    def __iter__(self) -> Iterable[Dict[str, bytes]]:
-        for sample in self.hf_dataset:
-            # convert to bytes to store in MDS binary format
-            yield {'text': sample['text'].encode('utf-8')}
-
-
-class ConcatTokensDataset(IterableDataset):
-    """An IterableDataset that returns token samples for MDSWriter.
-
-    Returns dicts of {'tokens': bytes}
-
-    To use data created by this class and written to MDS format:
-
-    ```python
-        import torch
-        from streaming.base import StreamingDataset
-        from transformers import AutoTokenizer
-
-        tokenizer = AutoTokenizer.from_pretrained('your/tokenizer')
-        ds = StreamingDataset(local='mds-data-folder', split='val')
-
-        # note, you need to copy the numpy array because the original is non-writeable
-        # and torch does not support non-writeable tensors, so you get a scary warning and
-        # if you do try to write to the tensor you get undefined behavior
-        tokens = torch.from_numpy(np.frombuffer(ds[0]['tokens'], dtype=np.int64).copy())
-        print(tokenizer.decode(tokens))
-    ```
-    """
-
-    def __init__(self,
-                 dataset_name: str,
-                 split: str,
-                 tokenizer: PreTrainedTokenizerBase,
-                 max_length: int,
-                 bos_text: str,
-                 eos_text: str,
-                 no_wrap: bool,
-                 data_subset: Union[str, None] = None):
-        self.tokenizer = tokenizer
-        os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-        self.max_length = max_length
-        self.bos_text = bos_text
-        self.eos_text = eos_text
-        self.should_wrap = not no_wrap
-        self.hf_dataset = hf_datasets.load_dataset(path=dataset_name,
-                                                   name=data_subset,
-                                                   split=split,
-                                                   streaming=True)
-
-        self.bos_tokens = self.tokenizer(self.bos_text,
-                                         truncation=False,
-                                         padding=False,
-                                         add_special_tokens=False)['input_ids']
-        if len(self.bos_tokens) > 1:
-            warnings.warn(
-                f'You specified --concat_tokens with --bos_text, but your BOS text is not tokenizing to one token\
-                , instead we got {self.bos_tokens}. Quit if this was in error.')
-
-        self.eos_tokens = self.tokenizer(self.eos_text,
-                                         truncation=False,
-                                         padding=False,
-                                         add_special_tokens=False)['input_ids']
-        if len(self.eos_tokens) > 1:
-            warnings.warn(
-                f'You specified --concat_tokens with --eos_text, but your EOS text is not tokenizing to one token\
-                , instead we got {self.eos_tokens}. Quit if this was in error.')
-
-        eos_text_provided = self.eos_text != ''
-        bos_text_provided = self.bos_text != ''
-        test_text = self.tokenizer('')
-        if len(test_text['input_ids']) > 0 and (eos_text_provided or
-                                                bos_text_provided):
-            message = 'both eos and bos' if eos_text_provided and bos_text_provided else (
-                'eos_text' if eos_text_provided else 'bos_text')
-            warnings.warn(
-                f'The provided tokenizer adds special tokens, but you also specified {message}. This may result '
-                'in duplicated special tokens. Please be sure this is what you intend.'
-            )
-
-    def __iter__(self) -> Iterable[Dict[str, bytes]]:
-
-        buffer = []
-        for sample in self.hf_dataset:
-            encoded = self.tokenizer(sample['text'],
-                                     truncation=False,
-                                     padding=False)
-            iids = encoded['input_ids']
-            buffer = buffer + self.bos_tokens + iids + self.eos_tokens
-            while len(buffer) >= self.max_length:
-                concat_sample = buffer[:self.max_length]
-                buffer = buffer[self.max_length:] if self.should_wrap else []
-                yield {
-                    # convert to bytes to store in MDS binary format
-                    'tokens': np.asarray(concat_sample).tobytes()
-                }
-
-
 def build_hf_dataset(
     dataset_name: str,
     split: str,
@@ -318,10 +209,12 @@ def build_hf_dataset(
     Returns:
         An IterableDataset.
     """
+    hf_dataset = hf_datasets.load_dataset(path=dataset_name,
+                                          name=data_subset,
+                                          split=split,
+                                          streaming=True)
     if mode == ConcatMode.NO_CONCAT:
-        dataset = NoConcatDataset(dataset_name=dataset_name,
-                                  data_subset=data_subset,
-                                  split=split)
+        dataset = NoConcatDataset(hf_dataset)
     else:
         if not isinstance(tokenizer, PreTrainedTokenizerBase):
             raise ValueError(
@@ -339,9 +232,7 @@ def build_hf_dataset(
                 tok_error_msg += 'such as facebook/opt-125m, or specify EOS/BOS text with e.g. '
                 tok_error_msg += '--bos_text=<|endoftext|>.'
                 raise ValueError(tok_error_msg)
-        dataset = ConcatTokensDataset(dataset_name=dataset_name,
-                                      data_subset=data_subset,
-                                      split=split,
+        dataset = ConcatTokensDataset(hf_dataset=hf_dataset,
                                       tokenizer=tokenizer,
                                       max_length=max_length,
                                       bos_text=bos_text,
@@ -471,6 +362,10 @@ def main(args: Namespace) -> None:
 
         # Write samples
         print(f'Converting {folder_split} to MDS format...')
+        print(
+            f'Note that the progress bar is based on the dataset length before tokenization.'
+        )
+        print(f'It will finish at a value below 100% if tokenizing')
         with MDSWriter(columns=columns,
                        out=os.path.join(args.out_root, folder_split),
                        compression=args.compression) as out:

@@ -17,10 +17,10 @@ integrations:
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  cd llm-foundry/common
+  cd llm-foundry/scripts/data_prep/
 
   # Run the dataset conversion
-  python convert_dataset.py \
+  python convert_dataset_hf.py \
     --dataset c4 --data_subset en \
     --out_root ./my-copy-c4 \
     --splits val_small val train_small train \

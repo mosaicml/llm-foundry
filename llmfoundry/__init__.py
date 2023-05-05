@@ -5,7 +5,8 @@ try:
     import torch
 
     from llmfoundry import optim, utils
-    from llmfoundry.data import (MixtureOfDenoisersCollator,
+    from llmfoundry.data import (ConcatTokensDataset,
+                                 MixtureOfDenoisersCollator, NoConcatDataset,
                                  Seq2SeqFinetuningCollator,
                                  build_finetuning_dataloader,
                                  build_text_denoising_dataloader)
@@ -52,6 +53,8 @@ __all__ = [
     'flash_attn_fn',
     'triton_flash_attn_fn',
     'MultiheadAttention',
+    'NoConcatDataset',
+    'ConcatTokensDataset',
     'attn_bias_shape',
     'build_attn_bias',
     'build_alibi_bias',

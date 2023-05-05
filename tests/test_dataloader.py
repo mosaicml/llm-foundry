@@ -48,7 +48,7 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     shutil.rmtree(path, ignore_errors=True)
     if pretokenize:
         os.system(
-            f'python scripts/data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root {path} --splits {split}  --concat_tokens 2048 --tokenizer {tokenizer_name} {tokenizer_args}'
+            f'python scripts/data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root {path} --splits {split} --concat_tokens 2048 --tokenizer {tokenizer_name} {tokenizer_args}'
         )
     else:
         os.system(

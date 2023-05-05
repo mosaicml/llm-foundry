@@ -71,9 +71,6 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
                     'no_wrap': False
                 }))
     else:
-        os.system(
-            f'python scripts/data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root {path} --splits {split}'
-        )
         main_hf(
             Namespace(
                 **{

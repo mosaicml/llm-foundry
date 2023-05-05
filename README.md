@@ -6,7 +6,7 @@
 
 # LLM Foundry
 
-This repository contains code for training, finetuning, evaluating, and deploying LLMs for inference with Composer and the MosaicML platform. Designed to be easy-to-use, efficient _and_ flexible, this codebase is designed to enable rapid experimentation with the latest techniques. 
+This repository contains code for training, finetuning, evaluating, and deploying LLMs for inference with Composer and the MosaicML platform. Designed to be easy-to-use, efficient _and_ flexible, this codebase is designed to enable rapid experimentation with the latest techniques.
 
 You'll find in this repo:
 * `llmfoundry/` - source code for models, datasets, callbacks, utilities, etc.

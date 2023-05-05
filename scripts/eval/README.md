@@ -3,7 +3,40 @@ This folder contains the MosaicML LLM evaluation suite. It is a [blazingly fast]
 
 You can evaluate a model by preparing an evaluaton YAML following the format of the examples in the [`scripts/eval/yamls` directory](https://github.com/mosaicml/llm-foundry/tree/main/scripts/eval/yamls).
 
-You can run the evaluation script via `composer eval.py YOUR_YAML` or launch it on the MosaicML Cloud Platform using a an MCLI YAML following the format of [`llmfoundry/mcli/mcli-1b-eval.yaml`](https://github.com/mosaicml/llm-foundry/blob/main/mcli/mcli-1b-eval.yaml).
+**Offline evaluation**
+You can run the evaluation script on a model checkpoint via `composer eval/eval.py YOUR_YAML` from the `scripts` directory or launch it on the MosaicML platform using a an MCLI YAML following the format of [`llm-foundry/mcli/mcli-1b-eval.yaml`](https://github.com/mosaicml/llm-foundry/blob/main/mcli/mcli-1b-eval.yaml).
+Your YAML must have a config section entitled `icl_tasks`, this can either be a list of dictionaries of the form
+
+```jsx
+icl_tasks:
+  -
+    label: piqa
+    dataset_uri: # ADD YOUR OWN DATASET URI
+    num_fewshot: [5]
+    icl_task_type: multiple_choice
+    continuation_delimiter: ' '
+    example_delimiter: "\n"
+    prompt_string: ''
+  -
+    label: lambada
+    dataset_uri: # ADD YOUR OWN DATASET URI
+    num_fewshot: [0]
+    icl_task_type: language_modeling
+```
+
+or a local path pointing to a YAML containing an icl\_tasks config.
+
+Note that if continuation\_delimiter, example\_delimiter, or prompt\_string are omitted they will default to the values below:
+```jsx
+continuation_delimiter: ' '
+example_delimiter: "\n"
+prompt_string: ''
+```
+
+
+**Evaluation during training**
+You can also add ICL evaluation to your training runs by adding an `icl_tasks` config to your training config at the same depth as the `model` subconfig.
+
 
 ----
 

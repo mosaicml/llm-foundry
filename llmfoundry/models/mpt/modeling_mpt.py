@@ -269,6 +269,11 @@ class MPTModel(MPTPreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.config.return_dict
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
+        if attention_mask is not None:
+            attention_mask = attention_mask.bool()
+        if prefix_mask is not None:
+            prefix_mask = prefix_mask.bool()
+
         # These args are passed in by keyword in huggingface's generate function
         # https://github.com/huggingface/transformers/blob/68287689f2f0d8b7063c400230b3766987abf18d/src/transformers/generation/utils.py#L2201-L2206
         # but have not yet been fully implemented in MPTModel
@@ -446,16 +451,18 @@ class MPTForCausalLM(MPTPreTrainedModel):
         return self.transformer
 
     def forward(
-            self,
-            input_ids: torch.LongTensor,
-            past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
-            attention_mask: Optional[torch.ByteTensor] = None,
-            prefix_mask: Optional[torch.ByteTensor] = None,
-            sequence_id: Optional[torch.LongTensor] = None,
-            return_dict: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            use_cache: Optional[bool] = None):
+        self,
+        input_ids: torch.LongTensor,
+        past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
+        attention_mask: Optional[torch.ByteTensor] = None,
+        prefix_mask: Optional[torch.ByteTensor] = None,
+        sequence_id: Optional[torch.LongTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        return_dict: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        use_cache: Optional[bool] = None,
+    ):
         return_dict = return_dict if return_dict is not None else self.config.return_dict
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
@@ -480,9 +487,19 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 )
             logits *= self.logit_scale
 
-        return CausalLMOutputWithPast(logits=logits,
-                                      past_key_values=outputs.past_key_values,
-                                      hidden_states=outputs.hidden_states)
+        loss = None
+        if labels is not None:
+            labels = torch.roll(labels, shifts=-1)
+            labels[:, -1] = -100
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)),
+                                   labels.to(logits.device).view(-1))
+
+        return CausalLMOutputWithPast(
+            loss=loss,
+            logits=logits,
+            past_key_values=outputs.past_key_values,
+            hidden_states=outputs.hidden_states,
+        )
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
@@ -622,17 +639,13 @@ class ComposerMPTCausalLM(HuggingFaceModel):
     def forward(self, batch):
         if self.model.transformer.prefix_lm:
             add_bidirectional_mask_if_missing(batch)
-        input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask'].bool(
-        ) if 'attention_mask' in batch else None
-        sequence_id = batch.get('sequence_id', None)
-        prefix_mask = batch['bidirectional_mask'].bool(
-        ) if 'bidirectional_mask' in batch else None
         # Note: prefix_mask is only used if model.prefix_lm is True
-        return self.model(input_ids=input_ids,
-                          attention_mask=attention_mask,
-                          prefix_mask=prefix_mask,
-                          sequence_id=sequence_id)
+        return self.model(
+            input_ids=batch['input_ids'],
+            attention_mask=batch.get('attention_mask', None),
+            prefix_mask=batch.get('bidirectional_mask', None),
+            sequence_id=batch.get('sequence_id', None),
+        )
 
     def loss(self, outputs, batch):
         targets = self.get_targets(batch)

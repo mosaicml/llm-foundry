@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
+from llmfoundry.data.datasets import ConcatTokensDataset, NoConcatDataset
 
 
 class ConcatMode(Enum):

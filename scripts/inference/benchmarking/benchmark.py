@@ -112,17 +112,19 @@ def main(config):
 
                 num_output_tokens = output_length * batch_size
                 tokens_per_second = num_output_tokens / mean_time
-                ms_per_seq_output_token = mean_time * 1000 / num_output_tokens
+                ms_per_seq_output_token = mean_time * 1000 / output_length
+                ms_per_output_token = mean_time * 1000 / num_output_tokens
 
                 result = (
                     f'{config.benchmark_name}_{batch_size}_{input_length}_{output_length}',
                     f'{mean_time:.3f}', f'{tokens_per_second:.3f}',
-                    f'{ms_per_seq_output_token:.3f}')
+                    f'{ms_per_seq_output_token:.3f}',
+                    f'{ms_per_output_token:.3f}')
 
                 run_name, latency, tokens_per_second, ms_per_seq_output_token = result
 
                 print(
-                    f'{run_name}, {latency}, {tokens_per_second}, {ms_per_seq_output_token}'
+                    f'{run_name}, {latency}, {tokens_per_second}, {ms_per_seq_output_token}, {ms_per_output_token}'
                 )
 
                 stats.append(result)

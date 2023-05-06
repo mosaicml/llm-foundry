@@ -5,7 +5,6 @@ import sys
 import time
 from contextlib import nullcontext
 
-import numpy as np
 import torch
 # You can use this to load the model weights
 from omegaconf import OmegaConf as om
@@ -34,6 +33,11 @@ def compare_dtype(dtype, param_dtype):
 
 
 def main(config):
+    if config.device is not None:
+        device = config.device
+    else:
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
     model_dtype = get_dtype(config.model_dtype)
 
     if config.autocast_dtype is not None:
@@ -68,32 +72,30 @@ def main(config):
             compare_dtype(model_dtype, p.dtype)
             break
     else:
-        model.to(device=torch.cuda.current_device(), dtype=model_dtype)
+        model.to(device=device, dtype=model_dtype)
 
     n_params = sum(p.numel() for p in model.parameters())
     print('n_params is: ', n_params)
 
-    print('name, latency (s), tokens / s, output token time (ms)')
+    print(
+        'name, latency (s), throughput (tokens/s), latency_per_sequence_output_token (ms)'
+    )
     print('=' * 75)
 
-    stats = []
     for batch_size in config.batch_sizes:
         for input_length in config.input_lengths:
             for output_length in config.output_lengths:
-                times = []
-
-                batch = torch.randint(
-                    0,
-                    config.model.vocab_size - 1,
-                    size=(
-                        batch_size,
-                        input_length)).to(f'cuda:{torch.cuda.current_device()}')
+                batch = torch.randint(0,
+                                      config.model.vocab_size - 1,
+                                      size=(batch_size,
+                                            input_length)).to(device)
 
                 # We're just going to have generate eos, padding tokens be
                 # ignored by HF generate
                 batch = batch.to(torch.long)
                 attention_mask = torch.ones_like(batch)
 
+                start_time = 0
                 for i in range(config.num_batches + config.num_warmup_batches):
                     if i >= config.num_warmup_batches:
                         torch.cuda.synchronize()
@@ -113,29 +115,11 @@ def main(config):
                 num_output_tokens = output_length * batch_size
                 tokens_per_second = num_output_tokens / mean_time
                 ms_per_seq_output_token = mean_time * 1000 / output_length
-                ms_per_output_token = mean_time * 1000 / num_output_tokens
 
-                result = (
-                    f'{config.benchmark_name}_{batch_size}_{input_length}_{output_length}',
-                    f'{mean_time:.3f}', f'{tokens_per_second:.3f}',
-                    f'{ms_per_seq_output_token:.3f}',
-                    f'{ms_per_output_token:.3f}')
-
-                run_name, latency, tokens_per_second, ms_per_seq_output_token = result
-
+                run_name = f'{config.benchmark_name}_{batch_size}_{input_length}_{output_length}',
                 print(
-                    f'{run_name}, {latency}, {tokens_per_second}, {ms_per_seq_output_token}, {ms_per_output_token}'
+                    f'{run_name}, {mean_time:.3f}, {tokens_per_second:.3f}, {ms_per_seq_output_token:.3f}'
                 )
-
-                stats.append(result)
-
-    print('=' * 75)
-    print('name, latency (s), tokens / s, output token time (ms)')
-    for val in stats:
-        run_name, latency, tokens_per_second, ms_per_seq_output_token = val
-        print(
-            f'{run_name}, latency (s) {latency}, tokens per second {tokens_per_second}, output token time (ms) {ms_per_seq_output_token}'
-        )
 
 
 if __name__ == '__main__':

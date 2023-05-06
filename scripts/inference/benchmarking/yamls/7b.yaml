@@ -26,8 +26,10 @@ model:
   attn_config:
     attn_impl: triton
 
+device: null
 model_dtype: bf16
 autocast_dtype: null
+use_deepspeed: false
 
 batch_sizes: [1, 2, 4, 8, 16, 32, 64]
 input_lengths: [128]
@@ -36,4 +38,3 @@ use_cache: true
 
 num_batches: 5
 num_warmup_batches: 3
-use_deepspeed: false

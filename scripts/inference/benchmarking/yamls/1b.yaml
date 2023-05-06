@@ -8,7 +8,6 @@ tokenizer:
   name: ${tokenizer_name}
   kwargs:
     model_max_length: ${max_seq_len}
-  non_eos_token_id: 17
 
 model:
   name: mpt_causal_lm
@@ -27,14 +26,15 @@ model:
   attn_config:
     attn_impl: triton
 
-autocast_precision: bf16
+device: null
 model_dtype: bf16
+autocast_dtype: null
+use_deepspeed: false
 
 batch_sizes: [1, 2, 4, 8, 16, 32, 64]
 input_lengths: [128]
 output_lengths: [8]
-num_runs: 5
+use_cache: true
 
+num_batches: 5
 num_warmup_batches: 3
-
-use_deepspeed: false

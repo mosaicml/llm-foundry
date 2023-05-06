@@ -116,7 +116,7 @@ def main(config):
                 tokens_per_second = num_output_tokens / mean_time
                 ms_per_seq_output_token = mean_time * 1000 / output_length
 
-                run_name = f'{config.benchmark_name}_{batch_size}_{input_length}_{output_length}',
+                run_name = f'{config.benchmark_name}_{batch_size}_{input_length}_{output_length}'
                 print(
                     f'{run_name}, {mean_time:.3f}, {tokens_per_second:.3f}, {ms_per_seq_output_token:.3f}'
                 )

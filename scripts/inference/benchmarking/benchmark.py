@@ -97,7 +97,7 @@ def main(config):
 
                 start_time = 0
                 for i in range(config.num_batches + config.num_warmup_batches):
-                    if i >= config.num_warmup_batches:
+                    if i == config.num_warmup_batches:
                         torch.cuda.synchronize()
                         start_time = time.time()
                     with torch.no_grad():

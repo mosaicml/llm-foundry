@@ -37,8 +37,8 @@ def main(config):
         device = config.device
     else:
         device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
     model_dtype = get_dtype(config.model_dtype)
+    print(f'Using device={device} and dtype={model_dtype}...')
 
     if config.autocast_dtype is not None:
         autocast_dtype = get_dtype(config.autocast_dtype)

@@ -58,6 +58,7 @@ Here's what you need to get started with our LLM stack:
 
 To get started, clone this repo and install the requirements:
 
+<!--pytest.mark.skip-->
 ```bash
 git clone https://github.com/mosaicml/llm-foundry.git
 cd llm-foundry

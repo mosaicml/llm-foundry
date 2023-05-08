@@ -58,9 +58,15 @@ Here's what you need to get started with our LLM stack:
 
 To get started, clone this repo and install the requirements:
 
+<!--pytest.mark.skip-->
 ```bash
 git clone https://github.com/mosaicml/llm-foundry.git
 cd llm-foundry
+
+# Optional: we highly recommend creating and using a virtual environment
+python -m venv llmfoundry-venv
+source llmfoundry-venv/bin/activate
+
 pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 ```
 

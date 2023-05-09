@@ -33,7 +33,7 @@ jobs:
         fi
 
         python -m pip install --upgrade build twine
-        LLM_FOUNDRY_PACKAGE_NAME=$PYPI_PACKAGE_NAME python -m build
+        python -m build
         twine check --strict dist/*
 
     - name: Publish 📦 to PyPI

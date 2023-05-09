@@ -89,7 +89,6 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/mosaicml/llm-foundry/',
-    include_package_data=True,
     package_data={
         'llmfoundry': ['py.typed'],
     },

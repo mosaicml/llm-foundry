@@ -3,6 +3,7 @@
 import os
 import re
 
+import setuptools
 from setuptools import setup
 
 _PACKAGE_NAME = 'llm-foundry'
@@ -88,7 +89,11 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/mosaicml/llm-foundry/',
-    package_dir={_PACKAGE_DIR: _PACKAGE_REAL_PATH},
+    package_data={
+        'llmfoundry': ['py.typed'],
+    },
+    packages=setuptools.find_packages(
+        exclude=['.github*', 'mcli*', 'scripts*', 'tests*']),
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,

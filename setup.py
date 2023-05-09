@@ -92,7 +92,8 @@ setup(
     package_data={
         'llmfoundry': ['py.typed'],
     },
-    packages=setuptools.find_packages(exclude=['.github*', 'mcli*', 'scripts*', 'tests*']),
+    packages=setuptools.find_packages(
+        exclude=['.github*', 'mcli*', 'scripts*', 'tests*']),
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,

@@ -6,7 +6,7 @@
 
 # LLM Foundry
 
-This repo contains code for training, finetuning, evaluating, and deploying LLMs for inference with Composer and the MosaicML platform.
+This repository contains code for training, finetuning, evaluating, and deploying LLMs for inference with Composer and the [MosaicML platform](https://forms.mosaicml.com/demo?utm_source=github.com&utm_medium=referral&utm_campaign=llm-foundry). Designed to be easy-to-use, efficient _and_ flexible, this codebase is designed to enable rapid experimentation with the latest techniques.
 
 You'll find in this repo:
 * `llmfoundry/` - source code for models, datasets, callbacks, utilities, etc.
@@ -19,8 +19,22 @@ You'll find in this repo:
   * `eval/` - evaluate LLMs on academic (or custom) in-context-learning tasks
 * `mcli/` - launch any of these workloads using [MCLI](https://docs.mosaicml.com/projects/mcli/en/latest/) and the [MosaicML platform](https://www.mosaicml.com/platform)
 
+# MPT
+
+MPT-7B is a GPT-style model, and the first in the MosaicML Foundation Series of models. Trained on 1T tokens of a MosaicML-curated dataset, MPT-7B is open-source, commercially usable, and equivalent to LLaMa 7B on evaluation metrics. The MPT architecture contains all the latest techniques on LLM modeling -- Flash Attention for efficiency, Alibi for context length extrapolation, and stability improvements to mitigate loss spikes. The base model and several variants, including a 64K context length fine-tuned model (!!) are all available:
+
+
+| Model              | Context Length | Download                                           | Demo                                                           | Commercial use? |
+|--------------------|----------------|----------------------------------------------------|----------------------------------------------------------------|-----------------|
+| MPT-7B             | 2048           | https://huggingface.co/mosaicml/mpt-7b             |                                                                | Yes             |
+| MPT-7B-Instruct    | 2048           | https://huggingface.co/mosaicml/mpt-7b-instruct    | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-instruct) | Yes             |
+| MPT-7B-Chat        | 2048           | https://huggingface.co/mosaicml/mpt-7b-chat        | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-chat)     | No              |
+| MPT-7B-StoryWriter | 65536          | https://huggingface.co/mosaicml/mpt-7b-storywriter |                                                                | Yes             |
+
+To try out these models locally, [follow the instructions](https://github.com/mosaicml/llm-foundry/tree/main/scripts/inference#interactive-generation-with-modelgenerate) in `scripts/inference/README.md` to prompt HF models using our [hf_generate.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_generate.py) or [hf_chat.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_chat.py) scripts.
 
 # Latest News
+* [Blog: Introducing MPT-7B](https://www.mosaicml.com/blog/mpt-7b)
 * [Blog: Benchmarking LLMs on H100](https://www.mosaicml.com/blog/coreweave-nvidia-h100-part-1)
 * [Blog: Blazingly Fast LLM Evaluation](https://www.mosaicml.com/blog/llm-evaluation-for-icl)
 * [Blog: GPT3 Quality for $500k](https://www.mosaicml.com/blog/gpt-3-quality-for-500k)
@@ -44,9 +58,15 @@ Here's what you need to get started with our LLM stack:
 
 To get started, clone this repo and install the requirements:
 
+<!--pytest.mark.skip-->
 ```bash
 git clone https://github.com/mosaicml/llm-foundry.git
 cd llm-foundry
+
+# Optional: we highly recommend creating and using a virtual environment
+python -m venv llmfoundry-venv
+source llmfoundry-venv/bin/activate
+
 pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 ```
 
@@ -69,12 +89,12 @@ and uncomment the line containing `--hf_repo_for_upload ...`.
 cd scripts
 
 # Convert C4 dataset to StreamingDataset format
-python data_prep/convert_dataset.py \
+python data_prep/convert_dataset_hf.py \
   --dataset c4 --data_subset en \
   --out_root my-copy-c4 --splits train_small val_small \
   --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 
-# Train an MPT-1B model for 10 batches
+# Train an MPT-125m model for 10 batches
 composer train/train.py \
   train/yamls/mpt/125m.yaml \
   data_local=my-copy-c4 \
@@ -109,4 +129,4 @@ python inference/hf_generate.py \
 # Contact Us
 If you run into any problems with the code, please file Github issues directly to this repo.
 
-If you want to train LLMs on the MosaicML platform, reach out to us at [llm-early-access@mosaicml.com](mailto:llm-early-access@mosaicml.com)!
+If you want to train LLMs on the MosaicML platform, reach out to us at [demo@mosaicml.com](mailto:demo@mosaicml.com)!

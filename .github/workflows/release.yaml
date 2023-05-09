@@ -33,7 +33,7 @@ jobs:
         fi
 
         python -m pip install --upgrade build twine
-        LLM_FOUNDRY_PACKAGE_NAME=$PYPI_PACKAGE_NAME python -m build
+        python -m build
         twine check --strict dist/*
 
     - name: Publish 📦 to PyPI
@@ -41,7 +41,7 @@ jobs:
       if: contains(github.ref, 'refs/tags/v')
       with:
         user: __token__
-        password: ${{ secrets.PROD_PYPI_API_TOKEN }}  # TODO: Update this secret name!
+        password: ${{ secrets.PROD_PYPI_API_TOKEN }}
 
     - name: Publish distribution 📦 to Test PyPI
       uses: pypa/gh-action-pypi-publish@release/v1

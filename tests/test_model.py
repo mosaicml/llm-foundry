@@ -15,6 +15,7 @@ from composer.optim import DecoupledAdamW
 from composer.utils import get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
@@ -211,6 +212,9 @@ def test_full_forward_and_backward_gpt2_small(prefixlm, batch_size=2):
     model = COMPOSER_MODEL_REGISTRY[neo_cfg.model.name](neo_cfg.model,
                                                         tokenizer).to(device)
 
+    assert isinstance(model.tokenizer,
+                      (PreTrainedTokenizer, PreTrainedTokenizerFast))
+
     assert neo_cfg.optimizer.name == 'decoupled_adamw'
     optimizer = DecoupledAdamW(model.parameters(),
                                lr=neo_cfg.optimizer.lr,
@@ -250,6 +254,9 @@ def test_full_forward_and_backward_t5_small(batch_size=2):
 
     model = COMPOSER_MODEL_REGISTRY[t5_cfg.model.name](t5_cfg.model,
                                                        tokenizer).to(device)
+
+    assert isinstance(model.tokenizer,
+                      (PreTrainedTokenizer, PreTrainedTokenizerFast))
 
     optimizer = DecoupledAdamW(model.parameters(),
                                lr=t5_cfg.optimizer.lr,

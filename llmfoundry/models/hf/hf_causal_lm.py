@@ -39,10 +39,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             cfg.init_device ('cpu' | 'meta'): Which device, 'cpu' or 'meta', to
                 initialize the model on. Currently, `meta` is only supported when
                 cfg.pretrained is ``False``. Default: ``'cpu'``.
-            cfg.add_exact_match (bool, optional): CURRENTLY UNUSED. Whether to add ExactMatch metric used
-                in some fine-tuning settings. Default: ``False``.
-            cfg.add_rouge (bool, optional): CURRENTLY UNUSED. Whether to add RougeWithDetokenizer metric
-                to validation metrics. Default: ``False``.
+        tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
     def __init__(self, om_model_config: DictConfig, tokenizer: Tokenizer):
@@ -88,18 +85,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             raise ValueError(
                 f'init_device="{init_device}" must be either "cpu" or "meta".')
 
-        # if cfg.add_exact_match:
-        #     metrics.append(ExactMatch(ignore_index=_HF_IGNORE_INDEX))
-
         composer_model = super().__init__(model=model,
                                           tokenizer=tokenizer,
                                           metrics=train_metrics,
                                           eval_metrics=eval_metrics,
                                           z_loss=om_model_config.get(
                                               'z_loss', 0.0))
-
-        # if cfg.add_rouge:
-        #     rouge_metric = RougeWithDetokenizer(detokenizer=tokenizer)
-        #     composer_model.val_metrics[RougeWithDetokenizer.__name__] = rouge_metric
 
         return composer_model

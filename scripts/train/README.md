@@ -159,7 +159,9 @@ This repo also contains utilities for Seq2Seq finetuning for LLMs, for example, 
 You can use the same `train.py` script to do finetuning.
 If you are unfamiliar with that script, or the LLM-Foundry in general, you should first go through the instructions above.
 
-In this section, we'll cover how to use the finetuning utilities.
+## If you want to finetune MPT-7B
+
+You should probably start with ``yamls/hf_causal_lm/mpt-7b_dolly_sft.yaml`
 
 ## Data formatting
 

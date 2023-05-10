@@ -11,7 +11,7 @@
 <p align="center">
     <a href="https://pypi.org/project/llm-foundry/">
         <img alt="PyPi Version" src="https://img.shields.io/pypi/pyversions/llm-foundry">
-    </a>  
+    </a>
     <a href="https://pypi.org/project/llm-foundry/">
         <img alt="PyPi Package Version" src="https://img.shields.io/pypi/v/llm-foundry">
     </a>

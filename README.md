@@ -1,7 +1,9 @@
 <p align="center">
-  <picture>
-    <img alt="LLM Foundry" src="./assets/llm-foundry.png" width="95%">
-  </picture>
+  <a href="https://github.com/mosaicml/llm-foundry">
+    <picture>
+      <img alt="LLM Foundry" src="https://github.com/mosaicml/llm-foundry/blob/main/assets/llm-foundry.png" width="95%">
+    </picture>
+  </a>
 </p>
 
 # LLM Foundry

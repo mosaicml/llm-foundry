@@ -1,39 +1,47 @@
+############################################################################################
+# NOTE: This uses the MPT _architecture_, but not the HuggingFace pretrained model!        #
+# Use this YAML to train directly from a Composer checkpoint.                              #
+# This is not the right YAML if you are trying to finetune a HuggingFace pretrained model. #
+############################################################################################
+
 max_seq_len: 2048
 global_seed: 17
 
 # Run Name
 run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
 
+# Model
 model:
-  name: hf_causal_lm
-  device: cpu
-  pretrained: true
-  pretrained_model_name_or_path: mosaicml/mpt-7b
-  config_overrides:
+  name: mpt_causal_lm
+  init_device: meta
+  d_model: 4096
+  n_heads: 32
+  n_layers: 32
+  expansion_ratio: 4
+  max_seq_len: ${max_seq_len}
+  vocab_size: 50368
+  attn_config:
     attn_impl: triton
 
 # Tokenizer
 tokenizer:
-  name: mosaicml/mpt-7b
+  name: EleutherAI/gpt-neox-20b
   kwargs:
     model_max_length: ${max_seq_len}
-
 
 # Dataloaders
 train_loader:
   name: finetuning
   dataset:
-    name: mosaicml/dolly_hhrlhf
+    hf_name: HuggingFaceH4/databricks_dolly_15k
     split: train
-    tokenizer_name: ${tokenizer_name}
-    max_seq_length: ${max_seq_len}
+    max_seq_len: ${max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
-    # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
-    # to profile this run's optimal packing_ratio as it depends on GPU count,
-    # batch size, sequence length
-    # packing_ratio:
     shuffle: true
+    # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...` to profile
+    # this run's optimal packing_ratio
+    # packing_ratio:
   drop_last: true
   num_workers: 8
   pin_memory: false
@@ -41,34 +49,18 @@ train_loader:
   persistent_workers: true
   timeout: 0
 
-eval_loader:
-  name: finetuning
-  dataset:
-    name: mosaicml/dolly_hhrlhf
-    split: test
-    tokenizer_name: ${tokenizer_name}
-    max_seq_length: ${max_seq_len}
-    allow_pad_trimming: false
-    decoder_only_format: true
-    # packing_ratio:
-    shuffle: true
-  drop_last: true
-  num_workers: 8
-  pin_memory: false
-  prefetch_factor: 2
-  persistent_workers: true
-  timeout: 0
+# There is no validation split so we skip eval_loader
 
 # Optimization
 scheduler:
-  name: linear_decay_with_warmup  # linear no warmup is HF default which dolly used
-  t_warmup: 50ba  #add some warmup though, seems to help with MPT
+  name: linear_decay_with_warmup # linear no warmup is HF default which dolly used
+  t_warmup: 0ba
   alpha_f: 0
 
 optimizer:
-  # Based on Dolly
+  # mimic HF defaults to replicate dolly
   name: decoupled_adamw
-  lr: 5.0e-6
+  lr: 1.0e-5
   betas:
   - 0.9
   - 0.999
@@ -80,11 +72,11 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-  max_duration: 2ep
-  eval_interval: 200ba
-  # eval_subset_num_batches: -1
-  eval_first: true
-  global_train_batch_size: 48  # somewhere in the 6-8 * numgpus range seems good
+max_duration: 1ep
+eval_interval: 1 # this is the only allowed value for no eval
+# eval_first: false
+# eval_subset_num_batches: -1
+global_train_batch_size: 64 # assuming 8 gpus
 
 # System
 seed: ${global_seed}
@@ -124,3 +116,6 @@ callbacks:
 # save_folder: ./{run_name}/checkpoints
 # save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
 
+# Load from remote object store
+# REPLACE THE BELOW with you own checkpoint!
+load_path: oci://my-bucket/my-folder/mpt-7b/checkpoints/some_checkpoint.pt

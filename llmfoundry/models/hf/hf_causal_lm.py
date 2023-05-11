@@ -3,7 +3,7 @@
 
 """Implements a Hugging Causal LM wrapped inside a :class:`.ComposerModel`."""
 
-from typing import Dict, Union
+from typing import Mapping, Union
 
 from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
@@ -56,7 +56,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     f'config does not have attribute "{k}" to override ({k}: {v}).'
                 )
 
-            if isinstance(getattr(config, k), Dict):
+            attr = getattr(config, k)
+            if isinstance(attr, Mapping):
+                extra_keys = [_k for _k in v.keys() if _k not in attr.keys()]
+                if extra_keys:
+                    raise ValueError(f'Config dict override got unknown keys. '
+                                     f'Extra keys: {extra_keys}. '
+                                     f'Expected keys: {list(attr.keys())}.')
                 getattr(config, k).update(v)
             else:
                 setattr(config, k, v)

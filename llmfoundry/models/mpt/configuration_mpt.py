@@ -24,6 +24,11 @@ init_config_defaults: Dict = {
     'name': 'kaiming_normal_',
     'fan_mode': 'fan_in',
     'init_nonlinearity': 'relu',
+    'init_div_is_residual': True,
+    'emb_init_std': None,
+    'emb_init_uniform_lim': None,
+    'init_std': None,
+    'init_gain': 0.0,
 }
 
 

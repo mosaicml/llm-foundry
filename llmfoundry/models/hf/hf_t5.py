@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from typing import Union
+from typing import Mapping, Union
 
 from composer.metrics.nlp import LanguageCrossEntropy, MaskedAccuracy
 from omegaconf import DictConfig
@@ -58,7 +58,28 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
     def __init__(self, om_model_config: DictConfig, tokenizer: Tokenizer):
         config = AutoConfig.from_pretrained(
             om_model_config.pretrained_model_name_or_path,
-            **om_model_config.get('config_overrides', {}))
+            trust_remote_code=om_model_config.get('trust_remote_code', True),
+            use_auth_token=om_model_config.get('use_auth_token', False),
+        )
+
+        # set config overrides
+        for k, v in om_model_config.get('config_overrides', {}).items():
+            if not hasattr(config, k):
+                raise ValueError(
+                    f'config does not have attribute "{k}" to override ({k}: {v}).'
+                )
+
+            attr = getattr(config, k)
+            if isinstance(attr, Mapping):
+                extra_keys = [_k for _k in v.keys() if _k not in attr.keys()]
+                if extra_keys:
+                    raise ValueError(
+                        f'Config dict override got unknown keys. '
+                        f'Extra keys: {extra_keys}. '
+                        f'Expected (a subset of) keys: {list(attr.keys())}.')
+                getattr(config, k).update(v)
+            else:
+                setattr(config, k, v)
 
         if not config.is_encoder_decoder:
             raise ValueError(f'Model type "hf_t5" currently only supports T5 models ' +\

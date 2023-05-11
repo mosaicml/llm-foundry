@@ -64,8 +64,10 @@ def get_objs(conf_path='scripts/train/yamls/mpt/testing.yaml'):
     test_cfg.device_eval_batch_size = 2
     test_cfg.device_train_microbatch_size = 2
 
+    tokenizer = build_tokenizer(test_cfg.tokenizer)
+
     model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                         test_cfg.tokenizer)
+                                                         tokenizer)
     # Optimizer
     assert test_cfg.optimizer.name == 'decoupled_adamw'
     optimizer = DecoupledAdamW(model.parameters(),
@@ -302,8 +304,10 @@ def test_determinism(attn_impl: str, precision):
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
+    tokenizer = build_tokenizer(test_cfg.tokenizer)
+
     model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                           test_cfg.tokenizer)
+                                                           tokenizer)
     model_2 = copy.deepcopy(model_1)
 
     optimizer_1 = DecoupledAdamW(model_1.parameters(),
@@ -359,8 +363,10 @@ def test_loss_fn():
         'init_std': 0.02,
     }
 
+    tokenizer = build_tokenizer(test_cfg.tokenizer)
+
     model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                           test_cfg.tokenizer)
+                                                           tokenizer)
     model_2 = copy.deepcopy(model_1)
     assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
     model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
@@ -412,10 +418,12 @@ def test_opt_wrapping(prefixlm):
     }
     config = DictConfig(conf)
 
+    tokenizer = build_tokenizer(config.tokenizer)
+
     if prefixlm:
-        model = ComposerHFPrefixLM(config.model, config.tokenizer)
+        model = ComposerHFPrefixLM(config.model, tokenizer)
     else:
-        model = ComposerHFCausalLM(config.model, config.tokenizer)
+        model = ComposerHFCausalLM(config.model, tokenizer)
 
     # check that all the modules we except are blocked from FSDP wrapping
     assert not model.model.model._fsdp_wrap

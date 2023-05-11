@@ -26,7 +26,8 @@ from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 
 
-def get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml') -> DictConfig:
+def get_config(
+        conf_path='scripts/train/yamls/pretrain/testing.yaml') -> DictConfig:
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     print(conf_path)
     with open(conf_path) as f:

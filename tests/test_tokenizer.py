@@ -12,7 +12,8 @@ def get_config(conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml'):
 
 
 def test_load_tokenizer():
-    test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml')
+    test_cfg = get_config(
+        conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml')
     truncation = True
     padding = 'max_length'
 

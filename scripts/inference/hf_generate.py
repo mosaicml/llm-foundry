@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import itertools
+import os
 import random
 import time
 import warnings
@@ -20,7 +22,7 @@ def get_dtype(dtype):
         return torch.bfloat16
     else:
         raise NotImplementedError(
-            f'dtype {dtype} is not supported. '
+            f'dtype {dtype} is not supported. ' +\
             f'We only support fp32, fp16, and bf16 currently')
 
 
@@ -58,12 +60,28 @@ def parse_args() -> Namespace:
         default=[
             'My name is',
             'This is an explanation of deep learning to a five year old. Deep learning is',
-        ])
-    parser.add_argument('--max_new_tokens', type=int, default=100)
+        ],
+        help='Generation prompts. Use syntax "file::/path/to/prompt.txt" to load a ' +\
+             'prompt contained in a txt file.'
+        )
     parser.add_argument('--max_seq_len', type=int, default=None)
-    parser.add_argument('--temperature', type=float, default=1.0)
-    parser.add_argument('--top_k', type=int, default=50)
-    parser.add_argument('--top_p', type=float, default=1.0)
+    parser.add_argument('--max_new_tokens', type=int, default=100)
+    parser.add_argument('--max_batch_size', type=int, default=None)
+    #####
+    # Note: Generation config defaults are set to match Hugging Face defaults
+    parser.add_argument('--temperature', type=float, nargs='+', default=[1.0])
+    parser.add_argument('--top_k', type=int, nargs='+', default=[50])
+    parser.add_argument('--top_p', type=float, nargs='+', default=[1.0])
+    parser.add_argument('--repetition_penalty',
+                        type=float,
+                        nargs='+',
+                        default=[1.0])
+    parser.add_argument('--no_repeat_ngram_size',
+                        type=int,
+                        nargs='+',
+                        default=[0])
+    #####
+    parser.add_argument('--seed', type=int, nargs='+', default=[42])
     parser.add_argument('--do_sample',
                         type=str2bool,
                         nargs='?',
@@ -102,8 +120,26 @@ def parse_args() -> Namespace:
     parser.add_argument('--revision', type=str, default=None)
     parser.add_argument('--device', type=str, default=None)
     parser.add_argument('--attn_impl', type=str, default=None)
-    parser.add_argument('--seed', type=int, default=42)
+    # TODO
+    # parser.add_argument('--fsdp',
+    #                     type=str2bool,
+    #                     nargs='?',
+    #                     const=True,
+    #                     default=False)
     return parser.parse_args()
+
+
+def load_prompt_string_from_file(prompt_path_str: str):
+    if not prompt_path_str.startswith('file::'):
+        raise ValueError('prompt_path_str must start with "file::".')
+    _, prompt_file_path = prompt_path_str.split('file::', maxsplit=1)
+    prompt_file_path = os.path.expanduser(prompt_file_path)
+    if not os.path.isfile(prompt_file_path):
+        raise FileNotFoundError(
+            f'{prompt_file_path=} does not match any existing files.')
+    with open(prompt_file_path, 'r') as f:
+        prompt_string = ''.join(f.readlines())
+    return prompt_string
 
 
 def maybe_synchronize():
@@ -112,6 +148,17 @@ def maybe_synchronize():
 
 
 def main(args: Namespace) -> None:
+    # TODO
+    # if args.fsdp and (not torch.cuda.is_available()):
+    #     raise ValueError(
+    #         'Cannot use FSDP because no cuda devices are available.')
+
+    prompt_strings = []
+    for prompt in args.prompts:
+        if prompt.startswith('file::'):
+            prompt = load_prompt_string_from_file(prompt)
+        prompt_strings.append(prompt)
+
     # Grab config first
     print(f'Loading HF Config...')
     from_pretrained_kwargs = {
@@ -129,38 +176,44 @@ def main(args: Namespace) -> None:
 
     except Exception as e:
         raise RuntimeError(
-            'If you are having auth problems, try logging in via `huggingface-cli login` '
-            'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
+            'If you are having auth problems, try logging in via `huggingface-cli login` ' +\
+            'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... ' +\
             'using your access token from https://huggingface.co/settings/tokens.'
         ) from e
 
-    # Set device and model_dtype
-    if args.device is not None:
-        device = args.device
-    else:
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
+    # Set model_dtype
     if args.model_dtype is not None:
         model_dtype = get_dtype(args.model_dtype)
     else:
         model_dtype = config.torch_dtype or torch.float32
 
     # Load HF Model
-    print(f'Loading HF model to device={device} and dtype={model_dtype}...')
+    print(f'Loading HF model with dtype={model_dtype}...')
     try:
         model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
                                                      config=config,
                                                      torch_dtype=model_dtype,
                                                      **from_pretrained_kwargs)
-        model.to(device)
-        model.eval()
-        print(f'n_params={sum(p.numel() for p in model.parameters())}')
     except Exception as e:
         raise RuntimeError(
-            'If you are having auth problems, try logging in via `huggingface-cli login` '
-            'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
+            'If you are having auth problems, try logging in via `huggingface-cli login` ' +\
+            'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... ' +\
             'using your access token from https://huggingface.co/settings/tokens.'
         ) from e
+    model.eval()
+    print(f'n_params={sum(p.numel() for p in model.parameters())}')
+
+    # TODO
+    # if args.fsdp:
+    #     ...
+    # else:
+    # Set device
+    if args.device is not None:
+        device = args.device
+    else:
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    print(f'Placing model on {device=}...')
+    model.to(device)
 
     print('\nLoading HF tokenizer...')
     tokenizer = AutoTokenizer.from_pretrained(args.name_or_path,
@@ -172,29 +225,6 @@ def main(args: Namespace) -> None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = 'left'
 
-    generate_kwargs = {
-        'max_new_tokens': args.max_new_tokens,
-        'temperature': args.temperature,
-        'top_p': args.top_p,
-        'top_k': args.top_k,
-        'use_cache': args.use_cache,
-        'do_sample': args.do_sample,
-        'eos_token_id': args.eos_token_id or tokenizer.eos_token_id,
-        'pad_token_id': args.pad_token_id or tokenizer.pad_token_id,
-    }
-    print(f'\nGenerate kwargs:\n{generate_kwargs}')
-
-    print(f'\nTokenizing prompts...')
-    maybe_synchronize()
-    encode_start = time.time()
-    encoded_inp = tokenizer(args.prompts, return_tensors='pt', padding=True)
-    for key, value in encoded_inp.items():
-        encoded_inp[key] = value.to(device)
-    maybe_synchronize()
-    encode_end = time.time()
-    input_tokens = torch.sum(encoded_inp['input_ids'] != tokenizer.pad_token_id,
-                             axis=1).numpy(force=True)  # type: ignore
-
     # Autocast
     if args.autocast_dtype is not None:
         autocast_dtype = get_dtype(args.autocast_dtype)
@@ -204,67 +234,117 @@ def main(args: Namespace) -> None:
         autocast_context = nullcontext()
         print('NOT using autocast...')
 
-    # Generate function with correct context managers
-    def _generate(encoded_inp):
-        with torch.no_grad():
-            with autocast_context:
-                return model.generate(
-                    input_ids=encoded_inp['input_ids'],
-                    attention_mask=encoded_inp['attention_mask'],
-                    **generate_kwargs,
-                )
+    done_warmup = False
 
-    # Warmup
-    if args.warmup:
-        print('Warming up...')
-        _ = _generate(encoded_inp)
+    for temp, topp, topk, repp, nrnz, seed in itertools.product(
+            args.temperature, args.top_p, args.top_k, args.repetition_penalty,
+            args.no_repeat_ngram_size, args.seed):
 
-    # Seed randomness
-    random.seed(args.seed)
-    torch.manual_seed(args.seed)
+        # Seed randomness
+        random.seed(seed)
+        torch.manual_seed(seed)
+        print(f'\nGenerate seed:\n{seed}')
 
-    # Run HF generate
-    print('Generating responses...')
-    maybe_synchronize()
-    gen_start = time.time()
-    encoded_gen = _generate(encoded_inp)
-    maybe_synchronize()
-    gen_end = time.time()
+        generate_kwargs = {
+            'max_new_tokens': args.max_new_tokens,
+            'temperature': temp,
+            'top_p': topp,
+            'top_k': topk,
+            'repetition_penalty': repp,
+            'no_repeat_ngram_size': nrnz,
+            'use_cache': args.use_cache,
+            'do_sample': False if temp == 0 else args.do_sample,
+            'eos_token_id': args.eos_token_id or tokenizer.eos_token_id,
+            'pad_token_id': args.pad_token_id or tokenizer.pad_token_id,
+            # TODO
+            # 'synced_gpus': args.fsdp,
+        }
+        print(f'\nGenerate kwargs:\n{generate_kwargs}')
 
-    decode_start = time.time()
-    decoded_gen = tokenizer.batch_decode(encoded_gen, skip_special_tokens=True)
-    maybe_synchronize()
-    decode_end = time.time()
-    gen_tokens = torch.sum(encoded_gen != tokenizer.pad_token_id,
-                           axis=1).numpy(force=True)  # type: ignore
+        # Generate function with correct context managers
+        def _generate(encoded_inp):
+            with torch.no_grad():
+                with autocast_context:
+                    return model.generate(
+                        input_ids=encoded_inp['input_ids'],
+                        attention_mask=encoded_inp['attention_mask'],
+                        **generate_kwargs,
+                    )
 
-    # Print generations
-    delimiter = '#' * 100
-    for prompt, gen in zip(args.prompts, decoded_gen):
-        continuation = gen[len(prompt):]
-        print(delimiter)
-        print('\033[92m' + prompt + '\033[0m' + continuation)
-    print(delimiter)
+        # Split into prompt batches
+        batches = []
+        if args.max_batch_size:
+            bs = args.max_batch_size
+            batches = [
+                prompt_strings[i:i + bs]
+                for i in range(0, len(prompt_strings), bs)
+            ]
 
-    # Print timing info
-    bs = len(args.prompts)
-    output_tokens = gen_tokens - input_tokens
-    total_input_tokens = input_tokens.sum()
-    total_output_tokens = output_tokens.sum()
-    encode_latency = 1000 * (encode_end - encode_start)
-    gen_latency = 1000 * (gen_end - gen_start)
-    decode_latency = 1000 * (decode_end - decode_start)
-    total_latency = encode_latency + gen_latency + decode_latency
+        else:
+            batches = [prompt_strings]
 
-    latency_per_output_token = total_latency / total_output_tokens
-    output_tok_per_sec = 1000 / latency_per_output_token
-    print(f'{bs=}, {input_tokens=}, {output_tokens=}')
-    print(f'{total_input_tokens=}, {total_output_tokens=}')
-    print(
-        f'{encode_latency=:.2f}ms, {gen_latency=:.2f}ms, {decode_latency=:.2f}ms, {total_latency=:.2f}ms'
-    )
-    print(f'{latency_per_output_token=:.2f}ms/tok')
-    print(f'{output_tok_per_sec=:.2f}tok/sec')
+        for batch in batches:
+            print(f'\nTokenizing prompts...')
+            maybe_synchronize()
+            encode_start = time.time()
+            encoded_inp = tokenizer(batch, return_tensors='pt', padding=True)
+            for key, value in encoded_inp.items():
+                encoded_inp[key] = value.to(device)
+            maybe_synchronize()
+            encode_end = time.time()
+            input_tokens = torch.sum(
+                encoded_inp['input_ids'] != tokenizer.pad_token_id,
+                axis=1).numpy(force=True)  # type: ignore
+
+            # Warmup
+            if args.warmup and (not done_warmup):
+                print('Warming up...')
+                _ = _generate(encoded_inp)
+                done_warmup = True
+
+            # Run HF generate
+            print('Generating responses...')
+            maybe_synchronize()
+            gen_start = time.time()
+            encoded_gen = _generate(encoded_inp)
+            maybe_synchronize()
+            gen_end = time.time()
+
+            decode_start = time.time()
+            decoded_gen = tokenizer.batch_decode(encoded_gen,
+                                                 skip_special_tokens=True)
+            maybe_synchronize()
+            decode_end = time.time()
+            gen_tokens = torch.sum(encoded_gen != tokenizer.pad_token_id,
+                                   axis=1).numpy(force=True)  # type: ignore
+
+            # Print generations
+            delimiter = '#' * 100
+            for prompt, gen in zip(batch, decoded_gen):
+                continuation = gen[len(prompt):]
+                print(delimiter)
+                print('\033[92m' + prompt + '\033[0m' + continuation)
+            print(delimiter)
+
+            # Print timing info
+            bs = len(batch)
+            output_tokens = gen_tokens - input_tokens
+            total_input_tokens = input_tokens.sum()
+            total_output_tokens = output_tokens.sum()
+            encode_latency = 1000 * (encode_end - encode_start)
+            gen_latency = 1000 * (gen_end - gen_start)
+            decode_latency = 1000 * (decode_end - decode_start)
+            total_latency = encode_latency + gen_latency + decode_latency
+
+            latency_per_output_token = total_latency / total_output_tokens
+            output_tok_per_sec = 1000 / latency_per_output_token
+            print(f'{bs=}, {input_tokens=}, {output_tokens=}')
+            print(f'{total_input_tokens=}, {total_output_tokens=}')
+            print(
+                f'{encode_latency=:.2f}ms, {gen_latency=:.2f}ms, {decode_latency=:.2f}ms, {total_latency=:.2f}ms'
+            )
+            print(f'{latency_per_output_token=:.2f}ms/tok')
+            print(f'{output_tok_per_sec=:.2f}tok/sec')
 
 
 if __name__ == '__main__':

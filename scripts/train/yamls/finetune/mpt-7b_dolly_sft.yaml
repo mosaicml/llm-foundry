@@ -6,11 +6,11 @@ run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
 
 model:
   name: hf_causal_lm
-  device: cpu
   pretrained: true
   pretrained_model_name_or_path: mosaicml/mpt-7b
   config_overrides:
-    attn_impl: triton
+    attn_config:
+      attn_impl: triton
 
 # Tokenizer
 tokenizer:

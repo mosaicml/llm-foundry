@@ -32,11 +32,9 @@ tokenizer:
 
 # Local data to load into huggingface datasets
 dataset: &hf_dataset
-  hf_name: mylocalset
+  hf_name: json
   hf_kwargs:
-    data_files:
-      train: /path/to/train.jsonl
-      test: /path/to/test.jsonl
+    data_dir: /path/to/data/dir/
   preprocessing_fn: my.import.path:my_preprocessing_fn
 
 # Dataloaders
@@ -63,7 +61,7 @@ eval_loader:
   <<: *train_loader
   dataset:
     <<: *hf_dataset
-    split: test
+    split: validation
 
 # Optimization
 scheduler:

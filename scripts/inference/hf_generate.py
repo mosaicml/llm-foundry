@@ -271,14 +271,9 @@ def main(args: Namespace) -> None:
         # Split into prompt batches
         batches = []
         if args.max_batch_size:
-            batch = []
-            for prompt in prompt_strings:
-                batch.append(prompt)
-                if len(batch) == args.max_batch_size:
-                    batches.append(batch)
-                    batch = []
-            if len(batch) > 0:
-                batches.append(batch)
+            bs = args.max_batch_size
+            batches = [prompts[i:i+bs] for i in range(0,len(prompts),bs)]
+
         else:
             batches = [prompt_strings]
 

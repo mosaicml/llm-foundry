@@ -134,6 +134,7 @@ def load_prompt_string_from_file(prompt_path_str: str):
     if not prompt_path_str.startswith('file::'):
         raise ValueError('prompt_path_str must start with "file::".')
     _, prompt_file_path = prompt_path_str.split('file::', maxsplit=1)
+    prompt_file_path = os.path.expanduser(prompt_file_path)
     if not os.path.isfile(prompt_file_path):
         raise FileNotFoundError(
             f'{prompt_file_path=} does not match any existing files.')

@@ -8,6 +8,22 @@
 </p>
 <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_END -->
 
+<p align="center">
+    <a href="https://pypi.org/project/llm-foundry/">
+        <img alt="PyPi Version" src="https://img.shields.io/pypi/pyversions/llm-foundry">
+    </a>
+    <a href="https://pypi.org/project/llm-foundry/">
+        <img alt="PyPi Package Version" src="https://img.shields.io/pypi/v/llm-foundry">
+    </a>
+    <a href="https://join.slack.com/t/mosaicml-community/shared_invite/zt-w0tiddn9-WGTlRpfjcO9J5jyrMub1dg">
+        <img alt="Chat @ Slack" src="https://img.shields.io/badge/slack-chat-2eb67d.svg?logo=slack">
+    </a>
+    <a href="https://github.com/mosaicml/llm-foundry/blob/main/LICENSE">
+        <img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-green.svg">
+    </a>
+</p>
+<br />
+
 # LLM Foundry
 
 This repository contains code for training, finetuning, evaluating, and deploying LLMs for inference with Composer and the [MosaicML platform](https://forms.mosaicml.com/demo?utm_source=github.com&utm_medium=referral&utm_campaign=llm-foundry). Designed to be easy-to-use, efficient _and_ flexible, this codebase is designed to enable rapid experimentation with the latest techniques.

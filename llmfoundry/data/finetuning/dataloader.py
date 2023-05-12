@@ -206,7 +206,7 @@ def _validate_config(dataset_cfg: DictConfig):
                 'Those keys are used when building from a HuggingFace dataset, but ' +\
                 'setting `remote` instructs the dataset to build from a streaming dataset.'
             )
-        if dataset_cfg.get('local') is not None:
+        if dataset_cfg.get('local') is None:
             raise ValueError(
                 'Using a streaming dataset requires setting both `remote` and `local`, ' +\
                 'but dataset.local is None.'

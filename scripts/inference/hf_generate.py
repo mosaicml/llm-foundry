@@ -67,6 +67,8 @@ def parse_args() -> Namespace:
     parser.add_argument('--max_seq_len', type=int, default=None)
     parser.add_argument('--max_new_tokens', type=int, default=100)
     parser.add_argument('--max_batch_size', type=int, default=None)
+    #####
+    # Note: Generation config defaults are set to match Hugging Face defaults
     parser.add_argument('--temperature', type=float, nargs='+', default=[1.0])
     parser.add_argument('--top_k', type=int, nargs='+', default=[50])
     parser.add_argument('--top_p', type=float, nargs='+', default=[1.0])
@@ -78,6 +80,7 @@ def parse_args() -> Namespace:
                         type=int,
                         nargs='+',
                         default=[0])
+    #####
     parser.add_argument('--seed', type=int, nargs='+', default=[42])
     parser.add_argument('--do_sample',
                         type=str2bool,
@@ -272,7 +275,10 @@ def main(args: Namespace) -> None:
         batches = []
         if args.max_batch_size:
             bs = args.max_batch_size
-            batches = [prompts[i:i+bs] for i in range(0,len(prompts),bs)]
+            batches = [
+                prompt_strings[i:i + bs]
+                for i in range(0, len(prompt_strings), bs)
+            ]
 
         else:
             batches = [prompt_strings]

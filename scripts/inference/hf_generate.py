@@ -10,12 +10,7 @@ from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
 
 import torch
-from composer.core import Precision
-from composer.models import HuggingFaceModel
-from composer.trainer.dist_strategy import prepare_fsdp_module
-from composer.utils import dist, get_device
-from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
-                          PreTrainedModel)
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 
 def get_dtype(dtype):
@@ -27,7 +22,7 @@ def get_dtype(dtype):
         return torch.bfloat16
     else:
         raise NotImplementedError(
-            f'dtype {dtype} is not supported. '
+            f'dtype {dtype} is not supported. ' +\
             f'We only support fp32, fp16, and bf16 currently')
 
 
@@ -122,11 +117,12 @@ def parse_args() -> Namespace:
     parser.add_argument('--revision', type=str, default=None)
     parser.add_argument('--device', type=str, default=None)
     parser.add_argument('--attn_impl', type=str, default=None)
-    parser.add_argument('--fsdp',
-                        type=str2bool,
-                        nargs='?',
-                        const=True,
-                        default=False)
+    # TODO
+    # parser.add_argument('--fsdp',
+    #                     type=str2bool,
+    #                     nargs='?',
+    #                     const=True,
+    #                     default=False)
     return parser.parse_args()
 
 
@@ -143,52 +139,16 @@ def load_prompt_string_from_file(prompt_path_str: str):
     return prompt_string
 
 
-def fsdp_wrap_model(model: PreTrainedModel, model_dtype: torch.dtype):
-    dist.initialize_dist(get_device(None), timeout=1800)
-
-    fsdp_config = {
-        'sharding_strategy': 'FULL_SHARD',
-        'mixed_precision': 'DEFAULT',
-        'activation_checkpointing': False,
-        'limit_all_gathers': True,
-        'activation_cpu_offload': False,
-        'verbose': False,
-    }
-
-    precision = {
-        'fp16': Precision('amp_fp16'),
-        'bf16': Precision('amp_bf16'),
-        'fp32': Precision('fp32'),
-    }[model_dtype]
-
-    # Wrap and unwrap the model to get the write outcome of FSDP prep
-    model = HuggingFaceModel(model)
-    prepare_fsdp_module(model,
-                        optimizers=None,
-                        fsdp_config=fsdp_config,
-                        precision=precision)
-    model = model.model
-
-    # dummy forward call needed for FSDP to work consistently
-    print('Dummy input...')
-    dummy_input = torch.tensor([[0]],
-                               dtype=torch.long,
-                               device=torch.cuda.current_device())
-    with torch.no_grad():
-        _ = model(input_ids=dummy_input)
-
-    return model
-
-
 def maybe_synchronize():
     if torch.cuda.is_available():
         torch.cuda.synchronize()
 
 
 def main(args: Namespace) -> None:
-    if args.fsdp and (not torch.cuda.is_available()):
-        raise ValueError(
-            'Cannot use FSDP because no cuda devices are available.')
+    # TODO
+    # if args.fsdp and (not torch.cuda.is_available()):
+    #     raise ValueError(
+    #         'Cannot use FSDP because no cuda devices are available.')
 
     prompt_strings = []
     for prompt in args.prompts:
@@ -240,17 +200,17 @@ def main(args: Namespace) -> None:
     model.eval()
     print(f'n_params={sum(p.numel() for p in model.parameters())}')
 
-    if args.fsdp:
-        print('FSDP sharding the model...')
-        model = fsdp_wrap_model(model, args.model_dtype)
+    # TODO
+    # if args.fsdp:
+    #     ...
+    # else:
+    # Set device
+    if args.device is not None:
+        device = args.device
     else:
-        # Set device
-        if args.device is not None:
-            device = args.device
-        else:
-            device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-        print(f'Placing model on {device=}...')
-        model.to(device)
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    print(f'Placing model on {device=}...')
+    model.to(device)
 
     print('\nLoading HF tokenizer...')
     tokenizer = AutoTokenizer.from_pretrained(args.name_or_path,
@@ -293,7 +253,8 @@ def main(args: Namespace) -> None:
             'do_sample': False if temp == 0 else args.do_sample,
             'eos_token_id': args.eos_token_id or tokenizer.eos_token_id,
             'pad_token_id': args.pad_token_id or tokenizer.pad_token_id,
-            'synced_gpus': args.fsdp,
+            # TODO
+            # 'synced_gpus': args.fsdp,
         }
         print(f'\nGenerate kwargs:\n{generate_kwargs}')
 

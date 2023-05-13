@@ -1,30 +1,40 @@
-max_seq_len: 1024
+max_seq_len: 2048
 global_seed: 17
-model_name: t5-small
 
 # Run Name
 run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
 
-# Model
 model:
-  name: hf_t5
-  pretrained_model_name_or_path: ${model_name}
-  device: cpu
+  name: hf_causal_lm
   pretrained: true
+  pretrained_model_name_or_path: mosaicml/mpt-7b
+  config_overrides:
+    attn_config:
+      attn_impl: triton
+      # Set this to `true` if using `train_loader.dataset.packing_ratio` below
+      attn_uses_sequence_id: false
 
 # Tokenizer
 tokenizer:
-  name: ${model_name}
+  name: mosaicml/mpt-7b
+  kwargs:
+    model_max_length: ${max_seq_len}
+
 
 # Dataloaders
 train_loader:
   name: finetuning
   dataset:
-    hf_name: HuggingFaceH4/databricks_dolly_15k
+    name: mosaicml/dolly_hhrlhf
     split: train
-    max_seq_len: ${max_seq_len}
+    tokenizer_name: ${tokenizer_name}
+    max_seq_length: ${max_seq_len}
     allow_pad_trimming: false
-    decoder_only_format: false
+    decoder_only_format: true
+    # # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
+    # # to profile this run's optimal packing_ratio as it depends on GPU count,
+    # # batch size, sequence length
+    # packing_ratio:
     shuffle: true
   drop_last: true
   num_workers: 8
@@ -33,18 +43,34 @@ train_loader:
   persistent_workers: true
   timeout: 0
 
-# There is no validation split so we skip eval_loader
+eval_loader:
+  name: finetuning
+  dataset:
+    name: mosaicml/dolly_hhrlhf
+    split: test
+    tokenizer_name: ${tokenizer_name}
+    max_seq_length: ${max_seq_len}
+    allow_pad_trimming: false
+    decoder_only_format: true
+    # packing_ratio:
+    shuffle: true
+  drop_last: true
+  num_workers: 8
+  pin_memory: false
+  prefetch_factor: 2
+  persistent_workers: true
+  timeout: 0
 
 # Optimization
 scheduler:
-  name: linear_decay_with_warmup # linear no warmup is HF default which dolly used
-  t_warmup: 0ba
+  name: linear_decay_with_warmup  # linear no warmup is HF default which dolly used
+  t_warmup: 50ba  # add some warmup though, seems to help with MPT
   alpha_f: 0
 
 optimizer:
-  # mimic HF defaults to replicate dolly
+  # Based on Dolly
   name: decoupled_adamw
-  lr: 1.0e-5
+  lr: 5.0e-6
   betas:
   - 0.9
   - 0.999
@@ -56,11 +82,11 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 1ep
-eval_interval: 1 # this is the only allowed value for no eval
-# eval_first: false
+max_duration: 2ep  # 2-3 epochs seems like the sweet spot
+eval_interval: 1ep
 # eval_subset_num_batches: -1
-global_train_batch_size: 64 # assuming 8 gpus
+eval_first: true
+global_train_batch_size: 48  # somewhere in the 6-8 * numgpus range seems good
 
 # System
 seed: ${global_seed}
@@ -99,7 +125,3 @@ callbacks:
 # save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
 # save_folder: ./{run_name}/checkpoints
 # save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
-
-# Load from remote object store
-# REPLACE THE BELOW with you own checkpoint!
-# load_path: oci://my-bucket/my-folder/mpt-7b/checkpoints/some_checkpoint.pt

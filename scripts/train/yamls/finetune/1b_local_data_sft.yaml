@@ -1,3 +1,9 @@
+############################################################################################
+# NOTE: This uses the MPT _architecture_, but not the HuggingFace pretrained model!        #
+# Use this YAML to train directly from a Composer checkpoint.                              #
+# This is not the right YAML if you are trying to finetune a HuggingFace pretrained model. #
+############################################################################################
+
 max_seq_len: 2048
 global_seed: 17
 
@@ -17,6 +23,8 @@ model:
   vocab_size: 50368
   attn_config:
     attn_impl: triton
+    # Set this to `true` if using `train_loader.dataset.packing_ratio` below
+    attn_uses_sequence_id: false
 
 # Tokenizer
 tokenizer:
@@ -26,11 +34,9 @@ tokenizer:
 
 # Local data to load into huggingface datasets
 dataset: &hf_dataset
-  hf_name: mylocalset
+  hf_name: json
   hf_kwargs:
-    data_files:
-      train: /path/to/train.jsonl
-      test: /path/to/test.jsonl
+    data_dir: /path/to/data/dir/
   preprocessing_fn: my.import.path:my_preprocessing_fn
 
 # Dataloaders
@@ -43,8 +49,9 @@ train_loader: &train_loader
     allow_pad_trimming: false
     decoder_only_format: true
     shuffle: true
-    # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...` to profile
-    # this run's optimal packing_ratio
+    # # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
+    # # to profile this run's optimal packing_ratio as it depends on GPU count,
+    # # batch size, sequence length
     # packing_ratio:
   drop_last: true
   num_workers: 8
@@ -57,7 +64,7 @@ eval_loader:
   <<: *train_loader
   dataset:
     <<: *hf_dataset
-    split: test
+    split: validation
 
 # Optimization
 scheduler:
@@ -126,4 +133,4 @@ callbacks:
 
 # Load from remote object store
 # REPLACE THE BELOW with you own checkpoint!
-load_path: oci://my-bucket/my-folder/mpt-7b/checkpoints/some_checkpoint.pt
+load_path: oci://my-bucket/my-folder/mpt-1b/checkpoints/some_checkpoint.pt

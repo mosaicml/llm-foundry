@@ -116,7 +116,7 @@ python data_prep/convert_dataset_hf.py \
 
 # Train an MPT-125m model for 10 batches
 composer train/train.py \
-  train/yamls/mpt/125m.yaml \
+  train/yamls/pretrain/mpt-125m.yaml \
   data_local=my-copy-c4 \
   train_loader.dataset.split=train_small \
   eval_loader.dataset.split=val_small \

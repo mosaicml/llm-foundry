@@ -1,3 +1,6 @@
+# Pretrain a gpt-neo-125m style model
+# this is NOT a finetuning run
+
 data_local: ./my-copy-c4
 data_remote: # If blank, files must be present in data_local
 tokenizer_name: gpt2
@@ -10,11 +13,11 @@ run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
 # Model
 model:
   name: hf_causal_lm
-  pretrained_model_name_or_path: gpt2
+  pretrained_model_name_or_path: EleutherAI/gpt-neo-125M
   config_overrides:
     # WARNING: if setting `pretrained: true`, `max_position_embeddings` must match the
     # `max_position_embeddings` used during pre-training
-    n_positions: ${max_seq_len}
+    max_position_embeddings: ${max_seq_len}
   pretrained: false  # false: only use the architecture; true: initialize with pretrained weights
 
 # Tokenizer

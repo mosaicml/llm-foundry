@@ -52,7 +52,7 @@ from llmfoundry.utils import build_tokenizer
 ])
 def test_hf_config_override(
     model_cfg_overrides,
-    conf_path='scripts/train/yamls/mpt/testing.yaml',
+    conf_path='scripts/train/yamls/pretrain/testing.yaml',
 ):
     AutoConfig.register('mpt', MPTConfig)
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)

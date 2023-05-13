@@ -88,7 +88,8 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
     if not os.path.isdir(path):
         raise RuntimeError(f'c4 dataset at {path} not set up as expected')
 
-    test_cfg = get_config(conf_path='scripts/train/yamls/mpt/125m.yaml')
+    test_cfg = get_config(
+        conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml')
     test_cfg.data_local = data_local
     test_cfg.eval_loader.dataset.split = split
     test_cfg.dataset = om.create({

@@ -26,7 +26,8 @@ from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 
 
-def get_config(conf_path='scripts/train/yamls/mpt/testing.yaml') -> DictConfig:
+def get_config(
+        conf_path='scripts/train/yamls/pretrain/testing.yaml') -> DictConfig:
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     print(conf_path)
     with open(conf_path) as f:
@@ -34,7 +35,7 @@ def get_config(conf_path='scripts/train/yamls/mpt/testing.yaml') -> DictConfig:
     return cast(DictConfig, test_cfg)
 
 
-def get_objs(conf_path='scripts/train/yamls/mpt/testing.yaml'):
+def get_objs(conf_path='scripts/train/yamls/pretrain/testing.yaml'):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
@@ -118,7 +119,7 @@ def gen_random_enc_dec_batch(batch_size, vocab_size, max_seq_len, device):
 
 def test_full_forward_and_backward(batch_size=2):
     test_cfg, model, optimizer = get_objs(
-        conf_path='scripts/train/yamls/mpt/testing.yaml')
+        conf_path='scripts/train/yamls/pretrain/testing.yaml')
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -136,7 +137,7 @@ def test_full_forward_and_backward(batch_size=2):
 
 def test_attention_mechanism(batch_size=2):
     test_cfg, model, _ = get_objs(
-        conf_path='scripts/train/yamls/mpt/testing.yaml')
+        conf_path='scripts/train/yamls/pretrain/testing.yaml')
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -196,7 +197,7 @@ def test_full_forward_and_backward_gpt2_small(prefixlm, batch_size=2):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
-    conf_path = 'scripts/train/yamls/hf_causal_lm/gpt2-small.yaml'
+    conf_path = 'scripts/train/yamls/pretrain/gpt2-small.yaml'
     with open(conf_path) as f:
         neo_cfg = om.load(f)
 
@@ -244,7 +245,7 @@ def test_full_forward_and_backward_t5_small(batch_size=2):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
-    conf_path = 'scripts/train/yamls/hf_t5/t5-small_dolly_sft.yaml'
+    conf_path = 'scripts/train/yamls/finetune/t5-small_dolly_sft.yaml'
     with open(conf_path) as f:
         t5_cfg = om.load(f)
 
@@ -294,7 +295,7 @@ def test_determinism(attn_impl: str, precision):
         )
     reproducibility.seed_all(1111)
 
-    conf_path = 'scripts/train/yamls/mpt/testing.yaml'
+    conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
 
@@ -352,7 +353,7 @@ def test_loss_fn():
 
     reproducibility.seed_all(1111)
 
-    conf_path = 'scripts/train/yamls/mpt/testing.yaml'
+    conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
 

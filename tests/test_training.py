@@ -15,7 +15,7 @@ sys.path.append(repo_dir)
 from scripts.train.train import main
 
 
-def gpt_tiny_cfg(conf_path='scripts/train/yamls/mpt/125m.yaml'):
+def gpt_tiny_cfg(conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml'):
     """Create gpt tiny cfg."""
     with open(conf_path) as f:
         test_cfg = om.load(f)
@@ -62,7 +62,8 @@ def test_train(device, logit_scale):
         "Using the 'grad_clip_norm' field in Trainer is deprecated. Please usethe GradientClipping Algorithm in composer.algorithms.gradient_clipping."
     )
 
-    test_cfg = gpt_tiny_cfg(conf_path='scripts/train/yamls/mpt/125m.yaml')
+    test_cfg = gpt_tiny_cfg(
+        conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml')
     test_cfg.eval_subset_num_batches = 2
     if logit_scale:
         test_cfg.model.logit_scale = logit_scale

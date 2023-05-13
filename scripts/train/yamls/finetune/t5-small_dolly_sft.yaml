@@ -9,7 +9,6 @@ run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
 model:
   name: hf_t5
   pretrained_model_name_or_path: ${model_name}
-  device: cpu
   pretrained: true
 
 # Tokenizer
@@ -102,4 +101,4 @@ callbacks:
 
 # Load from remote object store
 # REPLACE THE BELOW with you own checkpoint!
-# load_path: oci://my-bucket/my-folder/mpt-7b/checkpoints/some_checkpoint.pt
+# load_path: oci://my-bucket/my-folder/checkpoints/some_checkpoint.pt

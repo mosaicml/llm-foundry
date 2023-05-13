@@ -23,6 +23,8 @@ model:
   vocab_size: 50368
   attn_config:
     attn_impl: triton
+    # Set this to `true` if using `train_loader.dataset.packing_ratio` below
+    attn_uses_sequence_id: false
 
 # Tokenizer
 tokenizer:
@@ -47,8 +49,9 @@ train_loader: &train_loader
     allow_pad_trimming: false
     decoder_only_format: true
     shuffle: true
-    # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...` to profile
-    # this run's optimal packing_ratio
+    # # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
+    # # to profile this run's optimal packing_ratio as it depends on GPU count,
+    # # batch size, sequence length
     # packing_ratio:
   drop_last: true
   num_workers: 8
@@ -130,4 +133,4 @@ callbacks:
 
 # Load from remote object store
 # REPLACE THE BELOW with you own checkpoint!
-load_path: oci://my-bucket/my-folder/mpt-7b/checkpoints/some_checkpoint.pt
+load_path: oci://my-bucket/my-folder/mpt-1b/checkpoints/some_checkpoint.pt

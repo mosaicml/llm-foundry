@@ -11,6 +11,8 @@ model:
   config_overrides:
     attn_config:
       attn_impl: triton
+      # Set this to `true` if using `train_loader.dataset.packing_ratio` below
+      attn_uses_sequence_id: false
 
 # Tokenizer
 tokenizer:
@@ -29,9 +31,9 @@ train_loader:
     max_seq_length: ${max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
-    # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
-    # to profile this run's optimal packing_ratio as it depends on GPU count,
-    # batch size, sequence length
+    # # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
+    # # to profile this run's optimal packing_ratio as it depends on GPU count,
+    # # batch size, sequence length
     # packing_ratio:
     shuffle: true
   drop_last: true
@@ -80,11 +82,11 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-  max_duration: 2ep  # 2-3 epochs seems like the sweet spot
-  eval_interval: 1ep
-  # eval_subset_num_batches: -1
-  eval_first: true
-  global_train_batch_size: 48  # somewhere in the 6-8 * numgpus range seems good
+max_duration: 2ep  # 2-3 epochs seems like the sweet spot
+eval_interval: 1ep
+# eval_subset_num_batches: -1
+eval_first: true
+global_train_batch_size: 48  # somewhere in the 6-8 * numgpus range seems good
 
 # System
 seed: ${global_seed}

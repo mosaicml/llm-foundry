@@ -1,27 +1,19 @@
-max_seq_len: 2048
+max_seq_len: 1024
 global_seed: 17
+model_name: t5-small
 
 # Run Name
 run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
 
 # Model
 model:
-  name: mpt_causal_lm
-  init_device: meta
-  d_model: 4096
-  n_heads: 32
-  n_layers: 32
-  expansion_ratio: 4
-  max_seq_len: ${max_seq_len}
-  vocab_size: 50368
-  attn_config:
-    attn_impl: triton
+  name: hf_t5
+  pretrained_model_name_or_path: ${model_name}
+  pretrained: true
 
 # Tokenizer
 tokenizer:
-  name: EleutherAI/gpt-neox-20b
-  kwargs:
-    model_max_length: ${max_seq_len}
+  name: ${model_name}
 
 # Dataloaders
 train_loader:
@@ -31,11 +23,8 @@ train_loader:
     split: train
     max_seq_len: ${max_seq_len}
     allow_pad_trimming: false
-    decoder_only_format: true
+    decoder_only_format: false
     shuffle: true
-    # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...` to profile
-    # this run's optimal packing_ratio
-    # packing_ratio:
   drop_last: true
   num_workers: 8
   pin_memory: false
@@ -112,4 +101,4 @@ callbacks:
 
 # Load from remote object store
 # REPLACE THE BELOW with you own checkpoint!
-load_path: oci://my-bucket/my-folder/mpt-7b/checkpoints/some_checkpoint.pt
+# load_path: oci://my-bucket/my-folder/checkpoints/some_checkpoint.pt

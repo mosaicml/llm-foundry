@@ -47,7 +47,7 @@ def test_compare_hf_v_mpt(attn_impl, dropout, alibi, mask_val, no_attn_mask):
     warnings.filterwarnings(action='ignore',
                             message='Using Fused Cross Entropy Loss.')
 
-    conf_path = 'scripts/train/yamls/mpt/125m.yaml'  # set cfg path
+    conf_path = 'scripts/train/yamls/pretrain/mpt-125m.yaml'  # set cfg path
     batch_size = 2  # set batch size
     device = 'cuda'  # set decive
 

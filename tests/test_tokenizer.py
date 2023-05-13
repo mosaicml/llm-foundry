@@ -5,14 +5,15 @@ from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer
 
 
-def get_config(conf_path='scripts/train/yamls/mpt/125m.yaml'):
+def get_config(conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml'):
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return test_cfg
 
 
 def test_load_tokenizer():
-    test_cfg = get_config(conf_path='scripts/train/yamls/mpt/125m.yaml')
+    test_cfg = get_config(
+        conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml')
     truncation = True
     padding = 'max_length'
 

@@ -25,7 +25,7 @@ tokenizer:
 train_loader:
   name: finetuning
   dataset:
-    hf-name: mosaicml/dolly_hhrlhf
+    hf_name: mosaicml/dolly_hhrlhf
     split: train
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
@@ -46,7 +46,7 @@ train_loader:
 eval_loader:
   name: finetuning
   dataset:
-    hf-name: mosaicml/dolly_hhrlhf
+    hf_name: mosaicml/dolly_hhrlhf
     split: test
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}

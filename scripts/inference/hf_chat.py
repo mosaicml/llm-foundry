@@ -240,7 +240,7 @@ def main(args: Namespace) -> None:
         'use_cache': args.use_cache,
         'do_sample': args.do_sample,
         'eos_token_id': args.eos_token_id or tokenizer.eos_token_id,
-        'pad_token_id': args.pad_token_id,
+        'pad_token_id': args.pad_token_id or tokenizer.eos_token_id,
     }
     # Autocast
     if args.autocast_dtype is not None:

@@ -1,4 +1,9 @@
+# type: ignore
+
 """
+Copied from https://github.com/HazyResearch/flash-attention/blob/eff9fe6b8076df59d64d7a3f464696738a3c7c24/flash_attn/flash_attn_triton.py
+update imports to use 'triton_pre_mlir'
+
 *Experimental* implementation of FlashAttention in Triton.
 Tested with triton==2.0.0.dev20221202.
 Triton 2.0 has a new backend (MLIR) but seems like it doesn't yet work for head dimensions

@@ -210,7 +210,7 @@ def triton_flash_attn_fn(
         from llmfoundry.models.layers import flash_attn_triton  # type: ignore
     except:
         raise RuntimeError(
-            'Requirement not installed correctly.'
+            'llmfoundry requirements not installed correctly.'
         )
 
     check_valid_inputs(query, key, value)

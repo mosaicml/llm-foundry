@@ -25,10 +25,10 @@ tokenizer:
 train_loader:
   name: finetuning
   dataset:
-    name: mosaicml/dolly_hhrlhf
+    hf_name: mosaicml/dolly_hhrlhf
     split: train
     tokenizer_name: ${tokenizer_name}
-    max_seq_length: ${max_seq_len}
+    max_seq_len: ${max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
     # # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
@@ -46,10 +46,10 @@ train_loader:
 eval_loader:
   name: finetuning
   dataset:
-    name: mosaicml/dolly_hhrlhf
+    hf_name: mosaicml/dolly_hhrlhf
     split: test
     tokenizer_name: ${tokenizer_name}
-    max_seq_length: ${max_seq_len}
+    max_seq_len: ${max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
     # packing_ratio:

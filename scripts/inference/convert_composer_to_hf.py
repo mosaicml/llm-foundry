@@ -174,8 +174,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     Args:
         checkpoint_path (Union[Path, str]): Path to the composer checkpoint, can be a local path, or a remote path beginning with ``s3://``, or another backend
             supported by :meth:`composer.utils.maybe_create_object_store_from_uri`.
-        output_path (Union[Path, str]): Path to the folder to write the output to. Can be a local path, or a remote path beginning with ``s3://``, or another backend
-            supported by :meth:`composer.utils.maybe_create_object_store_from_uri`.
+        output_path (Union[Path, str]): Path to the folder to write the output to.
         output_precision (str, optional): The precision of the output weights saved to `pytorch_model.bin`. Can be one of ``fp32``, ``fp16``, or ``bf16``.
         local_checkpoint_save_location (Optional[Union[Path, str]], optional): If specified, where to save the checkpoint file to locally.
                                                                                 If the input ``checkpoint_path`` is already a local path, this will be a symlink.
@@ -193,15 +192,8 @@ def write_huggingface_pretrained_from_composer_checkpoint(
         local_checkpoint_save_location = Path(
             tmp_dir.name) / 'local-composer-checkpoint.pt'
 
-    # create object store if output_path
-    object_store = maybe_create_object_store_from_uri(str(output_path))
-    if object_store is not None:
-        local_output_path = tempfile.TemporaryDirectory().name
-    else:
-        local_output_path = output_path
-
     # create folder
-    os.makedirs(local_output_path)
+    os.makedirs(output_path)
 
     # download the checkpoint file
     print(
@@ -218,7 +210,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     print('Saving HF Model Config...')
     hf_config = get_hf_config_from_composer_state_dict(composer_state_dict)
     hf_config.torch_dtype = dtype
-    hf_config.save_pretrained(local_output_path)
+    hf_config.save_pretrained(output_path)
     print(hf_config)
 
     # Extract and save the HF tokenizer
@@ -227,7 +219,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     hf_tokenizer = get_hf_tokenizer_from_composer_state_dict(
         composer_state_dict)
     if hf_tokenizer is not None:
-        hf_tokenizer.save_pretrained(local_output_path)
+        hf_tokenizer.save_pretrained(output_path)
         print(hf_tokenizer)
     else:
         print('Warning! No HF Tokenizer found!')
@@ -247,21 +239,11 @@ def write_huggingface_pretrained_from_composer_checkpoint(
             weights_state_dict[k] = v.to(dtype=dtype)
 
     # Save weights
-    torch.save(weights_state_dict,
-               Path(local_output_path) / 'pytorch_model.bin')
+    torch.save(weights_state_dict, Path(output_path) / 'pytorch_model.bin')
 
     print('#' * 30)
-    print(f'HF checkpoint folder successfully created at {local_output_path}.')
+    print(f'HF checkpoint folder successfully created at {output_path}.')
 
-    if object_store is not None:
-        print(
-            f'Uploading HF checkpoint folder from {local_output_path} -> {output_path}'
-        )
-        for file in os.listdir(local_output_path):
-            _, _, prefix = parse_uri(str(output_path))
-            remote_file = os.path.join(prefix, file)
-            local_file = os.path.join(local_output_path, file)
-            object_store.upload_object(remote_file, local_file)
     print('Done.')
     print('#' * 30)
 
@@ -375,9 +357,11 @@ def parse_args() -> Namespace:
 
 
 def main(args: Namespace) -> None:
+    _, _, local_folder_path = parse_uri(args.hf_output_path)
+
     write_huggingface_pretrained_from_composer_checkpoint(
         checkpoint_path=args.composer_path,
-        output_path=args.hf_output_path,
+        output_path=local_folder_path,
         output_precision=args.output_precision,
         local_checkpoint_save_location=args.local_checkpoint_save_location)
 
@@ -393,23 +377,34 @@ def main(args: Namespace) -> None:
     # register model auto class
     MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
 
-    print(f'Loading model from {args.hf_output_path}')
-    config = MPTConfig.from_pretrained(args.hf_output_path)
+    print(f'Loading model from {local_folder_path}')
+    config = MPTConfig.from_pretrained(local_folder_path)
     # You have to edit the config this way, because attn_config is a nested dictionary
     config.attn_config['attn_impl'] = 'torch'
-    loaded_hf_model = MPTForCausalLM.from_pretrained(args.hf_output_path,
+    loaded_hf_model = MPTForCausalLM.from_pretrained(local_folder_path,
                                                      config=config,
                                                      torch_dtype=dtype)
     delattr(loaded_hf_model.config, '_name_or_path')
 
-    loaded_hf_model.save_pretrained(args.hf_output_path)
+    loaded_hf_model.save_pretrained(local_folder_path)
 
-    print(f'Loading tokenizer from {args.hf_output_path}')
-    tokenizer = transformers.AutoTokenizer.from_pretrained(args.hf_output_path)
-    tokenizer.save_pretrained(args.hf_output_path)
+    print(f'Loading tokenizer from {local_folder_path}')
+    tokenizer = transformers.AutoTokenizer.from_pretrained(local_folder_path)
+    tokenizer.save_pretrained(local_folder_path)
 
     print('Editing files for HF compatibility...')
-    edit_files_for_hf_compatibility(args.hf_output_path)
+    edit_files_for_hf_compatibility(local_folder_path)
+
+    object_store = maybe_create_object_store_from_uri(str(args.hf_output_path))
+
+    if object_store is not None:
+        print(
+            f'Uploading HF checkpoint folder from {local_folder_path} -> {args.hf_output_path}'
+        )
+        for file in os.listdir(local_folder_path):
+            remote_file = os.path.join(local_folder_path, file)
+            local_file = os.path.join(local_folder_path, file)
+            object_store.upload_object(remote_file, local_file)
 
     if args.hf_repo_for_upload is not None:
         from huggingface_hub import HfApi

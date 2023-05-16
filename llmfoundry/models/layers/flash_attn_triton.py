@@ -1,5 +1,3 @@
-# type: ignore
-
 """
 Copied from https://github.com/HazyResearch/flash-attention/blob/eff9fe6b8076df59d64d7a3f464696738a3c7c24/flash_attn/flash_attn_triton.py
 update imports to use 'triton_pre_mlir'

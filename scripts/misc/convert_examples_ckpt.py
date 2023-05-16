@@ -79,11 +79,12 @@ def convert_examples_ckpt(
         local_ckpt_path = Path(tmp_dir.name) / 'local-composer-checkpoint.pt'
 
     # create object store if output_path
+    _, _, local_folder_path = parse_uri(output_folder)
     object_store = maybe_create_object_store_from_uri(str(output_path))
     if object_store is not None:
         local_output_path = tempfile.TemporaryDirectory().name
     else:
-        local_output_path = output_path
+        local_output_path = local_folder_path
 
     # create folder
     os.makedirs(local_output_path)
@@ -180,8 +181,11 @@ def convert_examples_ckpt(
                             param_idx] = param_name
 
     # Save weights
-    torch.save(composer_state_dict,
-               Path(local_output_path) / checkpoint_path.split('/')[-1])
+    file_path = Path(local_output_path) / checkpoint_path.split('/')[-1]
+    torch.save(composer_state_dict, file_path)
+
+    if object_store is not None:
+        object_store.upload_object(file_path, file_path)
 
 
 def main(args: Namespace) -> None:

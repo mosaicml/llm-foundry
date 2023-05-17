@@ -44,12 +44,3 @@ def multiple_choice(inp: Dict[str, str]) -> Dict[str, str]:
         'prompt': PROMPT_FORMAT.format(query=query, options=options),
         'response': inp['choices'][inp['gold']],
     }
-
-
-# import datasets
-# mc_dataset = datasets.load_dataset('json', data_files={'train': '../eval/local_data/arc_easy.jsonl'}, split='train')
-# raw_example = mc_dataset[0]
-# print(f'Before...\n{raw_example}\n\n')
-# processed_example = multiple_choice(raw_example)
-# print(f'After...\n{processed_example}\n\n')
-# print(f'-------\n"prompt"=\n{processed_example["prompt"]}\n\n"response"=\n{processed_example["response"]}\n')

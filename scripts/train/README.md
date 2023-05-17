@@ -2,13 +2,7 @@
 
 ## Installation
 
-If you haven't already, make sure to install the requirements:
-
-```bash
-git clone https://github.com/mosaicml/llm-foundry.git
-cd llm-foundry
-pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
-```
+If you haven't already, make sure to [install the requirements](../../README.md#Installation).
 
 ## Dataset preparation
 To run pretraining, you'll need to make yourself a copy of a pretraining dataset. Check out the `llm-foundry/data_prep` folder for detailed instructions.

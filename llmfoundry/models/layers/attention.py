@@ -212,7 +212,8 @@ def triton_flash_attn_fn(
         raise ValueError(
             'Requirements for `attn_impl: triton` not installed. Either (1) have a CUDA-compatible GPU '
             'and `pip install .[gpu]` if installing from source or `pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python` '
-            'if installing from pypi, or (2) use torch attn model.attn_config.attn_impl=torch (torch attn_impl will be slow).'
+            'if installing from pypi, or (2) use torch attn model.attn_config.attn_impl=torch (torch attn_impl will be slow). '
+            'Note: (1) requires you have CMake and PyTorch already installed.'
         )
 
     check_valid_inputs(query, key, value)

@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional, Union
 
 import torch
 from composer.utils import (get_file, maybe_create_object_store_from_uri,
-                            safe_torch_load)
+                            parse_uri, safe_torch_load)
 
 from llmfoundry.models.mpt.configuration_mpt import (attn_config_defaults,
                                                      init_config_defaults)
@@ -79,7 +79,7 @@ def convert_examples_ckpt(
         local_ckpt_path = Path(tmp_dir.name) / 'local-composer-checkpoint.pt'
 
     # create object store if output_path
-    _, _, local_folder_path = parse_uri(output_folder)
+    _, _, local_folder_path = parse_uri(output_path)
     object_store = maybe_create_object_store_from_uri(str(output_path))
     if object_store is not None:
         local_output_path = tempfile.TemporaryDirectory().name
@@ -181,11 +181,15 @@ def convert_examples_ckpt(
                             param_idx] = param_name
 
     # Save weights
-    file_path = Path(local_output_path) / checkpoint_path.split('/')[-1]
+    file_path = str(Path(local_output_path) / checkpoint_path.split('/')[-1])
+    print(f'Writing converted output to {file_path}')
     torch.save(composer_state_dict, file_path)
 
     if object_store is not None:
-        object_store.upload_object(file_path, file_path)
+        remote_file_path = os.path.join(local_folder_path,
+                                        checkpoint_path.split('/')[-1])
+        print(f'Uploading from {file_path} to {remote_file_path}')
+        object_store.upload_object(remote_file_path, file_path)
 
 
 def main(args: Namespace) -> None:

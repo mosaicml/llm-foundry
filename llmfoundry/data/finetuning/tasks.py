@@ -90,7 +90,7 @@ class StreamingFinetuningDataset(StreamingDataset):
                  split: Optional[str] = None,
                  shuffle: bool = False,
                  predownload: Optional[int] = 100_000,
-                 keep_zip: Optional[bool] = None,
+                 keep_zip: bool = False,
                  download_retry: int = 2,
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,

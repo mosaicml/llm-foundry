@@ -1,6 +1,7 @@
 max_seq_len: 2048
 seed: 1
 model_name_or_path: EleutherAI/gpt-neo-125M
+precision: fp32
 
 # Tokenizer
 tokenizer:
@@ -21,7 +22,7 @@ device_eval_batch_size: 16
 # FSDP config for model sharding
 fsdp_config:
   sharding_strategy: FULL_SHARD
-  mixed_precision: PURE
+  mixed_precision: FULL
 
 icl_tasks:
 -

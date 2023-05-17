@@ -1,4 +1,3 @@
-tokenizer_name: gpt2
 max_seq_len: 512
 global_seed: 17
 
@@ -13,7 +12,7 @@ model:
 
 # Tokenizer
 tokenizer:
-  name: ${tokenizer_name}
+  name: gpt2
   kwargs:
     model_max_length: ${max_seq_len}
 
@@ -59,7 +58,7 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 1ep # ~ 2.5B tokens
+max_duration: 1ep
 eval_interval: 1
 eval_first: false
 eval_subset_num_batches: -1

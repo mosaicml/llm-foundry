@@ -48,6 +48,7 @@ def main(cfg):
     trainer = Trainer(
         model=composer_model,
         loggers=loggers,
+        precision=cfg.precision,
         fsdp_config=fsdp_config,  # type: ignore
         load_path=load_path,
         load_weights_only=True,

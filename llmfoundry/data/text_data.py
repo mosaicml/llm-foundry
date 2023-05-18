@@ -60,8 +60,9 @@ class StreamingTextDataset(StreamingDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
     """
 
     def __init__(self,
@@ -82,8 +83,9 @@ class StreamingTextDataset(StreamingDataset):
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1s',
+                 shuffle_algo: str = 'py1b',
                  shuffle_seed: int = 9176,
+                 shuffle_block_size: int = 1 << 18,
                  **kwargs: Dict[str, Any]):
 
         group_method = kwargs.pop('group_method', None)
@@ -268,8 +270,9 @@ def build_text_dataloader(
         num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', 128),
         batch_size=device_batch_size,
         shuffle=cfg.dataset.get('shuffle', False),
-        shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1s'),
+        shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1b'),
         shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
+        shuffle_block_size=cfg.dataset.get('shuffle_block_size', 1 << 18),
     )
 
     mlm_probability = cfg.dataset.get('mlm_probability', None)

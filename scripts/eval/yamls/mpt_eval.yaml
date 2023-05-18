@@ -1,6 +1,7 @@
 max_seq_len: 2048
 tokenizer_name: EleutherAI/gpt-neox-20b
 seed: 1
+precision: fp32
 
 # Tokenizer
 tokenizer:
@@ -27,7 +28,7 @@ device_eval_batch_size: 16
 # FSDP config for model sharding
 fsdp_config:
   sharding_strategy: FULL_SHARD
-  mixed_precision: PURE
+  mixed_precision: FULL
 
 icl_tasks:
 -

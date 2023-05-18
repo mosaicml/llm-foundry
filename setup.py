@@ -54,7 +54,6 @@ install_requires = [
     'sentencepiece==0.1.97',
     'einops==0.5.0',
     'omegaconf>=2.2.3,<3',
-    'pynvml<12',
     'slack-sdk<4',
     'mosaicml-cli>=0.3,<1',
     'onnx==1.13.1',

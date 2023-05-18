@@ -26,7 +26,7 @@
 
 # LLM Foundry
 
-This repository contains code for training, finetuning, evaluating, and deploying LLMs for inference with Composer and the [MosaicML platform](https://forms.mosaicml.com/demo?utm_source=github.com&utm_medium=referral&utm_campaign=llm-foundry). Designed to be easy-to-use, efficient _and_ flexible, this codebase is designed to enable rapid experimentation with the latest techniques.
+This repository contains code for training, finetuning, evaluating, and deploying LLMs for inference with [Composer](https://github.com/mosaicml/composer) and the [MosaicML platform](https://forms.mosaicml.com/demo?utm_source=github.com&utm_medium=referral&utm_campaign=llm-foundry). Designed to be easy-to-use, efficient _and_ flexible, this codebase is designed to enable rapid experimentation with the latest techniques.
 
 You'll find in this repo:
 * `llmfoundry/` - source code for models, datasets, callbacks, utilities, etc.
@@ -145,6 +145,8 @@ python inference/hf_generate.py \
     "The answer to life, the universe, and happiness is" \
     "Here's a quick recipe for baking chocolate chip cookies: Start by"
 ```
+
+Note: the `composer` command used above to train the model refers to [Composer](https://github.com/mosaicml/composer) library's distributed launcher.
 
 # Contact Us
 If you run into any problems with the code, please file Github issues directly to this repo.

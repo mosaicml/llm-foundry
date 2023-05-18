@@ -5,7 +5,7 @@ import os
 from typing import Union
 
 from composer import algorithms
-from composer.callbacks import (HealthChecker, LRMonitor, MemoryMonitor,
+from composer.callbacks import (LRMonitor, MemoryMonitor,
                                 OptimizerMonitor, RuntimeEstimator,
                                 SpeedMonitor)
 from composer.core import Evaluator
@@ -47,8 +47,6 @@ def build_callback(name, kwargs):
     elif name == 'optimizer_monitor':
         return OptimizerMonitor(log_optimizer_metrics=kwargs.get(
             'log_optimizer_metrics', True),)
-    elif name == 'health_checker':
-        return HealthChecker(**kwargs)
     elif name == 'generate_callback':
         prompts = kwargs.pop('prompts')
         return Generate(prompts=list(prompts), **kwargs)

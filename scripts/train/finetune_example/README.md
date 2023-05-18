@@ -142,3 +142,9 @@ A couple notes on that:
 - You can use either the `data_dir` or `data_file` kwarg to tell `load_dataset` where your data live.
 - `data_dir` tends to be a bit more reliable, but requires that your actual data files within the directory are named `train`, `validation`, and/or `test`.
 - Whenever possible, use **absolute paths** instead of relative paths. Relative paths will depend on the working directory you are in when running the `train.py` script.
+
+## ARC data
+
+The data in `train.jsonl` is from the ARC corpus.
+
+This work uses data from the AI2 Reasoning Challenge (ARC) 2018, created by and copyright [AI2 and Aristo​](https://allenai.org/data/arc)​. The data consists of 7,787 science exam questions and is intended for non-commercial, research purposes only. We use the first 100 examples of the Easy Test split, consisting of questions and answers, which we do not modify. The original data is available at https://allenai.org/data/arc and is licensed under a [Creative Commons Attribution-ShareAlike 4.0 International License](https://creativecommons.org/licenses/by-sa/4.0/).

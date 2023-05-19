@@ -20,7 +20,7 @@ Using the `convert_dataset_json.py` script...
 
 <!--pytest.mark.skip-->
 ```bash
-# Convert C4 dataset to StreamingDataset format
+# Convert json dataset to StreamingDataset format
 python convert_dataset_json.py \
   --path ./example_data/arxiv.json \
   --out_root my-copy-arxiv --split train \
@@ -32,9 +32,9 @@ Where `--path` can be a single json file, or a folder containing json files, and
 
 ## Converting a finetuning dataset
 Using the `convert_finetuning_dataset.py` script you can run a command such as:
-
+<!--pytest.mark.skip-->
 ```bash
-python convert_finetuning_dataset.py --dataset ""Muennighoff/P3"" \
+python convert_finetuning_dataset.py --dataset "Muennighoff/P3" \
 --splits "train" "validation" \
 --preprocessor "your_preprocessing_function"\
  --out_root "/path/to/your/output_directory"
@@ -51,7 +51,7 @@ This example assumes:
 Please note that you need to fill in actual values for "your_preprocessing_function" and "/path/to/your/output_directory" in the command above for it to work correctly.
 
 Also, if you want to keep a local copy of the output when `out_root` is remote, you can use the `--local` argument:
-
+<!--pytest.mark.skip-->
 ```bash
 python convert_finetuning_dataset.py --dataset "squad" --splits "train" "validation" --preprocessor "your_preprocessing_function" --out_root "s3://your_bucket/output_directory" --local "/path/to/local/directory"
 ```

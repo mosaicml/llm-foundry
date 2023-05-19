@@ -36,7 +36,7 @@ Using the `convert_finetuning_dataset.py` script you can run a command such as:
 ```bash
 python convert_finetuning_dataset.py --dataset "Muennighoff/P3" \
 --splits "train" "validation" \
---preprocessor "your_preprocessing_function"\
+--preprocessor "llmfoundry.data.finetuning.tasks:p3_preprocessing_function"\
  --out_root "/path/to/your/output_directory"
 ```
 
@@ -45,7 +45,7 @@ This example assumes:
 - You are running the script in the terminal or command prompt where `python` command is recognized.
 - `"Muennighoff/P3"` is the dataset you want to convert. Substitute "Muennighoff/P3" with the name or path of your dataset.
 - `train` and `validation` are the splits of the dataset to convert.
-- `llmfoundry.data.finetuning.tasks:p3_preprocessing_function` is a string that provides the name or import path of the function used to preprocess the dataset. Substitute it with your actual preprocessor.
+- `llmfoundry.data.finetuning.tasks:p3_preprocessing_function` is a string that provides the name or import path of the function used to preprocess the dataset. Substitute it with your actual preprocessor. See [tasks](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/data/finetuning/tasks.py) for available functions and examples.
 - `s3://<bucket>/muennighoff-p3` is the root path of your output directory where MDS shards will be stored. Replace this with the actual path to your output directory.
 
 Please note that you need to fill in actual values for "your_preprocessing_function" and "/path/to/your/output_directory" in the command above for it to work correctly.

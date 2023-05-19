@@ -31,7 +31,7 @@ python convert_dataset_json.py \
 Where `--path` can be a single json file, or a folder containing json files, and split the intended split (hf defaults to train).
 
 ## Converting a finetuning dataset
-Using the `convert_finetuning_dataset.py` script you can run a commandsuch as:
+Using the `convert_finetuning_dataset.py` script you can run a command such as:
 
 ```bash
 python convert_finetuning_dataset.py --dataset ""Muennighoff/P3"" \

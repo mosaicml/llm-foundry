@@ -10,13 +10,12 @@ from glob import glob
 from typing import Dict, Iterable, Optional
 
 import datasets as hf_datasets
-import numpy as np
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.data.datasets import ConcatTokensDataset, NoConcatDataset
+from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
 
 
 class ConcatMode(Enum):

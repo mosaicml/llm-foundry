@@ -35,7 +35,7 @@ import importlib
 import os
 from typing import Any, Callable, Dict, Optional, Union
 
-import datasets
+import datasets as hf_datasets
 from omegaconf import DictConfig
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
@@ -236,7 +236,7 @@ class DatasetConstructor:
         preprocessing_fn = self.get_preprocessing_fn_from_str(
             cfg.get('preprocessing_fn'), dataset_name, verbose=True)
 
-        dataset = datasets.load_dataset(dataset_name, split=split, **kwargs)
+        dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 
         def dataset_mapper(example: Dict):
             if preprocessing_fn is not None:

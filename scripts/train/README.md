@@ -232,6 +232,8 @@ def dogefacts_prep_fn(inp: Dict):
 For this example, let's say we add this function to a file that we can import from. For example, with
 `from my_data.formatting import dogefacts_prep_fn`
 
+**Still have questions about custom data preprocessing?** In the `./finetune_example/` directory, we demonstrate a more concrete example of training on a local dataset with custom preprocessing. Check out those resources for added information!
+
 ## Usage
 
 Now we'll cover the different ways you can use the finetuning utilities. This will mostly focus on how to configure your YAML, assuming you have already prepared any custom preprocessing functions as described above.
@@ -267,10 +269,9 @@ Reference this in your YAML, such as the one in `yamls/finetune/1b_local_data_sf
 train_loader:
     name: finetuning
     dataset:
-        hf_name: my-local-dataset
+        hf_name: json # assuming data files are json formatted
         hf_kwargs:
-            data_files:
-                train: /path/to/train.jsonl
+            data_dir: /path/to/data/dir/
         preprocessing_fn: my.import.path:my_preprocessing_fn
         split: train
         ...

@@ -50,7 +50,7 @@ This example assumes:
 
 Please note that you need to fill in actual values for "your_preprocessing_function" and "/path/to/your/output_directory" in the command above for it to work correctly.
 
-Also, if you want to keep a local copy of the output when out_root is remote, you can use the `--local` argument:
+Also, if you want to keep a local copy of the output when `out_root` is remote, you can use the `--local` argument:
 
 ```bash
 python convert_finetuning_dataset.py --dataset "squad" --splits "train" "validation" --preprocessor "your_preprocessing_function" --out_root "s3://your_bucket/output_directory" --local "/path/to/local/directory"

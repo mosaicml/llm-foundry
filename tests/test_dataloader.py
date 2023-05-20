@@ -177,7 +177,7 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
                 'sequence_mask_ratios': 0.25,
             },
             'drop_last': False,
-            'num_workers': 4,
+            'num_workers': 0,
         }
         cfg = om.create(cfg)
         device_batch_size = 2
@@ -237,7 +237,7 @@ def test_finetuning_dataloader(decoder_only_format, allow_pad_trimming,
             'shuffle': True,
         },
         'drop_last': False,
-        'num_workers': 4,
+        'num_workers': 0,
         'pin_memory': False,
         'prefetch_factor': 2,
         'persistent_workers': False,

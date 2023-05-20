@@ -76,8 +76,6 @@ Here's what you need to get started with our LLM stack:
 
 # Installation
 
-This assumes you already have PyTorch and CMake installed.
-
 To get started, clone this repo and install the requirements:
 
 <!--pytest.mark.skip-->

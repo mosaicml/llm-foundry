@@ -383,7 +383,7 @@ def test_loss_fn():
                                  eps=test_cfg.optimizer.eps,
                                  weight_decay=test_cfg.optimizer.weight_decay)
 
-    for i in range(15):
+    for i in range(25):
         batch = gen_random_batch(2, test_cfg)
         output_1 = model_1(batch)
         output_2 = model_2(batch)

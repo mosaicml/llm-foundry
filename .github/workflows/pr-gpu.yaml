@@ -19,12 +19,8 @@ jobs:
     strategy:
       matrix:
         include:
-        - name: 'gpu-latest'
-          container: mosaicml/pytorch:latest  # mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
-          markers: 'gpu'
-          pytest_command: 'coverage run -m pytest'
-        - name: 'gpu-2.0.1'
-          container: mosaicml/pytorch:2.0.1_cu117-python3.10-ubuntu20.04
+        - name: 'gpu'
+          container: mosaicml/pytorch:latest
           markers: 'gpu'
           pytest_command: 'coverage run -m pytest'
     name: ${{ matrix.name }}

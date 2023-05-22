@@ -1,7 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from llmfoundry.models.layers import flash_attn_triton
 from llmfoundry.models.layers.attention import (
     ATTN_CLASS_REGISTRY, MultiheadAttention, MultiQueryAttention,
     attn_bias_shape, build_alibi_bias, build_attn_bias, flash_attn_fn,
@@ -10,7 +9,6 @@ from llmfoundry.models.layers.blocks import MPTMLP, MPTBlock
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY, LPLayerNorm
 
 __all__ = [
-    'flash_attn_triton',
     'scaled_multihead_dot_product_attention',
     'flash_attn_fn',
     'triton_flash_attn_fn',

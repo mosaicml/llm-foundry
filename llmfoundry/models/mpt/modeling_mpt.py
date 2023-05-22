@@ -20,7 +20,7 @@ from composer.metrics import (InContextLearningLMAccuracy,
                               InContextLearningQAAccuracy)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
-from composer.utils import dist
+from composer.utils import dist, get_device
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import (PreTrainedModel, PreTrainedTokenizer,
@@ -41,6 +41,7 @@ from llmfoundry.models.utils.adapt_tokenizer import (
 from llmfoundry.models.utils.hf_prefixlm_converter import (
     add_bidirectional_mask_if_missing, convert_hf_causal_lm_to_prefix_lm)
 from llmfoundry.models.utils.meta_init_context import init_empty_weights
+from llmfoundry.models.utils.misc import is_torch_2_or_higher
 from llmfoundry.models.utils.param_init_fns import (  # type: ignore
     MODEL_INIT_REGISTRY, generic_param_init_fn_)
 
@@ -48,6 +49,28 @@ try:
     from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
 except:
     pass
+if is_torch_2_or_higher():
+    # Each of these are in their own try/except block otherwise process_file in
+    # scripts/inference/convert_composer_to_hf.py doesn't like it due to the import
+    # shenanigans from the HF library. https://github.com/huggingface/transformers/pull/23725
+    # isort: off
+    try:
+        from torch.distributed._tensor import DeviceMesh  # type: ignore
+    except:
+        pass
+    try:
+        from torch.distributed.tensor.parallel import parallelize_module  # type: ignore
+    except:
+        pass
+    try:
+        from torch.distributed.tensor.parallel.fsdp import enable_2d_with_fsdp  # type: ignore
+    except:
+        pass
+    try:
+        from llmfoundry.models.utils.tensor_parallel import PairwiseSequenceParallel  # type: ignore
+    except:
+        pass
+    # isort: on
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
@@ -101,6 +124,33 @@ class MPTModel(MPTPreTrainedModel):
                 **config.to_dict(),
             ) for _ in range(config.n_layers)
         ])
+        if config.tensor_parallel_mlp and is_torch_2_or_higher():
+            if enable_2d_with_fsdp():
+                device_type = 'cuda' if get_device(
+                    None).name == 'gpu' else 'cpu'
+                world_size = dist.get_world_size()
+                node_count = world_size // dist.get_local_world_size()
+                twod_mesh = DeviceMesh(device_type=device_type,
+                                       mesh=torch.arange(0, world_size).view(
+                                           node_count, -1))
+                new_blocks = nn.ModuleList()
+                for idx, block in enumerate(self.blocks):
+                    block = parallelize_module(
+                        module=block,
+                        device_mesh=twod_mesh,
+                        parallelize_plan={'ffn': PairwiseSequenceParallel()},
+                        tp_mesh_dim=1)
+                    # Call to parallelize_module moves params to gpu if they are cpu params.
+                    # Move them back to cpu so that FSDP wrapping sees all params on cpu.
+                    # Othewise FSDP wrapping fails as it sees some params on cpu and others on gpu.
+                    if config.init_device == 'cpu':
+                        block = block.to('cpu')
+                    new_blocks.append(block)
+                self.blocks = new_blocks
+            else:
+                raise ValueError('Enabling 2D parallelism with FSDP failed (call to enable_2d_with_fsdp). ' + \
+                    'Please make sure your torch installation supports 2D parallelism with FSDP')
+
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         if config.init_device != 'meta':

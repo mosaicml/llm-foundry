@@ -1,6 +1,6 @@
 # Data preparation
 
-This folder contains scripts for converting text data from original sources (HF, JSON) to StreamingDataset format for consumption by our training scripts.
+This folder contains scripts for converting text data from original sources (HF, JSON) to [StreamingDataset](https://github.com/mosaicml/streaming) format for consumption by our training scripts.
 
 
 ## Converting a pretraining dataset

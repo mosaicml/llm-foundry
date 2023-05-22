@@ -5,6 +5,7 @@
 
 import math
 import warnings
+from packaging import version
 from typing import Optional
 
 import torch
@@ -209,11 +210,24 @@ def triton_flash_attn_fn(
     try:
         from llmfoundry.models.layers import flash_attn_triton  # type: ignore
     except:
-        raise ValueError(
-            'Requirements for `attn_impl: triton` not installed. Either (1) have a CUDA-compatible GPU '
-            'and `pip install .[gpu]` if installing from source or `pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python` '
-            'if installing from pypi, or (2) use torch attn model.attn_config.attn_impl=torch (torch attn_impl will be slow). '
-            'Note: (1) requires you have CMake and PyTorch already installed.')
+        _installed = False
+        if version.parse(torch.__version__) < version.parse('2.0.0'):
+            # if torch1.13.1 revert to using triton flash attn from HazyResearch
+            # with flash-attn==1.0.3.post0 and triton==2.0.0.dev20221202 
+            try:
+                from flash_attn import flash_attn_triton
+                _installed = True
+            except:
+                pass
+        if not _installed:
+            # installing triton-pre-mlir works for both torch1.13.1 and torch2.0+
+            # default recommendation is to install this variant
+            raise RuntimeError(
+                'Requirements for `attn_impl: triton` not installed. Either (1) have a CUDA-compatible GPU '
+                'and `pip install .[gpu]` if installing from llm-foundry source or '
+                '`pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python` '
+                'if installing from pypi, or (2) use torch attn model.attn_config.attn_impl=torch (torch attn_impl will be slow). '
+                'Note: (1) requires you have CMake and PyTorch already installed.')
 
     check_valid_inputs(query, key, value)
 

@@ -7,6 +7,8 @@ from typing import Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
+from llmfoundry.models.utils.misc import is_torch_2_or_higher
+
 attn_config_defaults: Dict = {
     'attn_type': 'multihead_attention',
     'attn_pdrop': 0.0,
@@ -54,6 +56,7 @@ class MPTConfig(PretrainedConfig):
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
         use_cache: bool = False,
+        tensor_parallel_mlp: bool = False,
         init_config: Dict = init_config_defaults,
         **kwargs,
     ):
@@ -95,6 +98,8 @@ class MPTConfig(PretrainedConfig):
             norm_type (str): choose type of norm to use
             multiquery_attention (bool): Whether to use multiquery attention implementation.
             use_cache (bool): Whether or not the model should return the last key/values attentions
+            tensor_parallel_mlp (bool): Whether or not to tensor parallelize the MLPs. Only available with torch version
+                2.0 or higher.
             init_config (Dict): A dictionary used to configure the model initialization:
                 init_config.name: The parameter initialization scheme to use. Options: 'default_', 'baseline_',
                     'kaiming_uniform_', 'kaiming_normal_', 'neox_init_', 'small_init_', 'xavier_uniform_', or
@@ -128,6 +133,7 @@ class MPTConfig(PretrainedConfig):
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
         self.use_cache = use_cache
+        self.tensor_parallel_mlp = tensor_parallel_mlp
         self.init_config = init_config
         if 'name' in kwargs:
             del kwargs['name']
@@ -188,6 +194,10 @@ class MPTConfig(PretrainedConfig):
                       str) and self.logit_scale != 'inv_sqrt_d_model':
             raise ValueError(
                 f"{self.logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'."
+            )
+        if not is_torch_2_or_higher() and self.tensor_parallel_mlp:
+            raise NotImplementedError(
+                'Tensor Parallel with torch version < 2.0.0 is not implemented. Please set tensor_parallel_mlp to false.'
             )
         if self.init_config.get('name', None) is None:
             raise ValueError(f"{self.init_config=} 'name' needs to be set.")

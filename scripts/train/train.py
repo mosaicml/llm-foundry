@@ -20,7 +20,8 @@ from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_optimizer, build_scheduler,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import log_config, update_batch_size_info
-
+from composer.profiler import JSONTraceHandler, cyclic_schedule
+from composer.profiler.profiler import Profiler
 
 def validate_config(cfg):
     """Validates compatible model and dataloader selection."""
@@ -211,6 +212,8 @@ def main(cfg):
         build_algorithm(name, algorithm_cfg)
         for name, algorithm_cfg in (cfg.get('algorithms') or {}).items()
     ]
+    composer_trace_dir = 'composer_profiler'
+    torch_trace_dir = 'torch_profiler'
 
     # Build the Trainer
     print('Building trainer...')
@@ -251,6 +254,18 @@ def main(cfg):
         autoresume=cfg.get('autoresume', False),
         python_log_level=cfg.get('python_log_level', 'debug'),
         dist_timeout=cfg.dist_timeout,
+        #trace_handlers=[JSONTraceHandler(folder=composer_trace_dir, merged_trace_filename='node{{node_rank}}.json', overwrite=True)],
+        profiler=Profiler(
+            trace_handlers=[JSONTraceHandler(folder=composer_trace_dir, overwrite=True)],
+            schedule=cyclic_schedule(
+                wait=0,
+                warmup=2,
+                active=2,
+                repeat=0,
+            ),
+            torch_prof_folder=torch_trace_dir,
+            torch_prof_overwrite=True,
+        )
     )
 
     print('Logging config...')

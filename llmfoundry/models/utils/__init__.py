@@ -6,6 +6,7 @@ from llmfoundry.models.utils.adapt_tokenizer import (
 from llmfoundry.models.utils.hf_prefixlm_converter import (
     add_bidirectional_mask_if_missing, convert_hf_causal_lm_to_prefix_lm)
 from llmfoundry.models.utils.meta_init_context import init_empty_weights
+from llmfoundry.models.utils.misc import is_torch_2_or_higher
 from llmfoundry.models.utils.param_init_fns import (  # type: ignore
     MODEL_INIT_REGISTRY, generic_param_init_fn_)
 
@@ -13,5 +14,9 @@ __all__ = [
     'AutoTokenizerForMOD', 'adapt_tokenizer_for_denoising',
     'convert_hf_causal_lm_to_prefix_lm', 'init_empty_weights',
     'add_bidirectional_mask_if_missing', 'generic_param_init_fn_',
-    'MODEL_INIT_REGISTRY'
+    'MODEL_INIT_REGISTRY', 'is_torch_2_or_higher'
 ]
+
+if is_torch_2_or_higher():
+    from llmfoundry.models.utils.tensor_parallel import PairwiseSequenceParallel
+    __all__ += ['PairwiseSequenceParallel']

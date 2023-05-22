@@ -208,17 +208,17 @@ def triton_flash_attn_fn(
     multiquery=False,
 ):
     try:
-        from llmfoundry.models.layers import flash_attn_triton  # type: ignore
+        from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
     except:
         _installed = False
         if version.parse(torch.__version__) < version.parse('2.0.0'):
+            _installed = True
             # if torch1.13.1 revert to using triton flash attn from HazyResearch
             # with flash-attn==1.0.3.post0 and triton==2.0.0.dev20221202 
             try:
-                from flash_attn import flash_attn_triton
-                _installed = True
+                from flash_attn.flash_attn_triton import flash_attn_func
             except:
-                pass
+                _installed = False
         if not _installed:
             # installing triton-pre-mlir works for both torch1.13.1 and torch2.0+
             # default recommendation is to install this variant
@@ -273,9 +273,9 @@ def triton_flash_attn_fn(
         value = value.expand(*value.shape[:2], n_heads, value.size(-1))
 
     reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
-    attn_output = flash_attn_triton.flash_attn_func(query, key, value,
-                                                    attn_bias, reset_is_causal,
-                                                    softmax_scale)
+    attn_output = flash_attn_func(query, key, value,
+                                  attn_bias, reset_is_causal,
+                                  softmax_scale)
 
     output = attn_output.view(*attn_output.shape[:2], -1)
 

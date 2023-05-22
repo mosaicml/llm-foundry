@@ -85,7 +85,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         ]
 
         init_device = om_model_config.get('init_device', 'cpu')
-        trust_remote_code=om_model_config.get('trust_remote_code', True)
         if init_device == 'cpu':
             if om_model_config.pretrained:
                 model = AutoModelForCausalLM.from_pretrained(

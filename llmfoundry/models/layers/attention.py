@@ -5,12 +5,12 @@
 
 import math
 import warnings
-from packaging import version
 from typing import Optional
 
 import torch
 import torch.nn as nn
 from einops import rearrange
+from packaging import version
 from torch import nn
 
 from llmfoundry.models.layers.norm import LPLayerNorm
@@ -214,7 +214,7 @@ def triton_flash_attn_fn(
         if version.parse(torch.__version__) < version.parse('2.0.0'):
             _installed = True
             # if torch1.13.1 revert to using triton flash attn from HazyResearch
-            # with flash-attn==1.0.3.post0 and triton==2.0.0.dev20221202 
+            # with flash-attn==1.0.3.post0 and triton==2.0.0.dev20221202
             try:
                 from flash_attn.flash_attn_triton import flash_attn_func
             except:
@@ -227,7 +227,8 @@ def triton_flash_attn_fn(
                 'and `pip install .[gpu]` if installing from llm-foundry source or '
                 '`pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python` '
                 'if installing from pypi, or (2) use torch attn model.attn_config.attn_impl=torch (torch attn_impl will be slow). '
-                'Note: (1) requires you have CMake and PyTorch already installed.')
+                'Note: (1) requires you have CMake and PyTorch already installed.'
+            )
 
     check_valid_inputs(query, key, value)
 
@@ -273,8 +274,7 @@ def triton_flash_attn_fn(
         value = value.expand(*value.shape[:2], n_heads, value.size(-1))
 
     reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
-    attn_output = flash_attn_func(query, key, value,
-                                  attn_bias, reset_is_causal,
+    attn_output = flash_attn_func(query, key, value, attn_bias, reset_is_causal,
                                   softmax_scale)
 
     output = attn_output.view(*attn_output.shape[:2], -1)

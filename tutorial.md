@@ -95,6 +95,49 @@ Sign up [here](https://forms.mosaicml.com/demo?utm_source=home&utm_medium=mosaic
 
 ## Workflow 1: I want to play with a HF model like MPT-7B locally
 
+The quickest way to get started is to use the `transformers` library to download one of our MPT-7B models ([base](https://huggingface.co/mosaicml/mpt-7b), [chat](https://huggingface.co/mosaicml/mpt-7b-chat), [instruct](https://huggingface.co/mosaicml/mpt-7b-instruct)) and running a `text-generation` pipeline. You may see some UserWarnings appear due to MPT being a custom model, but those warnings can be safely ignored.
+
+<!--pytest.mark.skip-->
+```python
+import torch
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, pipeline
+
+name = 'mosaicml/mpt-7b'
+
+# Download config
+config = AutoConfig.from_pretrained(name, trust_remote_code=True)
+# (Optional) Use `triton` backend for fast attention. Defaults to `torch`.
+# config.attn_config['attn_impl'] = 'triton'
+# (Optional) Change the `max_seq_len` allowed for inference
+# config.max_seq_len = 4096
+
+# Download model source and weights
+model = AutoModelForCausalLM.from_pretrained(
+    name,
+    config=config,
+    torch_dtype=torch.bfloat16,  # or torch.float32
+    trust_remote_code=True)
+
+# Download tokenizer
+tokenizer = AutoTokenizer.from_pretrained(name)
+
+# Run text-generation pipeline
+pipe = pipeline(
+    'text-generation',
+    model=model,
+    tokenizer=tokenizer,
+    device='cuda:0',  # (Optional) to run on GPU 0
+)
+print(
+    pipe('Here is a recipe for vegan banana bread:\n',
+         max_new_tokens=100,
+         do_sample=True,
+         use_cache=True))
+```
+
+To play with more features like batching and multi-turn chat, check out our example scripts `scripts/inference/hf_generate.py` and `scripts/inference/hf_chat.py`, with instructions in the [inference README](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/README.md).
+
+
 ## Workflow 2: I want to deploy an inference endpoint with a HF model like MPT-7B
 
 This site is under construction :)

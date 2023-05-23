@@ -59,3 +59,7 @@ def test_init_hfhub_mpt(device, attn_impl):
                 tokenizer('hello', return_tensors='pt')['input_ids']),
             max_new_tokens=10,
         )
+
+
+def test_init_hfhub_mpt_cpu():
+    test_init_hfhub_mpt(device='cpu', attn_impl='torch')

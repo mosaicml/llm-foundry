@@ -73,8 +73,8 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 4800ba # ~ 2.5B tokens
-eval_interval: 500ba
+max_duration: 33696ba # ~ 17.55B tokens; 150 tokens / param
+eval_interval: 1000ba
 eval_first: false
 eval_subset_num_batches: -1
 global_train_batch_size: 256

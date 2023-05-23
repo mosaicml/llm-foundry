@@ -47,7 +47,7 @@
 A few notes:
 - The various directories under `scripts` contain their own README files.
 - We use YAML files heavily. For example, the main training script `scripts/train/train.py` takes in a configuration YAML and will interpret that YAML to determine how to build the dataloader, model, optimizer, etc. used for training.
-- **We are actively building documentation to help explain these YAMLs** but the best way to understand them is to walk through the script itself to follow how the config YAML is interpreted. More on that below.
+- **We are actively building documentation to help explain these YAMLs** but the best way to understand them is to walk through the script itself to follow how the config YAML is interpreted.
 
 
 ## Key components
@@ -181,7 +181,7 @@ After you're done training, you probably want to convert your Composer checkpoin
 - TODO…
 
 ### Why is the script only using 1 out of N GPUs?
-- Make sure you are using the `composer` launcher instead of the `python` launcher?
+- Make sure you are using the `composer` launcher instead of the `python` launcher:
 
    ✅ `composer train/train.py ...`
 
@@ -192,7 +192,7 @@ After you're done training, you probably want to convert your Composer checkpoin
 ### I’m running into an Out-Of-Memory (OOM) error. What do I do?
 - Hardware limitations may simply prevent some training/inference configurations, but here are some steps to troubleshooting OOMs.
 - First, confirm that you are running with the `composer` launcher, e.g. `composer train/train.py ...`, and using all N GPUs? If not, you may be running into OOMs because your model is not being FSDP-sharded across N devices.
-- Second, confirm that you have turned on FSDP for model sharding. For example, YAMLs for the `[train.py](http://train.py)` script should have a `fsdp_config` section. And you need to use `fsdp_config.sharding_strategy: FULL_SHARD` to enable parameter sharding.
+- Second, confirm that you have turned on FSDP for model sharding. For example, YAMLs for the `train.py` script should have a `fsdp_config` section. And you need to use `fsdp_config.sharding_strategy: FULL_SHARD` to enable parameter sharding.
 - Third, confirm that you are using mixed precision, for example by setting `precision: amp_bf16`.
 - If you are still seeing OOMs, reduce the `device_train_microbatch_size` or `device_eval_batch_size` which will reduce the live activation memory.
 - If OOMs persist with `device_train_microbatch_size: 1` and `device_eval_batch_size: 1`, you may need to use activation checkpointing `fsdp_config.activation_checkpointing: true` (if you are not already) and, as a last resort, activation CPU offloading `fsdp_config.activation_cpu_offload: true`.

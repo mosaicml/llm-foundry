@@ -268,7 +268,8 @@ class DatasetConstructor:
         split = cfg.split
         kwargs = cfg.get('hf_kwargs', {})
         proto_preprocessing_fn = cfg.get('preprocessing_fn')
-        if isinstance(proto_preprocessing_fn, dict):
+        if isinstance(proto_preprocessing_fn, dict) or isinstance(
+                proto_preprocessing_fn, DictConfig):
             preprocessing_fn = self.get_preprocessing_fn_from_dict(
                 proto_preprocessing_fn)
         else:

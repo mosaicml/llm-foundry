@@ -2,11 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
-from omegaconf import OmegaConf as om
-
 from composer.core.precision import get_precision_context
 from composer.utils import dist, get_device, reproducibility
+from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils import build_tokenizer
@@ -16,7 +14,7 @@ from llmfoundry.utils import build_tokenizer
 @pytest.mark.parametrize('device', ['cpu', 'gpu'])
 @pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
 def test_init_hfhub_mpt(device, attn_impl):
-    if device=='cpu' and attn_impl=='triton':
+    if device == 'cpu' and attn_impl == 'triton':
         pytest.xfail(f'{attn_impl=} not implemented for {device=}.')
     device = get_device(device)
 
@@ -25,7 +23,8 @@ def test_init_hfhub_mpt(device, attn_impl):
 
     reproducibility.seed_all(test_cfg.get('seed', 42))
 
-    attn_uses_sequence_id = True if test_cfg.get('eos_token_id', None) is not None else False
+    attn_uses_sequence_id = True if test_cfg.get('eos_token_id',
+                                                 None) is not None else False
     test_cfg.model = {
         'name': 'hf_causal_lm',
         'pretrained_model_name_or_path': 'mosaicml/mpt-7b',
@@ -47,7 +46,8 @@ def test_init_hfhub_mpt(device, attn_impl):
     tokenizer = build_tokenizer(test_cfg.tokenizer)
 
     # build model
-    model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model, tokenizer)
+    model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
+                                                         tokenizer)
     test_cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{test_cfg.n_params=:.2e}')
 
@@ -56,7 +56,8 @@ def test_init_hfhub_mpt(device, attn_impl):
 
     with get_precision_context('amp_bf16' if device.name == 'gpu' else 'fp32'):
         output = model.generate(
-            device.tensor_to_device(tokenizer('hello', return_tensors='pt')['input_ids']),
+            device.tensor_to_device(
+                tokenizer('hello', return_tensors='pt')['input_ids']),
             max_new_tokens=10,
         )
         print(tokenizer.convert_ids_to_tokens(output[0]))

@@ -92,7 +92,7 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 2ep
+max_duration: 1ep
 eval_interval: 1ep
 eval_subset_num_batches: 16
 eval_first: true
@@ -101,8 +101,8 @@ global_train_batch_size: 48
 # System
 seed: ${global_seed}
 device_eval_batch_size: 8
-device_train_microbatch_size: 8
-# device_train_microbatch_size: auto
+# device_train_microbatch_size: 8
+device_train_microbatch_size: auto
 precision: amp_bf16
 
 # FSDP

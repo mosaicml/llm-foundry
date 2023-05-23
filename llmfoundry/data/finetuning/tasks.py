@@ -165,15 +165,29 @@ class DatasetConstructor:
         """Get a preprocessing function from a dictionary.
 
         The dictionary maps column names in the dataset to "prompt" and "response".
+        For example,
+            ```yaml
+            preprocessing_fn:
+                prompt: text
+                response: summary
+            ```
+        would map the `text` column as to prompt and the `summary` column as the response.
 
         Args:
             mapping (dict): A dictionary mapping column names to "prompt" and "response".
 
         Returns:
             Callable: The preprocessing function.
+
+        Raises:
+            ValueError: If the mapping does not have keys "prompt" and "response".
         """
 
         def _preprocessor(example: Dict[str, Any]) -> Dict[str, str]:
+            if list(mapping.keys()) != ['prompt', 'response']:
+                raise ValueError(
+                    f'Expected {mapping=} to have keys "prompt" and "response".'
+                )
             return {
                 'prompt': example[mapping['prompt']],
                 'response': example[mapping['response']]

@@ -144,6 +144,56 @@ This site is under construction :)
 
 ## Workflow 3: I want to fine-tune a HF model like MPT-7B
 
+### Supervised FineTuning and Instruction FineTuning
+
+We have two resources for supervised finetuning:
+
+1. [**LLM Finetuning from a Local Dataset: A Concrete Example**](https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/finetune_example/README.md)
+2. [The YAML which should replicate the process of creating MPT-7B-Instruct from MPT-7b](https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml)
+
+### Domain Adaptation and Sequence Length Adaptation
+
+> **Note**
+> Finetuning MPT-7B requires ≥ 4x40GB A100s, and a similarly sized model without flash attention may take 8 or more, depending on your sequence length. Use a smaller model if you do not have enough GPUs.
+
+Domain and Sequence Length Adaptation are two similar cases that do not fit neatly into the pretraining/finetuning taxonomy. For the purposes of LLM-Foundry, it is more instructive to consider them “continued pretraining”, as our setup will more resemble pretraining than it does Supervised Fine Tuning. In particular, we will employ the same dataloader and data preparation strategy as used in pretraining.
+
+For the purposes of this example, we will assume you are fine-tuning MPT-7B on a longer sequence length, but the same process would work for a new style of text (e.g. getting MPT-7B to work on, say, legal text). Note that the bigger the change, the more tokens you want to continue training on: extending the sequences to 4,096 does not require as many training steps as extending to 65,536. Similarly, adapting MPT-7B to code (which made up a significant fraction of its training data) does not require as many steps as adapting to legal documents in Hindi (which made up ~0% of its training data).
+
+**Data**
+
+First we need to pre-tokenize our data and concatenate it to fill up each sequence, as this keeps us from wasting any compute on pad tokens. The canonical reference for this is `scripts/data_prep/README.md`
+
+If you are doing Sequence Length Adaptation, remember to adapt the above example to use your longer sequence length. Since we are using ALiBi, you can train on shorter sequences than you plan to use for evaluation; you can go somewhere between 20% and 100% longer, depending on how long your sequences are and the nuances of your data. For this example, suppose you want to do inference on sequences that are around 6,000 tokens long; for this it makes sense to train on 4,096 and then rely on ALiBi’s zero-shot length extrapolation at inference time.
+
+Output the processed data to `./my-adaptation-data`. Note that we use smaller subsets of C4 as an example; you may have different data you want to use. Following [the data preparation README](https://github.com/mosaicml/llm-foundry/blob/main/scripts/data_prep/README.md), we convert C4 as follows:
+
+<!--pytest.mark.skip-->
+```bash
+python scripts/data_prep/convert_dataset_hf.py \
+  --dataset c4 --data_subset en \
+  --out_root my-adaptation-data --splits train_small val_small \
+  --concat_tokens 4096 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>' \
+  --compression zstd
+```
+
+**Modeling**
+
+Now that we have our data ready, we can slightly modify `scripts/yamls/pretrain/mpt-7b.yaml` to fit our purposes, changing `max_seq_len` to `4096` and the directory `data_local` to `./my-adaptation-data`. We could create a new YAML to do this, then point the trainer to it, but there is no need to, we can change these values as we kick off the training:
+
+<!--pytest.mark.skip-->
+```bash
+composer scripts/train/train.py scripts/yamls/pretrain/mpt-7b.yaml \
+    train_loader.dataset.split=train_small \
+    eval_loader.dataset.split=val_small \
+    max_seq_len=4096 \
+    data_local=./my-adaptation-data
+```
+
+You will see some info logs including your configs, and then training will start.
+
+After you're done training, you probably want to convert your Composer checkpoint to HuggingFace/ONNX/FasterTransformer format. To do that, check out the [inference README](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/README.md).
+
 ## Workflow 4: I want to train a new HF model from scratch
 
 > **Note**

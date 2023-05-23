@@ -146,6 +146,35 @@ This site is under construction :)
 
 ## Workflow 4: I want to train a new HF model from scratch
 
+> **Note**
+> Pretraining for 10s of billions of tokens is a large job even for a smaller model; you’ll want multiple A100s for this example.
+
+It is conceivable that you would like to train a model *with the same architecture* as a model available in HuggingFace `transformers` but without using those same weights; for example, if you have a large amount of proprietary data, or want to change something about the model that is hard to change after the fact. So, as an example, let’s say you want a version of `gpt2`  but with longer sequence length, say 2048. Using the MPT architecture would give us Flash Attention and ALiBi, allowing us to go much longer; but for this example we stick with 2048. And of course, let’s use 150 tokens/parameter, which is the ratio that MPT-7B used, getting us to 17.55B tokens for our 117M param model.
+
+The first step to training from scratch is to get your pretraining data prepared.  Following [the data preparation README](https://github.com/mosaicml/llm-foundry/blob/main/scripts/data_prep/README.md), we convert C4 as follows:
+
+<!--pytest.mark.skip-->
+```bash
+python convert_dataset_hf.py \
+  --dataset c4 --data_subset en \
+  --out_root my-copy-c4 --splits train_small val_small \
+  --concat_tokens 2048 --tokenizer gpt2 \
+  --eos_text '<|endoftext|>' \
+  --compression zstd
+```
+
+Now we kick off a training using the configuration located at `scripts/yamls/pretrain/gpt2-small.yaml`:
+
+<!--pytest.mark.skip-->
+```bash
+composer scripts/train/train.py scripts/yamls/pretrain/gpt2-small.yaml \
+    max_seq_len=2048 \
+    train_loader.dataset.split=train_small \
+    eval_loader.dataset.split=val_small \
+```
+
+After you're done training, you probably want to convert your Composer checkpoint to HuggingFace/ONNX/FasterTransformer format. To do that, check out the [inference README](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/README.md).
+
 # FAQs
 
 ### Common installation issues

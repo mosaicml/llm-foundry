@@ -29,7 +29,6 @@ def test_init_hfhub_mpt(device, attn_impl):
         'name': 'hf_causal_lm',
         'pretrained_model_name_or_path': 'mosaicml/mpt-7b',
         'pretrained': False,
-        'use_auth_token': True,
         'config_overrides': {
             'd_model': 128,
             'n_heads': 4,

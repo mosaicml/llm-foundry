@@ -20,11 +20,11 @@ jobs:
       matrix:
         include:
         - name: 'cpu-latest'
-          container: mosaicml/pytorch:latest  # mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+          container: mosaicml/pytorch:latest_cpu  # mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
           markers: 'not gpu'
           pytest_command: 'coverage run -m pytest'
         - name: 'cpu-2.0.1'
-          container: mosaicml/pytorch:2.0.1_cu117-python3.10-ubuntu20.04
+          container: mosaicml/pytorch:2.0.1_cpu-python3.10-ubuntu20.04
           markers: 'not gpu'
           pytest_command: 'coverage run -m pytest'
     name: ${{ matrix.name }}

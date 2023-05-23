@@ -58,6 +58,9 @@ install_requires = [
     'mosaicml-cli>=0.3,<1',
     'onnx==1.13.1',
     'onnxruntime==1.14.1',
+    'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
+    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
+    'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python',
 ]
 
 extra_deps = {}
@@ -74,9 +77,7 @@ extra_deps['dev'] = [
 
 extra_deps['gpu'] = [
     'flash-attn==v1.0.3.post0',
-    'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python',
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v0.2.8#subdirectory=csrc/xentropy',
 ]
 

@@ -49,6 +49,7 @@ def test_convert_and_generate_torch(tmp_path):
 
     cfg = get_config()
     cfg['model']['init_device'] = 'cpu'
+    cfg['model']['attn_config']['attn_impl'] = 'torch'
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'EleutherAI/gpt-neox-20b')
     model = ComposerMPTCausalLM(cfg['model'], tokenizer)

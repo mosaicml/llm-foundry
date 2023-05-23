@@ -49,7 +49,6 @@ def test_init_hfhub_mpt(device, attn_impl):
     model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                          tokenizer)
     test_cfg.n_params = sum(p.numel() for p in model.parameters())
-    print(f'{test_cfg.n_params=:.2e}')
 
     model.eval()
     model = device.module_to_device(model)
@@ -60,4 +59,3 @@ def test_init_hfhub_mpt(device, attn_impl):
                 tokenizer('hello', return_tensors='pt')['input_ids']),
             max_new_tokens=10,
         )
-        print(tokenizer.convert_ids_to_tokens(output[0]))

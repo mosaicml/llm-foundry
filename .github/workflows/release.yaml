@@ -33,8 +33,8 @@ jobs:
         fi
 
         # Remove the xentropy-cuda-lib and triton-pre-mlir dependencies as PyPI does not support
-        # direct installs. The error message for importing FusedCrossEntropy/flash_attn_triton gives instructions
-        # on how to install if a user tries to use it without this dependency.
+        # direct installs. The error message for importing FusedCrossEntropy/flash_attn_triton
+        # gives instructions on how to install if a user tries to use it without this dependency.
         sed '/xentropy-cuda-lib@git+https:\/\/github.com\/HazyResearch\/flash-attention.git@.*/d' -i setup.py
         sed '/triton-pre-mlir@git+https:\/\/github.com\/vchiley\/triton.git@.*/d' -i setup.py
 

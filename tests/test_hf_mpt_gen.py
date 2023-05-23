@@ -15,7 +15,7 @@ from llmfoundry.utils import build_tokenizer
 @pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
 def test_init_hfhub_mpt(device, attn_impl):
     if device == 'cpu' and attn_impl == 'triton':
-        pytest.xfail(f'{attn_impl=} not implemented for {device=}.')
+        pytest.skip(f'{attn_impl=} not implemented for {device=}.')
     device = get_device(device)
 
     with open('scripts/train/yamls/pretrain/testing.yaml') as f:

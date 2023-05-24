@@ -53,7 +53,7 @@ def test_init_hfhub_mpt(device, attn_impl):
     model = device.module_to_device(model)
 
     with get_precision_context('amp_bf16' if device.name == 'gpu' else 'fp32'):
-        output = model.generate(
+        _ = model.generate(
             device.tensor_to_device(
                 tokenizer('hello', return_tensors='pt')['input_ids']),
             max_new_tokens=10,

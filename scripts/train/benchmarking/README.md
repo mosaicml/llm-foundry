@@ -25,11 +25,11 @@ can be used to sweep a larger set of configurations. For example usage of `submi
 
 ## MFU and HFU
 
-Model FLOPs Utilization (MFU) and Hardware FLOPS Utilization (HFU) are estimates, based on the throughput and the known FLOPs of the computation, of what percentage of the hardware's FLOPs are being used during training.
+Model FLOPs Utilization (MFU) and Hardware FLOPS Utilization (HFU) are estimates, based on the measured throughput and the known FLOPs of the computation, of what percentage of the hardware's FLOPs are being used during training.
 
-MFU calculates the utilizaiton from the floating point operations required for a single forward/backwards pass of the model, and do not account for the additional compute required for other implementation details such as activation checkpointing. Thus, MFU is independant of implementation and hardware.
+MFU calculates the utilization from the floating point operations required for a single forward/backwards pass of the model, and does not account for the additional compute required for other implementation details such as activation checkpointing. Thus, MFU is independent of implementation and hardware.
 
-HFU attempts to capture the actual floating point operations incurred during the forward/backwards pass on the hardware, and is a more accurate measurement of hardware utilization, but less general and difficult to compare across various hardware and implementation details.
+HFU attempts to capture the actual floating point operations incurred during the forward/backwards pass on the hardware. While it is a more accurate measurement of hardware utilization, it is less general and is difficult to compare across various hardware and implementation details.
 
 For more information, see [Korthikanti et al, 2022](https://arxiv.org/abs/2205.05198). All FLOP calculations exclude the operations required for normalization, activation, and residuals.
 

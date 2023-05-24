@@ -148,6 +148,10 @@ export HUGGING_FACE_HUB_TOKEN=your-auth-token
 ```
 and uncomment the line containing `--hf_repo_for_upload ...` in the above call to `inference/convert_composer_to_hf.py`.
 
+# Learn more about LLM Foundry!
+
+Check out [TUTORIAL.md](https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md) to keep learning about working with LLM Foundry. The tutorial highlights example workflows, points you to other resources throughout the repo, and answers frequently asked questions!
+
 # Contact Us
 If you run into any problems with the code, please file Github issues directly to this repo.
 

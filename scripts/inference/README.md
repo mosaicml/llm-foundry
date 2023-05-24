@@ -125,3 +125,28 @@ python convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggi
 ```
 
 Please open a Github issue if you discover any problems!
+
+## MPT with FasterTransformer (FT)
+This folder contains a script that converts MPT checkpoints to the
+[FasterTransformer](https://github.com/NVIDIA/FasterTransformer) format. This makes the checkpoints compatible with the
+FasterTransformer library, which can be used to run transformer models on GPUs.
+
+You can either pre-download the model in a local dir or directly provide the HF hub model name to convert the MPT
+checkpoint to FasterTransformer format.
+
+### Download and Convert
+```
+# The script handles the download
+python mpt_ckpt_to_ft.py -i mosaicml/mpt-7b -o mpt-ft-7b --infer_gpu_num 1
+```
+
+### Pre-Download the Model and Convert
+```
+apt update
+apt install git-lfs
+git lfs install
+git clone https://huggingface.co/mosaicml/mpt-7b
+# This will convert the MPT checkpoint in mpt-7b dir and save the converted checkpoint to mpt-ft-7b dir
+python mpt_ckpt_to_ft.py -i mpt-7b -o mpt-ft-7b --infer_gpu_num 1
+```
+You can change `infer_gpu_num` to > 1 to prepare a FT checkpoint for multi-gpu inference. Please open a Github issue if you discover any problems!

@@ -93,12 +93,24 @@ These conversion scripts also allow you to upload your converted datasets direct
 
 ## How the YAMLs work
 
-There are YAMLs in three locations: `scripts/train/yamls`, `scripts/eval/yamls`, and `mcli/`.
-The `train` YAMLs pass arguments to `scripts/train/train.py`, and the `eval` YAMLs pass arguments to `scripts/train/eval.py`.
-Both of these scripts, `train.py` and `eval.py`, wrap a `composer` Trainer in an opinionated way to make it easy to train and evaluate (respectively) LLMs.
+You'll find a lot of YAMLs in this repo. That's because they are a convenient tool for managing configs, which is what we use them for.
 
-The scripts in `mcli/` are used to submit a training job to the MosaicML platform using our MosaicML CLI.
+Config YAMLs are used as inputs to `scripts/train/train.py` and `scripts/eval/eval.py`, and are the main way we configure runs launched with `mcli`.
+
+Both of the above scripts, `train.py` and `eval.py`, wrap a `composer` Trainer in an opinionated way to make it easy to train and evaluate (respectively) LLMs. The bulk of each script essentially just interprets the config YAML it receives to build the appropriate inputs to the Trainer.
+
+**We strive to keep the names of the YAML fields as closely related as possible to the kwargs of the function/class they direct to.** For instance, here's an example snippet for the `model` portion:
+```yaml
+model:
+  name: hf_causal_lm
+  pretrained: true
+  pretrained_model_name_or_path: mosaicml/mpt-7b
+```
+If you dig into `train.py`, you'll find that `model.name: hf_causal_lm` instructs the model builder to create a [ComposerHFCausalLM](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/hf/hf_causal_lm.py) object. The fields `pretrained` and `pretrained_model_name_or_path` correspond to the same kwargs used by the Hugging Face constructors that class builds from.
+
+The YAMLS in `mcli/` are used to submit a training job to the MosaicML platform using our MosaicML CLI.
 Sign up [here](https://forms.mosaicml.com/demo?utm_source=home&utm_medium=mosaicml.com&utm_campaign=always-on).
+You can find more info about how to configure mcli YAMLs [here](https://docs.mosaicml.com/projects/mcli/en/latest/).
 
 # Example Workflows
 

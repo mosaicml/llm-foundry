@@ -7,7 +7,7 @@
 - [Example Workflows](#example-workflows)
   - [Workflow 1: I want to play with a HF model like MPT-7B locally](#workflow-1-i-want-to-play-with-a-hf-model-like-mpt-7b-locally)
   - [Workflow 2: I want to deploy an inference endpoint with a HF model like MPT-7B](#workflow-2-i-want-to-deploy-an-inference-endpoint-with-a-hf-model-like-mpt-7b)
-  - [Workflow 3: I want to fine-tune a HF model like MPT-7B](#workflow-3-i-want-to-fine-tune-a-hf-model-like-mpt-7b)
+  - [Workflow 3: I want to finetune a HF model like MPT-7B](#workflow-3-i-want-to-finetune-a-hf-model-like-mpt-7b)
   - [Workflow 4: I want to train a new HF model from scratch](#workflow-4-i-want-to-train-a-new-hf-model-from-scratch)
 - [FAQs](#faqs)
   - [Common installation issues](#common-installation-issues)
@@ -27,7 +27,7 @@
 
 **Hello!** We’ve put together this “tutorial” to help you develop a stronger familiarity with `llm-foundry`, the kinds of things you can do with, and how to go about using it to meet your needs.
 
-Forging LLMs can be quite complicated — you have to get your data prepared, set up your environment with adequate hardware for training, evaluate your model once it’s trained, and finally get it ready to be served. That’s a lot of moving parts! And that’s exactly why we decided to create and release `llm-foundry`. This repo aims to simplify each of those pieces of the pipeline into a toolkit that you can use to meet your various LLM forging needs.
+Forging LLMs can be quite complicated — you have to get your data prepared, set up your environment correctly with adequate hardware in order to train, evaluate your model once it’s trained, and finally get it ready to be served. That’s a lot of moving parts! And that’s exactly why we decided to create and release `llm-foundry`. This repo aims to simplify each of those pieces of the pipeline into a toolkit that you can use to meet your various LLM forging needs.
 
 This tutorial will provide a brief intro to the repo’s structure and underlying tools (all courtesy of MosaicML, of course), will go over a few example workflows and point you to the related resources within the repo, and will finally cover a number of FAQs that we have encountered since release.
 
@@ -152,11 +152,13 @@ To play with more features like batching and multi-turn chat, check out our exam
 
 This site is under construction :)
 
-## Workflow 3: I want to fine-tune a HF model like MPT-7B
+## Workflow 3: I want to finetune a HF model like MPT-7B
+
+We address two possible versions of “finetuning” here. For both, you’ll want to be familiar with the material covered in scripts/train/README.md. The first finetuning workflow applies if you have labeled data — where you want to train the model to produce a target output given some input. The second workflow applies if you have additional unlabeled data that you want to adapt the model to.
 
 ### Supervised FineTuning and Instruction FineTuning
 
-We have two resources for supervised finetuning:
+`scripts/train/` already includes some resources for supervised finetuning. If that’s what you’re interestested in checkout
 
 1. [**LLM Finetuning from a Local Dataset: A Concrete Example**](https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/finetune_example/README.md)
 2. [The YAML which should replicate the process of creating MPT-7B-Instruct from MPT-7b](https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml) — You can point this at your own dataset by [following these instructions](https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/README.md#Usage)
@@ -172,7 +174,7 @@ For the purposes of this example, we will assume you are fine-tuning MPT-7B on a
 
 #### Data
 
-First we need to pre-tokenize our data and concatenate it to fill up each sequence, as this keeps us from wasting any compute on pad tokens. The canonical reference for this is `scripts/data_prep/README.md`
+First we need to pre-tokenize our data and concatenate it to fill up each sequence, as this keeps us from wasting any compute on pad tokens. The canonical reference for this is `scripts/data_prep/README.md`.
 
 If you are doing Sequence Length Adaptation, remember to adapt the above example to use your longer sequence length. Since we are using ALiBi, you can train on shorter sequences than you plan to use for evaluation; you can go somewhere between 20% and 100% longer, depending on how long your sequences are and the nuances of your data. For this example, suppose you want to do inference on sequences that are around 6,000 tokens long; for this it makes sense to train on 4,096 and then rely on ALiBi’s zero-shot length extrapolation at inference time.
 
@@ -189,7 +191,7 @@ python scripts/data_prep/convert_dataset_hf.py \
 
 #### Modeling
 
-Now that we have our data ready, we can slightly modify `scripts/yamls/pretrain/mpt-7b.yaml` to fit our purposes, changing `max_seq_len` to `4096` and the directory `data_local` to `./my-adaptation-data`. We have already created this YAML for you:
+Now that we have our data ready, we can slightly modify `scripts/train/yamls/finetune/mpt-7b_domain_adapt.yaml` to fit our purposes, changing `max_seq_len` to 4096 and the directory data_local to `./my-adaptation-data`. We *could* create a new YAML to do this, then point the trainer to it, but there is no need to. We can change these values as we kick off the training by supplying the override values as additional arguments:
 
 <!--pytest.mark.skip-->
 ```bash
@@ -211,7 +213,7 @@ The first step to training from scratch is to get your pretraining data prepared
 
 <!--pytest.mark.skip-->
 ```bash
-python convert_dataset_hf.py \
+python scripts/data_prep/convert_dataset_hf.py \
   --dataset c4 --data_subset en \
   --out_root my-copy-c4 --splits train_small val_small \
   --concat_tokens 2048 --tokenizer gpt2 \

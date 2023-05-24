@@ -72,6 +72,10 @@ extra_deps['dev'] = [
     'packaging>=21,<23',
 ]
 
+extra_deps['tensorboard'] = [
+    'composer[tensorboard]>=0.14.1,<0.15',
+]
+
 extra_deps['gpu'] = [
     'flash-attn==v1.0.3.post0',
     'triton==2.0.0.dev20221202',

@@ -2,6 +2,13 @@
 
 This folder contains helper scripts for exporting and generating outputs with your Composer-trained LLMs.
 
+Table of Contents:
+- [Converting a Composer checkpoint to an HF checkpoint folder](#converting-a-composer-checkpoint-to-an-hf-checkpoint-folder)
+- [Interactive Generation with HF models](#interactive-generation-with-hf-models)
+- [Interactive Chat with HF models](#interactive-chat-with-hf-models)
+- [Converting an HF model to ONNX](#converting-an-hf-model-to-onnx)
+- [Converting an HF MPT to FasterTransformer](#converting-an-hf-mpt-to-fastertransformer)
+
 ## Converting a Composer checkpoint to an HF checkpoint folder
 
 The LLMs trained with this codebase are all HuggingFace (HF) `PreTrainedModel`s, which we wrap with a `HuggingFaceModel` wrapper class to make compatible with Composer. See [docs](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.models.HuggingFaceModel.html#huggingfacemodel) and an [example](https://docs.mosaicml.com/projects/composer/en/latest/examples/pretrain_finetune_huggingface.html) for more details.
@@ -33,7 +40,7 @@ which can be loaded with standard HF utilities like `AutoModelForCausalLM.from_p
 
 You can also pass object store URIs for both `--composer_path` and `--hf_output_path` to easily convert checkpoints stored in S3, OCI, etc.
 
-## Interactive generation with `model.generate(...)`
+## Interactive Generation with HF models
 
 To make it easy to inspect the generations produced by your HF model, we include a script `hf_generate.py` that allows you to run custom prompts through your HF model, like so:
 
@@ -93,7 +100,7 @@ output_tok_per_sec=292.03tok/sec
 
 The argument for `--name_or_path` can be either the name of a model that exists on the HF Hub, such as `gpt2`, `facebook/opt-350m`, etc. or the path to a HF checkpoint folder, such as `my_hf_model/` like we exported above.
 
-## Interacting with chat models
+## Interactive Chat with HF models
 
 Chat models need to pass conversation history back to the model for multi-turn conversations. To make that easier, we include `hf_chat.py`. Chat models usually require an introductory/system prompt, as well as a wrapper around user and model messages, to fit the training format. Default values work with our ChatML-trained models, but you can specify these values with CLI args:
 
@@ -102,7 +109,7 @@ Chat models need to pass conversation history back to the model for multi-turn c
 python hf_chat.py -n my_hf_model/ --system_prompt="You are a helpful assistant\n" --user_msg_fmt="user: {}\n" --assistant_msg_fmt="assistant: {}\n" --max_new_tokens=512
 ```
 
-## Converting your HF model to ONNX
+## Converting an HF model to ONNX
 
 We include a script `convert_hf_to_onnx.py` that demonstrates how to convert your HF model to ONNX format. For more details and examples
 of exporting and working with HuggingFace models with ONNX, see <https://huggingface.co/docs/transformers/serialization#export-to-onnx>.
@@ -126,18 +133,18 @@ python convert_hf_to_onnx.py --pretrained_model_name_or_path local/path/to/huggi
 
 Please open a Github issue if you discover any problems!
 
-## MPT with FasterTransformer (FT)
-This folder contains a script that converts MPT checkpoints to the
+## Converting an HF MPT to FasterTransformer
+We include a script `convert_hf_mpt_to_ft.py` that converts HuggingFace MPT checkpoints to the
 [FasterTransformer](https://github.com/NVIDIA/FasterTransformer) format. This makes the checkpoints compatible with the
 FasterTransformer library, which can be used to run transformer models on GPUs.
 
-You can either pre-download the model in a local dir or directly provide the HF hub model name to convert the MPT
+You can either pre-download the model in a local dir or directly provide the HF hub model name to convert the HF MPT
 checkpoint to FasterTransformer format.
 
 ### Download and Convert
 ```
 # The script handles the download
-python mpt_ckpt_to_ft.py -i mosaicml/mpt-7b -o mpt-ft-7b --infer_gpu_num 1
+python convert_hf_mpt_to_ft.py -i mosaicml/mpt-7b -o mpt-ft-7b --infer_gpu_num 1
 ```
 
 ### Pre-Download the Model and Convert
@@ -147,6 +154,6 @@ apt install git-lfs
 git lfs install
 git clone https://huggingface.co/mosaicml/mpt-7b
 # This will convert the MPT checkpoint in mpt-7b dir and save the converted checkpoint to mpt-ft-7b dir
-python mpt_ckpt_to_ft.py -i mpt-7b -o mpt-ft-7b --infer_gpu_num 1
+python convert_hf_mpt_to_ft.py -i mpt-7b -o mpt-ft-7b --infer_gpu_num 1
 ```
 You can change `infer_gpu_num` to > 1 to prepare a FT checkpoint for multi-gpu inference. Please open a Github issue if you discover any problems!

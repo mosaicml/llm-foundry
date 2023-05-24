@@ -42,6 +42,11 @@ from llmfoundry.models.utils.meta_init_context import init_empty_weights
 from llmfoundry.models.utils.param_init_fns import (  # type: ignore
     MODEL_INIT_REGISTRY, generic_param_init_fn_)
 
+try:
+    from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
+except:
+    pass
+
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 

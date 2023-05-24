@@ -24,9 +24,19 @@
   - [How do I deploy with ONNX/FasterTransformer?](#how-do-i-deploy-with-onnxfastertransformer)
   - [How expensive is it to build LLMs?](#how-expensive-is-it-to-build-llms)
 
+**Hello!** We’ve put together this “tutorial” to help you develop a stronger familiarity with `llm-foundry`, the kinds of things you can do with, and how to go about using it to meet your needs.
+
+Forging LLMs can be quite complicated — you have to get your data prepared, set up your environment with adequate hardware for training, evaluate your model once it’s trained, and finally get it ready to be served. That’s a lot of moving parts! And that’s exactly why we decided to create and release `llm-foundry`. This repo aims to simplify each of those pieces of the pipeline into a toolkit that you can use to meet your various LLM forging needs.
+
+This tutorial will provide a brief intro to the repo’s structure and underlying tools (all courtesy of MosaicML, of course), will go over a few example workflows and point you to the related resources within the repo, and will finally cover a number of FAQs that we have encountered since release.
+
+Let’s get started!
+
 
 
 # Intro
+
+This section establishes some basics that will provide useful context when navigating llm-foundry and digging into the provided scripts, YAMLs, etc. The goals here are to give you a clear sense of the general layout, orient you to the core MosaicML tools that this repo builds on, and introduce the way we use YAMLs to configure some of the more complex scripts.
 
 ## How this repo is structured
 
@@ -44,10 +54,7 @@
   - `inference/` - Scripts to load and query trained, HuggingFace-formatted models
 - `mcli/` - A collection of example workload configurations that could be launched on the MosaicML Platform via the `mcli` command line interface.
 
-A few notes:
-- The various directories under `scripts` contain their own README files.
-- We use YAML files heavily. For example, the main training script `scripts/train/train.py` takes in a configuration YAML and will interpret that YAML to determine how to build the dataloader, model, optimizer, etc. used for training.
-- **We are actively building documentation to help explain these YAMLs** but the best way to understand them is to walk through the script itself to follow how the config YAML is interpreted.
+Each of the above directories has its own `README.md` which goes into more depth about how to use the code it contains. To get the fullest picture on how `llm-foundry` works, make sure to give those a read too.
 
 
 ## Key components
@@ -92,6 +99,8 @@ The scripts in `mcli/` are used to submit a training job to the MosaicML platfor
 Sign up [here](https://forms.mosaicml.com/demo?utm_source=home&utm_medium=mosaicml.com&utm_campaign=always-on).
 
 # Example Workflows
+
+In this section, we’ll give a brief overview of 4 different workflows. You can treat them as independent — that is, you don’t need to go through each in any particular order. Instead, the goal here is to give you a sense of how you might approach each of these different situations using llm-foundry and related tooling.
 
 ## Workflow 1: I want to play with a HF model like MPT-7B locally
 
@@ -226,6 +235,8 @@ composer scripts/train/train.py scripts/yamls/pretrain/gpt2-small.yaml \
 After you're done training, you probably want to convert your Composer checkpoint to HuggingFace/ONNX/FasterTransformer format. To do that, check out the [inference README](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/README.md).
 
 # FAQs
+
+The purpose of this section is probably pretty self-evident. You’ve got questions and we’ve (hopefully) got answers. Here are some of the more common ones we’ve seen. Before filing an issue, please see if your question is addressed in one of these FAQs or in the READMEs.
 
 ### Common installation issues
 - TODO…

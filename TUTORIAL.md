@@ -1,4 +1,5 @@
 # LLM Foundry Tutorial
+
 - [Intro](#intro)
   - [How this repo is structured](#how-this-repo-is-structured)
   - [Key components](#key-components)
@@ -45,10 +46,10 @@
 - `mcli/` - A collection of example workload configurations that could be launched on the MosaicML Platform via the `mcli` command line interface.
 
 A few notes:
+
 - The various directories under `scripts` contain their own README files.
 - We use YAML files heavily. For example, the main training script `scripts/train/train.py` takes in a configuration YAML and will interpret that YAML to determine how to build the dataloader, model, optimizer, etc. used for training.
 - **We are actively building documentation to help explain these YAMLs** but the best way to understand them is to walk through the script itself to follow how the config YAML is interpreted.
-
 
 ## Key components
 
@@ -63,10 +64,12 @@ Spending some time understanding the Composer Trainer is a great way to form a d
 
 Composer also comes packaged with the `composer` launcher.
 If you go through our docs, you'll notice that we instruct you to launch the train script (`scripts/train/train.py`) and eval script (`scripts/eval/eval.py`) using the launcher, like so,
+
 ```bash
 cd scripts/train
 composer train.py <path/to/your/training/yaml>
 ```
+
 The `composer` launcher puts all your GPUs to work by launching the script on a separate process for each device. The Trainer handles the rest.
 
 ### StreamingDataset
@@ -137,7 +140,6 @@ print(
 
 To play with more features like batching and multi-turn chat, check out our example scripts `scripts/inference/hf_generate.py` and `scripts/inference/hf_chat.py`, with instructions in the [inference README](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/README.md).
 
-
 ## Workflow 2: I want to deploy an inference endpoint with a HF model like MPT-7B
 
 This site is under construction :)
@@ -160,7 +162,7 @@ Domain and Sequence Length Adaptation are two similar cases that do not fit neat
 
 For the purposes of this example, we will assume you are fine-tuning MPT-7B on a longer sequence length, but the same process would work for a new style of text (e.g. getting MPT-7B to work on, say, legal text). Note that the bigger the change, the more tokens you want to continue training on: extending the sequences to 4,096 does not require as many training steps as extending to 65,536. Similarly, adapting MPT-7B to code (which made up a significant fraction of its training data) does not require as many steps as adapting to legal documents in Hindi (which made up ~0% of its training data).
 
-**Data**
+#### Data
 
 First we need to pre-tokenize our data and concatenate it to fill up each sequence, as this keeps us from wasting any compute on pad tokens. The canonical reference for this is `scripts/data_prep/README.md`
 
@@ -177,17 +179,13 @@ python scripts/data_prep/convert_dataset_hf.py \
   --compression zstd
 ```
 
-**Modeling**
+#### Modeling
 
-Now that we have our data ready, we can slightly modify `scripts/yamls/pretrain/mpt-7b.yaml` to fit our purposes, changing `max_seq_len` to `4096` and the directory `data_local` to `./my-adaptation-data`. We could create a new YAML to do this, then point the trainer to it, but there is no need to, we can change these values as we kick off the training:
+Now that we have our data ready, we can slightly modify `scripts/yamls/pretrain/mpt-7b.yaml` to fit our purposes, changing `max_seq_len` to `4096` and the directory `data_local` to `./my-adaptation-data`. We have already created this YAML for you:
 
 <!--pytest.mark.skip-->
 ```bash
-composer scripts/train/train.py scripts/yamls/pretrain/mpt-7b.yaml \
-    train_loader.dataset.split=train_small \
-    eval_loader.dataset.split=val_small \
-    max_seq_len=4096 \
-    data_local=./my-adaptation-data
+composer scripts/train/train.py scripts/yamls/finetune/mpt-7b_domain_adapt.yaml
 ```
 
 You will see some info logs including your configs, and then training will start.

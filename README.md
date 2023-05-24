@@ -49,7 +49,7 @@ MPT-7B is a GPT-style model, and the first in the MosaicML Foundation Series of 
 | MPT-7B             | 2048           | https://huggingface.co/mosaicml/mpt-7b             |                                                                | Yes             |
 | MPT-7B-Instruct    | 2048           | https://huggingface.co/mosaicml/mpt-7b-instruct    | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-instruct) | Yes             |
 | MPT-7B-Chat        | 2048           | https://huggingface.co/mosaicml/mpt-7b-chat        | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-chat)     | No              |
-| MPT-7B-StoryWriter | 65536          | https://huggingface.co/mosaicml/mpt-7b-storywriter |                                                                | Yes             |
+| MPT-7B-StoryWriter | 65536          | https://huggingface.co/mosaicml/mpt-7b-storywriter |  [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-storywriter)                                                              | Yes             |
 
 To try out these models locally, [follow the instructions](https://github.com/mosaicml/llm-foundry/tree/main/scripts/inference#interactive-generation-with-modelgenerate) in `scripts/inference/README.md` to prompt HF models using our [hf_generate.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_generate.py) or [hf_chat.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_chat.py) scripts.
 
@@ -96,12 +96,6 @@ pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 Here is an end-to-end workflow for preparing a subset of the C4 dataset, training an MPT-125M model for 10 batches,
 converting the model to HuggingFace format, evaluating the model on the Winograd challenge, and generating responses to prompts.
 
-If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
-```bash
-export HUGGING_FACE_HUB_TOKEN=your-auth-token
-```
-and uncomment the line containing `--hf_repo_for_upload ...`.
-
 **(Remember this is a quickstart just to demonstrate the tools -- To get good quality, the LLM must be trained for longer than 10 batches 😄)**
 
 <!--pytest.mark.skip-->
@@ -147,6 +141,12 @@ python inference/hf_generate.py \
 ```
 
 Note: the `composer` command used above to train the model refers to [Composer](https://github.com/mosaicml/composer) library's distributed launcher.
+
+If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
+```bash
+export HUGGING_FACE_HUB_TOKEN=your-auth-token
+```
+and uncomment the line containing `--hf_repo_for_upload ...` in the above call to `inference/convert_composer_to_hf.py`.
 
 # Contact Us
 If you run into any problems with the code, please file Github issues directly to this repo.

@@ -27,7 +27,6 @@ train_loader:
   dataset:
     hf_name: mosaicml/dolly_hhrlhf
     split: train
-    tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
@@ -48,7 +47,6 @@ eval_loader:
   dataset:
     hf_name: mosaicml/dolly_hhrlhf
     split: test
-    tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true

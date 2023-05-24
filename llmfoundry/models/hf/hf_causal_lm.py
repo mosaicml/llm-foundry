@@ -43,10 +43,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
     """
 
     def __init__(self, om_model_config: DictConfig, tokenizer: Tokenizer):
+        trust_remote_code = om_model_config.get('trust_remote_code', True)
+        use_auth_token = om_model_config.get('use_auth_token', False)
         config = AutoConfig.from_pretrained(
             om_model_config.pretrained_model_name_or_path,
-            trust_remote_code=om_model_config.get('trust_remote_code', True),
-            use_auth_token=om_model_config.get('use_auth_token', False),
+            trust_remote_code=trust_remote_code,
+            use_auth_token=use_auth_token,
         )
 
         # set config overrides
@@ -87,19 +89,24 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             if om_model_config.pretrained:
                 model = AutoModelForCausalLM.from_pretrained(
                     om_model_config.pretrained_model_name_or_path,
-                    trust_remote_code=om_model_config.get(
-                        'trust_remote_code', True),
-                    use_auth_token=om_model_config.get('use_auth_token', False),
+                    trust_remote_code=trust_remote_code,
+                    use_auth_token=use_auth_token,
                     config=config)
             else:
-                model = AutoModelForCausalLM.from_config(config)
+                model = AutoModelForCausalLM.from_config(
+                    config,
+                    trust_remote_code=trust_remote_code,
+                )
         elif init_device == 'meta':
             if om_model_config.pretrained:
                 raise ValueError(
                     'Setting cfg.pretrained=True is not supported when init_device="meta".'
                 )
             with init_empty_weights(include_buffers=False):
-                model = AutoModelForCausalLM.from_config(config)
+                model = AutoModelForCausalLM.from_config(
+                    config,
+                    trust_remote_code=trust_remote_code,
+                )
         else:
             raise ValueError(
                 f'init_device="{init_device}" must be either "cpu" or "meta".')

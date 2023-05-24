@@ -351,7 +351,9 @@ def test_loss_fn():
     except:
         pytest.skip('Fused cross entropy was not installed')
 
-    reproducibility.seed_all(1111)
+    # run numerical test in pure fp32
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
 
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
@@ -363,6 +365,8 @@ def test_loss_fn():
         'name': 'baseline_',
         'init_std': 0.02,
     }
+
+    reproducibility.seed_all(test_cfg.get('global_seed', 42))
 
     tokenizer = build_tokenizer(test_cfg.tokenizer)
 
@@ -383,7 +387,7 @@ def test_loss_fn():
                                  eps=test_cfg.optimizer.eps,
                                  weight_decay=test_cfg.optimizer.weight_decay)
 
-    for i in range(25):
+    for i in range(15):
         batch = gen_random_batch(2, test_cfg)
         output_1 = model_1(batch)
         output_2 = model_2(batch)

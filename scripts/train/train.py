@@ -110,7 +110,7 @@ def main(cfg):
 
     # Run Name
     if cfg.get('run_name') is None:
-        cfg.run_name = os.environ.get('COMPOSER_RUN_NAME', 'llm')
+        cfg.run_name = os.environ.get('RUN_NAME', 'llm')
 
     # Get batch size info
     cfg = update_batch_size_info(cfg)

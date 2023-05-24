@@ -75,6 +75,10 @@ extra_deps['dev'] = [
     'packaging>=21,<23',
 ]
 
+extra_deps['tensorboard'] = [
+    'composer[tensorboard]>=0.14.1,<0.15',
+]
+
 extra_deps['gpu'] = [
     'flash-attn==v1.0.3.post0',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI

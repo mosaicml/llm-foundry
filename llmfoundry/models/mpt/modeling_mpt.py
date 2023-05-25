@@ -112,7 +112,8 @@ class MPTModel(MPTPreTrainedModel):
             self.alibi,
             prefix_lm=self.prefix_lm,
             causal=self.is_causal,
-            use_sequence_id=self.attn_uses_sequence_id)
+            use_sequence_id=self.attn_uses_sequence_id,
+        )
 
         if config.no_bias:
             for module in self.modules():
@@ -139,12 +140,14 @@ class MPTModel(MPTPreTrainedModel):
         self.wte = value
 
     @torch.no_grad()
-    def _attn_bias(self,
-                   device,
-                   dtype,
-                   attention_mask: Optional[torch.ByteTensor] = None,
-                   prefix_mask: Optional[torch.ByteTensor] = None,
-                   sequence_id: Optional[torch.LongTensor] = None):
+    def _attn_bias(
+        self,
+        device,
+        dtype,
+        attention_mask: Optional[torch.ByteTensor] = None,
+        prefix_mask: Optional[torch.ByteTensor] = None,
+        sequence_id: Optional[torch.LongTensor] = None,
+    ):
         if not self._attn_bias_initialized:
             if self.attn_bias_shape:
                 self.attn_bias = torch.zeros(self.attn_bias_shape,
@@ -332,6 +335,8 @@ class MPTModel(MPTPreTrainedModel):
                 # get the key tensor whose spec should be (batch, seq, dim), and
                 # collect the `seq`, so that the position embedding is shifted
                 past_position = past_key_values[0][0].size(1)
+                if self.config.attn_config['attn_impl'] == 'torch':
+                    past_position = past_key_values[0][0].size(3)
 
             if S + past_position > self.config.max_seq_len:
                 raise ValueError(
@@ -380,11 +385,13 @@ class MPTModel(MPTPreTrainedModel):
                 all_hidden_states = all_hidden_states + (x,)
             past_key_value = past_key_values[
                 b_idx] if past_key_values is not None else None
-            x, past_key_value = block(x,
-                                      past_key_value=past_key_value,
-                                      attn_bias=attn_bias,
-                                      attention_mask=attention_mask,
-                                      is_causal=self.is_causal)
+            x, _, past_key_value = block(
+                x,
+                past_key_value=past_key_value,
+                attn_bias=attn_bias,
+                attention_mask=attention_mask,
+                is_causal=self.is_causal,
+            )
             if past_key_values is not None:
                 past_key_values[b_idx] = past_key_value
 
@@ -399,10 +406,12 @@ class MPTModel(MPTPreTrainedModel):
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
         init_fn_name = self.config.init_config['name']
-        MODEL_INIT_REGISTRY[init_fn_name](module=module,
-                                          n_layers=self.config.n_layers,
-                                          d_model=self.config.d_model,
-                                          **self.config.init_config)
+        MODEL_INIT_REGISTRY[init_fn_name](
+            module=module,
+            n_layers=self.config.n_layers,
+            d_model=self.config.d_model,
+            **self.config.init_config,
+        )
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module):
@@ -472,15 +481,17 @@ class MPTForCausalLM(MPTPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        outputs = self.transformer(input_ids=input_ids,
-                                   past_key_values=past_key_values,
-                                   attention_mask=attention_mask,
-                                   prefix_mask=prefix_mask,
-                                   sequence_id=sequence_id,
-                                   return_dict=return_dict,
-                                   output_attentions=output_attentions,
-                                   output_hidden_states=output_hidden_states,
-                                   use_cache=use_cache)
+        outputs = self.transformer(
+            input_ids=input_ids,
+            past_key_values=past_key_values,
+            attention_mask=attention_mask,
+            prefix_mask=prefix_mask,
+            sequence_id=sequence_id,
+            return_dict=return_dict,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            use_cache=use_cache,
+        )
 
         logits = F.linear(outputs.last_hidden_state,
                           self.transformer.wte.weight)
@@ -509,10 +520,12 @@ class MPTForCausalLM(MPTPreTrainedModel):
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
         init_fn_name = self.config.init_config['name']
-        MODEL_INIT_REGISTRY[init_fn_name](module=module,
-                                          n_layers=self.config.n_layers,
-                                          d_model=self.config.d_model,
-                                          **self.config.init_config)
+        MODEL_INIT_REGISTRY[init_fn_name](
+            module=module,
+            n_layers=self.config.n_layers,
+            d_model=self.config.d_model,
+            **self.config.init_config,
+        )
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module):
@@ -522,11 +535,13 @@ class MPTForCausalLM(MPTPreTrainedModel):
     def activation_checkpointing_fn(self, module):
         return isinstance(module, MPTBlock)
 
-    def prepare_inputs_for_generation(self,
-                                      input_ids,
-                                      past_key_values=None,
-                                      inputs_embeds=None,
-                                      **kwargs):
+    def prepare_inputs_for_generation(
+        self,
+        input_ids,
+        past_key_values=None,
+        inputs_embeds=None,
+        **kwargs,
+    ):
         if inputs_embeds is not None:
             raise NotImplementedError(
                 'inputs_embeds is not implemented for MPT yet')

@@ -43,17 +43,10 @@ def scaled_multihead_dot_product_attention(
     needs_weights=False,
     multiquery=False,
 ):
-    # if past_key_value is not None:
-    #     if len(past_key_value) != 0:
-    #         key = torch.cat([past_key_value[0], key], dim=1)
-    #         value = torch.cat([past_key_value[1], value], dim=1)
-
-    #     past_key_value = (key, value)
-
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
-    k = rearrange(key, 'b s (h d) -> b h d s',
-                  h=1 if multiquery else n_heads)  # includes key.t()
-    v = rearrange(value, 'b s (h d) -> b h s d', h=1 if multiquery else n_heads)
+    kv_n_heads = 1 if multiquery else n_heads
+    k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
+    v = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
     if past_key_value is not None:
         if len(past_key_value) != 0:
@@ -387,19 +380,21 @@ class MultiheadAttention(nn.Module):
         self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
         self.out_proj._is_residual = True  # type: ignore
 
-    def forward(self,
-                x,
-                past_key_value=None,
-                attn_bias=None,
-                attention_mask=None,
-                is_causal=True,
-                needs_weights=False):
+    def forward(
+        self,
+        x,
+        past_key_value=None,
+        attn_bias=None,
+        attention_mask=None,
+        is_causal=True,
+        needs_weights=False,
+    ):
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
             qkv.clamp_(min=-self.clip_qkv, max=self.clip_qkv)
 
-        query, key, value = qkv.chunk(3, dim=2)
+        query, key, value = torch.chunk(qkv, 3, dim=2)
 
         key_padding_mask = attention_mask
 
@@ -465,9 +460,11 @@ class MultiQueryAttention(nn.Module):
         # want to split Wqkv into Wq and Wkv where Wq can be TensorParallel but
         # Wkv shouldn't be TensorParallel
         # - vchiley
-        self.Wqkv = nn.Linear(d_model,
-                              d_model + 2 * self.head_dim,
-                              device=device)
+        self.Wqkv = nn.Linear(
+            d_model,
+            d_model + 2 * self.head_dim,
+            device=device,
+        )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = (d_model, d_model + self.head_dim)
         self.Wqkv._fused = (0, fuse_splits)  # type: ignore
@@ -502,13 +499,15 @@ class MultiQueryAttention(nn.Module):
         self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
         self.out_proj._is_residual = True  # type: ignore
 
-    def forward(self,
-                x,
-                past_key_value=None,
-                attn_bias=None,
-                attention_mask=None,
-                is_causal=True,
-                needs_weights=False):
+    def forward(
+        self,
+        x,
+        past_key_value=None,
+        attn_bias=None,
+        attention_mask=None,
+        is_causal=True,
+        needs_weights=False,
+    ):
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:

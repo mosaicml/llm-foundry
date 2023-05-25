@@ -60,6 +60,14 @@ class CompletionFunction:
     """An abstraction of str->str.
 
     Works over either URLs, transformer pipelines, or files of input->output.
+
+    For example,
+
+    CompletionFunction.from_url(
+        url='https://api.openai.com/v1/completions',
+        model='text-davinci-003',
+    )
+    will call GPT3.5 on the prompt.
     """
 
     def __init__(self, completion_function, name: str = None):
@@ -382,20 +390,25 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description='Run an evaluation with GPT4 judging results.')
+    parser.add_argument('--input_file', type=str, required=True)
     parser.add_argument('--output_file', type=str, required=True)
     parser.add_argument('--model1', type=str, required=True)
+    parser.add_argument('--model1_url', type=str, default=None)
     parser.add_argument('--model1_name', type=str, default=None)
     parser.add_argument('--judge',
                         type=str,
                         required=True,
                         choices=['gpt4', 'lima', 'vicuna'])
     parser.add_argument('--model2', type=str, default=None)
+    parser.add_argument('--model2_url', type=str, default=None)
     parser.add_argument('--model2_name', type=str, default=None)
     parser.add_argument('--compare', action='store_true')
     args = parser.parse_args()
 
     if os.path.exists(args.model1):
         model1 = CompletionFunction.from_file(args.model1, args.model1_name)
+    elif args.model1_url is not None:
+        model1 = CompletionFunction.from_url(args.model1_url, args.model1_name)
     else:
         import transformers
 
@@ -424,10 +437,10 @@ if __name__ == '__main__':
     if args.model2 is not None:
         if os.path.exists(args.model2):
             model2 = CompletionFunction.from_file(args.model2, args.model2_name)
-        elif args.model2 == 'gpt3.5':
+        elif args.model2_url is not None:
             model2 = CompletionFunction.from_url(
-                url='https://api.openai.com/v1/completions',
-                model='text-davinci-003',
+                url=args.model2_url,
+                model=args.model2,
             )
         else:
             import transformers
@@ -439,8 +452,7 @@ if __name__ == '__main__':
                                       device=0), args.model2)
 
         g_eval = GEval(model1, model2, judge)
-        EvalCompareRunner(g_eval, args.model1, args.model2,
-                          args.output_file).run()
+        EvalCompareRunner(g_eval, args.input_file, args.output_file).run()
     else:
         g_eval = GEval(model1, judge=judge)
-        EvalScoreRunner(g_eval, args.model1, args.output_file).run()
+        EvalScoreRunner(g_eval, args.input_file, args.output_file).run()

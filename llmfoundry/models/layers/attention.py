@@ -18,6 +18,8 @@ from llmfoundry.models.layers.norm import LPLayerNorm
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
                      original_is_causal: bool):
+    # disable causal when it is not needed
+    # absolutely necissary for flash, but useful for torch attn
     if original_is_causal and num_query_tokens != num_key_tokens:
         if num_query_tokens != 1:
             raise NotImplementedError(
@@ -87,7 +89,8 @@ def scaled_multihead_dot_product_attention(
         attn_weight = attn_weight.masked_fill(
             ~key_padding_mask.view((b, 1, 1, s_k)), min_val)
 
-    if is_causal:
+    reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
+    if reset_is_causal:
         s = max(s_q, s_k)
         causal_mask = attn_weight.new_ones(s, s, dtype=torch.float16)
         causal_mask = causal_mask.tril()

@@ -289,8 +289,10 @@ class MPTModel(MPTPreTrainedModel):
             raise NotImplementedError(
                 'return_dict False is not implemented yet for MPT')
         if output_attentions:
-            raise NotImplementedError(
-                'output_attentions is not implemented yet for MPT')
+            if self.attn_impl != 'torch':
+                raise NotImplementedError(
+                    'output_attentions is not implemented for MPT when using attn_impl `flash` or `triton`.'
+                )
 
         if attention_mask is not None and attention_mask[:, 0].sum(
         ) != attention_mask.shape[0] and self.training:
@@ -379,13 +381,14 @@ class MPTModel(MPTPreTrainedModel):
                               ]  # type: ignore
 
         all_hidden_states = () if output_hidden_states else None
+        all_self_attns = () if output_attentions else None
         for b_idx, block in enumerate(self.blocks):  # type: ignore
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
                 all_hidden_states = all_hidden_states + (x,)
             past_key_value = past_key_values[
                 b_idx] if past_key_values is not None else None
-            x, _, past_key_value = block(
+            x, attn_weights, past_key_value = block(
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
@@ -395,12 +398,22 @@ class MPTModel(MPTPreTrainedModel):
             if past_key_values is not None:
                 past_key_values[b_idx] = past_key_value
 
+            if output_attentions:
+                assert all_self_attns is not None  # pyright
+                all_self_attns = all_self_attns + (attn_weights,)
+
         x = self.norm_f(x)  # type: ignore
+
+        # add hidden states from the last decoder layer
+        if output_hidden_states:
+            assert all_hidden_states is not None  # pyright
+            all_hidden_states = all_hidden_states + (x,)
 
         return BaseModelOutputWithPast(
             last_hidden_state=x,
             past_key_values=past_key_values,
             hidden_states=all_hidden_states,
+            attentions=all_self_attns,
         )
 
     # Param Initialization, needed for device='meta' fast initialization
@@ -515,6 +528,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             logits=logits,
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
         )
 
     # Param Initialization, needed for device='meta' fast initialization

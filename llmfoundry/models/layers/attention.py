@@ -394,7 +394,7 @@ class MultiheadAttention(nn.Module):
         if self.clip_qkv:
             qkv.clamp_(min=-self.clip_qkv, max=self.clip_qkv)
 
-        query, key, value = torch.chunk(qkv, 3, dim=2)
+        query, key, value = qkv.chunk(3, dim=2)
 
         key_padding_mask = attention_mask
 

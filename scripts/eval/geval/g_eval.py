@@ -380,7 +380,8 @@ if __name__ == '__main__':
     import argparse
     import os
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description='Run an evaluation with GPT4 judging results.')
     parser.add_argument('--output_file', type=str, required=True)
     parser.add_argument('--model1', type=str, required=True)
     parser.add_argument('--model1_name', type=str, default=None)

@@ -43,17 +43,24 @@ def scaled_multihead_dot_product_attention(
     needs_weights=False,
     multiquery=False,
 ):
-    if past_key_value is not None:
-        if len(past_key_value) != 0:
-            key = torch.cat([past_key_value[0], key], dim=1)
-            value = torch.cat([past_key_value[1], value], dim=1)
+    # if past_key_value is not None:
+    #     if len(past_key_value) != 0:
+    #         key = torch.cat([past_key_value[0], key], dim=1)
+    #         value = torch.cat([past_key_value[1], value], dim=1)
 
-        past_key_value = (key, value)
+    #     past_key_value = (key, value)
 
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
     k = rearrange(key, 'b s (h d) -> b h d s',
                   h=1 if multiquery else n_heads)  # includes key.t()
     v = rearrange(value, 'b s (h d) -> b h s d', h=1 if multiquery else n_heads)
+
+    if past_key_value is not None:
+        if len(past_key_value) != 0:
+            k = torch.cat([past_key_value[0], k.clone().detach()], dim=3)
+            v = torch.cat([past_key_value[1], v.clone().detach()], dim=2)
+
+        past_key_value = (k.clone().detach(), v.clone().detach())
 
     b, _, s_q, d = q.shape
     s_k = k.size(-1)

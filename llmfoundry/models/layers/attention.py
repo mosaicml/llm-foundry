@@ -89,8 +89,7 @@ def scaled_multihead_dot_product_attention(
         attn_weight = attn_weight.masked_fill(
             ~key_padding_mask.view((b, 1, 1, s_k)), min_val)
 
-    reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
-    if reset_is_causal:
+    if is_causal and (not q.size(2) == 1):
         s = max(s_q, s_k)
         causal_mask = attn_weight.new_ones(s, s, dtype=torch.float16)
         causal_mask = causal_mask.tril()

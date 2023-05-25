@@ -1154,3 +1154,75 @@ def test_alibi_vs_hf():
             alibi_bias_m = alibi_bias_m[0]
 
             torch.testing.assert_close(alibi_bias_hf, alibi_bias_m)
+
+
+@pytest.mark.parametrize('attn_impl,device', [
+    ('torch', 'cpu'),
+    ('flash', 'gpu'),
+    ('triton', 'gpu'),
+    ('torch', 'gpu'),
+])
+@pytest.mark.parametrize('alibi', [True, False])
+@pytest.mark.parametrize('output_attentions', [True, False])
+@pytest.mark.parametrize('output_hidden_states', [True, False])
+def test_forward_with_output_attentions_and_output_hidden_states(
+        attn_impl, device, alibi, output_attentions, output_hidden_states):
+    # Test that model forward with output_attentions_and_output_hidden_states
+    if not torch.cuda.is_available() and device == 'gpu':
+        pytest.skip(
+            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
+        )
+    if alibi and attn_impl == 'flash':
+        pytest.skip(f'alibi only implemented with torch and triton attention.')
+    if output_attentions and attn_impl in ['flash', 'triton']:
+        pytest.skip(f'output_attentions only implemented with torch attention.')
+
+    device = get_device(device)
+
+    n_layers = 2
+
+    hf_config = MPTConfig(
+        init_device='cpu',
+        d_model=128,
+        n_heads=4,
+        n_layers=n_layers,
+        expansion_ratio=2,
+        max_seq_len=2048,
+        emb_pdrop=0.1,
+        resid_pdrop=0.2,
+        attn_config={
+            'attn_impl': attn_impl,
+            'alibi': alibi,
+        },
+        attn_impl=attn_impl,
+        alibi=alibi,
+        use_cache=True,
+        init_config={
+            'name': 'baseline_',
+            'init_std': 0.02,
+        },
+    )
+    reproducibility.seed_all(1234)
+    mpt = MPTForCausalLM(hf_config)
+    mpt = device.module_to_device(mpt)
+    mpt.eval()
+
+    with get_precision_context('amp_bf16' if device.name == 'gpu' else 'fp32'):
+        reproducibility.seed_all(1234)
+        input_ids = torch.tensor([[11274, 16390, 11]])
+        input_ids = device.tensor_to_device(input_ids)
+        attention_mask = torch.tensor([[1, 1, 1]]).bool()
+        attention_mask = device.tensor_to_device(attention_mask)
+
+        # start with passing the first three tokens through
+        outputs = mpt(
+            input_ids,
+            attention_mask=attention_mask,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+        )
+
+        if output_attentions:
+            assert len(outputs.attentions) == n_layers
+        if output_hidden_states:
+            assert len(outputs.hidden_states) == n_layers + 1

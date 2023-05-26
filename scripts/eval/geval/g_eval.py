@@ -10,6 +10,8 @@ import requests
 from tqdm import tqdm
 from transformers import pipeline
 
+from mcli import predict
+
 # src https://github.com/lm-sys/FastChat/blob/8e38141ff5dd15f3138ccfd312dd73a471e986a1/fastchat/eval/table/prompt.jsonl
 VICUNA_RUBRIC = "[Question]\n{{task}}\n\n[The Start of Assistant 1's Answer]\n{{model1}}\n\n[The End of Assistant 1's Answer]\n\n[The Start of Assistant 2's Answer]\n{{model2}}\n\n[The End of Assistant 2's Answer]\n\n[System]\nWe would like to request your feedback on the performance of two AI assistants in response to the user question displayed above.\nPlease rate the helpfulness, relevance, accuracy, level of details of their responses. Each assistant receives an overall score on a scale of 1 to 10, where a higher score indicates better overall performance.\nPlease first output a single line containing only two values indicating the scores for Assistant 1 and 2, respectively. The two scores are separated by a space. In the subsequent line, please provide a comprehensive explanation of your evaluation, avoiding any potential bias and ensuring that the order in which the responses were presented does not affect your judgment.\n\n"
 VICUNA_SYSTEM = 'You are a helpful and precise assistant for checking the quality of the answer.'
@@ -115,11 +117,16 @@ class CompletionFunction:
                 stop=None,
                 temperature=0,
             ).choices[0].text
+        elif 'mosaicml' in url:
+            cf = lambda prompt: predict(url, {'input_strings': [prompt]})['data'
+                                                                         ][0]
         else:
-            print('Using non-openai API, support is limited')
+            print(
+                'Using non-mosaic, non-openai API, support is limited at best')
             cf = lambda prompt: requests.post(url, json={
                 'inputs': prompt
             }).json()['completion']
+
         return cls(cf, model if model else url)
 
     @classmethod

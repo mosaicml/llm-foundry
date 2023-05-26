@@ -30,10 +30,13 @@ def load_eval_in_batches(fname: str, batch_size: int):
     """Load the eval data in batches."""
     with open(fname) as f:
         lines = f.readlines()
+        l = []
+        for line in lines:
+            l.append(json.loads(line)['prompt'])
     batches = []
     for i in range(0, len(lines), batch_size):
         batch = lines[i:i + batch_size]
-        batch = [line['prompt'] for line in batch]
+        batch = [line for line in batch]
         batches.append(batch)
     return batches
 

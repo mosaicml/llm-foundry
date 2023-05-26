@@ -15,7 +15,7 @@
     <a href="https://pypi.org/project/llm-foundry/">
         <img alt="PyPi Package Version" src="https://img.shields.io/pypi/v/llm-foundry">
     </a>
-    <a href="https://join.slack.com/t/mosaicml-community/shared_invite/zt-w0tiddn9-WGTlRpfjcO9J5jyrMub1dg">
+    <a href="https://mosaicml.me/slack">
         <img alt="Chat @ Slack" src="https://img.shields.io/badge/slack-chat-2eb67d.svg?logo=slack">
     </a>
     <a href="https://github.com/mosaicml/llm-foundry/blob/main/LICENSE">

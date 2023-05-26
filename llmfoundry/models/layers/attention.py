@@ -18,6 +18,8 @@ from llmfoundry.models.layers.norm import LPLayerNorm
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
                      original_is_causal: bool):
+    # disable causal when it is not needed
+    # necessary for flash & triton for generation with kv_cache
     if original_is_causal and num_query_tokens != num_key_tokens:
         if num_query_tokens != 1:
             raise NotImplementedError(
@@ -33,6 +35,7 @@ def scaled_multihead_dot_product_attention(
     key,
     value,
     n_heads,
+    past_key_value=None,
     softmax_scale=None,
     attn_bias=None,
     key_padding_mask=None,
@@ -42,13 +45,23 @@ def scaled_multihead_dot_product_attention(
     needs_weights=False,
     multiquery=False,
 ):
-
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
-    k = rearrange(key, 'b s (h d) -> b h d s',
-                  h=1 if multiquery else n_heads)  # includes key.t()
-    v = rearrange(value, 'b s (h d) -> b h s d', h=1 if multiquery else n_heads)
+    kv_n_heads = 1 if multiquery else n_heads
+    k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
+    v = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
-    min_val = torch.finfo(q.dtype).min
+    if past_key_value is not None:
+        # attn_impl: flash & triton use kernels which expect input shape [b, s, h, d_head].
+        # kv_cache is therefore stored using that shape.
+        # attn_impl: torch stores the kv_cache in the ordering which is most advantageous
+        # for its attn computation ie
+        # keys are stored as tensors with shape [b, h, d_head, s] and
+        # values are stored as tensors with shape [b, h, s, d_head]
+        if len(past_key_value) != 0:
+            k = torch.cat([past_key_value[0], k], dim=3)
+            v = torch.cat([past_key_value[1], v], dim=2)
+
+        past_key_value = (k, v)
 
     b, _, s_q, d = q.shape
     s_k = k.size(-1)
@@ -59,6 +72,11 @@ def scaled_multihead_dot_product_attention(
     attn_weight = q.matmul(k) * softmax_scale
 
     if attn_bias is not None:
+        # clamp to 0 necessary for torch 2.0 compile()
+        _s_q = max(0, attn_bias.size(2) - s_q)
+        _s_k = max(0, attn_bias.size(3) - s_k)
+        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
+
         if (attn_bias.size(-1) != 1 and
                 attn_bias.size(-1) != s_k) or (attn_bias.size(-2) != 1 and
                                                attn_bias.size(-2) != s_q):
@@ -66,6 +84,8 @@ def scaled_multihead_dot_product_attention(
                 f'attn_bias (shape: {attn_bias.shape}) is expected to broadcast to shape: {attn_weight.shape}.'
             )
         attn_weight = attn_weight + attn_bias
+
+    min_val = torch.finfo(q.dtype).min
 
     if key_padding_mask is not None:
         if attn_bias is not None:
@@ -79,7 +99,7 @@ def scaled_multihead_dot_product_attention(
         attn_weight = attn_weight.masked_fill(
             ~key_padding_mask.view((b, 1, 1, s_k)), min_val)
 
-    if is_causal:
+    if is_causal and (not q.size(2) == 1):
         s = max(s_q, s_k)
         causal_mask = attn_weight.new_ones(s, s, dtype=torch.float16)
         causal_mask = causal_mask.tril()
@@ -101,8 +121,8 @@ def scaled_multihead_dot_product_attention(
     out = rearrange(out, 'b h s d -> b s (h d)')
 
     if needs_weights:
-        return out, attn_weight
-    return out, None
+        return out, attn_weight, past_key_value
+    return out, None, past_key_value
 
 
 def check_valid_inputs(*tensors, valid_dtypes=[torch.float16, torch.bfloat16]):
@@ -118,6 +138,7 @@ def flash_attn_fn(
     key,
     value,
     n_heads,
+    past_key_value=None,
     softmax_scale=None,
     attn_bias=None,
     key_padding_mask=None,
@@ -133,6 +154,19 @@ def flash_attn_fn(
         raise RuntimeError('Please install flash-attn==1.0.3.post0')
 
     check_valid_inputs(query, key, value)
+
+    if past_key_value is not None:
+        if len(past_key_value) != 0:
+            key = torch.cat([past_key_value[0], key], dim=1)
+            value = torch.cat([past_key_value[1], value], dim=1)
+
+        past_key_value = (key, value)
+
+    if attn_bias is not None:
+        # clamp to 0 necessary for torch 2.0 compile()
+        _s_q = max(0, attn_bias.size(2) - query.size(1))
+        _s_k = max(0, attn_bias.size(3) - key.size(1))
+        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
 
     if attn_bias is not None:
         raise NotImplementedError(f'attn_bias not implemented for flash attn.')
@@ -190,7 +224,7 @@ def flash_attn_fn(
     output = bert_padding.pad_input(
         rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,
         seqlen)
-    return output, None
+    return output, None, past_key_value
 
 
 def triton_flash_attn_fn(
@@ -198,6 +232,7 @@ def triton_flash_attn_fn(
     key,
     value,
     n_heads,
+    past_key_value=None,
     softmax_scale=None,
     attn_bias=None,
     key_padding_mask=None,
@@ -231,6 +266,19 @@ def triton_flash_attn_fn(
             )
 
     check_valid_inputs(query, key, value)
+
+    if past_key_value is not None:
+        if len(past_key_value) != 0:
+            key = torch.cat([past_key_value[0], key], dim=1)
+            value = torch.cat([past_key_value[1], value], dim=1)
+
+        past_key_value = (key, value)
+
+    if attn_bias is not None:
+        # clamp to 0 necessary for torch 2.0 compile()
+        _s_q = max(0, attn_bias.size(2) - query.size(1))
+        _s_k = max(0, attn_bias.size(3) - key.size(1))
+        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
 
     if dropout_p:
         raise NotImplementedError(
@@ -279,7 +327,7 @@ def triton_flash_attn_fn(
 
     output = attn_output.view(*attn_output.shape[:2], -1)
 
-    return output, None
+    return output, None, past_key_value
 
 
 class MultiheadAttention(nn.Module):
@@ -350,13 +398,15 @@ class MultiheadAttention(nn.Module):
         self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
         self.out_proj._is_residual = True  # type: ignore
 
-    def forward(self,
-                x,
-                past_key_value=None,
-                attn_bias=None,
-                attention_mask=None,
-                is_causal=True,
-                needs_weights=False):
+    def forward(
+        self,
+        x,
+        past_key_value=None,
+        attn_bias=None,
+        attention_mask=None,
+        is_causal=True,
+        needs_weights=False,
+    ):
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
@@ -372,21 +422,12 @@ class MultiheadAttention(nn.Module):
             query = self.q_ln(query).to(dtype)
             key = self.k_ln(key).to(dtype)
 
-        if past_key_value is not None:
-            if len(past_key_value) != 0:
-                key = torch.cat([past_key_value[0], key], dim=1)
-                value = torch.cat([past_key_value[1], value], dim=1)
-
-            past_key_value = (key, value)
-
-        if attn_bias is not None:
-            attn_bias = attn_bias[:, :, -query.size(1):, -key.size(1):]
-
-        context, attn_weights = self.attn_fn(
+        context, attn_weights, past_key_value = self.attn_fn(
             query,
             key,
             value,
             self.n_heads,
+            past_key_value=past_key_value,
             softmax_scale=self.softmax_scale,
             attn_bias=attn_bias,
             key_padding_mask=key_padding_mask,
@@ -437,9 +478,11 @@ class MultiQueryAttention(nn.Module):
         # want to split Wqkv into Wq and Wkv where Wq can be TensorParallel but
         # Wkv shouldn't be TensorParallel
         # - vchiley
-        self.Wqkv = nn.Linear(d_model,
-                              d_model + 2 * self.head_dim,
-                              device=device)
+        self.Wqkv = nn.Linear(
+            d_model,
+            d_model + 2 * self.head_dim,
+            device=device,
+        )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = (d_model, d_model + self.head_dim)
         self.Wqkv._fused = (0, fuse_splits)  # type: ignore
@@ -474,13 +517,15 @@ class MultiQueryAttention(nn.Module):
         self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
         self.out_proj._is_residual = True  # type: ignore
 
-    def forward(self,
-                x,
-                past_key_value=None,
-                attn_bias=None,
-                attention_mask=None,
-                is_causal=True,
-                needs_weights=False):
+    def forward(
+        self,
+        x,
+        past_key_value=None,
+        attn_bias=None,
+        attention_mask=None,
+        is_causal=True,
+        needs_weights=False,
+    ):
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
@@ -497,21 +542,12 @@ class MultiQueryAttention(nn.Module):
             query = self.q_ln(query).to(dtype)
             key = self.k_ln(key).to(dtype)
 
-        if past_key_value is not None:
-            if len(past_key_value) != 0:
-                key = torch.cat([past_key_value[0], key], dim=1)
-                value = torch.cat([past_key_value[1], value], dim=1)
-
-            past_key_value = (key, value)
-
-        if attn_bias is not None:
-            attn_bias = attn_bias[:, :, -query.size(1):, -key.size(1):]
-
-        context, attn_weights = self.attn_fn(
+        context, attn_weights, past_key_value = self.attn_fn(
             query,
             key,
             value,
             self.n_heads,
+            past_key_value=past_key_value,
             softmax_scale=self.softmax_scale,
             attn_bias=attn_bias,
             key_padding_mask=key_padding_mask,

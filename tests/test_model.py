@@ -15,7 +15,9 @@ from composer.optim import DecoupledAdamW
 from composer.utils import get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
+                          PreTrainedTokenizer, PreTrainedTokenizerFast,
+                          pipeline)
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
@@ -749,6 +751,51 @@ def test_generate(attention_impl, device, alibi):
         # check that left padding and no padding produce the same output
         assert generation_with_no_padding[:, 3:].equal(
             generation_with_left_padding[:, 6:])
+
+
+@pytest.mark.gpu
+def test_generate_with_device_map(tmp_path):
+    if not torch.cuda.is_available():
+        pytest.skip(f'This test requires CUDA to be available.')
+
+    save_path = tmp_path / 'test-device-map'
+    hf_config = MPTConfig(
+        init_device='cpu',
+        d_model=128,
+        n_heads=4,
+        n_layers=2,
+        expansion_ratio=2,
+        max_seq_len=2048,
+        emb_pdrop=0.1,
+        resid_pdrop=0.2,
+        attn_config={
+            'attn_impl': 'torch',
+        },
+    )
+    mpt = MPTForCausalLM(hf_config)
+    mpt.save_pretrained(save_path)
+
+    AutoConfig.register('mpt', MPTConfig)
+    AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
+
+    tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
+    pipe = pipeline(
+        'text-generation',
+        model=save_path,
+        tokenizer=tokenizer,
+        torch_dtype=torch.bfloat16,
+        trust_remote_code=True,
+        device_map='auto',
+    )
+    print(pipe.model.hf_device_map)
+    out = pipe(
+        'The quick fox jumped over',
+        max_length=19,
+        do_sample=True,
+        top_k=10,
+        eos_token_id=tokenizer.eos_token_id,
+    )
+    print(out)
 
 
 def check_hf_model_equivalence(model1, model2):

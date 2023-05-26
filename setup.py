@@ -73,6 +73,7 @@ extra_deps['dev'] = [
     'pyright==1.1.296',
     'toml>=0.10.2,<0.11',
     'packaging>=21,<23',
+    'accelerate>=0.19,<0.20',
 ]
 
 extra_deps['tensorboard'] = [

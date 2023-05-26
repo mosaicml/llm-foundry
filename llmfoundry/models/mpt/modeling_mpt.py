@@ -264,16 +264,17 @@ class MPTModel(MPTPreTrainedModel):
         return attn_bias
 
     def forward(
-            self,
-            input_ids: torch.LongTensor,
-            past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
-            attention_mask: Optional[torch.ByteTensor] = None,
-            prefix_mask: Optional[torch.ByteTensor] = None,
-            sequence_id: Optional[torch.LongTensor] = None,
-            return_dict: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            use_cache: Optional[bool] = None):
+        self,
+        input_ids: torch.LongTensor,
+        past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
+        attention_mask: Optional[torch.ByteTensor] = None,
+        prefix_mask: Optional[torch.ByteTensor] = None,
+        sequence_id: Optional[torch.LongTensor] = None,
+        return_dict: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        use_cache: Optional[bool] = None,
+    ):
         return_dict = return_dict if return_dict is not None else self.config.return_dict
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
@@ -334,10 +335,11 @@ class MPTModel(MPTPreTrainedModel):
                         f'past_key_values must provide a past_key_value for each attention ' +\
                         f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
                     )
-                # get the key tensor whose spec should be (batch, seq, dim), and
-                # collect the `seq`, so that the position embedding is shifted
+                # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
+                # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
+                # Here we shift position embedding using the `seq` dim of the past key
                 past_position = past_key_values[0][0].size(1)
-                if self.config.attn_config['attn_impl'] == 'torch':
+                if self.attn_impl == 'torch':
                     past_position = past_key_values[0][0].size(3)
 
             if S + past_position > self.config.max_seq_len:

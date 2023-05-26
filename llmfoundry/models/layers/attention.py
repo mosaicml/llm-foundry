@@ -19,7 +19,7 @@ from llmfoundry.models.layers.norm import LPLayerNorm
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
                      original_is_causal: bool):
     # disable causal when it is not needed
-    # absolutely necissary for flash, but useful for torch attn
+    # necessary for flash & triton for generation with kv_cache
     if original_is_causal and num_query_tokens != num_key_tokens:
         if num_query_tokens != 1:
             raise NotImplementedError(
@@ -51,6 +51,12 @@ def scaled_multihead_dot_product_attention(
     v = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
     if past_key_value is not None:
+        # attn_impl: flash & triton use kernels which expect input shape [b, s, h, d_head].
+        # kv_cache is therefore stored using that shape.
+        # attn_impl: torch stores the kv_cache in the ordering which is most advantagious
+        # for its attn computation ie
+        # keys are stored as tensors with shape [b, h, d_head, s] and
+        # values are stored as tensors with shape [b, h, s, d_head]
         if len(past_key_value) != 0:
             k = torch.cat([past_key_value[0], k], dim=3)
             v = torch.cat([past_key_value[1], v], dim=2)

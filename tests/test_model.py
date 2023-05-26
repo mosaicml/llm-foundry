@@ -796,14 +796,12 @@ def test_generate_with_device_map(tmp_path, world_size):
         model=save_path,
         tokenizer=tokenizer,
         torch_dtype=torch.bfloat16,
-        trust_remote_code=True,
         device_map=device_map,
     )
     out = pipe(
         'The quick fox jumped over',
-        max_length=19,
+        max_length=10,
         do_sample=True,
-        top_k=10,
     )
     print(out)
 

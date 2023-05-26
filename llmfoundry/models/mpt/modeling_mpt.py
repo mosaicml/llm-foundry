@@ -112,7 +112,8 @@ class MPTModel(MPTPreTrainedModel):
             self.alibi,
             prefix_lm=self.prefix_lm,
             causal=self.is_causal,
-            use_sequence_id=self.attn_uses_sequence_id)
+            use_sequence_id=self.attn_uses_sequence_id,
+        )
 
         if config.no_bias:
             for module in self.modules():
@@ -139,12 +140,14 @@ class MPTModel(MPTPreTrainedModel):
         self.wte = value
 
     @torch.no_grad()
-    def _attn_bias(self,
-                   device,
-                   dtype,
-                   attention_mask: Optional[torch.ByteTensor] = None,
-                   prefix_mask: Optional[torch.ByteTensor] = None,
-                   sequence_id: Optional[torch.LongTensor] = None):
+    def _attn_bias(
+        self,
+        device,
+        dtype,
+        attention_mask: Optional[torch.ByteTensor] = None,
+        prefix_mask: Optional[torch.ByteTensor] = None,
+        sequence_id: Optional[torch.LongTensor] = None,
+    ):
         if not self._attn_bias_initialized:
             if self.attn_bias_shape:
                 self.attn_bias = torch.zeros(self.attn_bias_shape,
@@ -194,7 +197,9 @@ class MPTModel(MPTPreTrainedModel):
                                         device=device,
                                         dtype=dtype)
             else:
-                attn_bias = attn_bias[:, :, :, -s_k:]
+                # clamp to 0 necessary for torch 2.0 compile()
+                _s_k = max(0, attn_bias.size(-1) - s_k)
+                attn_bias = attn_bias[:, :, :, _s_k:]
             if prefix_mask is not None and (attention_mask.shape !=
                                             prefix_mask.shape):
                 raise ValueError(
@@ -261,16 +266,17 @@ class MPTModel(MPTPreTrainedModel):
         return attn_bias
 
     def forward(
-            self,
-            input_ids: torch.LongTensor,
-            past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
-            attention_mask: Optional[torch.ByteTensor] = None,
-            prefix_mask: Optional[torch.ByteTensor] = None,
-            sequence_id: Optional[torch.LongTensor] = None,
-            return_dict: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            use_cache: Optional[bool] = None):
+        self,
+        input_ids: torch.LongTensor,
+        past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
+        attention_mask: Optional[torch.ByteTensor] = None,
+        prefix_mask: Optional[torch.ByteTensor] = None,
+        sequence_id: Optional[torch.LongTensor] = None,
+        return_dict: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        use_cache: Optional[bool] = None,
+    ):
         return_dict = return_dict if return_dict is not None else self.config.return_dict
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
@@ -286,8 +292,10 @@ class MPTModel(MPTPreTrainedModel):
             raise NotImplementedError(
                 'return_dict False is not implemented yet for MPT')
         if output_attentions:
-            raise NotImplementedError(
-                'output_attentions is not implemented yet for MPT')
+            if self.attn_impl != 'torch':
+                raise NotImplementedError(
+                    'output_attentions is not implemented for MPT when using attn_impl `flash` or `triton`.'
+                )
 
         if attention_mask is not None and attention_mask[:, 0].sum(
         ) != attention_mask.shape[0] and self.training:
@@ -329,9 +337,12 @@ class MPTModel(MPTPreTrainedModel):
                         f'past_key_values must provide a past_key_value for each attention ' +\
                         f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
                     )
-                # get the key tensor whose spec should be (batch, seq, dim), and
-                # collect the `seq`, so that the position embedding is shifted
+                # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
+                # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
+                # Here we shift position embedding using the `seq` dim of the past key
                 past_position = past_key_values[0][0].size(1)
+                if self.attn_impl == 'torch':
+                    past_position = past_key_values[0][0].size(3)
 
             if S + past_position > self.config.max_seq_len:
                 raise ValueError(
@@ -374,35 +385,50 @@ class MPTModel(MPTPreTrainedModel):
                               ]  # type: ignore
 
         all_hidden_states = () if output_hidden_states else None
+        all_self_attns = () if output_attentions else None
         for b_idx, block in enumerate(self.blocks):  # type: ignore
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
                 all_hidden_states = all_hidden_states + (x,)
             past_key_value = past_key_values[
                 b_idx] if past_key_values is not None else None
-            x, past_key_value = block(x,
-                                      past_key_value=past_key_value,
-                                      attn_bias=attn_bias,
-                                      attention_mask=attention_mask,
-                                      is_causal=self.is_causal)
+            x, attn_weights, past_key_value = block(
+                x,
+                past_key_value=past_key_value,
+                attn_bias=attn_bias,
+                attention_mask=attention_mask,
+                is_causal=self.is_causal,
+            )
             if past_key_values is not None:
                 past_key_values[b_idx] = past_key_value
 
+            if output_attentions:
+                assert all_self_attns is not None  # pyright
+                all_self_attns = all_self_attns + (attn_weights,)
+
         x = self.norm_f(x)  # type: ignore
+
+        # add hidden states from the last decoder layer
+        if output_hidden_states:
+            assert all_hidden_states is not None  # pyright
+            all_hidden_states = all_hidden_states + (x,)
 
         return BaseModelOutputWithPast(
             last_hidden_state=x,
             past_key_values=past_key_values,
             hidden_states=all_hidden_states,
+            attentions=all_self_attns,
         )
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
         init_fn_name = self.config.init_config['name']
-        MODEL_INIT_REGISTRY[init_fn_name](module=module,
-                                          n_layers=self.config.n_layers,
-                                          d_model=self.config.d_model,
-                                          **self.config.init_config)
+        MODEL_INIT_REGISTRY[init_fn_name](
+            module=module,
+            n_layers=self.config.n_layers,
+            d_model=self.config.d_model,
+            **self.config.init_config,
+        )
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module):
@@ -472,15 +498,17 @@ class MPTForCausalLM(MPTPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        outputs = self.transformer(input_ids=input_ids,
-                                   past_key_values=past_key_values,
-                                   attention_mask=attention_mask,
-                                   prefix_mask=prefix_mask,
-                                   sequence_id=sequence_id,
-                                   return_dict=return_dict,
-                                   output_attentions=output_attentions,
-                                   output_hidden_states=output_hidden_states,
-                                   use_cache=use_cache)
+        outputs = self.transformer(
+            input_ids=input_ids,
+            past_key_values=past_key_values,
+            attention_mask=attention_mask,
+            prefix_mask=prefix_mask,
+            sequence_id=sequence_id,
+            return_dict=return_dict,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            use_cache=use_cache,
+        )
 
         logits = F.linear(outputs.last_hidden_state,
                           self.transformer.wte.weight)
@@ -504,15 +532,18 @@ class MPTForCausalLM(MPTPreTrainedModel):
             logits=logits,
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
         )
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
         init_fn_name = self.config.init_config['name']
-        MODEL_INIT_REGISTRY[init_fn_name](module=module,
-                                          n_layers=self.config.n_layers,
-                                          d_model=self.config.d_model,
-                                          **self.config.init_config)
+        MODEL_INIT_REGISTRY[init_fn_name](
+            module=module,
+            n_layers=self.config.n_layers,
+            d_model=self.config.d_model,
+            **self.config.init_config,
+        )
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module):
@@ -522,11 +553,13 @@ class MPTForCausalLM(MPTPreTrainedModel):
     def activation_checkpointing_fn(self, module):
         return isinstance(module, MPTBlock)
 
-    def prepare_inputs_for_generation(self,
-                                      input_ids,
-                                      past_key_values=None,
-                                      inputs_embeds=None,
-                                      **kwargs):
+    def prepare_inputs_for_generation(
+        self,
+        input_ids,
+        past_key_values=None,
+        inputs_embeds=None,
+        **kwargs,
+    ):
         if inputs_embeds is not None:
             raise NotImplementedError(
                 'inputs_embeds is not implemented for MPT yet')

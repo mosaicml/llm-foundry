@@ -38,7 +38,7 @@ command: |
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 optimization_level: 0
 
-# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: hf-generate
 
 gpu_num: 8

@@ -9,8 +9,6 @@ This will be faster than evaluating one at a time.
 import argparse
 import json
 
-# first only support Mosaic Inference
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -81,6 +79,8 @@ def main():
                 outputs = model.generate(**inputs,
                                          top_p=args.top_p,
                                          temperature=args.temperature)
+                # slice outputs to remove the input
+                outputs = outputs[:, inputs['input_ids'].shape[1]:]
                 preds = [
                     tokenizer.decode(output, skip_special_tokens=True)
                     for output in outputs

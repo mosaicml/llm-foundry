@@ -207,7 +207,7 @@ Now that we have our data ready, we can slightly modify `scripts/train/yamls/fin
 
 <!--pytest.mark.skip-->
 ```bash
-composer scripts/train/train.py scripts/yamls/finetune/mpt-7b_domain_adapt.yaml
+composer scripts/train/train.py scripts/train/yamls/finetune/mpt-7b_domain_adapt.yaml
 ```
 
 You will see some info logs including your configs, and then training will start.
@@ -233,11 +233,11 @@ python scripts/data_prep/convert_dataset_hf.py \
   --compression zstd
 ```
 
-Now we kick off a training using the configuration located at `scripts/yamls/pretrain/gpt2-small.yaml`:
+Now we kick off a training using the configuration located at `scripts/train/yamls/pretrain/gpt2-small.yaml`:
 
 <!--pytest.mark.skip-->
 ```bash
-composer scripts/train/train.py scripts/yamls/pretrain/gpt2-small.yaml \
+composer scripts/train/train.py scripts/train/yamls/pretrain/gpt2-small.yaml \
     max_seq_len=2048 \
     train_loader.dataset.split=train_small \
     eval_loader.dataset.split=val_small \

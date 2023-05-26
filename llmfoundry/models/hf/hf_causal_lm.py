@@ -71,12 +71,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 setattr(config, k, v)
 
         train_metrics = [
-            LanguageCrossEntropy(len(tokenizer)),
-            LanguagePerplexity(len(tokenizer)),
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
         ]
         eval_metrics = [
-            LanguageCrossEntropy(len(tokenizer)),
-            LanguagePerplexity(len(tokenizer)),
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),

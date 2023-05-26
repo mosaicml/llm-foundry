@@ -22,7 +22,7 @@ compute:
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   run_name: # If left blank, will be read from top YAML name for W&B logging and checkpointing
-  
+
   seed: 1
   max_seq_len: 2048
 

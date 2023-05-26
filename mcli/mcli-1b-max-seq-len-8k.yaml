@@ -32,7 +32,7 @@ compute:
 # We use this to customize hparams like `max_seq_len=8192` at runtime
 parameters:
   run_name: # If left blank, will be read from top YAML name for W&B logging and checkpointing
-  
+
   data_local: ./my-copy-c4
   data_remote: # If blank, files must be present in data_local
   max_seq_len: 8192

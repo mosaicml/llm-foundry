@@ -1,5 +1,6 @@
 import random
 import json
+import argparse
 
 def format_sample(a, b, c, operator="+"):
     # TODO: add aliases here so that the model gets points even if it is "close"
@@ -32,10 +33,23 @@ def make_arithmetic_dataset(out_filename, num_samples=1000, num_digits=3, random
 
 
 if __name__ == "__main__":
-    num_digits = 3
-    random_subset = False
-    out_filename = f"{num_digits}_digits_addition.jsonl"
-    if not random_subset:
-        num_samples = 10 ** (2 * num_digits)
-    print(f"Generating addition dataset with with {num_samples} samples of up to {num_digits} digits")
-    make_arithmetic_dataset(out_filename, num_samples=num_samples, num_digits=num_digits, random_subset=random_subset)
+    parser = argparse.ArgumentParser(description='Script to generate addition dataset for eval on LLMFoundry')
+    parser.add_argument('--num-digits', type=int, default=3, metavar='d',
+                        help='max number of digits for operands (default: 3)')
+    parser.add_argument('--random-subset', action='store_true', default=False,
+                        help='chooses a random subset of the possible samples')
+    parser.add_argument('--out-filename', type=str, default='addition.jsonl',
+                        help='name of output file (default: addition.jsonl)')
+    parser.add_argument('--num-samples', type=int, default=1000, metavar='n',
+                        help='number of random samples to choose if random_subset=True (default: 1000)')
+    
+
+    parser_args = parser.parse_args()
+
+    if not parser_args.random_subset:
+        parser_args.num_samples = 10 ** (2 * parser_args.num_digits)
+    elif parser_args.num_samples > (10 ** (2 * parser_args.num_digits)):
+            print(f"Warning: num_samples={parser_args.num_samples} is greater than the number of possible samples for {parser_args.num_digits} digits.")
+            print(f"Duplicate samples will be generated.")
+    print(f"Generating addition dataset with with {parser_args.num_samples} samples of up to {parser_args.num_digits} digits")
+    make_arithmetic_dataset(parser_args.out_filename, num_samples=parser_args.num_samples, num_digits=parser_args.num_digits, random_subset=parser_args.random_subset)

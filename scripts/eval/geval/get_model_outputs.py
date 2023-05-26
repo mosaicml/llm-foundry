@@ -20,6 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--max_length', type=int, default=2048)
     parser.add_argument('--trust_remote_code', action='store_true')
+    parser.add_argument('--pad_token', type=str, default='<|endoftext|>')
     parser.add_argument('--dtype',
                         choices=['fp32', 'fp16', 'bf16'],
                         default='bf16')
@@ -66,7 +67,8 @@ def main():
         model = transformers.AutoModelForCausalLM.from_pretrained(
             args.name_or_path,
             trust_remote_code=args.trust_remote_code,
-            torch_dtype=dtype)
+            torch_dtype=dtype,
+            pad_token=args.pad_token)
         tokenizer = transformers.AutoTokenizer.from_pretrained(
             args.name_or_path)
         model.to('cuda')

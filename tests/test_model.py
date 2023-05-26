@@ -796,6 +796,7 @@ def test_generate_with_device_map(tmp_path, world_size):
         model=save_path,
         tokenizer=tokenizer,
         torch_dtype=torch.bfloat16,
+        trust_remote_code=True,
         device_map=device_map,
     )
     out = pipe(

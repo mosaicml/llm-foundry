@@ -754,9 +754,12 @@ def test_generate(attention_impl, device, alibi):
 
 
 @pytest.mark.gpu
-def test_generate_with_device_map(tmp_path):
+@pytest.mark.parametrize('world_size', [1, 2])
+def test_generate_with_device_map(tmp_path, world_size):
     if not torch.cuda.is_available():
         pytest.skip(f'This test requires CUDA to be available.')
+    if not torch.cuda.device_count() == world_size:
+        pytest.skip(f'This test requires {world_size} GPUs.')
 
     save_path = tmp_path / 'test-device-map'
     hf_config = MPTConfig(
@@ -777,23 +780,30 @@ def test_generate_with_device_map(tmp_path):
 
     AutoConfig.register('mpt', MPTConfig)
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
-
     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
+
+    device_map = {
+        'transformer.wte': 0,
+        'transformer.wpe': 0,
+        'transformer.embd_drop': 0,
+        'transformer.blocks.0': 0,
+        'transformer.blocks.1': 1 if world_size == 2 else 0,
+        'transformer.norm_f': 1 if world_size == 2 else 0,
+    }
+
     pipe = pipeline(
         'text-generation',
         model=save_path,
         tokenizer=tokenizer,
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
-        device_map='auto',
+        device_map=device_map,
     )
-    print(pipe.model.hf_device_map)
     out = pipe(
         'The quick fox jumped over',
         max_length=19,
         do_sample=True,
         top_k=10,
-        eos_token_id=tokenizer.eos_token_id,
     )
     print(out)
 

@@ -593,12 +593,12 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         model = MPTForCausalLM(hf_config)
 
         train_metrics = [
-            LanguageCrossEntropy(hf_config.vocab_size),
-            LanguagePerplexity(hf_config.vocab_size)
+            LanguageCrossEntropy(),
+            LanguagePerplexity()
         ]
         eval_metrics = [
-            LanguageCrossEntropy(hf_config.vocab_size),
-            LanguagePerplexity(hf_config.vocab_size),
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),

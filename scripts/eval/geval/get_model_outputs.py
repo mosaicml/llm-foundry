@@ -68,7 +68,7 @@ def main():
             trust_remote_code=args.trust_remote_code,
             torch_dtype=dtype)
         tokenizer = transformers.AutoTokenizer.from_pretrained(
-            args.name_or_path)
+            args.name_or_path, padding_side='left')
         if tokenizer.pad_token_id is None:
             tokenizer.pad_token = tokenizer.eos_token
         model.to('cuda')
@@ -83,7 +83,9 @@ def main():
                 inputs = {k: v.to('cuda') for k, v in inputs.items()}
                 outputs = model.generate(**inputs,
                                          top_p=args.top_p,
-                                         temperature=args.temperature)
+                                         temperature=args.temperature,
+                                         do_sample=args.temperature > 0,
+                                         max_length=args.max_length)
                 # slice outputs to remove the input
                 outputs = outputs[:, inputs['input_ids'].shape[1]:]
                 preds = [

@@ -197,7 +197,9 @@ class MPTModel(MPTPreTrainedModel):
                                         device=device,
                                         dtype=dtype)
             else:
-                attn_bias = attn_bias[:, :, :, -s_k:]
+                # clamp to 0 necessary for torch 2.0 compile()
+                _s_k = max(0, attn_bias.size(-1) - s_k)
+                attn_bias = attn_bias[:, :, :, _s_k:]
             if prefix_mask is not None and (attention_mask.shape !=
                                             prefix_mask.shape):
                 raise ValueError(

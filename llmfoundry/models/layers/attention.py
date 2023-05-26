@@ -53,7 +53,7 @@ def scaled_multihead_dot_product_attention(
     if past_key_value is not None:
         # attn_impl: flash & triton use kernels which expect input shape [b, s, h, d_head].
         # kv_cache is therefore stored using that shape.
-        # attn_impl: torch stores the kv_cache in the ordering which is most advantagious
+        # attn_impl: torch stores the kv_cache in the ordering which is most advantageous
         # for its attn computation ie
         # keys are stored as tensors with shape [b, h, d_head, s] and
         # values are stored as tensors with shape [b, h, s, d_head]
@@ -72,7 +72,11 @@ def scaled_multihead_dot_product_attention(
     attn_weight = q.matmul(k) * softmax_scale
 
     if attn_bias is not None:
-        attn_bias = attn_bias[:, :, -s_q:, -s_k:]
+        # clamp to 0 necessary for torch 2.0 compile()
+        _s_q = max(0, attn_bias.size(2) - s_q)
+        _s_k = max(0, attn_bias.size(3) - s_k)
+        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
+
         if (attn_bias.size(-1) != 1 and
                 attn_bias.size(-1) != s_k) or (attn_bias.size(-2) != 1 and
                                                attn_bias.size(-2) != s_q):
@@ -159,7 +163,10 @@ def flash_attn_fn(
         past_key_value = (key, value)
 
     if attn_bias is not None:
-        attn_bias = attn_bias[:, :, -query.size(1):, -key.size(1):]
+        # clamp to 0 necessary for torch 2.0 compile()
+        _s_q = max(0, attn_bias.size(2) - query.size(1))
+        _s_k = max(0, attn_bias.size(3) - key.size(1))
+        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
 
     if attn_bias is not None:
         raise NotImplementedError(f'attn_bias not implemented for flash attn.')
@@ -268,7 +275,10 @@ def triton_flash_attn_fn(
         past_key_value = (key, value)
 
     if attn_bias is not None:
-        attn_bias = attn_bias[:, :, -query.size(1):, -key.size(1):]
+        # clamp to 0 necessary for torch 2.0 compile()
+        _s_q = max(0, attn_bias.size(2) - query.size(1))
+        _s_k = max(0, attn_bias.size(3) - key.size(1))
+        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
 
     if dropout_p:
         raise NotImplementedError(

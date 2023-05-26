@@ -758,7 +758,7 @@ def test_generate(attention_impl, device, alibi):
 def test_generate_with_device_map(tmp_path, world_size):
     if not torch.cuda.is_available():
         pytest.skip(f'This test requires CUDA to be available.')
-    if not torch.cuda.device_count() == world_size:
+    if not torch.cuda.device_count() >= world_size:
         pytest.skip(f'This test requires {world_size} GPUs.')
 
     save_path = tmp_path / 'test-device-map'

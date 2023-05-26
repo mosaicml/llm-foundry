@@ -111,8 +111,7 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
                 f'init_device="{init_device}" must be either "cpu" or "meta".')
 
         metrics = [
-            LanguageCrossEntropy(vocab_size=vocab_size,
-                                 ignore_index=_HF_IGNORE_INDEX),
+            LanguageCrossEntropy(ignore_index=_HF_IGNORE_INDEX),
             MaskedAccuracy(ignore_index=_HF_IGNORE_INDEX)
         ]
 

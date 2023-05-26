@@ -29,13 +29,15 @@ def test_onnx_export(tmp_path):
     AutoConfig.register('mpt', MPTConfig)
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
 
+    batch_size, vocab_size, max_seq_len = 1, 50368, 128
+
     hf_config = MPTConfig(
         init_device='cpu',
-        d_model=128,
+        d_model=64,
         n_heads=4,
         n_layers=2,
         expansion_ratio=2,
-        max_seq_len=2048,
+        max_seq_len=max_seq_len,
         emb_pdrop=0.0,
         resid_pdrop=0.0,
         attn_config={
@@ -43,18 +45,14 @@ def test_onnx_export(tmp_path):
             'alibi': True,
         },
         use_cache=True,
-        vocab_size=50368,
+        vocab_size=vocab_size,
         norm_type='layernorm',
     )
     mpt = MPTForCausalLM(hf_config)
     mpt.eval()
 
     print('Creating random batch...')
-    sample_input = gen_random_batch(
-        1,
-        50368,
-        2048,
-    )
+    sample_input = gen_random_batch(batch_size, vocab_size, max_seq_len)
 
     with torch.no_grad():
         mpt(**sample_input)

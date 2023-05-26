@@ -260,8 +260,11 @@ class DeleteSpecificNodes(ast.NodeTransformer):
         return super().visit(node)
 
 
-def convert_to_relative_import(module_name: str) -> str:
+def convert_to_relative_import(
+        module_name: str, original_parent_module_name: Optional[str]) -> str:
     parts = module_name.split('.')
+    if parts[-1] == original_parent_module_name:
+        return '.'
     return '.' + parts[-1]
 
 
@@ -275,6 +278,10 @@ def process_file(file_path: str, folder_path: str) -> List[str]:
     with open(file_path, 'r') as f:
         source = f.read()
 
+    parent_module_name = None
+    if os.path.basename(file_path) == '__init__.py':
+        parent_module_name = os.path.basename(os.path.dirname(file_path))
+
     tree = ast.parse(source)
     new_files_to_process = []
     nodes_to_remove = []
@@ -283,7 +290,8 @@ def process_file(file_path: str, folder_path: str) -> List[str]:
         if isinstance(node,
                       ast.ImportFrom) and node.module.startswith('llmfoundry'):
             module_path = find_module_file(node.module)
-            node.module = convert_to_relative_import(node.module)
+            node.module = convert_to_relative_import(node.module,
+                                                     parent_module_name)
             # recursively process any llmfoundry files
             new_files_to_process.append(module_path)
         # remove any imports from composer or omegaconf

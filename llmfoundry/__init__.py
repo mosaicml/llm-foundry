@@ -24,7 +24,8 @@ try:
 
 except ImportError as e:
     try:
-        is_cuda_available = torch.cuda.is_available()  # type: ignore
+        import torch
+        is_cuda_available = torch.cuda.is_available()
     except:
         is_cuda_available = False
 

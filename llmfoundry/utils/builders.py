@@ -201,6 +201,14 @@ def build_icl_evaluators(icl_tasks,
             icl_cfg.batch_size = default_batch_size
 
     for icl_cfg in icl_tasks:
+        for num_fewshot in list(icl_cfg.num_fewshot):
+            # TODO: fix Composer bug when copying local paths and destination exists
+            destination_path = f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl'
+            with dist.run_local_rank_zero_first():
+                if os.path.exists(destination_path):
+                    os.remove(destination_path)
+
+    for icl_cfg in icl_tasks:
         _validate_cfg(icl_cfg)
         for num_fewshot in list(icl_cfg.num_fewshot):
             if tokenizer.pad_token_id is None:
@@ -210,11 +218,6 @@ def build_icl_evaluators(icl_tasks,
                 pad_tok_id = tokenizer.pad_token_id
             label = f'{icl_cfg.label}/{num_fewshot}-shot'
             metric_names = list(icl_cfg.metric_names)
-            # TODO: fix Composer bug when copying local paths and destination exists
-            destination_path = f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl'
-            with dist.run_local_rank_zero_first():
-                if os.path.exists(destination_path):
-                    os.remove(destination_path)
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,

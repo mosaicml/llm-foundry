@@ -44,6 +44,10 @@ from llmfoundry.models.utils.param_init_fns import (  # type: ignore
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
@@ -113,9 +117,7 @@ class MPTModel(MPTPreTrainedModel):
             for module in self.modules():
                 if hasattr(module, 'bias') and isinstance(
                         module.bias, nn.Parameter):
-                    if config.verbose:
-                        warnings.warn(
-                            f'Removing bias ({module.bias}) from {module}.')
+                    log.info(f'Removing bias ({module.bias}) from {module}.')
                     module.register_parameter('bias', None)
 
         # Print verbose info

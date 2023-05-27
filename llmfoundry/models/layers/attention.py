@@ -3,6 +3,7 @@
 
 """Attention layers."""
 
+import logging
 import math
 import warnings
 from typing import Optional
@@ -13,6 +14,8 @@ from einops import rearrange
 from torch import nn
 
 from llmfoundry.models.layers.norm import LPLayerNorm
+
+log = logging.getLogger(__name__)
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
@@ -283,7 +286,6 @@ class MultiheadAttention(nn.Module):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         low_precision_layernorm: bool = False,
-        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__()
@@ -313,21 +315,8 @@ class MultiheadAttention(nn.Module):
             self.attn_fn = flash_attn_fn
         elif self.attn_impl == 'triton':
             self.attn_fn = triton_flash_attn_fn
-            if verbose:
-                warnings.warn(
-                    'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
-                    'it uses more memory. When training larger models this can trigger '  +\
-                    'alloc retries which hurts performance. If encountered, we recommend ' +\
-                    'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.'
-                )
         elif self.attn_impl == 'torch':
             self.attn_fn = scaled_multihead_dot_product_attention
-            if torch.cuda.is_available() and verbose:
-                warnings.warn(
-                    'Using `attn_impl: torch`. If your model does not use `alibi` or ' +\
-                    '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' +\
-                    'we recommend using `attn_impl: triton`.'
-                )
         else:
             raise ValueError(f'{attn_impl=} is an invalid setting.')
 
@@ -400,7 +389,6 @@ class MultiQueryAttention(nn.Module):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         low_precision_layernorm: bool = False,
-        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__()
@@ -437,21 +425,8 @@ class MultiQueryAttention(nn.Module):
             self.attn_fn = flash_attn_fn
         elif self.attn_impl == 'triton':
             self.attn_fn = triton_flash_attn_fn
-            if verbose:
-                warnings.warn(
-                    'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
-                    'it uses more memory. When training larger models this can trigger '  +\
-                    'alloc retries which hurts performance. If encountered, we recommend ' +\
-                    'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.'
-                )
         elif self.attn_impl == 'torch':
             self.attn_fn = scaled_multihead_dot_product_attention
-            if torch.cuda.is_available() and verbose:
-                warnings.warn(
-                    'Using `attn_impl: torch`. If your model does not use `alibi` or ' +\
-                    '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' +\
-                    'we recommend using `attn_impl: triton`.'
-                )
         else:
             raise ValueError(f'{attn_impl=} is an invalid setting.')
 

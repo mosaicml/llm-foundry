@@ -18,7 +18,7 @@ command: |
     --concat_tokens 8192 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
   composer train/train.py /mnt/config/parameters.yaml
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
-# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: mosaic-gpt-1b-ctx-8k-gpus-8
 
 gpu_num: 8

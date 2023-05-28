@@ -34,16 +34,23 @@ from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 # NOTE: We import all the utils directly just so that HuggingFace will detect
 # all the files that it needs to copy into its modules folder. Otherwise it misses
 # the ones imported in the submodule
-from llmfoundry.models.utils.adapt_tokenizer import (
-    AutoTokenizerForMOD, adapt_tokenizer_for_denoising)
-from llmfoundry.models.utils.hf_prefixlm_converter import (
-    add_bidirectional_mask_if_missing, convert_hf_causal_lm_to_prefix_lm)
-from llmfoundry.models.utils.meta_init_context import init_empty_weights
-from llmfoundry.models.utils.param_init_fns import (  # type: ignore
-    MODEL_INIT_REGISTRY, generic_param_init_fn_)
+from llmfoundry.models.utils.adapt_tokenizer import \
+    AutoTokenizerForMOD  # type: ignore (see note)
+from llmfoundry.models.utils.adapt_tokenizer import \
+    adapt_tokenizer_for_denoising  # type: ignore (see note)
+from llmfoundry.models.utils.hf_prefixlm_converter import \
+    add_bidirectional_mask_if_missing  # type: ignore (see note)
+from llmfoundry.models.utils.hf_prefixlm_converter import \
+    convert_hf_causal_lm_to_prefix_lm  # type: ignore (see note)
+from llmfoundry.models.utils.meta_init_context import \
+    init_empty_weights  # type: ignore (see note)
+from llmfoundry.models.utils.param_init_fns import \
+    generic_param_init_fn_  # type: ignore (see note)
+from llmfoundry.models.utils.param_init_fns import MODEL_INIT_REGISTRY
 
 try:
-    from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
+    from llmfoundry.models.layers.flash_attn_triton import \
+        flash_attn_func  # type: ignore (see note)
 except:
     pass
 
@@ -136,7 +143,7 @@ class MPTModel(MPTPreTrainedModel):
     def get_input_embeddings(self):
         return self.wte
 
-    def set_input_embeddings(self, value):
+    def set_input_embeddings(self, value: nn.Embedding):
         self.wte = value
 
     @torch.no_grad()
@@ -282,6 +289,7 @@ class MPTModel(MPTPreTrainedModel):
 
         if attention_mask is not None:
             attention_mask = attention_mask.bool()
+
         if prefix_mask is not None:
             prefix_mask = prefix_mask.bool()
 
@@ -447,7 +455,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             raise ValueError(
                 'MPTForCausalLM only supports tied word embeddings')
 
-        self.transformer = MPTModel(config)
+        self.transformer: MPTModel = MPTModel(config)
 
         # enables scaling output logits; similar to a softmax "temperature"
         # PaLM paper uses scale 1/sqrt(config.d_model)
@@ -522,10 +530,10 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
         loss = None
         if labels is not None:
-            labels = torch.roll(labels, shifts=-1)
-            labels[:, -1] = -100
+            _labels = torch.roll(labels, shifts=-1)
+            _labels[:, -1] = -100
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)),
-                                   labels.to(logits.device).view(-1))
+                                   _labels.to(logits.device).view(-1))
 
         return CausalLMOutputWithPast(
             loss=loss,

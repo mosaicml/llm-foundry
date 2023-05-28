@@ -354,7 +354,7 @@ def build_text_denoising_dataloader(
     cfg: DictConfig,
     tokenizer: Tokenizer,
     device_batch_size: int,
-) -> DataLoader:
+) -> DataLoader[Dict]:
     """Constructor function for a Mixture of Denoisers dataloader.
 
     This function constructs a dataloader that can be used to train an
@@ -480,7 +480,7 @@ def build_text_denoising_dataloader(
         batch_size=device_batch_size,
     )
 
-    if dataset.tokenizer.pad_token is None:  # type: ignore
+    if dataset.tokenizer.pad_token is None:
         dataset.tokenizer.pad_token = dataset.tokenizer.eos_token
 
     if cfg.dataset.get('packing_ratio'):
@@ -564,7 +564,7 @@ def noise_token_sequence(
         else:
             u = np.random.uniform(low=(mask_ratio * 2) - 1, high=1.0)
         mean_span_length = float(np.round(1 + u * (length - 1)))
-        mask_ratio = mean_span_length / length  # type: ignore
+        mask_ratio = mean_span_length / length
         use_sentinels = False
     else:
         use_sentinels = True
@@ -871,9 +871,9 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_cfg)
 
     loader = build_text_denoising_dataloader(cfg, tokenizer, device_batch_size)
+    assert isinstance(loader.dataset, StreamingTextDataset)
 
-    print(
-        f'\n\nTRUNCATING TO: {loader.dataset.max_seq_len}\n\n')  # type: ignore
+    print(f'\n\nTRUNCATING TO: {loader.dataset.max_seq_len}\n\n')
 
     packing = cfg.dataset.get('packing_ratio') is not None
     if packing:

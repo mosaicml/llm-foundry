@@ -47,6 +47,8 @@ class FDiffMetrics(Callback):
     def eval_end(self, state: State, logger: Logger):
         if self.diff_eval_metrics:
             evaluator = state.dataloader_label
+            assert evaluator is not None, 'dataloader should have been set'
+
             metrics = list(state.eval_metrics[evaluator].keys())
 
             for k in metrics:

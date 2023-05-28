@@ -268,7 +268,7 @@ def convert_to_relative_import(
     return '.' + parts[-1]
 
 
-def find_module_file(module_name: str) -> str:
+def find_module_file(module_name: str) -> Optional[str]:
     module = importlib.import_module(module_name)
     module_file = module.__file__
     return module_file

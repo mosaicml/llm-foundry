@@ -9,7 +9,7 @@ assignees: ''
 
 <!-- Please check for related issues (both open and closed) before filing this issue. -->
 
-** Environment **
+## Environment
 <!-- Please copy paste the output of running `composer_collect_env` below-->
 <!--
     If you can't install composer for some reason, you can also use the PyTorch collect env script
@@ -19,7 +19,7 @@ assignees: ''
     python collect_env.py
 -->
 
-** To reproduce
+## To reproduce
 
 Steps to reproduce the behavior:
 

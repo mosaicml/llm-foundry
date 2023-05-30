@@ -125,7 +125,7 @@ def convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
 
         split_vals = np.split(data, infer_gpu_num, axis=-1)
         for j in range(infer_gpu_num):
-            save_path = os.path.join(save_dir, f'/model.{tensor_name}.{j}.bin')
+            save_path = os.path.join(save_dir, f'model.{tensor_name}.{j}.bin')
             split_vals[j].tofile(save_path)
             if config['no_bias']:
                 write_zero_bias(tensor_name, save_path, split_vals[j].shape[-1])

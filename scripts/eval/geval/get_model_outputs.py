@@ -8,6 +8,9 @@ This will be faster than evaluating one at a time.
 
 import argparse
 import json
+from time import sleep
+
+from tqdm import tqdm
 
 
 def parse_args() -> argparse.Namespace:
@@ -16,7 +19,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--eval_data', type=str, required=True)
     parser.add_argument('--output_file', type=str, required=True)
     parser.add_argument('--top_p', type=float, default=0.95)
-    parser.add_argument('--temperature', type=float, default=1.0)
+    parser.add_argument('--top_k', type=int, default=50)
+    parser.add_argument('--temperature', type=float, default=0.2)
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--max_length', type=int, default=2048)
     parser.add_argument('--trust_remote_code', action='store_true')
@@ -29,13 +33,12 @@ def parse_args() -> argparse.Namespace:
 def load_eval_in_batches(fname: str, batch_size: int):
     """Load the eval data in batches."""
     with open(fname) as f:
-        lines = f.readlines()
         l = []
-        for line in lines:
+        for line in f:
             l.append(json.loads(line)['prompt'])
     batches = []
-    for i in range(0, len(lines), batch_size):
-        batch = lines[i:i + batch_size]
+    for i in range(0, len(l), batch_size):
+        batch = l[i:i + batch_size]
         batch = [line for line in batch]
         batches.append(batch)
     return batches
@@ -47,15 +50,24 @@ def main():
         from mcli import predict
 
         with open(args.output_file, 'w') as f:
-            for batch in load_eval_in_batches(args.eval_data, args.batch_size):
-                preds = predict(batch, args.name_or_path, args.top_p,
-                                args.temperature)
+            for batch in tqdm(
+                    load_eval_in_batches(args.eval_data, args.batch_size)):
+                # print(batch)
+                preds = predict(
+                    args.name_or_path, {
+                        'input_strings': batch,
+                        'temperature': args.temperature,
+                        'top_p': args.top_p,
+                        'max_length': args.max_length,
+                    })['data']
+                sleep(1.5)  # to avoid rate limiting
                 for prompt, resp in zip(batch, preds):
                     # save as jsonl
                     f.write(
                         json.dumps({
                             'prompt': prompt,
-                            'response': resp
+                            'response':
+                                resp[len(prompt):]  # remove the prompt
                         }) + '\n')
 
     else:
@@ -74,7 +86,8 @@ def main():
         model.to('cuda')
         model.eval()
         with open(args.output_file, 'w') as f:
-            for batch in load_eval_in_batches(args.eval_data, args.batch_size):
+            for batch in tqdm(
+                    load_eval_in_batches(args.eval_data, args.batch_size)):
                 inputs = tokenizer(batch,
                                    return_tensors='pt',
                                    padding=True,
@@ -83,6 +96,7 @@ def main():
                 inputs = {k: v.to('cuda') for k, v in inputs.items()}
                 outputs = model.generate(**inputs,
                                          top_p=args.top_p,
+                                         top_k=args.top_k,
                                          temperature=args.temperature,
                                          do_sample=args.temperature > 0,
                                          max_length=args.max_length)

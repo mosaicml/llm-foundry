@@ -82,7 +82,7 @@ extra_deps['tensorboard'] = [
 extra_deps['gpu'] = [
     'flash-attn==v1.0.3.post0',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v0.2.8#subdirectory=csrc/xentropy',
+    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy',
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)

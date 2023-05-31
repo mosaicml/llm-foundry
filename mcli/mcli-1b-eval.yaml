@@ -44,11 +44,12 @@ parameters:
   load_path: # Add your (optional) Composer checkpoint path here!
 
   device_eval_batch_size: 16
+  precision: fp32
 
   # FSDP config for model sharding
   # fsdp_config:
   #   sharding_strategy: FULL_SHARD
-  #   mixed_precision: PURE
+  #   mixed_precision: FULL
 
   icl_tasks:
   -

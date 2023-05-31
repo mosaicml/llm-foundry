@@ -11,9 +11,9 @@ jobs:
     strategy:
       matrix:
         include:
-        - name: '1.13.1-cu117'
+        - name: '1.13.1_cu117'
           base_image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
-        - name: '2.0.1-cu118'
+        - name: '2.0.1_cu118'
           base_image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
 
     steps:

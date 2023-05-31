@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: main # use your branch
+  git_branch: verify_icl_cfgs # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
@@ -13,33 +13,22 @@ command: |
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-# run_name: mpt-7b-eval
-run_name: llama-eval
-gpu_num: 32
-gpu_type: a100_40gb
-cluster: # replace with your cluster here!
+run_name: mpt-7b-eval
+gpu_num: 8
+gpu_type: a100_80gb
+cluster: r1z1 # replace with your cluster here!
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   seed: 1
   max_seq_len: 1024
   device_eval_batch_size: 8
-  precision: fp32
-
-  model_name_or_path: huggyllama/llama-7b
-  # model_name_or_path: EleutherAI/gpt-j-6b
-  # model_name_or_path: EleutherAI/pythia-6.9b
-  # model_name_or_path: facebook/opt-6.7b
-  # model_name_or_path: cerebras/Cerebras-GPT-6.7B
-  # model_name_or_path: StabilityAI/stablelm-base-alpha-7b
-  # model_name_or_path: EleutherAI/gpt-neox-20b
-  # model_name_or_path: EleutherAI/pythia-12b
-  # model_name_or_path: facebook/opt-13b
-  # model_name_or_path: cerebras/Cerebras-GPT-13B
-
+  precision: amp_fp16
+ 
+  model_name_or_path: mosaicml/mpt-7b
   # Tokenizer
   tokenizer:
-    name: ${model_name_or_path}
+    name:  EleutherAI/gpt-neox-20b
     kwargs:
       model_max_length: ${max_seq_len}
 

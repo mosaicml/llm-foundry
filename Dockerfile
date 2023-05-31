@@ -4,4 +4,7 @@
 ARG BASE_IMAGE
 FROM $BASE_IMAGE
 
-RUN pip install --no-cache-dir ".[gpu]"
+COPY setup.py setup.py
+COPY __init__.py __init__.py
+RUN pip install --no-cache-dir ".[gpu]" && \
+    rm __init__.py setup.py

@@ -8,6 +8,7 @@ Table of Contents:
 - [Interactive Chat with HF models](#interactive-chat-with-hf-models)
 - [Converting an HF model to ONNX](#converting-an-hf-model-to-onnx)
 - [Converting an HF MPT to FasterTransformer](#converting-an-hf-mpt-to-fastertransformer)
+- [Running MPT with FasterTransformer](#running-mpt-with-fastertransformer)
 
 ## Converting a Composer checkpoint to an HF checkpoint folder
 
@@ -157,3 +158,35 @@ git clone https://huggingface.co/mosaicml/mpt-7b
 python convert_hf_mpt_to_ft.py -i mpt-7b -o mpt-ft-7b --infer_gpu_num 1
 ```
 You can change `infer_gpu_num` to > 1 to prepare a FT checkpoint for multi-gpu inference. Please open a Github issue if you discover any problems!
+
+## Running MPT with FasterTransformer
+This step assumes that you already have converted an MPT checkpoint to FT format by following the instructions in
+[Converting an HF MPT to FasterTransformer](#converting-an-hf-mpt-to-fastertransformer). It also assumes that you have
+1. Built FasterTransformer for PyTorch by following the instructions
+[here](https://github.com/NVIDIA/FasterTransformer/blob/main/docs/gpt_guide.md#build-the-project)
+2. A PyTorch install that supports [MPI as distributed communication
+backend](https://pytorch.org/docs/stable/distributed.html#backends-that-come-with-pytorch). You need to build and
+install PyTorch
+from source to include MPI as a backend.
+
+Once above steps are complete, you can run MPT using the following commands:
+```
+# For running on a single gpu and benchmarking
+PYTHONPATH=/mnt/work/FasterTransformer python scripts/inference/run_mpt_with_ft.py --ckpt_path mpt-ft-7b/1-gpu \
+    --lib_path /mnt/work/FasterTransformer/build/lib/libth_transformer.so --time
+
+# Run with -h to see various generation arguments
+PYTHONPATH=/mnt/work/FasterTransformer python scripts/inference/run_mpt_with_ft.py -h
+
+# Run on 2 gpus. You need to create an FT checkpoint for 2-gpus first.
+# allow-run-as-root is only needed if you are running as root
+PYTHONPATH=/mnt/work/FasterTransformer mpirun -n 2 --allow-run-as-root \
+    python scripts/inference/run_mpt_with_ft.py \
+    --ckpt_path mpt-ft-7b/2-gpu --lib_path /mnt/work/FasterTransformer/build/lib/libth_transformer.so --time
+
+# Add prompts in a text file and generate text
+echo "Write 3 reasons why you should train an AI model on domain specific data set." > prompts.txt
+PYTHONPATH=/mnt/work/FasterTransformer python scripts/inference/run_mpt_with_ft.py \
+    --ckpt_path mpt-ft-7b/1-gpu --lib_path /mnt/work/FasterTransformer/build/lib/libth_transformer.so \
+    --sample_input_file prompts.txt --sample_output_file output.txt
+```

@@ -52,6 +52,6 @@ parameters:
   # FSDP config for model sharding
   fsdp_config:
     sharding_strategy: FULL_SHARD
-    mixed_precision: PURE
+    mixed_precision: FULL
 
   icl_tasks: 'eval/yamls/tasks.yaml'

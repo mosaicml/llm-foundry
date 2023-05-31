@@ -658,7 +658,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             except:
                 raise ValueError(
                     'Fused Cross Entropy is not installed. Either (1) have a CUDA-compatible GPU '
-                    'and `pip install .[gpu]` if installing from source or `pip install xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v0.2.8#subdirectory=csrc/xentropy` '
+                    'and `pip install .[gpu]` if installing from source or `pip install xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy` '
                     'if installing from pypi, or (2) set your config model.loss_fn=torch_crossentropy.'
                 )
         elif loss_fn_config == 'torch_crossentropy':

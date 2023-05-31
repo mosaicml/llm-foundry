@@ -249,7 +249,7 @@ def triton_flash_attn_fn(
         if version.parse(torch.__version__) < version.parse('2.0.0'):
             _installed = True
             # if torch1.13.1 revert to using triton flash attn from HazyResearch
-            # with flash-attn==1.0.7.post0 and triton==2.0.0.dev20221202
+            # with flash-attn==1.0.7 and triton==2.0.0.dev20221202
             try:
                 from flash_attn.flash_attn_triton import flash_attn_func
             except:

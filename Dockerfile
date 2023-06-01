@@ -5,6 +5,8 @@ ARG BASE_IMAGE
 FROM $BASE_IMAGE
 
 COPY setup.py setup.py
-COPY __init__.py __init__.py
+COPY llmfoundry llmfoundry
 RUN pip install --no-cache-dir ".[gpu]" && \
-    rm __init__.py setup.py
+    pip uninstall -y llmfoundry && \
+    rm setup.py && \
+    rm -rf llmfoundry

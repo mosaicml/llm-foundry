@@ -51,7 +51,7 @@ jobs:
         context: .
         tags: mosaicml/llm-foundry:${{ matrix.name }}-latest,
           mosaicml/llm-foundry:${{ matrix.name }}-${{ env.IMAGE_TAG }}
-        push: ${{ contains(github.ref, 'refs/heads/main') }}
+        push: true
         cache-from: type=registry,ref=mosaicml/llm-foundry:${{ matrix.name }}-buildcache
         cache-to: type=registry,ref=mosaicml/llm-foundry:${{ matrix.name }}-buildcache,mode=max
         build-args: BASE_IMAGE=${{ matrix.base_image }}

@@ -288,7 +288,26 @@ The purpose of this section is probably pretty self-evident. You’ve got questi
 - TODO
 
 ### What are the different attention options `torch` / `flash` / `triton`  for MPT and which one should I use?
-- TODO
+In NLP, Softmax Attention operates on a sequence. It is an all to all graph operation where, durring training, the memory complexity is quadratic with respect to the length of the sequence. Furthermore, on GPUs, naive implementations of Softmax Attention are BW limited.
+[Rabe et al. (2021)](https://arxiv.org/abs/2112.05682) and [Dao et al. (2022)](https://arxiv.org/abs/2205.14135) noted that fusing all operations in Softmax Attention can make the operation much less BW limited.
+Furthermore, integrating a recompuation schema decreases the sequence length memory complexity from quadratic to linear enabling practitioners to train transformer networks using much longer sequence lengths.
+
+Setting `attn_config.attn_impl=torch` enables a naive Softmax Attention written using base torch operations.
+Setting `attn_config.attn_impl=flash` enables flash attention [implemented by Dao et al in the HazyResearch repo using CUDA](https://github.com/HazyResearch/flash-attention). This will have linear memory complexity (enabling larger batch sizes) and will run much faster.
+Setting `attn_config.attn_impl=triton` enables a flash attention [implemented using Triton](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py). In our experiance, `triton` is slightly faster than `flash`.
+The majority of our training setups use `triton`.
+
+#### Limitations
+- For training, `torch` uses a lot of memory and is slow.
+- `flash` and `triton` cannot return attention weights and therefore cannot be used with methods which require it.
+- `flash` cannot accept an attention bias and therefore cannot be used with methods which require it such as ALiBi.
+
+#### What is `triton-pre-mlir`?
+Torch2 installs and requires a specific version of [Triton](https://openai.com/research/triton).
+`attn_config.attn_impl=triton` requires an old, incompatible version of triton.
+As a result, you can either use torch2 or `attn_impl=triton`.
+To enable both, we fork triton and make it pip installable as `triton-pre-mlir`.
+[`attn_impl=triton` can then use `triton-pre-mlir`](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py#L49) leaving the version of triton required for torch2 intact.
 
 ### Can I finetune using PEFT / LORA?
 - The LLM Foundry codebase does not directly have examples of PEFT or LORA workflows. However, our MPT model is a subclass of HuggingFace `PretrainedModel`, and we are working on adding the remaining features to enable HuggingFace’s [PEFT](https://huggingface.co/docs/peft/index) / [LORA](https://huggingface.co/docs/peft/conceptual_guides/lora) workflows for MPT.

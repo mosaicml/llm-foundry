@@ -84,14 +84,14 @@ If you have success/failure using LLM Foundry on other systems, please let us kn
 
 ## Supported hardware
 
-| Device                    | Torch Version    | Cuda Version | Status         |
-|---------------------------|------------------|--------------|----------------|
-| A100-40GB/80GB            | 1.13.1           | 11.7         | Working        |
-| A100-40GB/80GB            | 2.0.1            | 11.8         | Working        |
-| H100-80GB                 | 1.13.1           | 11.7         | Not Supported  |
-| H100-80GB                 | 2.0.1            | 11.8         | Working        |
-| A10-24GB                  | 1.13.1           | 11.7         | In Progress    |
-| A10-24GB                  | 2.0.1            | 11.8         | In Progress    |
+| Device                    | Torch Version    | Cuda Version | Status                        |
+|---------------------------|------------------|--------------|-------------------------------|
+| A100-40GB/80GB            | 1.13.1           | 11.7         | :white_check_mark: Supported  |
+| A100-40GB/80GB            | 2.0.1            | 11.8         | :white_check_mark: Supported  |
+| H100-80GB                 | 1.13.1           | 11.7         | :x: Not Supported             |
+| H100-80GB                 | 2.0.1            | 11.8         | :white_check_mark: Supported  |
+| A10-24GB                  | 1.13.1           | 11.7         | :construction: In Progress    |
+| A10-24GB                  | 2.0.1            | 11.8         | :construction: In Progress    |
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.

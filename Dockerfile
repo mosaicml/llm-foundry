@@ -4,9 +4,8 @@
 ARG BASE_IMAGE
 FROM $BASE_IMAGE
 
-COPY setup.py setup.py
-COPY llmfoundry llmfoundry
-RUN pip install --no-cache-dir ".[gpu]" && \
+
+RUN git clone -b main https://github.com/mosaicml/llm-foundry.git && \
+    pip install --no-cache-dir "./llm-foundry[gpu]" && \
     pip uninstall -y llmfoundry && \
-    rm setup.py && \
-    rm -rf llmfoundry
+    rm -rf llm-foundry

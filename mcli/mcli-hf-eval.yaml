@@ -24,6 +24,7 @@ parameters:
   seed: 1
   max_seq_len: 1024
   device_eval_batch_size: 8
+  precision: fp32
 
   model_name_or_path: huggyllama/llama-7b
   # model_name_or_path: EleutherAI/gpt-j-6b
@@ -52,6 +53,6 @@ parameters:
   # FSDP config for model sharding
   fsdp_config:
     sharding_strategy: FULL_SHARD
-    mixed_precision: PURE
+    mixed_precision: FULL
 
   icl_tasks: 'eval/yamls/tasks.yaml'

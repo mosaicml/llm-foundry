@@ -88,7 +88,7 @@ If you have success/failure using LLM Foundry on other systems, please let us kn
 |---------------------------|------------------|--------------|----------------|
 | A100-40GB/80GB            | 1.13.1           | 11.7         | Working        |
 | A100-40GB/80GB            | 2.0.1            | 11.8         | Working        |
-| H100-80GB                 | 1.13.1           | 11.8         | Not Supported  |
+| H100-80GB                 | 1.13.1           | 11.7         | Not Supported  |
 | H100-80GB                 | 2.0.1            | 11.8         | Working        |
 | A10-24GB                  | 1.13.1           | 11.7         | In Progress    |
 | A10-24GB                  | 2.0.1            | 11.8         | In Progress    |

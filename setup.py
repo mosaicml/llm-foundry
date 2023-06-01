@@ -60,7 +60,7 @@ install_requires = [
     'onnxruntime==1.14.1',
     'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python',
+    'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
 ]
 
 extra_deps = {}
@@ -83,7 +83,7 @@ extra_deps['tensorboard'] = [
 extra_deps['gpu'] = [
     'flash-attn==v1.0.3.post0',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v0.2.8#subdirectory=csrc/xentropy',
+    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy',
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)

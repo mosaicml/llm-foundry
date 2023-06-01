@@ -8,5 +8,5 @@ FROM $BASE_IMAGE
 # Install and uninstall foundry to cache foundry requirements
 RUN git clone -b main https://github.com/mosaicml/llm-foundry.git && \
     pip install --no-cache-dir "./llm-foundry[gpu]" && \
-    pip uninstall -y llmfoundry && \
+    pip uninstall -y llm-foundry && \
     rm -rf llm-foundry

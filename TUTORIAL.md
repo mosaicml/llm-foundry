@@ -309,9 +309,9 @@ As a result, you can either use torch2 or `attn_impl=triton`.
 To enable both, we fork triton and make it pip installable as `triton-pre-mlir`.
 [`attn_impl=triton` can then use `triton-pre-mlir`](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py#L49) leaving the version of triton required for torch2 intact.
 
-#### Known issue with sm89+ GPUs
+#### Known issue with sm86+ GPUs
 Under the hood, part of `triton-pre-mlir` compile path uses LLVM11.
-H100 GPUs (sm90 GPUs) are not formally supported until LLVM15 (technically it doesn't support anything sm89+).
+H100 GPUs (sm90 GPUs) are not formally supported until LLVM15 (technically it doesn't support anything sm86+).
 Updating the LLVM version used by `triton-pre-mlir` to LLVM13 seems to be relatively easy.
 Updating to LLVM14 (or LLVM15) cannot be done because there are breaking changes.
 What is the result of this? Although sm89+ is not **formally** supported until LLVM15, our testing on H100 GPUs shows that `attn_impl=triton` still works well and still runs fast. The only issue is that when the network is starting to run, LLVM might throw a warning like: `'sm_90' is not a recognized processor for this target (ignoring processor)`. This warning does not seem to effect performance.

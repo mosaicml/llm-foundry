@@ -82,8 +82,6 @@ This codebase has been tested with PyTorch 1.13.1 and PyTorch 2.0.1 on systems w
 This codebase may also work on systems with other devices, such as consumer NVIDIA cards and AMD cards, but we are not actively testing these systems.
 If you have success/failure using LLM Foundry on other systems, please let us know in a Github issue and we will update the support matrix!
 
-## Supported hardware
-
 | Device                    | Torch Version    | Cuda Version | Status                        |
 |---------------------------|------------------|--------------|-------------------------------|
 | A100-40GB/80GB            | 1.13.1           | 11.7         | :white_check_mark: Supported  |

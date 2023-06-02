@@ -229,7 +229,7 @@ def main():
     ckpt_config_path = os.path.join(args.ckpt_path, 'config.ini')
     if os.path.isfile(ckpt_config_path):
         ckpt_config.read(ckpt_config_path)
-    if 'mpt' in ckpt_config.keys():
+    if 'gpt' in ckpt_config.keys():
         for args_key, config_key, func in [
             ('layer_num', 'num_layer', ckpt_config.getint),
             ('max_seq_len', 'max_pos_seq_len', ckpt_config.getint),
@@ -237,9 +237,9 @@ def main():
             ('layernorm_eps', 'layernorm_eps', ckpt_config.getfloat),
             ('alibi', 'use_attention_linear_bias', ckpt_config.getboolean),
         ]:
-            if config_key in ckpt_config['mpt'].keys():
+            if config_key in ckpt_config['gpt'].keys():
                 prev_val = args.__dict__[args_key]
-                args.__dict__[args_key] = func('mpt', config_key)
+                args.__dict__[args_key] = func('gpt', config_key)
                 print(
                     'Loading {} from config.ini,    previous: {},    current: {}'
                     .format(args_key, prev_val, args.__dict__[args_key]))
@@ -248,7 +248,7 @@ def main():
         for key in ['head_num', 'size_per_head', 'tensor_para_size']:
             if key in args.__dict__:
                 prev_val = args.__dict__[key]
-                args.__dict__[key] = ckpt_config.getint('mpt', key)
+                args.__dict__[key] = ckpt_config.getint('gpt', key)
                 print(
                     'Loading {} from config.ini,    previous: {},    current: {}'
                     .format(key, prev_val, args.__dict__[key]))

@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import tempfile
 from typing import Union
 
 import torch
-from composer.utils import dist
+from composer.utils import dist, get_file
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
@@ -38,7 +39,9 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
             ---
             *** HuggingFace dataset config fields ***
             cfg.dataset.hf_name (str, optional): The name of the HuggingFace dataset
-                to use.
+                to use. Can also be a remote JSONL file in the format
+                (prompt, response) in a supported object store or http(s) URL,
+                in which case the builder will create a streaming dataset.
             cfg.dataset.hf_kwargs (DictConfig, optional): Additional kwargs to
                 pass to `datasets.load_dataset`, which can be used to load
                 a dataset from local files.
@@ -145,6 +148,14 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
         )
 
     else:
+        if '://' in cfg.dataset.hf_name:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                name = f'{cfg.dataset.hf_name}/{cfg.dataset.split}.jsonl'
+                location = f'{tmp_dir}/{name}'
+                get_file(cfg.dataset.hf_name, location)
+                cfg.dataset.hf_name = 'json'
+                cfg.dataset.hf_kwargs['data_dir'] = tmp_dir
+                cfg.dataset.hf_kwargs['split'] = cfg.dataset.split
         dataset = dataset_constructor.build_from_hf(cfg.dataset, tokenizer)
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
@@ -192,6 +203,12 @@ def _validate_config(dataset_cfg: DictConfig):
                 'Those keys are used when building from a streaming dataset, but ' +\
                 'setting `hf_name` instructs the dataset to build from a HuggingFace dataset.'
             )
+        if '://' in dataset_cfg.hf_name.get('hf_name'):
+            if dataset_cfg.get('split') is None:
+                raise ValueError(
+                    'When using a HuggingFace dataset from a URL, you must set the ' +\
+                    '`split` key in the dataset config.'
+                )
     elif dataset_cfg.get('remote') is not None:
         # Using the streaming dataset codepath
         illegal_keys = ['hf_name', 'hf_kwargs', 'preprocessing_fn']

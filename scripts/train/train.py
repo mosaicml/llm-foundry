@@ -119,6 +119,11 @@ def main(cfg):
     fsdp_config = cfg.get('fsdp_config', None)
     fsdp_config = om.to_container(fsdp_config,
                                   resolve=True) if fsdp_config else None
+    if dist.get_world_size() == 1 and fsdp_config is not None:
+        warnings.warn(
+            'FSDP is not applicable for single-GPU training. Reverting to DDP.')
+        cfg.pop('fsdp_config')
+        fsdp_config = None
 
     # Restrict model init_device to 'meta' and 'cpu',
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors

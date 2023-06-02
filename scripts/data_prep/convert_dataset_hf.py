@@ -3,6 +3,7 @@
 
 """Streaming dataset conversion scripts for C4 and The Pile."""
 import os
+import psutil
 import platform
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
@@ -51,6 +52,7 @@ def parse_args() -> Namespace:
     parser.add_argument('--bos_text', type=str, required=False, default=None)
     parser.add_argument('--eos_text', type=str, required=False, default=None)
     parser.add_argument('--no_wrap', default=False, action='store_true')
+    parser.add_argument('--num_workers', type=int, required=False, default=None)
 
     parsed = parser.parse_args()
 
@@ -250,12 +252,13 @@ def _est_progress_denominator(total_samples: int, chars_per_sample: int,
         return total_samples * est_tokens_per_sample // max_length
 
 
-def build_dataloader(dataset, batch_size) -> DataLoader:
-    # Multiple workers is only supported on linux machines
-    if 'linux' in platform.platform().lower():
-        num_workers = min(64, dataset.hf_dataset.n_shards)  # type: ignore
-    else:
-        num_workers = 0
+def build_dataloader(dataset, batch_size, num_workers) -> DataLoader:
+    if num_workers is None:
+        # Multiple workers is only supported on linux machines
+        if 'linux' or 'macos' in platform.platform().lower():
+            num_workers = max(1, psutil.cpu_count())  # type: ignore
+        else:
+            num_workers = 0
 
     # If using multiple workers, configure each worker to prefetch as many samples as it can, up to
     # the aggregate device batch size
@@ -344,7 +347,7 @@ def main(args: Namespace) -> None:
                                    eos_text=args.eos_text,
                                    no_wrap=args.no_wrap,
                                    tokenizer=tokenizer)
-        loader = build_dataloader(dataset=dataset, batch_size=512)
+        loader = build_dataloader(dataset=dataset, batch_size=512, num_workers=args.num_workers)
         samples = generate_samples(loader,
                                    truncate_num_samples=truncate_num_samples)
 

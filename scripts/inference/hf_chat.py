@@ -106,6 +106,7 @@ def parse_args() -> Namespace:
     parser.add_argument('--revision', type=str, default=None)
     parser.add_argument('--device', type=str, default=None)
     parser.add_argument('--attn_impl', type=str, default=None)
+    parser.add_argument('--init_device', type=str, default=None)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--system_prompt', type=str, default=SYSTEM_PROMPT)
     parser.add_argument('--user_msg_fmt', type=str, default=USER_MSG_FMT)
@@ -184,6 +185,8 @@ def main(args: Namespace) -> None:
                                             **from_pretrained_kwargs)
         if args.attn_impl is not None and hasattr(config, 'attn_config'):
             config.attn_config['attn_impl'] = args.attn_impl
+        if args.init_device is not None and hasattr(config, 'init_device'):
+            config.init_device = args.init_device
         if args.max_seq_len is not None and hasattr(config, 'max_seq_len'):
             config.max_seq_len = args.max_seq_len
 

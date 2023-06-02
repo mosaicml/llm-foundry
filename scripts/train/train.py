@@ -124,22 +124,22 @@ def main(cfg):
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
     # when multiple GPUs are available.
     # Also 'meta' is only valid when using FSDP
-    init_device = cfg.model.get('init_device', 'cpu')
-    assert init_device in ['meta', 'cpu']
-    if fsdp_config is None and init_device == 'meta':
-        warnings.warn(
-            "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
-            "Reverting to `cfg.model.init_device='cpu'`.")
-        cfg.model.init_device = 'cpu'
+    init_context = contextlib.nullcontext()
+    if 'init_device' in cfg.model:
+        assert cfg.model.init_device in ['meta', 'cpu']
+        if fsdp_config is None and cfg.model.init_device == 'meta':
+            warnings.warn(
+                "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
+                "Reverting to `cfg.model.init_device='cpu'`.")
+            cfg.model.init_device = 'cpu'
+        if cfg.model.init_device == 'meta':
+            init_context = init_empty_weights()
 
     # build tokenizer
     tokenizer = build_tokenizer(cfg.tokenizer)
 
     # Build Model
     print('Initializing model...')
-    init_context = contextlib.nullcontext()
-    if init_device == 'meta':
-        init_context = init_empty_weights()
     with init_context:
         model = build_composer_model(cfg.model, tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())

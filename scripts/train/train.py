@@ -62,6 +62,16 @@ def validate_config(cfg):
         )
         cfg.model.fc_type = 'te'
 
+    if (cfg.model.get('fc_type', 'torch') == 'te' and
+            cfg.get('fsdp_config', None) and
+            cfg.fsdp_config.get('activation_checkpointing', False) == True and
+            cfg.fsdp_config.get('activation_checkpointing_reentrant',
+                                True) == False):
+        warnings.warn(
+            '`te.Linear` layers do not support activation_checkpointing with `activation_checkpointing_reentrant = False`. '
+            'Setting cfg.fsdp_config.activation_checkpointing_reentrant=True.')
+        cfg.fsdp_config.activation_checkpointing_reentrant = True
+
 
 def build_composer_model(model_cfg, tokenizer):
     warnings.filterwarnings(

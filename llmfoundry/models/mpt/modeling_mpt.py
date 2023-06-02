@@ -29,6 +29,7 @@ from transformers.modeling_outputs import (BaseModelOutputWithPast,
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
+from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 # NOTE: We import all the utils directly just so that HuggingFace will detect

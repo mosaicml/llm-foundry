@@ -755,7 +755,8 @@ def test_generate(attention_impl, device, alibi):
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('world_size', [1, 2])
-def test_generate_with_device_map(tmp_path, world_size):
+@pytest.mark.parametrize('use_cache', [False, True])
+def test_generate_with_device_map(tmp_path, world_size, use_cache):
     if not torch.cuda.is_available():
         pytest.skip(f'This test requires CUDA to be available.')
     if not torch.cuda.device_count() >= world_size:
@@ -774,6 +775,7 @@ def test_generate_with_device_map(tmp_path, world_size):
         attn_config={
             'attn_impl': 'torch',
         },
+        use_cache=use_cache,
     )
     mpt = MPTForCausalLM(hf_config)
     mpt.save_pretrained(save_path)
@@ -804,7 +806,6 @@ def test_generate_with_device_map(tmp_path, world_size):
         max_length=10,
         do_sample=True,
     )
-    print(out)
 
 
 def check_hf_model_equivalence(model1, model2):

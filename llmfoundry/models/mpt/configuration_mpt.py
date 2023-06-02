@@ -203,6 +203,8 @@ class MPTConfig(PretrainedConfig):
                 import transformer_engine.pytorch as te
             except:
                 raise ImportError(
-                    'transformer_engine import fail. `fc_type: te` requires transformer_engine be installed '
-                    '(pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.8).'
+                    'transformer_engine import fail. `fc_type: te` requires transformer_engine be installed.'
+                    'transformer_engine also required flash-attn v1.0.6 is installed: \n'
+                    'pip install flash-attn==1.0.6 --no-build-isolation \n'
+                    'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
                 )

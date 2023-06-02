@@ -56,6 +56,12 @@ def validate_config(cfg):
                 'ICL evaluation does not currently support Encoder-Decoder models, such as "hf_t5".'
             )
 
+    if 'fp8' in cfg.precision and cfg.model.get('fc_type', 'torch') != 'te':
+        warnings.warn(
+            'fp8 only supported for te.Linear layers. Setting cfg.model.fc_type=te.'
+        )
+        cfg.model.fc_type = 'te'
+
 
 def build_composer_model(model_cfg, tokenizer):
     warnings.filterwarnings(
@@ -134,12 +140,6 @@ def main(cfg):
 
     # build tokenizer
     tokenizer = build_tokenizer(cfg.tokenizer)
-
-    if 'fp8' in cfg.precision and cfg.model.get('fc_type', 'torch') != 'te':
-        warnings.warn(
-            'fp8 only supported for te.Linear layers. Setting cfg.model.fc_type=te.'
-        )
-        cfg.model.fc_type = 'te'
 
     # Build Model
     print('Initializing model...')

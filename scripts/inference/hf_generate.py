@@ -153,6 +153,16 @@ def main(args: Namespace) -> None:
     #     raise ValueError(
     #         'Cannot use FSDP because no cuda devices are available.')
 
+    # TODO
+    # if args.fsdp:
+    #     ...
+    # else:
+    # Set device
+    if args.device is not None:
+        device = args.device
+    else:
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
     prompt_strings = []
     for prompt in args.prompts:
         if prompt.startswith('file::'):
@@ -169,6 +179,8 @@ def main(args: Namespace) -> None:
     try:
         config = AutoConfig.from_pretrained(args.name_or_path,
                                             **from_pretrained_kwargs)
+        if hasattr(config, 'init_device'):
+            config.init_device = device
         if args.attn_impl is not None and hasattr(config, 'attn_config'):
             config.attn_config['attn_impl'] = args.attn_impl
         if args.max_seq_len is not None and hasattr(config, 'max_seq_len'):
@@ -202,16 +214,6 @@ def main(args: Namespace) -> None:
         ) from e
     model.eval()
     print(f'n_params={sum(p.numel() for p in model.parameters())}')
-
-    # TODO
-    # if args.fsdp:
-    #     ...
-    # else:
-    # Set device
-    if args.device is not None:
-        device = args.device
-    else:
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     print(f'Placing model on {device=}...')
     model.to(device)
 

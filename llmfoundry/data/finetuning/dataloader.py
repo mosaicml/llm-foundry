@@ -150,12 +150,19 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
     else:
         if '://' in cfg.dataset.hf_name:
             with tempfile.TemporaryDirectory() as tmp_dir:
-                name = f'{cfg.dataset.hf_name}/{cfg.dataset.split}.jsonl'
-                location = f'{tmp_dir}/{name}'
-                get_file(cfg.dataset.hf_name, location)
-                cfg.dataset.hf_name = 'json'
-                cfg.dataset.hf_kwargs['data_dir'] = tmp_dir
-                cfg.dataset.hf_kwargs['split'] = cfg.dataset.split
+                supported_extensions = ['jsonl', 'csv', 'parquet']
+                for extension in supported_extensions:
+                    name = f'{cfg.dataset.hf_name}/{cfg.dataset.split}.{extension}'
+                    location = f'{tmp_dir}/{name}'
+                    try:
+                        get_file(cfg.dataset.hf_name, location)
+                    except FileNotFoundError as e:
+                        if extension == supported_extensions[-1]:
+                            raise e
+                        continue
+                    cfg.dataset.hf_name = extension
+                    cfg.dataset.hf_kwargs['data_dir'] = tmp_dir
+                    cfg.dataset.hf_kwargs['split'] = cfg.dataset.split
         dataset = dataset_constructor.build_from_hf(cfg.dataset, tokenizer)
 
         collate_fn, dataloader_batch_size = _build_collate_fn(

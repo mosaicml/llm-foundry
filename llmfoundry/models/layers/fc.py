@@ -3,13 +3,12 @@
 
 from torch import nn
 
-try:
-    import transformer_engine.pytorch as te
-    teLinear = te.Linear
-except:
-    teLinear = None
-
 FC_CLASS_REGISTRY = {
     'torch': nn.Linear,
-    'te': teLinear,
 }
+
+try:
+    import transformer_engine.pytorch as te
+    FC_CLASS_REGISTRY['te'] = te.Linear
+except:
+    teLinear = None

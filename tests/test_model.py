@@ -15,7 +15,9 @@ from composer.optim import DecoupledAdamW
 from composer.utils import get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
+                          PreTrainedTokenizer, PreTrainedTokenizerFast,
+                          pipeline)
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
@@ -749,6 +751,61 @@ def test_generate(attention_impl, device, alibi):
         # check that left padding and no padding produce the same output
         assert generation_with_no_padding[:, 3:].equal(
             generation_with_left_padding[:, 6:])
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('world_size', [1, 2])
+@pytest.mark.parametrize('use_cache', [False, True])
+def test_generate_with_device_map(tmp_path, world_size, use_cache):
+    if not torch.cuda.is_available():
+        pytest.skip(f'This test requires CUDA to be available.')
+    if not torch.cuda.device_count() >= world_size:
+        pytest.skip(f'This test requires {world_size} GPUs.')
+
+    save_path = tmp_path / 'test-device-map'
+    hf_config = MPTConfig(
+        init_device='cpu',
+        d_model=128,
+        n_heads=4,
+        n_layers=2,
+        expansion_ratio=2,
+        max_seq_len=2048,
+        emb_pdrop=0.1,
+        resid_pdrop=0.2,
+        attn_config={
+            'attn_impl': 'torch',
+        },
+        use_cache=use_cache,
+    )
+    mpt = MPTForCausalLM(hf_config)
+    mpt.save_pretrained(save_path)
+
+    AutoConfig.register('mpt', MPTConfig)
+    AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
+    tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
+
+    device_map = {
+        'transformer.wte': 0,
+        'transformer.wpe': 0,
+        'transformer.embd_drop': 0,
+        'transformer.blocks.0': 0,
+        'transformer.blocks.1': 1 if world_size == 2 else 0,
+        'transformer.norm_f': 1 if world_size == 2 else 0,
+    }
+
+    pipe = pipeline(
+        'text-generation',
+        model=save_path,
+        tokenizer=tokenizer,
+        torch_dtype=torch.bfloat16,
+        trust_remote_code=True,
+        device_map=device_map,
+    )
+    out = pipe(
+        'The quick fox jumped over',
+        max_length=10,
+        do_sample=True,
+    )
 
 
 def check_hf_model_equivalence(model1, model2):

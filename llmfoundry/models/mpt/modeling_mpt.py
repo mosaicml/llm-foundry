@@ -53,6 +53,7 @@ Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
     base_model_prefix = 'model'
+    _no_split_modules = ['MPTBlock']
 
 
 class MPTModel(MPTPreTrainedModel):
@@ -510,8 +511,11 @@ class MPTForCausalLM(MPTPreTrainedModel):
             use_cache=use_cache,
         )
 
-        logits = F.linear(outputs.last_hidden_state,
-                          self.transformer.wte.weight)
+        # move outputs to same device as weights for token embedding
+        # needed to support HF `device_map`
+        logits = F.linear(
+            outputs.last_hidden_state.to(self.transformer.wte.weight.device),
+            self.transformer.wte.weight)
 
         if self.logit_scale is not None:
             if self.logit_scale == 0:

@@ -6,7 +6,7 @@ import tempfile
 from typing import Union
 
 import torch
-from composer.utils import dist, get_file
+from composer.utils import dist, get_file, parse_uri
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
@@ -148,7 +148,8 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
         )
 
     else:
-        if '://' in cfg.dataset.hf_name:
+        backend, _, _ = parse_uri(cfg.dataset.hf_name)
+        if backend not in ['', None]:
             if cfg.dataset.get('split') is None:
                 raise ValueError(
                     'When using a HuggingFace dataset from a URL, you must set the ' +\

@@ -11,4 +11,4 @@ try:
     import transformer_engine.pytorch as te
     FC_CLASS_REGISTRY['te'] = te.Linear
 except:
-    teLinear = None
+    pass

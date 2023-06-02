@@ -10,6 +10,7 @@ from typing import Optional, Tuple, Union
 import torch
 from torch import nn
 
+from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
@@ -94,7 +95,7 @@ def generic_param_init_fn_(
                 f'Set `init_div_is_residual: false` in init config to disable this.'
             )
 
-    if isinstance(module, nn.Linear):
+    if isinstance(module, tuple(set(FC_CLASS_REGISTRY.values()))):
         # Linear
         if hasattr(module, '_fused'):
             fused_init_helper_(module, init_fn_)

@@ -13,6 +13,7 @@ from einops import rearrange
 from packaging import version
 from torch import nn
 
+from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import LPLayerNorm
 
 
@@ -347,6 +348,7 @@ class MultiheadAttention(nn.Module):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         low_precision_layernorm: bool = False,
+        fc_type: str = 'torch',
         verbose: int = 0,
         device: Optional[str] = None,
     ):
@@ -363,7 +365,14 @@ class MultiheadAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
 
-        self.Wqkv = nn.Linear(self.d_model, 3 * self.d_model, device=device)
+        fc_kwargs = {}
+        if fc_type != 'te':
+            fc_kwargs['device'] = device
+        self.Wqkv = FC_CLASS_REGISTRY[fc_type](
+            self.d_model,
+            3 * self.d_model,
+            **fc_kwargs,
+        )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = (d_model, 2 * d_model)
         self.Wqkv._fused = (0, fuse_splits)  # type: ignore
@@ -395,7 +404,11 @@ class MultiheadAttention(nn.Module):
         else:
             raise ValueError(f'{attn_impl=} is an invalid setting.')
 
-        self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
+        self.out_proj = FC_CLASS_REGISTRY[fc_type](
+            self.d_model,
+            self.d_model,
+            **fc_kwargs,
+        )
         self.out_proj._is_residual = True  # type: ignore
 
     def forward(
@@ -457,6 +470,7 @@ class MultiQueryAttention(nn.Module):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         low_precision_layernorm: bool = False,
+        fc_type: str = 'torch',
         verbose: int = 0,
         device: Optional[str] = None,
     ):
@@ -474,14 +488,17 @@ class MultiQueryAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.head_dim)
         self.attn_dropout_p = attn_pdrop
 
+        fc_kwargs = {}
+        if fc_type != 'te':
+            fc_kwargs['device'] = device
         # NOTE: if we ever want to make attn TensorParallel, I'm pretty sure we'll
         # want to split Wqkv into Wq and Wkv where Wq can be TensorParallel but
         # Wkv shouldn't be TensorParallel
         # - vchiley
-        self.Wqkv = nn.Linear(
+        self.Wqkv = FC_CLASS_REGISTRY[fc_type](
             d_model,
             d_model + 2 * self.head_dim,
-            device=device,
+            **fc_kwargs,
         )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = (d_model, d_model + self.head_dim)
@@ -514,7 +531,11 @@ class MultiQueryAttention(nn.Module):
         else:
             raise ValueError(f'{attn_impl=} is an invalid setting.')
 
-        self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
+        self.out_proj = FC_CLASS_REGISTRY[fc_type](
+            self.d_model,
+            self.d_model,
+            **fc_kwargs,
+        )
         self.out_proj._is_residual = True  # type: ignore
 
     def forward(

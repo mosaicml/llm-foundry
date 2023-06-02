@@ -55,6 +55,7 @@ class MPTConfig(PretrainedConfig):
         norm_type: str = 'low_precision_layernorm',
         use_cache: bool = False,
         init_config: Dict = init_config_defaults,
+        fc_type: str = 'torch',
         **kwargs,
     ):
         """The MPT configuration class.
@@ -110,6 +111,7 @@ class MPTConfig(PretrainedConfig):
                 init_nonlinearity (str): The nonlinearity to use for parameter initialization with kaiming initialization schemes.
                 ---
                 See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
+            fc_type (str): choose fc layer implementaion. Options: torch and te. te layers support fp8 when using H100 GPUs.
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -129,6 +131,7 @@ class MPTConfig(PretrainedConfig):
         self.norm_type = norm_type
         self.use_cache = use_cache
         self.init_config = init_config
+        self.fc_type = fc_type
         if 'name' in kwargs:
             del kwargs['name']
         if 'loss_fn' in kwargs:
@@ -195,3 +198,11 @@ class MPTConfig(PretrainedConfig):
             raise ValueError(
                 f'Positional information must be provided to the model using either learned_pos_emb or alibi.'
             )
+        if self.fc_type == 'te':
+            try:
+                import transformer_engine.pytorch as te
+            except:
+                raise ImportError(
+                    'transformer_engine import fail. `fc_type: te` requires transformer_engine be installed '
+                    '(pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.8).'
+                )

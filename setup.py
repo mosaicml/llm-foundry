@@ -86,6 +86,10 @@ extra_deps['gpu'] = [
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy',
 ]
 
+extra_deps['transformer-engine'] = [
+    'transformer-engine@git+https://github.com/NVIDIA/TransformerEngine.git@v0.8',
+]
+
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
 
 setup(

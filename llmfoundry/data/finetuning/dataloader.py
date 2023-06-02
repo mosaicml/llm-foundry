@@ -39,9 +39,9 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
             ---
             *** HuggingFace dataset config fields ***
             cfg.dataset.hf_name (str, optional): The name of the HuggingFace dataset
-                to use. Can also be a remote JSONL file in the format
-                (prompt, response) in a supported object store or http(s) URL,
-                in which case the builder will create a streaming dataset.
+                to use. Can also be a remote http(s) directory or object store bucket
+                containing the file {split}.jsonl in the format (prompt, response),
+                in which case the builder will create a HuggingFace dataset.
             cfg.dataset.hf_kwargs (DictConfig, optional): Additional kwargs to
                 pass to `datasets.load_dataset`, which can be used to load
                 a dataset from local files.

@@ -152,9 +152,7 @@ def main(args: Namespace) -> None:
     else:
         preprocessor_str = args.preprocessor
         preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_str(
-            preprocessor=preprocessor_str,
-            dataset_name=args.dataset,
-            verbose=True)
+            preprocessor=preprocessor_str, dataset_name=args.dataset)
         if preprocessing_fn is None:
             raise ValueError(
                 '`args.preprocessor` was not set and no preprocessing function ' +\

@@ -50,7 +50,6 @@ class MPTConfig(PretrainedConfig):
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
-        verbose: int = 0,
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
         use_cache: bool = False,

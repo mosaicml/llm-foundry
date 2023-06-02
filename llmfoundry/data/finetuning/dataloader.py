@@ -149,6 +149,11 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
 
     else:
         if '://' in cfg.dataset.hf_name:
+            if cfg.dataset.get('split') is None:
+                raise ValueError(
+                    'When using a HuggingFace dataset from a URL, you must set the ' +\
+                    '`split` key in the dataset config.'
+                )
             with tempfile.TemporaryDirectory() as tmp_dir:
                 supported_extensions = ['jsonl', 'csv', 'parquet']
                 for extension in supported_extensions:
@@ -210,12 +215,6 @@ def _validate_config(dataset_cfg: DictConfig):
                 'Those keys are used when building from a streaming dataset, but ' +\
                 'setting `hf_name` instructs the dataset to build from a HuggingFace dataset.'
             )
-        if '://' in dataset_cfg.hf_name.get('hf_name'):
-            if dataset_cfg.get('split') is None:
-                raise ValueError(
-                    'When using a HuggingFace dataset from a URL, you must set the ' +\
-                    '`split` key in the dataset config.'
-                )
     elif dataset_cfg.get('remote') is not None:
         # Using the streaming dataset codepath
         illegal_keys = ['hf_name', 'hf_kwargs', 'preprocessing_fn']

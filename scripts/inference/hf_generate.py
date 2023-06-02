@@ -10,7 +10,8 @@ from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
 
 import torch
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
+from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
+                          pipeline)
 
 
 def get_dtype(dtype):
@@ -119,13 +120,8 @@ def parse_args() -> Namespace:
                         default=None)
     parser.add_argument('--revision', type=str, default=None)
     parser.add_argument('--device', type=str, default=None)
+    parser.add_argument('--device_map', type=str, default=None)
     parser.add_argument('--attn_impl', type=str, default=None)
-    # TODO
-    # parser.add_argument('--fsdp',
-    #                     type=str2bool,
-    #                     nargs='?',
-    #                     const=True,
-    #                     default=False)
     return parser.parse_args()
 
 
@@ -148,21 +144,18 @@ def maybe_synchronize():
 
 
 def main(args: Namespace) -> None:
-    # TODO
-    # if args.fsdp and (not torch.cuda.is_available()):
-    #     raise ValueError(
-    #         'Cannot use FSDP because no cuda devices are available.')
-
-    # TODO
-    # if args.fsdp:
-    #     ...
-    # else:
-    # Set device
+    # Set device or device_map
+    if args.device and args.device_map:
+        raise ValueError('You can only set one of `device` and `device_map`.')
     if args.device is not None:
-        device = args.device
+        device = args.device or ('cuda:0'
+                                 if torch.cuda.is_available() else 'cpu')
+        device_map = None
     else:
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        device = None
+        device_map = args.device_map
 
+    # Load prompts
     prompt_strings = []
     for prompt in args.prompts:
         if prompt.startswith('file::'):
@@ -179,7 +172,7 @@ def main(args: Namespace) -> None:
     try:
         config = AutoConfig.from_pretrained(args.name_or_path,
                                             **from_pretrained_kwargs)
-        if hasattr(config, 'init_device'):
+        if hasattr(config, 'init_device') and device is not None:
             config.init_device = device
         if args.attn_impl is not None and hasattr(config, 'attn_config'):
             config.attn_config['attn_impl'] = args.attn_impl
@@ -193,6 +186,17 @@ def main(args: Namespace) -> None:
             'using your access token from https://huggingface.co/settings/tokens.'
         ) from e
 
+    # Build tokenizer
+    print('\nLoading HF tokenizer...')
+    tokenizer = AutoTokenizer.from_pretrained(args.name_or_path,
+                                              **from_pretrained_kwargs)
+    if tokenizer.pad_token_id is None:
+        warnings.warn(
+            'pad_token_id is not set for the tokenizer. Using eos_token_id as pad_token_id.'
+        )
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = 'left'
+
     # Set model_dtype
     if args.model_dtype is not None:
         model_dtype = get_dtype(args.model_dtype)
@@ -205,27 +209,20 @@ def main(args: Namespace) -> None:
         model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
                                                      config=config,
                                                      torch_dtype=model_dtype,
+                                                     device_map=device_map,
                                                      **from_pretrained_kwargs)
+        model.eval()
+        print(f'n_params={sum(p.numel() for p in model.parameters())}')
+        if device is not None:
+            print(f'Placing model on {device=}...')
+            model.to(device)
     except Exception as e:
         raise RuntimeError(
+            'Unable to load HF model. '
             'If you are having auth problems, try logging in via `huggingface-cli login` ' +\
             'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... ' +\
             'using your access token from https://huggingface.co/settings/tokens.'
         ) from e
-    model.eval()
-    print(f'n_params={sum(p.numel() for p in model.parameters())}')
-    print(f'Placing model on {device=}...')
-    model.to(device)
-
-    print('\nLoading HF tokenizer...')
-    tokenizer = AutoTokenizer.from_pretrained(args.name_or_path,
-                                              **from_pretrained_kwargs)
-    if tokenizer.pad_token_id is None:
-        warnings.warn(
-            'pad_token_id is not set for the tokenizer. Using eos_token_id as pad_token_id.'
-        )
-        tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = 'left'
 
     # Autocast
     if args.autocast_dtype is not None:
@@ -258,8 +255,6 @@ def main(args: Namespace) -> None:
             'do_sample': False if temp == 0 else args.do_sample,
             'eos_token_id': args.eos_token_id or tokenizer.eos_token_id,
             'pad_token_id': args.pad_token_id or tokenizer.pad_token_id,
-            # TODO
-            # 'synced_gpus': args.fsdp,
         }
         print(f'\nGenerate kwargs:\n{generate_kwargs}')
 

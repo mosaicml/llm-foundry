@@ -106,7 +106,6 @@ def parse_args() -> Namespace:
     parser.add_argument('--revision', type=str, default=None)
     parser.add_argument('--device', type=str, default=None)
     parser.add_argument('--attn_impl', type=str, default=None)
-    parser.add_argument('--init_device', type=str, default=None)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--system_prompt', type=str, default=SYSTEM_PROMPT)
     parser.add_argument('--user_msg_fmt', type=str, default=USER_MSG_FMT)
@@ -173,6 +172,12 @@ def have_conversation(model, tokenizer: Tokenizer,
 
 
 def main(args: Namespace) -> None:
+    # Set device
+    if args.device is not None:
+        device = args.device
+    else:
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
     # Grab config first
     print(f'Loading HF Config...')
     from_pretrained_kwargs = {
@@ -185,8 +190,8 @@ def main(args: Namespace) -> None:
                                             **from_pretrained_kwargs)
         if args.attn_impl is not None and hasattr(config, 'attn_config'):
             config.attn_config['attn_impl'] = args.attn_impl
-        if args.init_device is not None and hasattr(config, 'init_device'):
-            config.init_device = args.init_device
+        if hasattr(config, 'init_device'):
+            config.init_device = device
         if args.max_seq_len is not None and hasattr(config, 'max_seq_len'):
             config.max_seq_len = args.max_seq_len
 
@@ -197,12 +202,7 @@ def main(args: Namespace) -> None:
             'using your access token from https://huggingface.co/settings/tokens.'
         ) from e
 
-    # Set device and model_dtype
-    if args.device is not None:
-        device = args.device
-    else:
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
+    # Set model_dtype
     if args.model_dtype is not None:
         model_dtype = get_dtype(args.model_dtype)
     else:

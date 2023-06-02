@@ -128,6 +128,7 @@ pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 
 ### amp_fp8 support
 NVIDIA H100 GPUs have FP8 support; this additionally requires the following installations:
+<!--pytest.mark.skip-->
 ```bash
 pip install flash-attn==1.0.6 --no-build-isolation
 pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156

@@ -101,6 +101,8 @@ output_tok_per_sec=292.03tok/sec
 
 The argument for `--name_or_path` can be either the name of a model that exists on the HF Hub, such as `gpt2`, `facebook/opt-350m`, etc. or the path to a HF checkpoint folder, such as `my_hf_model/` like we exported above.
 
+For MPT models specifically, you can pass args like `--init_device cuda:0`, `--attn_impl triton`, and `--max_seq_len 4096` to speed up generation time or alter the max generation length at inference time (thanks to ALiBi).
+
 ## Interactive Chat with HF models
 
 Chat models need to pass conversation history back to the model for multi-turn conversations. To make that easier, we include `hf_chat.py`. Chat models usually require an introductory/system prompt, as well as a wrapper around user and model messages, to fit the training format. Default values work with our ChatML-trained models, but you can specify these values with CLI args:

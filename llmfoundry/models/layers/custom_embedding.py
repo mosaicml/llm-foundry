@@ -5,9 +5,8 @@ import torch.nn.functional as F
 
 class GPTEmbedding(nn.Embedding):
     def forward(self, input: Tensor) -> Tensor:
-        print ("input dtype")
-        if input.dtype in [torch.LongTensor]:
+        if input.dtype in [torch.LongTensor, torch.int64]:
             return super().forward(input)
         else:
-            # We just want a linear interpolation with the embedding
+            # We just want a linear interpolation with the embedding's weights
             return F.linear(input, self.weight)

@@ -155,6 +155,13 @@ def main(args: Namespace) -> None:
         device_map = args.device_map or 'auto'
     print(f'Using {device=} and {device_map=}')
 
+    # Set model_dtype
+    if args.model_dtype is not None:
+        model_dtype = get_dtype(args.model_dtype)
+    else:
+        model_dtype = torch.float32
+    print(f'Using {model_dtype=}')
+
     # Load prompts
     prompt_strings = []
     for prompt in args.prompts:
@@ -196,12 +203,6 @@ def main(args: Namespace) -> None:
         )
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = 'left'
-
-    # Set model_dtype
-    if args.model_dtype is not None:
-        model_dtype = get_dtype(args.model_dtype)
-    else:
-        model_dtype = torch.float32
 
     # Load HF Model
     print(f'Loading HF model with dtype={model_dtype}...')

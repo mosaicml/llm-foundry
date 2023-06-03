@@ -184,6 +184,13 @@ def main(args: Namespace) -> None:
         device_map = args.device_map or 'auto'
     print(f'Using {device=} and {device_map=}')
 
+    # Set model_dtype
+    if args.model_dtype is not None:
+        model_dtype = get_dtype(args.model_dtype)
+    else:
+        model_dtype = torch.float32
+    print(f'Using {model_dtype=}')
+
     # Grab config first
     print(f'Loading HF Config...')
     from_pretrained_kwargs = {
@@ -207,12 +214,6 @@ def main(args: Namespace) -> None:
             'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
             'using your access token from https://huggingface.co/settings/tokens.'
         ) from e
-
-    # Set model_dtype
-    if args.model_dtype is not None:
-        model_dtype = get_dtype(args.model_dtype)
-    else:
-        model_dtype = torch.float32
 
     # Load HF Model
     print(f'Loading HF model with dtype={model_dtype}...')

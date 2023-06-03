@@ -201,7 +201,7 @@ def main(args: Namespace) -> None:
     if args.model_dtype is not None:
         model_dtype = get_dtype(args.model_dtype)
     else:
-        model_dtype = config.torch_dtype or torch.float32
+        model_dtype = torch.float32
 
     # Load HF Model
     print(f'Loading HF model with dtype={model_dtype}...')

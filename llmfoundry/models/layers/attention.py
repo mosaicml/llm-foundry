@@ -423,7 +423,7 @@ class MultiheadAttention(nn.Module):
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
-            qkv.clamp_(min=-self.clip_qkv, max=self.clip_qkv)
+            qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
         query, key, value = qkv.chunk(3, dim=2)
 
@@ -550,7 +550,7 @@ class MultiQueryAttention(nn.Module):
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
-            qkv.clamp_(min=-self.clip_qkv, max=self.clip_qkv)
+            qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
         query, key, value = qkv.split(
             [self.d_model, self.head_dim, self.head_dim], dim=2)

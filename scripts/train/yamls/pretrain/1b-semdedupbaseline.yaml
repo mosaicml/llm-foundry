@@ -1,0 +1,364 @@
+name: semdedup-1b
+cluster: r8z6
+gpu_num: 8
+gpu_type: a100_80gb
+
+command: |-
+  cd llm-foundry/scripts/train
+  composer train.py /mnt/config/parameters.yaml || (echo "Command failed - killing python" && pkill python && exit 1)
+
+image:  mosaicml/examples:llm-eebf70e
+
+integrations:
+- entity: mosaic-ml
+  integration_type: wandb
+  project: test-semdedup
+- git_repo: mosaicml/llm-foundry
+  integration_type: git_repo
+  pip_install: .[llm]
+
+scheduling:
+    resumable: false
+    priority: medium
+
+parameters:
+  #--------------------------------------------------------------------------------------
+  # BATCHING AND SEEDS
+  #--------------------------------------------------------------------------------------
+  device_train_microbatch_size: 5
+  global_train_batch_size: 1280
+  max_duration: 1144410ba
+  max_seq_len: 2048
+  num_canonical_nodes: 512
+
+  global_seed: 1116
+  seed: ${global_seed}
+
+  #--------------------------------------------------------------------------------------
+  # LOGGING AND SAVING
+  #--------------------------------------------------------------------------------------
+  console_log_interval: 100ba
+  log_to_console: true
+  progress_bar: false
+  python_log_level: DEBUG
+  loggers:
+    wandb: {}
+
+  save_filename: ep{epoch}-ba{batch}/rank{rank}.pt
+  save_folder: oci://mosaicml-internal-checkpoints/Tessa/not_semdedup/
+  save_interval: 1000ba
+  save_num_checkpoints_to_keep: 1
+  autoresume: true
+  #load_path: NONE
+
+  #--------------------------------------------------------------------------------------
+  # FSDP
+  #--------------------------------------------------------------------------------------
+  fsdp_config:
+    activation_checkpointing: false
+    activation_checkpointing_reentrant: false
+    activation_cpu_offload: false
+    limit_all_gathers: true
+    mixed_precision: PURE
+    sharding_strategy: FULL_SHARD
+    state_dict_type: full
+    verbose: false
+
+  #--------------------------------------------------------------------------------------
+  # MODEL AND TRAINING
+  #--------------------------------------------------------------------------------------
+  model:
+    name: mpt_causal_lm
+    init_device: meta
+    d_model: 2048
+    n_heads: 16
+    n_layers: 24
+    mlp_ratio: 4
+    max_seq_len: ${max_seq_len}
+
+    vocab_size: 50432
+    tokenizer_name: ${tokenizer_name}
+
+    no_bias: true
+    low_precision_layernorm: true
+
+    init_nonlinearity: relu
+    param_init_fn: kaiming_normal_
+
+    attn_pdrop: 0
+    emb_pdrop: 0
+    resid_pdrop: 0
+
+    attn_impl: triton
+    alibi: true
+    attn_clip_qkv: 6
+    attn_uses_sequence_id: true
+
+  optimizer:
+    betas:
+    - 0.9
+    - 0.95
+    lr: 0.0002
+    name: decoupled_lionw
+    weight_decay: 0.0002
+
+  precision: amp_bf16
+
+  scheduler:
+    alpha_f: 0.01
+    name: cosine_with_warmup
+    t_warmup: 0.01dur
+
+  algorithms:
+    gradient_clipping:
+      clipping_threshold: 1
+      clipping_type: norm
+
+  #--------------------------------------------------------------------------------------
+  # DATA
+  #--------------------------------------------------------------------------------------
+  tokenizer:
+    kwargs:
+      model_max_length: ${max_seq_len}
+    name: ${tokenizer_name}
+  tokenizer_name: EleutherAI/gpt-neox-20b
+  eos_token_id: 0
+  train_loader:
+    dataset:
+      download_timeout: 60
+      eos_token_id: ${eos_token_id}
+      max_seq_len: ${max_seq_len}
+      num_canonical_nodes: ${num_canonical_nodes}
+      predownload: 1048576
+      shuffle: true
+      shuffle_algo: py1b
+      shuffle_block_size: 1048576
+      shuffle_seed: ${global_seed}
+      streams:
+        c4:
+          local: /tmp/dataset/c4/
+          proportion: 1
+          remote: oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox
+          split: train
+    drop_last: true
+    name: text
+    num_workers: 8
+
+
+  #--------------------------------------------------------------------------------------
+  # EVALUATION
+  #--------------------------------------------------------------------------------------
+  eval_first: false
+  eval_interval: 5000ba
+  device_eval_batch_size: 20
+
+  eval_loader:
+    dataset:
+      download_timeout: 60
+      eos_token_id: ${eos_token_id}
+      local: /tmp/dataset/val_c4
+      max_seq_len: ${max_seq_len}
+      num_canonical_nodes: ${num_canonical_nodes}
+      predownload: 1048576
+      remote: oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox
+      shuffle: false
+      shuffle_block_size: 1048576
+      shuffle_seed: ${global_seed}
+      split: val
+      tokenizer_name: ${tokenizer_name}
+    drop_last: false
+    name: text
+    num_workers: 8
+  eval_subset_num_batches: -1
+
+  icl_tasks:
+  - batch_size: 4
+    continuation_delimiter: ' '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/lambada_openai.jsonl
+    example_delimiter: \n
+    icl_task_type: language_modeling
+    label: lambada_openai
+    metric_names:
+    - InContextLearningLMAccuracy
+    num_fewshot:
+    - 0
+    prompt_string: ''
+  - batch_size: 4
+    continuation_delimiter: ' '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/lambada_standard.jsonl
+    example_delimiter: \n
+    icl_task_type: language_modeling
+    label: lambada_standard
+    metric_names:
+    - InContextLearningLMAccuracy
+    num_fewshot:
+    - 0
+    prompt_string: ''
+  - batch_size: 4
+    continuation_delimiter: ' '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/piqa.jsonl
+    example_delimiter: \n
+    icl_task_type: multiple_choice
+    label: piqa
+    metric_names:
+    - InContextLearningMultipleChoiceAccuracy
+    num_fewshot:
+    - 0
+    - 1
+    - 5
+    prompt_string: ''
+  - batch_size: 4
+    continuation_delimiter: ' '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/hellaswag.jsonl
+    example_delimiter: \n
+    icl_task_type: multiple_choice
+    label: hellaswag
+    metric_names:
+    - InContextLearningMultipleChoiceAccuracy
+    num_fewshot:
+    - 0
+    - 1
+    - 5
+    prompt_string: ''
+  - batch_size: 4
+    continuation_delimiter: ' '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/arc_easy.jsonl
+    example_delimiter: \n
+    icl_task_type: multiple_choice
+    label: arc_easy
+    metric_names:
+    - InContextLearningMultipleChoiceAccuracy
+    num_fewshot:
+    - 0
+    - 1
+    - 5
+    prompt_string: ''
+  - batch_size: 4
+    continuation_delimiter: 'Answer: '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/copa.jsonl
+    example_delimiter: \n
+    icl_task_type: multiple_choice
+    label: copa
+    metric_names:
+    - InContextLearningMultipleChoiceAccuracy
+    num_fewshot:
+    - 0
+    - 1
+    - 5
+    prompt_string: ''
+  - batch_size: 4
+    continuation_delimiter: 'Answer: '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/boolq_mc.jsonl
+    example_delimiter: \n
+    icl_task_type: multiple_choice
+    label: boolq_mc
+    metric_names:
+    - InContextLearningMultipleChoiceAccuracy
+    num_fewshot:
+    - 0
+    - 1
+    - 5
+    prompt_string: ''
+  - batch_size: 4
+    continuation_delimiter: 'Answer: '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/jeopardy_american_history.jsonl
+    example_delimiter: \n
+    icl_task_type: language_modeling
+    label: jeopardy_american_history
+    metric_names:
+    - InContextLearningLMAccuracy
+    num_fewshot:
+    - 0
+    - 1
+    - 5
+    prompt_string: ''
+  - batch_size: 4
+    continuation_delimiter: 'Answer: '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/jeopardy_literature.jsonl
+    example_delimiter: \n
+    icl_task_type: language_modeling
+    label: jeopardy_literature
+    metric_names:
+    - InContextLearningLMAccuracy
+    num_fewshot:
+    - 0
+    - 1
+    - 5
+    prompt_string: ''
+  - batch_size: 4
+    continuation_delimiter: 'Answer: '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/jeopardy_science.jsonl
+    example_delimiter: \n
+    icl_task_type: language_modeling
+    label: jeopardy_science
+    metric_names:
+    - InContextLearningLMAccuracy
+    num_fewshot:
+    - 0
+    - 1
+    - 5
+    prompt_string: ''
+  - batch_size: 4
+    continuation_delimiter: 'Answer: '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/jeopardy_word_origins.jsonl
+    example_delimiter: \n
+    icl_task_type: language_modeling
+    label: jeopardy_word_origins
+    metric_names:
+    - InContextLearningLMAccuracy
+    num_fewshot:
+    - 0
+    - 1
+    - 5
+    prompt_string: ''
+  - batch_size: 4
+    continuation_delimiter: 'Answer: '
+    dataset_uri: oci://mosaicml-internal-datasets/icl/original/jeopardy_world_history.jsonl
+    example_delimiter: \n
+    icl_task_type: language_modeling
+    label: jeopardy_world_history
+    metric_names:
+    - InContextLearningLMAccuracy
+    num_fewshot:
+    - 0
+    - 1
+    - 5
+    prompt_string: ''
+
+  callbacks:
+    generate_callback:
+      batch_log_interval: 5000
+      do_sample: true
+      max_new_tokens: 100
+      prompts:
+      - The quick brown fox jumps over
+      - I'm Slim Shady. Yes, I'm the real Shady. All your other Slim Shady's are just
+        imitating. So won't the real Slim Shady
+      - |-
+        The theory of relativity explained, by Donald Trump.
+        Relativity is
+      - |-
+        User 1: I am a research engineer training a large language model. What do I do to make my model better?
+        User 2: You should
+      - 'Scene 1: Eliezer Yudkowsky enters and begins screaming at me that my best
+        friend is an AGI. He is telling me that to shut my best friend off or he will
+        destroy us all. I respond'
+      - |-
+        Vegan Banana Bread
+        Instructions:
+        1.
+      - The other day I was explaining what generative AI is to my five year old.
+        I said
+      - Some fun games I play with my 3 and 7 year old that we made up are
+      - Naveen Rao is an American entrepreneur and neuroscientist who
+      temperature: 1
+      top_k: 50
+      top_p: 0.95
+      use_cache: false
+    lr_monitor: {}
+    memory_monitor: {}
+    runtime_estimator: {}
+    scheduled_gc:
+      batch_interval: 2000
+    speed_monitor:
+      window_size: 1

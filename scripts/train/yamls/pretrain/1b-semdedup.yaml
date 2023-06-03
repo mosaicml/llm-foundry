@@ -45,7 +45,7 @@ parameters:
     wandb: {}
 
   save_filename: ep{epoch}-ba{batch}/rank{rank}.pt
-  save_folder: oci://mosaicml-internal-checkpoints/Tessa/new/
+  save_folder: oci://mosaicml-internal-checkpoints/Tessa/1bsemdedup/
   save_interval: 1000ba
   save_num_checkpoints_to_keep: 1
   autoresume: true
@@ -131,7 +131,7 @@ parameters:
       num_canonical_nodes: ${num_canonical_nodes}
       predownload: 1048576
       shuffle: true
-      shuffle_algo: py1b
+      shuffle_algo: py1s
       shuffle_block_size: 1048576
       shuffle_seed: ${global_seed}
       streams:
@@ -148,7 +148,7 @@ parameters:
   #--------------------------------------------------------------------------------------
   # EVALUATION
   #--------------------------------------------------------------------------------------
-  eval_first: true
+  eval_first: false
   eval_interval: 5000ba
   device_eval_batch_size: 20
 

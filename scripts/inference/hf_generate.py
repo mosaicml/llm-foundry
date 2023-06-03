@@ -147,13 +147,12 @@ def main(args: Namespace) -> None:
     # Set device or device_map
     if args.device and args.device_map:
         raise ValueError('You can only set one of `device` and `device_map`.')
-    if args.device_map is None:
-        device = args.device or ('cuda:0'
-                                 if torch.cuda.is_available() else 'cpu')
+    if args.device is not None:
+        device = args.device
         device_map = None
     else:
         device = None
-        device_map = args.device_map
+        device_map = args.device_map or 'auto'
     print(f'Using {device=} and {device_map=}')
 
     # Load prompts
@@ -228,7 +227,7 @@ def main(args: Namespace) -> None:
     # Autocast
     if args.autocast_dtype is not None:
         autocast_dtype = get_dtype(args.autocast_dtype)
-        autocast_context = torch.autocast(device, autocast_dtype)
+        autocast_context = torch.autocast(model.device, autocast_dtype)
         print(f'Using autocast with dtype={autocast_dtype}...')
     else:
         autocast_context = nullcontext()
@@ -287,7 +286,7 @@ def main(args: Namespace) -> None:
             encode_start = time.time()
             encoded_inp = tokenizer(batch, return_tensors='pt', padding=True)
             for key, value in encoded_inp.items():
-                encoded_inp[key] = value.to(device)
+                encoded_inp[key] = value.to(model.device)
             maybe_synchronize()
             encode_end = time.time()
             input_tokens = torch.sum(

@@ -113,7 +113,8 @@ def build_optimizer(cfg, model):
                                   lr_penalty=cfg.lr_penalty,
                                   min_scale=cfg.min_scale)
     elif cfg.name.lower() == 'lion8b':
-        return Lion8bit(model.parameters(), **cfg)
+        kwargs = {k: v for k, v in cfg.items() if k != 'name'}
+        return Lion8bit(model.parameters(), **kwargs)
     else:
         raise ValueError(f'Not sure how to build optimizer: {cfg.name}')
 

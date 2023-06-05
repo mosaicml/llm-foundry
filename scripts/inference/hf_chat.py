@@ -5,6 +5,7 @@ import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
+from dataclasses import dataclass
 from typing import Any, Dict, Tuple, Union
 
 import torch
@@ -14,7 +15,7 @@ from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
-def get_dtype(dtype):
+def get_dtype(dtype: str):
     if dtype == 'fp32':
         return torch.float32
     elif dtype == 'fp16':
@@ -38,7 +39,7 @@ def str2bool(v):
         raise ArgumentTypeError('Boolean value expected.')
 
 
-def str_or_bool(v):
+def str_or_bool(v: Union[str, bool]):
     if isinstance(v, bool):
         return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -49,13 +50,12 @@ def str_or_bool(v):
         return v
 
 
-SYSTEM_PROMPT = """<|im_start|>system
-    - You are a helpful assistant chatbot trained by MosaicML.
-    - You answer questions.
-    - You are excited to be able to help the user, but will refuse to do anything that could be considered harmful to the user.
-    - You are more than just an information source, you are also able to write poetry, short stories, and make jokes.<|im_end|>\n"""
-USER_MSG_FMT = '<|im_start|>user {}<|im_end|>\n'
-ASSISTANT_MSG_FMT = '<|im_start|>assistant {}<|im_end|>\n'
+@dataclass
+class ChatFormatter:
+    system: str = """<|im_start|>system
+    A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.<|im_end|>\n"""
+    user: str = '"<|im_start|>user\n{}<|im_end|>\n"'
+    assistant: str = '<|im_start|>assistant\n{}<|im_end|>\n'
 
 
 def parse_args() -> Namespace:
@@ -108,11 +108,9 @@ def parse_args() -> Namespace:
     parser.add_argument('--device_map', type=str, default=None)
     parser.add_argument('--attn_impl', type=str, default=None)
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--system_prompt', type=str, default=SYSTEM_PROMPT)
-    parser.add_argument('--user_msg_fmt', type=str, default=USER_MSG_FMT)
-    parser.add_argument('--assistant_msg_fmt',
-                        type=str,
-                        default=ASSISTANT_MSG_FMT)
+    parser.add_argument('--system_prompt', type=str, default=None)
+    parser.add_argument('--user_msg_fmt', type=str, default=None)
+    parser.add_argument('--assistant_msg_fmt', type=str, default=None)
     return parser.parse_args()
 
 
@@ -122,12 +120,13 @@ def maybe_synchronize():
 
 
 def conversation(model, tokenizer: Tokenizer, user_inp: str, history: str,
+                 chat_format: ChatFormatter,
                  **generate_kwargs: Dict[str, Any]) -> Tuple[str, str, float]:
     if history != '':
-        user_inp = USER_MSG_FMT.format(user_inp)
+        user_inp = chat_format.user.format(user_inp)
         conversation = history + user_inp
     else:
-        conversation = SYSTEM_PROMPT + USER_MSG_FMT.format(user_inp)
+        conversation = chat_format.system + chat_format.user.format(user_inp)
     input_ids = tokenizer(conversation, return_tensors='pt').input_ids
     input_ids = input_ids.to(model.device)
     maybe_synchronize()
@@ -139,23 +138,25 @@ def conversation(model, tokenizer: Tokenizer, user_inp: str, history: str,
     # Slice the output_ids tensor to get only new tokens
     new_tokens = output_ids[0, len(input_ids[0]):]
     output_text = tokenizer.decode(new_tokens, skip_special_tokens=True)
-    conversation = conversation + ASSISTANT_MSG_FMT.format(output_text)
+    conversation = conversation + chat_format.assistant.format(output_text)
     return output_text, conversation, end - start
 
 
-def have_conversation(model, tokenizer: Tokenizer,
+def have_conversation(model, tokenizer: Tokenizer, chat_format: ChatFormatter,
                       **generate_kwargs: Dict[str, Any]) -> None:
     history = ''
     while True:
         print(
-            "Enter your message below.\n- Type 'EOF' on a new line to send input to the model\n"
+            'Enter your message below.\n- Hit return twice to send input to the model\n'
             +
             "- Type 'clear' to restart the conversation\n- Type 'history' to see the conversation\n"
-            + "- Type 'quit' to end:")
+            +
+            "- Type 'quit' to end\n- Type 'system' to change the system prompt\n"
+        )
         user_inp_lines = []
         while True:
             line = input()
-            if line.strip() == 'EOF':
+            if line.strip() == '':
                 break
             user_inp_lines.append(line)
         user_inp = '\n'.join(user_inp_lines)
@@ -167,8 +168,12 @@ def have_conversation(model, tokenizer: Tokenizer,
         elif user_inp == 'history':
             print(f'history: {history}\n')
             continue
+        elif user_inp == 'system':
+            new_system_prompt = input('Enter a new system prompt: ')
+            chat_format.system = new_system_prompt
+            continue
         assistant_resp, history, time_taken = conversation(
-            model, tokenizer, user_inp, history, **generate_kwargs)
+            model, tokenizer, user_inp, history, chat_format, **generate_kwargs)
         print(f'Assistant: {assistant_resp} ({time_taken:.3f}s)\n')
 
 
@@ -265,15 +270,20 @@ def main(args: Namespace) -> None:
         autocast_context = nullcontext()
         print('NOT using autocast...')
 
+    chat_format = ChatFormatter(system=args.system_prompt,
+                                user=args.user_msg_fmt,
+                                assistant=args.assistant_msg_fmt)
+
     # Warmup
     if args.warmup:
         print('Warming up...')
         with autocast_context:
-            conversation(model, tokenizer, 'hello', '', **generate_kwargs)
+            conversation(model, tokenizer, 'hello', '', chat_format,
+                         **generate_kwargs)
 
     print('Starting conversation...')
     with autocast_context:
-        have_conversation(model, tokenizer, **generate_kwargs)
+        have_conversation(model, tokenizer, chat_format, **generate_kwargs)
 
 
 if __name__ == '__main__':

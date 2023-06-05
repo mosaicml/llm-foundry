@@ -107,7 +107,7 @@ class Conversation:
             if user_inp.lower() == 'quit':
                 break
             elif user_inp.lower() == 'clear':
-                self.history = ''
+                self.history = []
                 continue
             elif user_inp == 'history':
                 print(f'history: {self.history}')
@@ -117,7 +117,9 @@ class Conversation:
                 continue
             elif user_inp == 'system':
                 print('Enter a new system prompt:')
-                self.chat_format.system = input()
+                new_system = input()
+                sys = f'<|im_start|>system\n{new_system.strip()}.<|im_end|>\n'
+                self.chat_format.system = sys
                 continue
             self.turn(user_inp)
 
@@ -324,7 +326,7 @@ def main(args: Namespace) -> None:
     if args.warmup:
         print('Warming up...')
         with autocast_context:
-            conversation()
+            conversation.turn('Write a welcome message to the user.')
 
     print('Starting conversation...')
     with autocast_context:

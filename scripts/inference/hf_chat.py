@@ -10,7 +10,7 @@ from typing import Any, Dict, Union
 import torch
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           PreTrainedTokenizer, PreTrainedTokenizerFast,
-                          TextStreamer)
+                          StoppingCriteria, StoppingCriteriaList, TextStreamer)
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
@@ -126,11 +126,30 @@ class Conversation:
         self.model = model
         self.tokenizer = tokenizer
         self.chat_format = chat_format
-        self.generate_kwargs = generate_kwargs
+
+        stop_token_ids = self.tokenizer.convert_tokens_to_ids(
+            ['<|endoftext|>', '<|im_end|>'])
+
+        class StopOnTokens(StoppingCriteria):
+
+            def __call__(self, input_ids: torch.LongTensor,
+                         scores: torch.FloatTensor, **kwargs) -> bool:
+                for stop_id in stop_token_ids:
+                    if input_ids[0][-1] == stop_id:
+                        return True
+                return False
+
         self.streamer = TextStreamer(
             tokenizer,
             skip_prompt=True,
             decode_kwargs={'skip_special_tokens': True})
+        self.generate_kwargs = {
+            **generate_kwargs,
+            'stopping_criteria':
+                StoppingCriteriaList([StopOnTokens()]),
+            'streamer':
+                self.streamer,
+        }
         self.history = ''
         self.cli_instructions = (
             'Enter your message below.\n- Hit return twice to send input to the model\n'
@@ -153,9 +172,8 @@ class Conversation:
         maybe_synchronize()
         start = time.time()
         print('Assistant:')
-        conversation = self.model.generate(input_ids,
-                                           streamer=self.streamer,
-                                           **self.generate_kwargs)
+        gkwargs = {**self.generate_kwargs, 'input_ids': input_ids}
+        conversation = self.model.generate(**gkwargs)
         maybe_synchronize()
         end = time.time()
         print(f'took {end - start:.2f} seconds')

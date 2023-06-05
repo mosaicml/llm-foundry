@@ -136,6 +136,21 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
             raise ValueError(
                 f'Unable to FSDP-wrap this model! `{mod_name}` does not ' +
                 'follow common layer/weight naming conventions.')
+    
+    for child in model.children():
+        if isinstance(child, type(causal_base_model)):
+            continue
+        if isinstance(child, torch.nn.Module):
+            child._fsdp_wrap = True
+    
+    # For FSDP with models with different intiailizations, we need to tag all child modules 
+    # that are torch.nn.Modules with `_fsdp_wrap`.
+    for child in causal_base_model.children():
+        if isinstance(child, torch.nn.ModuleList):
+            continue
+        if isinstance(child, torch.nn.Module):
+            child._fsdp_wrap = True
+    
     block_type = type(model_block[0])  # type: ignore
     # When using the HF LM models,
     # the weights of the self.lm_head and self.transformer.wte are tied.
@@ -152,20 +167,6 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)
     model.activation_checkpointing_fn = lambda module: isinstance(
         module, block_type)
-
-    # For FSDP with a mixture of intiailizations, we need to tag all child modules 
-    # that are torch.nn.Modules with `_fsdp_wrap` 
-    for child in causal_base_model.children():
-        if isinstance(child, torch.nn.ModuleList):
-            continue
-        if isinstance(child, torch.nn.Module):
-            child._fsdp_wrap = True
-    
-    for child in model.children():
-        if isinstance(child, type(causal_base_model)):
-            continue
-        if isinstance(child, torch.nn.Module):
-            child._fsdp_wrap = True
 
 
 def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel) -> None:

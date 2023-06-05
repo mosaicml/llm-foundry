@@ -47,13 +47,8 @@ classifiers = [
 ]
 
 install_requires = [
-<<<<<<< HEAD
     'composer[libcloud,nlp,wandb]>=0.14.1,<0.15',
     'accelerate>=0.19,<0.20',  # for HF inference `device_map`
-=======
-    'composer=git+https://github.com/bmosaicml/composer.git@fix_file_util'
-    # 'composer[libcloud,nlp,wandb]>=0.14.1,<0.15',
->>>>>>> 100d833 (finish postprocessing metrics)
     'mosaicml-streaming>=0.4.1,<0.5',
     'torch>=1.13.1,<=2.0.1',
     'datasets==2.10.1',

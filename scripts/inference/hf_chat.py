@@ -21,6 +21,7 @@ class ChatFormatter:
         self.system = system if system else '<|im_start|>system\nA conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.<|im_end|>\n'
         self.user = user if user else '<|im_start|>user\n{}<|im_end|>\n'
         self.assistant = assistant if assistant else '<|im_start|>assistant\n{}<|im_end|>\n'
+        self.response_prefix = '<|im_start|>assistant\n'
 
 
 class Conversation:
@@ -53,7 +54,7 @@ class Conversation:
             'streamer':
                 self.streamer,
         }
-        self.history = ''
+        self.history = []
         self.cli_instructions = (
             'Enter your message below.\n- Hit return twice to send input to the model\n'
             +
@@ -62,13 +63,20 @@ class Conversation:
             "- Type 'quit' to end\n- Type 'system' to change the system prompt\n"
         )
 
+    def _history_as_formatted_str(self) -> str:
+        text = self.chat_format.system + ''.join([
+            '\n'.join([
+                self.chat_format.user.format(item[0]),
+                self.chat_format.assistant.format(item[1]),
+            ]) for item in self.history[:-1]
+        ])
+        text += self.chat_format.user.format(self.history[-1][0])
+        text += self.chat_format.response_prefix
+        return text
+
     def turn(self, user_inp: str) -> None:
-        if self.history != '':
-            user_inp = self.chat_format.user.format(user_inp)
-            conversation = self.history + user_inp
-        else:
-            conversation = self.chat_format.system + self.chat_format.user.format(
-                user_inp)
+        self.history.append([user_inp, ''])
+        conversation = self._history_as_formatted_str()
         input_ids = self.tokenizer(conversation, return_tensors='pt').input_ids
         input_ids = input_ids.to(self.model.device)
         # also stream to stdout
@@ -76,14 +84,15 @@ class Conversation:
         start = time.time()
         print('Assistant:')
         gkwargs = {**self.generate_kwargs, 'input_ids': input_ids}
-        assistant_response = self.model.generate(**gkwargs)
+        # this will stream to stdout, but we need to keep track of the output_ids for saving history
+        output_ids = self.model.generate(**gkwargs)
         maybe_synchronize()
         end = time.time()
         print(f'took {end - start:.2f} seconds')
-        assistant_response = self.tokenizer.decode(assistant_response[0],
+        new_tokens = output_ids[0, len(input_ids[0]):]
+        assistant_response = self.tokenizer.decode(new_tokens,
                                                    skip_special_tokens=True)
-        self.history = conversation + self.chat_format.assistant.format(
-            assistant_response)
+        self.history[-1][-1] = assistant_response
 
     def __call__(self) -> None:
         while True:
@@ -102,6 +111,10 @@ class Conversation:
                 continue
             elif user_inp == 'history':
                 print(f'history: {self.history}')
+                continue
+            elif user_inp == 'history_fmt':
+                print(
+                    f'history: {self._history_as_formatted_str(self.history)}')
                 continue
             elif user_inp == 'system':
                 print('Enter a new system prompt:')

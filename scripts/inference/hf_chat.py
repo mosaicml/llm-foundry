@@ -15,41 +15,6 @@ from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
-def get_dtype(dtype: str):
-    if dtype == 'fp32':
-        return torch.float32
-    elif dtype == 'fp16':
-        return torch.float16
-    elif dtype == 'bf16':
-        return torch.bfloat16
-    else:
-        raise NotImplementedError(
-            f'dtype {dtype} is not supported. '
-            f'We only support fp32, fp16, and bf16 currently')
-
-
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise ArgumentTypeError('Boolean value expected.')
-
-
-def str_or_bool(v: Union[str, bool]):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        return v
-
-
 class ChatFormatter:
 
     def __init__(self, system: str, user: str, assistant: str) -> None:
@@ -58,71 +23,10 @@ class ChatFormatter:
         self.assistant = assistant if assistant else '<|im_start|>assistant\n{}<|im_end|>\n'
 
 
-def parse_args() -> Namespace:
-    """Parse commandline arguments."""
-    parser = ArgumentParser(
-        description='Load a HF CausalLM Model and use it to generate text.')
-    parser.add_argument('-n', '--name_or_path', type=str, required=True)
-    parser.add_argument('--max_new_tokens', type=int, default=512)
-    parser.add_argument('--max_seq_len', type=int, default=None)
-    parser.add_argument('--temperature', type=float, default=1.0)
-    parser.add_argument('--top_k', type=int, default=50)
-    parser.add_argument('--top_p', type=float, default=1.0)
-    parser.add_argument('--do_sample',
-                        type=str2bool,
-                        nargs='?',
-                        const=True,
-                        default=True)
-    parser.add_argument('--use_cache',
-                        type=str2bool,
-                        nargs='?',
-                        const=True,
-                        default=True)
-    parser.add_argument('--eos_token_id', type=str, default=None)
-    parser.add_argument('--pad_token_id', type=str, default=None)
-    parser.add_argument('--model_dtype',
-                        type=str,
-                        choices=['fp32', 'fp16', 'bf16'],
-                        default=None)
-    parser.add_argument('--autocast_dtype',
-                        type=str,
-                        choices=['fp32', 'fp16', 'bf16'],
-                        default=None)
-    parser.add_argument('--warmup',
-                        type=str2bool,
-                        nargs='?',
-                        const=True,
-                        default=True)
-    parser.add_argument('--trust_remote_code',
-                        type=str2bool,
-                        nargs='?',
-                        const=True,
-                        default=True)
-    parser.add_argument('--use_auth_token',
-                        type=str_or_bool,
-                        nargs='?',
-                        const=True,
-                        default=None)
-    parser.add_argument('--revision', type=str, default=None)
-    parser.add_argument('--device', type=str, default=None)
-    parser.add_argument('--device_map', type=str, default=None)
-    parser.add_argument('--attn_impl', type=str, default=None)
-    parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--system_prompt', type=str, default=None)
-    parser.add_argument('--user_msg_fmt', type=str, default=None)
-    parser.add_argument('--assistant_msg_fmt', type=str, default=None)
-    return parser.parse_args()
-
-
-def maybe_synchronize():
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
-
-
 class Conversation:
 
     def __init__(self, model, tokenizer: Tokenizer, chat_format: ChatFormatter,
-                 **generate_kwargs: Dict[str, Any]) -> None:
+                 generate_kwargs: Dict[str, Any]) -> None:
         self.model = model
         self.tokenizer = tokenizer
         self.chat_format = chat_format
@@ -202,6 +106,102 @@ class Conversation:
                 self.chat_format.system = input()
                 continue
             self.turn(user_inp)
+
+
+def get_dtype(dtype: str):
+    if dtype == 'fp32':
+        return torch.float32
+    elif dtype == 'fp16':
+        return torch.float16
+    elif dtype == 'bf16':
+        return torch.bfloat16
+    else:
+        raise NotImplementedError(
+            f'dtype {dtype} is not supported. '
+            f'We only support fp32, fp16, and bf16 currently')
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise ArgumentTypeError('Boolean value expected.')
+
+
+def str_or_bool(v: Union[str, bool]):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        return v
+
+
+def parse_args() -> Namespace:
+    """Parse commandline arguments."""
+    parser = ArgumentParser(
+        description='Load a HF CausalLM Model and use it to generate text.')
+    parser.add_argument('-n', '--name_or_path', type=str, required=True)
+    parser.add_argument('--max_new_tokens', type=int, default=512)
+    parser.add_argument('--max_seq_len', type=int, default=None)
+    parser.add_argument('--temperature', type=float, default=1.0)
+    parser.add_argument('--top_k', type=int, default=50)
+    parser.add_argument('--top_p', type=float, default=1.0)
+    parser.add_argument('--do_sample',
+                        type=str2bool,
+                        nargs='?',
+                        const=True,
+                        default=True)
+    parser.add_argument('--use_cache',
+                        type=str2bool,
+                        nargs='?',
+                        const=True,
+                        default=True)
+    parser.add_argument('--eos_token_id', type=str, default=None)
+    parser.add_argument('--pad_token_id', type=str, default=None)
+    parser.add_argument('--model_dtype',
+                        type=str,
+                        choices=['fp32', 'fp16', 'bf16'],
+                        default=None)
+    parser.add_argument('--autocast_dtype',
+                        type=str,
+                        choices=['fp32', 'fp16', 'bf16'],
+                        default=None)
+    parser.add_argument('--warmup',
+                        type=str2bool,
+                        nargs='?',
+                        const=True,
+                        default=True)
+    parser.add_argument('--trust_remote_code',
+                        type=str2bool,
+                        nargs='?',
+                        const=True,
+                        default=True)
+    parser.add_argument('--use_auth_token',
+                        type=str_or_bool,
+                        nargs='?',
+                        const=True,
+                        default=None)
+    parser.add_argument('--revision', type=str, default=None)
+    parser.add_argument('--device', type=str, default=None)
+    parser.add_argument('--device_map', type=str, default=None)
+    parser.add_argument('--attn_impl', type=str, default=None)
+    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--system_prompt', type=str, default=None)
+    parser.add_argument('--user_msg_fmt', type=str, default=None)
+    parser.add_argument('--assistant_msg_fmt', type=str, default=None)
+    return parser.parse_args()
+
+
+def maybe_synchronize():
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
 
 
 def main(args: Namespace) -> None:

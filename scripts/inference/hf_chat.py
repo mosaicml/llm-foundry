@@ -113,8 +113,7 @@ class Conversation:
                 print(f'history: {self.history}')
                 continue
             elif user_inp == 'history_fmt':
-                print(
-                    f'history: {self._history_as_formatted_str(self.history)}')
+                print(f'history: {self._history_as_formatted_str()}')
                 continue
             elif user_inp == 'system':
                 print('Enter a new system prompt:')

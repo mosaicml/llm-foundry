@@ -270,9 +270,11 @@ def main(args: Namespace) -> None:
         autocast_context = nullcontext()
         print('NOT using autocast...')
 
-    chat_format = ChatFormatter(system=args.system_prompt,
-                                user=args.user_msg_fmt,
-                                assistant=args.assistant_msg_fmt)
+    chat_format = ChatFormatter(system=args.system_prompt or
+                                ChatFormatter.system,
+                                user=args.user_msg_fmt or ChatFormatter.user,
+                                assistant=args.assistant_msg_fmt or
+                                ChatFormatter.assistant)
 
     # Warmup
     if args.warmup:

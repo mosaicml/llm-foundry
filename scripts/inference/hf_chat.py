@@ -126,9 +126,11 @@ class Conversation:
         self.model = model
         self.tokenizer = tokenizer
         self.chat_format = chat_format
-        self.streamer = TextStreamer(tokenizer,
-                                     skip_prompt=True,
-                                     **generate_kwargs)
+        self.generate_kwargs = generate_kwargs
+        self.streamer = TextStreamer(
+            tokenizer,
+            skip_prompt=True,
+            decode_kwargs={'skip_special_tokens': True})
         self.history = ''
         self.cli_instructions = (
             'Enter your message below.\n- Hit return twice to send input to the model\n'
@@ -151,7 +153,7 @@ class Conversation:
         maybe_synchronize()
         start = time.time()
         print('Assistant:')
-        conversation = self.model.generate(**input_ids,
+        conversation = self.model.generate(input_ids,
                                            streamer=self.streamer,
                                            **self.generate_kwargs)
         maybe_synchronize()

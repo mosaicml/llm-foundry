@@ -1,38 +1,47 @@
 max_seq_len: 2048
 seed: 1
-model_name_or_path: EleutherAI/gpt-neo-125M
 precision: fp32
 
-# Tokenizer
-tokenizer:
-  name: ${model_name_or_path}
-  kwargs:
-    model_max_length: ${max_seq_len}
 
-model:
-  name: hf_causal_lm
-  pretrained_model_name_or_path: ${model_name_or_path}
-  init_device: cpu
-  pretrained: true
+models:
+-
+  model_name: EleutherAI/gpt-neo-125M
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: EleutherAI/gpt-neo-125M
+    init_device: cpu
+    pretrained: true
+  tokenizer:
+    name: EleutherAI/gpt-neo-125M
+    kwargs:
+      model_max_length: ${max_seq_len}
+-
+  model_name: EleutherAI/gpt-neo-1.3B
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: EleutherAI/gpt-neo-1.3B
+    init_device: cpu
+    pretrained: true
+  tokenizer:
+    name: EleutherAI/gpt-neo-1.3B
+    kwargs:
+      model_max_length: ${max_seq_len}
 
-load_path: # Add your (optional) Composer checkpoint path here!
+# load_path: # Add your (optional) Composer checkpoint path here!
 
 device_eval_batch_size: 16
 
 # FSDP config for model sharding
-fsdp_config:
-  sharding_strategy: FULL_SHARD
-  mixed_precision: FULL
+# fsdp_config:
+#   sharding_strategy: FULL_SHARD
+#   mixed_precision: FULL
 
 icl_tasks:
 -
-  label: piqa
-  dataset_uri: eval/local_data/piqa.jsonl
-  num_fewshot: [5]
-  icl_task_type: multiple_choice
-  continuation_delimiter: 'Answer: '
--
-  label: lambada_openai
-  dataset_uri: eval/local_data/lambada_openai.jsonl
-  num_fewshot: [0]
+  label: jeopardy
+  dataset_uri: eval/local_data/jeopardy_all_sm.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 1]
   icl_task_type: language_modeling
+  continuation_delimiter: 'Answer: ' # this separates questions from answers
+  has_categories: true
+

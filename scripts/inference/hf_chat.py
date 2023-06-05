@@ -43,10 +43,9 @@ class Conversation:
                         return True
                 return False
 
-        self.streamer = TextStreamer(
-            tokenizer,
-            skip_prompt=True,
-            decode_kwargs={'skip_special_tokens': True})
+        self.streamer = TextStreamer(tokenizer,
+                                     skip_prompt=True,
+                                     skip_special_tokens=True)
         self.generate_kwargs = {
             **generate_kwargs,
             'stopping_criteria':
@@ -77,11 +76,14 @@ class Conversation:
         start = time.time()
         print('Assistant:')
         gkwargs = {**self.generate_kwargs, 'input_ids': input_ids}
-        conversation = self.model.generate(**gkwargs)
+        assistant_response = self.model.generate(**gkwargs)
         maybe_synchronize()
         end = time.time()
         print(f'took {end - start:.2f} seconds')
-        self.history += self.chat_format.assistant.format(conversation)
+        assistant_response = self.tokenizer.decode(assistant_response[0],
+                                                   skip_special_tokens=True)
+        self.history = conversation + self.chat_format.assistant.format(
+            assistant_response)
 
     def __call__(self) -> None:
         while True:

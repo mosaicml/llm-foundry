@@ -5,11 +5,12 @@ import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Union
 
 import torch
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
-                          PreTrainedTokenizer, PreTrainedTokenizerFast)
+                          PreTrainedTokenizer, PreTrainedTokenizerFast,
+                          TextStreamer)
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
@@ -118,62 +119,69 @@ def maybe_synchronize():
         torch.cuda.synchronize()
 
 
-def conversation(model, tokenizer: Tokenizer, user_inp: str, history: str,
-                 chat_format: ChatFormatter,
-                 **generate_kwargs: Dict[str, Any]) -> Tuple[str, str, float]:
-    if history != '':
-        user_inp = chat_format.user.format(user_inp)
-        conversation = history + user_inp
-    else:
-        conversation = chat_format.system + chat_format.user.format(user_inp)
-    input_ids = tokenizer(conversation, return_tensors='pt').input_ids
-    input_ids = input_ids.to(model.device)
-    maybe_synchronize()
-    start = time.time()
-    with torch.no_grad():
-        output_ids = model.generate(input_ids, **generate_kwargs)
-    maybe_synchronize()
-    end = time.time()
-    # Slice the output_ids tensor to get only new tokens
-    new_tokens = output_ids[0, len(input_ids[0]):]
-    output_text = tokenizer.decode(new_tokens, skip_special_tokens=True)
-    conversation = conversation + chat_format.assistant.format(output_text)
-    return output_text, conversation, end - start
+class Conversation:
 
-
-def have_conversation(model, tokenizer: Tokenizer, chat_format: ChatFormatter,
-                      **generate_kwargs: Dict[str, Any]) -> None:
-    history = ''
-    while True:
-        print(
+    def __init__(self, model, tokenizer: Tokenizer, chat_format: ChatFormatter,
+                 **generate_kwargs: Dict[str, Any]) -> None:
+        self.model = model
+        self.tokenizer = tokenizer
+        self.chat_format = chat_format
+        self.streamer = TextStreamer(tokenizer,
+                                     skip_prompt=True,
+                                     **generate_kwargs)
+        self.history = ''
+        self.cli_instructions = (
             'Enter your message below.\n- Hit return twice to send input to the model\n'
             +
             "- Type 'clear' to restart the conversation\n- Type 'history' to see the conversation\n"
             +
             "- Type 'quit' to end\n- Type 'system' to change the system prompt\n"
         )
-        user_inp_lines = []
+
+    def turn(self, user_inp: str) -> None:
+        if self.history != '':
+            user_inp = self.chat_format.user.format(user_inp)
+            conversation = self.history + user_inp
+        else:
+            conversation = self.chat_format.system + self.chat_format.user.format(
+                user_inp)
+        input_ids = self.tokenizer(conversation, return_tensors='pt').input_ids
+        input_ids = input_ids.to(self.model.device)
+        # also stream to stdout
+        maybe_synchronize()
+        start = time.time()
+        print('Assistant:')
+        conversation = self.model.generate(**input_ids,
+                                           streamer=self.streamer,
+                                           **self.generate_kwargs)
+        maybe_synchronize()
+        end = time.time()
+        print(f'took {end - start:.2f} seconds')
+        self.history += self.chat_format.assistant.format(conversation)
+
+    def __call__(self) -> None:
         while True:
-            line = input()
-            if line.strip() == '':
+            print(self.cli_instructions)
+            user_inp_lines = []
+            while True:
+                line = input()
+                if line.strip() == '':
+                    break
+                user_inp_lines.append(line)
+            user_inp = '\n'.join(user_inp_lines)
+            if user_inp.lower() == 'quit':
                 break
-            user_inp_lines.append(line)
-        user_inp = '\n'.join(user_inp_lines)
-        if user_inp.lower() == 'quit':
-            break
-        elif user_inp.lower() == 'clear':
-            history = ''
-            continue
-        elif user_inp == 'history':
-            print(f'history: {history}\n')
-            continue
-        elif user_inp == 'system':
-            new_system_prompt = input('Enter a new system prompt: ')
-            chat_format.system = new_system_prompt
-            continue
-        assistant_resp, history, time_taken = conversation(
-            model, tokenizer, user_inp, history, chat_format, **generate_kwargs)
-        print(f'Assistant: {assistant_resp} ({time_taken:.3f}s)\n')
+            elif user_inp.lower() == 'clear':
+                self.history = ''
+                continue
+            elif user_inp == 'history':
+                print(f'history: {self.history}')
+                continue
+            elif user_inp == 'system':
+                print('Enter a new system prompt:')
+                self.chat_format.system = input()
+                continue
+            self.turn(user_inp)
 
 
 def main(args: Namespace) -> None:
@@ -273,16 +281,20 @@ def main(args: Namespace) -> None:
                                 user=args.user_msg_fmt,
                                 assistant=args.assistant_msg_fmt)
 
+    conversation = Conversation(model=model,
+                                tokenizer=tokenizer,
+                                chat_format=chat_format,
+                                generate_kwargs=generate_kwargs)
+
     # Warmup
     if args.warmup:
         print('Warming up...')
         with autocast_context:
-            conversation(model, tokenizer, 'hello', '', chat_format,
-                         **generate_kwargs)
+            conversation()
 
     print('Starting conversation...')
     with autocast_context:
-        have_conversation(model, tokenizer, chat_format, **generate_kwargs)
+        conversation()
 
 
 if __name__ == '__main__':

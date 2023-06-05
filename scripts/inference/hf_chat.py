@@ -5,7 +5,6 @@ import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
-from dataclasses import dataclass
 from typing import Any, Dict, Tuple, Union
 
 import torch
@@ -50,12 +49,12 @@ def str_or_bool(v: Union[str, bool]):
         return v
 
 
-@dataclass
 class ChatFormatter:
-    system: str = """<|im_start|>system
-    A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.<|im_end|>\n"""
-    user: str = '"<|im_start|>user\n{}<|im_end|>\n"'
-    assistant: str = '<|im_start|>assistant\n{}<|im_end|>\n'
+
+    def __init__(self, system: str, user: str, assistant: str) -> None:
+        self.system = system if system else '<|im_start|>system\nA conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.<|im_end|>\n'
+        self.user = user if user else '<|im_start|>user\n{}<|im_end|>\n'
+        self.assistant = assistant if assistant else '<|im_start|>assistant\n{}<|im_end|>\n'
 
 
 def parse_args() -> Namespace:
@@ -270,11 +269,9 @@ def main(args: Namespace) -> None:
         autocast_context = nullcontext()
         print('NOT using autocast...')
 
-    chat_format = ChatFormatter(system=args.system_prompt or
-                                ChatFormatter.system,
-                                user=args.user_msg_fmt or ChatFormatter.user,
-                                assistant=args.assistant_msg_fmt or
-                                ChatFormatter.assistant)
+    chat_format = ChatFormatter(system=args.system_prompt,
+                                user=args.user_msg_fmt,
+                                assistant=args.assistant_msg_fmt)
 
     # Warmup
     if args.warmup:

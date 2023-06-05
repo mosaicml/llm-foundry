@@ -5,6 +5,7 @@
 # which is MIT licensed
 
 import functools
+import torch
 from typing import Any, Iterable, List
 
 from transformers import PreTrainedModel
@@ -151,6 +152,20 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)
     model.activation_checkpointing_fn = lambda module: isinstance(
         module, block_type)
+
+    # For FSDP with a mixture of intiailizations, we need to tag all child modules 
+    # that are torch.nn.Modules with `_fsdp_wrap` 
+    for child in causal_base_model.children():
+        if isinstance(child, torch.nn.ModuleList):
+            continue
+        if isinstance(child, torch.nn.Module):
+            child._fsdp_wrap = True
+    
+    for child in model.children():
+        if isinstance(child, type(causal_base_model)):
+            continue
+        if isinstance(child, torch.nn.Module):
+            child._fsdp_wrap = True
 
 
 def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel) -> None:

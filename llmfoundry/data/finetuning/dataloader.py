@@ -180,7 +180,11 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                             )
                         continue
                     cfg.dataset.hf_name = extension
-                    cfg.dataset.hf_kwargs['data_dir'] = tmp_dir
+                    kwargs = cfg.dataset.get('hf_kwargs', {})
+                    data_files = kwargs.get('data_files', {})
+                    data_files[cfg.dataset.split] = destination
+                    kwargs['data_files'] = data_files
+                    cfg.dataset['hf_kwargs'] = kwargs
                     dataset = dataset_constructor.build_from_hf(
                         cfg.dataset, tokenizer)
                     break

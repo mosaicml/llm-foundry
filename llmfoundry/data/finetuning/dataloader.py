@@ -165,6 +165,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                                 destination):
                             if dist.get_local_rank() == 0:
                                 get_file(name, destination, overwrite=True)
+                        break
                     except FileNotFoundError as e:
                         if extension == supported_extensions[-1]:
                             raise FileNotFoundError(
@@ -174,11 +175,10 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                                 f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
                             ) from e
                         continue
-                    cfg.dataset.hf_name = extension
-                    cfg.dataset.hf_kwargs['data_dir'] = tmp_dir
-                    dataset = dataset_constructor.build_from_hf(
-                        cfg.dataset, tokenizer)
-                    break
+                cfg.dataset.hf_name = extension
+                cfg.dataset.hf_kwargs['data_dir'] = tmp_dir
+                dataset = dataset_constructor.build_from_hf(
+                    cfg.dataset, tokenizer)
         else:
             dataset = dataset_constructor.build_from_hf(cfg.dataset, tokenizer)
 

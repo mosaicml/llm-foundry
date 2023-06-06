@@ -288,14 +288,26 @@ The purpose of this section is probably pretty self-evident. You’ve got questi
 - TODO
 
 ### What are the different attention options `torch` / `flash` / `triton`  for MPT and which one should I use?
-In NLP, Softmax Attention operates on a sequence. It is an all to all graph operation where, durring training, the memory complexity is quadratic with respect to the length of the sequence. Furthermore, on GPUs, naive implementations of Softmax Attention are BW limited.
+- **Short answer:** `torch` is the native pytorch attention implementation, and `flash` and `triton` are different implementations of the much more optimized [Flash Attention](https://arxiv.org/abs/2205.14135) method. `triton` and `flash` will be faster (and use less GPU memory) than `torch`, but they might not work with all hardware and environment setups.
+
+  Our training setups typically use `triton`.
+
+- **Long answer:** In NLP, Softmax Attention operates on a sequence. It is an all to all graph operation where, during training, the memory complexity is quadratic with respect to the length of the sequence. Furthermore, on GPUs, naive implementations of Softmax Attention are bandwidth (BW) limited.
+[Rabe et al. (2021)](https://arxiv.org/abs/2112.05682) and [Dao et al. (2022)](https://arxiv.org/abs/2205.14135) showed that fusing all operations in Softmax Attention can make the operation much less BW limited.
+Furthermore, integrating a recompuation schema decreases the sequence length memory complexity from *quadratic* to *linear*, thereby supporting much longer sequence lengths.
+
+  - Setting `attn_config.attn_impl=torch` enables a naive Softmax Attention written using base torch operations.
+  - Setting `attn_config.attn_impl=flash` enables Flash Attention [implemented by Dao et al in the HazyResearch repo using CUDA](https://github.com/HazyResearch/flash-attention). This will have linear memory complexity (enabling larger batch sizes) and will run much faster.
+  - Setting `attn_config.attn_impl=triton` enables a Flash Attention [implemented using Triton](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py). In our experiance, `triton` is slightly faster than `flash`.
+
+<!-- In NLP, Softmax Attention operates on a sequence. It is an all to all graph operation where, durring training, the memory complexity is quadratic with respect to the length of the sequence. Furthermore, on GPUs, naive implementations of Softmax Attention are BW limited.
 [Rabe et al. (2021)](https://arxiv.org/abs/2112.05682) and [Dao et al. (2022)](https://arxiv.org/abs/2205.14135) noted that fusing all operations in Softmax Attention can make the operation much less BW limited.
 Furthermore, integrating a recompuation schema decreases the sequence length memory complexity from quadratic to linear enabling practitioners to train transformer networks using much longer sequence lengths.
 
 Setting `attn_config.attn_impl=torch` enables a naive Softmax Attention written using base torch operations.
 Setting `attn_config.attn_impl=flash` enables flash attention [implemented by Dao et al in the HazyResearch repo using CUDA](https://github.com/HazyResearch/flash-attention). This will have linear memory complexity (enabling larger batch sizes) and will run much faster.
 Setting `attn_config.attn_impl=triton` enables a flash attention [implemented using Triton](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py). In our experiance, `triton` is slightly faster than `flash`.
-The majority of our training setups use `triton`.
+The majority of our training setups use `triton`. -->
 
 #### Limitations
 - For training, `torch` uses a lot of memory and is slow.
@@ -303,18 +315,18 @@ The majority of our training setups use `triton`.
 - `flash` cannot accept an attention bias and therefore cannot be used with methods which require it such as ALiBi.
 
 #### What is `triton-pre-mlir`?
-Torch2 installs and requires a specific version of [Triton](https://openai.com/research/triton).
-`attn_config.attn_impl=triton` requires an old, incompatible version of triton.
-As a result, you can either use torch2 or `attn_impl=triton`.
-To enable both, we fork triton and make it pip installable as `triton-pre-mlir`.
-[`attn_impl=triton` can then use `triton-pre-mlir`](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py#L49) leaving the version of triton required for torch2 intact.
+- Torch2 installs and requires a specific version of [Triton](https://openai.com/research/triton).
+  `attn_config.attn_impl=triton` requires a different version of triton.
+  As a result, you can either use torch2 or `attn_impl=triton`.
+  To enable both, we fork triton and make it pip installable as `triton-pre-mlir`.
+  `attn_impl=triton` can then use `triton-pre-mlir` leaving the version of triton required for torch2 intact.
 
 #### Known issue with sm86+ GPUs
-Under the hood, part of `triton-pre-mlir` compile path uses LLVM11.
-H100 GPUs (sm90 GPUs) are not formally supported until LLVM15 (technically it doesn't support anything sm86+).
-Updating the LLVM version used by `triton-pre-mlir` to LLVM13 seems to be relatively easy.
-Updating to LLVM14 (or LLVM15) cannot be done because there are breaking changes.
-What is the result of this? Although sm89+ is not **formally** supported until LLVM15, our testing on H100 GPUs shows that `attn_impl=triton` still works well and still runs fast. The only issue is that when the network is starting to run, LLVM might throw a warning like: `'sm_90' is not a recognized processor for this target (ignoring processor)`. This warning does not seem to effect performance.
+- Under the hood, part of `triton-pre-mlir` compile path uses LLVM11.
+  H100 GPUs (sm90 GPUs) are not formally supported until LLVM15 (technically it doesn't support anything sm86+).
+  Updating the LLVM version used by `triton-pre-mlir` to LLVM13 seems to be relatively easy.
+  Updating to LLVM14 (or LLVM15) cannot be done because there are breaking changes.
+  What is the result of this? Although sm89+ is not **formally** supported until LLVM15, our testing on H100 GPUs shows that `attn_impl=triton` still works well and still runs fast. The only issue is that when the network is starting to run, LLVM might throw a warning like: `'sm_90' is not a recognized processor for this target (ignoring processor)`. This warning does not seem to effect performance.
 
 ### Can I finetune using PEFT / LORA?
 - The LLM Foundry codebase does not directly have examples of PEFT or LORA workflows. However, our MPT model is a subclass of HuggingFace `PretrainedModel`, and we are working on adding the remaining features to enable HuggingFace’s [PEFT](https://huggingface.co/docs/peft/index) / [LORA](https://huggingface.co/docs/peft/conceptual_guides/lora) workflows for MPT.

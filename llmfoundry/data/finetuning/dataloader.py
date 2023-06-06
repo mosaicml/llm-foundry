@@ -179,7 +179,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                                 f'Could not find {name}, looking for another extension'
                             )
                         continue
-                    cfg.dataset.hf_name = extension
+                    cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
                     kwargs = cfg.dataset.get('hf_kwargs', {})
                     data_files = kwargs.get('data_files', {})
                     data_files[cfg.dataset.split] = destination

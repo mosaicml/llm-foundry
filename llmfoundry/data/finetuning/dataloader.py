@@ -169,11 +169,16 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     except FileNotFoundError as e:
                         if extension == supported_extensions[-1]:
                             raise FileNotFoundError(
-                                'Could not find a file with any of ' +
+                                f'Could not find a {cfg.dataset.split} file with any of '
+                                +
                                 f'the supported extensions: {supported_extensions}\n'
                                 +
                                 f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
                             ) from e
+                        else:
+                            print(
+                                f'Could not find {name}, looking for another extension'
+                            )
                         continue
                 cfg.dataset.hf_name = extension
                 cfg.dataset.hf_kwargs['data_dir'] = tmp_dir

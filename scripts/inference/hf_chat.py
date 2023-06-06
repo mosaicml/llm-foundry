@@ -105,6 +105,7 @@ def parse_args() -> Namespace:
                         default=None)
     parser.add_argument('--revision', type=str, default=None)
     parser.add_argument('--device', type=str, default=None)
+    parser.add_argument('--device_map', type=str, default=None)
     parser.add_argument('--attn_impl', type=str, default=None)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--system_prompt', type=str, default=SYSTEM_PROMPT)
@@ -172,11 +173,23 @@ def have_conversation(model, tokenizer: Tokenizer,
 
 
 def main(args: Namespace) -> None:
-    # Set device
+    # Set device or device_map
+    if args.device and args.device_map:
+        raise ValueError('You can only set one of `device` and `device_map`.')
     if args.device is not None:
         device = args.device
+        device_map = None
     else:
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        device = None
+        device_map = args.device_map or 'auto'
+    print(f'Using {device=} and {device_map=}')
+
+    # Set model_dtype
+    if args.model_dtype is not None:
+        model_dtype = get_dtype(args.model_dtype)
+    else:
+        model_dtype = torch.float32
+    print(f'Using {model_dtype=}')
 
     # Grab config first
     print(f'Loading HF Config...')
@@ -190,7 +203,7 @@ def main(args: Namespace) -> None:
                                             **from_pretrained_kwargs)
         if args.attn_impl is not None and hasattr(config, 'attn_config'):
             config.attn_config['attn_impl'] = args.attn_impl
-        if hasattr(config, 'init_device'):
+        if hasattr(config, 'init_device') and device is not None:
             config.init_device = device
         if args.max_seq_len is not None and hasattr(config, 'max_seq_len'):
             config.max_seq_len = args.max_seq_len
@@ -202,24 +215,22 @@ def main(args: Namespace) -> None:
             'using your access token from https://huggingface.co/settings/tokens.'
         ) from e
 
-    # Set model_dtype
-    if args.model_dtype is not None:
-        model_dtype = get_dtype(args.model_dtype)
-    else:
-        model_dtype = config.torch_dtype or torch.float32
-
     # Load HF Model
-    print(f'Loading HF model to device={device} and dtype={model_dtype}...')
+    print(f'Loading HF model with dtype={model_dtype}...')
     try:
         model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
                                                      config=config,
                                                      torch_dtype=model_dtype,
+                                                     device_map=device_map,
                                                      **from_pretrained_kwargs)
-        model.to(device)
         model.eval()
         print(f'n_params={sum(p.numel() for p in model.parameters())}')
+        if device is not None:
+            print(f'Placing model on {device=}...')
+            model.to(device)
     except Exception as e:
         raise RuntimeError(
+            'Unable to load HF model. '
             'If you are having auth problems, try logging in via `huggingface-cli login` '
             'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
             'using your access token from https://huggingface.co/settings/tokens.'
@@ -248,7 +259,7 @@ def main(args: Namespace) -> None:
     # Autocast
     if args.autocast_dtype is not None:
         autocast_dtype = get_dtype(args.autocast_dtype)
-        autocast_context = torch.autocast(device, autocast_dtype)
+        autocast_context = torch.autocast(model.device, autocast_dtype)
         print(f'Using autocast with dtype={autocast_dtype}...')
     else:
         autocast_context = nullcontext()

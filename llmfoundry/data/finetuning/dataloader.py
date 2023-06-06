@@ -161,7 +161,8 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     name = f'{cfg.dataset.hf_name}/{cfg.dataset.split}.{extension}'
                     location = f'{tmp_dir}/{name}'
                     try:
-                        get_file(cfg.dataset.hf_name, location)
+                        with dist.run_local_rank_zero_first():
+                            get_file(cfg.dataset.hf_name, location)
                     except FileNotFoundError as e:
                         if extension == supported_extensions[-1]:
                             raise e

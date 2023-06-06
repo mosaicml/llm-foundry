@@ -159,13 +159,12 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                 supported_extensions = ['jsonl', 'csv', 'parquet']
                 for extension in supported_extensions:
                     name = f'{cfg.dataset.hf_name}/{cfg.dataset.split}.{extension}'
-                    destination = f'{tmp_dir}/{name}'
+                    destination = f'{tmp_dir}/{cfg.dataset.split}.{extension}'
                     try:
                         with dist.local_rank_zero_download_and_wait(
                                 destination):
                             if dist.get_local_rank() == 0:
                                 get_file(name, destination, overwrite=True)
-                        break
                     except FileNotFoundError as e:
                         if extension == supported_extensions[-1]:
                             raise FileNotFoundError(
@@ -180,10 +179,11 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                                 f'Could not find {name}, looking for another extension'
                             )
                         continue
-                cfg.dataset.hf_name = extension
-                cfg.dataset.hf_kwargs['data_dir'] = tmp_dir
-                dataset = dataset_constructor.build_from_hf(
-                    cfg.dataset, tokenizer)
+                    cfg.dataset.hf_name = extension
+                    cfg.dataset.hf_kwargs['data_dir'] = tmp_dir
+                    dataset = dataset_constructor.build_from_hf(
+                        cfg.dataset, tokenizer)
+                    break
         else:
             dataset = dataset_constructor.build_from_hf(cfg.dataset, tokenizer)
 

@@ -48,6 +48,7 @@ classifiers = [
 
 install_requires = [
     'composer[libcloud,nlp,wandb]>=0.14.1,<0.15',
+    'accelerate>=0.19,<0.20',  # for HF inference `device_map`
     'mosaicml-streaming>=0.4.1,<0.5',
     'torch>=1.13.1,<=2.0.1',
     'datasets==2.10.1',
@@ -73,7 +74,6 @@ extra_deps['dev'] = [
     'pyright==1.1.296',
     'toml>=0.10.2,<0.11',
     'packaging>=21,<23',
-    'accelerate>=0.19,<0.20',
 ]
 
 extra_deps['tensorboard'] = [

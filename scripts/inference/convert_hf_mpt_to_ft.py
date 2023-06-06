@@ -125,7 +125,7 @@ def convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
 
         split_vals = np.split(data, infer_gpu_num, axis=-1)
         for j in range(infer_gpu_num):
-            save_path = os.path.join(save_dir, f'/model.{tensor_name}.{j}.bin')
+            save_path = os.path.join(save_dir, f'model.{tensor_name}.{j}.bin')
             split_vals[j].tofile(save_path)
             if config['no_bias']:
                 write_zero_bias(tensor_name, save_path, split_vals[j].shape[-1])
@@ -172,8 +172,11 @@ def convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
         raise RuntimeError(f'Tensor with name {tensor_name} is not handled')
 
 
-def convert_mpt_to_ft(model_name_or_path: str, output_dir: str,
-                      infer_gpu_num: int, weight_data_type: str) -> None:
+def convert_mpt_to_ft(model_name_or_path: str,
+                      output_dir: str,
+                      infer_gpu_num: int = 1,
+                      weight_data_type: str = 'fp32',
+                      force: bool = False) -> None:
     """Convert an MPT checkpoint to a FasterTransformer compatible format.
 
     Args:
@@ -182,6 +185,7 @@ def convert_mpt_to_ft(model_name_or_path: str, output_dir: str,
         output_dir (str): Path of the directory to save the checkpoint in FT format. The directory must not already exist.
         infer_gpu_num (int): The number of gpus you are planning to use for inference.
         weight_data_type (str): Data type of the weights in the input checkpoint.
+        force (bool): force conversion even with unsupported features in FT.
     """
     save_dir = os.path.join(output_dir, f'{infer_gpu_num}-gpu')
 
@@ -224,8 +228,16 @@ def convert_mpt_to_ft(model_name_or_path: str, output_dir: str,
         if hf_config['attn_config']['alibi']:
             config['gpt']['has_positional_encoding'] = str(False)
             config['gpt']['use_attention_linear_bias'] = str(True)
+        if hf_config['attn_config']['clip_qkv'] and not force:
+            raise RuntimeError(
+                'clip_qkv is enabled for this MPT model. This may not work as expected in FT. Use --force to force a conversion.'
+            )
+        if hf_config['attn_config']['qk_ln'] and not force:
+            raise RuntimeError(
+                'qk_ln is enabled for this MPT model. This may not work as expected in FT. Use --force to force a conversion.'
+            )
 
-        with open(save_dir + '/config.ini', 'w') as configfile:
+        with open(os.path.join(save_dir, 'config.ini'), 'w') as configfile:
             config.write(configfile)
     except:
         print(f'Failed to save the config in config.ini.')
@@ -258,25 +270,27 @@ def convert_mpt_to_ft(model_name_or_path: str, output_dir: str,
             assert data.shape == (
                 hf_config['max_seq_len'],
                 hf_config['d_model']), f'unexpected dim for {name}'
-            data.tofile(save_dir + 'model.wpe.bin')
+            data.tofile(os.path.join(save_dir, 'model.wpe.bin'))
         elif name == 'transformer.wte.weight':
             assert data.shape == (
                 hf_config['vocab_size'],
                 hf_config['d_model']), f'unexpected dim for {name}'
-            data.tofile(save_dir + 'model.wte.bin')
+            data.tofile(os.path.join(save_dir, 'model.wte.bin'))
         elif name == 'transformer.norm_f.bias':
             assert data.shape == (
                 hf_config['d_model'],), f'unexpected dim for {name}'
-            data.tofile(save_dir + 'model.final_layernorm.bias.bin')
+            data.tofile(os.path.join(save_dir,
+                                     'model.final_layernorm.bias.bin'))
         elif name == 'transformer.norm_f.weight':
             assert data.shape == (
                 hf_config['d_model'],), f'unexpected dim for {name}'
-            save_path = save_dir + 'model.final_layernorm.weight.bin'
+            save_path = os.path.join(save_dir,
+                                     'model.final_layernorm.weight.bin')
             data.tofile(save_path)
             if hf_config['no_bias']:
                 write_zero_bias(name, save_path, data.shape[-1])
         elif name == 'transformer.lm_head.weight':
-            data.tofile(save_dir + 'model.lm_head.weight.bin')
+            data.tofile(os.path.join(save_dir, 'model.lm_head.weight.bin'))
         else:
             for mpt_pattern, ft_pattern in param_remapping.items():
                 if name.find(mpt_pattern) != -1:
@@ -307,6 +321,12 @@ if __name__ == '__main__':
                         type=int,
                         help='How many gpus for inference?',
                         required=True)
+    parser.add_argument(
+        '--force',
+        action='store_true',
+        help=
+        'Force conversion to FT even if some features may not work as expected in FT'
+    )
     parser.add_argument('--weight_data_type',
                         type=str,
                         help='Data type of weights in the input checkpoint',
@@ -320,4 +340,4 @@ if __name__ == '__main__':
     print('========================================')
 
     convert_mpt_to_ft(args.name_or_dir, args.save_dir, args.infer_gpu_num,
-                      args.weight_data_type)
+                      args.weight_data_type, args.force)

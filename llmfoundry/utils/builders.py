@@ -10,7 +10,7 @@ from composer.callbacks import (LRMonitor, MemoryMonitor, OptimizerMonitor,
 from composer.core import Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from composer.loggers import WandBLogger
+from composer.loggers import TensorboardLogger, WandBLogger
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
@@ -64,6 +64,8 @@ def build_callback(name, kwargs):
 def build_logger(name, kwargs):
     if name == 'wandb':
         return WandBLogger(**kwargs)
+    elif name == 'tensorboard':
+        return TensorboardLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
@@ -210,9 +212,10 @@ def build_icl_evaluators(icl_tasks,
             metric_names = list(icl_cfg.metric_names)
             # TODO: fix Composer bug when copying local paths and destination exists
             destination_path = f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl'
-            with dist.run_local_rank_zero_first():
-                if os.path.exists(destination_path):
-                    os.remove(destination_path)
+            if dist.get_local_rank() == 0 and os.path.exists(destination_path):
+                os.remove(destination_path)
+            dist.barrier()
+
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,

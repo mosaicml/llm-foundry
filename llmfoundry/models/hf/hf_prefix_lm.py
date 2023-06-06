@@ -121,12 +121,12 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
         model = convert_hf_causal_lm_to_prefix_lm(model)
 
         metrics = [
-            LanguageCrossEntropy(vocab_size=vocab_size,
-                                 ignore_index=_HF_IGNORE_INDEX),
+            LanguageCrossEntropy(ignore_index=_HF_IGNORE_INDEX),
             MaskedAccuracy(ignore_index=_HF_IGNORE_INDEX)
         ]
 
         composer_model = super().__init__(model=model,
+                                          shift_labels=True,
                                           tokenizer=tokenizer,
                                           metrics=metrics,
                                           z_loss=om_model_config.get(

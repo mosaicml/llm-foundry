@@ -101,7 +101,11 @@ output_tok_per_sec=292.03tok/sec
 
 The argument for `--name_or_path` can be either the name of a model that exists on the HF Hub, such as `gpt2`, `facebook/opt-350m`, etc. or the path to a HF checkpoint folder, such as `my_hf_model/` like we exported above.
 
-For MPT models specifically, you can pass args like `--init_device cuda:0`, `--attn_impl triton`, and `--max_seq_len 4096` to speed up generation time or alter the max generation length at inference time (thanks to ALiBi).
+The script will use HuggingFace's `device_map=auto` feature to automatically load the model on any available GPUs, or fallback to CPU. [See the docs here!](https://huggingface.co/docs/accelerate/usage_guides/big_modeling)
+You can also directly specify `--device_map auto` or `--device_map balanced`, etc.
+You can also target a specific **single** device using `--device cuda:0` or `--device cpu`, etc.
+
+For MPT models specifically, you can pass args like `--attn_impl triton`, and `--max_seq_len 4096` to speed up generation time or alter the max generation length at inference time (thanks to ALiBi).
 
 ## Interactive Chat with HF models
 

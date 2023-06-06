@@ -24,7 +24,7 @@ parameters:
   seed: 1
   max_seq_len: 1024
   device_eval_batch_size: 8
-  precision: amp_fp16
+  precision: amp_bf16
  
   model_name_or_path: mosaicml/mpt-7b
   models:

@@ -185,6 +185,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     data_files[cfg.dataset.split] = destination
                     kwargs['data_files'] = data_files
                     cfg.dataset['hf_kwargs'] = kwargs
+                    print(cfg.dataset)
                     dataset = dataset_constructor.build_from_hf(
                         cfg.dataset, tokenizer)
                     break

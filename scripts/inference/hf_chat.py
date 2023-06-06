@@ -327,6 +327,7 @@ def main(args: Namespace) -> None:
         print('Warming up...')
         with autocast_context:
             conversation.turn('Write a welcome message to the user.')
+            conversation.history = []
 
     print('Starting conversation...')
     with autocast_context:

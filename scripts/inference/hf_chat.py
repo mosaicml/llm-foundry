@@ -5,7 +5,7 @@ import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
-from typing import Any, Dict, Union
+from typing import Any, Dict, List, Union
 
 import torch
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
@@ -16,24 +16,59 @@ Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
 class ChatFormatter:
+    """A class for formatting the chat history.
+
+    Args:
+        system: The system prompt. If None, a default ChatML-formatted prompt is used.
+        user: The user prompt. If None, a default ChatML value is used.
+        assistant: The assistant prompt. If None, a default ChatML value is used.
+
+    Attributes:
+        system: The system prompt.
+        user: The user prompt.
+        assistant: The assistant prompt.
+        response_prefix: The response prefix (anything before {} in the assistant format string)
+    """
 
     def __init__(self, system: str, user: str, assistant: str) -> None:
         self.system = system if system else '<|im_start|>system\nA conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.<|im_end|>\n'
         self.user = user if user else '<|im_start|>user\n{}<|im_end|>\n'
         self.assistant = assistant if assistant else '<|im_start|>assistant\n{}<|im_end|>\n'
-        self.response_prefix = '<|im_start|>assistant\n'
+        self.response_prefix = self.assistant.split('{}')[0]
 
 
 class Conversation:
+    """A class for interacting with a chat-tuned LLM.
 
-    def __init__(self, model, tokenizer: Tokenizer, chat_format: ChatFormatter,
-                 generate_kwargs: Dict[str, Any]) -> None:
+    Args:
+        model: The model to use for inference.
+        tokenizer: The tokenizer to use for inference.
+        chat_format: The chat format to use for the conversation.
+        generate_kwargs: The keyword arguments to pass to `model.generate`.
+        stop_tokens: The tokens to stop generation on.
+
+    Attributes:
+        model: The model to use for inference.
+        tokenizer: The tokenizer to use for inference.
+        chat_format: The chat format to use for the conversation.
+        streamer: The streamer to use for inference.
+        generate_kwargs: The keyword arguments to pass to `model.generate`.
+        history: The conversation history.
+        cli_instructions: The instructions to display to the user.
+    """
+
+    def __init__(
+            self,
+            model,
+            tokenizer: Tokenizer,
+            chat_format: ChatFormatter,
+            generate_kwargs: Dict[str, Any],
+            stop_tokens: List[str] = ['<|endoftext|>', '<|im_end|>']) -> None:
         self.model = model
         self.tokenizer = tokenizer
         self.chat_format = chat_format
 
-        stop_token_ids = self.tokenizer.convert_tokens_to_ids(
-            ['<|endoftext|>', '<|im_end|>'])
+        stop_token_ids = self.tokenizer.convert_tokens_to_ids(stop_tokens)
 
         class StopOnTokens(StoppingCriteria):
 
@@ -212,6 +247,12 @@ def parse_args() -> Namespace:
     parser.add_argument('--system_prompt', type=str, default=None)
     parser.add_argument('--user_msg_fmt', type=str, default=None)
     parser.add_argument('--assistant_msg_fmt', type=str, default=None)
+    parser.add_argument(
+        '--stop_tokens',
+        type=str,
+        default='<|endoftext|> <|im_end|>',
+        help='A string of tokens to stop generation on; will be split on spaces.'
+    )
     return parser.parse_args()
 
 

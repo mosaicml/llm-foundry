@@ -98,7 +98,8 @@ The `mosaicml/pytorch` images are pinned to specific PyTorch and CUDA versions, 
 
 The `mosaicml/llm-foundry` images are built with new tags upon every commit to the `main` branch.
 You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117-f678575` or take the latest one using `mosaicml/llm-foundry:1.13.1_cu117-latest`.
-**Plese Note:** The `mosaicml/llm-foundry` images do not install the package itself, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
+
+**Please Note:** The `mosaicml/llm-foundry` images does not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
 
 | Docker Image                                                | Torch Version  | Cuda Version | LLM Foundry dependencies installed? |
 |-------------------------------------------------------------|----------------|--------------|-------------------------------------|

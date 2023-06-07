@@ -158,7 +158,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
             supported_extensions = ['jsonl', 'csv', 'parquet']
             for extension in supported_extensions:
                 name = f'{cfg.dataset.hf_name}/{cfg.dataset.split}.{extension}'
-                destination = f'./{cfg.dataset.split}.{extension}'
+                destination = f'{cfg.dataset.split}.{extension}'
                 try:
                     with dist.local_rank_zero_download_and_wait(destination):
                         if dist.get_local_rank() == 0:

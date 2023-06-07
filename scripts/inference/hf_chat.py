@@ -69,6 +69,10 @@ class Conversation:
         self.chat_format = chat_format
 
         stop_token_ids = self.tokenizer.convert_tokens_to_ids(stop_tokens)
+        if len(stop_token_ids) != len(stop_tokens):
+            warnings.warn(
+                f'Not all stop tokens were found in the tokenizer vocabulary: {stop_tokens}\n'
+                + 'Generation may stop or continue unexpectedly.')
 
         class StopOnTokens(StoppingCriteria):
 
@@ -361,7 +365,8 @@ def main(args: Namespace) -> None:
     conversation = Conversation(model=model,
                                 tokenizer=tokenizer,
                                 chat_format=chat_format,
-                                generate_kwargs=generate_kwargs)
+                                generate_kwargs=generate_kwargs,
+                                stop_tokens=args.stop_tokens.split())
 
     # Warmup
     if args.warmup:

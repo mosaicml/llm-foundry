@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import os
 import tempfile
 from typing import Union
 
@@ -159,11 +160,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                 supported_extensions = ['jsonl', 'csv', 'parquet']
                 for extension in supported_extensions:
                     name = f'{cfg.dataset.hf_name}/{cfg.dataset.split}.{extension}'
-                    if extension == 'jsonl':
-                        # huggingface does not like local jsonl files to have a jsonl suffix
-                        destination = f'{cfg.dataset.hf_name}/{cfg.dataset.split}.json'
-                    else:
-                        destination = f'{tmp_dir}/{cfg.dataset.split}.{extension}'
+                    destination = f'{tmp_dir}/{cfg.dataset.split}.{extension}'
                     try:
                         with dist.local_rank_zero_download_and_wait(
                                 destination):
@@ -183,8 +180,10 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                                 f'Could not find {name}, looking for another extension'
                             )
                         continue
-                    # this name causes special behavior in the dataset constructor
+                    # 'json' causes special behavior in the dataset constructor
                     cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
+                    if extension == 'jsonl':
+                        os.rename(destination, destination[:-1])
                     kwargs = cfg.dataset.get('hf_kwargs', {})
                     data_files = kwargs.get('data_files', {})
                     data_files[cfg.dataset.split] = destination

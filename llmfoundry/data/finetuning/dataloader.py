@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import os
 from typing import Union
 
 import torch
@@ -178,8 +177,6 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     continue
                 # 'json' causes special behavior in the dataset constructor
                 cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
-                if extension == 'jsonl':
-                    os.rename(destination, destination[:-1])
                 kwargs = cfg.dataset.get('hf_kwargs', {})
                 data_files = kwargs.get('data_files', '')
                 data_files = destination

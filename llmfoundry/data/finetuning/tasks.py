@@ -237,6 +237,7 @@ class DatasetConstructor:
             cfg.get('preprocessing_fn'), dataset_name, verbose=True)
 
         print(kwargs)
+        print(os.listdir('/mnt/workdisk/sam/llm-foundry/scripts/train'))
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 
         def dataset_mapper(example: Dict):

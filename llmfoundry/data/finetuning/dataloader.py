@@ -185,8 +185,8 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     if extension == 'jsonl':
                         os.rename(destination, destination[:-1])
                     kwargs = cfg.dataset.get('hf_kwargs', {})
-                    data_files = kwargs.get('data_files', {})
-                    data_files[cfg.dataset.split] = destination
+                    data_files = kwargs.get('data_files', '')
+                    data_files = destination
                     kwargs['data_files'] = data_files
                     cfg.dataset['hf_kwargs'] = kwargs
                     print(cfg.dataset)

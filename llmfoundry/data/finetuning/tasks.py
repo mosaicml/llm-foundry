@@ -236,6 +236,7 @@ class DatasetConstructor:
         preprocessing_fn = self.get_preprocessing_fn_from_str(
             cfg.get('preprocessing_fn'), dataset_name, verbose=True)
 
+        print(kwargs)
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 
         def dataset_mapper(example: Dict):

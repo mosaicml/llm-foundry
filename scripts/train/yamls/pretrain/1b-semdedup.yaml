@@ -1,5 +1,5 @@
 name: semdedup-1b
-cluster: r8z6
+cluster: r1z2
 gpu_num: 8
 gpu_type: a100_80gb
 
@@ -12,7 +12,7 @@ image:  mosaicml/examples:llm-eebf70e
 integrations:
 - entity: mosaic-ml
   integration_type: wandb
-  project: test-semdedup
+  project: test-semdedup-2
 - git_repo: mosaicml/llm-foundry
   integration_type: git_repo
   pip_install: .[llm]
@@ -25,9 +25,9 @@ parameters:
   #--------------------------------------------------------------------------------------
   # BATCHING AND SEEDS
   #--------------------------------------------------------------------------------------
-  device_train_microbatch_size: 5
-  global_train_batch_size: 1280
-  max_duration: 1144410ba
+  device_train_microbatch_size: 4
+  global_train_batch_size: 512
+  max_duration: 24800ba
   max_seq_len: 2048
   num_canonical_nodes: 512
 
@@ -45,7 +45,7 @@ parameters:
     wandb: {}
 
   save_filename: ep{epoch}-ba{batch}/rank{rank}.pt
-  save_folder: oci://mosaicml-internal-checkpoints/Tessa/1bsemdedup/
+  save_folder: oci://mosaicml-internal-checkpoints/Tessa/test-semdedup-2/
   save_interval: 1000ba
   save_num_checkpoints_to_keep: 1
   autoresume: true
@@ -75,7 +75,7 @@ parameters:
     n_layers: 24
     mlp_ratio: 4
     max_seq_len: ${max_seq_len}
-
+    expansion_ratio: 4
     vocab_size: 50432
     tokenizer_name: ${tokenizer_name}
 
@@ -89,10 +89,10 @@ parameters:
     emb_pdrop: 0
     resid_pdrop: 0
 
-    attn_impl: triton
-    alibi: true
-    attn_clip_qkv: 6
-    attn_uses_sequence_id: true
+    attn_config:
+      attn_impl: triton
+      alibi: true
+      attn_clip_qkv: 6
 
   optimizer:
     betas:
@@ -148,8 +148,8 @@ parameters:
   #--------------------------------------------------------------------------------------
   # EVALUATION
   #--------------------------------------------------------------------------------------
-  eval_first: false
-  eval_interval: 5000ba
+  eval_first: true
+  eval_interval: 2000ba
   device_eval_batch_size: 20
 
   eval_loader:

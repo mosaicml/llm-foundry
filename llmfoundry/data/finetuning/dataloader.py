@@ -3,7 +3,6 @@
 
 import logging
 import os
-import tempfile
 from typing import Union
 
 import torch
@@ -156,43 +155,40 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     'When using a HuggingFace dataset from a URL, you must set the ' +\
                     '`split` key in the dataset config.'
                 )
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                supported_extensions = ['jsonl', 'csv', 'parquet']
-                for extension in supported_extensions:
-                    name = f'{cfg.dataset.hf_name}/{cfg.dataset.split}.{extension}'
-                    destination = f'{tmp_dir}/{cfg.dataset.split}.{extension}'
-                    try:
-                        with dist.local_rank_zero_download_and_wait(
-                                destination):
-                            if dist.get_local_rank() == 0:
-                                get_file(name, destination, overwrite=True)
-                    except FileNotFoundError as e:
-                        if extension == supported_extensions[-1]:
-                            raise FileNotFoundError(
-                                f'Could not find a {cfg.dataset.split} file with any of '
-                                +
-                                f'the supported extensions: {supported_extensions}\n'
-                                +
-                                f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
-                            ) from e
-                        else:
-                            print(
-                                f'Could not find {name}, looking for another extension'
-                            )
-                        continue
-                    # 'json' causes special behavior in the dataset constructor
-                    cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
-                    if extension == 'jsonl':
-                        os.rename(destination, destination[:-1])
-                    kwargs = cfg.dataset.get('hf_kwargs', {})
-                    data_files = kwargs.get('data_files', '')
-                    data_files = destination
-                    kwargs['data_files'] = data_files
-                    cfg.dataset['hf_kwargs'] = kwargs
-                    print(cfg.dataset)
-                    dataset = dataset_constructor.build_from_hf(
-                        cfg.dataset, tokenizer)
-                    break
+            supported_extensions = ['jsonl', 'csv', 'parquet']
+            for extension in supported_extensions:
+                name = f'{cfg.dataset.hf_name}/{cfg.dataset.split}.{extension}'
+                destination = f'./{cfg.dataset.split}.{extension}'
+                try:
+                    with dist.local_rank_zero_download_and_wait(destination):
+                        if dist.get_local_rank() == 0:
+                            get_file(name, destination, overwrite=True)
+                except FileNotFoundError as e:
+                    if extension == supported_extensions[-1]:
+                        raise FileNotFoundError(
+                            f'Could not find a {cfg.dataset.split} file with any of '
+                            +
+                            f'the supported extensions: {supported_extensions}\n'
+                            + f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
+                        ) from e
+                    else:
+                        print(
+                            f'Could not find {name}, looking for another extension'
+                        )
+                    continue
+                # 'json' causes special behavior in the dataset constructor
+                cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
+                if extension == 'jsonl':
+                    os.rename(destination, destination[:-1])
+                kwargs = cfg.dataset.get('hf_kwargs', {})
+                data_files = kwargs.get('data_files', '')
+                data_files = destination
+                kwargs['data_files'] = data_files
+                cfg.dataset['hf_kwargs'] = kwargs
+                print(cfg.dataset)
+                dataset = dataset_constructor.build_from_hf(
+                    cfg.dataset, tokenizer)
+                break
         else:
             dataset = dataset_constructor.build_from_hf(cfg.dataset, tokenizer)
 

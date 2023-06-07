@@ -137,14 +137,14 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
                 f'Unable to FSDP-wrap this model! `{mod_name}` does not ' +
                 'follow common layer/weight naming conventions.')
     
+    # For FSDP with models with different device intiailizations e.g. `cpu` and `meta`
+    # we need to tag all child modules that are torch.nn.Modules with `_fsdp_wrap`.
     for child in model.children():
         if isinstance(child, type(causal_base_model)):
             continue
         if isinstance(child, torch.nn.Module):
             child._fsdp_wrap = True
     
-    # For FSDP with models with different intiailizations, we need to tag all child modules 
-    # that are torch.nn.Modules with `_fsdp_wrap`.
     for child in causal_base_model.children():
         if isinstance(child, torch.nn.ModuleList):
             continue

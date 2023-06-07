@@ -112,6 +112,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 f'init_device="{init_device}" must be either "cpu" or "meta".')
 
         composer_model = super().__init__(model=model,
+                                          shift_labels=True,
                                           tokenizer=tokenizer,
                                           metrics=train_metrics,
                                           eval_metrics=eval_metrics,

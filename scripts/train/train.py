@@ -10,6 +10,7 @@ from composer import Trainer
 from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import OmegaConf as om
+import torch
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, build_finetuning_dataloader,
                         build_text_denoising_dataloader)

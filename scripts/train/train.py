@@ -148,8 +148,8 @@ def main(cfg):
     print('Initializing model...')
     with init_context:
         model = build_composer_model(cfg.model, tokenizer)
-        if cfg.model.get('bf16_master_weights'):
-            model.to(dtype=torch.bfloat16)
+        if cfg.model.get('16b_master_weights'):
+            model.to(dtype=torch.float16)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')
 

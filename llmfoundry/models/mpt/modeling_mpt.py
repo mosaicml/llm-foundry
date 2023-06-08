@@ -84,7 +84,7 @@ class MPTModel(MPTPreTrainedModel):
                                 config.d_model,
                                 device=config.init_device)
         if not self.alibi:
-            self.wpe = SharedEmbedding(config.max_seq_len,
+            self.wpe = torch.nn.Embedding(config.max_seq_len,
                                        config.d_model,
                                        device=config.init_device)
         self.emb_drop = nn.Dropout(config.emb_pdrop)

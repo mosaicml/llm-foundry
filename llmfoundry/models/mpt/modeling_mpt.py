@@ -81,12 +81,12 @@ class MPTModel(MPTPreTrainedModel):
         self.embedding_fraction = config.embedding_fraction
 
         self.wte = SharedEmbedding(config.vocab_size,
-                                config.d_model,
-                                device=config.init_device)
+                                   config.d_model,
+                                   device=config.init_device)
         if not self.alibi:
             self.wpe = torch.nn.Embedding(config.max_seq_len,
-                                       config.d_model,
-                                       device=config.init_device)
+                                          config.d_model,
+                                          device=config.init_device)
         self.emb_drop = nn.Dropout(config.emb_pdrop)
         self.blocks = nn.ModuleList([
             MPTBlock(

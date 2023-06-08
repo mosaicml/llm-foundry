@@ -107,20 +107,21 @@ def hf_get_init_device(init_device: str):
 # /end helper functions
 
 
-def prepare_hf_model_for_fsdp(model: PreTrainedModel) -> None:
+def prepare_hf_model_for_fsdp(model: PreTrainedModel, init_device: str) -> None:
     """FSDP wrap a HuggingFace model.
 
     Call specific functions
     """
     if model.config.is_encoder_decoder:
-        prepare_hf_enc_dec_model_for_fsdp(model)
+        prepare_hf_enc_dec_model_for_fsdp(model, init_device)
     else:
         # many common decoder-only model do not set the flag
         # model.config.is_decoder, so we can't trust it
-        prepare_hf_causal_lm_model_for_fsdp(model)
+        prepare_hf_causal_lm_model_for_fsdp(model, init_device)
 
 
-def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
+def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
+                                        init_device: str) -> None:
     """FSDP wrap a HuggingFace decoder.
 
     Wrap any model for FSDP which follows one of the 3 existing conventions from
@@ -188,7 +189,8 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
         module, block_type)
 
 
-def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel) -> None:
+def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel,
+                                      init_device: str) -> None:
     """Wrap an encoder/decoder HF model.
 
     This works for T5, BART, Pegasus, PegasusX, but not all enc/dec (ProphetNet)

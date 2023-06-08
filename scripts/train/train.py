@@ -233,7 +233,7 @@ def main(cfg):
         load_weights_only=cfg.get('load_weights_only', False),
         load_ignore_keys=cfg.get('load_ignore_keys', None),
         autoresume=cfg.get('autoresume', False),
-        python_log_level=cfg.get('python_log_level', None),
+        python_log_level=cfg.get('python_log_level', 'debug'),
         dist_timeout=cfg.dist_timeout,
     )
 

@@ -29,6 +29,7 @@ from transformers.modeling_outputs import (BaseModelOutputWithPast,
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
+from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 # NOTE: We import all the utils directly just so that HuggingFace will detect
@@ -79,13 +80,13 @@ class MPTModel(MPTPreTrainedModel):
         # both report this helping with stabilizing training
         self.embedding_fraction = config.embedding_fraction
 
-        self.wte = nn.Embedding(config.vocab_size,
-                                config.d_model,
-                                device=config.init_device)
+        self.wte = SharedEmbedding(config.vocab_size,
+                                   config.d_model,
+                                   device=config.init_device)
         if not self.alibi:
-            self.wpe = nn.Embedding(config.max_seq_len,
-                                    config.d_model,
-                                    device=config.init_device)
+            self.wpe = torch.nn.Embedding(config.max_seq_len,
+                                          config.d_model,
+                                          device=config.init_device)
         self.emb_drop = nn.Dropout(config.emb_pdrop)
         self.blocks = nn.ModuleList([
             MPTBlock(
@@ -450,6 +451,12 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
         self.transformer = MPTModel(config)
 
+        for child in self.transformer.children():
+            if isinstance(child, torch.nn.ModuleList):
+                continue
+            if isinstance(child, torch.nn.Module):
+                child._fsdp_wrap = True
+
         # enables scaling output logits; similar to a softmax "temperature"
         # PaLM paper uses scale 1/sqrt(config.d_model)
         self.logit_scale = None
@@ -513,9 +520,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
         # move outputs to same device as weights for token embedding
         # needed to support HF `device_map`
-        logits = F.linear(
+        logits = self.transformer.wte(
             outputs.last_hidden_state.to(self.transformer.wte.weight.device),
-            self.transformer.wte.weight)
+            True)
 
         if self.logit_scale is not None:
             if self.logit_scale == 0:

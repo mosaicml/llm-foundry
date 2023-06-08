@@ -45,12 +45,14 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
                  metrics: Optional[List[Metric]] = None,
                  eval_metrics: Optional[List[Metric]] = None,
                  z_loss: float = 0.0,
+                 shift_labels: bool = False,
                  init_device: Optional[str] = None):
         super().__init__(model,
                          tokenizer,
                          use_logits=True,
                          metrics=metrics,
-                         eval_metrics=eval_metrics)
+                         eval_metrics=eval_metrics,
+                         shift_labels=shift_labels)
         self.z_loss = float(z_loss)
         if self.z_loss < 0.0:
             raise ValueError(f'z_loss(={z_loss}) cannot be negative.')

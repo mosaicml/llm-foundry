@@ -201,53 +201,56 @@ def build_icl_evaluators(icl_tasks,
             icl_cfg.batch_size = default_batch_size
 
     for icl_cfg in icl_tasks:
-        _validate_cfg(icl_cfg)
-        for num_fewshot in list(icl_cfg.num_fewshot):
-            if tokenizer.pad_token_id is None:
-                # Current workaround to support GPT2 tokenizer with `pad_token_id = None`
-                pad_tok_id = tokenizer.eos_token_id
-            else:
-                pad_tok_id = tokenizer.pad_token_id
-            label = f'{icl_cfg.label}/{num_fewshot}-shot'
-            metric_names = list(icl_cfg.metric_names)
-            # TODO: fix Composer bug when copying local paths and destination exists
-            destination_path = f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl'
-            if dist.get_local_rank() == 0 and os.path.exists(destination_path):
-                os.remove(destination_path)
-            dist.barrier()
-
-            dataloaders = get_icl_task_dataloader(
-                icl_cfg.icl_task_type,
-                icl_cfg.dataset_uri,
-                tokenizer,
-                batch_size=icl_cfg.batch_size,
-                max_seq_len=icl_cfg.max_seq_len,
-                pad_tok_id=pad_tok_id,
-                num_fewshot=num_fewshot,
-                prompt_string=icl_cfg.prompt_string,
-                example_delimiter=icl_cfg.example_delimiter,
-                continuation_delimiter=icl_cfg.continuation_delimiter,
-                destination_path=destination_path,
-                has_categories=icl_cfg.get('has_categories', False),
-            )
-            if hasattr(
-                    icl_cfg,
-                    'has_categories') and icl_cfg.has_categories and isinstance(
-                        dataloaders, dict):
-                for category in dataloaders.keys():
-                    logger_keys.extend([
-                        f'metrics/{label}/{category}/{m}' for m in metric_names
-                    ])
+        try:
+            _validate_cfg(icl_cfg)
+            for num_fewshot in list(icl_cfg.num_fewshot):
+                if tokenizer.pad_token_id is None:
+                    # Current workaround to support GPT2 tokenizer with `pad_token_id = None`
+                    pad_tok_id = tokenizer.eos_token_id
+                else:
+                    pad_tok_id = tokenizer.pad_token_id
+                label = f'{icl_cfg.label}/{num_fewshot}-shot'
+                metric_names = list(icl_cfg.metric_names)
+                # TODO: fix Composer bug when copying local paths and destination exists
+                destination_path = f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl'
+                if dist.get_local_rank() == 0 and os.path.exists(destination_path):
+                    os.remove(destination_path)
+                dist.barrier()
+                dataloaders = get_icl_task_dataloader(
+                    icl_cfg.icl_task_type,
+                    icl_cfg.dataset_uri,
+                    tokenizer,
+                    batch_size=icl_cfg.batch_size,
+                    max_seq_len=icl_cfg.max_seq_len,
+                    pad_tok_id=pad_tok_id,
+                    num_fewshot=num_fewshot,
+                    prompt_string=icl_cfg.prompt_string,
+                    example_delimiter=icl_cfg.example_delimiter,
+                    continuation_delimiter=icl_cfg.continuation_delimiter,
+                    destination_path=destination_path,
+                    has_categories=icl_cfg.get('has_categories', False),
+                )
+                if hasattr(
+                        icl_cfg,
+                        'has_categories') and icl_cfg.has_categories and isinstance(
+                            dataloaders, dict):
+                    for category in dataloaders.keys():
+                        logger_keys.extend([
+                            f'metrics/{label}/{category}/{m}' for m in metric_names
+                        ])
+                        evaluators.append(
+                            Evaluator(label=f'{label}/{category}',
+                                    dataloader=dataloaders[category],
+                                    metric_names=metric_names),)
+                else:
+                    logger_keys.extend(
+                        [f'metrics/{label}/{m}' for m in metric_names])
                     evaluators.append(
-                        Evaluator(label=f'{label}/{category}',
-                                  dataloader=dataloaders[category],
-                                  metric_names=metric_names),)
-            else:
-                logger_keys.extend(
-                    [f'metrics/{label}/{m}' for m in metric_names])
-                evaluators.append(
-                    Evaluator(label=label,
-                              dataloader=dataloaders,
-                              metric_names=metric_names),)
+                        Evaluator(label=label,
+                                dataloader=dataloaders,
+                                metric_names=metric_names),)
+        except Exception as e:
+            print(f"Got exception: {str(e)} while building ICL task: {icl_cfg}")
+            raise e
 
     return evaluators, logger_keys

@@ -11,7 +11,7 @@ from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-
+from llmfoundry.callbacks import EvalTaxonomy
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
@@ -23,15 +23,33 @@ def main(cfg):
     reproducibility.seed_all(cfg.seed)
     dist.initialize_dist(get_device(None), timeout=cfg.dist_timeout)
 
-    # Build tokenizer and model
+    
+
+    taxonomy_df = None
     for model_cfg in cfg.models:
+        # Build tokenizer and model
+        
+        
         tokenizer = build_tokenizer(model_cfg.tokenizer)
         composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.model.name](model_cfg.model,
                                                                 tokenizer)
 
         evaluators, logger_keys = build_icl_evaluators(cfg.icl_tasks, tokenizer,
-                                                    cfg.max_seq_len,
-                                                    cfg.device_eval_batch_size)
+            cfg.max_seq_len,
+            cfg.device_eval_batch_size)     
+
+        if hasattr(cfg, "icl_taxonomy"):
+            if isinstance(cfg.icl_taxonomy, str):
+                with open(cfg.icl_taxonomy, 'r') as icl_f:
+                    taxonomy_cfg = om.load(icl_f)
+                taxonomy = taxonomy_cfg.icl_taxonomy
+            else:
+                taxonomy = cfg.icl_taxonomy
+            taxonomy.logger_keys = logger_keys
+            taxonomy_callback = EvalTaxonomy(**taxonomy)
+
+        if taxonomy_df is None:
+            taxonomy_df = pd.DataFrame(columns=["model_name"] + [t.name for t in taxonomy.tasks])
 
         in_memory_logger = InMemoryLogger()  # track metrics in the in_memory_logger
         loggers: List[LoggerDestination] = [
@@ -67,7 +85,18 @@ def main(cfg):
         b = time.time()
 
         print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
+        taxonomy_scores = taxonomy_callback.eval_end(None, in_memory_logger)
         calculate_markdown_results(logger_keys, in_memory_logger.data, model_cfg.model_name)
+        row = {
+            "model_name": model_cfg['model_name']
+        }
+
+        row.update({t.name: taxonomy_scores[f"metrics/icl_taxonomy/{t.name}"] for t in taxonomy.tasks})
+        taxonomy_df = pd.concat([taxonomy_df, pd.DataFrame([row])],
+                                       ignore_index=True)
+        
+        print(f"Printing taxonomy results for all models")
+        print(taxonomy_df.to_markdown(index=False))
 
 
 def calculate_markdown_results(logger_keys, logger_data, model_name):
@@ -119,8 +148,6 @@ def calculate_markdown_results(logger_keys, logger_data, model_name):
                         df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
     print(f"Printing results for model={model_name}")
     print(df.to_markdown(index=False))
-
-
 
 
 if __name__ == '__main__':

@@ -1,8 +1,0 @@
-categories:
-  - name: world_knowledge
-    benchmarks:
-      - name: jeopardy
-  - name: commonsense_reasoning
-  - name: language_understanding
-  - name: symbolic_problem_solving
-  - name: reading_comprehension

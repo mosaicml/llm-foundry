@@ -36,12 +36,5 @@ device_eval_batch_size: 16
 #   sharding_strategy: FULL_SHARD
 #   mixed_precision: FULL
 
-icl_tasks:
--
-  label: jeopardy
-  dataset_uri: eval/local_data/jeopardy_all_sm.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1]
-  icl_task_type: language_modeling
-  continuation_delimiter: 'Answer: ' # this separates questions from answers
-  has_categories: true
-
+icl_tasks: 'eval/yamls/tasks_small_test.yaml'
+icl_taxonomy: 'eval/yamls/eval_taxonomy.yaml'

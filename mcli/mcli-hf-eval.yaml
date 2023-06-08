@@ -1,35 +1,49 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: verify_icl_cfgs # use your branch
+  git_branch: model_gauntlet # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
 
 command: |
   cd llm-foundry/scripts
-  pip install git+https://github.com/bmosaicml/composer.git@fix_file_util
+  pip install git+https://github.com/bmosaicml/composer.git@add_kv_cache_to_qa_task
   composer eval/eval.py /mnt/config/parameters.yaml
 
-image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04-aws
+
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: mpt-7b-eval
-gpu_num: 8
-gpu_type: a100_80gb
-cluster: r1z1 # replace with your cluster here!
+gpu_num: 24
+gpu_type: a100_40gb
+cluster: r4z4 # replace with your cluster here!
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   seed: 1
   max_seq_len: 1024
   device_eval_batch_size: 8
-  precision: amp_bf16
+  precision: amp_fp16
  
-  model_name_or_path: mosaicml/mpt-7b
   models:
   -
-    model_name: ${model_name_or_path}
+    model_name: togethercomputer/RedPajama-INCITE-7B-Instruct
+    # Tokenizer
+    tokenizer:
+      name:  togethercomputer/RedPajama-INCITE-7B-Instruct
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: togethercomputer/RedPajama-INCITE-7B-Instruct
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: mosaicml/mpt-7b
     # Tokenizer
     tokenizer:
       name:  EleutherAI/gpt-neox-20b
@@ -38,10 +52,11 @@ parameters:
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: ${model_name_or_path}
+      pretrained_model_name_or_path: mosaicml/mpt-7b
       device: cpu
       pretrained: true
       use_auth_token: false
+  
 
   # FSDP config for model sharding
   fsdp_config:
@@ -49,3 +64,4 @@ parameters:
     mixed_precision: FULL
 
   icl_tasks: 'eval/yamls/tasks.yaml'
+  icl_taxonomy: 'eval/yamls/eval_taxonomy.yaml'

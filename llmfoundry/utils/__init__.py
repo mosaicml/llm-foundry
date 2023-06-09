@@ -9,6 +9,8 @@ try:
     from llmfoundry.utils.config_utils import (calculate_batch_size_info,
                                                log_config,
                                                update_batch_size_info)
+    from llmfoundry.utils.inference.convert_hf_mpt_to_ft import \
+        convert_mpt_to_ft
 except ImportError as e:
     raise ImportError(
         'Please make sure to pip install . to get requirements for llm-foundry.'
@@ -22,6 +24,7 @@ __all__ = [
     'build_scheduler',
     'build_icl_evaluators',
     'build_tokenizer',
+    'convert_mpt_to_ft',
     'calculate_batch_size_info',
     'update_batch_size_info',
     'log_config',

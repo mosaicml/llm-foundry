@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Mapping, Union
 
 from composer.metrics.nlp import LanguageCrossEntropy, MaskedAccuracy
+from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
@@ -104,6 +105,12 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
         # Get the device we want to initialize, and use the
         # reolved version to initialize the HF model
         resolved_init_device = hf_get_init_device(init_device)
+
+        # We need to have all non-zero local ranks be not-pretrained
+        # Rank 0 will still be pretrained, and distribute the weights appropriately
+        if dist.get_local_rank() != 0 and init_device == 'mixed':
+            om_model_config.pretrained = False
+
         if resolved_init_device == 'cpu':
             if om_model_config.pretrained:
                 model = AutoModelForCausalLM.from_pretrained(

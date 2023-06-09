@@ -219,7 +219,7 @@ def decode_numba(x_q, scales, scale_scales, x_hat_out, decode_scale_by: float):
 # Quantized LION kernel
 # ================================================================
 
-@cuda.jit()
+@cuda.jit(fastmath=True)
 def _lion_step_numba(momentum_quantized: torch.Tensor,
                      scales: torch.Tensor,
                      scale_scales: torch.Tensor,
@@ -343,6 +343,13 @@ def lion_step_fused(momentums_quantized: torch.Tensor,
     grid_shape = (_cdiv(momentums_quantized.numel(), BLOCK_SIZE),)
     block_shape = (BLOCK_SIZE,)
 
+    # workaround numba cuda's inability to accept bf16 inputs
+    orig_weights = weights
+    if orig_weights.dtype == torch.bfloat16:
+        weights = weights.to(dtype=torch.float32)
+    if grads.dtype == torch.bfloat16:
+        grads = grads.to(dtype=torch.float32)
+
     # explicit conversion to cuda arrays isn't needed for correctness, but
     # it reduces the call overhead by ~2x at small input sizes
     _lion_step_numba[grid_shape, block_shape](
@@ -356,3 +363,7 @@ def lion_step_fused(momentums_quantized: torch.Tensor,
         beta2,
         l2_penalty,
         weight_decay)
+
+    if orig_weights.dtype == torch.bfloat16:
+        orig_weights.copy_(weights)
+

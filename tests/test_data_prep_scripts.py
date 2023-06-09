@@ -28,7 +28,8 @@ def test_download_script_from_api():
                 'concat_tokens': None,
                 'bos_text': None,
                 'eos_text': None,
-                'no_wrap': False
+                'no_wrap': False,
+                'num_workers': None
             }))
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)
@@ -48,7 +49,8 @@ def test_json_script_from_api():
                 'concat_tokens': None,
                 'bos_text': None,
                 'eos_text': None,
-                'no_wrap': False
+                'no_wrap': False,
+                'num_workers': None
             }))
     assert os.path.exists(path)
     shutil.rmtree(path, ignore_errors=False)

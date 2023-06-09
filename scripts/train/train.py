@@ -131,7 +131,7 @@ def main(cfg):
     # Also 'meta' is only valid when using FSDP
     init_context = contextlib.nullcontext()
     if 'init_device' in cfg.model:
-        assert cfg.model.init_device in ['meta', 'cpu']
+        assert cfg.model.init_device in ['meta', 'cpu', 'mixed']
         if fsdp_config is None and cfg.model.init_device == 'meta':
             warnings.warn(
                 "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
@@ -139,6 +139,8 @@ def main(cfg):
             cfg.model.init_device = 'cpu'
         if cfg.model.init_device == 'meta':
             init_context = init_empty_weights()
+        if cfg.model.init_device == 'mixed':
+            fsdp_config['sync_module_states'] = True
 
     # build tokenizer
     tokenizer = build_tokenizer(cfg.tokenizer)

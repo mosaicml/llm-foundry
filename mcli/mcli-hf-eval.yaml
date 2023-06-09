@@ -1,14 +1,14 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: verify_icl_cfgs # use your branch
+  git_branch: main # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
 
 command: |
   cd llm-foundry/scripts
-  pip install git+https://github.com/bmosaicml/composer.git@fix_file_util
+  pip install git+https://github.com/mosaicml/composer.git@dev
   composer eval/eval.py /mnt/config/parameters.yaml
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
@@ -24,7 +24,7 @@ parameters:
   seed: 1
   max_seq_len: 1024
   device_eval_batch_size: 8
-  precision: amp_bf16
+  precision: amp_fp16
 
   model_name_or_path: mosaicml/mpt-7b
   models:

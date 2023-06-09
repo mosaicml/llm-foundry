@@ -44,4 +44,3 @@ icl_tasks:
   icl_task_type: language_modeling
   continuation_delimiter: 'Answer: ' # this separates questions from answers
   has_categories: true
-

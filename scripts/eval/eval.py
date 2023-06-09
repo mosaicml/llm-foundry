@@ -1,10 +1,12 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import re
 import sys
 import time
 from typing import List
-import re
+
+import pandas as pd
 import torch
 from composer.loggers import InMemoryLogger, LoggerDestination
 from composer.trainer import Trainer
@@ -15,7 +17,7 @@ from omegaconf import OmegaConf as om
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
-import pandas as pd
+
 
 def main(cfg):
     cfg.dist_timeout = cfg.get('dist_timeout', 600.0)
@@ -26,14 +28,15 @@ def main(cfg):
     # Build tokenizer and model
     for model_cfg in cfg.models:
         tokenizer = build_tokenizer(model_cfg.tokenizer)
-        composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.model.name](model_cfg.model,
-                                                                tokenizer)
+        composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.model.name](
+            model_cfg.model, tokenizer)
 
-        evaluators, logger_keys = build_icl_evaluators(cfg.icl_tasks, tokenizer,
-                                                    cfg.max_seq_len,
-                                                    cfg.device_eval_batch_size)
+        evaluators, logger_keys = build_icl_evaluators(
+            cfg.icl_tasks, tokenizer, cfg.max_seq_len,
+            cfg.device_eval_batch_size)
 
-        in_memory_logger = InMemoryLogger()  # track metrics in the in_memory_logger
+        in_memory_logger = InMemoryLogger(
+        )  # track metrics in the in_memory_logger
         loggers: List[LoggerDestination] = [
             build_logger(name, logger_cfg)
             for name, logger_cfg in (cfg.get('loggers') or {}).items()
@@ -67,12 +70,13 @@ def main(cfg):
         b = time.time()
 
         print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
-        calculate_markdown_results(logger_keys, in_memory_logger.data, model_cfg.model_name)
+        calculate_markdown_results(logger_keys, in_memory_logger.data,
+                                   model_cfg.model_name)
 
 
 def calculate_markdown_results(logger_keys, logger_data, model_name):
     results = {}
-    pat = re.compile("metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)")
+    pat = re.compile('metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')
     for key in logger_keys:
         match = pat.match(key)
         val = logger_data[key][0][1].item()
@@ -83,7 +87,7 @@ def calculate_markdown_results(logger_keys, logger_data, model_name):
             if subcat is not None:
                 subcat = subcat[1:]
             else:
-                subcat = "no_subcat"
+                subcat = 'no_subcat'
             metric = match.group(4)
             if num_shot not in results:
                 results[num_shot] = {}
@@ -93,34 +97,51 @@ def calculate_markdown_results(logger_keys, logger_data, model_name):
                 results[num_shot][eval_name][metric] = []
 
             results[num_shot][eval_name][metric].append({
-               "val": val, "subcat": subcat
+                'val': val,
+                'subcat': subcat
             })
     df = pd.DataFrame(columns=[
-            "Benchmark", "Subcategory", "Accuracy", "Number few shot", "Model"
-        ])
+        'Benchmark', 'Subcategory', 'Accuracy', 'Number few shot', 'Model'
+    ])
     for num_shot in results:
         for benchmark in results[num_shot]:
             for metric in results[num_shot][benchmark]:
                 subscores = results[num_shot][benchmark][metric]
                 if len(subscores) == 1:
                     row = {
-                        "Benchmark": benchmark, "Subcategory": None, "Accuracy": subscores[0]['val'], "Number few shot": num_shot, "Model": model_name
+                        'Benchmark': benchmark,
+                        'Subcategory': None,
+                        'Accuracy': subscores[0]['val'],
+                        'Number few shot': num_shot,
+                        'Model': model_name
                     }
                     df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
                 else:
                     row = {
-                        "Benchmark": benchmark, "Subcategory": "Average", "Accuracy": sum(s['val'] for s in subscores) / len(subscores), "Number few shot": num_shot, "Model": model_name
+                        'Benchmark':
+                            benchmark,
+                        'Subcategory':
+                            'Average',
+                        'Accuracy':
+                            sum(s['val'] for s in subscores) / len(subscores),
+                        'Number few shot':
+                            num_shot,
+                        'Model':
+                            model_name
                     }
                     df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
                     for sub in subscores:
                         row = {
-                            "Benchmark": None, "Subcategory": sub['subcat'], "Accuracy": sub['val'], "Number few shot": num_shot, "Model": model_name
+                            'Benchmark': None,
+                            'Subcategory': sub['subcat'],
+                            'Accuracy': sub['val'],
+                            'Number few shot': num_shot,
+                            'Model': model_name
                         }
-                        df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-    print(f"Printing results for model={model_name}")
+                        df = pd.concat([df, pd.DataFrame([row])],
+                                       ignore_index=True)
+    print(f'Printing results for model={model_name}')
     print(df.to_markdown(index=False))
-
-
 
 
 if __name__ == '__main__':

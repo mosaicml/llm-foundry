@@ -140,6 +140,7 @@ def _est_progress_denominator(total_samples: int, chars_per_sample: int,
     elif mode == ConcatMode.CONCAT_TOKENS:
         return total_samples * est_tokens_per_sample // max_length
 
+
 def generate_samples(
         loader: DataLoader,
         truncate_num_samples: Optional[int] = None

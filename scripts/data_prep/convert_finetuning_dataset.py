@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import psutil
 import platform
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable, List, Optional, Union
 
 import datasets as hf_datasets
+import psutil
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
@@ -96,7 +96,8 @@ class SimpleDataset(IterableDataset):
             yield {key: sample[key].encode('utf-8') for key in self.columns}
 
 
-def build_dataloader(dataset: SimpleDataset, batch_size: int, num_workers: int) -> DataLoader:
+def build_dataloader(dataset: SimpleDataset, batch_size: int,
+                     num_workers: int) -> DataLoader:
     if num_workers is None:
         # Multiple workers is only supported on linux machines
         if 'linux' in platform.platform().lower():
@@ -113,7 +114,7 @@ def build_dataloader(dataset: SimpleDataset, batch_size: int, num_workers: int) 
         prefetch_factor = None
     else:
         prefetch_factor = max(1, 2 * batch_size //
-                            num_workers) if num_workers > 0 else 2
+                              num_workers) if num_workers > 0 else 2
 
     return DataLoader(
         dataset=dataset,
@@ -177,7 +178,9 @@ def main(args: Namespace) -> None:
                                            name=args.data_subset,
                                            split=split_name,
                                            streaming=True)
-        loader = build_dataloader(dataset=dataset, batch_size=512, num_workers=args.num_workers)
+        loader = build_dataloader(dataset=dataset,
+                                  batch_size=512,
+                                  num_workers=args.num_workers)
         samples = generate_samples(loader)
 
         # Write samples

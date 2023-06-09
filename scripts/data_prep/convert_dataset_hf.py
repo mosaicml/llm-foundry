@@ -3,7 +3,6 @@
 
 """Streaming dataset conversion scripts for C4 and The Pile."""
 import os
-import psutil
 import platform
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
@@ -11,6 +10,7 @@ from enum import Enum
 from typing import Dict, Iterable, Optional, Union
 
 import datasets as hf_datasets
+import psutil
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
@@ -347,7 +347,9 @@ def main(args: Namespace) -> None:
                                    eos_text=args.eos_text,
                                    no_wrap=args.no_wrap,
                                    tokenizer=tokenizer)
-        loader = build_dataloader(dataset=dataset, batch_size=512, num_workers=args.num_workers)
+        loader = build_dataloader(dataset=dataset,
+                                  batch_size=512,
+                                  num_workers=args.num_workers)
         samples = generate_samples(loader,
                                    truncate_num_samples=truncate_num_samples)
 

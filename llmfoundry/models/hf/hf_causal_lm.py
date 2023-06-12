@@ -3,6 +3,7 @@
 
 """Implements a Hugging Causal LM wrapped inside a :class:`.ComposerModel`."""
 
+import os
 from typing import Mapping, Union
 
 from composer.metrics.nlp import (InContextLearningLMAccuracy,
@@ -122,6 +123,20 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         else:
             raise ValueError(
                 f'init_device="{init_device}" must be either "cpu" or "meta".')
+
+        signal_file_path = '.local_rank0_completed_autoresume'
+        if dist.get_local_rank() == 0:
+            with open(signal_file_path, 'wb') as f:
+                f.write(b'local_rank0_completed_download')
+
+        # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
+        # so that we don't timeout for large downloads. This syncs all processes on the node
+        with dist.local_rank_zero_download_and_wait(signal_file_path):
+            # Then, wait to ensure every node has finished downloading the checkpoint
+            dist.barrier()
+
+        if dist.get_local_rank() == 0:
+            os.remove(signal_file_path)
 
         composer_model = super().__init__(model=model,
                                           shift_labels=True,

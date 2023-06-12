@@ -26,6 +26,7 @@ def main(cfg):
     
 
     taxonomy_df = None
+    subscore_df = None
     for model_cfg in cfg.models:
         # Build tokenizer and model
         
@@ -49,7 +50,7 @@ def main(cfg):
             taxonomy_callback = EvalTaxonomy(**taxonomy)
 
         if taxonomy_df is None:
-            taxonomy_df = pd.DataFrame(columns=["model_name"] + [t.name for t in taxonomy.tasks])
+            taxonomy_df = pd.DataFrame(columns=["model_name", "average"] + [t.name for t in taxonomy.tasks])
 
         in_memory_logger = InMemoryLogger()  # track metrics in the in_memory_logger
         loggers: List[LoggerDestination] = [
@@ -90,14 +91,33 @@ def main(cfg):
         row = {
             "model_name": model_cfg['model_name']
         }
-        breakpoint()
-        row.update({t.name: taxonomy_scores[f"metrics/icl_taxonomy/{t.name}"] for t in taxonomy.tasks})
+ 
+        row.update({t.name: composite_scores[f"metrics/icl_taxonomy/{t.name}"] for t in taxonomy.tasks})
+        row.update({"average": composite_scores[f"metrics/icl_taxonomy/average"]})
         taxonomy_df = pd.concat([taxonomy_df, pd.DataFrame([row])],
                                        ignore_index=True)
         
-        print(f"Printing taxonomy results for all models")
-        print(taxonomy_df.to_markdown(index=False))
-        assert False
+
+        if subscore_df is None:
+            subscore_names = ['average']
+            for t in taxonomy.tasks:
+                subscore_names.append(t.name)
+                subscore_names += list(subscores[t.name].keys())
+            subscore_df = pd.DataFrame(columns=["model_name"] + subscore_names)
+
+        for cat in subscores:
+            for benchmark in subscores[cat]:
+                row[benchmark] = subscores[cat][benchmark]
+
+        subscore_df = pd.concat([subscore_df, pd.DataFrame([row])],
+                                       ignore_index=True)
+
+
+        print(f"Printing gauntlet results for all models")
+        print(taxonomy_df.sort_values('average', ascending=False).to_markdown(index=False))
+
+        print(f"Printing gauntlet results w/ subscores for all models")
+        print(subscore_df.sort_values('average', ascending=False).to_markdown(index=False))
 
 
 def calculate_markdown_results(logger_keys, logger_data, model_name):

@@ -78,11 +78,13 @@ class EvalTaxonomy(Callback):
                         'score': score,
                         "weighting": benchmark["weighting"]
                     })
-                    subscores[category['name']][benchmark['name'] + '/' + benchmark['num_fewshot']] = score
+                    subscores[category['name']][benchmark['name'] + '/' + str(benchmark['num_fewshot']) + '-shot'] = new_metrics[matching_key[0]]
             total_weight = sum(k['weighting'] for k in composite_scores[category['name']])
             composite_scores[category['name']] = sum(k['score'] * (k['weighting']/total_weight) for k in composite_scores[category['name']])
         
         composite_scores = {f"metrics/icl_taxonomy/{k}": v for k,v in composite_scores.items()}
 
+        composite_scores['metrics/icl_taxonomy/average'] = sum(composite_scores.values()) / len(composite_scores.values())
         logger.log_metrics(composite_scores)
+
         return composite_scores, subscores

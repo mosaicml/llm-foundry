@@ -85,18 +85,19 @@ def main(cfg):
         b = time.time()
 
         print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
-        taxonomy_scores = taxonomy_callback.eval_end(None, in_memory_logger)
+        composite_scores, subscores = taxonomy_callback.eval_end(None, in_memory_logger)
         calculate_markdown_results(logger_keys, in_memory_logger.data, model_cfg.model_name)
         row = {
             "model_name": model_cfg['model_name']
         }
-
+        breakpoint()
         row.update({t.name: taxonomy_scores[f"metrics/icl_taxonomy/{t.name}"] for t in taxonomy.tasks})
         taxonomy_df = pd.concat([taxonomy_df, pd.DataFrame([row])],
                                        ignore_index=True)
         
         print(f"Printing taxonomy results for all models")
         print(taxonomy_df.to_markdown(index=False))
+        assert False
 
 
 def calculate_markdown_results(logger_keys, logger_data, model_name):

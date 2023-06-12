@@ -5,14 +5,14 @@ precision: fp32
 
 models:
 -
-  model_name: EleutherAI/gpt-neo-125M
+  model_name: EleutherAI/gpt-neo-125m
   model:
     name: hf_causal_lm
-    pretrained_model_name_or_path: EleutherAI/gpt-neo-125M
+    pretrained_model_name_or_path: EleutherAI/gpt-neo-125m
     init_device: cpu
     pretrained: true
   tokenizer:
-    name: EleutherAI/gpt-neo-125M
+    name: EleutherAI/gpt-neo-125m
     kwargs:
       model_max_length: ${max_seq_len}
 -
@@ -29,7 +29,7 @@ models:
 
 # load_path: # Add your (optional) Composer checkpoint path here!
 
-device_eval_batch_size: 16
+device_eval_batch_size: 4
 
 # FSDP config for model sharding
 # fsdp_config:

@@ -54,8 +54,10 @@ class EvalTaxonomy(Callback):
     def eval_end(self, state: State, logger: Logger):
         new_metrics = self.compute_averages(logger)
         composite_scores = {}
+        subscores = {}
         for category in self.tasks:
             composite_scores[category['name']] = []
+            subscores[category['name']] = {}
             for benchmark in category['benchmarks']:
                 key_pat = re.compile(f"metrics/{benchmark['name']}/{benchmark['num_fewshot']}-shot/.*Accuracy")
                 
@@ -76,10 +78,11 @@ class EvalTaxonomy(Callback):
                         'score': score,
                         "weighting": benchmark["weighting"]
                     })
+                    subscores[category['name']][benchmark['name'] + '/' + benchmark['num_fewshot']] = score
             total_weight = sum(k['weighting'] for k in composite_scores[category['name']])
             composite_scores[category['name']] = sum(k['score'] * (k['weighting']/total_weight) for k in composite_scores[category['name']])
         
         composite_scores = {f"metrics/icl_taxonomy/{k}": v for k,v in composite_scores.items()}
 
         logger.log_metrics(composite_scores)
-        return composite_scores
+        return composite_scores, subscores

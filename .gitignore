@@ -120,6 +120,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# python venv installed in the dir, llmfoundry-venv
+*-venv
+
 # Spyder project settings
 .spyderproject
 .spyproject

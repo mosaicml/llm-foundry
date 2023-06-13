@@ -1307,7 +1307,9 @@ def test_hf_init(tmp_path,
     device = get_device(None)
     dist.initialize_dist(device, timeout=30)
 
-    fsdp_config = {'sharding_strategy': 'FULL_SHARD'}
+    fsdp_config = {
+        'sharding_strategy': 'FULL_SHARD',
+    }
 
     save_path = tmp_path / 'test-hf-device-init'
 
@@ -1356,6 +1358,16 @@ def test_hf_init(tmp_path,
     model = HuggingFaceModelWithZLoss(model, tokenizer)
 
     batch = gen_random_batch(batch_size, test_cfg)
+
+    mem_stats = torch.cuda.memory_stats()
+    print('before model forwards')
+    print(
+        f"allocated bytes: {mem_stats['allocated_bytes.all.current'] / 1e9:.4f}"
+    )
+    print(f"active bytes: {mem_stats['active_bytes.all.current'] / 1e9:.4f}")
+    print(
+        f"reserved bytes: {mem_stats['reserved_bytes.all.current'] / 1e9:.4f}")
+    print()
 
     original_params = next(model.parameters()).clone().data
 

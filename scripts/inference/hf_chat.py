@@ -352,7 +352,7 @@ def main(args: Namespace) -> None:
     # Autocast
     if args.autocast_dtype is not None:
         autocast_dtype = get_dtype(args.autocast_dtype)
-        autocast_context = torch.autocast(model.device, autocast_dtype)
+        autocast_context = torch.autocast(model.device.type, autocast_dtype)
         print(f'Using autocast with dtype={autocast_dtype}...')
     else:
         autocast_context = nullcontext()

@@ -21,6 +21,8 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import init_empty_weights
 
+import peft # required for the python class below
+
 __all__ = ['ComposerHFCausalLM']
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
@@ -146,5 +148,38 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                                           z_loss=om_model_config.get(
                                               'z_loss', 0.0),
                                           init_device=init_device)
+
+        return composer_model
+
+
+class ComposerHFCausalLMFromPython(HuggingFaceModelWithZLoss):
+    """Configures a :class:`.HuggingFaceModel` around a Causal LM that is loaded in memory.
+    Args:
+        model (peft.peft_model.PeftModel or transformers.PreTrainedModel): The HF model loaded into python memory.
+        tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
+    """
+
+    def __init__(self, model: peft.peft_model.PeftModel, tokenizer: Tokenizer):
+
+        train_metrics = [
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
+        ]
+        eval_metrics = [
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
+            InContextLearningLMAccuracy(),
+            InContextLearningMultipleChoiceAccuracy(),
+            InContextLearningQAAccuracy(),
+            InContextLearningLMExpectedCalibrationError(),
+            InContextLearningMCExpectedCalibrationError()
+        ]
+
+        composer_model = super().__init__(model=model,
+                                          shift_labels=True,
+                                          tokenizer=tokenizer,
+                                          metrics=train_metrics,
+                                          eval_metrics=eval_metrics,
+                                          z_loss=0.0)
 
         return composer_model

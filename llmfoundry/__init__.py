@@ -11,7 +11,7 @@ try:
                                  build_finetuning_dataloader,
                                  build_text_denoising_dataloader)
     from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
-                                      ComposerHFT5)
+                                      ComposerHFT5, ComposerHFCausalLMFromPython)
     from llmfoundry.models.layers.attention import (
         MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
         flash_attn_fn, scaled_multihead_dot_product_attention,
@@ -46,6 +46,7 @@ __all__ = [
     'MPTForCausalLM',
     'ComposerMPTCausalLM',
     'ComposerHFCausalLM',
+    'ComposerHFCausalLMFromPython',
     'ComposerHFPrefixLM',
     'ComposerHFT5',
     'COMPOSER_MODEL_REGISTRY',

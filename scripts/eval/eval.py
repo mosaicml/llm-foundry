@@ -26,7 +26,7 @@ def main(cfg):
     
 
     taxonomy_df = None
-    subscore_df = None
+    models_df = None
     for model_cfg in cfg.models:
         # Build tokenizer and model
         
@@ -86,8 +86,23 @@ def main(cfg):
         b = time.time()
 
         print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
-        composite_scores, subscores = taxonomy_callback.eval_end(None, in_memory_logger)
-        calculate_markdown_results(logger_keys, in_memory_logger.data, model_cfg.model_name)
+        composite_scores = taxonomy_callback.eval_end(None, in_memory_logger)
+
+
+        benchmark_to_taxonomy = {}
+        for t in taxonomy.tasks:
+            for b in t.benchmarks:
+                benchmark_to_taxonomy[b.name] = t.name
+
+        [t.name for t in taxonomy.tasks]
+        model_results = calculate_markdown_results(logger_keys, in_memory_logger.data, benchmark_to_taxonomy, model_cfg.model_name)
+
+
+        if models_df is None:
+            models_df = model_results
+        else:
+            models_df = pd.concat([models_df, model_results], ignore_index=True)
+
         row = {
             "model_name": model_cfg['model_name']
         }
@@ -96,31 +111,14 @@ def main(cfg):
         row.update({"average": composite_scores[f"metrics/icl_taxonomy/average"]})
         taxonomy_df = pd.concat([taxonomy_df, pd.DataFrame([row])],
                                        ignore_index=True)
-        
-
-        if subscore_df is None:
-            subscore_names = ['average']
-            for t in taxonomy.tasks:
-                subscore_names.append(t.name)
-                subscore_names += list(subscores[t.name].keys())
-            subscore_df = pd.DataFrame(columns=["model_name"] + subscore_names)
-
-        for cat in subscores:
-            for benchmark in subscores[cat]:
-                row[benchmark] = subscores[cat][benchmark]
-
-        subscore_df = pd.concat([subscore_df, pd.DataFrame([row])],
-                                       ignore_index=True)
-
 
         print(f"Printing gauntlet results for all models")
         print(taxonomy_df.sort_values('average', ascending=False).to_markdown(index=False))
+        print(f"Printing complete results for all models")
+        print(models_df.to_markdown(index=False))
 
-        print(f"Printing gauntlet results w/ subscores for all models")
-        print(subscore_df.sort_values('average', ascending=False).to_markdown(index=False))
 
-
-def calculate_markdown_results(logger_keys, logger_data, model_name):
+def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy, model_name):
     results = {}
     pat = re.compile("metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)")
     for key in logger_keys:
@@ -146,7 +144,7 @@ def calculate_markdown_results(logger_keys, logger_data, model_name):
                "val": val, "subcat": subcat
             })
     df = pd.DataFrame(columns=[
-            "Benchmark", "Subcategory", "Accuracy", "Number few shot", "Model"
+            "Category", "Benchmark", "Subtask", "Accuracy", "Number few shot", "Model"
         ])
     for num_shot in results:
         for benchmark in results[num_shot]:
@@ -154,21 +152,20 @@ def calculate_markdown_results(logger_keys, logger_data, model_name):
                 subscores = results[num_shot][benchmark][metric]
                 if len(subscores) == 1:
                     row = {
-                        "Benchmark": benchmark, "Subcategory": None, "Accuracy": subscores[0]['val'], "Number few shot": num_shot, "Model": model_name
+                        "Category": benchmark_to_taxonomy[benchmark], "Benchmark": benchmark, "Subtask": None, "Accuracy": subscores[0]['val'], "Number few shot": num_shot, "Model": model_name
                     }
                     df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
                 else:
                     row = {
-                        "Benchmark": benchmark, "Subcategory": "Average", "Accuracy": sum(s['val'] for s in subscores) / len(subscores), "Number few shot": num_shot, "Model": model_name
+                        "Category": benchmark_to_taxonomy[benchmark], "Benchmark": benchmark, "Subtask": "Average", "Accuracy": sum(s['val'] for s in subscores) / len(subscores), "Number few shot": num_shot, "Model": model_name
                     }
                     df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
                     for sub in subscores:
                         row = {
-                            "Benchmark": None, "Subcategory": sub['subcat'], "Accuracy": sub['val'], "Number few shot": num_shot, "Model": model_name
+                            "Category": benchmark_to_taxonomy[benchmark], "Benchmark": None, "Subtask": sub['subcat'], "Accuracy": sub['val'], "Number few shot": num_shot, "Model": model_name
                         }
                         df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-    print(f"Printing results for model={model_name}")
-    print(df.to_markdown(index=False))
+    return df.sort_values(by=["Category"])
 
 
 if __name__ == '__main__':

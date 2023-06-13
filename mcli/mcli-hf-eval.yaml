@@ -11,12 +11,11 @@ command: |
   pip install git+https://github.com/mosaicml/composer.git@dev
   composer eval/eval.py /mnt/config/parameters.yaml
 
-image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04-aws
-
+image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04-aws
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: mpt-7b-eval
-gpu_num: 24
+run_name: falcon-eval
+gpu_num: 32
 gpu_type: a100_40gb
 cluster: r4z4 # replace with your cluster here!
 
@@ -29,33 +28,63 @@ parameters:
  
   models:
   -
-    model_name: togethercomputer/RedPajama-INCITE-7B-Instruct
+    model_name: tiiuae/falcon-7b
     # Tokenizer
     tokenizer:
-      name:  togethercomputer/RedPajama-INCITE-7B-Instruct
+      name:  tiiuae/falcon-7b
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: togethercomputer/RedPajama-INCITE-7B-Instruct
+      pretrained_model_name_or_path: tiiuae/falcon-7b
       device: cpu
       pretrained: true
       use_auth_token: false
   -
-    model_name: mosaicml/mpt-7b
+    model_name: tiiuae/falcon-7b-instruct
     # Tokenizer
     tokenizer:
-      name:  EleutherAI/gpt-neox-20b
+      name:  tiiuae/falcon-7b-instruct
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b
+      pretrained_model_name_or_path: tiiuae/falcon-7b-instruct
       device: cpu
       pretrained: true
       use_auth_token: false
+  -
+    model_name: tiiuae/falcon-40b
+    # Tokenizer
+    tokenizer:
+      name:  tiiuae/falcon-40b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: tiiuae/falcon-40b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: tiiuae/falcon-40b-instruct
+    # Tokenizer
+    tokenizer:
+      name:  tiiuae/falcon-40b-instruct
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: tiiuae/falcon-40b-instruct
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  
+  
   
 
   # FSDP config for model sharding

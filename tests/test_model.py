@@ -1346,7 +1346,8 @@ def test_hf_init(tmp_path,
 
     # Load in a model with a given context
     with context:
-        model = AutoModelForCausalLM.from_pretrained(save_path)
+        model = AutoModelForCausalLM.from_pretrained(save_path,
+                                                     trust_remote_code=True)
 
     tokenizer = build_tokenizer(test_cfg.tokenizer)
     model = HuggingFaceModelWithZLoss(model, tokenizer)

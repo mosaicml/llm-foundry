@@ -1,7 +1,9 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import copy
+import gc
 import os
 import warnings
 from typing import cast
@@ -10,9 +12,11 @@ from unittest import mock
 import pytest
 import torch
 import torch.nn as nn
-from composer.core.precision import get_precision_context
+from accelerate import init_empty_weights
+from composer.core.precision import Precision, get_precision_context
 from composer.optim import DecoupledAdamW
-from composer.utils import get_device, reproducibility
+from composer.trainer.dist_strategy import prepare_fsdp_module
+from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
@@ -23,6 +27,7 @@ from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         ComposerHFPrefixLM)
+from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
@@ -1283,3 +1288,89 @@ def test_forward_with_output_attentions_and_output_hidden_states(
             assert len(outputs.attentions) == n_layers
         if output_hidden_states:
             assert len(outputs.hidden_states) == n_layers + 1
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('init_device', ['cpu', 'meta', 'mixed'])
+@pytest.mark.parametrize('world_size', [2])
+def test_hf_init(tmp_path,
+                 init_device: str,
+                 world_size: int,
+                 batch_size: int = 1):
+    if not torch.cuda.is_available():
+        pytest.skip(f'This test requires CUDA to be available.')
+    if not torch.cuda.device_count() >= world_size:
+        pytest.skip(f'This test requires {world_size} GPUs.')
+
+    torch.cuda.empty_cache()
+    gc.collect()  #just in case
+    torch.cuda.synchronize()
+
+    test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
+    test_cfg.device = torch.cuda.current_device()
+
+    device = get_device(None)
+    dist.initialize_dist(device, timeout=30)
+
+    fsdp_config = {
+        'sharding_strategy': 'FULL_SHARD',
+    }
+
+    save_path = tmp_path / 'test-hf-device-init'
+
+    if init_device == 'mixed':
+        if dist.get_local_rank() != 0:
+            init_device = 'meta'
+        else:
+            init_device = 'cpu'
+
+    precision = Precision('amp_bf16')
+
+    hf_config = MPTConfig(
+        init_device=init_device,
+        d_model=32,
+        n_heads=4,
+        n_layers=1,
+        expansion_ratio=2,
+        max_seq_len=128,
+        emb_pdrop=0.1,
+        resid_pdrop=0.2,
+        attn_config={
+            'attn_impl': 'torch',
+        },
+    )
+
+    mpt = MPTForCausalLM(hf_config)
+    mpt.save_pretrained(save_path)
+
+    AutoConfig.register('mpt', MPTConfig)
+    AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
+
+    context = contextlib.nullcontext()
+    if init_device == 'meta':
+        context = init_empty_weights(include_buffers=False)
+
+    # Load in a pretrained model with a given context
+    with context:
+        model = AutoModelForCausalLM.from_pretrained(save_path,
+                                                     trust_remote_code=True)
+
+    tokenizer = build_tokenizer(test_cfg.tokenizer)
+    optimizer = DecoupledAdamW(model.parameters(), lr=1e-5, betas=[0.9, 0.99])
+
+    prepare_fsdp_module(model, optimizer, fsdp_config, precision, device, False)
+
+    model = HuggingFaceModelWithZLoss(model, tokenizer)
+
+    batch = gen_random_batch(batch_size, test_cfg)
+
+    original_params = next(model.parameters()).clone().data
+
+    outputs = model(batch)
+    loss = model.loss(outputs, batch)
+    loss.backward()
+    optimizer.step()
+
+    updated_params = next(model.parameters()).clone().data
+
+    assert not torch.equal(original_params, updated_params)

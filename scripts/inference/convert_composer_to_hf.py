@@ -24,6 +24,15 @@ from llmfoundry import MPTConfig, MPTForCausalLM
 # TODO: maybe move this functionality to Composer
 def get_hf_config_from_composer_state_dict(
         state_dict: Dict[str, Any]) -> PretrainedConfig:
+    if 'state' not in state_dict:
+        raise RuntimeError(
+            'Unexpected composer state dictionary. Did you pass in a full composer checkpoint?'
+        )
+    if 'integrations' not in state_dict[
+            'state'] or 'huggingface' not in state_dict['state']['integrations']:
+        raise RuntimeError(
+            'Did not find HuggingFace related state (e.g., tokenizer) in the provided composer checkpoint!'
+        )
     hf_config_dict = state_dict['state']['integrations']['huggingface'][
         'model']['config']['content']
 
@@ -102,6 +111,15 @@ def get_hf_config_from_composer_state_dict(
 # TODO: maybe move this functionality to Composer
 def get_hf_tokenizer_from_composer_state_dict(
         state_dict: Dict[str, Any]) -> Optional[PreTrainedTokenizer]:
+    if 'state' not in state_dict:
+        raise RuntimeError(
+            'Unexpected composer state dictionary. Did you pass in a full composer checkpoint?'
+        )
+    if 'integrations' not in state_dict[
+            'state'] or 'huggingface' not in state_dict['state']['integrations']:
+        raise RuntimeError(
+            'Did not find HuggingFace related state (e.g., tokenizer) in the provided composer checkpoint!'
+        )
     hf_tokenizer_state = state_dict['state']['integrations']['huggingface'][
         'tokenizer']
     hf_tokenizer = None
@@ -204,6 +222,11 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     # Load the Composer checkpoint state dict
     print('Loading checkpoint into CPU RAM...')
     composer_state_dict = safe_torch_load(local_checkpoint_save_location)
+
+    if 'state' not in composer_state_dict:
+        raise RuntimeError(
+            f'"state" is not an available key in the provided composer checkpoint. Is {local_checkpoint_save_location} ill-formed?'
+        )
 
     # Build and save HF Config
     print('#' * 30)
@@ -364,7 +387,7 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def main(args: Namespace) -> None:
+def convert_composer_to_hf(args: Namespace) -> None:
     _, _, local_folder_path = parse_uri(args.hf_output_path)
 
     write_huggingface_pretrained_from_composer_checkpoint(
@@ -472,4 +495,4 @@ def main(args: Namespace) -> None:
 
 
 if __name__ == '__main__':
-    main(parse_args())
+    convert_composer_to_hf(parse_args())

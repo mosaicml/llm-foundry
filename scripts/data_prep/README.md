@@ -22,7 +22,7 @@ Using the `convert_dataset_json.py` script...
 ```bash
 # Convert json dataset to StreamingDataset format
 python convert_dataset_json.py \
-  --path ./example_data/arxiv.json \
+  --path ./example_data/arxiv.jsonl \
   --out_root my-copy-arxiv --split train \
   --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>' \
   --compression zstd

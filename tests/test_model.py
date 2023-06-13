@@ -1301,6 +1301,16 @@ def test_hf_init(tmp_path,
     if not torch.cuda.device_count() >= world_size:
         pytest.skip(f'This test requires {world_size} GPUs.')
 
+    mem_stats = torch.cuda.memory_stats()
+    print('beginning of test')
+    print(
+        f"allocated bytes: {mem_stats['allocated_bytes.all.current'] / 1e9:.4f}"
+    )
+    print(f"active bytes: {mem_stats['active_bytes.all.current'] / 1e9:.4f}")
+    print(
+        f"reserved bytes: {mem_stats['reserved_bytes.all.current'] / 1e9:.4f}")
+    print()
+
     test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
     test_cfg.device = torch.cuda.current_device()
 

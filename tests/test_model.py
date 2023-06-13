@@ -3,6 +3,7 @@
 
 import contextlib
 import copy
+import gc
 import os
 import warnings
 from typing import cast
@@ -1300,6 +1301,10 @@ def test_hf_init(tmp_path,
         pytest.skip(f'This test requires CUDA to be available.')
     if not torch.cuda.device_count() >= world_size:
         pytest.skip(f'This test requires {world_size} GPUs.')
+
+    torch.cuda.empty_cache()
+    gc.collect()  #just in case
+    torch.cuda.synchronize()
 
     mem_stats = torch.cuda.memory_stats()
     print('beginning of test')

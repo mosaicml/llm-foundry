@@ -212,9 +212,10 @@ def build_icl_evaluators(icl_tasks,
             metric_names = list(icl_cfg.metric_names)
             # TODO: fix Composer bug when copying local paths and destination exists
             destination_path = f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl'
-            with dist.run_local_rank_zero_first():
-                if os.path.exists(destination_path):
-                    os.remove(destination_path)
+            if dist.get_local_rank() == 0 and os.path.exists(destination_path):
+                os.remove(destination_path)
+            dist.barrier()
+
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,

@@ -14,7 +14,6 @@ name: mosaic-gpt-1b-eval
 
 compute:
   gpus: 8  # Number of GPUs to use
-
   ## These configurations are optional
   # cluster: TODO # Name of the cluster to use for this run
   # gpu_type: a100_80gb # Type of GPU to use. We use a100_80gb in our experiments
@@ -46,11 +45,12 @@ parameters:
   load_path: # Add your (optional) Composer checkpoint path here!
 
   device_eval_batch_size: 16
+  precision: fp32
 
   # FSDP config for model sharding
   # fsdp_config:
   #   sharding_strategy: FULL_SHARD
-  #   mixed_precision: PURE
+  #   mixed_precision: FULL
 
   icl_tasks:
   -

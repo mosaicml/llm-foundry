@@ -2,13 +2,7 @@
 
 ## Installation
 
-If you haven't already, make sure to install the requirements:
-
-```bash
-git clone https://github.com/mosaicml/llm-foundry.git
-cd llm-foundry
-pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
-```
+If you haven't already, make sure to [install the requirements](../../README.md#Installation).
 
 ## Dataset preparation
 To run pretraining, you'll need to make yourself a copy of a pretraining dataset. Check out the `llm-foundry/data_prep` folder for detailed instructions.
@@ -321,12 +315,14 @@ activation checkpointing, and `DecoupledLionW`, then a good rule of thumb is:
 
 E.g. To train a GPT-13B model which has ~13 billion params,
 have at least 12 * 13 = 156 GB of total memory across your GPUs.
-You can accomplish this with 8xA100-40GB, or 4xA100-80GB, etc.
+You can accomplish this with 4xA100-40GB, or 2xA100-80GB, etc.
 
 If you run into OOM errors when using small device counts, reduce `device_train_microbatch_size` until it succeeds.
 
 Keep in mind: even though training will work in these minimalist settings, you will get much better throughput_per_device
 if you use a larger cluster or devices with higher memory capacity, because this will enable you to use larger microbatch sizes.
+
+Check out our [scripts/train/benchmarking folder](./benchmarking/README.md) for detailed throughput measurements of specific model sizes on specific cluster configs!
 
 # Optimizing Performance
 The YAMLs in this repo are relatively well tuned for medium-to-large NVIDIA A100-40GB clusters.

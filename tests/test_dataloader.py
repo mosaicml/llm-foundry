@@ -68,7 +68,8 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
                     'tokenizer': tokenizer_name,
                     'bos_text': bos_text,
                     'eos_text': eos_text,
-                    'no_wrap': False
+                    'no_wrap': False,
+                    'num_workers': None
                 }))
     else:
         main_hf(
@@ -83,7 +84,8 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
                     'tokenizer': tokenizer_name,
                     'bos_text': bos_text,
                     'eos_text': eos_text,
-                    'no_wrap': False
+                    'no_wrap': False,
+                    'num_workers': None,
                 }))
     if not os.path.isdir(path):
         raise RuntimeError(f'c4 dataset at {path} not set up as expected')
@@ -170,6 +172,7 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
                 'packing_ratio': packing_ratio,
                 'predownload': 1000,
                 'keep_zip': False,
+                'num_workers': None
             },
             'mixture_of_denoisers': {
                 'decoder_only_format': decoder_only_format,
@@ -177,7 +180,7 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
                 'sequence_mask_ratios': 0.25,
             },
             'drop_last': False,
-            'num_workers': 0,
+            'num_workers': 4,
         }
         cfg = om.create(cfg)
         device_batch_size = 2
@@ -237,7 +240,7 @@ def test_finetuning_dataloader(decoder_only_format, allow_pad_trimming,
             'shuffle': True,
         },
         'drop_last': False,
-        'num_workers': 0,
+        'num_workers': 4,
         'pin_memory': False,
         'prefetch_factor': 2,
         'persistent_workers': False,

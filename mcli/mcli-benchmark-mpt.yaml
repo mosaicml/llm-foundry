@@ -1,5 +1,4 @@
 name: deepspeed-inference
-image: mosaicml/composer:0.13.4
 compute:
   gpus: 8  # Number of GPUs to use
 
@@ -7,20 +6,14 @@ compute:
   # cluster: TODO # Name of the cluster to use for this run
   # gpu_type: a100_80gb # Type of GPU to use. We use a100_80gb in our experiments
 
+image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
   pip_install: '.[gpu]'
-- integration_type: git_repo
-  git_repo: mosaicml/composer
-  # 0.13.4 doesn't have the right HF changes rn
-  # So this is the current commit hash as of 04/17/2023
-  # We will remove this install when we have a release
-  # with the appropriate changes.
-  git_commit: 20fb86b476d91749528a989265c3e211eb1d774d
-  pip_install: '.[all]'
 
 command: |
-  cd llm-foundry/llm/inference/benchmarking/
+  cd llm-foundry/scripts/inference/benchmarking
 
   python benchmark.py yamls/1b.yaml

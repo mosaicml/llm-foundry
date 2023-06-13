@@ -1306,16 +1306,6 @@ def test_hf_init(tmp_path,
     gc.collect()  #just in case
     torch.cuda.synchronize()
 
-    mem_stats = torch.cuda.memory_stats()
-    print('beginning of test')
-    print(
-        f"allocated bytes: {mem_stats['allocated_bytes.all.current'] / 1e9:.4f}"
-    )
-    print(f"active bytes: {mem_stats['active_bytes.all.current'] / 1e9:.4f}")
-    print(
-        f"reserved bytes: {mem_stats['reserved_bytes.all.current'] / 1e9:.4f}")
-    print()
-
     test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
     test_cfg.device = torch.cuda.current_device()
 
@@ -1373,16 +1363,6 @@ def test_hf_init(tmp_path,
     model = HuggingFaceModelWithZLoss(model, tokenizer)
 
     batch = gen_random_batch(batch_size, test_cfg)
-
-    mem_stats = torch.cuda.memory_stats()
-    print('before model forwards')
-    print(
-        f"allocated bytes: {mem_stats['allocated_bytes.all.current'] / 1e9:.4f}"
-    )
-    print(f"active bytes: {mem_stats['active_bytes.all.current'] / 1e9:.4f}")
-    print(
-        f"reserved bytes: {mem_stats['reserved_bytes.all.current'] / 1e9:.4f}")
-    print()
 
     original_params = next(model.parameters()).clone().data
 

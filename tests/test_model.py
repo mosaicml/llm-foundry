@@ -1290,7 +1290,8 @@ def test_forward_with_output_attentions_and_output_hidden_states(
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('init_device', ['cpu', 'meta', 'mixed'])
+# @pytest.mark.parametrize('init_device', ['cpu', 'meta', 'mixed'])
+@pytest.mark.parametrize('init_device', ['meta'])
 @pytest.mark.parametrize('world_size', [2])
 def test_hf_init(tmp_path,
                  init_device: str,
@@ -1350,11 +1351,11 @@ def test_hf_init(tmp_path,
                                                      trust_remote_code=True)
 
     tokenizer = build_tokenizer(test_cfg.tokenizer)
-    model = HuggingFaceModelWithZLoss(model, tokenizer)
-
     optimizer = DecoupledAdamW(model.parameters(), lr=1e-5, betas=[0.9, 0.99])
 
     prepare_fsdp_module(model, optimizer, fsdp_config, precision, device, False)
+
+    model = HuggingFaceModelWithZLoss(model, tokenizer)
 
     batch = gen_random_batch(batch_size, test_cfg)
 

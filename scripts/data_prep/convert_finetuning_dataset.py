@@ -7,6 +7,7 @@ from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable, List, Optional, Union
 
 import datasets as hf_datasets
+import psutil
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
@@ -61,6 +62,7 @@ def parse_args() -> Namespace:
                         type=str,
                         default=None,
                         help='(Optional) name of compression algorithm to use.')
+    parser.add_argument('--num_workers', type=int, required=False, default=None)
 
     parsed = parser.parse_args()
 
@@ -94,19 +96,25 @@ class SimpleDataset(IterableDataset):
             yield {key: sample[key].encode('utf-8') for key in self.columns}
 
 
-def build_dataloader(dataset: SimpleDataset, batch_size: int) -> DataLoader:
-    # Multiple workers is only supported on linux machines
-    if 'linux' in platform.platform().lower():
-        num_workers = min(64, dataset.hf_dataset.n_shards)  # type: ignore
-    else:
-        num_workers = 0
+def build_dataloader(dataset: SimpleDataset, batch_size: int,
+                     num_workers: int) -> DataLoader:
+    if num_workers is None:
+        # Multiple workers is only supported on linux machines
+        if 'linux' in platform.platform().lower():
+            num_workers = max(1, psutil.cpu_count())  # type: ignore
+        else:
+            num_workers = 0
 
     # If using multiple workers, configure each worker to prefetch as many samples as it can, up to
     # the aggregate device batch size
     # If not using workers, the torch DataLoader expects the default value for prefetch_factor,
     # which non-intuitively must be 2.
-    prefetch_factor = max(1, 2 * batch_size //
-                          num_workers) if num_workers > 0 else 2
+    # If on macOS, PyTorch requires prefetch_factor set to None since num_workers is always zero
+    if 'macos' in platform.platform().lower() and num_workers == 0:
+        prefetch_factor = None
+    else:
+        prefetch_factor = max(1, 2 * batch_size //
+                              num_workers) if num_workers > 0 else 2
 
     return DataLoader(
         dataset=dataset,
@@ -170,7 +178,9 @@ def main(args: Namespace) -> None:
                                            name=args.data_subset,
                                            split=split_name,
                                            streaming=True)
-        loader = build_dataloader(dataset=dataset, batch_size=512)
+        loader = build_dataloader(dataset=dataset,
+                                  batch_size=512,
+                                  num_workers=args.num_workers)
         samples = generate_samples(loader)
 
         # Write samples

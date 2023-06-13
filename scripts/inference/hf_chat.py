@@ -5,16 +5,165 @@ import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, List, Union
 
 import torch
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
-                          PreTrainedTokenizer, PreTrainedTokenizerFast)
+                          PreTrainedTokenizer, PreTrainedTokenizerFast,
+                          StoppingCriteria, StoppingCriteriaList, TextStreamer)
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
-def get_dtype(dtype):
+class ChatFormatter:
+    """A class for formatting the chat history.
+
+    Args:
+        system: The system prompt. If None, a default ChatML-formatted prompt is used.
+        user: The user prompt. If None, a default ChatML value is used.
+        assistant: The assistant prompt. If None, a default ChatML value is used.
+
+    Attributes:
+        system: The system prompt.
+        user: The user prompt.
+        assistant: The assistant prompt.
+        response_prefix: The response prefix (anything before {} in the assistant format string)
+    """
+
+    def __init__(self, system: str, user: str, assistant: str) -> None:
+        self.system = system if system else '<|im_start|>system\nA conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.<|im_end|>\n'
+        self.user = user if user else '<|im_start|>user\n{}<|im_end|>\n'
+        self.assistant = assistant if assistant else '<|im_start|>assistant\n{}<|im_end|>\n'
+        self.response_prefix = self.assistant.split('{}')[0]
+
+
+class Conversation:
+    """A class for interacting with a chat-tuned LLM.
+
+    Args:
+        model: The model to use for inference.
+        tokenizer: The tokenizer to use for inference.
+        chat_format: The chat format to use for the conversation.
+        generate_kwargs: The keyword arguments to pass to `model.generate`.
+        stop_tokens: The tokens to stop generation on.
+
+    Attributes:
+        model: The model to use for inference.
+        tokenizer: The tokenizer to use for inference.
+        chat_format: The chat format to use for the conversation.
+        streamer: The streamer to use for inference.
+        generate_kwargs: The keyword arguments to pass to `model.generate`.
+        history: The conversation history.
+        cli_instructions: The instructions to display to the user.
+    """
+
+    def __init__(
+            self,
+            model,
+            tokenizer: Tokenizer,
+            chat_format: ChatFormatter,
+            generate_kwargs: Dict[str, Any],
+            stop_tokens: List[str] = ['<|endoftext|>', '<|im_end|>']) -> None:
+        self.model = model
+        self.tokenizer = tokenizer
+        self.chat_format = chat_format
+
+        stop_token_ids = self.tokenizer.convert_tokens_to_ids(stop_tokens)
+        if len(stop_token_ids) != len(stop_tokens):
+            warnings.warn(
+                f'Not all stop tokens were found in the tokenizer vocabulary: {stop_tokens}\n'
+                + 'Generation may stop or continue unexpectedly.')
+
+        class StopOnTokens(StoppingCriteria):
+
+            def __call__(self, input_ids: torch.LongTensor,
+                         scores: torch.FloatTensor, **kwargs) -> bool:
+                for stop_id in stop_token_ids:
+                    if input_ids[0][-1] == stop_id:
+                        return True
+                return False
+
+        self.streamer = TextStreamer(tokenizer,
+                                     skip_prompt=True,
+                                     skip_special_tokens=True)
+        self.generate_kwargs = {
+            **generate_kwargs,
+            'stopping_criteria':
+                StoppingCriteriaList([StopOnTokens()]),
+            'streamer':
+                self.streamer,
+        }
+        self.history = []
+        self.cli_instructions = (
+            'Enter your message below.\n- Hit return twice to send input to the model\n'
+            +
+            "- Type 'clear' to restart the conversation\n- Type 'history' to see the conversation\n"
+            +
+            "- Type 'quit' to end\n- Type 'system' to change the system prompt\n"
+        )
+
+    def _history_as_formatted_str(self) -> str:
+        text = self.chat_format.system + ''.join([
+            '\n'.join([
+                self.chat_format.user.format(item[0]),
+                self.chat_format.assistant.format(item[1]),
+            ]) for item in self.history[:-1]
+        ])
+        text += self.chat_format.user.format(self.history[-1][0])
+        text += self.chat_format.response_prefix
+        return text
+
+    def turn(self, user_inp: str) -> None:
+        self.history.append([user_inp, ''])
+        conversation = self._history_as_formatted_str()
+        input_ids = self.tokenizer(conversation, return_tensors='pt').input_ids
+        input_ids = input_ids.to(self.model.device)
+        # also stream to stdout
+        maybe_synchronize()
+        start = time.time()
+        print('Assistant:')
+        gkwargs = {**self.generate_kwargs, 'input_ids': input_ids}
+        # this will stream to stdout, but we need to keep track of the output_ids for saving history
+        output_ids = self.model.generate(**gkwargs)
+        maybe_synchronize()
+        end = time.time()
+        print(f'took {end - start:.2f} seconds')
+        new_tokens = output_ids[0, len(input_ids[0]):]
+        assistant_response = self.tokenizer.decode(new_tokens,
+                                                   skip_special_tokens=True)
+        self.history[-1][-1] = assistant_response
+
+    def __call__(self) -> None:
+        while True:
+            print(self.cli_instructions)
+            user_inp_lines = []
+            while True:
+                line = input()
+                if line.strip() == '':
+                    break
+                user_inp_lines.append(line)
+            user_inp = '\n'.join(user_inp_lines)
+            if user_inp.lower() == 'quit':
+                break
+            elif user_inp.lower() == 'clear':
+                self.history = []
+                continue
+            elif user_inp == 'history':
+                print(f'history: {self.history}')
+                continue
+            elif user_inp == 'history_fmt':
+                print(f'history: {self._history_as_formatted_str()}')
+                continue
+            elif user_inp == 'system':
+                print('Enter a new system prompt:')
+                new_system = input()
+                sys = f'<|im_start|>system\n{new_system.strip()}.<|im_end|>\n'
+                self.chat_format.system = sys
+                continue
+            self.turn(user_inp)
+
+
+def get_dtype(dtype: str):
     if dtype == 'fp32':
         return torch.float32
     elif dtype == 'fp16':
@@ -38,7 +187,7 @@ def str2bool(v):
         raise ArgumentTypeError('Boolean value expected.')
 
 
-def str_or_bool(v):
+def str_or_bool(v: Union[str, bool]):
     if isinstance(v, bool):
         return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -47,15 +196,6 @@ def str_or_bool(v):
         return False
     else:
         return v
-
-
-SYSTEM_PROMPT = """<|im_start|>system
-    - You are a helpful assistant chatbot trained by MosaicML.
-    - You answer questions.
-    - You are excited to be able to help the user, but will refuse to do anything that could be considered harmful to the user.
-    - You are more than just an information source, you are also able to write poetry, short stories, and make jokes.<|im_end|>\n"""
-USER_MSG_FMT = '<|im_start|>user {}<|im_end|>\n'
-ASSISTANT_MSG_FMT = '<|im_start|>assistant {}<|im_end|>\n'
 
 
 def parse_args() -> Namespace:
@@ -108,68 +248,21 @@ def parse_args() -> Namespace:
     parser.add_argument('--device_map', type=str, default=None)
     parser.add_argument('--attn_impl', type=str, default=None)
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--system_prompt', type=str, default=SYSTEM_PROMPT)
-    parser.add_argument('--user_msg_fmt', type=str, default=USER_MSG_FMT)
-    parser.add_argument('--assistant_msg_fmt',
-                        type=str,
-                        default=ASSISTANT_MSG_FMT)
+    parser.add_argument('--system_prompt', type=str, default=None)
+    parser.add_argument('--user_msg_fmt', type=str, default=None)
+    parser.add_argument('--assistant_msg_fmt', type=str, default=None)
+    parser.add_argument(
+        '--stop_tokens',
+        type=str,
+        default='<|endoftext|> <|im_end|>',
+        help='A string of tokens to stop generation on; will be split on spaces.'
+    )
     return parser.parse_args()
 
 
 def maybe_synchronize():
     if torch.cuda.is_available():
         torch.cuda.synchronize()
-
-
-def conversation(model, tokenizer: Tokenizer, user_inp: str, history: str,
-                 **generate_kwargs: Dict[str, Any]) -> Tuple[str, str, float]:
-    if history != '':
-        user_inp = USER_MSG_FMT.format(user_inp)
-        conversation = history + user_inp
-    else:
-        conversation = SYSTEM_PROMPT + USER_MSG_FMT.format(user_inp)
-    input_ids = tokenizer(conversation, return_tensors='pt').input_ids
-    input_ids = input_ids.to(model.device)
-    maybe_synchronize()
-    start = time.time()
-    with torch.no_grad():
-        output_ids = model.generate(input_ids, **generate_kwargs)
-    maybe_synchronize()
-    end = time.time()
-    # Slice the output_ids tensor to get only new tokens
-    new_tokens = output_ids[0, len(input_ids[0]):]
-    output_text = tokenizer.decode(new_tokens, skip_special_tokens=True)
-    conversation = conversation + ASSISTANT_MSG_FMT.format(output_text)
-    return output_text, conversation, end - start
-
-
-def have_conversation(model, tokenizer: Tokenizer,
-                      **generate_kwargs: Dict[str, Any]) -> None:
-    history = ''
-    while True:
-        print(
-            "Enter your message below.\n- Type 'EOF' on a new line to send input to the model\n"
-            +
-            "- Type 'clear' to restart the conversation\n- Type 'history' to see the conversation\n"
-            + "- Type 'quit' to end:")
-        user_inp_lines = []
-        while True:
-            line = input()
-            if line.strip() == 'EOF':
-                break
-            user_inp_lines.append(line)
-        user_inp = '\n'.join(user_inp_lines)
-        if user_inp.lower() == 'quit':
-            break
-        elif user_inp.lower() == 'clear':
-            history = ''
-            continue
-        elif user_inp == 'history':
-            print(f'history: {history}\n')
-            continue
-        assistant_resp, history, time_taken = conversation(
-            model, tokenizer, user_inp, history, **generate_kwargs)
-        print(f'Assistant: {assistant_resp} ({time_taken:.3f}s)\n')
 
 
 def main(args: Namespace) -> None:
@@ -265,15 +358,26 @@ def main(args: Namespace) -> None:
         autocast_context = nullcontext()
         print('NOT using autocast...')
 
+    chat_format = ChatFormatter(system=args.system_prompt,
+                                user=args.user_msg_fmt,
+                                assistant=args.assistant_msg_fmt)
+
+    conversation = Conversation(model=model,
+                                tokenizer=tokenizer,
+                                chat_format=chat_format,
+                                generate_kwargs=generate_kwargs,
+                                stop_tokens=args.stop_tokens.split())
+
     # Warmup
     if args.warmup:
         print('Warming up...')
         with autocast_context:
-            conversation(model, tokenizer, 'hello', '', **generate_kwargs)
+            conversation.turn('Write a welcome message to the user.')
+            conversation.history = []
 
     print('Starting conversation...')
     with autocast_context:
-        have_conversation(model, tokenizer, **generate_kwargs)
+        conversation()
 
 
 if __name__ == '__main__':

@@ -56,6 +56,7 @@ To try out these models locally, [follow the instructions](https://github.com/mo
 # MPT Community
 
 We've been overwhelmed by all the amazing work the community has put into MPT! Here we provide a few links to some of them:
+* [ReplitLM](https://github.com/replit/replitLM): `replit-code-v1-3b` is a 2.7B Causal Language Model focused on Code Completion. The model has been trained on a subset of the Stack Dedup v1.2 dataset covering 20 languages such as Java, Python, and C++
 * [LLaVa-MPT](https://github.com/haotian-liu/LLaVA#LLaVA-MPT-7b): Visual instruction tuning to get MPT multimodal capabilities
 * [ggml](https://github.com/ggerganov/ggml/tree/master): Optimized MPT version for efficient inference on consumer hardware
 * [GPT4All](https://gpt4all.io/index.html): locally running chat system, now with MPT support!
@@ -98,7 +99,8 @@ The `mosaicml/pytorch` images are pinned to specific PyTorch and CUDA versions, 
 
 The `mosaicml/llm-foundry` images are built with new tags upon every commit to the `main` branch.
 You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117-f678575` or take the latest one using `mosaicml/llm-foundry:1.13.1_cu117-latest`.
-**Plese Note:** The `mosaicml/llm-foundry` images do not install the package itself, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
+
+**Please Note:** The `mosaicml/llm-foundry` images does not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
 
 | Docker Image                                                | Torch Version  | Cuda Version | LLM Foundry dependencies installed? |
 |-------------------------------------------------------------|----------------|--------------|-------------------------------------|

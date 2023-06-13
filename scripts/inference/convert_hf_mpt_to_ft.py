@@ -204,30 +204,30 @@ def convert_mpt_to_ft(model_name_or_path: str,
     hf_config = vars(model.config)
 
     config = configparser.ConfigParser()
-    config['mpt'] = {}
+    config['gpt'] = {}
     try:
-        config['mpt']['model_name'] = 'mpt' if hf_config[
+        config['gpt']['model_name'] = 'mpt' if hf_config[
             '_name_or_path'] == '' else hf_config['_name_or_path']
-        config['mpt']['head_num'] = str(hf_config['n_heads'])
+        config['gpt']['head_num'] = str(hf_config['n_heads'])
         n_embd = hf_config['d_model']
-        config['mpt']['size_per_head'] = str(n_embd // hf_config['n_heads'])
-        config['mpt']['inter_size'] = str(n_embd * hf_config['expansion_ratio'])
-        config['mpt']['max_pos_seq_len'] = str(hf_config['max_seq_len'])
-        config['mpt']['num_layer'] = str(hf_config['n_layers'])
-        config['mpt']['vocab_size'] = str(hf_config['vocab_size'])
-        config['mpt']['start_id'] = str(
+        config['gpt']['size_per_head'] = str(n_embd // hf_config['n_heads'])
+        config['gpt']['inter_size'] = str(n_embd * hf_config['expansion_ratio'])
+        config['gpt']['max_pos_seq_len'] = str(hf_config['max_seq_len'])
+        config['gpt']['num_layer'] = str(hf_config['n_layers'])
+        config['gpt']['vocab_size'] = str(hf_config['vocab_size'])
+        config['gpt']['start_id'] = str(
             hf_config['bos_token_id']
         ) if hf_config['bos_token_id'] != None else str(tokenizer.bos_token_id)
-        config['mpt']['end_id'] = str(
+        config['gpt']['end_id'] = str(
             hf_config['eos_token_id']
         ) if hf_config['eos_token_id'] != None else str(tokenizer.eos_token_id)
-        config['mpt']['weight_data_type'] = weight_data_type
-        config['mpt']['tensor_para_size'] = str(infer_gpu_num)
+        config['gpt']['weight_data_type'] = weight_data_type
+        config['gpt']['tensor_para_size'] = str(infer_gpu_num)
         # nn.LayerNorm default eps is 1e-5
-        config['mpt']['layernorm_eps'] = str(1e-5)
+        config['gpt']['layernorm_eps'] = str(1e-5)
         if hf_config['attn_config']['alibi']:
-            config['mpt']['has_positional_encoding'] = str(False)
-            config['mpt']['use_attention_linear_bias'] = str(True)
+            config['gpt']['has_positional_encoding'] = str(False)
+            config['gpt']['use_attention_linear_bias'] = str(True)
         if hf_config['attn_config']['clip_qkv'] and not force:
             raise RuntimeError(
                 'clip_qkv is enabled for this MPT model. This may not work as expected in FT. Use --force to force a conversion.'

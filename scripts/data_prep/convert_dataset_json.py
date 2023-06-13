@@ -3,7 +3,6 @@
 
 """Streaming dataset conversion scripts for json files."""
 import os
-import platform
 from argparse import ArgumentParser, Namespace
 from enum import Enum
 from glob import glob
@@ -140,29 +139,6 @@ def _est_progress_denominator(total_samples: int, chars_per_sample: int,
         return total_samples
     elif mode == ConcatMode.CONCAT_TOKENS:
         return total_samples * est_tokens_per_sample // max_length
-
-
-def build_dataloader(dataset, batch_size) -> DataLoader:
-    # Multiple workers is only supported on linux machines
-    if 'linux' in platform.platform().lower():
-        num_workers = 64
-    else:
-        num_workers = 0
-
-    # If using multiple workers, configure each worker to prefetch as many samples as it can, up to
-    # the aggregate device batch size
-    # If not using workers, the torch DataLoader expects the default value for prefetch_factor,
-    # which non-intuitively must be 2.
-    prefetch_factor = max(1, 2 * batch_size //
-                          num_workers) if num_workers > 0 else 2
-
-    return DataLoader(
-        dataset=dataset,
-        sampler=None,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        prefetch_factor=prefetch_factor,
-    )
 
 
 def generate_samples(

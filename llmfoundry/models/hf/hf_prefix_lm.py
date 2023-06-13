@@ -126,6 +126,7 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
         ]
 
         composer_model = super().__init__(model=model,
+                                          shift_labels=True,
                                           tokenizer=tokenizer,
                                           metrics=metrics,
                                           z_loss=om_model_config.get(

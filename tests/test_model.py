@@ -1322,9 +1322,9 @@ def test_hf_init(tmp_path,
 
     hf_config = MPTConfig(
         init_device=init_device,
-        d_model=128,
+        d_model=32,
         n_heads=4,
-        n_layers=2,
+        n_layers=1,
         expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
@@ -1344,7 +1344,7 @@ def test_hf_init(tmp_path,
     if init_device == 'meta':
         context = init_empty_weights(include_buffers=False)
 
-    # Load in a model with a given context
+    # Load in a pretrained model with a given context
     with context:
         model = AutoModelForCausalLM.from_pretrained(save_path,
                                                      trust_remote_code=True)

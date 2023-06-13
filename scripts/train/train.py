@@ -140,7 +140,15 @@ def main(cfg):
         if cfg.model.init_device == 'meta':
             init_context = init_empty_weights()
         if cfg.model.init_device == 'mixed':
-            fsdp_config['sync_module_states'] = True
+            if fsdp_config is None:
+                raise NotImplementedError(
+                    'Using init_device `mixed` is only supported with FSDP. '
+                    'Please add a FSDP config.')
+            if not fsdp_config.get('sync_module_states', False):
+                warnings.warn((
+                    'Setting `sync_module_states = True` for FSDP. This is required '
+                    'when using mixed initialization.'))
+                fsdp_config['sync_module_states'] = True
 
     # build tokenizer
     tokenizer = build_tokenizer(cfg.tokenizer)

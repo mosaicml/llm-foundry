@@ -1290,13 +1290,12 @@ def test_forward_with_output_attentions_and_output_hidden_states(
 
 
 @pytest.mark.gpu
-# @pytest.mark.parametrize('init_device', ['cpu', 'meta', 'mixed'])
-@pytest.mark.parametrize('init_device', ['meta'])
+@pytest.mark.parametrize('init_device', ['cpu', 'meta', 'mixed'])
 @pytest.mark.parametrize('world_size', [2])
 def test_hf_init(tmp_path,
                  init_device: str,
                  world_size: int,
-                 batch_size: int = 2):
+                 batch_size: int = 1):
     if not torch.cuda.is_available():
         pytest.skip(f'This test requires CUDA to be available.')
     if not torch.cuda.device_count() >= world_size:
@@ -1310,7 +1309,6 @@ def test_hf_init(tmp_path,
 
     fsdp_config = {'sharding_strategy': 'FULL_SHARD'}
 
-    print('temp path is:', tmp_path)
     save_path = tmp_path / 'test-hf-device-init'
 
     if init_device == 'mixed':
@@ -1327,7 +1325,7 @@ def test_hf_init(tmp_path,
         n_heads=4,
         n_layers=1,
         expansion_ratio=2,
-        max_seq_len=2048,
+        max_seq_len=128,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={

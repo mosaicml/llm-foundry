@@ -1374,7 +1374,8 @@ def test_hf_init(tmp_path,
 
     original_params = next(model.parameters()).clone().data
 
-    outputs = model(batch)
+    with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
+       outputs = model(batch)
     loss = model.loss(outputs, batch)
     loss.backward()
     optimizer.step()

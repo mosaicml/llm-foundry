@@ -13,9 +13,16 @@ def format_sample_old(a, b, c, operator='+'):
 
 
 # this is for a language modeling task
-def format_sample(operands, c, operator='+'):
+def format_sample(operands, c, operator='+', with_spaces=False):
+    if with_spaces:
+        operator = f' {operator} '
+        equal_to_str = ' ='
+        continuation_str = f' {str(c)}'
+    else:
+        equal_to_str = '='
+        continuation_str = str(c)
     context_str = operator.join([str(operand) for operand in operands])
-    return {'context': f'{context_str}=', 'continuation': str(c)}
+    return {'context': f'{context_str}{equal_to_str}', 'continuation': continuation_str}
 
 
 # generates a jsonl file of "a+b=c" samples where a, b are integers with num_digits digits
@@ -49,7 +56,8 @@ def make_arithmetic_dataset_v2(out_filename,
                             num_digits=3,
                             random_subset=False,
                             max_num_operands=5,
-                            operators=['+', '*', '-']):
+                            operators=['+', '*', '-'],
+                            with_spaces=False,):
     with open(out_filename, 'w', encoding='utf8') as f:
         if random_subset:
             # then just pick num_samples randomly
@@ -77,7 +85,7 @@ def make_arithmetic_dataset_v2(out_filename,
                     else:
                         print(f"Operators {operator} not supported")
                         raise NotImplementedError
-                row = format_sample(operands, c=c, operator=operator)
+                row = format_sample(operands, c=c, operator=operator, with_spaces=with_spaces)
                 f.write(json.dumps(row, ensure_ascii=False) + '\n')
         else:
             print("This is too many. Not generating all samples.")
@@ -119,6 +127,10 @@ if __name__ == '__main__':
                         default=2,
                         metavar='d',
                         help='max number of operands to use (default: 2)')
+    parser.add_argument('--with-spaces',
+                        action='store_true',
+                        default=False,
+                        help='add spaces around operators (default: False)')
 
     parser_args = parser.parse_args()
 
@@ -143,4 +155,5 @@ if __name__ == '__main__':
                             num_digits=parser_args.num_digits,
                             random_subset=parser_args.random_subset,
                             max_num_operands=parser_args.max_num_operands,
-                            operators=['+', '*', '-'])
+                            operators=['+', '*', '-'],
+                            with_spaces=parser_args.with_spaces)

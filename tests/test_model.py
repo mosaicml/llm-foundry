@@ -806,11 +806,12 @@ def test_generate_with_device_map(tmp_path, world_size, use_cache):
         trust_remote_code=True,
         device_map=device_map,
     )
-    out = pipe(
-        'The quick fox jumped over',
-        max_length=10,
-        do_sample=True,
-    )
+    with torch.autocast('cuda', dtype=torch.bfloat16):
+        out = pipe(
+            'The quick fox jumped over',
+            max_length=10,
+            do_sample=True,
+        )
 
 
 def check_hf_model_equivalence(model1, model2):

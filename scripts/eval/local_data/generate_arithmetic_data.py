@@ -6,16 +6,23 @@ import json
 import random
 
 
-def format_sample(a, b, c, operator='+'):
+# this is for qa tasks
+def format_sample_old(a, b, c, operator='+'):
     # TODO: add aliases here so that the model gets points even if it is "close"
     return {'context': f'{a}+{b}=', 'answer': str(c), 'aliases': [str(c)]}
+
+
+# this is for a language modeling task
+def format_sample(operands, c, operator='+'):
+    context_str = operator.join([str(operand) for operand in operands])
+    return {'context': f'{context_str}=', 'continuation': str(c)}
 
 
 # generates a jsonl file of "a+b=c" samples where a, b are integers with num_digits digits
 def make_arithmetic_dataset(out_filename,
                             num_samples=1000,
                             num_digits=3,
-                            random_subset=False):
+                            random_subset=False,):
     with open(out_filename, 'w', encoding='utf8') as f:
         if random_subset:
             # then just pick num_samples randomly
@@ -28,6 +35,53 @@ def make_arithmetic_dataset(out_filename,
                 row = format_sample(a, b, c=c, operator='+')
                 f.write(json.dumps(row, ensure_ascii=False) + '\n')
         else:
+            # consider all possible addition samples of num_digits
+            for a in range(10**num_digits):
+                for b in range(10**num_digits):
+                    row = format_sample(a, b, c=a + b, operator='+')
+                    f.write(json.dumps(row, ensure_ascii=False) + '\n')
+
+
+# generates a jsonl file of "a_1 \op a_2 \op ... a_n=c" samples where a_i are integers with num_digits digits
+# n is chosen randomly between 2 and 4
+def make_arithmetic_dataset_v2(out_filename,
+                            num_samples=1000,
+                            num_digits=3,
+                            random_subset=False,
+                            max_num_operands=5,
+                            operators=['+', '*', '-']):
+    with open(out_filename, 'w', encoding='utf8') as f:
+        if random_subset:
+            # then just pick num_samples randomly
+            for idx in range(num_samples):
+                # choose operator randomly from operators
+                operator = random.choice(operators)
+                num_operands = random.choice(range(2, max_num_operands + 1))
+                max_val = 10**num_digits
+                # adding a hack to keep the multiplication samples small
+                if operator == '*':
+                    max_val = 10**(num_digits-1)
+                    num_operands = random.choice([2, 3])
+                a_1 = random.randint(0, max_val)
+                operands = [a_1]
+                c = a_1
+                for i in range(num_operands-1):
+                    a_i = random.randint(0, max_val)
+                    operands.append(a_i)
+                    if operator == '+':
+                        c += a_i
+                    elif operator == '-':
+                        c -= a_i
+                    elif operator == '*':
+                        c *= a_i
+                    else:
+                        print(f"Operators {operator} not supported")
+                        raise NotImplementedError
+                row = format_sample(operands, c=c, operator=operator)
+                f.write(json.dumps(row, ensure_ascii=False) + '\n')
+        else:
+            print("This is too many. Not generating all samples.")
+            exit()
             # consider all possible addition samples of num_digits
             for a in range(10**num_digits):
                 for b in range(10**num_digits):
@@ -60,6 +114,11 @@ if __name__ == '__main__':
         help=
         'number of random samples to choose if random_subset=True (default: 1000)'
     )
+    parser.add_argument('--max-num-operands',
+                        type=int,
+                        default=2,
+                        metavar='d',
+                        help='max number of operands to use (default: 2)')
 
     parser_args = parser.parse_args()
 
@@ -73,7 +132,15 @@ if __name__ == '__main__':
     print(
         f'Generating addition dataset with with {parser_args.num_samples} samples of up to {parser_args.num_digits} digits'
     )
-    make_arithmetic_dataset(parser_args.out_filename,
+    # make_arithmetic_dataset(parser_args.out_filename,
+    #                         num_samples=parser_args.num_samples,
+    #                         num_digits=parser_args.num_digits,
+    #                         random_subset=parser_args.random_subset)
+
+    random.seed(42)
+    make_arithmetic_dataset_v2(parser_args.out_filename,
                             num_samples=parser_args.num_samples,
                             num_digits=parser_args.num_digits,
-                            random_subset=parser_args.random_subset)
+                            random_subset=parser_args.random_subset,
+                            max_num_operands=parser_args.max_num_operands,
+                            operators=['+', '*', '-'])

@@ -44,12 +44,12 @@ You'll find in this repo:
 MPT-7B is a GPT-style model, and the first in the MosaicML Foundation Series of models. Trained on 1T tokens of a MosaicML-curated dataset, MPT-7B is open-source, commercially usable, and equivalent to LLaMa 7B on evaluation metrics. The MPT architecture contains all the latest techniques on LLM modeling -- Flash Attention for efficiency, Alibi for context length extrapolation, and stability improvements to mitigate loss spikes. The base model and several variants, including a 64K context length fine-tuned model (!!) are all available:
 
 
-| Model              | Context Length | Download                                           | Demo                                                             | Commercial use? |
-|--------------------|----------------|----------------------------------------------------|------------------------------------------------------------------|-----------------|
-| MPT-7B             | 2048           | https://huggingface.co/mosaicml/mpt-7b             |                                                                  | Yes             |
-| MPT-7B-Instruct    | 2048           | https://huggingface.co/mosaicml/mpt-7b-instruct    | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-instruct)   | Yes             |
-| MPT-7B-Chat        | 2048           | https://huggingface.co/mosaicml/mpt-7b-chat        | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-chat)       | No              |
-| MPT-7B-StoryWriter | 65536          | https://huggingface.co/mosaicml/mpt-7b-storywriter | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-storywriter)| Yes             |
+| Model              | Context Length | Download                                           | Commercial use? |
+|--------------------|----------------|----------------------------------------------------|-----------------|
+| MPT-7B             | 2048           | https://huggingface.co/mosaicml/mpt-7b             | Yes             |
+| MPT-7B-Instruct    | 2048           | https://huggingface.co/mosaicml/mpt-7b-instruct    | Yes             |
+| MPT-7B-Chat        | 2048           | https://huggingface.co/mosaicml/mpt-7b-chat        | No              |
+| MPT-7B-StoryWriter | 65536          | https://huggingface.co/mosaicml/mpt-7b-storywriter | Yes             |
 
 To try out these models locally, [follow the instructions](https://github.com/mosaicml/llm-foundry/tree/main/scripts/inference#interactive-generation-with-modelgenerate) in `scripts/inference/README.md` to prompt HF models using our [hf_generate.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_generate.py) or [hf_chat.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_chat.py) scripts.
 

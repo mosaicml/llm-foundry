@@ -40,7 +40,7 @@ def str_to_bool(value):
 def parse_args():
     parser = argparse.ArgumentParser(
         description=
-        'Generate and run configurations to test MPT training throughput on Mosaic Cloud.'
+        'Generate and run configurations to test MPT training throughput on the MosaicML platform.'
     )
 
     parser.add_argument('--project', type=str, default='tput')
@@ -398,15 +398,11 @@ def run_config(config, args):
         pad_vocab_multiple=args.pad_vocab_multiple)
 
     # Create run config mcli sdk/api
-    config = RunConfig(run_name=name,
-                       name=name,
+    config = RunConfig(name=name,
                        gpu_type=gpu_type,
                        gpu_num=gpu_num,
-                       cpus=None,
-                       platform=None,
                        cluster=cluster,
                        image=args.image,
-                       optimization_level=0,
                        integrations=integrations,
                        command=command,
                        parameters=parameters,

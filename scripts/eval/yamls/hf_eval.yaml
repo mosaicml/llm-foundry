@@ -15,17 +15,6 @@ models:
     name: EleutherAI/gpt-neo-125m
     kwargs:
       model_max_length: ${max_seq_len}
--
-  model_name: EleutherAI/gpt-neo-125m2
-  model:
-    name: hf_causal_lm
-    pretrained_model_name_or_path: EleutherAI/gpt-neo-125m
-    init_device: cpu
-    pretrained: true
-  tokenizer:
-    name: EleutherAI/gpt-neo-125m
-    kwargs:
-      model_max_length: ${max_seq_len}
 
 # load_path: # Add your (optional) Composer checkpoint path here!
 
@@ -36,5 +25,5 @@ device_eval_batch_size: 4
 #   sharding_strategy: FULL_SHARD
 #   mixed_precision: FULL
 
-icl_tasks: 'eval/yamls/tasks_small_test.yaml'
+icl_tasks: 'eval/yamls/tasks.yaml'
 icl_taxonomy: 'eval/yamls/eval_taxonomy.yaml'

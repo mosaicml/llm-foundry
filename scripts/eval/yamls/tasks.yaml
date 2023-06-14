@@ -45,7 +45,6 @@ icl_tasks:
   dataset_uri: eval/local_data/world_knowledge/bigbench_movie_recommendation.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0, 10]
   icl_task_type: multiple_choice
-
 -
   label: copa
   dataset_uri: eval/local_data/commonsense_reasoning/copa.jsonl # ADD YOUR OWN DATASET URI
@@ -77,9 +76,6 @@ icl_tasks:
   dataset_uri: eval/local_data/commonsense_reasoning/bigbench_strategy_qa.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0, 10]
   icl_task_type: multiple_choice
-
-
-
 -
   label: lambada_openai
   dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
@@ -115,7 +111,6 @@ icl_tasks:
   dataset_uri: eval/local_data/language_understanding/bigbench_conceptual_combinations.jsonl
   num_fewshot: [0, 10]
   icl_task_type: multiple_choice
-
 -
   label: bigbench_elementary_math_qa
   dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_elementary_math_qa.jsonl
@@ -147,8 +142,13 @@ icl_tasks:
   num_fewshot: [0, 10]
   icl_task_type: language_modeling
 -
-  label: bigbench_simple_arithmetic
-  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_simple_arithmetic.jsonl
+  label: simple_arithmetic_nospaces
+  dataset_uri: eval/local_data/symbolic_problem_solving/simple_arithmetic_nospaces.jsonl
+  num_fewshot: [0, 10]
+  icl_task_type: language_modeling
+-
+  label: simple_arithmetic_withspaces
+  dataset_uri: eval/local_data/symbolic_problem_solving/simple_arithmetic_withspaces.jsonl
   num_fewshot: [0, 10]
   icl_task_type: language_modeling
 -
@@ -162,15 +162,19 @@ icl_tasks:
   num_fewshot: [0, 10]
   icl_task_type: multiple_choice
   continuation_delimiter: 'Answer: ' # this separates questions from answers
-
 -
-  label: pubmed_qa_sm
-  dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_sm.jsonl # ADD YOUR OWN DATASET URI
+  label: pubmed_qa_labeled
+  dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0, 10]
-  icl_task_type: multiple_choice
+  icl_task_type: language_modeling
 -
   label: squad
   dataset_uri: eval/local_data/reading_comprehension/squad.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 10]
+  icl_task_type: language_modeling
+-
+  label: coqa
+  dataset_uri: eval/local_data/reading_comprehension/coqa.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0, 10]
   icl_task_type: language_modeling
 -
@@ -184,5 +188,3 @@ icl_tasks:
   num_fewshot: [0, 10]
   icl_task_type: multiple_choice
   continuation_delimiter: 'Answer: ' # this separates questions from answers
-
-

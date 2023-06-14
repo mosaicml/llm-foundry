@@ -14,7 +14,7 @@ command: |
 image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04-aws
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: falcon-eval
+run_name: all-eval
 gpu_num: 32
 gpu_type: a100_40gb
 cluster: r4z4 # replace with your cluster here!
@@ -25,13 +25,27 @@ parameters:
   max_seq_len: 1024
   device_eval_batch_size: 8
   precision: amp_fp16
- 
+
   models:
+  -
+    model_name: replit/replit-code-v1-3b
+    # Tokenizer
+    tokenizer:
+      name: replit/replit-code-v1-3b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: replit/replit-code-v1-3b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
   -
     model_name: tiiuae/falcon-7b
     # Tokenizer
     tokenizer:
-      name:  tiiuae/falcon-7b
+      name: tiiuae/falcon-7b
       kwargs:
         model_max_length: ${max_seq_len}
 
@@ -42,16 +56,58 @@ parameters:
       pretrained: true
       use_auth_token: false
   -
-    model_name: tiiuae/falcon-7b-instruct
+    model_name: mosaicml/mpt-7b
     # Tokenizer
     tokenizer:
-      name:  tiiuae/falcon-7b-instruct
+      name: EleutherAI/gpt-neox-20b
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: tiiuae/falcon-7b-instruct
+      pretrained_model_name_or_path: mosaicml/mpt-7b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: mosaicml/mpt-7b-instruct
+    # Tokenizer
+    tokenizer:
+      name: EleutherAI/gpt-neox-20b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: togethercomputer/RedPajama-INCITE-7B-Instruct
+    # Tokenizer
+    tokenizer:
+      name: togethercomputer/RedPajama-INCITE-7B-Instruct
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: togethercomputer/RedPajama-INCITE-7B-Instruct
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: togethercomputer/RedPajama-INCITE-7B-Base
+    # Tokenizer
+    tokenizer:
+      name: togethercomputer/RedPajama-INCITE-7B-Base
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: togethercomputer/RedPajama-INCITE-7B-Base
       device: cpu
       pretrained: true
       use_auth_token: false
@@ -59,7 +115,7 @@ parameters:
     model_name: tiiuae/falcon-40b
     # Tokenizer
     tokenizer:
-      name:  tiiuae/falcon-40b
+      name: tiiuae/falcon-40b
       kwargs:
         model_max_length: ${max_seq_len}
 
@@ -73,7 +129,7 @@ parameters:
     model_name: tiiuae/falcon-40b-instruct
     # Tokenizer
     tokenizer:
-      name:  tiiuae/falcon-40b-instruct
+      name: tiiuae/falcon-40b-instruct
       kwargs:
         model_max_length: ${max_seq_len}
 
@@ -83,9 +139,189 @@ parameters:
       device: cpu
       pretrained: true
       use_auth_token: false
-  
-  
-  
+  -
+    model_name: tiiuae/falcon-7b-instruct
+    # Tokenizer
+    tokenizer:
+      name: tiiuae/falcon-7b-instruct
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: tiiuae/falcon-7b-instruct
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: huggyllama/llama-65b
+    # Tokenizer
+    tokenizer:
+      name: huggyllama/llama-65b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: huggyllama/llama-65b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: huggyllama/llama-30b
+    # Tokenizer
+    tokenizer:
+      name: huggyllama/llama-30b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: huggyllama/llama-30b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: huggyllama/llama-13b
+    # Tokenizer
+    tokenizer:
+      name: huggyllama/llama-13b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: huggyllama/llama-13b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: huggyllama/llama-7b
+    # Tokenizer
+    tokenizer:
+      name: huggyllama/llama-7b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: huggyllama/llama-7b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: EleutherAI/pythia-12b
+    # Tokenizer
+    tokenizer:
+      name: EleutherAI/pythia-12b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: EleutherAI/pythia-12b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: EleutherAI/pythia-6.9b
+    # Tokenizer
+    tokenizer:
+      name: EleutherAI/pythia-6.9b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: EleutherAI/pythia-6.9b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: facebook/opt-6.7b
+    # Tokenizer
+    tokenizer:
+      name: facebook/opt-6.7b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: facebook/opt-6.7b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: facebook/opt-66b
+    # Tokenizer
+    tokenizer:
+      name: facebook/opt-66b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: facebook/opt-66b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: stabilityai/stablelm-tuned-alpha-7b
+    # Tokenizer
+    tokenizer:
+      name: stabilityai/stablelm-tuned-alpha-7b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: stabilityai/stablelm-tuned-alpha-7b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: EleutherAI/gpt-j-6b
+    # Tokenizer
+    tokenizer:
+      name: EleutherAI/gpt-j-6b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: EleutherAI/gpt-j-6b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: EleutherAI/gpt-neox-20b
+    # Tokenizer
+    tokenizer:
+      name: EleutherAI/gpt-neox-20b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: EleutherAI/gpt-neox-20b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: EleutherAI/gpt-neox-20b
+    # Tokenizer
+    tokenizer:
+      name: EleutherAI/gpt-neox-20b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: EleutherAI/gpt-neox-20b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+
 
   # FSDP config for model sharding
   fsdp_config:

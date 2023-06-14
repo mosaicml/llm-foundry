@@ -213,7 +213,8 @@ def build_icl_evaluators(icl_tasks,
                 metric_names = list(icl_cfg.metric_names)
                 # TODO: fix Composer bug when copying local paths and destination exists
                 destination_path = f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl'
-                if dist.get_local_rank() == 0 and os.path.exists(destination_path):
+                if dist.get_local_rank() == 0 and os.path.exists(
+                        destination_path):
                     os.remove(destination_path)
                 dist.barrier()
                 dataloaders = get_icl_task_dataloader(
@@ -230,27 +231,27 @@ def build_icl_evaluators(icl_tasks,
                     destination_path=destination_path,
                     has_categories=icl_cfg.get('has_categories', False),
                 )
-                if hasattr(
-                        icl_cfg,
-                        'has_categories') and icl_cfg.has_categories and isinstance(
-                            dataloaders, dict):
+                if hasattr(icl_cfg, 'has_categories'
+                          ) and icl_cfg.has_categories and isinstance(
+                              dataloaders, dict):
                     for category in dataloaders.keys():
                         logger_keys.extend([
-                            f'metrics/{label}/{category}/{m}' for m in metric_names
+                            f'metrics/{label}/{category}/{m}'
+                            for m in metric_names
                         ])
                         evaluators.append(
                             Evaluator(label=f'{label}/{category}',
-                                    dataloader=dataloaders[category],
-                                    metric_names=metric_names),)
+                                      dataloader=dataloaders[category],
+                                      metric_names=metric_names),)
                 else:
                     logger_keys.extend(
                         [f'metrics/{label}/{m}' for m in metric_names])
                     evaluators.append(
                         Evaluator(label=label,
-                                dataloader=dataloaders,
-                                metric_names=metric_names),)
+                                  dataloader=dataloaders,
+                                  metric_names=metric_names),)
         except Exception as e:
-            print(f"Got exception: {str(e)} while building ICL task: {icl_cfg}")
+            print(f'Got exception: {str(e)} while building ICL task: {icl_cfg}')
             raise e
 
     return evaluators, logger_keys

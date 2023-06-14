@@ -5,16 +5,16 @@
 # which is MIT licensed
 
 import functools
-import warnings
 from typing import Any, Iterable, List
 
 import torch
 from transformers import PreTrainedModel
 from transformers.models.opt.modeling_opt import OPTDecoder
 
+from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
+
+
 # helper functions
-
-
 def rhasattr(obj: Any, attr: str):
     """A chain-able attribute version of hasattr.
 
@@ -165,8 +165,9 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
             if isinstance(child, torch.nn.Module):
                 child._fsdp_wrap = True
 
-        if model.config.tie_word_embeddings:
-            warnings.warn(
+        if model.config.tie_word_embeddings and not isinstance(
+                model, MPTForCausalLM):
+            raise ValueError(
                 'The passed in HuggingFaceModel has tied word embeddings '
                 'and the passed in initialization device is `mixed.` '
                 'In order to support this initializaiton scheme, we would need to break '

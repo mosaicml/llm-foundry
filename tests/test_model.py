@@ -1181,7 +1181,8 @@ def test_model_to(attention_impl, alibi):
     # verify the model still works
     if attention_impl == 'torch':
         with torch.autocast('cpu', dtype=torch.bfloat16, enabled=True):
-            _ = mpt(input_ids.to('cpu'), attention_mask=attention_mask.to('cpu'))
+            _ = mpt(input_ids.to('cpu'),
+                    attention_mask=attention_mask.to('cpu'))
 
     mpt = mpt.cuda()
     mpt = mpt.bfloat16()
@@ -1204,7 +1205,7 @@ def test_model_to(attention_impl, alibi):
 
     # verify the model still works
     with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
-       _ = mpt(input_ids, attention_mask=attention_mask)
+        _ = mpt(input_ids, attention_mask=attention_mask)
 
 
 def test_alibi_vs_hf():
@@ -1375,7 +1376,7 @@ def test_hf_init(tmp_path,
     original_params = next(model.parameters()).clone().data
 
     with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
-       outputs = model(batch)
+        outputs = model(batch)
     loss = model.loss(outputs, batch)
     loss.backward()
     optimizer.step()

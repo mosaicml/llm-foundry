@@ -157,3 +157,36 @@ if __name__ == '__main__':
                             max_num_operands=parser_args.max_num_operands,
                             operators=['+', '*', '-'],
                             with_spaces=parser_args.with_spaces)
+
+
+# example runs
+
+# python generate_arithmetic_data.py \
+#   --out-filename dummy_arithmetic_nospaces_data.jsonl \
+#   --num-samples 10 \
+#   --num-digits 3 \
+#   --random-subset \
+#   --max-num-operands 3
+
+# python generate_arithmetic_data.py \
+#   --out-filename dummy_arithmetic_withspaces_data.jsonl \
+#   --num-samples 10 \
+#   --num-digits 3 \
+#   --random-subset \
+#   --max-num-operands 3 \
+#   --with-spaces
+
+# python generate_arithmetic_data.py \
+#   --out-filename simple_arithmetic_nospaces_data.jsonl \
+#   --num-samples 1000 \
+#   --num-digits 3 \
+#   --random-subset \
+#   --max-num-operands 5
+
+# python generate_arithmetic_data.py \
+#   --out-filename simple_arithmetic_withspaces_data.jsonl \
+#   --num-samples 1000 \
+#   --num-digits 3 \
+#   --random-subset \
+#   --max-num-operands 5 \
+#   --with-spaces

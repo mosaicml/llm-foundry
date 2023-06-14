@@ -11,8 +11,6 @@ import torch
 from transformers import PreTrainedModel
 from transformers.models.opt.modeling_opt import OPTDecoder
 
-from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
-
 
 # helper functions
 def rhasattr(obj: Any, attr: str):
@@ -165,8 +163,7 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
             if isinstance(child, torch.nn.Module):
                 child._fsdp_wrap = True
 
-        if model.config.tie_word_embeddings and not isinstance(
-                model, MPTForCausalLM):
+        if model.config.tie_word_embeddings and not model.config.model_type == 'mpt':
             raise ValueError(
                 'The passed in HuggingFaceModel has tied word embeddings '
                 'and the passed in initialization device is `mixed.` '

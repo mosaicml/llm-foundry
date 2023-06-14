@@ -376,7 +376,7 @@ class MPTModel(MPTPreTrainedModel):
 
         attn_bias, attention_mask = self._attn_bias(
             device=x.device,
-            dtype=x.dtype,
+            dtype=torch.float32,
             attention_mask=attention_mask,
             prefix_mask=prefix_mask,
             sequence_id=sequence_id)

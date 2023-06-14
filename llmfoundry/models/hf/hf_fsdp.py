@@ -5,6 +5,7 @@
 # which is MIT licensed
 
 import functools
+import warnings
 from typing import Any, Iterable, List
 
 import torch
@@ -165,7 +166,7 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
                 child._fsdp_wrap = True
 
         if model.config.tie_word_embeddings:
-            raise ValueError(
+            warnings.warn(
                 'The passed in HuggingFaceModel has tied word embeddings '
                 'and the passed in initialization device is `mixed.` '
                 'In order to support this initializaiton scheme, we would need to break '

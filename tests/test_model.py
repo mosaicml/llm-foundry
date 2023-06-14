@@ -806,11 +806,12 @@ def test_generate_with_device_map(tmp_path, world_size, use_cache):
         trust_remote_code=True,
         device_map=device_map,
     )
-    out = pipe(
-        'The quick fox jumped over',
-        max_length=10,
-        do_sample=True,
-    )
+    with torch.autocast('cuda', dtype=torch.bfloat16):
+        out = pipe(
+            'The quick fox jumped over',
+            max_length=10,
+            do_sample=True,
+        )
 
 
 def check_hf_model_equivalence(model1, model2):
@@ -1169,20 +1170,27 @@ def test_model_to(attention_impl, alibi):
     input_ids = torch.tensor([[11274, 16390, 11]]).to('cuda')
     attention_mask = torch.tensor([[1, 1, 1]]).bool().to('cuda')
 
-    _ = mpt(input_ids, attention_mask=attention_mask)
+    # with get_precision_context('amp_bf16'):
+    with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
+        _ = mpt(input_ids, attention_mask=attention_mask)
 
     # move the model around using different methods
+    mpt = mpt.bfloat16()
     mpt = mpt.to('cpu')
 
     # verify the model still works
     if attention_impl == 'torch':
-        _ = mpt(input_ids.to('cpu'), attention_mask=attention_mask.to('cpu'))
+        with torch.autocast('cpu', dtype=torch.bfloat16, enabled=True):
+            _ = mpt(input_ids.to('cpu'),
+                    attention_mask=attention_mask.to('cpu'))
 
     mpt = mpt.cuda()
+    mpt = mpt.bfloat16()
 
     # verify the model still works
     if attention_impl == 'torch':
-        _ = mpt(input_ids, attention_mask=attention_mask)
+        with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
+            _ = mpt(input_ids, attention_mask=attention_mask)
 
     mpt = mpt.to('cpu')
     mpt = mpt.float()
@@ -1196,7 +1204,8 @@ def test_model_to(attention_impl, alibi):
     mpt = mpt.bfloat16()
 
     # verify the model still works
-    _ = mpt(input_ids, attention_mask=attention_mask)
+    with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
+        _ = mpt(input_ids, attention_mask=attention_mask)
 
 
 def test_alibi_vs_hf():
@@ -1366,7 +1375,8 @@ def test_hf_init(tmp_path,
 
     original_params = next(model.parameters()).clone().data
 
-    outputs = model(batch)
+    with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
+        outputs = model(batch)
     loss = model.loss(outputs, batch)
     loss.backward()
     optimizer.step()

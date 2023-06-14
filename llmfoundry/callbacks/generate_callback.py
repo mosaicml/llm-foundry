@@ -72,7 +72,7 @@ class Generate(Callback):
         # dummy forward call needed for FSDP to work consistently
         dummy_input = torch.tensor([[0]], dtype=torch.long)
         dummy_input = device.tensor_to_device(dummy_input)
-        with get_precision_context(state.precision, False):
+        with get_precision_context(state.precision):
             with torch.no_grad():
                 _ = model.model(input_ids=dummy_input)  # type: ignore
 

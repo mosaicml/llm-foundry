@@ -134,11 +134,13 @@ config = AutoConfig.from_pretrained(name, trust_remote_code=True)
 # (Optional) Change the `max_seq_len` allowed for inference
 # config.max_seq_len = 4096
 
+dtype = torch.bfloat16  # or torch.float32
+
 # Download model source and weights
 model = AutoModelForCausalLM.from_pretrained(
     name,
     config=config,
-    torch_dtype=torch.bfloat16,  # or torch.float32
+    torch_dtype=dtype,
     trust_remote_code=True)
 
 # Download tokenizer
@@ -151,12 +153,16 @@ pipe = pipeline(
     tokenizer=tokenizer,
     device='cuda:0',  # (Optional) to run on GPU 0
 )
-print(
-    pipe('Here is a recipe for vegan banana bread:\n',
-         max_new_tokens=100,
-         do_sample=True,
-         use_cache=True))
+with torch.autocast('cuda', dtype=dtype):
+    print(
+        pipe('Here is a recipe for vegan banana bread:\n',
+            max_new_tokens=100,
+            do_sample=True,
+            use_cache=True))
+
 ```
+
+Note: when running Torch modules in lower precision, it is best practice to use the [torch.autocast context manager](https://pytorch.org/docs/stable/amp.html).
 
 To play with more features like batching and multi-turn chat, check out our example scripts `scripts/inference/hf_generate.py` and `scripts/inference/hf_chat.py`, with instructions in the [inference README](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/README.md).
 
@@ -285,7 +291,7 @@ The purpose of this section is probably pretty self-evident. You’ve got questi
 - This is
 
 ### What is FSDP?
-- TODO
+[Fully Sharded Data Parallel (FSDP)](https://pytorch.org/blog/introducing-pytorch-fully-sharded-data-parallel-api/) is a PyTorch implementation of the [Zero Redundancy Optimizer (ZeRO)](https://arxiv.org/abs/1910.02054). FSDP shards networks parameters and the optimizer state across all GPUs. This enables users to train models with large parameter counts which do not fit into a single GPUs memory.
 
 ### What are the different attention options `torch` / `flash` / `triton`  for MPT and which one should I use?
 - **Short answer:** `torch` is the native pytorch attention implementation, and `flash` and `triton` are different implementations of the much more optimized [Flash Attention](https://arxiv.org/abs/2205.14135) method. `triton` and `flash` will be faster (and use less GPU memory) than `torch`, but they might not work with all hardware and environment setups.

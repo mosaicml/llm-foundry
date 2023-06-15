@@ -11,13 +11,13 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+name: llama-eval
+compute:
+  gpus: 32  # Number of GPUs to use
 
-# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-# run_name: mpt-7b-eval
-run_name: llama-eval
-gpu_num: 32
-gpu_type: a100_40gb
-cluster: # replace with your cluster here!
+  ## These configurations are optional
+  # cluster: TODO # Name of the cluster to use for this run
+  # gpu_type: a100_80gb # Type of GPU to use. We use a100_80gb in our experiments
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:

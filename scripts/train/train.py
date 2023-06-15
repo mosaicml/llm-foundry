@@ -131,7 +131,7 @@ def main(cfg):
     # Also 'meta' is only valid when using FSDP
     init_context = contextlib.nullcontext()
     if 'init_device' in cfg.model:
-        assert cfg.model.init_device in ['meta', 'cpu']
+        assert cfg.model.init_device in ['meta', 'cpu', 'mixed']
         if fsdp_config is None and cfg.model.init_device == 'meta':
             warnings.warn(
                 "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
@@ -139,6 +139,16 @@ def main(cfg):
             cfg.model.init_device = 'cpu'
         if cfg.model.init_device == 'meta':
             init_context = init_empty_weights()
+        if cfg.model.init_device == 'mixed':
+            if fsdp_config is None:
+                raise NotImplementedError(
+                    'Using init_device `mixed` is only supported with FSDP. '
+                    'Please add a FSDP config.')
+            if not fsdp_config.get('sync_module_states', False):
+                warnings.warn((
+                    'Setting `sync_module_states = True` for FSDP. This is required '
+                    'when using mixed initialization.'))
+                fsdp_config['sync_module_states'] = True
 
     # build tokenizer
     tokenizer = build_tokenizer(cfg.tokenizer)
@@ -229,11 +239,12 @@ def main(cfg):
         save_num_checkpoints_to_keep=cfg.get('save_num_checkpoints_to_keep',
                                              -1),
         save_overwrite=cfg.get('save_overwrite', False),
+        save_weights_only=cfg.get('save_weights_only', False),
         load_path=cfg.get('load_path', None),
         load_weights_only=cfg.get('load_weights_only', False),
         load_ignore_keys=cfg.get('load_ignore_keys', None),
         autoresume=cfg.get('autoresume', False),
-        python_log_level=cfg.get('python_log_level', None),
+        python_log_level=cfg.get('python_log_level', 'debug'),
         dist_timeout=cfg.dist_timeout,
     )
 

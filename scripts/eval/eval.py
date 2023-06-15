@@ -47,11 +47,11 @@ def main(cfg):
     taxonomy_df = None
     models_df = None
     for model_cfg in cfg.models:
+        print(f"Evaluating model: {model_cfg.model_name}", flush=True)
         # Build tokenizer and model
         try:
             tokenizer = build_tokenizer(model_cfg.tokenizer)
             composer_model = load_model(model_cfg.model, tokenizer)
-
             evaluators, logger_keys = build_icl_evaluators(
                 cfg.icl_tasks, tokenizer, cfg.max_seq_len,
                 cfg.device_eval_batch_size)
@@ -82,7 +82,7 @@ def main(cfg):
             fsdp_config = om.to_container(
                 fsdp_config, resolve=True) if fsdp_config is not None else None
 
-            load_path = cfg.get('load_path', None)
+            load_path = model_cfg.get('load_path', None)
 
             trainer = Trainer(
                 model=composer_model,
@@ -144,7 +144,7 @@ def main(cfg):
             print(models_df.to_markdown(index=False))
         except Exception as e:
             print(
-                f'Got exception: {str(e)} while evaluating {model_cfg}. Continuing to next model.'
+                f'Got exception: {str(e)} while evaluating {model_cfg}. Continuing to next model.', flush=True
             )
             continue
 
@@ -221,8 +221,7 @@ def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy,
                         }
                         df = pd.concat([df, pd.DataFrame([row])],
                                        ignore_index=True)
-    return df.sort_values(by=['Category'])
-
+    return df
 
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]

@@ -1,0 +1,96 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  git_branch: model_gauntlet # use your branch
+  # git_commit: # OR use your commit hash
+  pip_install: -e ".[gpu]"
+  ssh_clone: false # Should be true if using a private repo
+
+command: |
+  cd llm-foundry/scripts
+  pip install mosaicml@git+https://github.com/bmosaicml/composer.git@strip_spacing_icl
+  pip install awscli
+  aws s3 cp --no-progress  s3://mosaicml-internal-checkpoints-shared/nlp-hero/foundry-06-18-2023-HERO-30b-h100/finetune8k-50b-lr-eighth/hf/ mpt30b --recursive
+  sleep 120
+  aws s3 sync --no-progress s3://mosaicml-internal-checkpoints-shared/nlp-hero/foundry-06-18-2023-HERO-30b-h100/finetune8k-50b-lr-eighth/hf/ mpt30b
+  sleep 120
+  composer eval/eval.py /mnt/config/parameters.yaml
+
+
+# image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04-aws
+# image: mosaicml/llm-foundry:1.13.1_cu117-latest
+image: mosaicml/llm-foundry:2.0.1_cu118-latest
+
+scheduling:
+  priority: high
+# 
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
+run_name: large-model-falcon40b-instruct-gauntlet
+gpu_num: 112
+# compute:
+#   cluster: r9z1
+#   instance: coreweave.h100-80
+cluster: r7z2
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+parameters:
+  dist_timeout: 6000
+  seed: 1
+  max_seq_len: 1024
+  device_eval_batch_size: 4
+  precision: amp_fp16
+
+  models:
+  # -
+  #   model_name: llama-30b
+  #   # Tokenizer
+  #   tokenizer:
+  #     name: huggyllama/llama-30b
+  #     kwargs:
+  #       model_max_length: ${max_seq_len}
+
+  #   model:
+  #     name: hf_causal_lm
+  #     pretrained_model_name_or_path: huggyllama/llama-30b
+  #     device: cpu
+  #     pretrained: true
+  #     use_auth_token: false
+  -
+    model_name: mpt30b-8k
+    # Tokenizer
+    tokenizer:
+      name: EleutherAI/gpt-neox-20b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: ./mpt30b
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: falcon-40b-instruct
+    # Tokenizer
+    tokenizer:
+      name: tiiuae/falcon-40b-instruct
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: tiiuae/falcon-40b-instruct
+      device: cpu
+      pretrained: true
+      use_auth_token: false
+
+  # FSDP config for model sharding
+  fsdp_config:
+    sharding_strategy: FULL_SHARD
+    mixed_precision: FULL
+
+  icl_tasks: eval/yamls/tasks.yaml
+  icl_taxonomy: eval/yamls/eval_taxonomy.yaml
+
+  loggers:
+    wandb: {}

@@ -33,7 +33,7 @@ def test_modifies_weights_and_momentums(N: int, D: int, fused: bool) -> None:
     W = torch.randn((D, D), device=device, requires_grad=True)
     W_orig = W.detach().clone()
 
-    opt = Lion8bit([W], fused=fused, betas=(.9, .99))
+    opt = Lion8bit([W], _fused=fused, betas=(.9, .99))
 
     Y = X @ W
     loss = Y.sum()
@@ -70,7 +70,7 @@ def test_changes_with_zero_grads(N: int, D: int, fused: bool, l2_penalty: float,
     W_orig = W.detach().clone()
 
     opt = Lion8bit([W],
-                   fused=fused,
+                   _fused=fused,
                    betas=(.5, .5),
                    l2_penalty=l2_penalty,
                    weight_decay=weight_decay)
@@ -167,8 +167,8 @@ def test_lion8b_fused_unfused_unquantized_same(grad_strategy: str,
                   l2_penalty=.01,
                   betas=(.1, .1))
     opt_uq = Lion8bit([W_uq], quantize=False, **kwargs)
-    opt_uf = Lion8bit([W_uf], fused=False, **kwargs)
-    opt_fq = Lion8bit([W_fq], fused=True, **kwargs)
+    opt_uf = Lion8bit([W_uf], _fused=False, **kwargs)
+    opt_fq = Lion8bit([W_fq], _fused=True, **kwargs)
     opt_sgd = torch.optim.SGD([W_sgd], lr=lr)
 
     W_list = [W_uq, W_uf, W_fq, W_sgd]
@@ -275,7 +275,7 @@ def test_fused_faster_than_unfused(N: int,
         if fused == 'NA':
             opt = Lion8bit([W], quantize=False, **kwargs)
         else:
-            opt = Lion8bit([W], fused=fused, **kwargs)
+            opt = Lion8bit([W], _fused=fused, **kwargs)
         for i in range(3):
             opt.step()  # warmup iters
         torch.cuda.synchronize()

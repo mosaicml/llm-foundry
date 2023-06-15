@@ -10,24 +10,59 @@ _MIN_QUANTIZE_SIZE = 1024  # has to be at least 1024 for our quantization
 
 
 class Lion8bit(torch.optim.Optimizer):
+    """LION optimizer with ~8 bits of state per parameter.
+
+    This optimizer is a drop-in replacement for our regular LION optimizer,
+    but uses less memory, writes smaller checkpoints, and offers
+    almost-numerically-identical convergence.
+
+    In state saved per parameter is just an int8, though there are auxiliary
+    scaling factors that bring the total memory per parameter to ~8.5 bits.
+    The exact quantization scheme is considered an implementation detail
+    and may change.
+
+    See the LION paper (https://arxiv.org/abs/2302.06675) for details about
+    the algorithm itself.
+
+    Args:
+        params: iterable of parameters to optimize or dicts defining
+            parameter groups
+        lr: learning rate (Default: 1e-3)
+        betas: two coefficients between 0 and 1 used to combine the current
+            gradients and the momentum. The first coefficient is the weight
+            of the gradient when computing the update. The second is the
+            weight of the gradient when computing the new momentum.
+            (Default: .9, .99)
+        weight decay: Weights are multiplied by 1 - `weight_decay` after
+            each optimizer step. Note that we use decoupled weight decay,
+            meaning that this decay does not contribute to the momentum.
+            (Default: 0.)
+        l2_penalty: adds `l2_penalty * param` to the gradient at the
+            start of the optimizer step. This term *is* added to the momentum.
+        compress_state_dict: if True, this optimizer's `state_dict` will
+            include quantized optimizer states. Otherwise, the optimizer
+            states are converted to bfloat16 Tensors matching the shapes of
+            their corresponding parameters. The former uses ~8.5 bits per
+            parameter while the latter uses 16 bits per parameter. However,
+            the former is less thoroughly tested and will not work with
+            FSDP or other weight sharding approaches.
+        quantize: If False, optimizer states will not actually be quantized.
+            This option is available so that one can easily debug whether
+            the quantization is causing any convergence issues. Quantization
+            must also be disabled when training without a CUDA GPU.
+    """
 
     def __init__(
             self,
             params: Iterable[torch.Tensor],
             lr: float = 1e-3,
             betas: Tuple[float] = (0.9, 0.99),
-            l2_penalty: float = 0,
             weight_decay: float = 0,
+            l2_penalty: float = 0,
             compress_state_dict: bool = False,
             quantize: bool = True,
-            fused: bool = True,  # XXX this flag is mostly for testing...
+            _fused: bool = True,  # XXX this flag is mostly for testing...
     ):
-        """TODO full docstring If compress_state_dict is True, resuming on a
-        different number of GPUs using FSDP won't work.
-
-        However, the optimizer state will take just over one byte per parameter
-        instead of two bytes.
-        """
         if not 0.0 <= lr:
             raise ValueError('Invalid learning rate: {}'.format(lr))
         if not 0.0 < betas[0] < 1.0:
@@ -46,7 +81,7 @@ class Lion8bit(torch.optim.Optimizer):
                         betas=betas,
                         l2_penalty=l2_penalty,
                         weight_decay=weight_decay,
-                        fused=fused)
+                        fused=_fused)
         super().__init__(params, defaults)
 
     @torch.no_grad()
@@ -115,6 +150,15 @@ class Lion8bit(torch.optim.Optimizer):
 
 
 class _MaybeQuantizedTensor:
+    """Helper class so 8b LION doesn't have to know quantization details.
+
+    Important points about this class:
+    * It keeps small tensors unquantized
+    * It knows how to save + load state dicts, handling both the quantized
+        and not quantized cases
+    * It implements some parts of the torch.Tensor interface that we need,
+        but is not intended to be a full torch.Tensor replacement
+    """
 
     def __init__(self, data: torch.Tensor, try_quantize: bool = True):
         super().__init__()
@@ -175,13 +219,13 @@ class _MaybeQuantizedTensor:
             return self.data
         return self._f_decode(self.quantized, self.scales, self.scale_scales)
 
-    @property  # property to mirror tensor interface
+    @property  # property to mirror Tensor interface
     def is_cuda(self) -> bool:
         if self.is_quantized():
             return self.quantized.is_cuda
         return self.data.is_cuda
 
-    @property  # property to mirror tensor interface
+    @property  # property to mirror Tensor interface
     def shape(self) -> Tuple[int]:
         if self.is_quantized():
             return self.quantized.shape
@@ -215,8 +259,8 @@ def _lion_step_unfused(momentums: torch.Tensor,
         update.add_(weights, alpha=weight_decay)
 
     weights.add_(update, alpha=-lr)
-    momentums.lerp_(grads, 1. - beta2)  # NOTE that we modify momentums in place
-    return momentums
+    momentums.lerp_(grads, 1. - beta2)
+    return momentums  # f32 upcast means not necessarily modified in place
 
 
 def _lion_step(momentums: _MaybeQuantizedTensor,
@@ -231,10 +275,6 @@ def _lion_step(momentums: _MaybeQuantizedTensor,
 
     if momentums.is_quantized() and fused:
         from llmfoundry.optim._quantize_kernels import lion_step_fused
-
-        # TODO rm this check after testing since kernel will throw anyway
-        if not momentums.is_cuda:
-            raise NotImplementedError('Quantized LION only supported on GPUs')
 
         return lion_step_fused(momentums_quantized=momentums.quantized,
                                momentums_scales=momentums.scales,
@@ -256,4 +296,4 @@ def _lion_step(momentums: _MaybeQuantizedTensor,
                                        beta2=beta2,
                                        l2_penalty=l2_penalty,
                                        weight_decay=weight_decay)
-    momentums.set_data(new_momentums)
+    momentums.set_data(new_momentums) # these were modified in place

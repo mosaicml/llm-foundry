@@ -238,7 +238,7 @@ def build_text_dataloader(
                     cfg.dataset.get('split', None),
                     proportion=stream.get('proportion', None),
                     repeat=stream.get('repeat', None),
-                    samples=stream.get('samples', None),
+                    choose=stream.get('samples', None),
                     download_retry=stream.get('download_retry', None) or
                     cfg.dataset.get('download_retry', 2),
                     download_timeout=stream.get('download_timeout', None) or

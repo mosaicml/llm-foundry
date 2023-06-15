@@ -3,7 +3,6 @@
 
 """Attention layers."""
 
-import contextlib
 import math
 import warnings
 from typing import Optional
@@ -118,13 +117,7 @@ def scaled_multihead_dot_product_attention(
                                                   training=training,
                                                   inplace=True)
 
-    amp_context = contextlib.nullcontext()
-    if attn_weight.dtype != v.dtype and not torch.is_autocast_enabled():
-        # create amp context if necissary
-        amp_context = torch.autocast(attn_weight.device.type, v.dtype)
-
-    with amp_context:
-        out = attn_weight.matmul(v)
+    out = attn_weight.to(v.dtype).matmul(v)
     out = rearrange(out, 'b h s d -> b s (h d)')
 
     if needs_weights:

@@ -1,6 +1,8 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
-import copy
 import time
+import warnings
 
 import numpy as np
 import pytest
@@ -8,15 +10,15 @@ import torch
 
 from llmfoundry.optim import Lion8bit
 
-import warnings
 warnings.filterwarnings('ignore')
 
 # these are chosen based on 32x32 being the breakpoint where quantization
 # actually kicks in, and 1024 being the CUDA block size
-_MANY_PARAM_SHAPES = [(1, 1), (1, 2), (2, 1), (17, 23), (32, 32),
-                      (64, 32), (63, 63), (64, 64)]
+_MANY_PARAM_SHAPES = [(1, 1), (1, 2), (2, 1), (17, 23), (32, 32), (64, 32),
+                      (63, 63), (64, 64)]
 
 np.set_printoptions(linewidth=160, formatter={'float': lambda f: f'{f:5.3f}'})
+
 
 def _print_excerpt(name: str, t: torch.Tensor, numel: int = 16) -> None:
     print(f'{name}:\t{t.detach().cpu().numpy()[:numel]}')
@@ -36,11 +38,11 @@ def test_modifies_weights_and_momentums(N: int, D: int, fused: bool) -> None:
     Y = X @ W
     loss = Y.sum()
     loss.backward()
-    torch.testing.assert_close(W_orig, W) # no weight modification yet
+    torch.testing.assert_close(W_orig, W)  # no weight modification yet
     opt.step()
     opt.zero_grad()
 
-    with pytest.raises(AssertionError): # opt step modified the weights
+    with pytest.raises(AssertionError):  # opt step modified the weights
         torch.testing.assert_close(W_orig, W)
 
     # every momentum should be nonzero with infinite precision, but
@@ -67,8 +69,11 @@ def test_changes_with_zero_grads(N: int, D: int, fused: bool, l2_penalty: float,
         W += torch.sign(W)  # bound away from zero so decay won't change sign
     W_orig = W.detach().clone()
 
-    opt = Lion8bit([W], fused=fused, betas=(.5, .5),
-                           l2_penalty=l2_penalty, weight_decay=weight_decay)
+    opt = Lion8bit([W],
+                   fused=fused,
+                   betas=(.5, .5),
+                   l2_penalty=l2_penalty,
+                   weight_decay=weight_decay)
 
     zeros_grad = torch.zeros_like(W)
     for i in range(5):
@@ -91,10 +96,11 @@ def test_changes_with_zero_grads(N: int, D: int, fused: bool, l2_penalty: float,
         if l2_penalty or weight_decay:
             assert torch.all(W_orig.abs() > W.abs())
         else:
-            torch.testing.assert_close(W_orig, W) # no weight modification
+            torch.testing.assert_close(W_orig, W)  # no weight modification
 
 
-@pytest.mark.parametrize('N,D', [(17, 23), (32, 32), (64, 32), (63, 63), (64, 64)])
+@pytest.mark.parametrize('N,D', [(17, 23), (32, 32), (64, 32), (63, 63),
+                                 (64, 64)])
 def test_descends(N: int, D: int) -> None:
     torch.manual_seed(123)
     device = 'cuda'
@@ -130,12 +136,17 @@ def test_descends(N: int, D: int) -> None:
 
 
 @pytest.mark.parametrize('grad_strategy', ['zero', 'ones', 'const', 'rand'])
-def test_lion8b_fused_unfused_unquantized_same(grad_strategy: str, N: int = 64, D: int = 64) -> None:
+def test_lion8b_fused_unfused_unquantized_same(grad_strategy: str,
+                                               N: int = 64,
+                                               D: int = 64) -> None:
     torch.manual_seed(123)
     device = 'cuda'
 
     # each optimizer gets a different weight matrix to optimize
-    W0 = torch.rand((D, D), device=device, requires_grad=False, dtype=torch.float32)
+    W0 = torch.rand((D, D),
+                    device=device,
+                    requires_grad=False,
+                    dtype=torch.float32)
     W0.add_(W0.sign())  # bound away from zero so decay won't flip sign
     W_uq = torch.empty_like(W0, requires_grad=True)  # unquantized
     W_uf = torch.empty_like(W0, requires_grad=True)  # unfused
@@ -151,7 +162,10 @@ def test_lion8b_fused_unfused_unquantized_same(grad_strategy: str, N: int = 64, 
     # hopefully be differences if *any* of the logic is wrong
     lr = .1
     weight_decay = .01
-    kwargs = dict(lr=lr, weight_decay=weight_decay, l2_penalty=.01, betas=(.1, .1))
+    kwargs = dict(lr=lr,
+                  weight_decay=weight_decay,
+                  l2_penalty=.01,
+                  betas=(.1, .1))
     opt_uq = Lion8bit([W_uq], quantize=False, **kwargs)
     opt_uf = Lion8bit([W_uf], fused=False, **kwargs)
     opt_fq = Lion8bit([W_fq], fused=True, **kwargs)
@@ -167,12 +181,18 @@ def test_lion8b_fused_unfused_unquantized_same(grad_strategy: str, N: int = 64, 
     elif grad_strategy == 'const':
         # arange makes blocks have different distros, so we can't
         # get away with bugs like always using the first scale_scale
-        grads = torch.arange(N * D, device=device, requires_grad=False, dtype=W0.dtype)
+        grads = torch.arange(N * D,
+                             device=device,
+                             requires_grad=False,
+                             dtype=W0.dtype)
         grads = grads.view(N, D)
 
     for it in range(10):
         if grad_strategy == 'rand':
-            grads = torch.rand((N, D), device=device, requires_grad=False, dtype=W0.dtype)
+            grads = torch.rand((N, D),
+                               device=device,
+                               requires_grad=False,
+                               dtype=W0.dtype)
         for W, opt in zip(W_list, opt_list):
             W.grad = grads.clone()
             opt.step()
@@ -204,7 +224,10 @@ def test_state_dict_save_load(device: str, quantized_state: bool):
     torch.manual_seed(123)
     params = []
     for shape in _MANY_PARAM_SHAPES:
-        p = torch.rand(shape, device=device, dtype=torch.float32, requires_grad=True)
+        p = torch.rand(shape,
+                       device=device,
+                       dtype=torch.float32,
+                       requires_grad=True)
         p.grad = torch.zeros_like(p)
         params.append(p)
 
@@ -231,12 +254,15 @@ def test_state_dict_save_load(device: str, quantized_state: bool):
         else:
             torch.testing.assert_close(mom_orig.materialize(),
                                        mom_new.materialize(),
-                                       atol=1./(2 * 127),
+                                       atol=1. / (2 * 127),
                                        rtol=np.inf)
 
 
-@pytest.mark.parametrize('N,D', [(32, 32), (256, 256), (1024, 1024), (4096, 4096), [16384, 16384]])
-def test_fused_faster_than_unfused(N: int, D: int, min_elems_traversed: int = 4e9):
+@pytest.mark.parametrize('N,D', [(32, 32), (256, 256), (1024, 1024),
+                                 (4096, 4096), [16384, 16384]])
+def test_fused_faster_than_unfused(N: int,
+                                   D: int,
+                                   min_elems_traversed: int = 4e9):
     W = torch.randn((N, D), device='cuda', requires_grad=True)
     W.grad = torch.randn((N, D), device='cuda', requires_grad=False)
 
@@ -244,7 +270,7 @@ def test_fused_faster_than_unfused(N: int, D: int, min_elems_traversed: int = 4e
     num_iters = min(100, num_iters)  # don't take all day when overhead-bound
 
     times = {}
-    kwargs = dict(l2_penalty=0, weight_decay=.01) # common case
+    kwargs = dict(l2_penalty=0, weight_decay=.01)  # common case
     for fused in [True, False, 'NA']:
         if fused == 'NA':
             opt = Lion8bit([W], quantize=False, **kwargs)

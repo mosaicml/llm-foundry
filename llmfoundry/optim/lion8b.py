@@ -1,3 +1,5 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
@@ -9,29 +11,34 @@ _MIN_QUANTIZE_SIZE = 1024  # has to be at least 1024 for our quantization
 
 class Lion8bit(torch.optim.Optimizer):
 
-    def __init__(self,
-                 params: Iterable[torch.Tensor],
-                 lr: float = 1e-3,
-                 betas: Tuple[float] = (0.9, 0.99),
-                 l2_penalty: float = 0,
-                 weight_decay: float = 0,
-                 compress_state_dict: bool = False,
-                 quantize: bool = True,
-                 fused: bool = True,  # XXX this flag is mostly for testing...
-                 ):
-        """TODO full docstring
-        If compress_state_dict is True, resuming on a different number of
-        GPUs using FSDP won't work. However, the optimizer state will take
-        just over one byte per parameter instead of two bytes.
+    def __init__(
+            self,
+            params: Iterable[torch.Tensor],
+            lr: float = 1e-3,
+            betas: Tuple[float] = (0.9, 0.99),
+            l2_penalty: float = 0,
+            weight_decay: float = 0,
+            compress_state_dict: bool = False,
+            quantize: bool = True,
+            fused: bool = True,  # XXX this flag is mostly for testing...
+    ):
+        """TODO full docstring If compress_state_dict is True, resuming on a
+        different number of GPUs using FSDP won't work.
+
+        However, the optimizer state will take just over one byte per parameter
+        instead of two bytes.
         """
         if not 0.0 <= lr:
-            raise ValueError("Invalid learning rate: {}".format(lr))
+            raise ValueError('Invalid learning rate: {}'.format(lr))
         if not 0.0 < betas[0] < 1.0:
-            raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
+            raise ValueError('Invalid beta parameter at index 0: {}'.format(
+                betas[0]))
         if not 0.0 <= betas[1] < 1.0:
-            raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
+            raise ValueError('Invalid beta parameter at index 1: {}'.format(
+                betas[1]))
         if not 0.0 <= weight_decay:
-            raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
+            raise ValueError(
+                'Invalid weight_decay value: {}'.format(weight_decay))
 
         self._quantize = quantize
         self._compress_state_dict = compress_state_dict
@@ -51,8 +58,10 @@ class Lion8bit(torch.optim.Optimizer):
                 loss = closure()
 
         for group in self.param_groups:
-            params_to_update = [p for p in group['params'] if
-                                p.grad is not None and p.requires_grad]
+            params_to_update = [
+                p for p in group['params']
+                if p.grad is not None and p.requires_grad
+            ]
             for p in params_to_update:
                 state = self.state[p]
                 if len(state) == 0:
@@ -123,7 +132,8 @@ class _MaybeQuantizedTensor:
         if data is not None:
             self.set_data(data)
 
-    def state_dict(self, allow_quantized: bool = False) -> Dict[str, torch.Tensor]:
+    def state_dict(self,
+                   allow_quantized: bool = False) -> Dict[str, torch.Tensor]:
         if self.is_quantized() and allow_quantized:
             return dict(quantized=self.quantized,
                         scales=self.scales,
@@ -154,7 +164,8 @@ class _MaybeQuantizedTensor:
             self.scale_scales = None
         else:
             self.data = None
-            self.quantized, self.scales, self.scale_scales = self._f_encode(data)
+            self.quantized, self.scales, self.scale_scales = self._f_encode(
+                data)
 
     def is_quantized(self) -> bool:
         return self.data is None
@@ -177,7 +188,8 @@ class _MaybeQuantizedTensor:
         return self.data.shape
 
     def numel(self) -> int:
-        return self.quantized.numel() if self.is_quantized() else self.data.numel()
+        return self.quantized.numel() if self.is_quantized(
+        ) else self.data.numel()
 
     def __repr__(self):
         return (f'{self.__class__.__name__} quantized={self.is_quantized()} ' +

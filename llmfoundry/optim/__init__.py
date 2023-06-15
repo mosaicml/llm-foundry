@@ -5,4 +5,6 @@ from llmfoundry.optim.adaptive_lion import DecoupledAdaLRLion, DecoupledClipLion
 from llmfoundry.optim.lion import DecoupledLionW
 from llmfoundry.optim.lion8b import Lion8bit
 
-__all__ = ['DecoupledLionW', 'DecoupledClipLion', 'DecoupledAdaLRLion', 'Lion8bit']
+__all__ = [
+    'DecoupledLionW', 'DecoupledClipLion', 'DecoupledAdaLRLion', 'Lion8bit'
+]

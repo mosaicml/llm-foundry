@@ -1,18 +1,18 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import math
-import time
 import warnings
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
 import numba
 import numpy as np
 import torch
 from numba import cuda
 
-
 GROUP_SIZE = 32
 BLOCK_SIZE = GROUP_SIZE * GROUP_SIZE  # 1024
 MIN_QUANTIZE_SIZE = BLOCK_SIZE
-
 
 # ignore a warning that's unavoidable with small tensors
 warnings.filterwarnings('ignore', 'NumbaPerformanceWarning')
@@ -50,11 +50,14 @@ def encode_signed(x: torch.Tensor,
         x_q_out = torch.empty(input_size, dtype=torch.int8, device=x.device)
     if scales_out is None:
         scales_shape = (_cdiv(input_size, BLOCK_SIZE) * GROUP_SIZE, 2)
-        scales_out = torch.empty(scales_shape, dtype=torch.uint8, device=x.device)
+        scales_out = torch.empty(scales_shape,
+                                 dtype=torch.uint8,
+                                 device=x.device)
     if scale_scales_out is None:
         scale_scales_shape = (_cdiv(input_size, BLOCK_SIZE),)
-        scale_scales_out = torch.empty(
-            scale_scales_shape, dtype=torch.float32, device=x.device)
+        scale_scales_out = torch.empty(scale_scales_shape,
+                                       dtype=torch.float32,
+                                       device=x.device)
 
     if x.dtype == torch.bfloat16:  # numba doesn't know about bf16
         x = x.to(dtype=torch.float32)
@@ -71,15 +74,15 @@ def encode_signed(x: torch.Tensor,
     scale_scales_out_cu = cuda.as_cuda_array(scale_scales_out)
 
     if simple_scaling:
-        scale_by = 2**(nbits-1) - 1 + 1e-4 # assumes round to nearest
+        scale_by = 2**(nbits - 1) - 1 + 1e-4  # assumes round to nearest
     else:
-        scale_by = 2**(nbits-1) - 1e-4  # assumes round down
+        scale_by = 2**(nbits - 1) - 1e-4  # assumes round down
 
     grid_shape = (_cdiv(input_size, BLOCK_SIZE),)
     block_shape = (BLOCK_SIZE,)  # now it's 1 load + store per thread
     # encode_numba[grid_shape, block_shape, 0, 2048](  # stream, smem bytes
-    encode_numba[grid_shape, block_shape](
-        x_cu, x_q_out_cu, scales_out_cu, scale_scales_out_cu, scale_by)
+    encode_numba[grid_shape, block_shape](x_cu, x_q_out_cu, scales_out_cu,
+                                          scale_scales_out_cu, scale_by)
 
     return x_q_out.view(out_shape), scales_out, scale_scales_out
 
@@ -116,14 +119,15 @@ def decode_signed(x_q: torch.Tensor,
     grid_shape = (_cdiv(input_size, BLOCK_SIZE),)
     # block_shape = (GROUP_SIZE,)
     block_shape = (BLOCK_SIZE,)
-    decode_numba[grid_shape, block_shape](
-        x_q_cu, scales_cu, scale_scales_cu, x_out_cu, scale_by)
+    decode_numba[grid_shape, block_shape](x_q_cu, scales_cu, scale_scales_cu,
+                                          x_out_cu, scale_by)
 
     return x_out.view(out_shape)
 
 
 @cuda.jit()
-def encode_numba(x, x_q_out, scales_out, scale_scales_out, encode_scale_by: float):
+def encode_numba(x, x_q_out, scales_out, scale_scales_out,
+                 encode_scale_by: float):
     GROUP_SIZE = 32
     BLOCK_SIZE = 1024
 
@@ -186,7 +190,8 @@ def encode_numba(x, x_q_out, scales_out, scale_scales_out, encode_scale_by: floa
         # each warp since warps only know about their own row scales
         my_scales_row = bx * GROUP_SIZE + my_group
         scales_out[my_scales_row, 0] = round((row_maxabs / max_scale) * 255)
-        scales_out[my_scales_row, 1] = round((col_maxs[my_group] / max_scale) * 255)
+        scales_out[my_scales_row, 1] = round(
+            (col_maxs[my_group] / max_scale) * 255)
 
 
 @cuda.jit()
@@ -203,8 +208,10 @@ def decode_numba(x_q, scales, scale_scales, x_hat_out, decode_scale_by: float):
     # load this group's row absmax and all the col absmaxs for this group
     scale_scale = scale_scales[bx]
     our_scales_start = bx * GROUP_SIZE
-    my_row_absmax = (float(scales[our_scales_start + my_group, 0]) / 255) * scale_scale
-    my_col_absmax = (float(scales[our_scales_start + laneid, 1]) / 255) * scale_scale
+    my_row_absmax = (float(scales[our_scales_start + my_group, 0]) /
+                     255) * scale_scale
+    my_col_absmax = (float(scales[our_scales_start + laneid, 1]) /
+                     255) * scale_scale
 
     # dequantize + write out our row
     if global_idx < len(x_q):
@@ -219,21 +226,23 @@ def decode_numba(x_q, scales, scale_scales, x_hat_out, decode_scale_by: float):
 # Quantized LION kernel
 # ================================================================
 
+
 @cuda.jit(fastmath=True)
-def _lion_step_numba(momentum_quantized: torch.Tensor,
-                     scales: torch.Tensor,
-                     scale_scales: torch.Tensor,
-                     weights: torch.Tensor,
-                     grads: torch.Tensor,
-                     lr: float,
-                     step_coef: float,  # beta1
-                     momentum_coef: float,  # beta2
-                     l2_penalty: float = 0,
-                     weight_decay: float = 0) -> None:
+def _lion_step_numba(
+        momentum_quantized: torch.Tensor,
+        scales: torch.Tensor,
+        scale_scales: torch.Tensor,
+        weights: torch.Tensor,
+        grads: torch.Tensor,
+        lr: float,
+        step_coef: float,  # beta1
+        momentum_coef: float,  # beta2
+        l2_penalty: float = 0,
+        weight_decay: float = 0) -> None:
     GROUP_SIZE = 32
     BLOCK_SIZE = 1024  # GROUP_SIZE * GROUP_SIZE, but needs to be a raw int
     NBITS = 8
-    ENCODE_SCALE_BY = 2**(NBITS - 1) - 1 + 1e-4 # assumes round to nearest
+    ENCODE_SCALE_BY = 2**(NBITS - 1) - 1 + 1e-4  # assumes round to nearest
     DECODE_SCALE_BY = 1. / (2.**(NBITS - 1) - 1)  # round to nearest
 
     mom_q = momentum_quantized
@@ -250,8 +259,10 @@ def _lion_step_numba(momentum_quantized: torch.Tensor,
     # load this group's row absmax and all the col absmaxs for this group
     scale_scale = scale_scales[bx]
     our_scales_start = bx * GROUP_SIZE
-    my_row_absmax = (float(scales[our_scales_start + my_group, 0]) / 255) * scale_scale
-    my_col_absmax = (float(scales[our_scales_start + laneid, 1]) / 255) * scale_scale
+    my_row_absmax = (float(scales[our_scales_start + my_group, 0]) /
+                     255) * scale_scale
+    my_col_absmax = (float(scales[our_scales_start + laneid, 1]) /
+                     255) * scale_scale
 
     # dequantize our row + run our opt step
     block = cuda.shared.array(BLOCK_SIZE, dtype=np.float16)
@@ -260,7 +271,7 @@ def _lion_step_numba(momentum_quantized: torch.Tensor,
         block[tx] = 0
     else:
         m_int = mom_q[global_idx]
-        g = np.float32(grads[global_idx])   # might as well use higher precision
+        g = np.float32(grads[global_idx])  # might as well use higher precision
         w = np.float32(weights[global_idx])
 
         # decode compressed momentum
@@ -357,13 +368,8 @@ def lion_step_fused(momentums_quantized: torch.Tensor,
         cuda.as_cuda_array(momentums_scales),
         cuda.as_cuda_array(momentums_scale_scales),
         cuda.as_cuda_array(weights.detach().ravel()),
-        cuda.as_cuda_array(grads.ravel()),
-        lr,
-        beta1,
-        beta2,
-        l2_penalty,
+        cuda.as_cuda_array(grads.ravel()), lr, beta1, beta2, l2_penalty,
         weight_decay)
 
     if orig_weights.dtype == torch.bfloat16:
         orig_weights.copy_(weights)
-

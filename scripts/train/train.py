@@ -10,6 +10,7 @@ from composer import Trainer
 from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import OmegaConf as om
+import torch
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
@@ -157,9 +158,6 @@ def main(cfg):
     print('Initializing model...')
     with init_context:
         model = build_composer_model(cfg.model, tokenizer)
-        if cfg.model.get('bf16_master_weights'):
-            for p in model.parameters():
-                p.to_(torch.bfloat16)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')
 

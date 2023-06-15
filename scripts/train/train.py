@@ -144,11 +144,17 @@ def main(cfg):
                 raise NotImplementedError(
                     'Using init_device `mixed` is only supported with FSDP. '
                     'Please add a FSDP config.')
+            # Always set `sync_module_states` to True for mixed initialization
             if not fsdp_config.get('sync_module_states', False):
                 warnings.warn((
                     'Setting `sync_module_states = True` for FSDP. This is required '
                     'when using mixed initialization.'))
                 fsdp_config['sync_module_states'] = True
+
+            # Set defaults for mixed initialization
+            fsdp_config.setdefault('use_orig_params', False)
+            cfg.setdefault('load_fsdp_monolith_rank0_only', True)
+
 
     # build tokenizer
     tokenizer = build_tokenizer(cfg.tokenizer)
@@ -243,6 +249,7 @@ def main(cfg):
         load_path=cfg.get('load_path', None),
         load_weights_only=cfg.get('load_weights_only', False),
         load_ignore_keys=cfg.get('load_ignore_keys', None),
+        load_fsdp_monolith_rank0_only=cfg.get('load_fsdp_monolith_rank0_only', False),
         autoresume=cfg.get('autoresume', False),
         python_log_level=cfg.get('python_log_level', 'debug'),
         dist_timeout=cfg.dist_timeout,

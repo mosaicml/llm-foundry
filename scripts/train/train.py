@@ -155,7 +155,6 @@ def main(cfg):
             fsdp_config.setdefault('use_orig_params', False)
             cfg.setdefault('load_fsdp_monolith_rank0_only', True)
 
-
     # build tokenizer
     tokenizer = build_tokenizer(cfg.tokenizer)
 
@@ -249,7 +248,8 @@ def main(cfg):
         load_path=cfg.get('load_path', None),
         load_weights_only=cfg.get('load_weights_only', False),
         load_ignore_keys=cfg.get('load_ignore_keys', None),
-        load_fsdp_monolith_rank0_only=cfg.get('load_fsdp_monolith_rank0_only', False),
+        load_fsdp_monolith_rank0_only=cfg.get('load_fsdp_monolith_rank0_only',
+                                              False),
         autoresume=cfg.get('autoresume', False),
         python_log_level=cfg.get('python_log_level', 'debug'),
         dist_timeout=cfg.dist_timeout,

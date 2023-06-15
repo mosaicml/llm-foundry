@@ -6,7 +6,7 @@ from typing import List, Union, cast
 
 import torch
 import wandb
-from composer.core import Callback, State
+from composer.core import Callback, State, get_precision_context
 from composer.loggers import Logger, WandBLogger
 from composer.utils import dist, ensure_tuple
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
@@ -72,15 +72,16 @@ class Generate(Callback):
         # dummy forward call needed for FSDP to work consistently
         dummy_input = torch.tensor([[0]], dtype=torch.long)
         dummy_input = device.tensor_to_device(dummy_input)
-        with torch.no_grad():
-            _ = model.model(input_ids=dummy_input)  # type: ignore
+        with get_precision_context(state.precision):
+            with torch.no_grad():
+                _ = model.model(input_ids=dummy_input)  # type: ignore
 
-        output_token_ids = model.model.generate(  # type: ignore
-            input_ids=tokenized_input['input_ids'],
-            attention_mask=tokenized_input['attention_mask'],
-            synced_gpus=True,
-            **self.generate_kwargs,
-        )
+            output_token_ids = model.model.generate(  # type: ignore
+                input_ids=tokenized_input['input_ids'],
+                attention_mask=tokenized_input['attention_mask'],
+                synced_gpus=True,
+                **self.generate_kwargs,
+            )
 
         if dist.get_global_rank() == 0:
             if self.wandb_logger is not None:

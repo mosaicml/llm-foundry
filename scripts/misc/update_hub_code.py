@@ -61,7 +61,10 @@ def main(hf_repos_for_upload: List[str]):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description=
+        'Update MPT code in HuggingFace Hub repos to be in sync with the local codebase'
+    )
     parser.add_argument('--hf_repos_for_upload',
                         help='List of repos to open PRs against',
                         nargs='+',

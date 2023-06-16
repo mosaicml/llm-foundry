@@ -1171,8 +1171,7 @@ def test_model_to(attention_impl, alibi):
     attention_mask = torch.tensor([[1, 1, 1]]).bool().to('cuda')
 
     # with get_precision_context('amp_bf16'):
-    with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
-        _ = mpt(input_ids, attention_mask=attention_mask)
+    _ = mpt(input_ids, attention_mask=attention_mask)
 
     # move the model around using different methods
     mpt = mpt.bfloat16()

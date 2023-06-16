@@ -315,7 +315,7 @@ class MPTModel(MPTPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
-        input_embeds: Optional[torch.Tensor] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
     ):
         return_dict = (
             return_dict if return_dict is not None else self.config.return_dict
@@ -357,9 +357,9 @@ class MPTModel(MPTPreTrainedModel):
             )
 
         # rase a not implemented error if input_embeds is not None (this ia an arg in huggingface transformers, we want to support it for peft)
-        if input_embeds is not None:
+        if inputs_embeds is not None:
             raise NotImplementedError(
-                "input_embeds is not implemented for MPT."
+                "inputs_embeds is not implemented for MPT."
             )
 
         if self.training:
@@ -512,6 +512,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 "MPTForCausalLM only supports tied word embeddings"
             )
 
+        # print that we are instantiating an MPTForCausalLM and where the path to this file.
+        print(f"Instantiating an MPTForCausalLM model from {__file__}")
+
         self.transformer = MPTModel(config)
 
         for child in self.transformer.children():
@@ -564,7 +567,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
-        input_embeds: Optional[torch.FloatTensor] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
     ):
         return_dict = (
             return_dict if return_dict is not None else self.config.return_dict
@@ -574,9 +577,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
         )
 
         # if input_embeds is not none, raise a not implemented error
-        if input_embeds is not None:
+        if inputs_embeds is not None:
             raise NotImplementedError(
-                "input_embeds has to be None (for hf/peft support)."
+                "inputs_embeds has to be None (for hf/peft support)."
             )
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.transformer(
@@ -774,7 +777,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             attention_mask=batch.get("attention_mask", None),
             prefix_mask=batch.get("bidirectional_mask", None),
             sequence_id=batch.get("sequence_id", None),
-            input_embeds=batch.get("input_embeds", None),
+            inputs_embeds=batch.get("inputs_embeds", None),
         )
 
     def loss(self, outputs, batch):

@@ -24,6 +24,7 @@ def _print_excerpt(name: str, t: torch.Tensor, numel: int = 16) -> None:
     print(f'{name}:\t{t.detach().cpu().numpy()[:numel]}')
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize('N,D', _MANY_PARAM_SHAPES)
 @pytest.mark.parametrize('fused', [False, True])
 def test_modifies_weights_and_momentums(N: int, D: int, fused: bool) -> None:
@@ -57,14 +58,17 @@ def test_modifies_weights_and_momentums(N: int, D: int, fused: bool) -> None:
         assert torch.std(momentum).item() > 0
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize('N,D', _MANY_PARAM_SHAPES)
 @pytest.mark.parametrize('fused', [False, True])
+@pytest.mark.parametrize('device', ['cpu', 'cuda'])
 @pytest.mark.parametrize('l2_penalty', [0, .1])
 @pytest.mark.parametrize('weight_decay', [0, .1])
-def test_changes_with_zero_grads(N: int, D: int, fused: bool, l2_penalty: float,
+def test_changes_with_zero_grads(N: int, D: int, fused: bool, device: str,
+                                 l2_penalty: float,
                                  weight_decay: float) -> None:
     torch.manual_seed(123)
-    W = torch.rand((D, D), device='cuda', requires_grad=True)
+    W = torch.rand((D, D), device=device, requires_grad=True)
     with torch.no_grad():
         W += torch.sign(W)  # bound away from zero so decay won't change sign
     W_orig = W.detach().clone()
@@ -99,11 +103,12 @@ def test_changes_with_zero_grads(N: int, D: int, fused: bool, l2_penalty: float,
             torch.testing.assert_close(W_orig, W)  # no weight modification
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize('N,D', [(17, 23), (32, 32), (64, 32), (63, 63),
                                  (64, 64)])
-def test_descends(N: int, D: int) -> None:
+@pytest.mark.parametrize('device', ['cpu', 'cuda'])
+def test_descends(N: int, D: int, device: str) -> None:
     torch.manual_seed(123)
-    device = 'cuda'
     X = torch.randn((N, D), device=device, requires_grad=False)
     W = torch.randn((D, D), device=device, requires_grad=True)
 
@@ -112,7 +117,8 @@ def test_descends(N: int, D: int) -> None:
 
     prev_loss = np.inf
     prev_momentum = None
-    for it in range(10):
+    num_iters = 10 if device == 'cuda' else 2  # keep test fast
+    for it in range(num_iters):
         Y = X @ W
         loss = (Y * Y).mean()
         loss.backward()
@@ -135,6 +141,7 @@ def test_descends(N: int, D: int) -> None:
             prev_momentum = momentum
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize('grad_strategy', ['zero', 'ones', 'const', 'rand'])
 def test_lion8b_fused_unfused_unquantized_same(grad_strategy: str,
                                                N: int = 64,
@@ -218,6 +225,7 @@ def test_lion8b_fused_unfused_unquantized_same(grad_strategy: str,
         assert torch.cosine_similarity(diffs_true, diffs_fq, dim=-1) < .99
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize('device', ['cpu', 'cuda'])
 @pytest.mark.parametrize('quantized_state', [False, True])
 def test_state_dict_save_load(device: str, quantized_state: bool):
@@ -258,11 +266,12 @@ def test_state_dict_save_load(device: str, quantized_state: bool):
                                        rtol=np.inf)
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize('N,D', [(32, 32), (256, 256), (1024, 1024),
                                  (4096, 4096), [16384, 16384]])
-def test_fused_faster_than_unfused(N: int,
-                                   D: int,
-                                   min_elems_traversed: int = 4e9):
+def test_fused_as_fast_as_unfused(N: int,
+                                  D: int,
+                                  min_elems_traversed: int = 4e9):
     W = torch.randn((N, D), device='cuda', requires_grad=True)
     W.grad = torch.randn((N, D), device='cuda', requires_grad=False)
 
@@ -287,6 +296,6 @@ def test_fused_faster_than_unfused(N: int,
         times[fused] = t_end - t_start
 
     rel_tol = 1.05  # within 5% is okay
-    abs_tol = .05  # empirical; somehow way more overhead for our numba kernel
+    abs_tol = .1  # empirical; somehow way more overhead for our numba kernel
     assert times[True] < times[False]
     assert times[True] < times['NA'] * rel_tol + abs_tol

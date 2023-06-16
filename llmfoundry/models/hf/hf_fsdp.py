@@ -167,7 +167,7 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
             raise ValueError(
                 'The passed in HuggingFaceModel has tied word embeddings '
                 'and the passed in initialization device is `mixed.` '
-                'In order to support this initializaiton scheme, we would need to break '
+                'In order to support this initialization scheme, we would need to break '
                 'the weight tying. As a result, either use a different initialization scheme '
                 'or in the model config set `tie_word_embeddings=False.`')
     else:

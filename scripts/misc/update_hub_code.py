@@ -4,6 +4,7 @@
 import argparse
 import os
 import tempfile
+from datetime import datetime
 from typing import List
 
 import torch
@@ -15,6 +16,9 @@ from llmfoundry.utils.huggingface_hub_utils import \
 
 
 def main(hf_repos_for_upload: List[str]):
+    current_datetime = datetime.now()
+    formatted_datetime = current_datetime.strftime('%B %d, %Y %H:%M:%S')
+
     from huggingface_hub import HfApi
     api = HfApi()
 
@@ -53,7 +57,7 @@ def main(hf_repos_for_upload: List[str]):
                 use_auth_token=True,
                 repo_type='model',
                 allow_patterns=['*.py'],
-                commit_message='LLM-foundry update',
+                commit_message=f'LLM-foundry update {formatted_datetime}',
                 create_pr=True,
             )
 

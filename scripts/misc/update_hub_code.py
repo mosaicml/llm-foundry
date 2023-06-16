@@ -1,0 +1,54 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
+import argparse
+import os
+import tempfile
+from typing import List
+
+import transformers
+
+from llmfoundry import MPTConfig, MPTForCausalLM
+from llmfoundry.utils.huggingface_hub_utils import \
+    edit_files_for_hf_compatibility
+
+
+def main(hf_repos_for_upload: List[str]):
+    from huggingface_hub import HfApi
+    api = HfApi()
+
+    # register config auto class
+    MPTConfig.register_for_auto_class()
+
+    # register model auto class
+    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
+
+    loaded_hf_model = MPTForCausalLM(MPTConfig())
+    with tempfile.TemporaryDirectory() as _tmp_dir:
+        original_save_dir = os.path.join(_tmp_dir, 'model_current')
+        loaded_hf_model.save_pretrained(original_save_dir)
+
+        edit_files_for_hf_compatibility(original_save_dir)
+
+        for repo in hf_repos_for_upload:
+            api.upload_folder(
+                folder_path=original_save_dir,
+                repo_id=repo,
+                use_auth_token=True,
+                repo_type='model',
+                allow_patterns=['*.py'],
+                commit_message='LLM-foundry update',
+                create_pr=True,
+            )
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--hf_repos_for_upload',
+                        help='List of repos to open PRs against',
+                        nargs='+',
+                        required=True)
+
+    args = parser.parse_args()
+
+    main(hf_repos_for_upload=args.hf_repos_for_upload,)

@@ -296,4 +296,4 @@ def _lion_step(momentums: _MaybeQuantizedTensor,
                                        beta2=beta2,
                                        l2_penalty=l2_penalty,
                                        weight_decay=weight_decay)
-    momentums.set_data(new_momentums) # these were modified in place
+    momentums.set_data(new_momentums)

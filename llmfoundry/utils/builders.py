@@ -114,7 +114,7 @@ def build_optimizer(cfg, model):
                                   min_scale=cfg.min_scale)
     elif cfg.name.lower() == 'decoupled_lionw_8b':
         kwargs = {k: v for k, v in cfg.items() if k != 'name'}
-        return Lion8bit(model.parameters(), **kwargs)
+        return DecoupledLionW_8bit(model.parameters(), **kwargs)
     else:
         raise ValueError(f'Not sure how to build optimizer: {cfg.name}')
 

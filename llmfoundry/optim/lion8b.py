@@ -21,6 +21,8 @@ class Lion8bit(torch.optim.Optimizer):
     The exact quantization scheme is considered an implementation detail
     and may change.
 
+    When training on CPUs, however, no quantization will actually take place.
+
     See the LION paper (https://arxiv.org/abs/2302.06675) for details about
     the algorithm itself.
 
@@ -49,7 +51,7 @@ class Lion8bit(torch.optim.Optimizer):
         quantize: If False, optimizer states will not actually be quantized.
             This option is available so that one can easily debug whether
             the quantization is causing any convergence issues. Quantization
-            must also be disabled when training without a CUDA GPU.
+            is always disabled when training without a CUDA device.
     """
 
     def __init__(
@@ -75,7 +77,7 @@ class Lion8bit(torch.optim.Optimizer):
             raise ValueError(
                 'Invalid weight_decay value: {}'.format(weight_decay))
 
-        self._quantize = quantize
+        self._quantize = quantize and torch.cuda.is_available()
         self._compress_state_dict = compress_state_dict
         defaults = dict(lr=lr,
                         betas=betas,

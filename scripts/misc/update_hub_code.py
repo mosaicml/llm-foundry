@@ -31,7 +31,8 @@ def main(hf_repos_for_upload: List[str]):
         edit_files_for_hf_compatibility(original_save_dir)
 
         for repo in hf_repos_for_upload:
-            api.upload_folder(
+            print(f'Opening PR against {repo}')
+            result = api.upload_folder(
                 folder_path=original_save_dir,
                 repo_id=repo,
                 use_auth_token=True,
@@ -40,6 +41,17 @@ def main(hf_repos_for_upload: List[str]):
                 commit_message='LLM-foundry update',
                 create_pr=True,
             )
+
+            pr_model = transformers.AutoModelForCausalLM.from_pretrained(
+                original_save_dir, trust_remote_code=True)
+            pr_tokenizer = transformers.AutoTokenizer.from_pretrained(
+                repo, trust_remote_code=True)
+
+            generation = pr_model.generate(pr_tokenizer(
+                'MosaicML is', return_tensors='pt').input_ids,
+                                           max_new_tokens=2)
+            _ = pr_tokenizer.batch_decode(generation)
+            print(f'PR opened: {result}')
 
 
 if __name__ == '__main__':

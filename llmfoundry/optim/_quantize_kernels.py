@@ -284,7 +284,7 @@ def _lion_step_numba(
         c = step_coef * (mom - g) + g
         update = math.copysign(1, c)  # workaround lack of sign() function
         update = update * (c != 0)  # copysign(1, 0) = 1, unlike torch.sign
-        update += w * weight_decay
+        w -= w * weight_decay
         w -= lr * update
         weights[global_idx] = w
 

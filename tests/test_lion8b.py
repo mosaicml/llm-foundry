@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import torch
 
-from llmfoundry.optim import Lion8bit
+from llmfoundry.optim import DecoupledLionW_8bit as Lion8bit
 
 warnings.filterwarnings('ignore')
 

@@ -9,12 +9,12 @@ _KEY_MOMENTUM = 'exp_avg'
 _MIN_QUANTIZE_SIZE = 1024  # has to be at least 1024 for our quantization
 
 
-class Lion8bit(torch.optim.Optimizer):
+class DecoupledLionW_8bit(torch.optim.Optimizer):
     """LION optimizer with ~8 bits of state per parameter.
 
     This optimizer is a drop-in replacement for our regular LION optimizer,
-    but uses less memory, writes smaller checkpoints, and offers
-    almost-numerically-identical convergence.
+    with decoupled weight decay, but uses less memory, writes smaller
+    checkpoints, and offers almost-numerically-identical convergence.
 
     In state saved per parameter is just an int8, though there are auxiliary
     scaling factors that bring the total memory per parameter to ~8.5 bits.
@@ -80,6 +80,7 @@ class Lion8bit(torch.optim.Optimizer):
         self._quantize = quantize and torch.cuda.is_available()
         self._compress_state_dict = compress_state_dict
         defaults = dict(lr=lr,
+                        initial_lr=lr,
                         betas=betas,
                         l2_penalty=l2_penalty,
                         weight_decay=weight_decay,
@@ -106,6 +107,8 @@ class Lion8bit(torch.optim.Optimizer):
                     state[_KEY_MOMENTUM] = _MaybeQuantizedTensor(
                         mom, try_quantize=self._quantize)
                 momentums = state[_KEY_MOMENTUM]
+                decay_factor = group['weight_decay']
+                decay_factor *= group['lr'] / group['initial_lr']
                 _lion_step(momentums=momentums,
                            weights=p,
                            grads=p.grad,
@@ -113,7 +116,7 @@ class Lion8bit(torch.optim.Optimizer):
                            beta2=group['betas'][1],
                            lr=group['lr'],
                            l2_penalty=group['l2_penalty'],
-                           weight_decay=group['weight_decay'],
+                           weight_decay=decay_factor,
                            fused=group['fused'])
 
         return loss
@@ -258,7 +261,7 @@ def _lion_step_unfused(momentums: torch.Tensor,
 
     update = momentums.lerp(grads, 1 - beta1).sign_()
     if weight_decay > 0:
-        update.add_(weights, alpha=weight_decay)
+        weights.mul_(1. - weight_decay)
 
     weights.add_(update, alpha=-lr)
     momentums.lerp_(grads, 1. - beta2)

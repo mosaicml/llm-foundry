@@ -42,7 +42,10 @@ class PrintICLExample(Callback):
             assert 'input_ids' in state.batch
             # get the first example from the batch
             example = state.batch['input_ids'][0]
-            print(
-                state.model.tokenizer.decode(example, skip_special_tokens=True))
+            if state.is_model_ddp:
+                tokenizer = state.model.module.tokenizer
+            else:
+                tokenizer = state.model.tokenizer
+            print(tokenizer.decode(example, skip_special_tokens=True))
             self.batches_printed += 1
             print('-' * 10)

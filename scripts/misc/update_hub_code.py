@@ -6,6 +6,7 @@ import os
 import tempfile
 from typing import List
 
+import torch
 import transformers
 
 from llmfoundry import MPTConfig, MPTForCausalLM
@@ -23,7 +24,9 @@ def main(hf_repos_for_upload: List[str]):
     # register model auto class
     MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
 
-    loaded_hf_model = MPTForCausalLM(MPTConfig())
+    config = MPTConfig()
+    config.attn_config['attn_impl'] = 'torch'
+    loaded_hf_model = MPTForCausalLM(config)
     with tempfile.TemporaryDirectory() as _tmp_dir:
         original_save_dir = os.path.join(_tmp_dir, 'model_current')
         loaded_hf_model.save_pretrained(original_save_dir)
@@ -31,6 +34,18 @@ def main(hf_repos_for_upload: List[str]):
         edit_files_for_hf_compatibility(original_save_dir)
 
         for repo in hf_repos_for_upload:
+            print(f'Testing code changes for {repo}')
+            pr_model = transformers.AutoModelForCausalLM.from_pretrained(
+                original_save_dir, trust_remote_code=True, device_map='auto')
+            pr_tokenizer = transformers.AutoTokenizer.from_pretrained(
+                repo, trust_remote_code=True)
+
+            generation = pr_model.generate(pr_tokenizer(
+                'MosaicML is', return_tensors='pt').input_ids.to(
+                    'cuda' if torch.cuda.is_available() else 'cpu'),
+                                           max_new_tokens=2)
+            _ = pr_tokenizer.batch_decode(generation)
+
             print(f'Opening PR against {repo}')
             result = api.upload_folder(
                 folder_path=original_save_dir,
@@ -42,15 +57,6 @@ def main(hf_repos_for_upload: List[str]):
                 create_pr=True,
             )
 
-            pr_model = transformers.AutoModelForCausalLM.from_pretrained(
-                original_save_dir, trust_remote_code=True)
-            pr_tokenizer = transformers.AutoTokenizer.from_pretrained(
-                repo, trust_remote_code=True)
-
-            generation = pr_model.generate(pr_tokenizer(
-                'MosaicML is', return_tensors='pt').input_ids,
-                                           max_new_tokens=2)
-            _ = pr_tokenizer.batch_decode(generation)
             print(f'PR opened: {result}')
 
 

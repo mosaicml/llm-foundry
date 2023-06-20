@@ -7,12 +7,12 @@
 import functools
 from typing import Any, Iterable, List
 
+import torch
 from transformers import PreTrainedModel
 from transformers.models.opt.modeling_opt import OPTDecoder
 
+
 # helper functions
-
-
 def rhasattr(obj: Any, attr: str):
     """A chain-able attribute version of hasattr.
 
@@ -92,23 +92,34 @@ def hf_get_hidden_layers(model: PreTrainedModel):
     return findattr(model, hidden_layers_attrs)
 
 
+def hf_get_init_device(init_device: str):
+    """Returns the appropriate device to initialize models."""
+    from composer.utils import dist
+    if init_device == 'mixed':
+        if dist.get_local_rank() == 0:
+            return 'cpu'
+        return 'meta'
+    return init_device
+
+
 # /end helper functions
 
 
-def prepare_hf_model_for_fsdp(model: PreTrainedModel) -> None:
+def prepare_hf_model_for_fsdp(model: PreTrainedModel, init_device: str) -> None:
     """FSDP wrap a HuggingFace model.
 
     Call specific functions
     """
     if model.config.is_encoder_decoder:
-        prepare_hf_enc_dec_model_for_fsdp(model)
+        prepare_hf_enc_dec_model_for_fsdp(model, init_device)
     else:
         # many common decoder-only model do not set the flag
         # model.config.is_decoder, so we can't trust it
-        prepare_hf_causal_lm_model_for_fsdp(model)
+        prepare_hf_causal_lm_model_for_fsdp(model, init_device)
 
 
-def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
+def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
+                                        init_device: str) -> None:
     """FSDP wrap a HuggingFace decoder.
 
     Wrap any model for FSDP which follows one of the 3 existing conventions from
@@ -136,16 +147,40 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
                 f'Unable to FSDP-wrap this model! `{mod_name}` does not ' +
                 'follow common layer/weight naming conventions.')
     block_type = type(model_block[0])  # type: ignore
-    # When using the HF LM models,
-    # the weights of the self.lm_head and self.transformer.wte are tied.
-    # This tying occurs inside the `self.post_init()` function.
-    # This is a hurdle for FSDP because they need to be in the same FSDP block
-    # These lines ensures that both modules stay together in the top-most block when
-    # the model has this tying enabled (almost all do; this property defaults to True)
-    if model.config.tie_word_embeddings:
-        causal_base_model._fsdp_wrap = False  # type: ignore
-        tied_embeddings._fsdp_wrap = False  # type: ignore
-        lm_head._fsdp_wrap = False  # type: ignore
+    if init_device == 'mixed':
+        # For FSDP with models with different device intiailizations, `mixed`, which
+        # initializes the model on rank 0 on `cpu` and on all other ranks on `meta,``
+        # we need to tag all child modules that are torch.nn.Modules with `_fsdp_wrap`.
+        for child in model.children():
+            if isinstance(child, type(causal_base_model)):
+                continue
+            if isinstance(child, torch.nn.Module):
+                child._fsdp_wrap = True
+
+        for child in causal_base_model.children():
+            if isinstance(child, torch.nn.ModuleList):
+                continue
+            if isinstance(child, torch.nn.Module):
+                child._fsdp_wrap = True
+
+        if model.config.tie_word_embeddings and not model.config.model_type == 'mpt':
+            raise ValueError(
+                'The passed in HuggingFaceModel has tied word embeddings '
+                'and the passed in initialization device is `mixed.` '
+                'In order to support this initialization scheme, we would need to break '
+                'the weight tying. As a result, either use a different initialization scheme '
+                'or in the model config set `tie_word_embeddings=False.`')
+    else:
+        # When using the HF LM models,
+        # the weights of the self.lm_head and self.transformer.wte are tied.
+        # This tying occurs inside the `self.post_init()` function.
+        # This is a hurdle for FSDP because they need to be in the same FSDP block
+        # These lines ensures that both modules stay together in the top-most block when
+        # the model has this tying enabled (almost all do; this property defaults to True)
+        if model.config.tie_word_embeddings:
+            causal_base_model._fsdp_wrap = False  # type: ignore
+            tied_embeddings._fsdp_wrap = False  # type: ignore
+            lm_head._fsdp_wrap = False  # type: ignore
 
     # FSDP Wrap and Activation Checkpoint every model block
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)
@@ -153,7 +188,8 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel) -> None:
         module, block_type)
 
 
-def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel) -> None:
+def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel,
+                                      init_device: str) -> None:
     """Wrap an encoder/decoder HF model.
 
     This works for T5, BART, Pegasus, PegasusX, but not all enc/dec (ProphetNet)

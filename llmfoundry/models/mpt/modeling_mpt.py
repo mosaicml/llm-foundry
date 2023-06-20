@@ -20,6 +20,7 @@ from composer.metrics import (InContextLearningLMAccuracy,
                               InContextLearningQAAccuracy)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
+from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import (PreTrainedModel, PreTrainedTokenizer,
@@ -68,6 +69,12 @@ class MPTModel(MPTPreTrainedModel):
         self.attn_uses_sequence_id = config.attn_config['attn_uses_sequence_id']
         self.alibi = config.attn_config['alibi']
         self.alibi_bias_max = config.attn_config['alibi_bias_max']
+
+        if config.init_device == 'mixed':
+            if dist.get_local_rank() == 0:
+                config.init_device = 'cpu'
+            else:
+                config.init_device = 'meta'
 
         if config.norm_type.lower() not in NORM_CLASS_REGISTRY.keys():
             norm_options = ' | '.join(NORM_CLASS_REGISTRY.keys())
@@ -376,7 +383,7 @@ class MPTModel(MPTPreTrainedModel):
 
         attn_bias, attention_mask = self._attn_bias(
             device=x.device,
-            dtype=x.dtype,
+            dtype=torch.float32,
             attention_mask=attention_mask,
             prefix_mask=prefix_mask,
             sequence_id=sequence_id)

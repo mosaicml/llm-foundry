@@ -8,10 +8,12 @@ from __future__ import annotations
 from typing import Mapping, Union
 
 from composer.metrics.nlp import LanguageCrossEntropy, MaskedAccuracy
+from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
 
+from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      add_bidirectional_mask_if_missing,
@@ -99,14 +101,24 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
         vocab_size = len(tokenizer)
 
         init_device = om_model_config.get('init_device', 'cpu')
-        if init_device == 'cpu':
+
+        # Get the device we want to initialize, and use the
+        # reolved version to initialize the HF model
+        resolved_init_device = hf_get_init_device(init_device)
+
+        # We need to have all non-zero local ranks be not-pretrained
+        # Rank 0 will still be pretrained, and distribute the weights appropriately
+        if dist.get_local_rank() != 0 and init_device == 'mixed':
+            om_model_config.pretrained = False
+
+        if resolved_init_device == 'cpu':
             if om_model_config.pretrained:
                 model = AutoModelForCausalLM.from_pretrained(
                     om_model_config.pretrained_model_name_or_path,
                     config=config)
             else:
                 model = AutoModelForCausalLM.from_config(config)
-        elif init_device == 'meta':
+        elif resolved_init_device == 'meta':
             if om_model_config.pretrained:
                 raise ValueError(
                     'Setting cfg.pretrained=True is not supported when init_device="meta".'
@@ -130,7 +142,8 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
                                           tokenizer=tokenizer,
                                           metrics=metrics,
                                           z_loss=om_model_config.get(
-                                              'z_loss', 0.0))
+                                              'z_loss', 0.0),
+                                          init_device=init_device)
 
         return composer_model
 

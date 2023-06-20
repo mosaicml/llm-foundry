@@ -117,7 +117,7 @@ def scaled_multihead_dot_product_attention(
                                                   training=training,
                                                   inplace=True)
 
-    out = attn_weight.matmul(v)
+    out = attn_weight.to(v.dtype).matmul(v)
     out = rearrange(out, 'b h s d -> b s (h d)')
 
     if needs_weights:

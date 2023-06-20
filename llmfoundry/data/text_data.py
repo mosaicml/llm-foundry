@@ -45,11 +45,10 @@ class StreamingTextDataset(StreamingDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             `False``.
-        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
-            remote is local or no remote and no compression. Defaults to ``True``.
-        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
-            proportionally. Defaults to ``None``.
+        epoch_size (int, optional): Number of samples to draw per epoch balanced across all
+            streams. If ``None``, takes its value from the total number of underlying samples.
+            Provide this field if you are weighting streams relatively to target a larger or
+            smaller epoch size. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
@@ -76,8 +75,7 @@ class StreamingTextDataset(StreamingDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 keep_raw: bool = True,
-                 samples_per_epoch: Optional[int] = None,
+                 epoch_size: Optional[int] = None,
                  predownload: int = 100_000,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
@@ -118,8 +116,7 @@ class StreamingTextDataset(StreamingDataset):
             download_timeout=download_timeout,
             validate_hash=validate_hash,
             keep_zip=keep_zip,
-            keep_raw=keep_raw,
-            samples_per_epoch=samples_per_epoch,
+            epoch_size=epoch_size,
             predownload=predownload,
             partition_algo=partition_algo,
             num_canonical_nodes=num_canonical_nodes,
@@ -222,67 +219,33 @@ def build_text_dataloader(
             'argument when creating your MDS dataset with convert_dataset_hf.py'
         )
 
+    # get kwargs
+    streams_dict = cfg.dataset.pop('streams', None)
+    mlm_probability = cfg.dataset.pop('mlm_probability', None)
+    eos_token_id = cfg.dataset.pop('eos_token_id', None)
+    bos_token_id = cfg.dataset.pop('bos_token_id', None)
+
     # build streams
-    streams_dict = cfg.dataset.get('streams', None)
     streams = None
     if streams_dict is not None:
         streams = []
         for _, stream in streams_dict.items():
-            streams.append(
-                Stream(
-                    remote=stream.get('remote', None) or
-                    cfg.dataset.get('remote', None),
-                    local=stream.get('local', None) or
-                    cfg.dataset.get('local', None),
-                    split=stream.get('split', None) or
-                    cfg.dataset.get('split', None),
-                    proportion=stream.get('proportion', None),
-                    repeat=stream.get('repeat', None),
-                    samples=stream.get('samples', None),
-                    download_retry=stream.get('download_retry', None) or
-                    cfg.dataset.get('download_retry', 2),
-                    download_timeout=stream.get('download_timeout', None) or
-                    cfg.dataset.get('download_timeout', 60),
-                    validate_hash=stream.get('validate_hash', None) or
-                    cfg.dataset.get('validate_hash', None),
-                    keep_zip=stream.get('keep_zip', None) or
-                    cfg.dataset.get('keep_zip', False),
-                    keep_raw=stream.get('keep_raw', None) or
-                    cfg.dataset.get('keep_raw', True),
-                ))
+            # stream is the streams kwargs
+            # fwd all kwargs with **stream allows streaming to check args
+            streams.append(Stream(**stream))
 
     # build dataset potentially with streams
     dataset = StreamingTextDataset(
         tokenizer=tokenizer,
-        max_seq_len=cfg.dataset.max_seq_len,
         streams=streams,
-        remote=cfg.dataset.get('remote', None),
-        local=cfg.dataset.get('local', None),
-        split=cfg.dataset.get('split', None),
-        download_retry=cfg.dataset.get('download_retry', 2),
-        download_timeout=cfg.dataset.get('download_timeout', 60),
-        validate_hash=cfg.dataset.get('validate_hash', None),
-        keep_zip=cfg.dataset.get('keep_zip', False),
-        keep_raw=cfg.dataset.get('keep_raw', True),
-        samples_per_epoch=cfg.dataset.get('samples_per_epoch', None),
-        predownload=cfg.dataset.get('predownload', 100_000),
-        partition_algo=cfg.dataset.get('partition_algo', 'orig'),
-        num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', 128),
-        batch_size=device_batch_size,
-        shuffle=cfg.dataset.get('shuffle', False),
-        shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1b'),
-        shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
-        shuffle_block_size=cfg.dataset.get('shuffle_block_size', 1 << 18),
+        **cfg.dataset,
     )
 
-    mlm_probability = cfg.dataset.get('mlm_probability', None)
     collate_fn = transformers.DataCollatorForLanguageModeling(
         tokenizer=dataset.tokenizer,
         mlm=mlm_probability is not None,
         mlm_probability=mlm_probability)
 
-    eos_token_id = cfg.dataset.get('eos_token_id')
-    bos_token_id = cfg.dataset.get('bos_token_id')
     if (eos_token_id is not None) or (bos_token_id is not None):
         # Note: Will raise an error if both are non-None
         collate_fn = ConcatenatedSequenceCollatorWrapper(

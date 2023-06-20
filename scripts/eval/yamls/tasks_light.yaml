@@ -1,0 +1,40 @@
+icl_tasks:
+-
+  label: lambada_openai
+  dataset_uri: eval/local_data/lambada_openai.jsonl
+  num_fewshot: [0]
+  icl_task_type: language_modeling
+-
+  label: piqa
+  dataset_uri: eval/local_data/piqa.jsonl  # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 1, 5, 10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: 'Answer: ' # this separates questions from answers
+-
+  label: hellaswag
+  dataset_uri: eval/local_data/hellaswag.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 1, 5, 10]
+  icl_task_type: multiple_choice
+-
+  label: arc_easy
+  dataset_uri: eval/local_data/arc_easy.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 1, 5, 10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: 'Answer: ' # this separates questions from answers
+-
+  label: arc_challenge
+  dataset_uri: eval/local_data/arc_challenge.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 1, 5, 10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: 'Answer: ' # this separates questions from answers
+-
+  label: copa
+  dataset_uri: eval/local_data/copa.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 1, 5, 10]
+  icl_task_type: multiple_choice
+-
+  label: boolq
+  dataset_uri: eval/local_data/boolq.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 1, 5, 10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: 'Answer: ' # this separates questions from answers

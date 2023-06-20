@@ -21,7 +21,9 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import init_empty_weights
 
-import peft # required for the python class below
+# required for loading a python model into composer
+import peft
+import transformers
 
 __all__ = ['ComposerHFCausalLM']
 
@@ -159,7 +161,7 @@ class ComposerHFCausalLMFromPython(HuggingFaceModelWithZLoss):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(self, model: peft.peft_model.PeftModel, tokenizer: Tokenizer):
+    def __init__(self, model: Union[peft.peft_model.PeftModel,transformers.PreTrainedModel], tokenizer: Tokenizer):
 
         train_metrics = [
             LanguageCrossEntropy(),

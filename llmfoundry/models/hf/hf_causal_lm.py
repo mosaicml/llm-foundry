@@ -6,6 +6,9 @@
 import os
 from typing import Mapping, Union
 
+# required for loading a python model into composer
+import peft
+import transformers
 from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
                                   InContextLearningMCExpectedCalibrationError,
@@ -20,10 +23,6 @@ from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedTokenizer,
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import init_empty_weights
-
-# required for loading a python model into composer
-import peft
-import transformers
 
 __all__ = ['ComposerHFCausalLM']
 
@@ -155,13 +154,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
 
 class ComposerHFCausalLMFromPython(HuggingFaceModelWithZLoss):
-    """Configures a :class:`.HuggingFaceModel` around a Causal LM that is loaded in memory.
-    Args:
-        model (peft.peft_model.PeftModel or transformers.PreTrainedModel): The HF model loaded into python memory.
-        tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
-    """
+    # Configures a :class:`.HuggingFaceModel` around a Causal LM loaded in memory.
 
-    def __init__(self, model: Union[peft.peft_model.PeftModel,transformers.PreTrainedModel], tokenizer: Tokenizer):
+    def __init__(self, model: Union[peft.peft_model.PeftModel,
+                                    transformers.PreTrainedModel],
+                 tokenizer: Tokenizer):
 
         train_metrics = [
             LanguageCrossEntropy(),

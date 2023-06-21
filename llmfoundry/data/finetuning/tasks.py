@@ -220,11 +220,15 @@ class DatasetConstructor:
 
         return preprocessing_fn
 
-    def build_from_hf(self, cfg: DictConfig, tokenizer: Tokenizer):
+    def build_from_hf(self, cfg: DictConfig, max_seq_len: int,
+                      tokenizer: Tokenizer):
         """Load a HuggingFace Datasets, preprocess, and tokenize.
+
+        Note: This function will drop examples where the prompt is longer than the max_seq_len
 
         Args:
             cfg (DictConfig): The dataset configuration.
+            max_seq_len (int): The maximum sequence length. Examples with prompts longer than this will be dropped.
             tokenizer (Tokenizer): The tokenizer to be used for tokenizing the dataset.
 
         Returns:
@@ -248,9 +252,13 @@ class DatasetConstructor:
             dataset_mapper,
             batched=False,
             remove_columns=columns_to_remove,
+            num_proc=os.cpu_count() - 2,
         )
+        prompt_length_filtered_dataset = tokenized_dataset.filter(
+            lambda example: len(example['text']) < max_seq_len,
+            num_proc=os.cpu_count() - 2)
 
-        return tokenized_dataset
+        return prompt_length_filtered_dataset
 
     def build_from_streaming(self, *args: Any, **kwargs: Any):
         return StreamingFinetuningDataset(*args, **kwargs)

@@ -175,7 +175,7 @@ icl_tasks:
 -
   label: coqa
   dataset_uri: eval/local_data/reading_comprehension/coqa.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 10]
+  num_fewshot: [0, 2]
   icl_task_type: language_modeling
 -
   label: bigbench_understanding_fables

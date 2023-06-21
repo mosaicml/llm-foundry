@@ -245,7 +245,7 @@ icl_taxonomy:
         diversity: 4
         random_baseline: 0
     - name: coqa
-      num_fewshot: 10
+      num_fewshot: 2
       scorecard:
         size: 4
         quality: 3

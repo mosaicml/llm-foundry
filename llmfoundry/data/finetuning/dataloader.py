@@ -86,7 +86,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     you choose the best `packing_ratio`.
             cfg.dataset.shuffle (bool): Whether to shuffle the dataset.
             ___
-            See :class:`StreamingTextDataset` for info on other standard config
+            See :class:`StreamingFinetuningDataset` for info on other standard config
                 options within `cfg.dataset` that will be passed as kwargs if
                 using the streaming codepath.
             ---

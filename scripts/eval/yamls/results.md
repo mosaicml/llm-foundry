@@ -7,6 +7,7 @@ Printing gauntlet results for all models
 | huggyllama/llama-7b |  0.351241 |          0.354118 |                0.396072 |                 0.428827 |                   0.182015 |                0.395171 |
 | togethercomputer/RedPajama-INCITE-7B-Instruct |  0.354936 |          0.368793 |                0.367142 |                 0.395898 |                   0.210048 |                0.432801 |
 | mosaicml/mpt-7b-instruct |  0.338077 |          0.338253 |                0.416911 |                 0.371509 |                   0.17265  |                0.391062 |
+| mosaicml/mpt-7b-chat |  0.335942 |          0.326105 |                0.397677 |                 0.383453 |                    0.17976 |                0.392714 |
 | mosaicml/mpt-7b          |  0.310326 |          0.310191 |                0.384509 |                 0.380392 |                   0.162957 |                0.31358  |
 | tiiuae/falcon-7b         |  0.309822 |          0.272142 |                0.419968 |                 0.369998 |                   0.158363 |                0.328637 |
 | togethercomputer/RedPajama-INCITE-7B-Base     |  0.29738  |          0.312032 |                0.363261 |                 0.3733   |                   0.126577 |                0.311731 |

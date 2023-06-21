@@ -33,6 +33,7 @@ those keys are strings (i.e. text).
 
 import importlib
 import os
+import warnings
 from typing import Any, Callable, Dict, Optional, Union
 
 import datasets as hf_datasets
@@ -252,11 +253,18 @@ class DatasetConstructor:
             dataset_mapper,
             batched=False,
             remove_columns=columns_to_remove,
-            num_proc=os.cpu_count() - 2,
+            num_proc=max(os.cpu_count() - 2, 1),
         )
         prompt_length_filtered_dataset = tokenized_dataset.filter(
             lambda example: len(example['input_ids']) < max_seq_len,
-            num_proc=os.cpu_count() - 2)
+            num_proc=max(os.cpu_count() - 2, 1))
+
+        examples_removed = len(tokenized_dataset) - len(
+            prompt_length_filtered_dataset)
+        if examples_removed > 0:
+            warnings.warn(
+                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
+            )
 
         return prompt_length_filtered_dataset
 

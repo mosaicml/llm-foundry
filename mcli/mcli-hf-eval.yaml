@@ -19,7 +19,7 @@ command: |
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: all-eval
-gpu_num: 24
+gpu_num: 64
 gpu_type: a100_40gb
 cluster: r7z2 # replace with your cluster here!
 
@@ -37,20 +37,6 @@ parameters:
 
   models:
   -
-    model_name: mpt-30b
-    # Tokenizer
-    tokenizer:
-      name: EleutherAI/gpt-neox-20b
-      kwargs:
-        model_max_length: ${max_seq_len}
-
-    model:
-      name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-30b
-      device: cpu
-      pretrained: true
-      use_auth_token: true
-  -
     model_name: falcon-40b
     # Tokenizer
     tokenizer:
@@ -64,6 +50,20 @@ parameters:
       device: cpu
       pretrained: true
       use_auth_token: false
+  -
+    model_name: mpt-30b
+    # Tokenizer
+    tokenizer:
+      name: EleutherAI/gpt-neox-20b
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: mosaicml/mpt-30b
+      device: cpu
+      pretrained: true
+      use_auth_token: true
   -
     model_name: falcon-40b-instruct
     # Tokenizer

@@ -8,7 +8,7 @@ icl_tasks:
   has_categories: true
 -
   label: triviaqa
-  dataset_uri: eval/local_data/world_knowledge/triviaqa.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/world_knowledge/triviaqa_sm.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   icl_task_type: question_answering
 -
@@ -38,11 +38,6 @@ icl_tasks:
 -
   label: bigbench_misconceptions
   dataset_uri: eval/local_data/world_knowledge/bigbench_misconceptions.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 10]
-  icl_task_type: multiple_choice
--
-  label: bigbench_movie_recommendation
-  dataset_uri: eval/local_data/world_knowledge/bigbench_movie_recommendation.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0, 10]
   icl_task_type: multiple_choice
 -

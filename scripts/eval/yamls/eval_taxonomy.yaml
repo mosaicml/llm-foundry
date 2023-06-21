@@ -54,13 +54,6 @@ icl_taxonomy:
         quality: 3
         diversity: 3
         random_baseline: 0.5
-    - name: bigbench_movie_recommendation
-      num_fewshot: 10
-      scorecard:
-        size: 2
-        quality: 2
-        diversity: 1
-        random_baseline: 0.25
   - name: commonsense_reasoning
     benchmarks:
     - name: copa
@@ -265,3 +258,13 @@ icl_taxonomy:
         quality: 3
         diversity: 3
         random_baseline: 0.5
+  - name: programming
+    benchmarks:
+    - name: humaneval
+      num_fewshot: 0
+      scorecard:
+        size: 4
+        quality: 3
+        diversity: 3
+        random_baseline: 0.0
+  

@@ -59,10 +59,10 @@ def run_test(dir, tokenizer, bos_tok=''):
             full_example = tokenizer.decode(inputs[start_idx:])
             answer = batch['labels'][0][0]
         if e.label == 'jeopardy/0-shot/american_history':
-            assert full_example == bos_tok + 'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one wordAnswer: Treason'
+            assert full_example == bos_tok + 'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Treason'
             assert answer == ' Treason'
         elif e.label == 'jeopardy/1-shot/american_history':
-            assert full_example == bos_tok + 'AMERICAN HISTORY: Witchcraft trials held in this town in 1692 led to the hangings of 19 peopleAnswer: Salem\nAMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one wordAnswer: Treason'
+            assert full_example == bos_tok + 'AMERICAN HISTORY: Witchcraft trials held in this town in 1692 led to the hangings of 19 people\nAnswer: Salem\nAMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Treason'
             assert answer == ' Treason'
         elif e.label == 'triviaqa/0-shot':
             assert full_example == bos_tok + 'Question: Who was the man behind The Chipmunks?\nAnswer:'

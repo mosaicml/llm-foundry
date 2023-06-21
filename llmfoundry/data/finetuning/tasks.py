@@ -255,7 +255,7 @@ class DatasetConstructor:
             num_proc=os.cpu_count() - 2,
         )
         prompt_length_filtered_dataset = tokenized_dataset.filter(
-            lambda example: len(example['text']) < max_seq_len,
+            lambda example: len(example['input_ids']) < max_seq_len,
             num_proc=os.cpu_count() - 2)
 
         return prompt_length_filtered_dataset

@@ -141,6 +141,15 @@ The script also works with other style models. Here is an example of using it wi
 python hf_chat.py -n eachadea/vicuna-7b-1.1 --system_prompt="A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions." --user_msg_fmt="USER: {}\n" --assistant_msg_fmt="ASSISTANT: {}\n" --max_new_tokens=512
 ```
 
+The `system_prompt` is the message that gives the bot context for the conversation, and can be used to make the bot take on different personalities.
+
+In the REPL you see while using `hf_chat.py` you can enter text to interact with the model (hit return TWICE to send, this allows you to input text with single newlines), you can also enter the following commands:
+
+- `clear` — clear the conversation history, and start a new conversation (does not change system prompt)
+- `system` — change the system prompt
+- `history` — see the conversation history
+- `quit` — exit
+
 ## Converting an HF model to ONNX
 
 We include a script `convert_hf_to_onnx.py` that demonstrates how to convert your HF model to ONNX format. For more details and examples

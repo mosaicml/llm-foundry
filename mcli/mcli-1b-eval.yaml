@@ -10,7 +10,7 @@ command: |
   cd llm-foundry/llmfoundry/icl_eval
   composer eval.py /mnt/config/parameters.yaml
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
-name: mosaic-gpt-1b-eval
+name: mpt-1b-eval
 
 compute:
   gpus: 8  # Number of GPUs to use

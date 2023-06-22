@@ -72,4 +72,4 @@ To generate these curves, we vary the batch size for a fixed input length (512) 
 
 These plots show how using multiple a100s with 40GB and 80GB cards and Tensor Parallelism using `deepspeed` compare with single GPUs.
 ## Comparing MPT with other open-source models
-![assets](assets/Latency-vs.-Throughput,-MPT-30B-(n_input_tok=512,-n_output_tok=64)-compare-open-source.png)
+![assets](assets/Latency-vs.-Throughput-(n_input_tok=512,-n_output_tok=64).png)

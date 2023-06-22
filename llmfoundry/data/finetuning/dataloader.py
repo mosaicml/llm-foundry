@@ -177,7 +177,6 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                             print(
                                 f'Could not find {name}, looking for another extension'
                             )
-                        continue
 
                 # 'json' causes special behavior in the dataset constructor
                 cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'

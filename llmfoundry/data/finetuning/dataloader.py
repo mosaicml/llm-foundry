@@ -160,7 +160,9 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
             with tempfile.TemporaryDirectory() as tmp_dir:
                 for extension in supported_extensions:
                     name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
-                    destination = str(os.path.abspath(f'{tmp_dir}/{cfg.dataset.split}.{extension}'))
+                    destination = str(
+                        os.path.abspath(
+                            f'{tmp_dir}/{cfg.dataset.split}.{extension}'))
                     try:
                         with dist.run_local_rank_zero_first():
                             get_file(name, destination, overwrite=True)
@@ -184,14 +186,12 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     print(cfg.dataset)
                     dataset = dataset_constructor.build_from_hf(
                         cfg.dataset,
-                        max_seq_len=cfg.dataset.max_seq_len,
                         tokenizer=tokenizer,
                     )
                     break
         else:
             dataset = dataset_constructor.build_from_hf(
                 cfg.dataset,
-                max_seq_len=cfg.dataset.max_seq_len,
                 tokenizer=tokenizer,
             )
 

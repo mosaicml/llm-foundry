@@ -153,31 +153,22 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
         if backend not in ['', None]:
             if cfg.dataset.get('split') is None:
                 raise ValueError(
-                    'When using a HuggingFace dataset from a URL, you must set the ' +\
+                    'When using a HuggingFace dataset from a URL, you must set the ' + \
                     '`split` key in the dataset config.'
                 )
             supported_extensions = ['jsonl', 'csv', 'parquet']
             with tempfile.TemporaryDirectory() as tmp_dir:
                 for extension in supported_extensions:
-                    name = f'{cfg.dataset.hf_name}/{cfg.dataset.split}.{extension}'
-                    destination = f'{tmp_dir}/{cfg.dataset.split}.{extension}'
+                    name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
+                    destination = str(os.path.abspath(f'{tmp_dir}/{cfg.dataset.split}.{extension}'))
                     try:
-                        with dist.local_rank_zero_download_and_wait(
-                                destination):
-                            if dist.get_local_rank() == 0:
-                                get_file(name, destination, overwrite=True)
-                                tmp_path_to_broadcast = str(
-                                    os.path.abspath(destination))
-                                gathered_paths = dist.all_gather_object(
-                                    tmp_path_to_broadcast)
-                                gathered_path = gathered_paths[0]
+                        with dist.run_local_rank_zero_first():
+                            get_file(name, destination, overwrite=True)
                     except FileNotFoundError as e:
                         if extension == supported_extensions[-1]:
                             raise FileNotFoundError(
-                                f'Could not find a {cfg.dataset.split} file with any of '
-                                +
-                                f'the supported extensions: {supported_extensions}\n'
-                                +
+                                f'Could not find a {cfg.dataset.split} file with any of ' + \
+                                f'the supported extensions: {supported_extensions}\n' + \
                                 f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
                             ) from e
                         else:
@@ -188,9 +179,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     # 'json' causes special behavior in the dataset constructor
                     cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
                     kwargs = cfg.dataset.get('hf_kwargs', {})
-                    data_files = kwargs.get('data_files', '')
-                    data_files = gathered_path
-                    kwargs['data_files'] = data_files
+                    kwargs['data_files'] = destination
                     cfg.dataset['hf_kwargs'] = kwargs
                     print(cfg.dataset)
                     dataset = dataset_constructor.build_from_hf(

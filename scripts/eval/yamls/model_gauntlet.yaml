@@ -1,4 +1,4 @@
-icl_taxonomy:
+model_gauntlet:
   weighting: EQUAL
   subtract_random_baseline: true
   rescale_accuracy: true

@@ -6,58 +6,54 @@
 
 """Monitor gradients during training."""
 
-from enum import Enum
 import math
 import re
+from enum import Enum
 from typing import Optional
 
-import torch
 from composer.core import Callback, State
 from composer.loggers import Logger
-from composer.utils import dist
 
-__all__ = ['MoedlGauntlet']
+__all__ = ['ModelGauntlet']
+
 
 class Weighting(Enum):
     EQUAL = 1
     SAMPLE_SZ = 2
     LOG_SAMPLE_SZ = 3
-class MoedlGauntlet(Callback):
 
-    def __init__(
-        self,
-        logger_keys: dict,
-        tasks: dict,
-        weighting: Weighting = Weighting.EQUAL,
-        subtract_random_baseline: bool = True,
-        rescale_accuracy: bool = True,
-        benchmark_sizes: Optional[dict] = None
-    ):
+
+class ModelGauntlet(Callback):
+
+    def __init__(self,
+                 logger_keys: dict,
+                 tasks: dict,
+                 weighting: Weighting = Weighting.EQUAL,
+                 subtract_random_baseline: bool = True,
+                 rescale_accuracy: bool = True,
+                 benchmark_sizes: Optional[dict] = None):
         self.tasks = tasks
         self.weighting = Weighting[weighting]
         self.subtract_random_baseline = subtract_random_baseline
         self.rescale_accuracy = rescale_accuracy
         self.logger_keys = logger_keys
         for category in self.tasks:
-            
+
             for benchmark in category['benchmarks']:
                 bench_name = f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
                 cumulative_samples = max(
-                    sum(count for name,count in benchmark_sizes.items() if name.startswith(bench_name)),
-                    1)
-                
+                    sum(count for name, count in benchmark_sizes.items()
+                        if name.startswith(bench_name)), 1)
+
                 if self.weighting == Weighting.EQUAL:
                     weight = 1
                 elif self.weighting == Weighting.SAMPLE_SZ:
                     weight = cumulative_samples
                 elif self.weighting == Weighting.LOG_SAMPLE_SZ:
-                    weight = max(
-                        math.log(cumulative_samples, 2),
-                        1
-                    )
+                    weight = max(math.log(cumulative_samples, 2), 1)
 
                 benchmark['weighting'] = weight
-        
+
     def compute_averages(self, logger_data):
 
         results = {}
@@ -106,10 +102,10 @@ class MoedlGauntlet(Callback):
                     score = new_metrics[matching_key[0]]
 
                     if self.subtract_random_baseline:
-                        score -= benchmark['scorecard']['random_baseline']
+                        score -= benchmark['random_baseline']
 
                     if self.rescale_accuracy and self.subtract_random_baseline:
-                        score /= 1.0 - benchmark['scorecard']['random_baseline']
+                        score /= 1.0 - benchmark['random_baseline']
 
                     composite_scores[category['name']].append({
                         'name': benchmark['name'],
@@ -123,10 +119,11 @@ class MoedlGauntlet(Callback):
                 for k in composite_scores[category['name']])
 
         composite_scores = {
-            f'metrics/icl_taxonomy/{k}': v for k, v in composite_scores.items()
+            f'metrics/model_gauntlet/{k}': v
+            for k, v in composite_scores.items()
         }
 
-        composite_scores['metrics/icl_taxonomy/average'] = sum(
+        composite_scores['metrics/model_gauntlet/average'] = sum(
             composite_scores.values()) / len(composite_scores.values())
         logger.log_metrics(composite_scores)
 

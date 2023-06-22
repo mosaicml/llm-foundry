@@ -245,8 +245,9 @@ Language understanding tasks evaluate the model’s ability to understand the st
 
 
 ### Programming
+Programming tasks evaluate the model's ability to understand code, write functionally correct code given a specification, simulate code, and document code. Right now we just have HumanEval but later versions will include more.
 
-25. HumanEval
+35. HumanEval code generation
     - Description: HumanEval consists of 164 python programming challenges, in which the model is presented with the method signature and docstring comment for a python program and is expected to complete the program. We then test the resultant code’s functional correctness on a number of test input/output pairs.
     - Year released: 2022
     - Number of few shot examples: 0

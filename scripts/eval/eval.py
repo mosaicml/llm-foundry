@@ -68,10 +68,12 @@ def main(cfg):
                     e.label: e.dataloader.num_samples for e in evaluators
                 }
                 model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
+            else:
+                model_gauntlet = None
 
             composer_model = load_model(model_cfg.model, tokenizer)
 
-            if model_gauntlet_df is None:
+            if model_gauntlet_df is None and model_gauntlet is not None:
                 model_gauntlet_df = pd.DataFrame(
                     columns=['model_name', 'average'] +
                     [t.name for t in model_gauntlet.tasks])
@@ -140,20 +142,22 @@ def main(cfg):
             row.update({
                 'average': composite_scores[f'metrics/model_gauntlet/average']
             })
-            taxonomy_df = pd.concat(
-                [taxonomy_df, pd.DataFrame([row])], ignore_index=True)
 
-            print(f'Printing gauntlet results for all models')
-            print(
-                taxonomy_df.sort_values(
-                    'average', ascending=False).to_markdown(index=False))
+            if model_gauntlet_df is not None:
+                model_gauntlet_df = pd.concat(
+                    [model_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
+
+                print(f'Printing gauntlet results for all models')
+                print(
+                    model_gauntlet_df.sort_values(
+                        'average', ascending=False).to_markdown(index=False))
             print(f'Printing complete results for all models')
             print(models_df.to_markdown(index=False))
         except Exception as e:
             print(
                 f'Got exception: {str(e)} while evaluating {model_cfg}. Continuing to next model.',
                 flush=True)
-            continue
+            raise e
 
 
 def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy,

@@ -46,10 +46,13 @@ MPT-7B is a GPT-style model, and the first in the MosaicML Foundation Series of 
 
 | Model              | Context Length | Download                                           | Demo                                                             | Commercial use? |
 |--------------------|----------------|----------------------------------------------------|------------------------------------------------------------------|-----------------|
+| MPT-30B            | 8192           | https://huggingface.co/mosaicml/mpt-30b            |                                                                  | Yes             |
+| MPT-30B-Instruct   | 8192           | https://huggingface.co/mosaicml/mpt-30b-instruct   |                                                                  | Yes             |
+| MPT-30B-Chat       | 8192           | https://huggingface.co/mosaicml/mpt-30b-chat       | [Demo](https://huggingface.co/spaces/mosaicml/mpt-30b-chat)      | No              |
 | MPT-7B             | 2048           | https://huggingface.co/mosaicml/mpt-7b             |                                                                  | Yes             |
-| MPT-7B-Instruct    | 2048           | https://huggingface.co/mosaicml/mpt-7b-instruct    | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-instruct)   | Yes             |
+| MPT-7B-Instruct    | 2048           | https://huggingface.co/mosaicml/mpt-7b-instruct    |                                                                  | Yes             |
 | MPT-7B-Chat        | 2048           | https://huggingface.co/mosaicml/mpt-7b-chat        | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-chat)       | No              |
-| MPT-7B-StoryWriter | 65536          | https://huggingface.co/mosaicml/mpt-7b-storywriter | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-storywriter)| Yes             |
+| MPT-7B-StoryWriter | 65536          | https://huggingface.co/mosaicml/mpt-7b-storywriter |                                                                  | Yes             |
 
 To try out these models locally, [follow the instructions](https://github.com/mosaicml/llm-foundry/tree/main/scripts/inference#interactive-generation-with-modelgenerate) in `scripts/inference/README.md` to prompt HF models using our [hf_generate.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_generate.py) or [hf_chat.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_chat.py) scripts.
 
@@ -71,6 +74,7 @@ Tutorial videos from the community:
 Something missing? Contribute with a PR!
 
 # Latest News
+* [Blog: MPT-30B: Raising the bar for open-source foundation models](https://www.mosaicml.com/blog/mpt-30b)
 * [Blog: Introducing MPT-7B](https://www.mosaicml.com/blog/mpt-7b)
 * [Blog: Benchmarking LLMs on H100](https://www.mosaicml.com/blog/coreweave-nvidia-h100-part-1)
 * [Blog: Blazingly Fast LLM Evaluation](https://www.mosaicml.com/blog/llm-evaluation-for-icl)

@@ -194,25 +194,6 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                 tokenizer=tokenizer,
             )
 
-        #             # 'json' causes special behavior in the dataset constructor
-        #             cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
-        #             kwargs = cfg.dataset.get('hf_kwargs', {})
-        #             kwargs['data_files'] = destination
-        #             cfg.dataset['hf_kwargs'] = kwargs
-
-        #             dataset = dataset_constructor.build_from_hf(
-        #                 cfg.dataset,
-        #                 max_seq_len=cfg.dataset.max_seq_len,
-        #                 tokenizer=tokenizer,
-        #             )
-        #             break
-        # else:
-        #     dataset = dataset_constructor.build_from_hf(
-        #         cfg.dataset,
-        #         max_seq_len=cfg.dataset.max_seq_len,
-        #         tokenizer=tokenizer,
-        #     )
-
         collate_fn, dataloader_batch_size = _build_collate_fn(
             cfg.dataset, tokenizer, device_batch_size)
 

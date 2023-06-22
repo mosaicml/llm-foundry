@@ -183,10 +183,10 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     cfg.dataset['hf_kwargs'] = kwargs
                     print(cfg.dataset)
                     dataset = dataset_constructor.build_from_hf(
-                        cfg.dataset, tokenizer)
+                        cfg.dataset, tokenizer=tokenizer)
                     break
         else:
-            dataset = dataset_constructor.build_from_hf(cfg.dataset, tokenizer)
+            dataset = dataset_constructor.build_from_hf(cfg.dataset, tokenizer=tokenizer)
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
             cfg.dataset, tokenizer, device_batch_size)

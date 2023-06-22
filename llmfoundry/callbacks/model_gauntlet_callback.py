@@ -6,42 +6,58 @@
 
 """Monitor gradients during training."""
 
+from enum import Enum
+import math
 import re
+from typing import Optional
 
 import torch
 from composer.core import Callback, State
 from composer.loggers import Logger
 from composer.utils import dist
 
-__all__ = ['EvalTaxonomy']
+__all__ = ['MoedlGauntlet']
 
-
-class EvalTaxonomy(Callback):
+class Weighting(Enum):
+    EQUAL = 1
+    SAMPLE_SZ = 2
+    LOG_SAMPLE_SZ = 3
+class MoedlGauntlet(Callback):
 
     def __init__(
         self,
         logger_keys: dict,
         tasks: dict,
-        equal_weighting: bool = True,
+        weighting: Weighting = Weighting.EQUAL,
         subtract_random_baseline: bool = True,
         rescale_accuracy: bool = True,
+        benchmark_sizes: Optional[dict] = None
     ):
         self.tasks = tasks
-        self.equal_weighting = equal_weighting
+        self.weighting = Weighting[weighting]
         self.subtract_random_baseline = subtract_random_baseline
         self.rescale_accuracy = rescale_accuracy
         self.logger_keys = logger_keys
         for category in self.tasks:
-            if self.equal_weighting:
-                for benchmark in category['benchmarks']:
-                    benchmark['weighting'] = 1
-            else:
-                for benchmark in category['benchmarks']:
-                    benchmark['weighting'] = sum([
-                        v for k, v in benchmark['scorecard'].items()
-                        if k != 'random_baseline'
-                    ])
+            
+            for benchmark in category['benchmarks']:
+                bench_name = f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
+                cumulative_samples = max(
+                    sum(count for name,count in benchmark_sizes.items() if name.startswith(bench_name)),
+                    1)
+                
+                if self.weighting == Weighting.EQUAL:
+                    weight = 1
+                elif self.weighting == Weighting.SAMPLE_SZ:
+                    weight = cumulative_samples
+                elif self.weighting == Weighting.LOG_SAMPLE_SZ:
+                    weight = max(
+                        math.log(cumulative_samples, 2),
+                        1
+                    )
 
+                benchmark['weighting'] = weight
+        
     def compute_averages(self, logger_data):
 
         results = {}

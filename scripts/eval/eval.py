@@ -14,7 +14,7 @@ from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.callbacks import EvalTaxonomy
+from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
@@ -44,31 +44,37 @@ def main(cfg):
     reproducibility.seed_all(cfg.seed)
     dist.initialize_dist(get_device(None), timeout=cfg.dist_timeout)
 
-    taxonomy_df = None
+    model_gauntlet_df = None
     models_df = None
     for model_cfg in cfg.models:
-        print(f"Evaluating model: {model_cfg.model_name}", flush=True)
+        print(f'Evaluating model: {model_cfg.model_name}', flush=True)
         # Build tokenizer and model
         try:
             tokenizer = build_tokenizer(model_cfg.tokenizer)
-            composer_model = load_model(model_cfg.model, tokenizer)
+
             evaluators, logger_keys = build_icl_evaluators(
                 cfg.icl_tasks, tokenizer, cfg.max_seq_len,
                 cfg.device_eval_batch_size)
 
-            if hasattr(cfg, 'icl_taxonomy'):
-                if isinstance(cfg.icl_taxonomy, str):
-                    with open(cfg.icl_taxonomy, 'r') as icl_f:
-                        taxonomy_cfg = om.load(icl_f)
-                    taxonomy = taxonomy_cfg.icl_taxonomy
+            if hasattr(cfg, 'model_gauntlet'):
+                if isinstance(cfg.model_gauntlet, str):
+                    with open(cfg.model_gauntlet, 'r') as icl_f:
+                        model_gauntlet_cfg = om.load(icl_f)
+                    model_gauntlet = model_gauntlet_cfg.model_gauntlet
                 else:
-                    taxonomy = cfg.icl_taxonomy
-                taxonomy.logger_keys = logger_keys
-                taxonomy_callback = EvalTaxonomy(**taxonomy)
+                    model_gauntlet = cfg.model_gauntlet
+                model_gauntlet.logger_keys = logger_keys
+                model_gauntlet.benchmark_sizes = {
+                    e.label: e.dataloader.num_samples for e in evaluators
+                }
+                model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
 
-            if taxonomy_df is None:
-                taxonomy_df = pd.DataFrame(columns=['model_name', 'average'] +
-                                           [t.name for t in taxonomy.tasks])
+            composer_model = load_model(model_cfg.model, tokenizer)
+
+            if model_gauntlet_df is None:
+                model_gauntlet_df = pd.DataFrame(
+                    columns=['model_name', 'average'] +
+                    [t.name for t in model_gauntlet.tasks])
 
             in_memory_logger = InMemoryLogger(
             )  # track metrics in the in_memory_logger
@@ -105,15 +111,15 @@ def main(cfg):
             b = time.time()
 
             print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
-            composite_scores = taxonomy_callback.eval_end(
+            composite_scores = model_gauntlet_callback.eval_end(
                 None, in_memory_logger)
 
             benchmark_to_taxonomy = {}
-            for t in taxonomy.tasks:
+            for t in model_gauntlet.tasks:
                 for b in t.benchmarks:
                     benchmark_to_taxonomy[b.name] = t.name
 
-            [t.name for t in taxonomy.tasks]
+            [t.name for t in model_gauntlet.tasks]
             model_results = calculate_markdown_results(logger_keys,
                                                        in_memory_logger.data,
                                                        benchmark_to_taxonomy,
@@ -128,11 +134,12 @@ def main(cfg):
             row = {'model_name': model_cfg['model_name']}
 
             row.update({
-                t.name: composite_scores[f'metrics/icl_taxonomy/{t.name}']
-                for t in taxonomy.tasks
+                t.name: composite_scores[f'metrics/model_gauntlet/{t.name}']
+                for t in model_gauntlet.tasks
             })
-            row.update(
-                {'average': composite_scores[f'metrics/icl_taxonomy/average']})
+            row.update({
+                'average': composite_scores[f'metrics/model_gauntlet/average']
+            })
             taxonomy_df = pd.concat(
                 [taxonomy_df, pd.DataFrame([row])], ignore_index=True)
 
@@ -144,8 +151,8 @@ def main(cfg):
             print(models_df.to_markdown(index=False))
         except Exception as e:
             print(
-                f'Got exception: {str(e)} while evaluating {model_cfg}. Continuing to next model.', flush=True
-            )
+                f'Got exception: {str(e)} while evaluating {model_cfg}. Continuing to next model.',
+                flush=True)
             continue
 
 
@@ -222,6 +229,7 @@ def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy,
                         df = pd.concat([df, pd.DataFrame([row])],
                                        ignore_index=True)
     return df
+
 
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]

@@ -25,5 +25,5 @@ device_eval_batch_size: 4
 #   sharding_strategy: FULL_SHARD
 #   mixed_precision: FULL
 
-icl_tasks: 'eval/yamls/tasks.yaml'
-icl_taxonomy: 'eval/yamls/eval_taxonomy.yaml'
+icl_tasks: 'eval/yamls/tasks_lite.yaml'
+model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

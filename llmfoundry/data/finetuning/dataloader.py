@@ -151,7 +151,6 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
     else:
         backend, _, _ = parse_uri(cfg.dataset.hf_name)
         if backend not in ['', None]:
-            # prep dataset config if dataset is being downloaded
             if cfg.dataset.get('split') is None:
                 raise ValueError(
                     'When using a HuggingFace dataset from a URL, you must set the ' + \
@@ -177,19 +176,23 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                                 f'Could not find {name}, looking for another extension'
                             )
                         continue
-
                     # 'json' causes special behavior in the dataset constructor
                     cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
                     kwargs = cfg.dataset.get('hf_kwargs', {})
                     kwargs['data_files'] = destination
                     cfg.dataset['hf_kwargs'] = kwargs
+                    dataset = dataset_constructor.build_from_hf(
+                        cfg.dataset,
+                        max_seq_len=cfg.dataset.max_seq_len,
+                        tokenizer=tokenizer,
+                    )
                     break
-
-        dataset = dataset_constructor.build_from_hf(
-            cfg.dataset,
-            max_seq_len=cfg.dataset.max_seq_len,
-            tokenizer=tokenizer,
-        )
+        else:
+            dataset = dataset_constructor.build_from_hf(
+                cfg.dataset,
+                max_seq_len=cfg.dataset.max_seq_len,
+                tokenizer=tokenizer,
+            )
 
         #             # 'json' causes special behavior in the dataset constructor
         #             cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'

@@ -145,10 +145,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
         )
 
     else:
-        dataset = dataset_constructor.build_from_hf(
-            cfg.dataset,
-            max_seq_len=cfg.dataset.max_seq_len,
-            tokenizer=tokenizer)
+        dataset = dataset_constructor.build_from_hf(cfg.dataset, tokenizer)
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
             cfg.dataset, tokenizer, device_batch_size)

@@ -165,7 +165,6 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     try:
                         with dist.run_local_rank_zero_first():
                             get_file(name, destination, overwrite=True)
-                        break
                     except FileNotFoundError as e:
                         if extension == supported_extensions[-1]:
                             raise FileNotFoundError(
@@ -177,18 +176,39 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                             print(
                                 f'Could not find {name}, looking for another extension'
                             )
+                        continue
 
-                # 'json' causes special behavior in the dataset constructor
-                cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
-                kwargs = cfg.dataset.get('hf_kwargs', {})
-                kwargs['data_files'] = destination
-                cfg.dataset['hf_kwargs'] = kwargs
+                    # 'json' causes special behavior in the dataset constructor
+                    cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
+                    kwargs = cfg.dataset.get('hf_kwargs', {})
+                    kwargs['data_files'] = destination
+                    cfg.dataset['hf_kwargs'] = kwargs
+                    break
 
         dataset = dataset_constructor.build_from_hf(
             cfg.dataset,
             max_seq_len=cfg.dataset.max_seq_len,
             tokenizer=tokenizer,
         )
+
+        #             # 'json' causes special behavior in the dataset constructor
+        #             cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
+        #             kwargs = cfg.dataset.get('hf_kwargs', {})
+        #             kwargs['data_files'] = destination
+        #             cfg.dataset['hf_kwargs'] = kwargs
+
+        #             dataset = dataset_constructor.build_from_hf(
+        #                 cfg.dataset,
+        #                 max_seq_len=cfg.dataset.max_seq_len,
+        #                 tokenizer=tokenizer,
+        #             )
+        #             break
+        # else:
+        #     dataset = dataset_constructor.build_from_hf(
+        #         cfg.dataset,
+        #         max_seq_len=cfg.dataset.max_seq_len,
+        #         tokenizer=tokenizer,
+        #     )
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
             cfg.dataset, tokenizer, device_batch_size)

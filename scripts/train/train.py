@@ -169,8 +169,8 @@ def main(cfg):
         print('Building model from HuggingFace checkpoint...')
         model = MPTForCausalLM.from_pretrained(
             cfg.model.pretrained_model_name_or_path,
-            load_in_8bit=True,
-            device_map='auto',
+            # load_in_8bit=True,
+            # device_map='auto',
             trust_remote_code=True)
         print('Model built!')
         print('Adding Lora modules...')

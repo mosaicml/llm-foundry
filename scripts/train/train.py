@@ -10,8 +10,10 @@ from composer import Trainer
 from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import OmegaConf as om
+from peft import LoraConfig, get_peft_model
 
-from llmfoundry import (COMPOSER_MODEL_REGISTRY, build_finetuning_dataloader,
+from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
+                        MPTForCausalLM, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.models.utils import init_empty_weights
@@ -160,8 +162,28 @@ def main(cfg):
 
     # Build Model
     print('Initializing model...')
-    with init_context:
-        model = build_composer_model(cfg.model, tokenizer)
+    # if cfg.peft exists and is lora
+    if cfg.get('lora', None) is not None:
+        print('Building Lora config...')
+        lora_cfg = LoraConfig(**cfg.lora.args)
+        print('Building model from HuggingFace checkpoint...')
+        model = MPTForCausalLM.from_pretrained(
+            cfg.model.pretrained_model_name_or_path,
+            load_in_8bit=True,
+            device_map='auto',
+            trust_remote_code=True)
+        print('Model built!')
+        print('Adding Lora modules...')
+        model = get_peft_model(model, lora_cfg)
+        print('Lora modules added!')
+        print(model)
+        with init_context:
+            # pass in instantiated model, not cfg.model
+            model = ComposerHFCausalLM(model, tokenizer)
+
+    else:  # standard model, no lora peft
+        with init_context:
+            model = build_composer_model(cfg.model, tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')
 

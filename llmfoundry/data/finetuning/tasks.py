@@ -101,7 +101,7 @@ class StreamingFinetuningDataset(StreamingDataset):
 
         if len(kwargs) > 0:
             raise ValueError(
-                f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}'
+                f'StreamingFinetuningDataset() got an unexpected keyword argument: {kwargs}'
             )
 
         if remote is None or (local == remote):

@@ -1,5 +1,13 @@
 # LLM Foundry Tutorial
 
+
+
+**Hello!** We’ve put together this “tutorial” to help you develop a stronger familiarity with `llm-foundry`, the kinds of things you can do with it, and how to use it to meet your needs.
+
+Forging LLMs can be quite complicated — you have to get your data prepared, set up your environment correctly with adequate hardware in order to train, evaluate your model once it’s trained, and finally get it ready to be served. That’s a lot of moving parts! And that’s exactly why we decided to create and release `llm-foundry`. This repo aims to simplify each of those pieces of the pipeline into an easy-to-use toolkit.
+
+This tutorial will provide a brief intro to the repo’s structure and underlying tools (all courtesy of MosaicML, of course), will go over a few example workflows and point you to the related resources within the repo, and will finally cover a number of FAQs that we have encountered since release.
+
 - [Intro](#intro)
   - [How this repo is structured](#how-this-repo-is-structured)
   - [Key components](#key-components)
@@ -10,26 +18,17 @@
   - [Workflow 3: I want to finetune a HF model like MPT-7B](#workflow-3-i-want-to-finetune-a-hf-model-like-mpt-7b)
   - [Workflow 4: I want to train a new HF model from scratch](#workflow-4-i-want-to-train-a-new-hf-model-from-scratch)
 - [FAQs](#faqs)
-  - [Common installation issues](#common-installation-issues)
   - [Why is the script only using 1 out of N GPUs?](#why-is-the-script-only-using-1-out-of-n-gpus)
   - [I’m running into an Out-Of-Memory (OOM) error. What do I do?](#im-running-into-an-out-of-memory-oom-error-what-do-i-do)
   - [What hardware can I train on?](#what-hardware-can-i-train-on)
   - [What hardware can I run eval on?](#what-hardware-can-i-run-eval-on)
-  - [What hardware can I run inference on?](#what-hardware-can-i-run-inference-on)
-  - [What is the MosaicML Training platform?](#what-is-the-mosaicml-training-platform)
-  - [What is the MosaicML Inference platform?](#what-is-the-mosaicml-inference-platform)
   - [What is FSDP?](#what-is-fsdp)
   - [What are the different attention options `torch` / `flash` / `triton`  for MPT and which one should I use?](#what-are-the-different-attention-options-torch--flash--triton-for-mpt-and-which-one-should-i-use)
   - [Can I finetune using PEFT / LORA?](#can-i-finetune-using-peft--lora)
   - [Can I quantize these models and/or run on CPU?](#can-i-quantize-these-models-andor-run-on-cpu)
   - [How do I deploy with ONNX/FasterTransformer?](#how-do-i-deploy-with-onnxfastertransformer)
   - [How expensive is it to build LLMs?](#how-expensive-is-it-to-build-llms)
-
-**Hello!** We’ve put together this “tutorial” to help you develop a stronger familiarity with `llm-foundry`, the kinds of things you can do with, and how to go about using it to meet your needs.
-
-Forging LLMs can be quite complicated — you have to get your data prepared, set up your environment correctly with adequate hardware in order to train, evaluate your model once it’s trained, and finally get it ready to be served. That’s a lot of moving parts! And that’s exactly why we decided to create and release `llm-foundry`. This repo aims to simplify each of those pieces of the pipeline into a toolkit that you can use to meet your various LLM forging needs.
-
-This tutorial will provide a brief intro to the repo’s structure and underlying tools (all courtesy of MosaicML, of course), will go over a few example workflows and point you to the related resources within the repo, and will finally cover a number of FAQs that we have encountered since release.
+  - [Common installation issues](#common-installation-issues)
 
 Let’s get started!
 
@@ -37,7 +36,7 @@ Let’s get started!
 
 # Intro
 
-This section establishes some basics that will provide useful context when navigating llm-foundry and digging into the provided scripts, YAMLs, etc. The goals here are to give you a clear sense of the general layout, orient you to the core MosaicML tools that this repo builds on, and introduce the way we use YAMLs to configure some of the more complex scripts.
+This section establishes some basics that will provide useful context when navigating `llm-foundry` and digging into the provided scripts, YAMLs, etc. The goals here are to give you a clear sense of the general layout, orient you to the core MosaicML tools that this repo builds on, and introduce the way we use YAMLs to configure some of the more complex scripts.
 
 ## How this repo is structured
 
@@ -85,7 +84,7 @@ Each of these dataloaders are built to work with **streaming datasets**.
 There are a number of benefits that come from using streaming datasets, from fast, deterministic resumption to easily loading from a mixture of streams at once.
 
 The scripts in `scripts/data_prep/` are your one-stop-shop for converting a local dataset or a dataset on the Hugging Face Hub to our streaming MDS format.
-These conversion scripts also allow you to upload your converted datasets directly to remote storage like s3, which our streaming datasets can read from.
+These conversion scripts also allow you to upload your converted datasets directly to remote storage like S3, which our streaming datasets can read from.
 
 ### MCLI
 
@@ -97,7 +96,7 @@ You'll find a lot of YAMLs in this repo. That's because they are a convenient to
 
 Config YAMLs are used as inputs to `scripts/train/train.py` and `scripts/eval/eval.py`, and are the main way we configure runs launched with `mcli`.
 
-Both of the above scripts, `train.py` and `eval.py`, wrap a `composer` Trainer in an opinionated way to make it easy to train and evaluate (respectively) LLMs. The bulk of each script essentially just interprets the config YAML it receives to build the appropriate inputs to the Trainer.
+Both of the above scripts, `train.py` and `eval.py`, wrap a Composer Trainer in an opinionated way to make it easy to train and evaluate (respectively) LLMs. The bulk of each script essentially just interprets the config YAML it receives to build the appropriate inputs to the Trainer.
 
 **We strive to keep the names of the YAML fields as closely related as possible to the kwargs of the function/class they direct to.** For instance, here's an example snippet for the `model` portion:
 ```yaml
@@ -114,7 +113,7 @@ You can find more info about how to configure mcli YAMLs [here](https://docs.mos
 
 # Example Workflows
 
-In this section, we’ll give a brief overview of 4 different workflows. You can treat them as independent — that is, you don’t need to go through each in any particular order. Instead, the goal here is to give you a sense of how you might approach each of these different situations using llm-foundry and related tooling.
+In this section, we’ll give a brief overview of 4 different workflows. You can treat them as independent — that is, you don’t need to go through each in any particular order. Instead, the goal here is to give you a sense of how you might approach each of these different situations using `llm-foundry` and related tooling.
 
 ## Workflow 1: I want to play with a HF model like MPT-7B locally
 
@@ -170,13 +169,15 @@ To play with more features like batching and multi-turn chat, check out our exam
 
 This site is under construction :)
 
+Please check back soon for more info.
+
 ## Workflow 3: I want to finetune a HF model like MPT-7B
 
-We address two possible versions of “finetuning” here. For both, you’ll want to be familiar with the material covered in scripts/train/README.md. The first finetuning workflow applies if you have labeled data — where you want to train the model to produce a target output given some input. The second workflow applies if you have additional unlabeled data that you want to adapt the model to.
+We address two possible versions of “finetuning” here. For both, you’ll want to be familiar with the material covered in `scripts/train/README.md`. The first finetuning workflow applies if you have **labeled data** — where you want to train the model to produce a target output given some input. The second workflow applies if you have additional **unlabeled data** that you want to adapt the model to.
 
 ### Supervised FineTuning and Instruction FineTuning
 
-`scripts/train/` already includes some resources for supervised finetuning. If that’s what you’re interestested in checkout
+`scripts/train/` already includes some resources for supervised finetuning. If that’s what you’re interestested in check out
 
 1. [**LLM Finetuning from a Local Dataset: A Concrete Example**](https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/finetune_example/README.md)
 2. [The YAML which should replicate the process of creating MPT-7B-Instruct from MPT-7b](https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml) — You can point this at your own dataset by [following these instructions](https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/README.md#Usage)
@@ -186,9 +187,9 @@ We address two possible versions of “finetuning” here. For both, you’ll wa
 > **Note**
 > Finetuning MPT-7B requires ≥ 4x40GB A100s, and a similarly sized model without flash attention may take 8 or more, depending on your sequence length. Use a smaller model if you do not have enough GPUs.
 
-Domain and Sequence Length Adaptation are two similar cases that do not fit neatly into the pretraining/finetuning taxonomy. For the purposes of LLM-Foundry, it is more instructive to consider them “continued pretraining”, as our setup will more resemble pretraining than it does Supervised Fine Tuning. In particular, we will employ the same dataloader and data preparation strategy as used in pretraining.
+Domain and Sequence Length Adaptation are two similar cases that do not fit neatly into the pretraining/finetuning taxonomy. For the purposes of LLM Foundry, it is more instructive to consider them “continued pretraining”, as our setup will more resemble pretraining than it does Supervised Fine Tuning. In particular, we will employ the same dataloader and data preparation strategy as used in pretraining.
 
-For the purposes of this example, we will assume you are fine-tuning MPT-7B on a longer sequence length, but the same process would work for a new style of text (e.g. getting MPT-7B to work on, say, legal text). Note that the bigger the change, the more tokens you want to continue training on: extending the sequences to 4,096 does not require as many training steps as extending to 65,536. Similarly, adapting MPT-7B to code (which made up a significant fraction of its training data) does not require as many steps as adapting to legal documents in Hindi (which made up ~0% of its training data).
+For the purposes of this example, we will assume you are "fine-tuning" MPT-7B on a longer sequence length, but the same process would work for a new style of text (e.g. getting MPT-7B to work on, say, legal text). Note that the bigger the change, the more tokens you want to continue training on: extending the sequences to 4,096 does not require as many training steps as extending to 65,536. Similarly, adapting MPT-7B to code (which made up a significant fraction of its training data) does not require as many steps as adapting to legal documents in Hindi (which made up ~0% of its training data).
 
 #### Data
 
@@ -213,7 +214,7 @@ Now that we have our data ready, we can slightly modify `scripts/train/yamls/fin
 
 <!--pytest.mark.skip-->
 ```bash
-composer scripts/train/train.py scripts/train/yamls/finetune/mpt-7b_domain_adapt.yaml
+composer scripts/train/train.py scripts/train/yamls/finetune/mpt-7b_domain_adapt.yaml max_seq_len=4096 ...
 ```
 
 You will see some info logs including your configs, and then training will start.
@@ -255,9 +256,6 @@ After you're done training, you probably want to convert your Composer checkpoin
 
 The purpose of this section is probably pretty self-evident. You’ve got questions and we’ve (hopefully) got answers. Here are some of the more common ones we’ve seen. Before filing an issue, please see if your question is addressed in one of these FAQs or in the READMEs.
 
-### Common installation issues
-- TODO…
-
 ### Why is the script only using 1 out of N GPUs?
 - Make sure you are using the `composer` launcher instead of the `python` launcher:
 
@@ -284,14 +282,8 @@ The purpose of this section is probably pretty self-evident. You’ve got questi
 ### What hardware can I run inference on?
 - Similar to above…
 
-### What is the MosaicML Training platform?
-- This is
-
-### What is the MosaicML Inference platform?
-- This is
-
 ### What is FSDP?
-[Fully Sharded Data Parallel (FSDP)](https://pytorch.org/blog/introducing-pytorch-fully-sharded-data-parallel-api/) is a PyTorch implementation of the [Zero Redundancy Optimizer (ZeRO)](https://arxiv.org/abs/1910.02054). FSDP shards networks parameters and the optimizer state across all GPUs. This enables users to train models with large parameter counts which do not fit into a single GPUs memory.
+- [Fully Sharded Data Parallel (FSDP)](https://pytorch.org/blog/introducing-pytorch-fully-sharded-data-parallel-api/) is a PyTorch implementation of the [Zero Redundancy Optimizer (ZeRO)](https://arxiv.org/abs/1910.02054). FSDP shards networks parameters and the optimizer state across all GPUs. This enables users to train models with large parameter counts which do not fit into a single GPUs memory.
 
 ### What are the different attention options `torch` / `flash` / `triton`  for MPT and which one should I use?
 - **Short answer:** `torch` is the native pytorch attention implementation, and `flash` and `triton` are different implementations of the much more optimized [Flash Attention](https://arxiv.org/abs/2205.14135) method. `triton` and `flash` will be faster (and use less GPU memory) than `torch`, but they might not work with all hardware and environment setups.
@@ -347,3 +339,6 @@ The majority of our training setups use `triton`. -->
 - Check out our blog post [GPT3-Quality for <$500k](https://www.mosaicml.com/blog/gpt-3-quality-for-500k) for guidance on LLM training times and costs.
 
   You can also check out our `scripts/train/benchmarking` folder for up-to-date information on the training throughput of MPT models using LLM Foundry. This datasheet can be used to answer questions like: “If I want to train an MPT-13B with context length 8k on 128xA100-40GB, what training throughput in tokens/sec should I expect?”
+
+### Common installation issues
+- We're still putting this section together. In the meantime, please see the top-level README for our recommended installation.

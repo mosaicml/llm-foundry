@@ -70,6 +70,7 @@ Spending some time understanding the Composer Trainer is a great way to form a d
 Composer also comes packaged with the `composer` launcher.
 If you go through our docs, you'll notice that we instruct you to launch the train script (`scripts/train/train.py`) and eval script (`scripts/eval/eval.py`) using the launcher, like so,
 
+<!--pytest.mark.skip-->
 ```bash
 cd scripts/train
 composer train.py <path/to/your/training/yaml>

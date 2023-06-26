@@ -11,9 +11,9 @@ The contents of this directory provide a concrete example of finetuning an LLM o
 ## Contents
 
 Here, we have a minimal example that includes all the necessary pieces:
-- `train.jsonl`: Our local dataset. (It is actually just a snippet of the ARC Easy ICL evaluation set, so it's not something we'd want train on for real.)
+- `train.jsonl`: Our local dataset. (It is actually just a 100-example snippet of the ARC Easy ICL evaluation set, so it's not something we'd want train on for real.)
 - `preprocessing.py`: A python file that defines the "preprocessing function" we will use to format our dataset into the required "prompt"/"response" structure.
-- `gpt2-arc-easy--cpu.yaml`: The configuration YAML for finetuning a pretrained gpt2 model on our local ARC Easy snippet with our custom preprocessing function. You can run this on CPU.
+- `gpt2-arc-easy--cpu.yaml`: The configuration YAML for finetuning a pretrained gpt2 model on our local ARC Easy snippet with our custom preprocessing function. You can run this toy example on CPU in 3-4 minutes.
 - `mpt-7b-arc-easy--gpu.yaml`: The configuration YAML for finetuning MPT-7B on our local ARC Easy snippet with our custom preprocessing function. This requires GPU(s).
 
 ## Quick start

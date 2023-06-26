@@ -320,6 +320,7 @@ class MPTModel(MPTPreTrainedModel):
                 'prefix_mask is a required argument when MPT is configured with prefix_lm=True.'
             )
 
+
 # Raise a not implemented error if input_embeds is not None (this is an arg in huggingface transformers and we need to support it for PEFT)
         if inputs_embeds is not None:
             raise NotImplementedError(

@@ -65,7 +65,7 @@ install_requires = [
     'loralib==0.1.1',  # lora core
     'peft @ git+https://github.com/huggingface/peft.git',  # TODO: pin it down only after it stabilizes.
     'bitsandbytes==0.39.1',  # 8bit
-    'scipy==1.11.0',  # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
+    'scipy>=1.10.0,<=1.11.0',  # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
 ]
 
 extra_deps = {}

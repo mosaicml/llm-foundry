@@ -119,27 +119,47 @@ def main(cfg):
     fsdp_config = cfg.get('fsdp_config', None)
     fsdp_config = om.to_container(fsdp_config,
                                   resolve=True) if fsdp_config else None
+    if dist.get_world_size() == 1 and fsdp_config is not None:
+        warnings.warn(
+            'FSDP is not applicable for single-GPU training. Reverting to DDP.')
+        cfg.pop('fsdp_config')
+        fsdp_config = None
 
     # Restrict model init_device to 'meta' and 'cpu',
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
     # when multiple GPUs are available.
     # Also 'meta' is only valid when using FSDP
-    init_device = cfg.model.get('init_device', 'cpu')
-    assert init_device in ['meta', 'cpu']
-    if fsdp_config is None and init_device == 'meta':
-        warnings.warn(
-            "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
-            "Reverting to `cfg.model.init_device='cpu'`.")
-        cfg.model.init_device = 'cpu'
+    init_context = contextlib.nullcontext()
+    if 'init_device' in cfg.model:
+        assert cfg.model.init_device in ['meta', 'cpu', 'mixed']
+        if fsdp_config is None and cfg.model.init_device == 'meta':
+            warnings.warn(
+                "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
+                "Reverting to `cfg.model.init_device='cpu'`.")
+            cfg.model.init_device = 'cpu'
+        if cfg.model.init_device == 'meta':
+            init_context = init_empty_weights()
+        if cfg.model.init_device == 'mixed':
+            if fsdp_config is None:
+                raise NotImplementedError(
+                    'Using init_device `mixed` is only supported with FSDP. '
+                    'Please add a FSDP config.')
+            # Always set `sync_module_states` to True for mixed initialization
+            if not fsdp_config.get('sync_module_states', False):
+                warnings.warn((
+                    'Setting `sync_module_states = True` for FSDP. This is required '
+                    'when using mixed initialization.'))
+                fsdp_config['sync_module_states'] = True
+
+            # Set defaults for mixed initialization
+            fsdp_config.setdefault('use_orig_params', False)
+            fsdp_config.setdefault('load_monolith_rank0_only', True)
 
     # build tokenizer
     tokenizer = build_tokenizer(cfg.tokenizer)
 
     # Build Model
     print('Initializing model...')
-    init_context = contextlib.nullcontext()
-    if init_device == 'meta':
-        init_context = init_empty_weights()
     with init_context:
         model = build_composer_model(cfg.model, tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())
@@ -224,11 +244,12 @@ def main(cfg):
         save_num_checkpoints_to_keep=cfg.get('save_num_checkpoints_to_keep',
                                              -1),
         save_overwrite=cfg.get('save_overwrite', False),
+        save_weights_only=cfg.get('save_weights_only', False),
         load_path=cfg.get('load_path', None),
         load_weights_only=cfg.get('load_weights_only', False),
         load_ignore_keys=cfg.get('load_ignore_keys', None),
         autoresume=cfg.get('autoresume', False),
-        python_log_level=cfg.get('python_log_level', None),
+        python_log_level=cfg.get('python_log_level', 'debug'),
         dist_timeout=cfg.dist_timeout,
     )
 

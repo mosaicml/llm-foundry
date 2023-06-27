@@ -1,12 +1,5 @@
 icl_tasks:
 -
-  label: jeopardy
-  dataset_uri: eval/local_data/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
-  icl_task_type: language_modeling
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
-  has_categories: true
--
   label: lambada_openai
   dataset_uri: eval/local_data/lambada_openai.jsonl
   num_fewshot: [0]
@@ -45,25 +38,3 @@ icl_tasks:
   num_fewshot: [0, 1, 5, 10]
   icl_task_type: multiple_choice
   continuation_delimiter: "\nAnswer: " # this separates questions from answers
--
-  label: mmlu
-  dataset_uri: eval/local_data/mmlu.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
-  icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
-  has_categories: true
--
-  label: winograd
-  dataset_uri: eval/local_data/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
-  icl_task_type: schema
--
-  label: winogrande
-  dataset_uri: eval/local_data/winogrande.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
-  icl_task_type: schema
--
-  label: triviaqa
-  dataset_uri: eval/local_data/triviaqa.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
-  icl_task_type: question_answering

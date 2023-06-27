@@ -20,6 +20,7 @@ from composer.metrics import (InContextLearningLMAccuracy,
                               InContextLearningQAAccuracy)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
+from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import (PreTrainedModel, PreTrainedTokenizer,
@@ -29,6 +30,7 @@ from transformers.modeling_outputs import (BaseModelOutputWithPast,
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
+from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
@@ -64,6 +66,7 @@ Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
     base_model_prefix = 'model'
+    _no_split_modules = ['MPTBlock']
 
 
 class MPTModel(MPTPreTrainedModel):
@@ -78,6 +81,12 @@ class MPTModel(MPTPreTrainedModel):
         self.alibi = config.attn_config['alibi']
         self.alibi_bias_max = config.attn_config['alibi_bias_max']
 
+        if config.init_device == 'mixed':
+            if dist.get_local_rank() == 0:
+                config.init_device = 'cpu'
+            else:
+                config.init_device = 'meta'
+
         if config.norm_type.lower() not in NORM_CLASS_REGISTRY.keys():
             norm_options = ' | '.join(NORM_CLASS_REGISTRY.keys())
             raise NotImplementedError(
@@ -89,13 +98,13 @@ class MPTModel(MPTPreTrainedModel):
         # both report this helping with stabilizing training
         self.embedding_fraction = config.embedding_fraction
 
-        self.wte = nn.Embedding(config.vocab_size,
-                                config.d_model,
-                                device=config.init_device)
+        self.wte = SharedEmbedding(config.vocab_size,
+                                   config.d_model,
+                                   device=config.init_device)
         if not self.alibi:
-            self.wpe = nn.Embedding(config.max_seq_len,
-                                    config.d_model,
-                                    device=config.init_device)
+            self.wpe = torch.nn.Embedding(config.max_seq_len,
+                                          config.d_model,
+                                          device=config.init_device)
         self.emb_drop = nn.Dropout(config.emb_pdrop)
         self.blocks = nn.ModuleList([
             MPTBlock(
@@ -386,7 +395,7 @@ class MPTModel(MPTPreTrainedModel):
 
         attn_bias, attention_mask = self._attn_bias(
             device=x.device,
-            dtype=x.dtype,
+            dtype=torch.float32,
             attention_mask=attention_mask,
             prefix_mask=prefix_mask,
             sequence_id=sequence_id)
@@ -461,6 +470,12 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
         self.transformer: MPTModel = MPTModel(config)
 
+        for child in self.transformer.children():
+            if isinstance(child, torch.nn.ModuleList):
+                continue
+            if isinstance(child, torch.nn.Module):
+                child._fsdp_wrap = True
+
         # enables scaling output logits; similar to a softmax "temperature"
         # PaLM paper uses scale 1/sqrt(config.d_model)
         self.logit_scale = None
@@ -522,8 +537,11 @@ class MPTForCausalLM(MPTPreTrainedModel):
             use_cache=use_cache,
         )
 
-        logits = F.linear(outputs.last_hidden_state,
-                          self.transformer.wte.weight)
+        # move outputs to same device as weights for token embedding
+        # needed to support HF `device_map`
+        logits = self.transformer.wte(
+            outputs.last_hidden_state.to(self.transformer.wte.weight.device),
+            True)
 
         if self.logit_scale is not None:
             if self.logit_scale == 0:
@@ -670,7 +688,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             except:
                 raise ValueError(
                     'Fused Cross Entropy is not installed. Either (1) have a CUDA-compatible GPU '
-                    'and `pip install .[gpu]` if installing from source or `pip install xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v0.2.8#subdirectory=csrc/xentropy` '
+                    'and `pip install .[gpu]` if installing from source or `pip install xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy` '
                     'if installing from pypi, or (2) set your config model.loss_fn=torch_crossentropy.'
                 )
         elif loss_fn_config == 'torch_crossentropy':

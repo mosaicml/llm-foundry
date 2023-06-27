@@ -17,7 +17,7 @@ model:
 
 load_path: # Add your (optional) Composer checkpoint path here!
 
-device_eval_batch_size: 16
+device_eval_batch_size: 4
 
 # FSDP config for model sharding
 fsdp_config:
@@ -26,13 +26,11 @@ fsdp_config:
 
 icl_tasks:
 -
-  label: piqa
-  dataset_uri: eval/local_data/piqa.jsonl
+  label: mmlu
+  dataset_uri: eval/local_data/mmlu.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [5]
   icl_task_type: multiple_choice
-  continuation_delimiter: 'Answer: '
--
-  label: lambada_openai
-  dataset_uri: eval/local_data/lambada_openai.jsonl
-  num_fewshot: [0]
-  icl_task_type: language_modeling
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  has_categories: true
+
+destination_dir: eval/test_data

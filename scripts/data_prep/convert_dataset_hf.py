@@ -56,9 +56,8 @@ def parse_args() -> Namespace:
 
     parsed = parser.parse_args()
 
-    if os.path.isdir(parsed.out_root) and len(
-            set(os.listdir(parsed.out_root)).intersection(set(
-                parsed.splits))) > 0:
+    if os.path.isdir(parsed.out_root) and set(os.listdir(
+            parsed.out_root)).intersection(set(parsed.splits)):
         raise ValueError(
             f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.'
         )
@@ -173,7 +172,7 @@ c4constants.splits['val'] = DataSplitConstants(hf_split='validation',
 c4constants.splits['val_small'] = DataSplitConstants(hf_split='validation',
                                                      folder_split='val_small',
                                                      raw_samples=10000,
-                                                     truncated_samples=10000)
+                                                     truncated_samples=1000)
 c4constants.splits['val_xsmall'] = DataSplitConstants(hf_split='validation',
                                                       folder_split='val_xsmall',
                                                       raw_samples=3000,
@@ -212,34 +211,36 @@ def build_hf_dataset(
     """
     hf_dataset = hf_datasets.load_dataset(path=dataset_name,
                                           name=data_subset,
+                                          data_dir=data_subset,
                                           split=split,
                                           streaming=True)
     if mode == ConcatMode.NO_CONCAT:
-        dataset = NoConcatDataset(hf_dataset)
-    else:
-        if not isinstance(tokenizer, PreTrainedTokenizerBase):
-            raise ValueError(
-                f'{tokenizer=} must be of type PreTrainedTokenizerBase')
-        if max_length is None:
-            raise ValueError(f'max_length must be set.')
-        if bos_text + eos_text == '':
-            test_tokens = tokenizer('test')
-            if test_tokens['input_ids'][
-                    0] != tokenizer.bos_token_id and test_tokens['input_ids'][
-                        -1] != tokenizer.eos_token_id:
-                tok_error_msg = 'This tokenizer does not insert an EOS nor BOS token. '
-                tok_error_msg += 'Concatenating with this tokenizer will result in sequences being '
-                tok_error_msg += 'attached without a separating token. Please use another tokenizer, '
-                tok_error_msg += 'such as facebook/opt-125m, or specify EOS/BOS text with e.g. '
-                tok_error_msg += '--bos_text=<|endoftext|>.'
-                raise ValueError(tok_error_msg)
-        dataset = ConcatTokensDataset(hf_dataset=hf_dataset,
-                                      tokenizer=tokenizer,
-                                      max_length=max_length,
-                                      bos_text=bos_text,
-                                      eos_text=eos_text,
-                                      no_wrap=no_wrap)
-    return dataset
+        return NoConcatDataset(hf_dataset)
+    if not isinstance(tokenizer, PreTrainedTokenizerBase):
+        raise ValueError(
+            f'{tokenizer=} must be of type PreTrainedTokenizerBase')
+    if max_length is None:
+        raise ValueError('max_length must be set.')
+    if bos_text + eos_text == '':
+        test_tokens = tokenizer('test')
+        if test_tokens['input_ids'][0] != tokenizer.bos_token_id and test_tokens[
+                'input_ids'][-1] != tokenizer.eos_token_id:
+            tok_error_msg = (
+                'This tokenizer does not insert an EOS nor BOS token. ' +
+                'Concatenating with this tokenizer will result in sequences being '
+            )
+            tok_error_msg += 'attached without a separating token. Please use another tokenizer, '
+            tok_error_msg += 'such as facebook/opt-125m, or specify EOS/BOS text with e.g. '
+            tok_error_msg += '--bos_text=<|endoftext|>.'
+            raise ValueError(tok_error_msg)
+    return ConcatTokensDataset(
+        hf_dataset=hf_dataset,
+        tokenizer=tokenizer,
+        max_length=max_length,
+        bos_text=bos_text,
+        eos_text=eos_text,
+        no_wrap=no_wrap,
+    )
 
 
 def _est_progress_denominator(total_samples: int, chars_per_sample: int,
@@ -264,15 +265,15 @@ def build_dataloader(dataset, batch_size, num_workers) -> DataLoader:
     # the aggregate device batch size
     # If not using workers, the torch DataLoader expects the default value for prefetch_factor,
     # which non-intuitively must be 2.
-    prefetch_factor = max(1, 2 * batch_size //
-                          num_workers) if num_workers > 0 else 2
+    # prefetch_factor = max(1, 2 * batch_size //
+    #                       num_workers) if num_workers > 0 else 2
 
     return DataLoader(
         dataset=dataset,
         sampler=None,
         batch_size=batch_size,
         num_workers=num_workers,
-        prefetch_factor=prefetch_factor,
+        # prefetch_factor=prefetch_factor,
     )
 
 
@@ -307,11 +308,11 @@ def main(args: Namespace) -> None:
         args (Namespace): Commandline arguments.
     """
     try:
-        dataset_constants = CONSTS[args.dataset]
-    except KeyError:
+        dataset_constants = CONSTS[os.path.basename(args.dataset)]
+    except KeyError as e:
         raise ValueError(
             f'Constants for dataset "{args.dataset}" not found. Currently only "the_pile" and "c4" are supported.'
-        )
+        ) from e
 
     if args.concat_tokens is not None:
         mode = ConcatMode.CONCAT_TOKENS
@@ -327,8 +328,9 @@ def main(args: Namespace) -> None:
     for split_name in args.splits:
         try:
             split = dataset_constants.splits[split_name]
-        except KeyError:
-            raise KeyError(f'Constants not defined for split {split_name}.')
+        except KeyError as e:
+            raise KeyError(
+                f'Constants not defined for split {split_name}.') from e
         hf_split = split.hf_split
         folder_split = split.folder_split
         expected_num_samples = split.raw_samples
@@ -367,9 +369,9 @@ def main(args: Namespace) -> None:
         # Write samples
         print(f'Converting {folder_split} to MDS format...')
         print(
-            f'Note that the progress bar is based on the dataset length before tokenization.'
+            'Note that the progress bar is based on the dataset length before tokenization.'
         )
-        print(f'It will finish at a value below 100% if tokenizing')
+        print('It will finish at a value below 100% if tokenizing')
         with MDSWriter(columns=columns,
                        out=os.path.join(args.out_root, folder_split),
                        compression=args.compression) as out:

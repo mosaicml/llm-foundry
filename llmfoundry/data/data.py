@@ -95,8 +95,7 @@ class ConcatTokensDataset(IterableDataset):
             message = 'both eos and bos' if eos_text_provided and bos_text_provided else (
                 'eos_text' if eos_text_provided else 'bos_text')
             warnings.warn(
-                f'The provided tokenizer adds special tokens, but you also specified {message}. This may result '
-                'in duplicated special tokens. Please be sure this is what you intend.'
+                f'The provided tokenizer adds special tokens, but you also specified {message}. This may result in duplicated special tokens. Please be sure this is what you intend.'
             )
 
     def __iter__(self) -> Iterable[Dict[str, bytes]]:

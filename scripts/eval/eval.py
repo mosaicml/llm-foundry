@@ -5,6 +5,7 @@ import sys
 import time
 from typing import List
 
+import numpy as np
 import torch
 from composer.loggers import InMemoryLogger, LoggerDestination
 from composer.trainer import Trainer
@@ -17,7 +18,7 @@ from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
 
 
-def main(cfg):
+def main(cfg: DictConfig):
     cfg.dist_timeout = cfg.get('dist_timeout', 600.0)
 
     reproducibility.seed_all(cfg.seed)
@@ -30,7 +31,8 @@ def main(cfg):
 
     evaluators, logger_keys = build_icl_evaluators(cfg.icl_tasks, tokenizer,
                                                    cfg.max_seq_len,
-                                                   cfg.device_eval_batch_size)
+                                                   cfg.device_eval_batch_size,
+                                                   cfg.destination_dir)
 
     in_memory_logger = InMemoryLogger()  # track metrics in the in_memory_logger
     loggers: List[LoggerDestination] = [
@@ -67,10 +69,13 @@ def main(cfg):
 
     print(f'Ran eval in: {b-a} seconds')
 
+    all_result = []
     for key in logger_keys:
         if key in in_memory_logger.data:
             result = in_memory_logger.data[key][0][1].item()
             print(f'{key}: {result}')
+            all_result.append(result)
+    print(f'Acc-all: {np.mean(all_result)}')
 
 
 if __name__ == '__main__':

@@ -1,9 +1,9 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-try:
-    import torch
+import torch
 
+try:
     from llmfoundry import optim, utils
     from llmfoundry.data import (ConcatTokensDataset,
                                  MixtureOfDenoisersCollator, NoConcatDataset,
@@ -24,7 +24,6 @@ try:
 
 except ImportError as e:
     try:
-        import torch
         is_cuda_available = torch.cuda.is_available()
     except:
         is_cuda_available = False

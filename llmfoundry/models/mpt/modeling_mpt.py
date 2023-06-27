@@ -212,9 +212,8 @@ class MPTModel(MPTPreTrainedModel):
             if prefix_mask is not None and (attention_mask.shape !=
                                             prefix_mask.shape):
                 raise ValueError(
-                    f'attention_mask shape={attention_mask.shape} ' +\
-                    f'and prefix_mask shape={prefix_mask.shape} are not equal.'
-                )
+                    f'attention_mask shape={attention_mask.shape} ' +
+                    f'and prefix_mask shape={prefix_mask.shape} are not equal.')
             min_val = torch.finfo(attn_bias.dtype).min
             attn_bias = attn_bias.masked_fill(
                 ~attention_mask.view(-1, 1, 1, s_k), min_val)
@@ -226,10 +225,9 @@ class MPTModel(MPTPreTrainedModel):
         s_k, s_q = attn_bias.shape[-2:]
         if (s_k != self.config.max_seq_len) or (s_q != self.config.max_seq_len):
             raise ValueError(
-                'attn_bias does not match the expected shape. ' +\
-                f'The last two dimensions should both be {self.config.max_length} ' +\
-                f'but are {s_k} and {s_q}.'
-            )
+                'attn_bias does not match the expected shape. ' +
+                f'The last two dimensions should both be {self.config.max_length} '
+                + f'but are {s_k} and {s_q}.')
         seq_len = prefix_mask.shape[-1]
         if seq_len > self.config.max_seq_len:
             raise ValueError(
@@ -267,8 +265,10 @@ class MPTModel(MPTPreTrainedModel):
         # Restrict attention to tokens that share the same value
         # in sequence_id
         cannot_attend = torch.logical_not(
-            torch.eq(sequence_id.view(-1, seq_len, 1),
-                     sequence_id.view(-1, 1, seq_len))).unsqueeze(1)
+            torch.eq(
+                sequence_id.view(-1, seq_len, 1),
+                sequence_id.view(-1, 1, seq_len),
+            )).unsqueeze(1)
         min_val = torch.finfo(attn_bias.dtype).min
         attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
 
@@ -285,9 +285,12 @@ class MPTModel(MPTPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
     ):
-        return_dict = return_dict if return_dict is not None else self.config.return_dict
-        use_cache = use_cache if use_cache is not None else self.config.use_cache
+        return_dict = (return_dict
+                       if return_dict is not None else self.config.return_dict)
+        use_cache = (use_cache
+                     if use_cache is not None else self.config.use_cache)
 
         if attention_mask is not None:
             attention_mask = attention_mask.bool()
@@ -306,8 +309,9 @@ class MPTModel(MPTPreTrainedModel):
                     'output_attentions is not implemented for MPT when using attn_impl `flash` or `triton`.'
                 )
 
-        if attention_mask is not None and attention_mask[:, 0].sum(
-        ) != attention_mask.shape[0] and self.training:
+        if (attention_mask is not None and
+                attention_mask[:, 0].sum() != attention_mask.shape[0] and
+                self.training):
             raise NotImplementedError(
                 'MPT does not support training with left padding.')
 
@@ -316,16 +320,22 @@ class MPTModel(MPTPreTrainedModel):
                 'prefix_mask is a required argument when MPT is configured with prefix_lm=True.'
             )
 
+
+# Raise a not implemented error if input_embeds is not None (this is an arg in huggingface transformers and we need to support it for PEFT)
+        if inputs_embeds is not None:
+            raise NotImplementedError(
+                'inputs_embeds is not implemented for MPT.')
+
         if self.training:
             if self.attn_uses_sequence_id and sequence_id is None:
                 raise ValueError(
-                    'sequence_id is a required argument when MPT is configured with attn_uses_sequence_id=True ' +\
-                    'and the model is in train mode.'
-                )
+                    'sequence_id is a required argument when MPT is configured with attn_uses_sequence_id=True '
+                    + 'and the model is in train mode.')
             elif (self.attn_uses_sequence_id is False) and (sequence_id
                                                             is not None):
                 warnings.warn(
-                    'MPT received non-None input for `sequence_id` but is configured with attn_uses_sequence_id=False. ' +\
+                    'MPT received non-None input for `sequence_id` but is configured with attn_uses_sequence_id=False. '
+                    +
                     'This input will be ignored. If you want the model to use `sequence_id`, set attn_uses_sequence_id to True.'
                 )
 
@@ -343,7 +353,8 @@ class MPTModel(MPTPreTrainedModel):
             if past_key_values is not None:
                 if len(past_key_values) != self.config.n_layers:
                     raise ValueError(
-                        f'past_key_values must provide a past_key_value for each attention ' +\
+                        f'past_key_values must provide a past_key_value for each attention '
+                        +
                         f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
                     )
                 # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
@@ -358,16 +369,19 @@ class MPTModel(MPTPreTrainedModel):
                     f'Cannot forward input with past sequence length {past_position} and current sequence length '
                     f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
                 )
-            pos = torch.arange(past_position,
-                               S + past_position,
-                               dtype=torch.long,
-                               device=input_ids.device).unsqueeze(0)
+            pos = torch.arange(
+                past_position,
+                S + past_position,
+                dtype=torch.long,
+                device=input_ids.device,
+            ).unsqueeze(0)
             if attention_mask is not None:
                 # adjust the position indices to account for padding tokens
-                pos = torch.clamp(pos - torch.cumsum(
-                    (~attention_mask).to(torch.int32), dim=1)[:,
-                                                              past_position:],
-                                  min=0)
+                pos = torch.clamp(
+                    pos - torch.cumsum((~attention_mask).to(torch.int32),
+                                       dim=1)[:, past_position:],
+                    min=0,
+                )
 
             pos_emb = self.wpe(pos)  # type: ignore
             x = tok_emb + pos_emb
@@ -386,7 +400,8 @@ class MPTModel(MPTPreTrainedModel):
             dtype=torch.float32,
             attention_mask=attention_mask,
             prefix_mask=prefix_mask,
-            sequence_id=sequence_id)
+            sequence_id=sequence_id,
+        )
 
         # initialize the past key values cache if it should be used
         if use_cache and past_key_values is None:
@@ -399,8 +414,8 @@ class MPTModel(MPTPreTrainedModel):
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
                 all_hidden_states = all_hidden_states + (x,)
-            past_key_value = past_key_values[
-                b_idx] if past_key_values is not None else None
+            past_key_value = (past_key_values[b_idx]
+                              if past_key_values is not None else None)
             x, attn_weights, past_key_value = block(
                 x,
                 past_key_value=past_key_value,
@@ -456,6 +471,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
             raise ValueError(
                 'MPTForCausalLM only supports tied word embeddings')
 
+        print(f'Instantiating an MPTForCausalLM model from {__file__}')
+
         self.transformer = MPTModel(config)
 
         for child in self.transformer.children():
@@ -508,10 +525,17 @@ class MPTForCausalLM(MPTPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
     ):
-        return_dict = return_dict if return_dict is not None else self.config.return_dict
-        use_cache = use_cache if use_cache is not None else self.config.use_cache
+        return_dict = (return_dict
+                       if return_dict is not None else self.config.return_dict)
+        use_cache = (use_cache
+                     if use_cache is not None else self.config.use_cache)
 
+        # if input_embeds is not none, raise a not implemented error
+        if inputs_embeds is not None:
+            raise NotImplementedError(
+                'inputs_embeds has to be None (for hf/peft support).')
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.transformer(
             input_ids=input_ids,
@@ -529,7 +553,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
         # needed to support HF `device_map`
         logits = self.transformer.wte(
             outputs.last_hidden_state.to(self.transformer.wte.weight.device),
-            True)
+            True,
+        )
 
         if self.logit_scale is not None:
             if self.logit_scale == 0:
@@ -542,8 +567,10 @@ class MPTForCausalLM(MPTPreTrainedModel):
         if labels is not None:
             labels = torch.roll(labels, shifts=-1)
             labels[:, -1] = -100
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)),
-                                   labels.to(logits.device).view(-1))
+            loss = F.cross_entropy(
+                logits.view(-1, logits.size(-1)),
+                labels.to(logits.device).view(-1),
+            )
 
         return CausalLMOutputWithPast(
             loss=loss,
@@ -651,7 +678,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError()
+            InContextLearningMCExpectedCalibrationError(),
         ]
 
         super().__init__(
@@ -670,6 +697,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         if loss_fn_config == 'fused_crossentropy':
             try:
                 from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
+
                 if hf_config.verbose > 1:
                     warnings.warn('Using Fused Cross Entropy Loss.')
                 self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
@@ -700,6 +728,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             attention_mask=batch.get('attention_mask', None),
             prefix_mask=batch.get('bidirectional_mask', None),
             sequence_id=batch.get('sequence_id', None),
+            inputs_embeds=batch.get('inputs_embeds', None),
         )
 
     def loss(self, outputs, batch):
@@ -715,7 +744,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         bs, msl = batch['input_ids'].shape[0:2]
         params_flops_per_token = 2 * self.n_active_params
         params_flops_per_seq = params_flops_per_token * msl
-        attn_flops_per_seq = self.model.config.n_layers * 2 * 2 * (
-            self.model.config.d_model * (msl**2))
+        attn_flops_per_seq = (self.model.config.n_layers * 2 * 2 *
+                              (self.model.config.d_model * (msl**2)))
 
         return (params_flops_per_seq + attn_flops_per_seq) * 3 * bs

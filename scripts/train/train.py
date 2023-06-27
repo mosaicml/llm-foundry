@@ -9,8 +9,10 @@ import warnings
 from composer import Trainer
 from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from peft import LoraConfig, get_peft_model
+from transformers import PreTrainedTokenizer
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM, build_finetuning_dataloader,
@@ -67,6 +69,27 @@ def build_composer_model(model_cfg, tokenizer):
         raise ValueError(
             f'Not sure how to build model with name={model_cfg.name}')
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
+
+
+def build_composer_peft_model(
+        model_cfg: DictConfig, lora_cfg: DictConfig,
+        tokenizer: PreTrainedTokenizer) -> ComposerHFCausalLM:
+    # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
+    print('Building Lora config...')
+    lora_cfg = LoraConfig(**lora_cfg.args)
+
+    print('Building model from HuggingFace checkpoint...')
+    model = MPTForCausalLM.from_pretrained(
+        cfg.model.pretrained_model_name_or_path, trust_remote_code=True)
+    print('Model built!')
+
+    print('Adding Lora modules...')
+    model = get_peft_model(model, lora_cfg)
+    print('Lora modules added!')
+
+    model = ComposerHFCausalLM(model, tokenizer)
+
+    return model
 
 
 def build_dataloader(cfg, tokenizer, device_batch_size):
@@ -162,24 +185,12 @@ def main(cfg):
 
     # Build Model
     print('Initializing model...')
-    # if cfg.peft exists and is lora
-    if cfg.get('lora', None) is not None:
-        print('Building Lora config...')
-        lora_cfg = LoraConfig(**cfg.lora.args)
-        print('Building model from HuggingFace checkpoint...')
-        model = MPTForCausalLM.from_pretrained(
-            cfg.model.pretrained_model_name_or_path, trust_remote_code=True)
-        print('Model built!')
-        print('Adding Lora modules...')
-        model = get_peft_model(model, lora_cfg)
-        print('Lora modules added!')
-        print(model)
-        with init_context:
-            # pass in instantiated model, not cfg.model
-            model = ComposerHFCausalLM(model, tokenizer)
-
-    else:  # standard model, no lora peft
-        with init_context:
+    with init_context:
+        # if cfg.peft exists and is lora
+        if cfg.get('lora', None) is not None:
+            model: ComposerHFCausalLM = build_composer_peft_model(
+                cfg.model, cfg.lora, tokenizer)
+        else:  # standard model, no lora peft
             model = build_composer_model(cfg.model, tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')

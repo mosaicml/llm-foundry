@@ -92,6 +92,19 @@ def build_composer_peft_model(
     return model
 
 
+def print_trainable_parameters(model) -> None:
+    # Prints the number of trainable parameters in the model.
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+    print(
+        f'trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}'
+    )
+
+
 def build_dataloader(cfg, tokenizer, device_batch_size):
     if cfg.name == 'text':
         return build_text_dataloader(
@@ -190,6 +203,7 @@ def main(cfg):
                    None) is not None:  # frozen model + trainable lora modules
             model: ComposerHFCausalLM = build_composer_peft_model(
                 cfg.model, cfg.lora, tokenizer)
+            print_trainable_parameters(model)  # should not be 100%
         else:  # standard model
             model = build_composer_model(cfg.model, tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())

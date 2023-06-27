@@ -52,13 +52,13 @@ from llmfoundry.models.utils.param_init_fns import (
     generic_param_init_fn_,  # type: ignore (see note)
     MODEL_INIT_REGISTRY,
 )
-# isort: on
 
 try:
     from llmfoundry.models.layers.flash_attn_triton import \
         flash_attn_func  # type: ignore (see note)
 except:
     pass
+# isort: on
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 

@@ -38,6 +38,7 @@ You'll find in this repo:
     * `inference/benchmarking` - profile inference latency and throughput
   * `eval/` - evaluate LLMs on academic (or custom) in-context-learning tasks
 * `mcli/` - launch any of these workloads using [MCLI](https://docs.mosaicml.com/projects/mcli/en/latest/) and the [MosaicML platform](https://www.mosaicml.com/platform)
+* `TUTORIAL.md` - a deeper dive into the repo, example workflows, and FAQs
 
 # MPT
 
@@ -119,15 +120,29 @@ You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117
 
 This assumes you already have PyTorch and CMake installed.
 
-To get started, clone this repo and install the requirements:
+To get started, clone the repo and set up your environment. Instructions to do so differ slightly depending on whether you're using Docker.
+### With Docker (recommended)
+
+We *strongly* recommend working with LLM Foundry inside a Docker container (see our recommended Docker image above). If you are doing so, follow these steps to clone the repo and install the requirements.
+
+<!--pytest.mark.skip-->
+```bash
+git clone https://github.com/mosaicml/llm-foundry.git
+cd llm-foundry
+pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
+```
+
+### Without Docker (not recommended)
+
+If you choose not to use Docker, you should create and use a virtual environment.
 
 <!--pytest.mark.skip-->
 ```bash
 git clone https://github.com/mosaicml/llm-foundry.git
 cd llm-foundry
 
-# Optional: we highly recommend creating and using a virtual environment
-python -m venv llmfoundry-venv
+# Creating and activate a virtual environment
+python3 -m venv llmfoundry-venv
 source llmfoundry-venv/bin/activate
 
 pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
@@ -136,14 +151,11 @@ pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 
 # Quickstart
 
+> **Note**
+> Make sure to go through the installation steps above before trying the quickstart!
+
 Here is an end-to-end workflow for preparing a subset of the C4 dataset, training an MPT-125M model for 10 batches,
 converting the model to HuggingFace format, evaluating the model on the Winograd challenge, and generating responses to prompts.
-
-If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
-```bash
-export HUGGING_FACE_HUB_TOKEN=your-auth-token
-```
-and uncomment the line containing `--hf_repo_for_upload ...`.
 
 **(Remember this is a quickstart just to demonstrate the tools -- To get good quality, the LLM must be trained for longer than 10 batches 😄)**
 
@@ -190,6 +202,16 @@ python inference/hf_generate.py \
 ```
 
 Note: the `composer` command used above to train the model refers to [Composer](https://github.com/mosaicml/composer) library's distributed launcher.
+
+If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
+```bash
+export HUGGING_FACE_HUB_TOKEN=your-auth-token
+```
+and uncomment the line containing `--hf_repo_for_upload ...` in the above call to `inference/convert_composer_to_hf.py`.
+
+# Learn more about LLM Foundry!
+
+Check out [TUTORIAL.md](https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md) to keep learning about working with LLM Foundry. The tutorial highlights example workflows, points you to other resources throughout the repo, and answers frequently asked questions!
 
 # Contact Us
 If you run into any problems with the code, please file Github issues directly to this repo.

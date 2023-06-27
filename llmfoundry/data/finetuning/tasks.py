@@ -161,6 +161,40 @@ class DatasetConstructor:
         tasks = sorted(self._task_preprocessing_registry.keys())
         print('\n'.join(tasks))
 
+    def get_preprocessing_fn_from_dict(self, mapping: dict):
+        """Get a preprocessing function from a dictionary.
+
+        The dictionary maps column names in the dataset to "prompt" and "response".
+        For example,
+            ```yaml
+            preprocessing_fn:
+                prompt: text
+                response: summary
+            ```
+        would map the `text` column as to prompt and the `summary` column as the response.
+
+        Args:
+            mapping (dict): A dictionary mapping column names to "prompt" and "response".
+
+        Returns:
+            Callable: The preprocessing function.
+
+        Raises:
+            ValueError: If the mapping does not have keys "prompt" and "response".
+        """
+
+        def _preprocessor(example: Dict[str, Any]) -> Dict[str, str]:
+            if list(mapping.keys()) != ['prompt', 'response']:
+                raise ValueError(
+                    f'Expected {mapping=} to have keys "prompt" and "response".'
+                )
+            return {
+                'prompt': example[mapping['prompt']],
+                'response': example[mapping['response']]
+            }
+
+        return _preprocessor
+
     def get_preprocessing_fn_from_str(self,
                                       preprocessor: Optional[str],
                                       dataset_name: Optional[str] = None,
@@ -233,8 +267,14 @@ class DatasetConstructor:
         dataset_name = cfg.hf_name
         split = cfg.split
         kwargs = cfg.get('hf_kwargs', {})
-        preprocessing_fn = self.get_preprocessing_fn_from_str(
-            cfg.get('preprocessing_fn'), dataset_name, verbose=True)
+        proto_preprocessing_fn = cfg.get('preprocessing_fn')
+        if isinstance(proto_preprocessing_fn, dict) or isinstance(
+                proto_preprocessing_fn, DictConfig):
+            preprocessing_fn = self.get_preprocessing_fn_from_dict(
+                proto_preprocessing_fn)
+        else:
+            preprocessing_fn = self.get_preprocessing_fn_from_str(
+                proto_preprocessing_fn, dataset_name, verbose=True)
 
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 

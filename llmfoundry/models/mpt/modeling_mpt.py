@@ -54,8 +54,7 @@ from llmfoundry.models.utils.param_init_fns import (
 )
 
 try:
-    from llmfoundry.models.layers.flash_attn_triton import \
-        flash_attn_func  # type: ignore (see note)
+    from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
 except:
     pass
 # isort: on

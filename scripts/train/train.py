@@ -186,11 +186,11 @@ def main(cfg):
     # Build Model
     print('Initializing model...')
     with init_context:
-        # if cfg.peft exists and is lora
-        if cfg.get('lora', None) is not None:
+        if cfg.get('lora',
+                   None) is not None:  # frozen model + trainable lora modules
             model: ComposerHFCausalLM = build_composer_peft_model(
                 cfg.model, cfg.lora, tokenizer)
-        else:  # standard model, no lora peft
+        else:  # standard model
             model = build_composer_model(cfg.model, tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')

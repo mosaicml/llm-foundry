@@ -33,6 +33,7 @@ those keys are strings (i.e. text).
 
 import importlib
 import os
+import warnings
 from typing import Any, Callable, Dict, Optional, Union
 
 import datasets as hf_datasets
@@ -161,6 +162,40 @@ class DatasetConstructor:
         tasks = sorted(self._task_preprocessing_registry.keys())
         print('\n'.join(tasks))
 
+    def get_preprocessing_fn_from_dict(self, mapping: dict):
+        """Get a preprocessing function from a dictionary.
+
+        The dictionary maps column names in the dataset to "prompt" and "response".
+        For example,
+            ```yaml
+            preprocessing_fn:
+                prompt: text
+                response: summary
+            ```
+        would map the `text` column as to prompt and the `summary` column as the response.
+
+        Args:
+            mapping (dict): A dictionary mapping column names to "prompt" and "response".
+
+        Returns:
+            Callable: The preprocessing function.
+
+        Raises:
+            ValueError: If the mapping does not have keys "prompt" and "response".
+        """
+
+        def _preprocessor(example: Dict[str, Any]) -> Dict[str, str]:
+            if list(mapping.keys()) != ['prompt', 'response']:
+                raise ValueError(
+                    f'Expected {mapping=} to have keys "prompt" and "response".'
+                )
+            return {
+                'prompt': example[mapping['prompt']],
+                'response': example[mapping['response']]
+            }
+
+        return _preprocessor
+
     def get_preprocessing_fn_from_str(self,
                                       preprocessor: Optional[str],
                                       dataset_name: Optional[str] = None,
@@ -220,11 +255,15 @@ class DatasetConstructor:
 
         return preprocessing_fn
 
-    def build_from_hf(self, cfg: DictConfig, tokenizer: Tokenizer):
+    def build_from_hf(self, cfg: DictConfig, max_seq_len: int,
+                      tokenizer: Tokenizer):
         """Load a HuggingFace Datasets, preprocess, and tokenize.
+
+        Note: This function will drop examples where the prompt is longer than the max_seq_len
 
         Args:
             cfg (DictConfig): The dataset configuration.
+            max_seq_len (int): The maximum sequence length. Examples with prompts longer than this will be dropped.
             tokenizer (Tokenizer): The tokenizer to be used for tokenizing the dataset.
 
         Returns:
@@ -233,8 +272,14 @@ class DatasetConstructor:
         dataset_name = cfg.hf_name
         split = cfg.split
         kwargs = cfg.get('hf_kwargs', {})
-        preprocessing_fn = self.get_preprocessing_fn_from_str(
-            cfg.get('preprocessing_fn'), dataset_name, verbose=True)
+        proto_preprocessing_fn = cfg.get('preprocessing_fn')
+        if isinstance(proto_preprocessing_fn, dict) or isinstance(
+                proto_preprocessing_fn, DictConfig):
+            preprocessing_fn = self.get_preprocessing_fn_from_dict(
+                proto_preprocessing_fn)
+        else:
+            preprocessing_fn = self.get_preprocessing_fn_from_str(
+                proto_preprocessing_fn, dataset_name, verbose=True)
 
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 
@@ -249,8 +294,17 @@ class DatasetConstructor:
             batched=False,
             remove_columns=columns_to_remove,
         )
+        prompt_length_filtered_dataset = tokenized_dataset.filter(
+            lambda example: len(example['input_ids']) < max_seq_len)
 
-        return tokenized_dataset
+        examples_removed = len(tokenized_dataset) - len(
+            prompt_length_filtered_dataset)
+        if examples_removed > 0:
+            warnings.warn(
+                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
+            )
+
+        return prompt_length_filtered_dataset
 
     def build_from_streaming(self, *args: Any, **kwargs: Any):
         return StreamingFinetuningDataset(*args, **kwargs)

@@ -255,8 +255,7 @@ class DatasetConstructor:
             remove_columns=columns_to_remove,
         )
         prompt_length_filtered_dataset = tokenized_dataset.filter(
-            lambda example: len(example['input_ids']) < max_seq_len,
-        )
+            lambda example: len(example['input_ids']) < max_seq_len)
 
         examples_removed = len(tokenized_dataset) - len(
             prompt_length_filtered_dataset)

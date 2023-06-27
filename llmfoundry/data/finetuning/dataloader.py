@@ -186,12 +186,14 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     print(cfg.dataset)
                     dataset = dataset_constructor.build_from_hf(
                         cfg.dataset,
+                        max_seq_len=cfg.dataset.max_seq_len,
                         tokenizer=tokenizer,
                     )
                     break
         else:
             dataset = dataset_constructor.build_from_hf(
                 cfg.dataset,
+                max_seq_len=cfg.dataset.max_seq_len,
                 tokenizer=tokenizer,
             )
 

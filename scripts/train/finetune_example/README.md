@@ -11,16 +11,17 @@ The contents of this directory provide a concrete example of finetuning an LLM o
 ## Contents
 
 Here, we have a minimal example that includes all the necessary pieces:
-- `train.jsonl`: Our local dataset. (It is actually just a snippet of the ARC Easy ICL evaluation set, so it's not something we'd want train on for real.)
+- `train.jsonl`: Our local dataset. (It is actually just a 100-example snippet of the ARC Easy ICL evaluation set, so it's not something we'd want train on for real.)
 - `preprocessing.py`: A python file that defines the "preprocessing function" we will use to format our dataset into the required "prompt"/"response" structure.
-- `gpt2-arc-easy.yaml`: The configuration YAML for finetuning a pretrained gpt2 model on our local ARC Easy snippet with our custom preprocessing function.
+- `gpt2-arc-easy--cpu.yaml`: The configuration YAML for finetuning a pretrained gpt2 model on our local ARC Easy snippet with our custom preprocessing function. You can run this toy example on CPU in 3-4 minutes.
+- `mpt-7b-arc-easy--gpu.yaml`: The configuration YAML for finetuning MPT-7B on our local ARC Easy snippet with our custom preprocessing function. This requires GPU(s).
 
 ## Quick start
 
 <!--pytest.mark.skip-->
 ```bash
 cd llm-foundry/scripts/train
-composer train.py finetune_example/gpt2-arc-easy.yaml
+composer train.py finetune_example/gpt2-arc-easy--cpu.yaml
 ```
 That's it :)
 
@@ -98,7 +99,7 @@ Now we have a local dataset and a preprocessing function that will map examples 
 
 ## Our training YAML
 
-This is already taken care of in `gpt2-arc-easy.yaml`, specifically in the `train_loader` section that controls how the  train dataloader is built in the `train.py` script. (If you also have an accompanying validation dataset, you'd make similar changes in the `eval_loader` section). Let's take a closer look.
+This is already taken care of in the example YAMLs, specifically in the `train_loader` section that controls how the  train dataloader is built in the `train.py` script. (If you also have an accompanying validation dataset, you'd make similar changes in the `eval_loader` section). Let's take a closer look.
 
 <!--pytest.mark.skip-->
 ```yaml

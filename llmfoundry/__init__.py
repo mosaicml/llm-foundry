@@ -46,7 +46,6 @@ __all__ = [
     'MPTForCausalLM',
     'ComposerMPTCausalLM',
     'ComposerHFCausalLM',
-    'ComposerHFCausalLMFromPython',
     'ComposerHFPrefixLM',
     'ComposerHFT5',
     'COMPOSER_MODEL_REGISTRY',

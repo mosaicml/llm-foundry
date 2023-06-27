@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: model_gauntlet # use your branch
+  # git_branch:  # use your branch
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
@@ -15,7 +15,7 @@ command: |
 run_name: all-eval
 gpu_num: 64
 gpu_type: a100_40gb
-cluster: r7z2 # replace with your cluster here!
+cluster:  # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 

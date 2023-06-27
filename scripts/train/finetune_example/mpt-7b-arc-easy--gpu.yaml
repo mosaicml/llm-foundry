@@ -1,56 +1,50 @@
-# Pretrain a gpt2 style model
-# this is NOT a finetuning run
-
-data_local: ./my-copy-c4
-data_remote: # If blank, files must be present in data_local
-tokenizer_name: gpt2
 max_seq_len: 2048
 global_seed: 17
 
 # Run Name
-run_name: # If left blank, will be read from env var $RUN_NAME
+run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
 
 # Model
 model:
   name: hf_causal_lm
-  pretrained_model_name_or_path: gpt2
+  pretrained_model_name_or_path: mosaicml/mpt-7b
+  pretrained: true  # false: only use the architecture; true: initialize with pretrained weights
   config_overrides:
-    # WARNING: if setting `pretrained: true`, `max_position_embeddings` must match the
-    # `max_position_embeddings` used during pre-training
-    n_positions: ${max_seq_len}
-  pretrained: false  # false: only use the architecture; true: initialize with pretrained weights
+    attn_config:
+      attn_impl: triton
+      # Set this to `true` if using `train_loader.dataset.packing_ratio` below
+      attn_uses_sequence_id: false
 
 # Tokenizer
 tokenizer:
-  name: ${tokenizer_name}
+  name: mosaicml/mpt-7b
   kwargs:
     model_max_length: ${max_seq_len}
 
 # Dataloaders
 train_loader:
-  name: text
+  name: finetuning
   dataset:
-    local: ${data_local}
-    remote: ${data_remote}
+    ############
+    hf_name: json
+    hf_kwargs:
+      # Note: absolute paths for data_dir are more reliable;
+      # relative paths will be interpreted relative to whatever your
+      # working directory is when you run `train.py`
+      data_dir: finetune_example
+    # Note: `scripts/train` will be the working directory when resolving
+    # the preprocessing_fn import path
+    preprocessing_fn: finetune_example.preprocessing:multiple_choice
     split: train
+    ############
     shuffle: true
-    tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
-    shuffle_seed: ${global_seed}
+    decoder_only_format: true
+    # # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
+    # # to profile this run's optimal packing_ratio as it depends on GPU count,
+    # # batch size, sequence length
+    # packing_ratio:
   drop_last: true
-  num_workers: 8
-
-eval_loader:
-  name: text
-  dataset:
-    local: ${data_local}
-    remote: ${data_remote}
-    split: val
-    shuffle: false
-    tokenizer_name: ${tokenizer_name}
-    max_seq_len: ${max_seq_len}
-    shuffle_seed: ${global_seed}
-  drop_last: false
   num_workers: 8
 
 # Optimization
@@ -73,16 +67,16 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 33696ba # ~ 17.55B tokens; 150 tokens / param
-eval_interval: 1000ba
+max_duration: 1ep
+eval_interval: 1
 eval_first: false
 eval_subset_num_batches: -1
-global_train_batch_size: 256
+global_train_batch_size: 8
 
 # System
 seed: ${global_seed}
-device_eval_batch_size: 4
-device_train_microbatch_size: 4
+device_eval_batch_size: 1
+device_train_microbatch_size: 1
 # device_train_microbatch_size: auto
 precision: amp_bf16
 
@@ -90,7 +84,7 @@ precision: amp_bf16
 fsdp_config:
   sharding_strategy: FULL_SHARD
   mixed_precision: PURE
-  activation_checkpointing: false
+  activation_checkpointing: true
   activation_checkpointing_reentrant: false
   activation_cpu_offload: false
   limit_all_gathers: true

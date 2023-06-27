@@ -4,7 +4,7 @@ icl_tasks:
   dataset_uri: scripts/eval/local_data/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0, 1]
   icl_task_type: language_modeling
-  continuation_delimiter: "Answer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
   has_categories: true
 -
   label: copa

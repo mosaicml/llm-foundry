@@ -471,7 +471,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
             raise ValueError(
                 'MPTForCausalLM only supports tied word embeddings')
 
-        # print that we are instantiating an MPTForCausalLM and where the path to this file.
         print(f'Instantiating an MPTForCausalLM model from {__file__}')
 
         self.transformer = MPTModel(config)

@@ -33,6 +33,7 @@ those keys are strings (i.e. text).
 
 import importlib
 import os
+import warnings
 from typing import Any, Callable, Dict, Optional, Union
 
 import datasets as hf_datasets
@@ -254,11 +255,15 @@ class DatasetConstructor:
 
         return preprocessing_fn
 
-    def build_from_hf(self, cfg: DictConfig, tokenizer: Tokenizer):
+    def build_from_hf(self, cfg: DictConfig, max_seq_len: int,
+                      tokenizer: Tokenizer):
         """Load a HuggingFace Datasets, preprocess, and tokenize.
+
+        Note: This function will drop examples where the prompt is longer than the max_seq_len
 
         Args:
             cfg (DictConfig): The dataset configuration.
+            max_seq_len (int): The maximum sequence length. Examples with prompts longer than this will be dropped.
             tokenizer (Tokenizer): The tokenizer to be used for tokenizing the dataset.
 
         Returns:
@@ -289,8 +294,17 @@ class DatasetConstructor:
             batched=False,
             remove_columns=columns_to_remove,
         )
+        prompt_length_filtered_dataset = tokenized_dataset.filter(
+            lambda example: len(example['input_ids']) < max_seq_len)
 
-        return tokenized_dataset
+        examples_removed = len(tokenized_dataset) - len(
+            prompt_length_filtered_dataset)
+        if examples_removed > 0:
+            warnings.warn(
+                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
+            )
+
+        return prompt_length_filtered_dataset
 
     def build_from_streaming(self, *args: Any, **kwargs: Any):
         return StreamingFinetuningDataset(*args, **kwargs)

@@ -30,6 +30,8 @@ def convert_to_relative_import(
 
 
 def find_module_file(module_name: str) -> str:
+    if not module_name:
+        raise ValueError(f'Invalid input: {module_name=}')
     module = importlib.import_module(module_name)
     module_file = module.__file__
     return module_file

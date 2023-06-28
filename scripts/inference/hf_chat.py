@@ -134,8 +134,9 @@ class Conversation:
         self.history[-1][-1] = assistant_response
 
     def __call__(self) -> None:
+        print(self.cli_instructions)
         while True:
-            print(self.cli_instructions)
+            print('User:')
             user_inp_lines = []
             while True:
                 line = input()

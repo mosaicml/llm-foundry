@@ -27,12 +27,18 @@ class ModelGauntlet(Callback):
     specification provided in the constructor.
 
     Args:
-        logger_keys (dict): These are the exact keys that the individual benchmark metrics will be logged under in the logger after eval
-        tasks (dict): This contains the list of categories, as well as the subtasks within them, the random baseline accuracy of each subtask, and the number of fewshot examples
-            used for the task. See `llmfoundry/scripts/eval/yamls/model_gauntlet.yaml` to see the structure.
-        weighting (Weighting): The weighting scheme used to balance different tasks within each category. Either assign them all equal weight, assign them weight proportional to the dataset size, or assign them weight proportional to the log2 of the dataset size.
-        substract_random_baseline (bool): Flag determining whether to subtract random baseline accuracy from the performance on each individual benchmark before aggregating.
-        rescale_accuracy (bool): Flag determining whether to rescale the accuracy on each benchmark by (1-random_baseline_accuracy) before aggregating. Using this ensures that all benchmarks max out at 1.0.
+        logger_keys (dict): These are the exact keys that the individual benchmark metrics will be 
+                            logged under in the logger after eval
+        tasks (dict): This contains the list of categories, as well as the subtasks within them, the 
+                      random baseline accuracy of each subtask, and the number of fewshot examples
+                      used for the task. See `llmfoundry/scripts/eval/yamls/model_gauntlet.yaml` to see the structure.
+        weighting (Weighting): The weighting scheme used to balance different tasks within each category. 
+                               Either assign them all equal weight, assign them weight proportional 
+                               to the dataset size, or assign them weight proportional to the log2 of the dataset size.
+        substract_random_baseline (bool): Flag determining whether to subtract random baseline accuracy 
+                                          from the performance on each individual benchmark before aggregating.
+        rescale_accuracy (bool): Flag determining whether to rescale the accuracy on each benchmark 
+                                 by (1-random_baseline_accuracy) before aggregating. Using this ensures that all benchmarks max out at 1.0.
         benchmark_sizes (Optional[dict]): Optional data on benchmark sizes, used when not relying on equal weighting.
     """
 

@@ -1,6 +1,6 @@
 max_seq_len: 2048
 seed: 1
-precision: fp32
+precision: amp_fp16
 
 
 models:
@@ -21,9 +21,9 @@ models:
 device_eval_batch_size: 4
 
 # FSDP config for model sharding
-# fsdp_config:
-#   sharding_strategy: FULL_SHARD
-#   mixed_precision: FULL
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: FULL
 
 icl_tasks: 'eval/yamls/tasks_light.yaml'
 model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

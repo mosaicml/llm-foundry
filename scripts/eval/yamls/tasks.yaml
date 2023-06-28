@@ -6,11 +6,6 @@ icl_tasks:
   icl_task_type: language_modeling
   continuation_delimiter: "\nAnswer: " # this separates questions from answers
   has_categories: true
-# - # not used in model gauntlet v0
-#   label: triviaqa
-#   dataset_uri: eval/local_data/world_knowledge/triviaqa_sm.jsonl # ADD YOUR OWN DATASET URI
-#   num_fewshot: [0]
-#   icl_task_type: question_answering
 -
   label: bigbench_qa_wikidata
   dataset_uri: eval/local_data/world_knowledge/bigbench_qa_wikidata.jsonl # ADD YOUR OWN DATASET URI
@@ -94,7 +89,7 @@ icl_tasks:
 -
   label: bigbench_conlang_translation
   dataset_uri: eval/local_data/language_understanding/bigbench_conlang_translation.jsonl
-  num_fewshot: [10]
+  num_fewshot: [0]
   icl_task_type: language_modeling
 -
   label: bigbench_language_identification
@@ -167,11 +162,6 @@ icl_tasks:
   dataset_uri: eval/local_data/reading_comprehension/squad.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: language_modeling
-# - # not used in model gauntlet v0
-#   label: coqa
-#   dataset_uri: eval/local_data/reading_comprehension/coqa.jsonl # ADD YOUR OWN DATASET URI
-#   num_fewshot: [2]
-#   icl_task_type: language_modeling
 -
   label: bigbench_understanding_fables
   dataset_uri: eval/local_data/reading_comprehension/bigbench_understanding_fables.jsonl # ADD YOUR OWN DATASET URI

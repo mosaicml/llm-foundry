@@ -8,10 +8,6 @@ model_gauntlet:
     - name: jeopardy
       num_fewshot: 10
       random_baseline: 0
-    # - name: triviaqa # not used in model gauntlet v0
-    #   num_fewshot: 0
-    #   scorecard:
-    #   random_baseline: 0
     - name: bigbench_qa_wikidata
       num_fewshot: 10
       random_baseline: 0
@@ -110,13 +106,6 @@ model_gauntlet:
     - name: squad
       num_fewshot: 10
       random_baseline: 0
-    # - name: coqa # not used in model gauntlet v0
-    #   num_fewshot: 2
-    #   scorecard:
-    #     size: 4
-    #     quality: 3
-    #     diversity: 4
-    #     random_baseline: 0
     - name: bigbench_understanding_fables
       num_fewshot: 10
       random_baseline: 0.25

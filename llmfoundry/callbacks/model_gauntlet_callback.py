@@ -1,10 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Copyright 2022 MosaicML Composer authors
-# SPDX-License-Identifier: Apache-2.0
-
-"""Monitor gradients during training."""
+"""Aggregate ICL evals into composite scores."""
 
 import math
 import re
@@ -24,20 +21,45 @@ class Weighting(Enum):
 
 
 class ModelGauntlet(Callback):
+    """The ModelGauntlet aggregates ICL eval results.
+
+    After `eval_end`, this callback inspects the logger for different ICL metrics and aggregates the scores according to the aggregation
+    specification provided in the constructor.
+
+    Args:
+        logger_keys (dict): These are the exact keys that the individual benchmark metrics will be logged under in the logger after eval
+        tasks (dict): This contains the list of categories, as well as the subtasks within them, the random baseline accuracy of each subtask, and the number of fewshot examples
+            used for the task. See `llmfoundry/scripts/eval/yamls/model_gauntlet.yaml` to see the structure.
+        weighting (Weighting): The weighting scheme used to balance different tasks within each category. Either assign them all equal weight, assign them weight proportional to the dataset size, or assign them weight proportional to the log2 of the dataset size.
+        substract_random_baseline (bool): Flag determining whether to subtract random baseline accuracy from the performance on each individual benchmark before aggregating.
+        rescale_accuracy (bool): Flag determining whether to rescale the accuracy on each benchmark by (1-random_baseline_accuracy) before aggregating. Using this ensures that all benchmarks max out at 1.0.
+        benchmark_sizes (Optional[dict]): Optional data on benchmark sizes, used when not relying on equal weighting.
+    """
 
     def __init__(self,
                  logger_keys: dict,
-                 tasks: dict,
+                 categories: dict,
                  weighting: Weighting = Weighting.EQUAL,
                  subtract_random_baseline: bool = True,
                  rescale_accuracy: bool = True,
                  benchmark_sizes: Optional[dict] = None):
-        self.tasks = tasks
+        if weighting != Weighting.EQUAL and benchmark_sizes is None:
+            raise Exception(
+                'When not using equal weighting, you must provide the benchmark sizes.'
+            )
+
+        if rescale_accuracy and not subtract_random_baseline:
+            raise Exception(
+                'Only use accuracy rescaling in conjunction with subtracting random baseline accuracy.'
+            )
+
+        self.categories = categories
         self.weighting = Weighting[weighting]
         self.subtract_random_baseline = subtract_random_baseline
         self.rescale_accuracy = rescale_accuracy
         self.logger_keys = logger_keys
-        for category in self.tasks:
+
+        for category in self.categories:
 
             for benchmark in category['benchmarks']:
                 bench_name = f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
@@ -83,7 +105,7 @@ class ModelGauntlet(Callback):
     def eval_end(self, state: State, logger: Logger):
         new_metrics = self.compute_averages(logger)
         composite_scores = {}
-        for category in self.tasks:
+        for category in self.categories:
             composite_scores[category['name']] = []
             for benchmark in category['benchmarks']:
                 key_pat = re.compile(

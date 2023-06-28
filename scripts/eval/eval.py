@@ -11,7 +11,6 @@ import torch
 from composer.loggers import InMemoryLogger, LoggerDestination
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
-from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.callbacks import ModelGauntlet
@@ -20,22 +19,89 @@ from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
 
 
-def load_model(model_cfg, tokenizer):
+def load_model(model_cfg, tokenizer, num_retries):
     retries = 0
-    while retries < 3:
+    while retries < num_retries:
         try:
             composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg,
                                                                      tokenizer)
             return composer_model
         except Exception as e:
             retries += 1
-            if retries >= 3:
+            if retries >= num_retries:
                 raise e
             else:
                 print(
-                    f'Got exception {str(e)} while loading model {model_cfg.name}. {3-retries} retries remaining'
+                    f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
                 )
-    return None
+
+
+def evaluate_model(model_cfg):
+    print(f'Evaluating model: {model_cfg.model_name}', flush=True)
+    # Build tokenizer and model
+    tokenizer = build_tokenizer(model_cfg.tokenizer)
+
+    evaluators, logger_keys = build_icl_evaluators(cfg.icl_tasks, tokenizer,
+                                                   cfg.max_seq_len,
+                                                   cfg.device_eval_batch_size)
+
+    if hasattr(cfg, 'model_gauntlet'):
+        if isinstance(cfg.model_gauntlet, str):
+            with open(cfg.model_gauntlet, 'r') as icl_f:
+                model_gauntlet_cfg = om.load(icl_f)
+            model_gauntlet = model_gauntlet_cfg.model_gauntlet
+        else:
+            model_gauntlet = cfg.model_gauntlet
+        model_gauntlet.logger_keys = logger_keys
+        model_gauntlet.benchmark_sizes = {
+            e.label: e.dataloader.num_samples for e in evaluators
+        }
+        model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
+    else:
+        model_gauntlet = None
+
+    composer_model = load_model(model_cfg.model, tokenizer,
+                                cfg.get('num_retries', 3))
+
+    if model_gauntlet_df is None and model_gauntlet is not None:
+        model_gauntlet_df = pd.DataFrame(columns=['model_name', 'average'] +
+                                         [t.name for t in model_gauntlet.tasks])
+
+    in_memory_logger = InMemoryLogger()  # track metrics in the in_memory_logger
+    loggers: List[LoggerDestination] = [
+        build_logger(name, logger_cfg)
+        for name, logger_cfg in (cfg.get('loggers') or {}).items()
+    ]
+    loggers.append(in_memory_logger)
+
+    fsdp_config = cfg.get('fsdp_config', None)
+    fsdp_config = om.to_container(
+        fsdp_config, resolve=True) if fsdp_config is not None else None
+
+    load_path = model_cfg.get('load_path', None)
+
+    trainer = Trainer(
+        model=composer_model,
+        loggers=loggers,
+        precision=cfg.precision,
+        fsdp_config=fsdp_config,  # type: ignore
+        load_path=load_path,
+        load_weights_only=True,
+        progress_bar=False,
+        log_to_console=True,
+        dist_timeout=cfg.dist_timeout,
+    )
+
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+    a = time.time()
+    trainer.eval(eval_dataloader=evaluators)
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+    b = time.time()
+    print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
+    return (in_memory_logger, logger_keys, model_gauntlet_callback,
+            model_gauntlet)
 
 
 def main(cfg):
@@ -47,72 +113,11 @@ def main(cfg):
     model_gauntlet_df = None
     models_df = None
     for model_cfg in cfg.models:
-        print(f'Evaluating model: {model_cfg.model_name}', flush=True)
-        # Build tokenizer and model
+
         try:
-            tokenizer = build_tokenizer(model_cfg.tokenizer)
+            (in_memory_logger, logger_keys, model_gauntlet_callback,
+             model_gauntlet) = evaluate_model()
 
-            evaluators, logger_keys = build_icl_evaluators(
-                cfg.icl_tasks, tokenizer, cfg.max_seq_len,
-                cfg.device_eval_batch_size)
-
-            if hasattr(cfg, 'model_gauntlet'):
-                if isinstance(cfg.model_gauntlet, str):
-                    with open(cfg.model_gauntlet, 'r') as icl_f:
-                        model_gauntlet_cfg = om.load(icl_f)
-                    model_gauntlet = model_gauntlet_cfg.model_gauntlet
-                else:
-                    model_gauntlet = cfg.model_gauntlet
-                model_gauntlet.logger_keys = logger_keys
-                model_gauntlet.benchmark_sizes = {
-                    e.label: e.dataloader.num_samples for e in evaluators
-                }
-                model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
-            else:
-                model_gauntlet = None
-
-            composer_model = load_model(model_cfg.model, tokenizer)
-
-            if model_gauntlet_df is None and model_gauntlet is not None:
-                model_gauntlet_df = pd.DataFrame(
-                    columns=['model_name', 'average'] +
-                    [t.name for t in model_gauntlet.tasks])
-
-            in_memory_logger = InMemoryLogger(
-            )  # track metrics in the in_memory_logger
-            loggers: List[LoggerDestination] = [
-                build_logger(name, logger_cfg)
-                for name, logger_cfg in (cfg.get('loggers') or {}).items()
-            ]
-            loggers.append(in_memory_logger)
-
-            fsdp_config = cfg.get('fsdp_config', None)
-            fsdp_config = om.to_container(
-                fsdp_config, resolve=True) if fsdp_config is not None else None
-
-            load_path = model_cfg.get('load_path', None)
-
-            trainer = Trainer(
-                model=composer_model,
-                loggers=loggers,
-                precision=cfg.precision,
-                fsdp_config=fsdp_config,  # type: ignore
-                load_path=load_path,
-                load_weights_only=True,
-                progress_bar=False,
-                log_to_console=True,
-                dist_timeout=cfg.dist_timeout,
-            )
-
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-            a = time.time()
-            trainer.eval(eval_dataloader=evaluators)
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-            b = time.time()
-
-            print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
             composite_scores = model_gauntlet_callback.eval_end(
                 None, in_memory_logger)
 
@@ -157,7 +162,6 @@ def main(cfg):
             print(
                 f'Got exception: {str(e)} while evaluating {model_cfg}. Continuing to next model.',
                 flush=True)
-            raise e
 
 
 def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy,

@@ -322,7 +322,7 @@ def main(args: Namespace) -> None:
                 # decode the encoded prompt to handle the case when the tokenizer
                 # trims extra spaces or does other pre-tokenization things
                 effective_prompt = tokenizer.batch_decode(encoded_inp['input_ids'],
-                                                          skip_special_tokens=True)
+                                                          skip_special_tokens=True)[0]
                 continuation = gen[len(effective_prompt):]
                 print(delimiter)
                 print('\033[92m' + prompt + '\033[0m' + continuation)
@@ -333,6 +333,11 @@ def main(args: Namespace) -> None:
             output_tokens = gen_tokens - input_tokens
             total_input_tokens = input_tokens.sum()
             total_output_tokens = output_tokens.sum()
+
+            if total_output_tokens == 0:
+                print("Warning: No non-special output tokens generated.")
+                print("This can happen if the generation only contains padding/eos tokens.")
+                print(f"Debug: Full generation: {decoded_gen}")
             encode_latency = 1000 * (encode_end - encode_start)
             gen_latency = 1000 * (gen_end - gen_start)
             decode_latency = 1000 * (decode_end - decode_start)

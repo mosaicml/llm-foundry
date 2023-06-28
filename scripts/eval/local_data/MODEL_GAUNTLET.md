@@ -1,4 +1,4 @@
-# Mosaic Model Gauntlet v0 - Evaluation Suite 
+# Mosaic Model Gauntlet v0 - Evaluation Suite
 
 
 <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->

@@ -1,7 +1,17 @@
-# Mosaic Model Gauntlet v0
+# Mosaic Model Gauntlet v0 - Evaluation Suite 
 
+
+<!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->
+<p align="center">
+    <picture>
+      <img alt="LLM Foundry" src="../../../assets/radar_blog.png" width="60%">
+    </picture>
+    <br>
+    MPT-7B vs MPT-30B compared on the 6 categories of Model Gauntlet.
+</p>
 The Mosaic Model Gauntlet is MosaicML’s new technique for evaluating the quality of pretrained foundation models. The Model Gauntlet encompasses 35 different benchmarks collected from a variety of sources, and organized into 6 broad categories of competency that we expect good foundation models to have. We compiled the categories after an extensive review of existing LLM publications, and open source evaluation harnesses such as EleutherAI Eval Harness and Stanford CRFM’s HELM.
 
+<br>
 While deciding which benchmarks to include, we had a few criteria in mind. We wanted benchmarks to require a broad range of skills that were useful for practical applications, we wanted them to come from a diverse range of sources, we wanted them to capture skills that have been traditionally emphasized by the research community as well as those that have been underexplored, and we wanted them to be evaluated via simple, unambiguous metrics such as exact match and multiple choice accuracy. The philosophy behind compiling aggregate scores as opposed to the more common approach of reporting individual metrics, is two-fold.
 
 1. LLMs are the first generation of true generalist models. They are sought after because they can do tens of thousands of different tasks well with only a little bit of prompting. This capacity cannot be adequately captured with only 10 different academic benchmarks. It wouldn't be possible to define and evaluate every conceivable task an LLM could be used for, but with Composer's blazing fast ICL evaluation, it is certainly worth a shot!

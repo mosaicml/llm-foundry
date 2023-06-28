@@ -39,7 +39,7 @@ TODO: we will be releasing the configs used to reproduce these latency results s
 ### I want to run generation with MPT-[X], how long does it take to process different size inputs?
 
 #### Setup
-We use a single A100 80GB for inference, running with precision `bf16` and the `triton` implementation of attention. We include the highest possible batch size that is able to produce 1000 output tokens without running out of GPU memory.
+We use a single A100 80GB for inference, running with precision `bf16` and the `torch` implementation of attention. We include the highest possible batch size that is able to produce 1000 output tokens without running out of GPU memory.
 
 Here we show how latency changes for a given input prompt length, while varying batch size and output length.
 This gives a rule of thumb of how fast you can expect MPT to be based on different generation parameters.
@@ -65,6 +65,9 @@ While the previous section focused on providing a guideline on how latency chang
 That is to say, there is a certain target latency by which a user _must_ receive the model's output.
 
 Hence, an effective way to compare different inference systems is by plotting their latency vs. throughput, which says how many tokens/second the model can serve given a specific latency constraint.
+
+Typically, the latency is a hard constraint, while throughput can be increased by using more GPUs/alternative hardware setups. However, batch size is usually not a constraint, and so it can be chosen (statically or dynamically) depending on the latency/throughput budget.
+
 A model/or setup whose curve is strictly above another's will be able to achieve higher throughput for a given target latency.
 
 To generate these curves, we vary the batch size for a fixed input length (512) and fixed output length (64), and calculate the associated latencies and throughputs.

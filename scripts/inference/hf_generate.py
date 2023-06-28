@@ -319,7 +319,11 @@ def main(args: Namespace) -> None:
             # Print generations
             delimiter = '#' * 100
             for prompt, gen in zip(batch, decoded_gen):
-                continuation = gen[len(prompt):]
+                # decode the encoded prompt to handle the case when the tokenizer
+                # trims extra spaces or does other pre-tokenization things
+                effective_prompt = tokenizer.batch_decode(encoded_inp['input_ids'],
+                                                          skip_special_tokens=True)
+                continuation = gen[len(effective_prompt):]
                 print(delimiter)
                 print('\033[92m' + prompt + '\033[0m' + continuation)
             print(delimiter)

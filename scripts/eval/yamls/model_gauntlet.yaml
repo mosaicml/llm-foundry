@@ -2,7 +2,7 @@ model_gauntlet:
   weighting: EQUAL
   subtract_random_baseline: true
   rescale_accuracy: true
-  tasks:
+  categories:
   - name: world_knowledge
     benchmarks:
     - name: jeopardy
@@ -112,8 +112,3 @@ model_gauntlet:
     - name: boolq
       num_fewshot: 10
       random_baseline: 0.5
-  - name: programming
-    benchmarks:
-    - name: humaneval
-      num_fewshot: 0
-      random_baseline: 0.0

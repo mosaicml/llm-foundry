@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import re
 import sys
 import time
@@ -36,7 +37,7 @@ def load_model(model_cfg, tokenizer, num_retries):
                 )
 
 
-def evaluate_model(model_cfg):
+def evaluate_model(model_cfg, run_name, model_gauntlet_df):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
     tokenizer = build_tokenizer(model_cfg.tokenizer)
@@ -81,6 +82,7 @@ def evaluate_model(model_cfg):
     load_path = model_cfg.get('load_path', None)
 
     trainer = Trainer(
+        run_name=run_name,
         model=composer_model,
         loggers=loggers,
         precision=cfg.precision,
@@ -101,11 +103,13 @@ def evaluate_model(model_cfg):
     b = time.time()
     print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
     return (in_memory_logger, logger_keys, model_gauntlet_callback,
-            model_gauntlet)
+            model_gauntlet, model_gauntlet_df)
 
 
 def main(cfg):
     cfg.dist_timeout = cfg.get('dist_timeout', 600.0)
+    if cfg.get('run_name') is None:
+        cfg.run_name = os.environ.get('RUN_NAME', 'llm')
 
     reproducibility.seed_all(cfg.seed)
     dist.initialize_dist(get_device(None), timeout=cfg.dist_timeout)
@@ -116,7 +120,9 @@ def main(cfg):
 
         try:
             (in_memory_logger, logger_keys, model_gauntlet_callback,
-             model_gauntlet) = evaluate_model(model_cfg)
+             model_gauntlet,
+             model_gauntlet_df) = evaluate_model(model_cfg, cfg.run_name,
+                                                 model_gauntlet_df)
 
             composite_scores = model_gauntlet_callback.eval_end(
                 None, in_memory_logger)

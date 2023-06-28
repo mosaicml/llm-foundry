@@ -13,8 +13,8 @@ command: |
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: all-eval
 gpu_num: 8
-gpu_type: a100_40gb
-cluster: r7z2 # replace with your cluster here!
+# gpu_type: 
+# cluster:  # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
@@ -97,48 +97,48 @@ parameters:
   #     device: cpu
   #     pretrained: true
   #     use_auth_token: false
-  -
-    model_name: mosaicml/mpt-7b
-    # Tokenizer
-    tokenizer:
-      name: EleutherAI/gpt-neox-20b
-      kwargs:
-        model_max_length: ${max_seq_len}
+  # -
+  #   model_name: mosaicml/mpt-7b
+  #   # Tokenizer
+  #   tokenizer:
+  #     name: EleutherAI/gpt-neox-20b
+  #     kwargs:
+  #       model_max_length: ${max_seq_len}
 
-    model:
-      name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b
-      device: cpu
-      pretrained: true
-      use_auth_token: false
-  -
-    model_name: mosaicml/mpt-7b-chat
-    # Tokenizer
-    tokenizer:
-      name: EleutherAI/gpt-neox-20b
-      kwargs:
-        model_max_length: ${max_seq_len}
+  #   model:
+  #     name: hf_causal_lm
+  #     pretrained_model_name_or_path: mosaicml/mpt-7b
+  #     device: cpu
+  #     pretrained: true
+  #     use_auth_token: false
+  # -
+  #   model_name: mosaicml/mpt-7b-chat
+  #   # Tokenizer
+  #   tokenizer:
+  #     name: mosaicml/mpt-7b-chat
+  #     kwargs:
+  #       model_max_length: ${max_seq_len}
 
-    model:
-      name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-chat
-      device: cpu
-      pretrained: true
-      use_auth_token: false
-  -
-    model_name: mosaicml/mpt-7b-instruct
-    # Tokenizer
-    tokenizer:
-      name: EleutherAI/gpt-neox-20b
-      kwargs:
-        model_max_length: ${max_seq_len}
+  #   model:
+  #     name: hf_causal_lm
+  #     pretrained_model_name_or_path: mosaicml/mpt-7b-chat
+  #     device: cpu
+  #     pretrained: true
+  #     use_auth_token: false
+  # -
+  #   model_name: mosaicml/mpt-7b-instruct
+  #   # Tokenizer
+  #   tokenizer:
+  #     name: EleutherAI/gpt-neox-20b
+  #     kwargs:
+  #       model_max_length: ${max_seq_len}
 
-    model:
-      name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
-      device: cpu
-      pretrained: true
-      use_auth_token: false
+  #   model:
+  #     name: hf_causal_lm
+  #     pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+  #     device: cpu
+  #     pretrained: true
+  #     use_auth_token: false
   # -
   #   model_name: tiiuae/falcon-7b
   #   # Tokenizer

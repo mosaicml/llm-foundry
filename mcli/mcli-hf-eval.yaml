@@ -14,7 +14,7 @@ command: |
 run_name: all-eval
 gpu_num: 8
 gpu_type: a100_80gb
-cluster: r1z1 # replace with your cluster here!
+#cluster: TODO  #replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 

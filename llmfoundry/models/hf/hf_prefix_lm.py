@@ -98,8 +98,6 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
         if om_model_config.get('adapt_vocab_for_denoising', False):
             adapt_tokenizer_for_denoising(tokenizer)
 
-        vocab_size = len(tokenizer)
-
         init_device = om_model_config.get('init_device', 'cpu')
 
         # Get the device we want to initialize, and use the

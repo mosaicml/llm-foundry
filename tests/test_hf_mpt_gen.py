@@ -3,7 +3,7 @@
 
 import pytest
 from composer.core.precision import get_precision_context
-from composer.utils import dist, get_device, reproducibility
+from composer.utils import get_device, reproducibility
 from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY

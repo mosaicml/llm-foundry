@@ -21,7 +21,8 @@ include = [
 
 # Pyright
 [tool.pyright]
-exclude = ['env-**']
+exclude = ['env-**', 'venv*']
+ignore = ['llmfoundry/models/layers/flash_attn_triton.py']
 stubPath = ""  # suppress useless 'stubPath is not a valid directory' errors
 
 reportUnnecessaryIsInstance = "warning"

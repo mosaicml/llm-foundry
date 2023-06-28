@@ -335,9 +335,11 @@ def main(args: Namespace) -> None:
             total_output_tokens = output_tokens.sum()
 
             if total_output_tokens == 0:
-                print("Warning: No non-special output tokens generated.")
+                print("\n\nWarning: No non-special output tokens generated.")
                 print("This can happen if the generation only contains padding/eos tokens.")
-                print(f"Debug: Full generation: {decoded_gen}")
+                debug_decoded_gen = tokenizer.batch_decode(encoded_gen,
+                                                 skip_special_tokens=False)
+                print(f"Debug: Full generation: {debug_decoded_gen}\n\n")
             encode_latency = 1000 * (encode_end - encode_start)
             gen_latency = 1000 * (gen_end - gen_start)
             decode_latency = 1000 * (decode_end - decode_start)

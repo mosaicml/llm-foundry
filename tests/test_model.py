@@ -29,6 +29,7 @@ from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         ComposerHFPrefixLM)
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
+from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 
@@ -359,12 +360,14 @@ def test_loss_fn():
         pytest.skip('Fused cross entropy was not installed')
 
     # run numerical test in pure fp32
-    torch.backends.cuda.matmul.allow_tf32 = False
-    torch.backends.cudnn.allow_tf32 = False
+    torch.backends.cuda.matmul.allow_tf32 = False  # type: ignore (third-party)
+    torch.backends.cudnn.allow_tf32 = False  # type: ignore (third-party)
 
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
+
+    assert isinstance(test_cfg, DictConfig)
 
     test_cfg.device = 'cuda:0'
     test_cfg.model.init_device = 'cuda:0'
@@ -471,25 +474,24 @@ def test_mpt_creation(norm_type, no_bias):
     assert mpt.config.expansion_ratio == 2
     assert mpt.config.max_seq_len == 2048
 
-    assert mpt.transformer.wte.weight.shape == torch.Size(  # type: ignore
+    assert mpt.transformer.wte.weight.shape == torch.Size(
         [hf_config.vocab_size, hf_config.d_model])
-    assert mpt.transformer.wpe.weight.shape == torch.Size(  # type: ignore
+    assert mpt.transformer.wpe.weight.shape == torch.Size(
         [hf_config.max_seq_len, hf_config.d_model])
-    assert mpt.transformer.emb_drop.p == 0.1  # type: ignore
-    assert len(mpt.transformer.blocks) == 2  # type: ignore
+    assert mpt.transformer.emb_drop.p == 0.1
+    assert len(mpt.transformer.blocks) == 2
 
     d_model = hf_config.d_model
-    for block in mpt.transformer.blocks:  # type: ignore
-        assert block.norm_1.weight.shape == torch.Size([d_model
-                                                       ])  # type: ignore
-        assert block.norm_2.weight.shape == torch.Size([d_model
-                                                       ])  # type: ignore
-        assert block.ffn.up_proj.weight.shape == torch.Size(  # type: ignore
+    for block in mpt.transformer.blocks:
+        assert isinstance(block, MPTBlock)
+        assert block.norm_1.weight.shape == torch.Size([d_model])
+        assert block.norm_2.weight.shape == torch.Size([d_model])
+        assert block.ffn.up_proj.weight.shape == torch.Size(
             [hf_config.d_model * hf_config.expansion_ratio, hf_config.d_model])
-        assert block.ffn.down_proj.weight.shape == torch.Size(  # type: ignore
+        assert block.ffn.down_proj.weight.shape == torch.Size(
             [hf_config.d_model, hf_config.d_model * hf_config.expansion_ratio])
-        assert block.resid_attn_dropout.p == 0.2  # type: ignore
-        assert block.resid_ffn_dropout.p == 0.2  # type: ignore
+        assert block.resid_attn_dropout.p == 0.2
+        assert block.resid_ffn_dropout.p == 0.2
 
 
 @pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),

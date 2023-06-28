@@ -74,9 +74,9 @@ class Generate(Callback):
         dummy_input = device.tensor_to_device(dummy_input)
         with get_precision_context(state.precision):
             with torch.no_grad():
-                _ = model.model(input_ids=dummy_input)  # type: ignore
+                _ = model.model(input_ids=dummy_input)
 
-            output_token_ids = model.model.generate(  # type: ignore
+            output_token_ids = model.model.generate(
                 input_ids=tokenized_input['input_ids'],
                 attention_mask=tokenized_input['attention_mask'],
                 synced_gpus=True,
@@ -85,9 +85,11 @@ class Generate(Callback):
 
         if dist.get_global_rank() == 0:
             if self.wandb_logger is not None:
-                artifact = wandb.Artifact(
-                    'generate_samples_' + str(wandb.run.id),  # type: ignore
-                    type='predictions')
+                assert wandb.run is not None, 'wandb should have started run'
+
+                artifact = wandb.Artifact('generate_samples_' +
+                                          str(wandb.run.id),
+                                          type='predictions')
 
                 rows = []
                 for i in range(len(self.prompts)):

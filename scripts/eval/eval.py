@@ -116,7 +116,7 @@ def main(cfg):
 
         try:
             (in_memory_logger, logger_keys, model_gauntlet_callback,
-             model_gauntlet) = evaluate_model()
+             model_gauntlet) = evaluate_model(model_cfg)
 
             composite_scores = model_gauntlet_callback.eval_end(
                 None, in_memory_logger)

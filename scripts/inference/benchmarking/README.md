@@ -43,6 +43,14 @@ We use a single A100 80GB for inference, running with precision `bf16` and the `
 
 Here we show how latency changes for a given input prompt length, while varying batch size and output length.
 This gives a rule of thumb of how fast you can expect MPT to be based on different generation parameters.
+#### TL;DR
+Hardware Setup:
+- 1 x NVIDIA A100 80GB
+
+
+Benchmark Setup:
+- Input Length: [128, 2048]
+- Output Length: [1, 10, 100, 1000]
 #### Short Inputs (128 input tokens) on MPT-7B
 ![assets](assets/Latency-for-MPT-7B,-n_input_tok=128.svg)
 #### Long Inputs (2048 input tokens) on MPT-7B
@@ -70,17 +78,19 @@ Typically, the latency is a hard constraint, while throughput can be increased b
 
 A model/or setup whose curve is strictly above another's will be able to achieve higher throughput for a given target latency.
 
-To generate these curves, we vary the batch size for a fixed input length (512) and fixed output length (64), and calculate the associated latencies and throughputs. The batch sizes sweeped are 1,2,4,8,16,32,64.
+To generate these curves, we vary the batch size for a fixed input length (512) and fixed output length (64), and calculate the associated latencies and throughputs. The batch sizes swept are 1, 2, 4, 8, 16, 32, 64, unless the GPU ran out of memory, in which case that point is not shown.
 
 #### TL;DR
-Systems we benchmarked:
+Hardware Setup:
 - 1,2,4 x NVIDIA A100 80GB
 - 1,2,4 x NVIDIA A100 40GB
 - 1,2,4 x AMD MI250
 
-Input Length: 512
-Output Length: 64
-Batch Sizes Sweeped (where the system did not OOM): 1,2,4,8,16,32,64
+
+Benchmark Setup:
+- Input Length: 512
+- Output Length: 64
+- Batch Sizes: 1, 2, 4, 8, 16, 32, 64
 
 #### Different HW setups for MPT-7B
 ![assets](assets/Latency-vs.-Throughput,-MPT-7B-(n_input_tok=512,-n_output_tok=64).svg)
@@ -94,11 +104,28 @@ As expected, using more GPUs for inference increases the throughput. TP also all
 Still, the communication overhead becomes significant with more GPUs, which is why MPT-7B shows comparable results when using both 4 x A100 40GB and 4 x A100 80GB GPUs.
 
 ### Comparing MPT with other open-source models
+
+#### TL;DR
+Hardware Setup:
+- 1 x NVIDIA A100 80GB
+
+
+Models benchmarked:
+- MPT-[7,30]B
+- LLAMA-[7,13,30]B
+- FALCON-7B
+
+
+Benchmark Setup:
+- Input Length: 512
+- Output Length: 64
+- Batch Sizes: 1, 2, 4, 8, 16, 32, 64
+
 ![assets](assets/Latency-vs.-Throughput-(n_input_tok=512,-n_output_tok=64).svg)
 
 Here, we perform a similar benchmark to the previous section, but compare different open-source models amongst each other in doing inference.
 The benchmark script supports calling models directly from huggingface (using `hf.generate`), which is done to keep the comparison amongst the models fair.
-The analysis is done on a single A100 80GB GPU, with input length 512, and output length 64, while varying the batch size. As in previous sections, the batch sizes sweeped are 1,2,4,8,16,32,64.
+The analysis is done on a single A100 80GB GPU, with input length 512, and output length 64, while varying the batch size. As in previous sections, the batch sizes swept are 1, 2, 4, 8, 16, 32, 64, unless the GPU ran out of memory, in which case that point is not shown.
 
 As seen here, both MPT-7B and MPT-30B are among the fastest for inference in the open-source community, with MPT-30B being faster than the respective LLAMA-30B model.
 Among the 7B models, LLAMA-7B tends to have higher througput at higher latencies than MPT-7B, though MPT-7B has higher throughput at lower latencies.

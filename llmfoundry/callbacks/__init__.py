@@ -4,6 +4,7 @@
 try:
     from llmfoundry.callbacks.fdiff_callback import FDiffMetrics
     from llmfoundry.callbacks.generate_callback import Generate
+    from llmfoundry.callbacks.model_gauntlet_callback import ModelGauntlet
     from llmfoundry.callbacks.monolithic_ckpt_callback import \
         MonolithicCheckpointSaver
     from llmfoundry.callbacks.resumption_callbacks import (GlobalLRScaling,
@@ -22,4 +23,5 @@ __all__ = [
     'GlobalLRScaling',
     'LayerFreezing',
     'ScheduledGarbageCollector',
+    'ModelGauntlet',
 ]

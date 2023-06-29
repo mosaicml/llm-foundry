@@ -57,15 +57,11 @@ install_requires = [
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
     'mosaicml-cli>=0.3,<1',
-    'onnx==1.13.1',
-    'onnxruntime==1.14.1',
+    'onnx==1.14.0',
+    'onnxruntime==1.15.1',
     'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
-    'loralib==0.1.1',  # lora core
-    'peft @ git+https://github.com/huggingface/peft.git',  # TODO: pin it down only after it stabilizes.
-    'bitsandbytes==0.39.1',  # 8bit
-    'scipy>=1.10.0,<=1.11.0',  # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
 ]
 
 extra_deps = {}
@@ -88,6 +84,13 @@ extra_deps['gpu'] = [
     'flash-attn==v1.0.3.post0',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy',
+]
+
+extra_deps['peft'] = [
+    'loralib==0.1.1',  # lora core
+    'peft @ git+https://github.com/huggingface/peft.git',  # TODO: pin it down only after it stabilizes.
+    'bitsandbytes==0.39.1',  # 8bit
+    'scipy>=1.10.0,<=1.11.0',  # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)

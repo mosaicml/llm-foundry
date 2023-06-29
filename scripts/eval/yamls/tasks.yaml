@@ -1,69 +1,175 @@
 icl_tasks:
 -
   label: jeopardy
-  dataset_uri: eval/local_data/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
+  dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
   icl_task_type: language_modeling
   continuation_delimiter: "\nAnswer: " # this separates questions from answers
   has_categories: true
 -
-  label: lambada_openai
-  dataset_uri: eval/local_data/lambada_openai.jsonl
-  num_fewshot: [0]
+  label: bigbench_qa_wikidata
+  dataset_uri: eval/local_data/world_knowledge/bigbench_qa_wikidata.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
   icl_task_type: language_modeling
 -
-  label: piqa
-  dataset_uri: eval/local_data/piqa.jsonl  # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
-  icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
--
-  label: hellaswag
-  dataset_uri: eval/local_data/hellaswag.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
-  icl_task_type: multiple_choice
--
   label: arc_easy
-  dataset_uri: eval/local_data/arc_easy.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
+  dataset_uri: eval/local_data/world_knowledge/arc_easy.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
   icl_task_type: multiple_choice
   continuation_delimiter: "\nAnswer: " # this separates questions from answers
 -
   label: arc_challenge
-  dataset_uri: eval/local_data/arc_challenge.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
-  icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
--
-  label: copa
-  dataset_uri: eval/local_data/copa.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
-  icl_task_type: multiple_choice
--
-  label: boolq
-  dataset_uri: eval/local_data/boolq.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
+  dataset_uri: eval/local_data/world_knowledge/arc_challenge.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
   icl_task_type: multiple_choice
   continuation_delimiter: "\nAnswer: " # this separates questions from answers
 -
   label: mmlu
-  dataset_uri: eval/local_data/mmlu.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
+  dataset_uri: eval/local_data/world_knowledge/mmlu.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
   icl_task_type: multiple_choice
   continuation_delimiter: "\nAnswer: " # this separates questions from answers
   has_categories: true
 -
+  label: bigbench_misconceptions
+  dataset_uri: eval/local_data/world_knowledge/bigbench_misconceptions.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: copa
+  dataset_uri: eval/local_data/commonsense_reasoning/copa.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0]
+  icl_task_type: multiple_choice
+-
+  label: piqa
+  dataset_uri: eval/local_data/commonsense_reasoning/piqa.jsonl  # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+-
+  label: openbook_qa
+  dataset_uri: eval/local_data/commonsense_reasoning/openbook_qa.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0]
+  icl_task_type: multiple_choice
+-
+  label: bigbench_novel_concepts
+  dataset_uri: eval/local_data/commonsense_reasoning/bigbench_novel_concepts.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: bigbench_strange_stories
+  dataset_uri: eval/local_data/commonsense_reasoning/bigbench_strange_stories.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: bigbench_strategy_qa
+  dataset_uri: eval/local_data/commonsense_reasoning/bigbench_strategy_qa.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: lambada_openai
+  dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
+  num_fewshot: [0]
+  icl_task_type: language_modeling
+-
+  label: hellaswag
+  dataset_uri: eval/local_data/language_understanding/hellaswag.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
   label: winograd
-  dataset_uri: eval/local_data/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
+  dataset_uri: eval/local_data/language_understanding/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0]
   icl_task_type: schema
 -
   label: winogrande
-  dataset_uri: eval/local_data/winogrande.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
+  dataset_uri: eval/local_data/language_understanding/winogrande.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0]
   icl_task_type: schema
 -
-  label: triviaqa
-  dataset_uri: eval/local_data/triviaqa.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0, 1, 5, 10]
-  icl_task_type: question_answering
+  label: bigbench_conlang_translation
+  dataset_uri: eval/local_data/language_understanding/bigbench_conlang_translation.jsonl
+  num_fewshot: [0]
+  icl_task_type: language_modeling
+-
+  label: bigbench_language_identification
+  dataset_uri: eval/local_data/language_understanding/bigbench_language_identification.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: bigbench_conceptual_combinations
+  dataset_uri: eval/local_data/language_understanding/bigbench_conceptual_combinations.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: bigbench_elementary_math_qa
+  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_elementary_math_qa.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: bigbench_dyck_languages
+  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_dyck_languages.jsonl
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: bigbench_cs_algorithms
+  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_cs_algorithms.jsonl
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: bigbench_logical_deduction
+  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_logical_deduction.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: bigbench_operators
+  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: bigbench_repeat_copy_logic
+  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_repeat_copy_logic.jsonl
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: simple_arithmetic_nospaces
+  dataset_uri: eval/local_data/symbolic_problem_solving/simple_arithmetic_nospaces.jsonl
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: simple_arithmetic_withspaces
+  dataset_uri: eval/local_data/symbolic_problem_solving/simple_arithmetic_withspaces.jsonl
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: math_qa
+  dataset_uri: eval/local_data/symbolic_problem_solving/math_qa.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: logi_qa
+  dataset_uri: eval/local_data/symbolic_problem_solving/logi_qa.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+-
+  label: pubmed_qa_labeled
+  dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: squad
+  dataset_uri: eval/local_data/reading_comprehension/squad.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: bigbench_understanding_fables
+  dataset_uri: eval/local_data/reading_comprehension/bigbench_understanding_fables.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: boolq
+  dataset_uri: eval/local_data/reading_comprehension/boolq.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers

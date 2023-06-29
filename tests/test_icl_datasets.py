@@ -58,6 +58,7 @@ def run_test(dir, tokenizer, bos_tok=''):
                     inputs == tokenizer.eos_token_id).tolist().index(False)
             full_example = tokenizer.decode(inputs[start_idx:])
             answer = batch['labels'][0][0]
+
         if e.label == 'jeopardy/0-shot/american_history':
             assert full_example == bos_tok + 'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Treason'
             assert answer == ' Treason'

@@ -125,7 +125,7 @@ Benchmark Setup:
 
 ![assets](assets/Latency-vs.-Throughput-(n_input_tok=512,-n_output_tok=64).svg)
 
-Here, we perform a similar benchmark to the previous section, but compare different open-source models amongst each other in doing inference.
+Here, we perform a similar benchmark to the previous section, but compare inference performance for different open-source models.
 The benchmark script supports calling models directly from huggingface (using `hf.generate`), which is done to keep the comparison amongst the models fair.
 The analysis is done on a single A100 80GB GPU, with input length 512, and output length 64, while varying the batch size. As in previous sections, the batch sizes swept are 1, 2, 4, 8, 16, 32, 64, unless the GPU ran out of memory, in which case that point is not shown.
 

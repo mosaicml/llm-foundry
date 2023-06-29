@@ -86,8 +86,8 @@ To generate these curves, we vary the batch size for a fixed input length (512) 
 
 #### TL;DR
 Hardware Setup:
-- 1,2,4 x NVIDIA A100 80GB
-- 1,2,4 x NVIDIA A100 40GB
+- 1, 2, 4 x NVIDIA A100 80GB
+- 1, 2, 4 x NVIDIA A100 40GB
 
 
 Benchmark Setup:

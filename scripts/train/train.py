@@ -11,7 +11,6 @@ from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from peft import LoraConfig, get_peft_model
 from transformers import PreTrainedTokenizer
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
@@ -74,6 +73,14 @@ def build_composer_model(model_cfg, tokenizer):
 def build_composer_peft_model(
         model_cfg: DictConfig, lora_cfg: DictConfig,
         tokenizer: PreTrainedTokenizer) -> ComposerHFCausalLM:
+    try:
+        from peft import LoraConfig, get_peft_model
+    except ImportError as e:
+        raise ImportError(
+            'Error importing from peft. Please verify that peft and peft utils '
+            'are installed by running `pip install -e .[peft]` from `llm-foundry/`.'
+            f'Error encountered: {e}')
+
     # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
     print('Building Lora config...')
     lora_cfg = LoraConfig(**lora_cfg.args)

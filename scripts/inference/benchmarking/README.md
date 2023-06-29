@@ -2,7 +2,9 @@
 
 This folder provides scripts for benchmarking the inference performance of deep learning models. Currently, we support benchmarking with Deepspeed and Huggingface generate.
 
-We also have a dedicated inference [service](https://www.mosaicml.com/inference), which uses an optimized stack, leading to better inference performance than what can be achieved using this repository alone.
+We also have a dedicated inference service which uses an optimized stack, leading to improved performance compared to the scripts in this repository. The benchmarks in this README show performance of LLMs performing generations on target hardware, but _do not_ have the same functionality and performance as our full inference service for real-world deployments.
+
+To learn more about our inference service, visit [mosaicml.com/inference](https://www.mosaicml.com/inference).
 
 ## Scripts
 

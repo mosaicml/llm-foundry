@@ -51,6 +51,11 @@ class StreamingTextDataset(StreamingDataset):
             smaller epoch size. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
+        cache_limit (Union[int, str], optional) - Maximum size in bytes of this StreamingDataset's
+            shard cache. Before downloading a shard, the least recently used resident shard(s) may
+            be evicted (deleted from the local cache) in order to stay under the limit. Set to None
+            to disable shard eviction. Supports integer bytes as well as string human-readable
+            bytes (e.g., 100b, 64kb, 77mb, and so on). Defaults to None.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
@@ -77,6 +82,7 @@ class StreamingTextDataset(StreamingDataset):
                  keep_zip: bool = False,
                  epoch_size: Optional[int] = None,
                  predownload: int = 100_000,
+                 cache_limit: Optional[Union[int, str]] = None,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
@@ -118,6 +124,7 @@ class StreamingTextDataset(StreamingDataset):
             keep_zip=keep_zip,
             epoch_size=epoch_size,
             predownload=predownload,
+            cache_limit=cache_limit,
             partition_algo=partition_algo,
             num_canonical_nodes=num_canonical_nodes,
             batch_size=batch_size,

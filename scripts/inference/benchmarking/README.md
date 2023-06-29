@@ -39,7 +39,6 @@ To enable KV cache for benchmarking, set `use_cache: true` in the `.yaml` file.
 ### Results
 Now that we have the necessary background to reason about inference, we can move onto the fun stuff, ie. real-world benchmark results.
 
-TODO: we will be releasing the configs used to reproduce these latency results soon!
 ### I want to run generation with MPT-[X], how long does it take to process different size inputs?
 
 #### Setup
@@ -47,7 +46,7 @@ We use a single A100 80GB for inference, running with precision `bf16` and the `
 
 Here we show how latency changes for a given input prompt length, while varying batch size and output length.
 This gives a rule of thumb of how fast you can expect MPT to be based on different generation parameters.
-#### TL;DR
+#### Technical Details
 Hardware Setup:
 - 1 x NVIDIA A100 80GB
 
@@ -80,11 +79,11 @@ Hence, an effective way to compare different inference systems is by plotting th
 
 Typically, the latency is a hard constraint, while throughput can be increased by using more GPUs/alternative hardware setups. However, batch size is usually not a constraint, and so it can be chosen (statically or dynamically) depending on the latency/throughput budget.
 
-A model/or setup whose curve is strictly above another's will be able to achieve higher throughput for a given target latency.
+A model or setup whose curve is strictly above another's will be able to achieve higher throughput for a given target latency.
 
 To generate these curves, we vary the batch size for a fixed input length (512) and fixed output length (64), and calculate the associated latencies and throughputs. The batch sizes swept are 1, 2, 4, 8, 16, 32, 64, unless the GPU ran out of memory, in which case that point is not shown.
 
-#### TL;DR
+#### Technical Details
 Hardware Setup:
 - 1, 2, 4 x NVIDIA A100 80GB
 - 1, 2, 4 x NVIDIA A100 40GB
@@ -108,7 +107,7 @@ Still, the communication overhead becomes significant with more GPUs, which is w
 
 ### Comparing MPT with other open-source models
 
-#### TL;DR
+#### Technical Details
 Hardware Setup:
 - 1 x NVIDIA A100 80GB
 

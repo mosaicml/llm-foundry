@@ -321,8 +321,8 @@ def main(args: Namespace) -> None:
             for prompt, gen in zip(batch, decoded_gen):
                 # decode the encoded prompt to handle the case when the tokenizer
                 # trims extra spaces or does other pre-tokenization things
-                effective_prompt = tokenizer.batch_decode(encoded_inp['input_ids'],
-                                                          skip_special_tokens=True)[0]
+                effective_prompt = tokenizer.batch_decode(
+                    encoded_inp['input_ids'], skip_special_tokens=True)[0]
                 continuation = gen[len(effective_prompt):]
                 print(delimiter)
                 print('\033[92m' + prompt + '\033[0m' + continuation)
@@ -335,11 +335,13 @@ def main(args: Namespace) -> None:
             total_output_tokens = output_tokens.sum()
 
             if total_output_tokens == 0:
-                print("\n\nWarning: No non-special output tokens generated.")
-                print("This can happen if the generation only contains padding/eos tokens.")
-                debug_decoded_gen = tokenizer.batch_decode(encoded_gen,
-                                                 skip_special_tokens=False)
-                print(f"Debug: Full generation: {debug_decoded_gen}\n\n")
+                print('\n\nWarning: No non-special output tokens generated.')
+                print(
+                    'This can happen if the generation only contains padding/eos tokens.'
+                )
+                debug_decoded_gen = tokenizer.batch_decode(
+                    encoded_gen, skip_special_tokens=False)
+                print(f'Debug: Full generation: {debug_decoded_gen}\n\n')
             encode_latency = 1000 * (encode_end - encode_start)
             gen_latency = 1000 * (gen_end - gen_start)
             decode_latency = 1000 * (decode_end - decode_start)

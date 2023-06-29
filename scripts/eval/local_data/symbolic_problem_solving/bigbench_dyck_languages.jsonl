@@ -1,0 +1,1000 @@
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < { } > [ { [ ] ( ( ( ( < ( ( ) ) > ) ) ) [ ] ) } ] { } < [ { ( { < ( ) > } ) } ( ) ] > > {\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < [ ( ) ] >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < > }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ] < [ { [ { ( { ( ( { < [ ( ( < > ) ) ] > } ) ) < < { < ( { ( [ [ ] ] ) } ) > } > > } ( { [ [ ( [ ( ) ] < { } > { } ) ] ] } [ < { [ ] } > < ( ) > ] [ ( ) ] ) ) } ] } ] > ] [\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ( ) [ ( ) ] ] ( [ < ( ( ( < < { [ ] } < [ { } ] > > > [ < [ < [ < < [ { ( { [ { < ( ) > } ] [ ] } ( ) ) } ] ( [ ( ( < ( ) > ) ) ] ) < > > > ] > ] > ] { } ) ) ) > ] )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < > ) { { < ( ( ) ) [ ] > } } } [ ( ) [ [ < ( ) > ] ] < < { ( < [ { } ] [ { [ [ ] ] } ] [ ] > < > ) } ( ) { < { } > } > > < { { [ { { [ ] } < < > > } ] ( ( ) ) }\nOutput:", "continuation": "} > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { ( < [ [ ] ] > )\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ < [ ] > ] ) > ( ( [ ]\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ < > ] (\nOutput:", "continuation": ") ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) ( < < { }\nOutput:", "continuation": "> > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < [ ] > ) < < { [ < > ] }\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > ( < [ { } { [ [ < ( ) { [ < { ( ) } < [ ] > { < [ ] [ [ ] ] > } > ] } > { } ] < { < > } > ] }\nOutput:", "continuation": "] > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ [ { [ < { ( { } ) } > ] { [ { } < { } > ] } } ] ( ) ( [ { ( { } ) { ( { [ [ ( < < > > { [ ] } ) ] ] } ) } } ] ) ] ) ( [ { { } } ]\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < [ ( ) ] > )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < < ( ) >\nOutput:", "continuation": "> > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ < < > > ] ( { ( ) } ) ( ) < >\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( ) } } < ( ) ( ( { < > } ) ) > < {\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { } < > [ ] ] < < < [ < < > > ] > >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( [ ( { < > } ) ]\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { [ < < ( ) > > ] } <\nOutput:", "continuation": "> } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ [ ] ]\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( ( < > < [ [ ] ] > ) { } )\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { { < [ [ ] ] > }\nOutput:", "continuation": "} > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { } } { { { ( ( ( { ( { ( ) } ( ) ) ( ) ( [ ( ) ] ) ( [ ] < < [ < ( { { ( ) } } ) > ] ( < > ) [ ] > > ) } ) ) ) } } } { } ( [ [ ( [ { } ] ) { [ ] } ( [ < > ] ) ]\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > } [ < { } > ] { ( ) (\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( [ < ( ) { { } } > [ [ ] ] [ ] ( < > ) ( { } { } < > [ { [ ] } ] ( [ ( < [ < > ] [ { } { ( < > ) < < > > } ] > ) ] ) < > ) < > { } ] ) [ ( ( [ ] ) < [ < > { ( ) } ( ) { } ] > )\nOutput:", "continuation": "] > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( ) ) ) [ ] [ < [ [ ] ]\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ) ) { ( ) { } { ( ) } < ( [ ] [ ] < [ < { } > [ ] < ( ) > ] > ) > [ [ < { < < [ < ( ) > ] > < ( ) > > } > ] ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < { } > ) ( (\nOutput:", "continuation": ") ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( ( { < > } ) ) { ( [ < < < { } > > > ] ) } [ ( ) [ ] ] ( [ [ < > [ [ ] ] ] ] ) > ( ( [ ] )\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( [ < [ < [ ( [ { < ( < ( ( ) ) { } [ ] > ) > } ] ) { < > } ] [ < [ { ( < < { { [ < { [ [ < > [ ] ] ] } > ] { { } } } } > > ) } ] > { < > { } } ] > ( [ ] ) ] > ] ) ( )\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ { ( < > ) } ] ) > { ( [\nOutput:", "continuation": "] ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < ( { [ ( [ ] { } ) { } ] { < > } < > } )\nOutput:", "continuation": "> ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ [ ( < > ) ] ] > < > < { < > } > [ ( [ ]\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( { } ) (\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < > ) [ {\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( [ ] ) } [ ] ( { < > } ( { } ( { { } } ) ) ( [ ] ) ( ) ( < ( { { ( < { [ ( ) ] } > ) } } [ < [ ( [ { } ] [ < > < < > > ] ) ] > ] { < { } > } < > ) > )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < [ ( [ < [ ] > ] ) ] > ] ( { }\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < > ) < [ { < [ ( ( [ ] ) ) ] > } [ < > ] ] > ( [ ( ) ] [ ( ) ] { < >\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { { { { < > [ ] { [ ] [ ] } } } < { { [ ] } ( ( < > ) ) } > } }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { [ [ ] ]\nOutput:", "continuation": "} ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < [ ] > < < ( ( [ { < > } ] { < ( ) ( ( [ < { } > < > ] ) ) > } ) ) > > { { { < ( [ [ ( ) ] ] ) > } } } ( [\nOutput:", "continuation": "] ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < < [ [ [ { } ] ] [ ( < { ( ) } { ( ) } > ) ] ] [ ] > > )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ <\nOutput:", "continuation": "> ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { [ { [ { [ < ( ( ) ) < > < > > [ [ { < { < { < [ ] > } < > > } > } ( [ { ( ( ) ) } ] ) ] ] ] [ ( [ < [ [ { ( ) } ] ] > ] ) ] } ] } ] }\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] ( [ [ { < { { ( < > [ ] ) } } < > > } ] ] { }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { [ < ( < < ( ) > > ) > { } ] { } < > } )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { { [ { } ]\nOutput:", "continuation": "} } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) { <\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ( { { ( { } ) } < < ( [ [ { } < [ { < [ { ( ) ( [ { } ] ) } ] < > > } ] ( < { ( [ ] ) } > ) > ] ( [ < ( ) > ] ) ] ) > > }\nOutput:", "continuation": ") ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( { { { ( [ ] ) } } [ ] } )\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( (\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { [ < [ < { } > ] [ ] >\nOutput:", "continuation": "] } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < { < > } > ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ [ < > ]\nOutput:", "continuation": "] ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { } < < < < { ( [ < > < > ] ) ( < < ( ) > { } > ) } > > { [ < { ( { < [ ] > } ) } > ] } >\nOutput:", "continuation": "> ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { } ) { [ ( { } ) < { }\nOutput:", "continuation": "> ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ ] [ ]\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ [ [ ( ) ] ] ] ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( ) > { < > } ( < > ) < ( ) > [ ] < < < < ( ( ) ) < ( ) > > > > > {\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < < [ < > ] > > ) > { ( [ ]\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ( ) { < < [ ] { } ( ) [ { [ { ( < > ) } < < > > ] } ] ( { [ ] < < ( ( { } ) ) > > } { { [ { { [ < < ( [ ] ) > > ] } } ] } } { } ) > > [ ] } ] } ( < >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < ( ( ( ) ) ) [ [ { { { [ ] } } } ] ] ( [ { { } } ] ) { } > { < { } > }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ { ( { < [ < ( ( { } ) ) ( ( { { { } } } ) ) > ] > } ) } ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ ] } > ( ) < [ [ { [ [ ] ] } ] ] ( ) [ < ( [ { } ] ) > ( ( ) ) ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < <\nOutput:", "continuation": "> > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < ( [ ] ) { ( [ < > ] ) } >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ { } < < ( ) > > [ < { } > [ < < [ ] > > ] [ ( { } ) ] ] ]\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { < { [ < { ( [ ] ) } > { ( { } ) } ( ) ] } > } [ < < > > ] { } [ ] < { }\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] [ ( <\nOutput:", "continuation": "> ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ] { ( < ( { < < ( { ( ) } ) > > } ) > ) { { [ ] } } }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( ( < < ( { } ) > > ) < < > ( ) > )\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { ( [ ( [ { < < { ( [ < > ] { } ) } > > } ] ) ]\nOutput:", "continuation": ") } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( [ < < ( [ < > ] ) > > ]\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) [ < > ( { { < > } { < { { [ ] } } > } ( ) ( [ ( < > ( { < { < > } > < ( ) > ( ( ) ) < > ( ) } ) [ < [ ( ( ( [ ( [ ] ) ] ) ) ( { } ) ) ] ( ) > ] ) < < ( ) > > ] { [ ] } ) } )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < { ( [ ( ( ( ( ) ) [ ] ) ) ] ) ( ( ) ) } > ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ( { } ) ] [ { } { < { ( < > ) } > < > < > } ] [ [ { < < ( { ( ) } { } { [ [ ] ( { } ) ( { < [ ] < > > [ ] } ) ] } ) > > } { < > ( { [ { [ ( [ { } ] ) ] } ] } { } ) }\nOutput:", "continuation": "] ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < { { [ ] } < > [ ] } [ [ [ < [ [ ] ] > ] ] ] > } [ ] { { { { [ { } ] } ( < [ [ [ ] ] ] > ) < < ( { ( [ ] ) [ { { } } ] { [ ] } } ) [ [ { [ [ { ( { } ) [ ( ) { } ] { } } ] ] < > } ] ] > > }\nOutput:", "continuation": "} } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { } < > { < { ( < > ) } >\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < ( ) > { < [ ( [ ( ) ] ) ] [ [ ( < > ) < > ] [ ] ] > } ) { [ ] } { < { ( ) } > } { ( [ { }\nOutput:", "continuation": "] ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < [ { < [ < [ < < [ [ [ [ [ [ ] ] ] ] ] ] > > ] > ] > } ]\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( [ { } ] )\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ <\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < > [ ( ( { } ) ) [ { [ ] [ { } ] { { [ ] } } ( [ ] { ( ) ( ( { [ ( < > [ < [ [ ] ] > ] ) ] } ) ) < [ { [ ( { [ ] } ) ] } ] < > < > [ ( < ( ) > ) ] > } ) } ] ] )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < { < < [ ] > < { } > > } > > [ < { [ ]\nOutput:", "continuation": "} > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ( < > ) < < [ { ( { { [ { { } } ] } } ) } ] > > ( ( { } ) ) )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < > < { [ ] } [ ( ( [ < ( < > ) > ] < > ) ) ] > ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [\nOutput:", "continuation": "] } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [ { { ( ) { < [ < [ ( [ { } ] ) ] > ] > } ( ) } ( ( [ < > { < > } [ ] < > ] ) ) } < > ] ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { ( ) }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ [ ( ( { { } } ) ) ] ]\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ [ [ { } ] ] ] > ( ( [ ]\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < { [ { } ] } > ) ) < {\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } [ ( ( < [ { { ( ) } } { } ] > ) ) [ ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( { } )\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } [ < < ( ) < ( ) > > > ] < > [ ( ) ] < > < { [ { } ]\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( < > ) [ ] { < [ [ ( { } ) < ( { } ) > < [ ] > ] ] > [ { ( < < [ { ( [ [ ] ] ) } ( ) ] < < > > > > ) } ]\nOutput:", "continuation": "} } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( { { } } < > { { < [ { < > ( < > ) } ( ( ) ) ] > } } )\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < { { } }\nOutput:", "continuation": "> > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { } ( (\nOutput:", "continuation": ") ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < < ( )\nOutput:", "continuation": "> > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( { { } } )\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < ( ) > [ [ ] { [ ( ) ] } ] < { < [ { ( [ ( < { ( ) } > ( [ ] ) ) ] ) } ( { < > } < { { } } > < > ) [ ] ( ( [ < < > > ] ) [ ] ) ] > [ ] } > { { < < ( ) > > < < ( { [ ] } ( ) ) ( ) > >\nOutput:", "continuation": "} } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ [ ] [ < [ [ < > ] ] < > > ]\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ( ) ] < { } > < < [ { ( [ ( < < > > ( ( { ( ) } ) ) ) ] ) } ] > > (\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( { } )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > < { [\nOutput:", "continuation": "] } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ] < < > > { } < [ ] >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < ( ) > [ ( < ( ( { } ) ) > ) ]\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ { ( ( < ( ( ) ) > ) ) } ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { { [ [ { { { [ ] } } } ] ] } } > { { } ( ) { < [ ( ) ] >\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < { ( ) [ ] } { < > } > { } ) ( { }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( )\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < ( [ < < [ ] > > ] )\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ] >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( ) )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( { [ [ { < [ ] > } ] ] } ) [ ( < { < > } > ) ]\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( < < < [ < [ [ ] ( ( ) ) ] > < > ] > > > )\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ [ ( ) ( ( { < { < { { } } > } > } ) ) ] ] > ( ) { ( ) }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { } [ [ ( ( < { < { [ ] } > } > ) )\nOutput:", "continuation": "] ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { } [ ( [ ] ) ( [ [ < ( { } < { [ < [ ] > ] } > ) > ] ] ) ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ] [ ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < [ < ( ) > [ { [ { ( ) } ] } ] ] > [ { } ] ( < { < [ { } ] > } > ) ) ( ( < ( ) > [ ] [ < { ( ) } > ] [ { } ] [\nOutput:", "continuation": "] ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { ( { < [ < < ( ) > > ] > } { [ ( { < [ ] ( ) > } ) ] } < < ( < { < > ( ) } { } > ) > > ) }\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < { } > < > > [ [\nOutput:", "continuation": "] ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] { ( { < > } ) } [ ( ) ] { } [ { { ( < > ) } <\nOutput:", "continuation": "> } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( ) } } [ ( < [ { [ [ ] ] } ]\nOutput:", "continuation": "> ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < < [ ] > > < > ) ) { ( ( [ { [ [ ( ) ] ] } ( [ [ ] ] ) ] ( { { [ [ ( < > ) ] ] } } [ < > ] ) ) )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < < > ( [ [ { ( ( [ ] < > ) ) } ] { [ [ ] { } { [ { < > } ] } ( { { { { } } } } ) ] } ] ) (\nOutput:", "continuation": ") > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ { { { } }\nOutput:", "continuation": "} ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < { { ( { < [ { [ [ ( ( ) ) ] ] { } } ] > } ) } } [ < [ [ ( ) ] ( ( ( { { [ { < > } ] } } ) ) ) [ [ ] ] ] >\nOutput:", "continuation": "] > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) ( ( < [ ] ( < > ) > )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < >\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < > >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ ( )\nOutput:", "continuation": "] } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { {\nOutput:", "continuation": "} } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < > { { { } } { } } ] < { } [ { [ ] }\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ < > ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { ( ( [ [ [ ( [ ] [ { } ] ( { } ) [ { [ { [ ] } ] } ] < [ [ ( [ ( < ( < ( ( ( ( ) ) ) ) { < { } > } > ) > ) ] ) ] ] > ) ( ) ] ] ] )\nOutput:", "continuation": ") } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < > > [ [ [ { { < { } ( { } ) > } } < { { { } } } < > > ] ] ( )\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( [ [ [ ( { } < < [ { [ { { } } ] } ] > > ) ] { } ( { ( < < ( < < > > ) > > ) } [ ( ( ( [ ( < > ) ] ) ) { [ [ ( ) ] ] } { } ) ] < { } > ) ] { < { [ [ ] ] } > } ] ) ) [ { [ ] }\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { ( ) ( ) } )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < { { } } > } { { [ < < { } > { < < < { { < > } } > > > { [ < ( < { } ( ( ) ) > ) > ] } < [ [ { ( [ { ( { } ) } ] ) } ] ] > } > ] } } [ { { } [ [ { } ] ] } ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( [ ] ) ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < > { [ ( < > [ { } ] ) ] }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( < > { } )\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { < > ( ) [ { < ( < > < ( ( ) ( [ { } ] ) ) > { { } { ( ) } } ) [ ] > } ] { { } } }\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < > < { } >\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { < [ < { [ < > ( ) ] } > ] < { } >\nOutput:", "continuation": "> } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < [ [ ] { ( [ < < ( { ( < [ ] > ) < > } ) > > ] ) ( < { ( < > ) } > [ [ ] ] ( [ ( ) ] [ < [ < ( [ { } ] ) > ] { } > ] ) ) { [ < ( ) > ] } } [ ( ) ] ] > ( [ ] )\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { [ { < < { } > > } { { } } ( < > )\nOutput:", "continuation": "] } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { [ [ { < ( < { } ( ) > ) > } ] ] { } ( [ { { [ { ( { } ) } ] } < > ( ) { [ < > ] } } < [ ] > < > ] )\nOutput:", "continuation": "} > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < [ < ( ) > ( [ ] ) { [ { [ < { } > ] } ] } { < [ ( ) ( [ < ( < [ < > ] > ) > ] ) ] < > > } ] > < ( < { < < > > } > [ < > ] )\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( [ ( ) ] [ [ ] ] ) )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ) > (\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( { < { ( { { < > } } ) } > }\nOutput:", "continuation": ") ] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > [ { { < < ( ) > > } < > } ( [ { { } } ]\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < ( [ ] ) > ] { [ { }\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ( [ ( ) [ < [ < > ] < > [ ] > ] < < ( ) ( ) > < { } > > [ < > ] ]\nOutput:", "continuation": ") ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { ( < < [ ] > { } [ [ ] ] > ) } } [ ] { } [ { ( ) }\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < > >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < <\nOutput:", "continuation": "> > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { [ { } ] } < >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] ( { < > < { [ [ ( ) ] [ ] { [ ( { ( ) } < < [ ] > > ) { } { } ] } { ( { } ) } ] [ < [ ] > < < > > ] } [ ] > } ) ( [ ( [ [ [ { } ] ] [ < [ [ ] [ [ ( ) ] ] ] > ] ] )\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ( ( ) ) < [ < > ] > ( ) < ( < > ) >\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { { } } ( < [ ] [ { } ] > ) ( { { } { { ( ) } } } ) { < { { [ ] } [ ( ) ] } ( < { [ < > ] } > ) < ( [ ] { ( < < [ ] > > ) [ { [ [ ( ( ) ) ] ] } ] } { } ) > ( { { [ [ ( ) ] ] } } )\nOutput:", "continuation": "> } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ( [ [ ] ] ) ] { { { } } [ < ( [ < [ ( [ ( ) ] ) ] > [ ( [ ( { [ ] } ) ] ) ] ] ) > ] [ < < ( ) > > [ ( { } ) ] < ( ( < [ ( ) ] > ) ) > ] < [ { < ( { } ) > } ] > } >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < { { } } [ ] [ [ ( { } ) ] ] [ { } ] > ) ) { [ < > [ { { [ < { } > ] } { < [ < { } > ] > } } [ ( ( ) ) ] ] ] } < > < > < < > > [ [ ] ] {\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { ( < ( < > ) > { ( ) } ) } < < > > ( ) ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [ ( [ { ( { ( [ ( [ ] ) { ( < < [ ] > [ [ ] ] > ) } ] ) [ ] } ) } ] ) ] } { < [ ] > } (\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < < { [ ] ( [ [ ( [ [ { [ ] } ] ] ) ( ) ] ] ) ( ) [ ] < [ ( ( ( ) ) ) ] < < < > [ ( ) ] > [ ] > > [ < > ] } > >\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < > { { } } ( [ { [ [ ( { } [ ( < < { } > [ < > ] > ) < < { [ [ { } ( { } ) ] ] } > > ] ) ] ] }\nOutput:", "continuation": "] ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < ( { } )\nOutput:", "continuation": "> ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < <\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < >\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < [ ( [ < > ( ( { [ ] } ) ) ] < > ) < { } > { ( [ ] ) } ] ( ) >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > < { { { [ ( ) ] } } } > ( { [ { ( [ ] { } ) } ]\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < > < ( < ( ) > ) ( < > ) > < ( < [ ( { ( < < ( ( { { ( < ( [ [ < ( ( [ ] ) ( < > ) ) > ] ] ) < { < ( ) > } > ( ) > ) } } ) ) > > ) } ) ] >\nOutput:", "continuation": ") > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } < { } < > (\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < { ( ) } > [ ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { ( { [ < ( < [ ( ) ] > ) > ] } ) } ] [ ] [ ( { ( ) } ) ] < { ( ( ( ( ( < > ) ) ) ) ) [ < [ ( < > ) ] > [ [ ] ( ( { } { [ { < [ ] > } ] } < { } > < [ < > ] > [ ] ) ) ] ] } > { [ { ( )\nOutput:", "continuation": "} ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ { ( < ( ( [ < < { } > < < [ ( { < < > > } ) ] > > > ] { } ) ) > ) } ] [ < < { } > ( < < ( ) < ( [ ] ) > > ( ( ) ) > ) > ] > ] < < {\nOutput:", "continuation": "} > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ] < ( { }\nOutput:", "continuation": ") > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ) ( [ ( ) [ { < [ < < > { < { { [ < [ ] > ] } [ [ ] ] } > } [ ( [ { < > } { { ( ) ( { ( ) } ) } } ] ) { [ ( ) < > ] } ] > ] > } ] ]\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < { } ( ) < ( [ ( < [ ] ( ) > ) ] ) [ ( < > ) ] [ ( { < < [ ( ) ] > > } ) ] [ < { [ ] < > } > ] [ < > ] > >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { ( )\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < [ [ < > ] < ( ( ) ) > ] >\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ { { [ { [ { ( ( ) ) } ] } ( < < ( < > ) > { } [ [ [ ( < { } > ) ] ] ] { } > ) ( { } ) { } ] }\nOutput:", "continuation": "} ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( [ { } < > ] )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < > ) ] ( { [ ( { { < > } } ) [ ( ) ] ] { { [ ( ( [ { } < [ { < > } ] > [ [ { } ] ] ] ) ) [ ( ( ) ) ] < [ ] > ] } } } ) ( { { { ( [ [ ] [ < [ ( ( ) ) ] > ] ] ) }\nOutput:", "continuation": "} } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] [ ( [ [ ( ) ] ] ) < < [ ] > > < < >\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < > >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { [ ( ) ] } { { [ ] } } { } < > ) } [ < [ ( ) ]\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ { { } } ]\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( <\nOutput:", "continuation": "> ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( [ ] [ [ ] { } < < < < ( < > { } ) > > > > { < > } ( < { { { } [ { < { ( [ ( ) ] ) } > { [ [ ] ] } } ] [ { ( ) } ] } } > ) ] )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ( ( ) < ( ) > ( { { } } [ [ [ < ( [ ] ) ( ) > ] ] ] { { { { { } } } { { } { < [ [ ] ] > } } { } } } ) ) ] >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( { [ ] } ) )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ < > ( ) ]\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [ < [ { [ < < [ ] [ ] < < ( ) > > { { } } ( ( { < > } ) { < > } ) { } < > > { } > ( ( ( { } ) ) [ { } < > ] [ ( ( [ ] ) ) ] ) ( ( { } ) ) { } < > ] ( ( < ( ) > ) ) } ] ( ( { } ) ) [ ] > ]\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( [ ( [ < ( ) > [ < { } { [ ] } [ ] [ ] > { ( < { < > } > ) } ] ] ) ] )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { [ ] } >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < ( { ( ( [ ] ) [ { < > } ] ) } ) < > >\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( ) >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < [ < ( < [ ] > ) < > < { } > { < > { } { { < [ < < { } [ { } ] < > > > ] < > > } < [ [ ] ] > } } > ] [ ( ) ] > } [ { ( < ( ( ( [ { } ] ) ) ) > ) } ] [ < ( ) ( ( { ( ) [ { { ( { } ) } } ] } ) ) >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { } ) < { < { } >\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ { < > } ] [ ( { [ { ( { ( ) } ) } ] } ) ] }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < ( ( ) ) > ] ( < < [ ] > > [\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { ( ( ( ( [ ] ) ) ) )\nOutput:", "continuation": "} ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < > ] [ { < { } > { [ ( [ ( ) ] ) ]\nOutput:", "continuation": "} } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < < { ( [ { [ ] } ] ) < > } > > > < < ( [ [ ] ] { } [ < > ] [ < > ] < < > > [ { < > ( ( ) ) } ] ( { < > } ) [ [ { } ] ] ) > >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( ( ) )\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( ) }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( )\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ ] { } ( ) ] } [ (\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( ) } ( < < > > ) [\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { { < > } } (\nOutput:", "continuation": ") > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > [ < < ( < [ ] > ) > > ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { (\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ { [ { } ( ) ] }\nOutput:", "continuation": "] > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { { } (\nOutput:", "continuation": ") } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > } [ ( { ( { [ < > ] } ) ( ) } ) ] { [ < > ] } [ [ ( [ ]\nOutput:", "continuation": ") ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < > } ] { { } { [ ] } } < > ( ( )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { < { [ ( < > < { < ( ) > } > ) ] } > < [ ] ( [ < > ( < > { [ ] } ) < ( ) > < [ [ < < > [ ] > ] ] > { } < > ] ) > ( ( ) ) } [ < ( < ( ( ) [ ] ) > ) > ] >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > < [ ( [ [ < ( ) > ] < ( ) { { } } > ]\nOutput:", "continuation": ") ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ ] ) > ( ( < [ { { } } ] > )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < [ [ [ < > ( [ ] [ [ < [ [ ] ] > { < > } < [ ] > ( < ( { } ) > ) ] ] ) ] ] ] ( [ ] ) > ( ( ) [ ] < > ) ] ] { < ( < { [ [ ( ) ] ] { [ ] { } [ { [ ] } ] [ ] } } > { } )\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( { < [ ] > < < [ { } ] > > } ( [ ( [ [ < ( ) > ] ] ( ( < [ < [ [ [ ] ] ] > ] > ) ) ) ] ) )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > < [ [ ] ] (\nOutput:", "continuation": ") > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < ( ) >\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [ < { [ < < { } > > ] } > [ [ { [ ] } ] ] ( { < { ( ) } > } ) ] { < > } ) < { { ( ) ( < > ) } } [ [ [ [ < [ [ { [ ] } ] ] > ] { } ] ] ] < { ( ) } > { [ { } ] } >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( ( [ [ ] ] ( < ( [ ( [ [ [ ] ] ] ) ] < > ) > ( ) ) [ ] ) ) }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( ( [ [ < ( ) > ] ] )\nOutput:", "continuation": ") ] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) [ ( [ < { { ( { } ) } } >\nOutput:", "continuation": "] ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < (\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( [ [ { } [ ] ] ] ) ) ( [ ] )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ { } ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < { } > > < { [ ( ) ]\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( [ < > [ < > { < > } < { [ [ ] ] } > [ { { { } } } ] ] [ [ [ [ ( { } ) ] ] ] ] { } { [ [ ( ( [ [ ] ] [ ] ) ) ] ] } ] ) > { ( ) } { < > } < >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < > < [ < > ] > [ ] > < > ( < ( )\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < [ { } ] >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( < > ) { } >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < { } > < > > ( )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < > ( ( ( [ < ( ) > ] ) ) ) ( ( ( < < < [ ( ( ( ( { < { { [ [ ] ] } } > } ) ) ) ) ] > > ( { } ) { < > { [ ] } } > [ ( < > ) ] { < > < > } ) ) ) < < ( { } ( { } ) )\nOutput:", "continuation": "> > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( ( { ( { { } } ) [ < > ] ( [ ( ) ] ) } )\nOutput:", "continuation": ") > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { { ( ) } { < [ < < > > ] > }\nOutput:", "continuation": "} } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { ( < < { } > > ) } ] { } < < > { < ( { } ) ( [ ( { } ) ] [ ] ) > }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { } } ] ( < { < [ ( ( ) ) ] > } >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ < [ { < { < ( [ { [ { } ] } ] [ [ ] ] ) > } > } [ ] ( < ( ) > ) ] [ { [ ] } ] < ( < { < > } > ) > ( ) > ] } { }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ ( { } )\nOutput:", "continuation": "] ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ) > ( (\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( { [ { { { < ( < ( ) { { { } } { { < > } } { } } { } > ) > } } } ] } { < [ ( ) ] ( [ [ < > ] ] ) ( ) { } > }\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( < > ) } ( { < > } ) [ ( < < > > ) { ( < ( ) [ [ < [ ] > ] { ( ) } [ [ ( { ( < > ) } ) ( { ( { } ) } { [ ( ) ] { ( ) } } ) ] ] [ < ( ) > ] { { } } ] > ) }\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { { < [ { { [ { [ ] } ( [ ] ) ] } } ( { } ) ] > }\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < { < [ ] > }\nOutput:", "continuation": "> ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( (\nOutput:", "continuation": ") ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { } ( ( { { [ ] < > } } < < > > )\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( { { < ( ( ) ( { } ) ) > } ( [ < > ] ) } ) } < >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < ( ( ( < { } { [ ( ) ] } > ) ) ) ( ) > ] [ (\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } [ ] { ( )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < [ { < > { [ { } ] } } ] > ) ) < ( [\nOutput:", "continuation": "] ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( < ( [ ] ) > ) ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( { < [ < > ] { [ [ ( ) ] ] } > }\nOutput:", "continuation": ") ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { <\nOutput:", "continuation": "> } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ [ ( < < > > ) ] ] ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < [ [ [ ( ( ( ( ( ) ) ) < < { } > > ) ) ] ] < [ < [ < > ( < { ( ( { } ) ) } > ) ] > < < > > ] > { ( { [ [ ] ] } ) } ] >\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < [ [ { [ ] } ] ]\nOutput:", "continuation": "> } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [ ( { } ) ] )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < { < < > > } > < < { < ( < > ) < > [ [ [ < ( ( ) ) > [ ] [ ] ] ] ] < ( ) > ( ) [ ( [ [ ] ] ) ] > } { } { < [ < { ( { } ) } > ] > } { { } } > >\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) ( [ [ ] ] ) ( { [ { < { ( ) < [ [ < > { [ ( < ( < [ { < < ( [ ( ) ] [ ( < ( { [ ] } ) > ) ] [ < > ] ) > [ { ( < > ) } ] > } ] > ) > ) ] } ] ] > { } [ [ ] ] { } } > ( ( < > ) ) } ] }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ ] } > [ { ( ) ( [ < < [ ] > > ] ) }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ] > ( ( ( { { { { ( ( { { } } ) ) } ( { } ) } } { { { [ { ( ) } ( ) ( ( { [ < < > > ] < < > > } ) ) ] ( { } { } ) } } } } )\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ { { < ( ) > } } ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ (\nOutput:", "continuation": ") ] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ ( ) ] } > ( [ ] ) { } < > ( [ { [ < [ { < [ ( < < [ ( ) ] > > ) ] > } ] > ] } ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( { { } ( < > ) } ) <\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < ( < < > [ ] ( ) >\nOutput:", "continuation": ") > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < [ < < ( < { ( < ( ( ) { ( ( ) ) [ < > ] } ) > ) } > ) > [ < ( < > ) > ( ) < ( < < > > < > ) > ( < > ( ) [ ] < { } > ) { ( { } ) } ] > ( ( ) { } { [ ( ) ] } { } [ ] [ ( < > ) ] ) { { } } ] >\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ ] } [ < { } > ] < [ ] > { } [ [ ] < ( [ ] < > < [ < > ] > ) >\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [\nOutput:", "continuation": "] ] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( { [ ( ) ] } )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < ( [ ] ) > { [ [ ] ] } ( [ ( < [ ] > )\nOutput:", "continuation": "] ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ [ { { { } } } ] ]\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { [ ]\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ( ( ) ( { } )\nOutput:", "continuation": ") ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { } [ ( ) ] < { { } }\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( ( { ( [ ] ) } [ < ( ) > ] { { [ { [ ( < > ) ] } ] ( ) } } { < < [ < [ ] { } > ] > [ ] ( { ( { < > } ) } ) { } ( { } ) > } ) ) )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] { [ ] } < [ ( ) ] > [ [ [ [ < { < > } > ] < < > [ [ < < > > ] ] > < [ < [ ( [ [ ( ) ] ] ) ] > ] > ] ] ] < < [ [ ] ] >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] ( < > ) [\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < { ( ( { } ) ( ) ) } { } < { } > < > > } { } ( { ( { { } } ) [ ( ) ] } ) ) [ ( [ ]\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { ( { } ) }\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ) < > > { < > } { ( ) ( < ( ) > ) } < < { [ ] }\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { } ( [ ]\nOutput:", "continuation": ") > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ) { [ ] } [ ] [ ] { < { ( ( { } ) ) { [ { } ] } } > [ ] }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < > > ( [ ] ) ( ( ( [ ( ) ] ) < ( ( { { < > } } ) ) > ) ) [ ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < {\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [ < [ ] > { { [ [ ] ] } } ]\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( (\nOutput:", "continuation": ") ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( ) > { ( < { } ( ( ) ) > ) } { < [ ] > } > < < < [ ( ) [ ] ] > > [ [ { < > } ] ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ < >\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ < { } ( < [ [ ] < < < > > > ] > ) { } [ ( < > ) ] ( < > ) > ] >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < { } > < > )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ( ) < { { { } [ < [ < ( [ ] ) > ] > [ ( < { ( { { } } ) ( ) } > ) < { } ( [ ] ) [ [ ( [ ] ) [ { { < ( ( [ ] ) ) > } } < < { { } } { [ [ { < > } ] ] [ ] } > > ] ] ] > ] ] } }\nOutput:", "continuation": "> ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ( { }\nOutput:", "continuation": ") ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { < ( ) > } ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < [ [ { [ < [ < ( [ ] ) > ] < > > ( < [ < [ < ( [ ( [ ] ) < ( ) > ] [ ( { ( ) } [ < { { { ( [ ] ) } } } > ] ) ] ) > ] > ] > ) ] } ] ] > ) ( { { { } } }\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < [ ( ( ( ) ) ) ] > [ { [ ( { { < [ ( ( ( { } ( { < { } < [ [ { ( < > ) [ < { [ { { ( ) } } ] } > ] } ( ) ] ] > [ { } < < > > { } ] > } ) { ( ( < > ) ) } < { } > ) ) ) ] > ( [ ] ) } ( ) } ) ] } ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } < ( ) > < [ ] > { { { < ( < < [ [ [ ( ( [ [ ( { } ) ] ] ) ) ] ] ] > > ) > } } ( ( ) )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { } (\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( {\nOutput:", "continuation": "} ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < [ ( < > [ < < < < > > > > ] ) ] > ( [ [ < > ] [ { } ] ] ) ( ) [ { < > } ( < < { ( ) } ( [ ] ) > >\nOutput:", "continuation": ") ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { }\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ { ( ) } ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { } } { [ { } ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ] } < < < [ < < ( ) > > ] > { [ [ < > < { { [ [ [ [ ] ] ] ] } { } } > ] ]\nOutput:", "continuation": "} > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [ [ [ [ ] ] ] ]\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < { < ( ( ) ) > } >\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < [ ] > < [ [ < [ { ( ( ) ) < > } [ < < > > ] [ ( { } ) ] ] > ] ] > ( ) [\nOutput:", "continuation": "] ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ < { < [ < [ ] ( < [ [ { ( ) } ] ] > { { } } < [ ] > ) [ [ ] ] < < ( { ( ) } ) ( ) < [ ] > > > > ] > < > } > ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ) < [\nOutput:", "continuation": "] > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ < > ] { [ ] }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { < { ( < [ ] > ) } >\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { ( < < [ < [ { [ ( [ [ ( ) ( < { { ( ) } { [ ] } } { } > ) ] ( ) ] ) ] } ] > [ { [ { [ < > ] } ] } [ < [ ] > [ [ ] ] { ( ) ( ) } { [ [ < < > > [ ] ] ] } ] [ < < > > ( ) ] ] ] > > ( ) )\nOutput:", "continuation": "} } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } ( [ { } { } ] ) < ( { < > }\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < { [ ( { < { } > } < > ) [ { } ] ] } > [ ] ( < > ) < [ [ ( { < > } ) ] ] < ( ) ( ) > [ ] > [ ] { ( ) }\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { [ < > ] ( < > )\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < > > < ( < < < [ [ [ [ ] ] ] ] > > > ) [ < < [ ] > > ] { [ < > ] < > [ ( ) ] } { [ ]\nOutput:", "continuation": "} > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { } ( ( ) )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { [ ( < ( [ ( ( ) ) ] ) > { { ( ) { [ ] [ ] } } } ) ] } [ { } < { < ( < < [ ( < < > > ) ] > > ) > < < > > } > ( ( ) ) < > [ [ ] ] ]\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < < ( < < > > ) > > >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < [ < ( { } < [ { } ] > ) { } { ( ( < ( { [ { { ( ) } } ] } ) > ) ) [ { [ ] } ] } > ] > ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ { }\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < [ [ ] ( ) { < > ( [ { } { < > } { } ] ) } [ [ [ ( [ ( ) [ [ { < [ { { } } < { { < ( ) > } } > ] > } ] ] ] ) ] < < [ [ ( < < ( ) > > ) ] ] > > [ ] ] ] ] < ( [ ] ) > { ( ( < { } > ) ) } > >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < { ( ) { } } ( < > ) >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( < >\nOutput:", "continuation": ") ] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ) <\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > } ( ) [ ] {\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { } [ ( ( { { < [ { } ] < > < [ < { < < > > } > { } < ( ) > ] > [ { [ ] } ] > } } ) ) ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ) {\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ) <\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < [ [ < [ < < > > ] > ( ) < { ( ( ( ( { } ) ) ) ) } > ] ] { } ( ) > } ] [ ] { { ( { }\nOutput:", "continuation": ") } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { ( { < ( [ [ ( < > ) ] ] ( ) ) > } ) } ] { { } [ < { < > }\nOutput:", "continuation": "> ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { { < { < < < ( ) > > > } > [ ] } }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > [ ( [ < ( ) >\nOutput:", "continuation": "] ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] [ (\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < [ { ( ) } { } [ [ { { } } ( { { < > } } ( ) ( [ { < > } ] ) ) [ ] ] ] ] > < ( ) > { < [ ( ) ] < < > > > } [ < ( < { { [ ] } } > ) { } > ] { < > } ( )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < { } > ( )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) {\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < [ { } < < { < ( { } ) > } > >\nOutput:", "continuation": "] > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ ] [ [ ] { } [ [ ( ( [ ] ) ) ] ( [ ] ) ] { ( ( < { } { } > ) ) } ] [ ] < [ ( ) ] > }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { [ { ( < < < < > { } > { [ { } ] } > > ) } ] [ ] } ] [ < { { } } [ [ ( ( ) ) ] ] > ] [ ( ( [ ] )\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ < > ] ( ( ( ( { { } } ) ) )\nOutput:", "continuation": ") } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < [ { ( ) } ]\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { { { < > } }\nOutput:", "continuation": "} ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > { { < > } } ( [ [ < > ] ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( { [ ] } { < ( ) > } )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( < >\nOutput:", "continuation": ") > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( ) } } ( { <\nOutput:", "continuation": "> } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( ) > } [ { [ [ < ( ( { { ( ) } } ) ) > ] ] }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( )\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( < > ) ) } [ ( [ { } ] ) ] [ [ ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ < < > [ [ < > ] ] > ] ( < < < ( [ [ ] ] ) [ ( ( [ { { } } ] ) ) ] > >\nOutput:", "continuation": "> ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < ( < > ) >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) (\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { [ ] < { ( [ ( ) ] ) } > } } [ [ ] ] < > } <\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { } < ( ( ) ) > ) ( < { [ { ( ) } ] { { [ { ( ) ( < ( { < > } < < > > ) > ) } ] } } } > )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > {\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { [ < > ] [ ( ) ( < [ [ { [ [ < < < [ < [ < > ] ( ( { ( < > ) } ( { } ) ) ) < > > ] > { ( ) ( ( { ( ) [ ] } ) ) } > > ] ] } ] ] > ) < > ] } >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( { [ ] } ) }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < [ ] > ] } { ( ) [ < > ] [ [ [ ] ]\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ { < ( ) > } ] > < [ ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { < { < { } ( < > ) < { } > > } [ [ { } { } ] ] > } > ( [ [ { } ] [ ( ( ( ) ) ) ] ] ) [ [ { ( { } ) < ( ) > }\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < ( ) ( < < > > ) >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ < > ] < < < { { < < [ < { } > ] > ( ) { } > } } >\nOutput:", "continuation": "> > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ( [ ] ) ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { < ( ) ( ( < > < ( ( < < > > ) ) { ( ) } > ) ) { { } }\nOutput:", "continuation": "> } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { < [ < < [ [ [ { [ ( [ [ [ < { [ { ( ( [ ( { } ) ] < [ ] > ) ( ) { { ( { } ) } { [ { ( [ ( ) ] ) } ] } } { } ) } ] } [ ] ( ) < > > ] ] ] ) ] } ] ] ] > > ] > } >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < > { < [ ] >\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ [ ( [ ] ( [ < { } [ < > ] [ [ ] ] > ] ) ) ]\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( [ ] ) } [\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ { < [ ] > ( ) } ] ( ) ( < { ( { } [ ( < ( ) > ) ] ) } > < [ { { { } } } ] > ) ( ( [ { [ < > ] } ] ) ) ( { ( { { ( ( [ ( ) ] ) ) } } ) } ) ( { } ) [ [ { ( < { { } } > ) } ] ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [ [ ] { { < > [ ( ) ( [ ] ) [ ] { < > } ] } } [ { [ ] } ] { ( ) }\nOutput:", "continuation": "] } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( ( [ [ < [ { { [ ] } } ] > ] ] ( ) ) )\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [ ]\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) ( < { < < [ { } [ ] ] > > } > (\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < > ) { < < { ( ( ) { { { < > { } } [ < > ] ( ) } } ( ( ) ) ) < [ { { ( ( < > ) ) } } [ { < { } > } ] ( ) ] > } { [ ] } > > [ ] } > ( [ ] ) [ < { ( ( ( ) ( ) ) ) ( ) } > ] [ < ( )\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { [ < < > ( [ [ < > < > ] ] ) ( { } ) > ] } > } [ [ ] ( < > [\nOutput:", "continuation": "] ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( { [ { } ] } [ ] [ ] )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { } [ { { < { { < [ [ < < { [ [ { ( { } ) ( { < { < > } > } ) ( ) } [ ] ] ] } > > ] [ [ ( { } ( ) ) ] ] [ < > ] ] { ( ( < > ) ) } > } } > } } ]\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < [ < > ] > }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] { < >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < { { ( ) } ( [ < < > > ] ) ( ) } > > [ < > ( ( { [ { } ] } ) ) ( )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { } ) { ( [ { ( ) } ] ( [ ] ) )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < > > ) [ ( { ( { } ) } ) ( < { [ ] } > ( < > ) ) { < ( [ [ ( ) ] ] ) > } { < < { ( < < > > ) } > > } ( < { } { ( ) } > ) ( )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( ) { [ ] } )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < [ [ ] ] > ] ] { } { ( { ( ( ) ) ( ) { { [ [ ( { < { [ { [ ( < ( ( < < < [ ( ) ] [ ] > > > ) ) > < [ < { < ( ) > } > ] > ) ] } ] } > ( ( ) ) } ) [ ( ) ] ] ( < > ) ] } } } ) } [\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] < { < > { [ < [ ( { ( [ [ ] ] ) } [ ] < < [ [ < < > > ] ] > > { [ ] } < < ( [ ] ) > > [ < ( ) > ] { [ { [ < { [ { } ] } > ] } < ( ( { { } } ) ) > { } ] } ) ] [ < > ] { } > ( [ ] ) { } ] } }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < < ( ) [ ] > >\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( { [ { < [ { < < > > } ] > } ( [ ] ) ] } )\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ < { } > ( ) ] } [ (\nOutput:", "continuation": ") ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ { { ( ( ) ) } } < [ < > ] > < > { [ { { ( < > ) { ( ( [ ] ) ) } } } ] } ] >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ) } ( { } ) ( [ ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [\nOutput:", "continuation": "] ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } [ < ( ( { < { { } } > ( ( < { [ < > ] { } < ( [ ] ) > } > ( < [ ] [ [ ] ] > ) ) ) } ) )\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ { { < ( ) > { < { } > ( < ( ) > { < [ ( { { ( < [ ] > ) } } { ( ( [ [ { } [ ] ] ] ) ) } ) ] > } ) } }\nOutput:", "continuation": "} ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > { } ( ) { < [ ( ( ) { [ ] } ) ] > } < [ { ( ( ) ) } [ [ ] ] ] > [ ] [ <\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > ( ( { [ ] } ) ) [ [ ( { < { ( < > ) [ { } { } ] } > } ) ]\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( { [ ( ( { } ) ) < ( [ ] { { { < < [ ] [ { } ] > > } } [ ] } ) > ] ( ) } )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ( [ [ ] ] )\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < > ( ) < > ( ( [ ( ( ) ) ( ) ] ) { < { [ [ { } ] ] } > } ) ( [ ( < > ) ] ) ) ) ( { ( ( ( < [ ] ( [ ] ( ) [ ] ) > ) ) ) } ) < [ [ < > ] ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( [ ] ) )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [ ] ] ) [ [ ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < [ ]\nOutput:", "continuation": "> ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { }\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ [ ] ] )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( [ [ ] ] ) ( { ( { < { { < [ ] > [ { < < ( { < [ ] > } ) > < > > } < < < [ < { < > } > ] > > > ] [ { } < > ] } } > } [ { } ] ) < > } < > < { } > ( < [ ] > ) ( < [ < [ < > ] > [ ] ] >\nOutput:", "continuation": ") ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < [ { { [ [ ] ] } < > } ] > > ) [ ( [ ] ) ( [ < > { ( { ( ) } ) } ] ) ] { <\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( )\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( ) [ < ( { } { ( { [ ] } ) [ ] } { ( ) } ) > ] ] ) ( ) ( < ( ( )\nOutput:", "continuation": ") > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } < { { [ < { ( ( { [ ( ) ] } ) ) } [ { < { } > } ] { ( ) } > ] < > [ ] } } > [ < [ ( ) ] > ] { [ ( [ ] ) ] ( [ [ < < ( ) > > ] ]\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < ( { [ { } ] } ) > { { [ ] } }\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { ( < { { } } > ) } [ { < { ( ) } > } ] [ < ( ) < > [ ] > { [ [ { } ] ] } ( < ( { } ) > ) < { } > ( ) ] } [ ] < > { < > } < ( [ < ( < [ < [ ] > ] > ) > ] ) > ( ( )\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [ [ ] ] ) < >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { (\nOutput:", "continuation": ") } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ [ ] ] { ( ) ( [ ]\nOutput:", "continuation": ") } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ( ( < ( < ( ) > ) > ) ) ] < >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { < ( < { < > } > ) > } > { < > } ( ( < < > >\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ [ ( ( [ { < > } ] ) ) ] ] > < ( { } ) > [ ( [ [ ] ] ) ] ( { < ( { [ ( < < > > [ ] ( < ( < > [ ] [ ( ) ] { { } } ) > ) [ ] ) ] } ) > } ) < { } > [ < < { [ ] } > > ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < [ [ ( ) < [ ] > [ ] ] ] > >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ < < > > < > ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [ ( ) ]\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ < > ]\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { ( ) } ] [ ] ( < { } > ) [ [ { < > } ] < { { { ( ) } [ [ { } ] ] }\nOutput:", "continuation": "} > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { { [ [ < ( { { < ( ( { < > < > } ) ) > } } ) { ( ) } > ] [ [ [ { ( ( [ ] ) < < > > ) { < ( ( ) ) > { < ( ) > } } } ] ] ] { < [ { [ < [ ] > ] } ] > } { [ { } ] } ] } [ ( [ < > ] ) ] ( [ [ ] ] ) }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { } > { (\nOutput:", "continuation": ") } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( )\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ) > [ < [ ]\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ < [ ( { [ ( ) ] } ) ] >\nOutput:", "continuation": "] } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < [ ] < { ( { < [ < > ] > < [ ] > } ) } > > > [ [ ] [ [ ] ] ] [ ( ) ] < < [ { [ ( ) ] } { } ] ( { }\nOutput:", "continuation": ") > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { ( < { < > } > ) }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( [ [ { ( [ ] < { ( ) } > [ { } ] ) } ] ] )\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < < { [ [ ( < [ ( [ ] ) ] > ) ] ] } >\nOutput:", "continuation": "> ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( [ ( { } ) ] [ ]\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ( { { ( ( ) ) } } ) [ ( [ { } ] ) ] < { { < < < > [ < [ < ( [ ( { ( ( < < < < > > > { ( { { < ( ) > ( ) } } ) } > { } ) ) } ) ] ) > ] > ] > < { } > > } ( ) < { ( ) } > } > ] [ < ( ) > ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] < [ ( { ( ( ( [ < { } > ] ) ( ( ( [ [ ] ] ) ) [ < < ( { } ) > [ ( ( [ [ [ ( [ ] ) ] ] ] ) ( ( ( [ ] ) ) ) ) ] > ] ) ) ) } ) ] > ( { (\nOutput:", "continuation": ") } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( ( [ ] )\nOutput:", "continuation": ") > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { [ ( ) ] }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { { { } } }\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( ( ( [ < [ { [ < [ { ( ) } ] > ] } ] < > > ] ) ) ) ) ) < [ < { { { } } } >\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { < > } { (\nOutput:", "continuation": ") } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < { [ { { < { } > } < [ ] > } ] } > ) < ( [ < [ ] >\nOutput:", "continuation": "] ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [ ( < < > { ( [ ] < > ) } > ) ] [ [ ] ] ) < [ < [ < ( ) { < > < { < < [ ] > > } ( < > ) > } > ] [ ( < { ( ( { [ { } ] } ) ) } > ) ( { < > { ( { } ) } } ) ] [ ] >\nOutput:", "continuation": "] > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ) [ [ ] [ ( { } ) ] [ < [ { { < > } [ { } ] { { ( { { ( [ ] ) } } < ( ( ( { } ) ) ) > ) [ [ ] ] } } } ] > ]\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { < [ { } ] >\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { < [ [ < > ] ] > }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { } )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > { { ( ) } } < > ( < < [ < [ ] > ] > > (\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ { ( [ ] ) } ( { ( [ ] ) } )\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < [ < { < { } > } > ( ( < { [ ] } > { { } } ) { } ) ] > ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > } { ( ) ( { } ) ( [ [ ( ) { } ]\nOutput:", "continuation": "] ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ < < { } > > ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( ) > ( [ ] ) } < > ( [ ( ( < { [ < > ] { ( [ ( ( ) ) [ ] ] ) } { } } { } [ [ < < > > ] ] > ) ( ) [ { ( ) } ] ( ( ( ) ) ) ) ] ) { ( [ < { } > ]\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( { ( ) } < { { } } > )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( { } ) { < ( ( [ ] ) ) >\nOutput:", "continuation": "} ] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { { [ < { { } } < > > ] } } < ( )\nOutput:", "continuation": "> ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( [ { ( < [ { ( ) { } } ] > ) < > } ]\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < > { < { } > }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } { [ ] { { }\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { < < >\nOutput:", "continuation": "> } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < [ ( < [ { } ] > [ ( [ < ( ) ( < > ) > ] ) ] [ ] ) ] > ) < < > > ( ( ) ) < > { { { { [ ( { } ) ] < ( ) > [ ( { [ ] } ) ] } } } [ ] } } < < > [ ( < > { [ ] } ) ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ < > < { [ [ ( [ [ { ( { [ ( ) ] } { ( [ ( ( ( [ [ ( { } ) ] ] ) ) ) ] ) } ) } ] ] ) ] ] }\nOutput:", "continuation": "> ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < [ ( ) ( [ ] ) ] > >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < [ ] > ] } { [ ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [ [ ] ]\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < > < [ ] > [ < { } > ] [ ( { } ) ] [ ] [ ( ) ] ( ) < { { < { { { { { ( { } ) } ( { < > } ) } } } } > } }\nOutput:", "continuation": "> } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { [ ( { < > { < < { < [ < [ { < > } ] > ] > } > > } } ) ] } < >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ( { [ ] } ) ) { { { } } }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { < > }\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ( < [ ] >\nOutput:", "continuation": ") ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ ] [ { { } ( ) }\nOutput:", "continuation": "] ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < < >\nOutput:", "continuation": "> > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( {\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ ( ( { } ) ) ] ] <\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ( ) ] ( { { } } ) ] [ ] { ( [ < < ( ) > > ] ) } { } < { < > } { < > < [ [ < > ] ] { } > }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < ( ) > ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < [ [ { [ [ [ ( ( ) ) ] ] < { } > ] } ] ] > > > { {\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < [ ] > ( < > ) <\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ( ) ] < { { ( < < { ( { ( [ ] ) < < < < < > > > > > } ) } < [ < [ ] > ] > > > ) } }\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { [ { }\nOutput:", "continuation": "] } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { { } } > } < { } > { < { { [ < [ [ ] ] > ] } } > } ( ) { { [ { [ { } ] } ] ( [ { } ] )\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < { < ( [ ] ) > ( ) } > [ ] ( [ ( ) ] < { } [ < > { } ] ( [ < > ] ) > ( ( < > ) ( ) ( [ ] ) ) ( ( [ [ < < > > ] ] ) ) ) > < [ ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( )\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { ( ) } < [ ( )\nOutput:", "continuation": "] > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ( ) ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ [ ] ( ( [ ] < < { < < [ ] > > } > > ) [ ( < > ) ] [ ] { < < [ ] [ ( [ ] ) [ ] [ ] ] > > } [ ] ) ] { < > } ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] { } ( < ( ) > < < { { } } > >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ { { [ [ [ < ( < [ ] { [ ( [ ] ) ] [ ] < > } > ) > ] ( [ ] ) ] ] } }\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ( ( < ( [ ] ) { < < ( ) > > < < > > } > ) )\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ) ( < ( [ ( ) ] ) { ( < > ) < { [ ( ( < ( { } { < > } ) > ) ) ] } { { { } } } > } [ < { { } } > ] > )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < ( ) > }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < [ ] > ] ] <\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { } { ( { { ( ) { } } } ) [ [ < > ] ] }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] [ [ { { }\nOutput:", "continuation": "} ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { { { < ( < ( [ < < > > ] < > ) > ) > } [ ] }\nOutput:", "continuation": "} ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) < < [ < < [ ( { } ) ] > [ ( < > ) < < > > ] < > > ] [ { } ] < ( ( { { { < > [ ] } } } ) ) > < > > < ( [ [ ( ) ] ( ( ) ) { [ ( ) ] } ] ) > > ( ( < > ) [ [ { < > } ] ] ) [\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < [ < { } > ] { ( < ( ) > ) } >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( [ < > { [ { ( ) } ] < { < { } > [ ( < > ) ] } > } [ < > ] ] ) { { ( { ( ( [ ( [ ] ) ] < { } > ) ) { { ( [ [ ] ] ) } [ ( ) ] { { [ ] } } } } ) } ( { } ) }\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( < { ( { } ( ) { < > } [ < ( < [ < ( ( ) < > ) > ] > ) > ] [ ] ) } >\nOutput:", "continuation": ") ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ < ( < { } > ) > ] ] [ [ ] ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ <\nOutput:", "continuation": "> ] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { ( { } ) } < < ( ) { { < [ { [ ( ) ] } ] > } } > >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { < < [ ( ) ] < { ( < > ) } > > > }\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ { < ( [ ] < > ) > } ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < [ < > ] > ) ) { ( ( < [ [ { ( ) } ] ] > ) ) < > < > } (\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < [ < > ]\nOutput:", "continuation": "> ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { [ [ { } ] ] }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < ( )\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ] { < > } ( [ { { < < { ( ( [ { { < > } } ] ) ( ) ) < { < > } > } > > } } ] )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { { < { [ < ( ( < < ( ) [ ( ) ] ( { [ { < [ ( ) [ < [ ] > ] ] > } ] [ ] } ) { } < ( ( [ ] { [ ] } [ ] { { { } } } { < > } ) ) > { [ ( < > ) ] } > > ) ( ) < > ) > ] } > } } )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ( [ < > ] { < > } [ [ ] ] ) ]\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ {\nOutput:", "continuation": "} ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { ( < > )\nOutput:", "continuation": "} ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < < > > > [ { ( < < [ { } ] > > )\nOutput:", "continuation": "} ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { < { } > } < { ( )\nOutput:", "continuation": "} > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ] ] [ <\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) ( ) ( ) { { } [ [ { { { } } } ] ] } < { ( < < > > ) } ( ( [ ( { } ) ] ) { [ ] } ) < < [ ] > { [ ] }\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ < > ] ] { ( < > ) } ( { < < [ ] > { [ { } ] } > } ) { { { [ { { } < [ < < { [ [ { < > } ] ] } > > ] > } ] } } { ( ) } }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [ [ { } ] ] { < [ < [ { } ] > ] > }\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < { ( [ [ ( ) ] ] ) } > ( ) ) > { [ ( [ [ ] ] ) ] { }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ { } ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [ [ ( { ( ( < [ { < > } ] > { { [ ] } } ) ) } ( [ [ < > ] ] ) ) ] ] ] ) ( < > < [ ( ) ] > (\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ { < > } ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( ( < > ) ) ( { { } [ { } ] [ ] < ( ) > } ) )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < { }\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < > ] } [\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { < ( [ ] < { [ ( ) ( { } ) ] } > ) { [ ] < [ ] > [ ( [ < > ] [ { [ { ( ) } ( ( ( ) ) < ( ) > ( ) [ [ < < > > ] ] [ [ ] ( [ ( ) ] ) ] ) ] } ] ) ] } { } >\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < [ ( ) ] >\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < ( ) > )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( < < > > )\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { { [ ] } } { < [ { { < > } } [ ( ) ( ) ] [ [ [ [ ( { < ( < ( [ ] ) > ) > } ) ] ] ] ] ] ( ) ( [ ] { } ) > } > [ { ( ( ) ) } ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < > ( [ ]\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < > ] { { ( < < [ ( ) ] > > { < ( [ ] ) > } ( < < > > )\nOutput:", "continuation": ") } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( <\nOutput:", "continuation": "> ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ) ( ) [ ( ( [ [ { < > } { { { } } } ] { < [ ( ) ] ( [ ] ) [ ] > } [ ( { { { < { < ( < > ) > } > } [ ] [ ( { ( [ { } ] ) [ ( { ( [ { [ { < > } ] } ] ) < [ ] > ( ) } ) ] } ) ] } } ) ] ] ) ) ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < ( ) < > ( ( { [ ( ) { } ] } ) ) ( ) { } [ ]\nOutput:", "continuation": "> ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( { [ { < { < > } > } ( ) ( < { ( [ ( ) ] ) } > ) ] }\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < [ ] > ( { [ ] } <\nOutput:", "continuation": "> ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < ( ( [ < [ { { { { ( ) ( [ < > ] ) ( < [ ] > ) } } } } { ( { } ) [ ] < ( < < { ( [ ( < { < < > ( < > ) > } ( ) > ) ] ) } > > ) ( < > ) > } ] > { < > } ] ) ) { < >\nOutput:", "continuation": "} > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < > ) ] [ < { { < ( [ [ ( < > ) ] ] ) > }\nOutput:", "continuation": "} > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < [ ]\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( <\nOutput:", "continuation": "> ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { ( ( { } ) ) ( ( [ ] ) ) } )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ( ) < ( [ ( ) ] ) > ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < { ( ) } > } { ( { [ ] } ) }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { < < ( ( ( ) < [ ( < > ) ] > ) ) > > }\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < [ ] >\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { [ ( { { } } ) ] { ( ) [ ( ) ] ( ( < > ) ) } }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( { < < [ { [ [ ] ] < < [ ] > > } ] > > < [ [ [ ] ( < > ) ] ] > < { } > < { [ ] } > } ) } } ( ) [ [ [\nOutput:", "continuation": "] ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { [ ( ) ] } < { { } } >\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { { } }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ] > [\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < [ [ ] ] > ( ) < [ { [ ( ) ] } ] > ( ) < ( ) > [ [ [ ] ]\nOutput:", "continuation": "] } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > { [ ] < < ( ) > >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { } ) } [ < < [ { { < { < < [ < > ] { { ( { ( < { [ [ ] ] } > [ < > ] ) } ) } } > > } > } } ] > >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ( < < { { } < [ { < { } > } ] < ( < ( { } ) > ) > < { ( < { ( { [ ] } ) } > ) } > ( ( ( ) ) ) > } > > ) ) ] < < < [ [ ( ) ] ]\nOutput:", "continuation": "> > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < [ ] > { < < [ [ < > [ ] ] ] > > < [ [ [ ( [ ( ) < { } > ] ) ] { { < > } } ] ] > } [ ] ( ) } < { { { { } } } }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < { [ ] } > { ( { ( { [ { < ( ( { } ) ) > } ] { < < [ { } < ( ) > [ ] < > ] > > } [ ] } { < { ( ) ( { } ) { [ [ ] [ [ { < > } ] [ < > ] ] ] { } } } > } ) } ) } >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ [ [ < { ( ) } ( ) > { ( ) } ] { ( ) }\nOutput:", "continuation": "] ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ { { [ { { } } ] < < > > < [ [ ( < > ) ] ] > } } ] ] (\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) { ( < > ) } < [ { [ < { } > ] ( [ < > ] ( < ( [ ] ( { } ) ) > ) ) } ] ( < > ) > ( [ < < < < > > > > ] { < < < [ [ < { ( ) } > ] ] > > > { < < { < > } > ( [ ( ) ( ( ) ) ] ) > } } ) { } { } (\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > } { ( ( )\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < [ < > ] { < > } { [ ( [ { < [ [ ] [ ] ] > } ] ) { < [ ( { } ) ] { < ( [ ] ) > < > } < { ( < ( ( { [ ] } ) ) > ) } > { < > } > [ ( ) ] } ] } >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ < < < > > [ { [ < > ] } ] > ] [ { < > }\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ < { } > ] > { } ( < ( ( < < { } ( { } ) > > )\nOutput:", "continuation": ") > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ( ) ( ( ( [ { } ] [ ( ) ] ) )\nOutput:", "continuation": ") ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( { < < < < > { } { [ < > { [ ] } ] } > > > }\nOutput:", "continuation": ") ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < ( [ ] ) > {\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) [\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { < [ ] > }\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { } ) { } < [ [ ] ] { } { { [ { < [ ( ( { { } } ) [ < ( ) > ] ) ] > { [ ] } { } [ ( < < ( < [ ] > < { ( ) } > ) ( { } ) > > ) ] ( ) } ]\nOutput:", "continuation": "} } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ) { } { < < > > < >\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < [ ( )\nOutput:", "continuation": "] > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [ { < { } > } ( ) ]\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [ ( [ ] ) ] } { [ ( < < [ ( ) < > ] > > ) ] }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > [ ] } < { } > { { < < > ( ( [ ] ) ) >\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( < { } >\nOutput:", "continuation": ") ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( ( { { { } } } ) ) ( { }\nOutput:", "continuation": ") ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { { { { { < < ( { ( { { < < [ < [ [ ] ] > ] [ ] > [ [ ] ] > ( < [ { < > < [ ] > } ] > ) } } ) } ) > > } } }\nOutput:", "continuation": "} } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < { ( { ( [ ] < { } > ) } ) } > > ) [ [\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < { } [ ] >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( { } ) ) { { ( ( { { < { [ ] } > } } < { { } } { } { [ ] } > { ( < { ( [ < { < > } > ] ) } > ) } { [ [ < < > > ] ] } < > [ ( < { } > ) ] [ < [ < [ [ < > ] ] < { [ ] } > > ] > ] ) )\nOutput:", "continuation": "} } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { ( { < ( ( < { } > ) ) > } ) { [ [ ] ] } ( [ ]\nOutput:", "continuation": ") } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < > ( ) { [ [ { < > } ] ( ) ]\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < > ( [ < [ ( ( [ [ ] ] < { ( { < > } [ { < ( ) > [ < < > > ] < { [ < [ ( ( < ( [ < < > > ] ) > ) ) ] > ] } { [ [ ( ) { < { } > } ] ] } [ ] > } ] ) } > ) ) ] > ] )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( { < < { { [ ] } } > ( ) > } ) ( ) [ [ [ ] ] ( ) ] < > < [ < { ( ) } ( < > ) < > < > ( ) > ] > < < > > > > < { < > }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( ( ( ) ) )\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < [ < [ ] > ] > )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < < { } >\nOutput:", "continuation": "> ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < < ( ( [ < { < > } > ] ( [ < ( ( { < { } > } ) ) > ] ) ) ) >\nOutput:", "continuation": "> > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { [ { } ] }\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( {\nOutput:", "continuation": "} ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < { { } } > ] [ { } ] } [ { { [ [ ( < ( [ { < [ ( { { [ { ( { } ) ( { } ) } ] } } ) ] > } ] ) > ) ] ]\nOutput:", "continuation": "} } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] ( [ ( < > [ [ ] ] ) ( ) ( ) ] ) < ( [ [ [ { < < { ( [ { [ [ ( < { } > ) ] ] ( ) } ] ) } > > } ] ] { [ ] } ] { { } } [ < > ] ) < ( ( ) )\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < { }\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { [ ] }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < > ) < [ [ < [ { < { < { } > ( ) } > < ( ) > } ] > ] ] ( < [ < < > > ] > ) [ ]\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > < < (\nOutput:", "continuation": ") > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ (\nOutput:", "continuation": ") ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { } < [ [ ] ] > ] } { ( { < ( < > [ ] ) > } ) < < < { { < > } } > > >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < < { { < > } < < { { [ < [ ] > ] } } > > } > > ) < >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < [ ] > > ( { { ( ) } } ) ( { { }\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [ [ { } ] ] ) ) < [\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [ { [ [ < { ( ) } > ] ] } ] ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { } ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < < ( < > ) > > } < { < > }\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ < > ] ( < [ ] > ) ] } ( ( { } ) [ ] ) < ( ( < >\nOutput:", "continuation": ") ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < < { [ [ { [ ( [ { ( < > ) } ] ) { } { < { [ < > ] } { } < < < > > > > } ( { ( { [ ] } ) } [ [ { < < ( ( ) ) > > } ] ] [ ( { } ) ] ) ] } ] ] } > > ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < { ( ) } >\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { ( ( [ ] )\nOutput:", "continuation": ") } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( [ ( < { ( { ( ) [ < [ < < > > < { } > [ ] ] > [ < ( < ( ) > ) > ] ] [ { [ ] } ] } ) } > ) ( { [ [ ] ] ( ) [ ( ( < [ ] > ) ) ] { } } )\nOutput:", "continuation": "] ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { < ( )\nOutput:", "continuation": "> } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ < > ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [ [ < { ( [ ( [ { [ ] } ] ) ] ) } > ( [ ( [ ] ( ) [ { [ ] } ] ) ] < ( ) > ) ] ] ] [ < > ] ( [ [ ] ] )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > { { ( { } ) } { { ( ( ) ) } } }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [ ] )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ ] ) > < ( < { [ ( { < { } > } ) { ( [ [ ( ) ] ] ) } < > ] { } } > ) > [ ] [ { < > }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < { ( [ ] ) } >\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ ( < > ) ] (\nOutput:", "continuation": ") ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { [ < ( ) < < [ { } ] { { } } > > > ] [ ] ( ) ( { { ( [ ( < > ) ] ) } } ) } < [ { < > } ] > }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ) < [ [ { ( { { [ < { { < > } } [ { { } } ] > ] } } ) } ] ] < ( < < [ { } ] < > > > < > { { } < > } ) > ( ) (\nOutput:", "continuation": ") > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ] ) [ ( [ < >\nOutput:", "continuation": "] ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( ) } } { } < ( < < < > > > ) < < [ ( < [ [ < > ] ] > ) ] > { < [ < > ] > } > > [ < [ ] > < { { } } [ ] > ] { { ( )\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( [\nOutput:", "continuation": "] ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < <\nOutput:", "continuation": "> > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < > > < > [ ] [\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ( ( ( ) ) ) { [ { [ < > ] } ] } ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { { } } } ] { ( < ( < < { { } } > > ) { } > )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < { ( < { < < < { { } } > > [ [ [ [ ] { [ ] } ] ] ] > } > ) } > ( ) )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } < { [ ]\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] {\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < { [ [ ] ] }\nOutput:", "continuation": "> > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < [ ( )\nOutput:", "continuation": "] > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( [ ] ) > < >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < [ ] >\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ( ( { } ) ) ] < ( )\nOutput:", "continuation": "> > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [ ( [ < [ < < ( ) > > ] > < < { [ ] } > > { [ { { { { } } } } ] } ] ) ]\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < { [ { [ ] } ] { } } < [ ] >\nOutput:", "continuation": "> ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { } { } } } { ( <\nOutput:", "continuation": "> ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { < < ( ) > > ( [ ] { } ) < > }\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < ( ) ( < [ ] > ( ) < [ [ { } { < > } < > ] ] > ) [ ] > [ ( < { [ ] } [ ] ( { [ < > ] < < > > ( ( < { } > ) ) } ) [ [ [ < < < ( ( ) ) > > > ] < < { [ ] } > > ( [ < > ] ) ] ] > ) ] < >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { < [ [ ( { } ) ] ]\nOutput:", "continuation": "> } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < > ] [ [ < > ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > < ( { [ { { } } [ < [ { } ] > ] ] }\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( { < [ ( ) ] > }\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( ) } { }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] { ( ( < { ( ( ( { < > ( ) } ) ) [ { } ] { { ( ) } } ) } < > >\nOutput:", "continuation": ") ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( ( )\nOutput:", "continuation": ") > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ [ { } ] ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < ( { } )\nOutput:", "continuation": "> ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ) ( { { [ ] } }\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ { ( ) } [ { } ] ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < ( ) >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ] < >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [ < > ] }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } { { ( [ ] ) } } < [ ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { } ( [ ] { < { [ ] } > } )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { ( [ < > ] ) }\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } ( { < > } ) [ { ( ( [ ] ) ) } ] ( ( { } ) [ [ < [ ] < > > [ [ ( { } ) [ ( ) ] ] ] ] ] [ [ [ ( ) ] < ( ) > ] ] ) <\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ] { { } { < ( { } ) > } } > ] ( {\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < ( [ ] ) > ( { } ) { { < [ [ < [ ] > ] ] > [ ] }\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } < ( { } ) > [ { ( ( ( ) < > ) ) } < [ { { ( ( { [ ] } ) ) } } ] < { } { { } } > > { < ( [ ] ( [ ] [ ( ) ] ) )\nOutput:", "continuation": "> } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( < > ) < [ { { [ ( ) ] } } ] < [ { [ [ ] { { } } ] } ] > > ) < < > > { < < >\nOutput:", "continuation": "> } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ]\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ [ ] {\nOutput:", "continuation": "} ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { ( ( ) ) } ) { ( (\nOutput:", "continuation": ") ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < [ ( < [ ( { [ ( ) ] [ ( ( { [ ] } ) ) ] } ) ] > ) ] <\nOutput:", "continuation": "> > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ) [ { < [ ( ) ] > }\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ < [ { < [ ] < { } > > } ] > { { ( ) } { < [ < > ] > }\nOutput:", "continuation": "} ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] < { < > } > { (\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] { [ [ < { { { } } } > ] ] < [ { }\nOutput:", "continuation": "] > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ( < ( { } ) > )\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { ( { [ < > ] } ) [ ] { }\nOutput:", "continuation": "} ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < [ ( < ( ( ) ) > ) ] [ < [ ( < > ) ] > ] > }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { ( [ [ { < [ [ [ ] ] ] > ( [ ] ) } ] ] ) }\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { ( ( { } ) ) } ( ) ) < { (\nOutput:", "continuation": ") } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { { { { [ < [ ( [ { } ] ) < < < < > > > { < ( ( ( ) ) ) ( ) > } > ] [ < < ( ( { { } { ( { [ ] } ) } [ ( ) ] } < [ ] > ) ) > > ] > ] } } } { ( ( ( ) ) ) } } < >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ < > ] {\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > } < > [ ( ) ( { } )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < > ) ] ( { < ( < < { [ ] } > > ( < { } > ) { [ ] } [ { { } } ] ) ( ) > } ( { { [ ( { } ) ] < { } { < { { < > } } > } [ < { ( ) } > ] > } }\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [ { < > { } { } < < < < { } > > ( < ( ( ) ) [ ( [ ] ) ] > ) > > { } } [ < < > > ] < ( ) > ] ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { ( ) } ] < [ ( { } ) ] >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { } { } )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( [ ] { } )\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( < [ ] [ ] > [ ( { } ) ] ) ( < [ { { < < < [ ] > > > [ < [ ] > ] } } ] > ) ] ( { [ ] } { ( [ < < > > ] ) ( ) } ( [ ( { } ) < [ ( { < < [ ] [ ] > > } [ [ ] ] ( ) ) ] [ ] ( { } ) > ] )\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ < [ ] > ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ] > < { < [ < > ] >\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( ) ) { < > { ( [ [ { } ] [ ( ) ] ] ) } [ { { { ( < [ ] > ) } { < > } } }\nOutput:", "continuation": "] } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < [ < ( [ ( ) ] < > < ( { } ) > ) < [ ] > > ] ( ) < [ < > ] >\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < [ [ ] ]\nOutput:", "continuation": "> > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < > ) > { } < { [ < > ]\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < > } < [ ] >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < { ( < ( ) > ) }\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [ [ ( [ ] ) ] ]\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < > { [ ]\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < < < ( ( ) ) ( [ ] ) > > { [ ] }\nOutput:", "continuation": "> ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) <\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [\nOutput:", "continuation": "] } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ ]\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ { } ( )\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { { [ [ { } < > < > ] ] } }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < { } >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { ( { ( ) } ) } } [ ( [ { } { [ ] } < [ ] > ] ) ] } < ( ( ( { ( < ( [ [ ] ] ) > ) } ) ) ) > ( < > ) ( ( [\nOutput:", "continuation": "] ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { } [ ] ( ) < [ ] > < < [ ( [ ] ) ] > { < > } > < >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < < [ < { { } ( [ ] ) } > ] > > < { } > { < [ < ( ( { } ) ) > ] > ( [ ] ) } ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ < > ]\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < ( < > ) >\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ( { < ( { } ) > } )\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( ( [ { } ] )\nOutput:", "continuation": ") ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < ( < > )\nOutput:", "continuation": "> ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < { { [ < [ ( { < [ ] ( ) { < [ ] [ ( ) ] > } > } ) ] > ] } } ( < > ) < { ( { < > } ) < [ ] > } > > }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } [ ( ) ( [ { { ( < > ) } } ] ) [ { ( { } ) } ( ) [ ] < [ ] > { } { { } } ] ] < [ ( [ ]\nOutput:", "continuation": ") ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { < [ ( < > ) ( ( [ [ ] ] ) ) ( ( { } ) ) { [ ] } < ( < > ) > ] > }\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ (\nOutput:", "continuation": ") ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { (\nOutput:", "continuation": ") } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( [ ( ( { } ) ) ] ) { < { { ( { { } ( { { < [ < > ] > } } ) { } } ( ( [ ] ) ) ) } } > }\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { } ( ( ( < ( ) < [ ] > > ) ) ) { [ { ( ) { { [ { ( ) } < > ] } } } ] } ( { [ ] } ) ] (\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { } }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( ( )\nOutput:", "continuation": ") } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( < { } >\nOutput:", "continuation": ") > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < < < { } < ( < [ { ( < ( ( < { [ ] } < < [ ] > > > < [ ] > ) ) > ) } ] > ) > > >\nOutput:", "continuation": "> ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < > ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { [ { [ ] { [ [ ] ] } { ( ) } } { [ [ ( [ ] ) ] ] } ] } { < ( ) { [ [ ( ) { [ { { } } ] < > { < ( < { ( < ( [ ] ) > ) } > ) { [ ( < ( ) > ) ] } [ ] { } > } ( ) } ] [ ( ( { < > } ) ) ] ] } >\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( { } )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < > ( ( [ ] ) { ( { } ) } < [ < [ [ ] ] > ] > ) [ { ( [ ] ) } ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ { { < > [ ( ) ] ( ( ) ) } } ] > ] { { { ( < > )\nOutput:", "continuation": "} } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( ( [ ] ) ) ( < ( < > ) > ) } { { }\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < < [ < { < [ [ ( < { } > ) < [ { { } } ] [ { < { [ ] } > } ] > ] ] > } > ] > { [ ] } > [ < { < ( ( ) ) > } ( ) >\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { < < [ { { [ { < < > > } ] } } ] > [ [ ] ] [ < < { < [ ] > } > ( ) > ( ( ( ( < [ [ { } ] ] > ) [ { } ] ) ) ) ] [ ] >\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ [ { ( ) } ] ] < { [ ( ( { [ { } ] } ) ) ]\nOutput:", "continuation": "} > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { < > } } < > < { { ( ) } } > { } } { < ( { [ < > ] [ ( ) < ( ) > { < ( ( ( ) ) ) > [ ] } ] < > ( < { } > ) }\nOutput:", "continuation": ") > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ) > ( [ ] < >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ {\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( ) } < { { < < < < > > > > { < [ [ { { } ( { } < > < { [ ( { { ( [ { [ [ [ ] ] ] } ] < < > > ) } } ) ] } > ) } ] { } ] > { { } } } } } > ( ) ( ) > < {\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ [ ( < > ) ( ) ] ]\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ [ ] ] ] < <\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( [ ( [ [ ] [ ] ] [ [ ] ] ) ] ) } ( [ < < [ < > { } ] > > ] ( ( [ ] ) [ { [ < > { < ( < > ) > ( < ( ) > ) } ] } ] ) [ ]\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < < { < { } > } > >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < ( ) > { } ) ( ( { { ( ) } }\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ) < ( [ { ( < ( < [ ( [ { } ] ) ] > ) > < > ( < { ( ) } > [ ] ) ) } ] ) > < { [ [ < ( ) > ] ] } >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( { ( < < > > )\nOutput:", "continuation": "} ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ { [ [ ( { [ [ ] ( ) ] [ < > [ ] ] } ) ] ]\nOutput:", "continuation": "} ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ < [ ] > ] ( [ ( ) ]\nOutput:", "continuation": ") ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { < ( ) > } > < ( ( )\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < [ ] > >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ [\nOutput:", "continuation": "] ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( < < > { { < > ( ) } < { { < ( < < { ( [ ( ) ] ) } > > ) > } } > } [ { < [ ] > { [ < > ] } } ] > { < { } < [ [ ] ] > > } ) < < < { } [ { } ] > > >\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ( ( ) ) ) ( [ ] ( < > { } )\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ [ [ ]\nOutput:", "continuation": "] ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ [ ( ) ] ( < < < < > > > > ) ] [ ] { { { ( ) }\nOutput:", "continuation": "} } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ) [ ] } < {\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ { [ < > ( ) ( ) ] } ] < >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] { < > } < (\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { } ( ) ] { } <\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) { } < { ( ( [ < { { < < [ [ [ [ ( < > ) ] ] [ { } { } ] ] ] > [ [ ] ] { [ < ( ) > ] } { ( [ ] ) } > } } > ( ) ] ) [ [ { < ( ( ) ) > [ < [ { } ] > ] } ] ] ) } > { < ( ) < >\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ [ [ { [ ] } ] ]\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ < { [ < { } > ] } > ]\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( [ [ ] ( ) ]\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < > < > {\nOutput:", "continuation": "} ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { < { } < ( ( < > ) ) > > } } { [ [ { } ] ] [ ] < < { } > [ ( ) { ( { } ) } ] > ( [ < [ ( ( { } ( ) < > < [ < < { { ( [ { } ] ) } } { } { } > > ] > ( ) ) ) < > ] > ] )\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { [ ] } ] } [ [ { { } } [ < >\nOutput:", "continuation": "] ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { } < < ( ) > [ < { [ [ ( { [ < ( ) [ ] > ] } ) ] ] } > ] [ ( { } ) ] ( ( )\nOutput:", "continuation": ") > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < [ { [ < < { ( < > ) } > > ( [ < { < [ [ ( < ( [ ( ) ] < [ ( ( [ ] { } ) ) ( < { } > ) < ( [ [ ] ] ) { } > ] > ) > < < > > [ < [ < { [ ] } > ] > ] ) ] ] > } > ] ) ] } ] > >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ( [ ( [ ( ( { { [ ( [ < { [ ] } > ] ) ] } } ) < > ) ] ( < { ( [ { { } } ] ) } > ) ) ] ) ] ] { [\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( [ < < > [ < { } > ] { < [ ] > ( ( ( [ [ { < > } ] ] ) ) ) ( < < > > ) } > ]\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < > ( ( { ( ) } ) ) [ ] ] ( ) { [ [ < ( ) >\nOutput:", "continuation": "] ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < { < < ( < [ [ < > ] ] [ { [ { } ] } ] < { { } } < < { ( ) } > > > > ) < < ( [ ( ) ] ) > > > [ ( { < > } ) ] ( < > ) [ ] { < > } > } > ( ( { } ) ) >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < [ ] > ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { { ( ( [ ] { ( ( { } ) ) } [ [ { [ ] } ] ] ( ) { ( < > ) } ) ) < > } } [ < ( < ( ) [ ] > ) [ ( < > ) < > ( ( ) ) ] > ] ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ) ) [ { ( < > ) }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { } ) [ ] { < < > >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { [ ]\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { ( { [ ] } ) } > { } ( [ { { { ( [ < > ] ) } } } ] ) { { ( { } ) } }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { } {\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < { { { < [ < > ] ( ) > } }\nOutput:", "continuation": "} > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < < { } >\nOutput:", "continuation": "> ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ) ) < [ ( { ( ) } )\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( < > ) < < { } [ ] >\nOutput:", "continuation": "> > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( ) )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { } > [\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ { } [ ( ) ] ] > { [ ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < >\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( [ ] ) >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( { < > } )\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { [ < { } { < ( ) > ( ( ) < ( [ { [ < > ] } ] ) > ) } < > > ] }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ [ < < ( ( < < [ < [ ] > ( < > ) ] > > ) ) > > ] ] ] < [ ( )\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ( ( [ ( ( ( { } ) ) ) ] )\nOutput:", "continuation": ") ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ [ [ [ ( ) ] ] { } ] ] )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { } [ ]\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { { [ < > ] } } ( < { < { { } } > [ { } ] < [ < < ( < [ ] > ) > > ] > ( { ( ) } ) ( ( ) ) }\nOutput:", "continuation": "> ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ] ( [ [ { } ]\nOutput:", "continuation": "] ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( ( ) ) { ( ( [ ( ) ] ) ) < > } < { } > ( { < ( ) > }\nOutput:", "continuation": ") } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { < < > >\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( [ ( [ ] ) ] ) )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < > ) } ( ( [ ] ) < [ ( [ [ ] ] [ { } ] { } [ < { [ ] } > ] ( ) ) ]\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( [ ] )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( [ { } { { [ [ { { { [ ] } } } ] ] [ ( ) ] < > } }\nOutput:", "continuation": "] ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( { [ ] } { { ( ) ( ( ( ) ) ) } } [ ] ( ) ) }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { { [ { < > ( ( { { } } ) ) { ( ) } } ] }\nOutput:", "continuation": "} > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ { }\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < [ [ { } ] ] > ) (\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < ( )\nOutput:", "continuation": "> } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { ( { { { { } } } } ) < ( ) > } } ( )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { < [ < [ < [ ] > ] > ] > < [ ] > ( ) { } }\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ( ) ( ( ( { } ) )\nOutput:", "continuation": ") ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] [ < [ [ < < [ [ ] ] > > ] ]\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { ( ) }\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < >\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] < { < { [ ( ) ] } > }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [ < > ] } < [ ( [ { } ] ) ] > < [ < > { } ] < ( [ ] ) > <\nOutput:", "continuation": "> > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < < > > < >\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < ( [ < ( ) > ( ( [ ] ) [ { [ ( ) ] } ] ) [ ] ] ) > ) ( ) ( ( < > { { } }\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < < { ( ) } > > ) ] < { { ( )\nOutput:", "continuation": "} } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ) [\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( { } ) < > }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { [ [ < ( ) > ] ] } } [ < [ < < ( ) ( [ { [ { ( ( < > ) ) } ] } ] ) > > ] > ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < [ { < ( ) > } ] >\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < ( [ [ ] ] )\nOutput:", "continuation": "> ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < > [ [ < [ ] > ]\nOutput:", "continuation": "] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ( [ ] ) ] (\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ <\nOutput:", "continuation": "> ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ) ( ( { } ) ) } [ ( < < ( < > < > ( ( [ ( [ [ { < > } ] ] ) ] ) ) ( < { ( ( ) ) } > ) ) ( [ < < < [ ] > { ( [ ] ) } > > { } ] ) [ [ { } ] ] < ( ) > > < [ ] > >\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { ( { [ { ( ( ) ) } ] } )\nOutput:", "continuation": "} > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { [ [ { < > } ] ] }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ [ ( [ [ ( ) ] ] ) ] ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { [ ( [ ( { } ) ( [ ] ) ] ) ] } [ { < [ ] > < > [ { ( < ( { { { [ [ [ [ < { < [ ( < ( [ < > ] ) < < ( ) > > > ) ] [ ] > } > ] { } ] ] ] } } } ) > ) } ] }\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < { < ( ) > } >\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < { [ [ { [ [ ( [ < < > > ( ( [ ( ) ( { ( < [ ] > ) } ) ] ) ) ] ) ] ( ) ] } { [ [ ] ] } ] ] } > [ { < > } ]\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { } > ( { < { } > } ) (\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ) { { [ ] } } ( { ( [ { } ] ) < ( { [ < > { ( ( [ ] ) ) } ( < [ ] > ) ] < ( ) > } ) > } ( [ [ ] ]\nOutput:", "continuation": ") ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ) [ ] < > [ ( ( ( < [ ] ( ( ( < < > > ) ( [ ( < > ) ] ) ( ) ) ) { } [ ] { } > ) ) ) ]\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( <\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( { [ < < > > [ < < { } > > ] ]\nOutput:", "continuation": "} ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < > ( [ ( )\nOutput:", "continuation": "] ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { ( [ < ( ) > ] < < < < ( ) > > > > ) } { ( { < { } < [ < { [ [ < ( { [ ] } ) > ] ] } > ] > ( < > ) < < < { [ { [ ] } ( ( [ < > ( ) ] ) ) ] } > { [ ] ( ) } [ ] > > > } ) < [ ] > } ] ( [ (\nOutput:", "continuation": ") ] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( < > )\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( [ [ { } ] ]\nOutput:", "continuation": ") > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { { } } > [ [ { { [ [ ] ] } < > { [ { < > ( ) } ] } }\nOutput:", "continuation": "] ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > ( < > ) [ { { < ( [ ( ( ( ) ) ) ] ) > } } [ < [ ] [ ] > ] < < < ( ) >\nOutput:", "continuation": "> > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ <\nOutput:", "continuation": "> ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [ ]\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { { } }\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < [ { { } } ] > { } ) ( < > ) [ ( < > ) ] <\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( < { [ { } < ( { ( < < < { [ ( [ ( [ { { < [ { } < ( ) > ] > } } ] ) ] ) ] } > < > > ( ( < { } > ) ) > ) } ) > ] } > )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( )\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < > > { [ [ ( { < { } > } ) < { [ [ ] ] } > ]\nOutput:", "continuation": "] } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < { [ ( ) ] } >\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { } { { < { [ ] } > } }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ [ < > ] ] < ( ) > [ { } ] < [ [ ] ] > ( ) < { < [ ] < < [ [ { [ ] } ] ] > > ( [ ( ( ) ) ] ) > } > [ { { < > } } ] > < ( < { } { [ { [ ] } ] } >\nOutput:", "continuation": ") > ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { } > ( ) { ( { < { { } } > } [ < { ( ) } > ] { ( ) } )\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] < ( ) [ { ( { } ) } { < > { } } ] > < ( )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > { [ [ ( [ < > ] ) ] ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < [ { } ] > ) ( < [ [ ] ]\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < { ( < ( [ < > ] ) > ) } > ( ( < ( ) > ) ) < < { }\nOutput:", "continuation": "> > )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [ < > ]\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } ( [ [ ( ) ]\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < > > (\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < > ( [ < { { } } ( ) > ] ) [ ( ) ] [ ] [ { } ] >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ ( ( [ ( < ( ) < < [ [ ( ) ] ] > { [ < > ] } > < ( ) > < [ ( ( { } ) ) ( ) ] > > ) ] ) { [ < [ ( ) ] > ] { } } < > ( [ ( { [ ( ) ] { ( { } ) } } ) ] ( [ ] [ [ ] ] ) ) [ ] ) ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ( < < [ ( < ( [ [ ( [ { < { { [ [ ( { } ) < > ] ] } } > } ] ( ) ( ) ) ] ] ) > ( ) ) ] > >\nOutput:", "continuation": ") ] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < < { ( < > ) }\nOutput:", "continuation": "> > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < > [ [ ( [ [ ] ] )\nOutput:", "continuation": "] ] ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ] [ [ [ ] ] [ ] < [ ] < > { { [ [ ] ] } } { } < [ [ [ ] { } ] ] [ { } ] [ { < [ < { { [ < { < { < { } > { < ( ( [ ] [ ] ) ) ( { } ) > } { ( ) } < > } < > > } { } > ] < < > > } } > ] > } ] > >\nOutput:", "continuation": "] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ ( ( [ [ { ( ( < > ) ) } ] < ( ) > [ [ ] ] ] ) )\nOutput:", "continuation": "] } >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < < > > [ < { { { { } } < [ ] > } } > ] ( { ( ) } ) ( < { } > ) > ] {\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ( { { } } ) ] > ( [ { < { { { { [ ( ) ] } } } } >\nOutput:", "continuation": "} ] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ ] }\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < [ ] { < ( ) > } [ ] ( { }\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < [ ] >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { [ [ ]\nOutput:", "continuation": "] } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { < [ ] >\nOutput:", "continuation": "} ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ] ) [ { ( ( < > ) < < ( { { ( ( { ( < { } > ) } ) { { < > } } ) } } ) > > )\nOutput:", "continuation": "} ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ) ( [ { [ ] } ] < < ( { } ) > [ { } ]\nOutput:", "continuation": "> ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( [ ] ) { ( )\nOutput:", "continuation": "} } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ { < > } ]\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ < < ( { < > } [ ( { < > } ) ] ( ) { ( { < [ [ < > ] ] > } ) } { { } } { } ) ( { ( [ { { < ( ) > } } ] ) } < [ ] ( { { } } ) > ) { } > > ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > ( { < > } ( [ ]\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ [ ] [ < ( < { { ( ( < [ < < { } < > > > ] > ) ( ) ) } [ { } ] ( ) { < < > > } ( ( { [ ] } < { } > ) ) } > ( [ < < < { } ( ) > > > ] ) ) > ( [ ] ) ] ] ] [\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ( [ ] [ ] ) )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( [ { < < < < { ( { } ) { } } > > > > } ] ) < < [ ] ( ( ( [ ] ) ) ) ( { < { { ( ) } } < > > ( ) } ) > >\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < < { { } < { { } } > } >\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { [ { ( < ( ) > { { ( { } ) } } [ [ ( ) ] ( ( ) ) < [ ( [ ( { { < { { } ( ( ) ) } > } } ) ] { } [ ] ) ] [ < > ] > ] < > ) } { [ ( ) ] } [ ] [ { } ] ] } ( )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } { [ { ( { < { } ( < [ ] > ) > } ) } [ ( ) ] {\nOutput:", "continuation": "} ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) [ { ( < ( ) >\nOutput:", "continuation": ") } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( { } < [ [ ( ) ( [ < < ( < { ( ( ) ( < ( ) > ) ) [ ( [ < { [ ( ( ) ) ] } > ] ) ] } > ) > > ( ) ] ) { < > } ] ] > { { < ( < [ [ ] ] > ) > } { < > } } )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( ) ( < [ < ( ) > ] > ) { } ( { [ ] } )\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < { [ { < [ ( ( { } ) ) ] > } ] { { { ( ( { } ) ) } } } }\nOutput:", "continuation": "> )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < >\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > [ ( { < ( ) > [ ] } ) ] { }\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ [ ] [ { } [ ] ] ] { ( [ ] ) < { < < > > }\nOutput:", "continuation": "> } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( ) ] < [ [ ] ] > ( { { [ [ ( [ ] [ ] ) ] ] { [ ( [ ] ) ] } } ( < < { [ < > ] } > > ) } { { [ { { } } ] } } ) < >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < { < ( ) > }\nOutput:", "continuation": "> ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { [\nOutput:", "continuation": "] } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( ( ) ) )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( { [ { ( [ [ ] ] ) } ] }\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { ( ) { [ ] { ( ( { < > } ) ) ( < < > < > > < ( ( ) ) > ) } < ( < < < { } > > > ) > } }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < ( ) > { { < { } ( [ ] ) > } { { ( ) } } } ( [ ( < > ) ] ) < [ [ ] ] { < > } >\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < ( ( < [ [ ] ] > ) ) > { { { } } } < ( < >\nOutput:", "continuation": ") > >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [ ] [ < >\nOutput:", "continuation": "] } }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < > ( ( [ [ ( { } ) [ < > ] ]\nOutput:", "continuation": "] ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( < [ { [ [ < ( ) { ( [ < > ] [ [ < [ ] > ] ] ) ( [ { } ] ) ( ) ( [ ( [ { [ < [ ] > ] } ( [ [ < > ] ] ) ] ) ] ) } < > ( ) > ] ] { } { } } ( ( ( ) ) ) ] > )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ { } { ( ) } ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ [ ( ( [ < > < < > < { } ( { < { } > ( ( ) ) } ) > > ] ) ) { [ < < [ ] > > ] [ ( < > ( < > < ( [ ] ) > ) ) < < > > [ { } ] ] [ [ ] ] ( { { } } ) < [ ] { ( ) } > } < < ( ) > > ( ) ] ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { < { < > } > } [ ( < < > > ) [ { < ( ) > } ] ] [ ] } < ( { [ < [ { [ ( ) ] } ] > < { ( [ [ [ { } < > { ( < { [ ] } > ( ) ) } ] ] ] ) } > ] } )\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { [ [ { { ( < ( ( { } ) ) ( ) > ( ( [ ] ) ) ) } } ] ] } <\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { { < { < > } > } < { } > < < < [ < [ ] > ] > > >\nOutput:", "continuation": "} ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ [ { } [ ] < { { } } > { { } } ( ( [ ] ) ) < > ] ] [ { [ ] }\nOutput:", "continuation": "] ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < { { { < [ ( < > { ( ) } ) ] > } } }\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { ( ( ( ) ) ) ( ) [ < > ] { ( [ { { ( ( [ ( ) ] ) ) } { ( [ ] ) } [ [ [ ] ] ] [ ( { { { } } < < [ ] { } > > } ) ] } ] ) < < { } > { [ { } ] } > } }\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ < [ ] > { ( ) ( < > ) { { [ < > ] } } ( { [ < { { ( ) } } { ( ) } > ] { } } )\nOutput:", "continuation": "} ] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ( ( { } ) ) ] > < { }\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < > > [ ( [ ( [ < ( { < > } ) > ] ) ] ) { < [ ] ( ) > } < > ] [ ( ( < ( ) > ) )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { < { < { < > } > } > } ) ( ) ( { [ ( < ( < < { ( { < > } ) } > > ) > ) { ( { < ( { [ ] } ( ) ) > } < { < { { ( ) } } > { < [ { ( ) } ] > } } > ) } [ [ ( ) ] ] ]\nOutput:", "continuation": "} ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < < < ( ) < ( ( < > { [ [ ( [ < [ [ ] ] ( { } ) > ] ) ] ] } ( ( [ [ < ( { } ) > ] ] ( < ( ) > ) ) ( ( < ( [ ( ) ] ) > ) ) ) ) ) [ ( [ ] ) ] ( { [ ] { [ ] } } ) > ( < ( < { } > ) > ) > >\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ [ { [ [ { { < [ [ [ ] ] ] > } < < > > { [ ( ) ] } } ] ( ) ] } ]\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] [ { } ] ( ( )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { < > } > < ( { [ ] } ) >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( [ ] [ { } { ( { } ) { < [ ( ( ) ) ] > } { [ < ( ) > ] } } ] { } [\nOutput:", "continuation": "] ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } [\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( [ < < ( ) > { ( [ [ ] [ [ < [ ( < ( { [ ] } ) > ) ( ) ] ( ) ( { } ) > ] ] ] ) } > ]\nOutput:", "continuation": ") >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ (\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ( ) )\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( { [ { < > } ] } { }\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { ( [ [ ( ( < [ [ { } ] ] > ) ) ] ] ) } > [ ( < < [ [ < > ] ] > ( ) { < ( { } ) ( ( [ { } { { < ( ) > } < ( ) > } ] ) ) > }\nOutput:", "continuation": "> ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { } ( ( < > )\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( { { [ ] }\nOutput:", "continuation": "} ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( < > ) >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ < < { ( [ < > ] [ ( ) ] [ { [ ] < { { { { < > } ( ( { ( < ( ) > ) } ) ( ) ) < ( { } ) > { < { } { } { { { } } } ( ) > } < [ < < > > ] > } } } > } ] ) } > < ( ) > > < < ( ) > > ] ) { [\nOutput:", "continuation": "] }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ] ( ) ( ( { { } } ) ) < { < > } > [ ] > ] < ( ) > ( ( ( ) ) ) ( < >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( < < > < > > < > ) ( < < > > ) ( { } ) ) < > ) [ ( ) ] { < < > > } < ( <\nOutput:", "continuation": "> ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( < < > ( ) ( ( ) ) > { } < < [ { } ] < [ ] > > > < < < > < { { < < > > } } > [ [ ] ( { < { } > [ ] { } } ) { < < [ < [ ] > ] > > [ ( ( ) ) ] } ] > > ( { ( < < ( ) > > ) } ) { } [ { { } } ] )\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ( ( [ [ ( [ [ { < < { ( ) } > > } ] ] < > ) ] ]\nOutput:", "continuation": ") ) )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { { [ ]\nOutput:", "continuation": "} } ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < > [\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( ) ( (\nOutput:", "continuation": ") )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < { < ( ( < { } { < < { { { } } } > < < < > [ ] > { } ( < { { ( [ ( ) ] ) } } > ) > > } > ) ) > } >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( ) ( { ( < ( ) > ) }\nOutput:", "continuation": ") ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ( ( ) ) ) ] [ { [ ] } ( {\nOutput:", "continuation": "} ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < ( ( ) ( { } ) ) ( [\nOutput:", "continuation": "] ) >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ( ( [ < > ] ) < [ [ ] ( < > ) { } { [ ] } [ < < { < ( [ { { } } ] ) > } > > ] ] > ) )\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < > < [\nOutput:", "continuation": "] > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( ( ( ) ) ) [ < ( ( ) ) > ] ]\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < { { { { [ ( { < [ [ { } < > ] ] ( < > ) { { [ [ < ( < < > < > ( < > ) > ) { { < [ [ ( { ( [ < ( ) > ] ) } ) ] ] > } } > ] ] } } ( ) > ( ) } [ ] < ( ) > ) ] } { } } }\nOutput:", "continuation": "} >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ] > ] [ { [ ] }\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ( ) ] >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { { ( [ ] ) } } { ( [ < > [ ( { } ) ]\nOutput:", "continuation": "] ) }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < [ ] { ( ( < ( [ < < [ [ ] ] > > ] ) > ) ) }\nOutput:", "continuation": "> ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { [ ( < { < > } > ) ]\nOutput:", "continuation": "} > }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < { ( ) [ { } ] } [ < ( [ ] ) > ] > } (\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } [ < [ { < { ( ) } > } ] >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < { < { } > { { ( [ ( { } ) ( ( [ ( [ ( { [ { } ] } ) ] ) ] ) ) [ < [ [ [ [ [ < > ] [ { [ [ { ( ( < [ ] > ) [ ( [ ] ) ] < { [ ] } > ) } ] ] } ] { < ( < > ) > } ] ] ] ] > ] ] ) } } } >\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { [ ( [ ] ) ] [ [ [ ( [ < > ] ) < < ( < { < < [ ] > > } > ) < > > > < < { } > ( [ ] ) > ] ] ] [ < > ] <\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { <\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { } ( ) (\nOutput:", "continuation": ")"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ { ( )\nOutput:", "continuation": "} ] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < > [ { [ [ ( [ ] ) [ < ( < > ) { [ ( { ( [ ( ( < ( ( < [ ] { < > } > [ ] ) ) > ) [ { } ] ) ] ) } ) ] } > ] ] ] } [ ] ] ) < [\nOutput:", "continuation": "] >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { ( )\nOutput:", "continuation": "} )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ < { ( ) } >\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < < { } > > } ] [ (\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < < < ( ) > >\nOutput:", "continuation": "> >"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( ) < < < > >\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( ( ) [ ]\nOutput:", "continuation": ") ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( { < [ < < [ < > ] > > ] < >\nOutput:", "continuation": "> } )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { < ( [ ( ( [ < { ( { } ) } < < > > > ] ) ) ] ) >\nOutput:", "continuation": "}"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { ( < { < < > [ [ < < > > ] ] > ( { } ) } ( ) [ [ ] ] > ) ( { } < >\nOutput:", "continuation": ") }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( [ ( ( ( ( ) ) ) ) ( [ < > [ ] < < > > ] { }\nOutput:", "continuation": ") ] )"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: { {\nOutput:", "continuation": "} }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: < < >\nOutput:", "continuation": ">"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ] { < { { ( { [ ( [ { < < ( ) [ { } ] ( [ ( ) [ < ( { } ) > [ { } ] ] ( ) ( [ [ ( ( [ < > { { ( ) } } ] ) ( ) ) ] ] ) [ ] ] ) > > } ] ) ] } ) } }\nOutput:", "continuation": "> }"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: ( < > ) [\nOutput:", "continuation": "]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ ( { { }\nOutput:", "continuation": "} ) ]"}
+{"context": "Complete the rest of the sequence, making sure that the parentheses are closed properly. \n\nInput: [ { < < ( { { { ( [ [ ( [ ] ) { ( { { ( < ( ( ) < < { < < > > } > > ) > ) } } ) } ] ] ) } } } ) > > { { { { } } } } ( { ( { ( ( ) ) } ) } ) } ( ( < ( ) > )\nOutput:", "continuation": ") ]"}

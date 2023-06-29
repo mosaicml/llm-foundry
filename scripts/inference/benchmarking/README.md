@@ -131,4 +131,4 @@ The analysis is done on a single A100 80GB GPU, with input length 512, and outpu
 
 As seen here, both MPT-7B and MPT-30B are among the fastest for inference in the open-source community, with MPT-30B being faster than the respective LLAMA-30B model.
 Among the 7B models, LLAMA-7B tends to have higher througput at higher latencies than MPT-7B, though MPT-7B has higher throughput at lower latencies.
-We found that Falcon-7B had lower throughput than other open-source models.
+We found that Falcon-7B had lower throughput than other open-source models, however we did not do exhaustive testing to determine the root cause of the model's slower performance.

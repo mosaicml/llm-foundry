@@ -169,7 +169,7 @@ def main(cfg):
             print(
                 f'Got exception: {str(e)} while evaluating {model_cfg}. Traceback:',
                 flush=True)
-            traceback.print_exc() # print the exception to stdout
+            traceback.print_exc()  # print the exception to stdout
             print('\nContinuing to next model.\n', flush=True)
 
 

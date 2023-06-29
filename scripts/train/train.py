@@ -79,8 +79,7 @@ def build_composer_peft_model(
         raise ImportError(
             'Error importing from peft. Please verify that peft and peft utils '
             'are installed by running `pip install -e .[peft]` from `llm-foundry/`.'
-            f'Error encountered: {e}'
-        )
+            f'Error encountered: {e}')
 
     # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
     print('Building Lora config...')

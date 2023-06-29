@@ -46,6 +46,7 @@ We use a single A100 80GB for inference, running with precision `bf16` and the `
 
 Here we show how latency changes for a given input prompt length, while varying batch size and output length.
 This gives a rule of thumb of how fast you can expect MPT to be based on different generation parameters.
+
 For the output length sweep, we use output lengths of 1, 11, 101, 1001 instead of 1, 10, 100, 1000 as this makes it easier to compute the overhead of the first output token in the prefill stage.
 #### Technical Details
 Hardware Setup:

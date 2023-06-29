@@ -1,10 +1,12 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import gc
 import os
 from typing import List, Optional
 
 import pytest
+import torch
 from composer.utils import reproducibility
 
 # Allowed options for pytest.mark.world_size()

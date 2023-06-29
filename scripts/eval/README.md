@@ -18,7 +18,8 @@ composer eval/eval.py eval/yamls/hf_eval.yaml
 
 This will run a large eval suite, including our Model Gauntlet, on `EleutherAI/gpt-neo-125m`. You can update the model in that YAML file, or create your own, or override the values in the YAML with CLI args, such as:
 
-```sh
+<!--pytest.mark.skip-->
+```bash
 cd llm-foundry/scripts
 composer eval/eval.py eval/yamls/hf_eval.yaml \
     model_name_or_path= mosaicml/mpt-7b

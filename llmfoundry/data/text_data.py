@@ -228,12 +228,7 @@ def build_text_dataloader(
     # build streams
     streams = None
     if streams_dict is not None:
-        streams = []
-        for _, stream in streams_dict.items():
-            # stream is the streams kwargs
-            # fwd all kwargs with **stream allows streaming to check args
-            streams.append(Stream(**stream))
-
+        streams = [Stream(**stream) for _, stream in streams_dict.items()]
     # build dataset potentially with streams
     dataset = StreamingTextDataset(
         tokenizer=tokenizer,

@@ -188,7 +188,7 @@ icl_tasks:
   continuation_delimiter: ' Answer: ' # this separates questions from answers
 -
   label: boolq_mc
-  dataset_uri: s3://mosaicml-internal-dataset-lambda/lambada/boolq_mc.jsonl
+  dataset_uri:  # ADD YOUR OWN DATASET URI
   num_fewshot:
   - 0
   batch_size: 4

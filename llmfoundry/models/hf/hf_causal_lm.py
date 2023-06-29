@@ -26,7 +26,7 @@ from llmfoundry.models.utils import init_empty_weights
 try:
     from peft.peft_model import PeftModel
     model_types = (PeftModel, transformers.PreTrainedModel)
-else:
+except ImportError:
     model_types = (transformers.PreTrainedModel)
 
 __all__ = ['ComposerHFCausalLM']

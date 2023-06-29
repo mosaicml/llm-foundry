@@ -1,10 +1,12 @@
-# LLM Pretraining
+# LLM Pretraining <a name="llmpretraining"></a>
 
 The following tutorial walks through pretraining and finetuning a large language model using MosaicML's StreamingDataset format, Composer trainer, and MPT architecture. When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
 
 ## Table of Contents
-1. [Installation](#installation)
-2. [Dataset Preparation](#datasetpreparation)
+1. [LLM Pretraining](#llmpretraining)
+         1. [Installation](#installation)
+         2. [Dataset Preparation](#datasetpreparation)
+         3. [How to start single and multi-node pretraining](#howtostartpretraining)
 3. [LLM Finetuning](#llmfinetuning)
 
 ## Installation <a name="installation"></a>
@@ -66,7 +68,7 @@ python ../../llmfoundry/data/text_data.py --local_path /tmp/cache-c4 --remote_pa
 # python ../data_prep/text_data.py --local_path /tmp/cache-c4 --remote_path s3://my-bucket/my-copy-c4  # stream from object store
 ```
 
-## How to start training
+## How to start single and multi-node pretraining <a name="howtostartpretraining"></a>
 
 Now that you've installed dependencies and built a local copy of the C4 dataset, let's start training!
 

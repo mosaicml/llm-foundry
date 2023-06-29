@@ -10,7 +10,8 @@ You can evaluate a model by preparing an evaluation YAML following the format of
 
 To run a full evaluation on a model, you would need to install this repo and then run the following commands:
 
-```sh
+<!--pytest.mark.skip-->
+```bash
 cd llm-foundry/scripts
 composer eval/eval.py eval/yamls/hf_eval.yaml
 ```

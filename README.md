@@ -145,6 +145,8 @@ cd llm-foundry
 python3 -m venv llmfoundry-venv
 source llmfoundry-venv/bin/activate
 
+pip install cmake packaging torch  # setup.py requires these be installed
+
 pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 ```
 

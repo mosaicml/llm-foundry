@@ -76,3 +76,12 @@ def pytest_collection_modifyitems(config: pytest.Config,
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int):
     if exitstatus == 5:
         session.exitstatus = 0  # Ignore no-test-ran errors
+
+
+@pytest.fixture(autouse=True)
+def clear_cuda_cache(request):
+    """Clear memory between GPU tests."""
+    marker = request.node.get_closest_marker('gpu')
+    if marker is not None and torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        gc.collect()  # Only gc on GPU tests as it 2x slows down CPU tests

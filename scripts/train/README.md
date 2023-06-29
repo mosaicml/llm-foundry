@@ -77,7 +77,7 @@ If training on a single node, the `composer` launcher will autodetect the number
 composer train.py yamls/pretrain/mpt-125m.yaml train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
 ```
 
-To train with high performance on multi-node clusters, the easiest way is with the MosaicML platform ;) Check out the `mcli/` folder for examples!
+To train with high performance on multi-node clusters, the easiest way is with the [MosaicML platform](https://www.mosaicml.com/training) ;) Check out the `mcli/` folder for examples!
 
 But if you really must try this manually on your own cluster, then just provide a few variables to `composer`
 either directly via CLI, or via environment variables that can be read. Then launch the appropriate command on each node:

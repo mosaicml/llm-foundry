@@ -169,7 +169,8 @@ def main(cfg):
 def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy,
                                model_name):
     results = {}
-    pat = re.compile('metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')
+    pat = re.compile(
+        'metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')  # type: ignore
     for key in logger_keys:
         match = pat.match(key)
         val = logger_data[key][0][1].item()

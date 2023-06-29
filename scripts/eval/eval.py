@@ -66,7 +66,7 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
 
     if model_gauntlet_df is None and model_gauntlet is not None:
         model_gauntlet_df = pd.DataFrame(columns=['model_name', 'average'] +
-                                         [t.name for t in model_gauntlet.tasks])
+                                         [t.name for t in model_gauntlet.categories])
 
     in_memory_logger = InMemoryLogger()  # track metrics in the in_memory_logger
     loggers: List[LoggerDestination] = [
@@ -128,11 +128,11 @@ def main(cfg):
                 None, in_memory_logger)
 
             benchmark_to_taxonomy = {}
-            for t in model_gauntlet.tasks:
+            for t in model_gauntlet.categories:
                 for b in t.benchmarks:
                     benchmark_to_taxonomy[b.name] = t.name
 
-            [t.name for t in model_gauntlet.tasks]
+            
             model_results = calculate_markdown_results(logger_keys,
                                                        in_memory_logger.data,
                                                        benchmark_to_taxonomy,
@@ -148,7 +148,7 @@ def main(cfg):
 
             row.update({
                 t.name: composite_scores[f'metrics/model_gauntlet/{t.name}']
-                for t in model_gauntlet.tasks
+                for t in model_gauntlet.categories
             })
             row.update({
                 'average': composite_scores[f'metrics/model_gauntlet/average']

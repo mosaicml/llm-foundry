@@ -188,10 +188,10 @@ python inference/convert_composer_to_hf.py \
   --output_precision bf16 \
   # --hf_repo_for_upload user-org/repo-name
 
-# Evaluate the model on Winograd
+# Evaluate the model on a subset of tasks
 python eval/eval.py \
   eval/yamls/hf_eval.yaml \
-  icl_tasks=eval/yamls/winograd.yaml \
+  icl_tasks=eval/yamls/tasks_light.yaml \
   model_name_or_path=mpt-125m-hf
 
 # Generate responses to prompts

@@ -111,9 +111,9 @@ Hardware Setup:
 
 
 Models benchmarked:
-- MPT-[7,30]B
-- LLAMA-[7,13,30]B
-- FALCON-7B
+- MPT-[7, 30]B
+- LLAMA-[7, 13, 30]B
+- Falcon-7B
 
 
 Benchmark Setup:

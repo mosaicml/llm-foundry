@@ -155,7 +155,7 @@ If you are unfamiliar with that script, or the LLM-Foundry in general, you shoul
 
 ## If you want to finetune MPT-7B
 
-You should probably start with ``yamls/finetune/mpt-7b_dolly_sft.yaml`
+You should probably start with `yamls/finetune/mpt-7b_dolly_sft.yaml`
 
 ## Data formatting
 

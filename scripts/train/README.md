@@ -5,7 +5,7 @@ The following tutorial walks through pretraining and finetuning a large language
 ## Table of Contents
 1. [Installation](#installation)
 2. [Dataset Preparation](#datasetpreparation)
-3. [LLM Finetuning](#LLM-Finetuning)
+3. [LLM Finetuning](#llmfinetuning)
 
 ## Installation <a name="installation"></a>
 
@@ -156,7 +156,7 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/projects/co
 ```
 
 
-# LLM Finetuning <a name="LLM-Finetuning"></a>
+# LLM Finetuning <a name="llmfinetuning"></a>
 
 This repo also contains utilities for Seq2Seq finetuning for LLMs, for example, Supervised Finetuning (SFT) (aka Instruction(Fine)Tuning (IFT)), or finetuning a base LLM to focus on a specific task like summarization.
 

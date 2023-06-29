@@ -2,11 +2,16 @@
 
 The following tutorial walks through pretraining and finetuning a large language model using MosaicML's StreamingDataset format, Composer trainer, and MPT architecture. When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
 
-## Installation
+## Table of Contents
+1. [Installation](#installation)
+2. [Dataset Preparation](#datasetpreparation)
+3. [LLM Finetuning](#LLM-Finetuning)
+
+## Installation <a name="installation"></a>
 
 If you haven't already, make sure to [install the requirements](../../README.md#Installation).
 
-## Dataset preparation
+## Dataset preparation <a name="datasetpreparation"></a>
 To run pretraining, you'll need to make yourself a copy of a pretraining dataset and format it for efficient streaming. Check out the `llm-foundry/data_prep` folder for detailed instructions on how to convert your dataset to the MosaicML [StreamingDataset](https://github.com/mosaicml/streaming) format.
 
 As a quickstart, here is how to prepare the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
@@ -151,7 +156,7 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/projects/co
 ```
 
 
-# LLM Finetuning
+# LLM Finetuning <a name="LLM-Finetuning"></a>
 
 This repo also contains utilities for Seq2Seq finetuning for LLMs, for example, Supervised Finetuning (SFT) (aka Instruction(Fine)Tuning (IFT)), or finetuning a base LLM to focus on a specific task like summarization.
 

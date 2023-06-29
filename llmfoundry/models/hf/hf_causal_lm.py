@@ -55,7 +55,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
     """
 
     def __init__(self,
-                 om_model_config: Union[DictConfig, **model_types],
+                 om_model_config: Union[DictConfig, model_types],
                  tokenizer: Tokenizer):
 
         # set up training and eval metrics

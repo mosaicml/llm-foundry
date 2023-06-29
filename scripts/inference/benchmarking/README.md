@@ -2,6 +2,8 @@
 
 This folder provides scripts for benchmarking the inference performance of deep learning models. Currently, we support benchmarking with Deepspeed and Huggingface generate.
 
+We also have a dedicated inference [service](https://www.mosaicml.com/inference), which uses an optimized stack, leading to better inference performance than what can be achieved using this repository alone.
+
 ## Scripts
 
 The repository includes the benchmark.py script, along with associated `.yaml` files to run benchmarking. The script takes a `.yaml` file as input and outputs the latency (in seconds) and tokens per second for each run. We average over `num_batches=5`, which is defined in the `.yaml` file. Additionally, we iterate over various `batch_sizes`, `input_lengths`, and `output_lengths` to produce varying throughput metrics.
@@ -84,7 +86,6 @@ To generate these curves, we vary the batch size for a fixed input length (512) 
 Hardware Setup:
 - 1,2,4 x NVIDIA A100 80GB
 - 1,2,4 x NVIDIA A100 40GB
-- 1,2,4 x AMD MI250
 
 
 Benchmark Setup:
@@ -97,7 +98,7 @@ Benchmark Setup:
 #### Different HW setups for MPT-30B
 ![assets](assets/Latency-vs.-Throughput,-MPT-30B-(n_input_tok=512,-n_output_tok=64).svg)
 
-These plots show how using multiple A100s with 40GB and 80GB cards and AMD's MI250 and Tensor Parallelism (TP) using `deepspeed` compare with single GPUs.
+These plots show how using multiple A100s with 40GB and 80GB cards and Tensor Parallelism (TP) using `deepspeed` compare with single GPUs.
 Note that there are OOMs at larger batch sizes for some of the cards, so the plots present the achievable latency/throughputs for a given GPU setup.
 
 As expected, using more GPUs for inference increases the throughput. TP also allows MPT-30B to be supported across multiple A100 40G, which is not possible on a single 40G card.

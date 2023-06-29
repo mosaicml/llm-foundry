@@ -33,7 +33,7 @@ During _decode_, the model generates output tokens one at a time, i.e. autoregre
 ##### KV cache
 
 One of the important elements of LLM inference is a Key-Value (KV) cache. As part of the prefill stage, the key and value tensors are computed and cached for each token in the prompt across the model layers. This is helpful because the initial prompt does not change during inference, which allows the model layers to simply re-use the cached values, rather than spending compute on re-computing the tokens for the context. \
-To set up the KV cache for benchmarking, set `use_cache: true` in the `.yaml` file.
+To enable KV cache for benchmarking, set `use_cache: true` in the `.yaml` file.
 
 
 ### Results

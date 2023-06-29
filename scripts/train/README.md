@@ -4,10 +4,10 @@ The following tutorial walks through pretraining and finetuning a large language
 
 ## Table of Contents
 1. [LLM Pretraining](#llmpretraining)
-         1. [Installation](#installation)
-         2. [Dataset Preparation](#datasetpreparation)
-         3. [How to start single and multi-node pretraining](#howtostartpretraining)
-3. [LLM Finetuning](#llmfinetuning)
+   1. [Installation](#installation)
+   2. [Dataset Preparation](#datasetpreparation)
+   3. [How to start single and multi-node pretraining](#howtostartpretraining)
+2. [LLM Finetuning](#llmfinetuning)
 
 ## Installation <a name="installation"></a>
 

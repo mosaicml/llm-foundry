@@ -28,7 +28,7 @@ LLM inference consists of two stages: _prefill_ and _decode_. It's important to 
 
 During _prefill_, the model processes the input tokens/prompt/context. This is done in a single forward pass, making this stage fast, with excellent use of GPU hardware (ie. high Model Flop Utilization aka [MFU](https://github.com/mosaicml/llm-foundry/tree/main/scripts/train/benchmarking#mfu)). Typically, if people talk about LLM inference being slow, this is _not_ the stage that they are referring to.
 
-During _decode_, the model generates output tokens one at a time, i.e. autoregressively. This requires making N forward passes of the model for N tokens. This stage is slow and inefficient, because it requires moving gigabytes of model weights and pre-filled values for every single forward pass. Here, latency scales (mostly) linearly with the number of output tokens. Why mostly linear? When generating long sequences, the quadratic memory and compute complexity of the attention operation becomes more prominant.
+During _decode_, the model generates output tokens one at a time, i.e. autoregressively. This requires making N forward passes of the model for N tokens. This stage is slow and inefficient, because it requires moving gigabytes of model weights and pre-filled values for every single forward pass. Here, latency scales (mostly) linearly with the number of output tokens. Why mostly linear? When generating long sequences, the quadratic memory and compute complexity of the attention operation become more prominant.
 
 ##### KV cache
 
@@ -46,6 +46,7 @@ We use a single A100 80GB for inference, running with precision `bf16` and the `
 
 Here we show how latency changes for a given input prompt length, while varying batch size and output length.
 This gives a rule of thumb of how fast you can expect MPT to be based on different generation parameters.
+For the output length sweep, we use output lengths of 1, 11, 101, 1001 instead of 1, 10, 100, 1000 as this makes it easier to compute the overhead of the first output token in the prefill stage.
 #### Technical Details
 Hardware Setup:
 - 1 x NVIDIA A100 80GB
@@ -53,7 +54,7 @@ Hardware Setup:
 
 Benchmark Setup:
 - Input Length: [128, 2048]
-- Output Length: [1, 10, 100, 1000]
+- Output Length: [1, 11, 101, 1001]
 #### Short Inputs (128 input tokens) on MPT-7B
 ![assets](assets/Latency-for-MPT-7B,-n_input_tok=128.svg)
 #### Long Inputs (2048 input tokens) on MPT-7B

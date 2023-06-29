@@ -63,7 +63,7 @@ Benchmark Setup:
 #### Long Inputs (2048 input tokens) on MPT-30B
 ![assets](assets/Latency-for-MPT-30B,-n_input_tok=2048.svg)
 
-Our real-world results match the theory! The latency grows nearly linearly with the number of output tokens, which is the _decode_ stage time. For large batch sizes and output lengths, the latency follows more of a quadratic, which is the attention operation overhead kicking in.
+Our real-world results match the theory! The latency grows nearly linearly with the number of output tokens, which is the _decode_ stage time. For large batch sizes and output lengths, the latency looks more quadratic, which shows the quadratic compute complexity of the attention operation.
 
 For longer input lengths and batch sizes, the _prefill_ stage starts to become more important, given that the model has to process a lot of input tokens in the forward pass.
 Despite the _prefill_ stage being highly efficient, the model still needs to perform a lot of computation in one forward pass, which results in the higher latency when increasing batch size and input length.
@@ -125,7 +125,7 @@ Benchmark Setup:
 
 ![assets](assets/Latency-vs.-Throughput-(n_input_tok=512,-n_output_tok=64).svg)
 
-Here, we perform a similar benchmark to the previous section, but compare different open-source models amongst each other in doing inference.
+Here, we perform a similar benchmark to the previous section, but compare inference performance for different open-source models.
 The benchmark script supports calling models directly from huggingface (using `hf.generate`), which is done to keep the comparison amongst the models fair.
 The analysis is done on a single A100 80GB GPU, with input length 512, and output length 64, while varying the batch size. As in previous sections, the batch sizes swept are 1, 2, 4, 8, 16, 32, 64, unless the GPU ran out of memory, in which case that point is not shown.
 

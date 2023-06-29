@@ -172,13 +172,49 @@ c4constants.splits['val'] = DataSplitConstants(hf_split='validation',
 c4constants.splits['val_small'] = DataSplitConstants(hf_split='validation',
                                                      folder_split='val_small',
                                                      raw_samples=10000,
-                                                     truncated_samples=1000)
+                                                     truncated_samples=10000)
 c4constants.splits['val_xsmall'] = DataSplitConstants(hf_split='validation',
                                                       folder_split='val_xsmall',
                                                       raw_samples=3000,
                                                       truncated_samples=3000)
 
-CONSTS = {'c4': c4constants, 'the_pile': pileconstants}
+thestackConstants = DatasetConstants(
+    chars_per_sample=0,
+    chars_per_token=4  # OpenAI estimate
+)
+
+thestackConstants.splits['train'] = DataSplitConstants(
+    hf_split='train',
+    folder_split='train',
+    raw_samples=None,
+    truncated_samples=None,
+)
+thestackConstants.splits['train_small'] = DataSplitConstants(
+    hf_split='train',
+    folder_split='train_small',
+    raw_samples=1000000,
+    truncated_samples=100000)
+thestackConstants.splits['val'] = DataSplitConstants(hf_split='train',
+                                                     folder_split='val',
+                                                     raw_samples=364608,
+                                                     truncated_samples=None)
+thestackConstants.splits['val_small'] = DataSplitConstants(
+    hf_split='train',
+    folder_split='val_small',
+    raw_samples=10000,
+    truncated_samples=10000)
+
+thestackConstants.splits['val_xsmall'] = DataSplitConstants(
+    hf_split='validation',
+    folder_split='val_xsmall',
+    raw_samples=3000,
+    truncated_samples=3000)
+
+CONSTS = {
+    'c4': c4constants,
+    'the_pile': pileconstants,
+    'the_stack_dedup': thestackConstants
+}
 
 
 def build_hf_dataset(
@@ -265,15 +301,15 @@ def build_dataloader(dataset, batch_size, num_workers) -> DataLoader:
     # the aggregate device batch size
     # If not using workers, the torch DataLoader expects the default value for prefetch_factor,
     # which non-intuitively must be 2.
-    # prefetch_factor = max(1, 2 * batch_size //
-    #                       num_workers) if num_workers > 0 else 2
+    prefetch_factor = max(1, 2 * batch_size //
+                          num_workers) if num_workers > 0 else 2
 
     return DataLoader(
         dataset=dataset,
         sampler=None,
         batch_size=batch_size,
         num_workers=num_workers,
-        # prefetch_factor=prefetch_factor,
+        prefetch_factor=prefetch_factor,
     )
 
 

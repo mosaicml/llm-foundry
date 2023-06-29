@@ -1,27 +1,35 @@
-data_local: ./my-copy-c4
+data_local: /dataset/home/liaoxingyu/datasets
 data_remote: # If blank, files must be present in data_local
 max_seq_len: 2048
 global_seed: 17
 
 # Run Name
-run_name: test_mpt-125m-train-val # If left blank, will be read from env var $RUN_NAME
+# <data>-gpt-<#params>-<precision>-<arch>-<#bsz>-<#ctxlen>-<#tok>-<#nodes>-<cluster-name>-<etc>
+# run_name: py_java_js-gpt-1.1b-amp_bf16-MQA-gbsz192-ctxlen2048-tokn118b-wmup6000ba
+run_name: test_mpt-125m-mix # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:
   name: mpt_causal_lm
   init_device: meta
-  d_model: 768
-  n_heads: 12
-  n_layers: 12
+  emb_pdrop: 0.1
+  resid_pdrop: 0.1
+  d_model: 2048
   expansion_ratio: 4
+  n_heads: 16
+  n_layers: 24
   max_seq_len: ${max_seq_len}
-  vocab_size: 50368
+  vocab_size: 49280
+  multiquery_attention: ture
   attn_config:
-    attn_impl: triton
+    attn_impl: flash
+    attn_pdrop: 0.1
+  init_config:
+    init_std: 0.02
 
 # Tokenizer
 tokenizer:
-  name: EleutherAI/gpt-neox-20b
+  name: /dataset/home/liaoxingyu/models/starcoderbase
   kwargs:
     model_max_length: ${max_seq_len}
 
@@ -29,21 +37,32 @@ tokenizer:
 train_loader:
   name: text
   dataset:
-    local: ${data_local}
-    remote: ${data_remote}
-    split: train
     shuffle: true
     max_seq_len: ${max_seq_len}
     shuffle_seed: ${global_seed}
+    # data mixture
+    streams:
+      python:
+        local: ${data_local}/my-copy-the-stack-python-v1
+        proportion: 0.2
+        split: train
+      java:
+        local: ${data_local}/my-copy-the-stack-java-v1
+        proportion: 0.25
+        split: train
+      javascript:
+        local: ${data_local}/my-copy-the-stack-javascript-v1
+        proportion: 0.55
+        split: train
   drop_last: true
   num_workers: 8
 
 eval_loader:
   name: text
   dataset:
-    local: ${data_local}
+    local: ${data_local}/my-copy-the-stack-java-v1
     remote: ${data_remote}
-    split: val
+    split: val_small
     shuffle: false
     max_seq_len: ${max_seq_len}
     shuffle_seed: ${global_seed}
@@ -53,32 +72,32 @@ eval_loader:
 # Optimization
 scheduler:
   name: cosine_with_warmup
-  t_warmup: 100ba
+  t_warmup: 6000ba # 2%
   alpha_f: 0.1
 
 optimizer:
   name: decoupled_adamw
-  lr: 6.0e-4
+  lr: 2.0e-4
   betas:
   - 0.9
   - 0.95
   eps: 1.0e-08
-  weight_decay: 0.0
+  weight_decay: 0.1
 
 algorithms:
   gradient_clipping:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 4800ba # ~ 2.5B tokens
-eval_interval: 500ba
-eval_first: false
+max_duration: 300000ba # ~ 118B tokens
+eval_interval: 30000ba
+eval_first: true
 eval_subset_num_batches: -1
-global_train_batch_size: 256
+global_train_batch_size: 192
 
 # System
 seed: ${global_seed}
-device_eval_batch_size: 16
+device_eval_batch_size: 32
 device_train_microbatch_size: 16
 # device_train_microbatch_size: auto
 precision: amp_bf16
@@ -94,9 +113,9 @@ fsdp_config:
   verbose: false
 
 # Logging
-progress_bar: false
-log_to_console: true
-console_log_interval: 1ba
+progress_bar: true
+log_to_console: false
+console_log_interval: 20ba
 
 callbacks:
   speed_monitor:
@@ -107,13 +126,12 @@ callbacks:
 
 loggers:
   wandb:
-    project: llm-foundry-test,
+    project: llm-foundry-test
 
 # Checkpoint to local filesystem or remote object store
-# save_interval: 500ba
-# save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
-# save_folder: ./{run_name}/checkpoints
-# save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
+save_interval: 3000ba
+save_num_checkpoints_to_keep: 100 # Important, this cleans up checkpoints saved to DISK
+save_folder: ./output/{run_name}/checkpoints
 
 # Load from local filesystem or remote object store
 # load_path: ./gpt-125m/checkpoints/latest-rank{rank}.pt

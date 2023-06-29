@@ -17,7 +17,7 @@ model:
 
 load_path: # Add your (optional) Composer checkpoint path here!
 
-device_eval_batch_size: 4
+device_eval_batch_size: 16
 
 # FSDP config for model sharding
 fsdp_config:

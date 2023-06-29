@@ -2,12 +2,17 @@
 
 The following tutorial walks through pretraining and finetuning a large language model using MosaicML's StreamingDataset format, Composer trainer, and MPT architecture. When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
 
-## Table of Contents
+#### Table of Contents
 1. [LLM Pretraining](#llmpretraining)
    1. [Installation](#installation)
    2. [Dataset Preparation](#datasetpreparation)
    3. [How to start single and multi-node pretraining](#howtostartpretraining)
 2. [LLM Finetuning](#llmfinetuning)
+   1. [Using a dataset on the HuggingFace Hub](#hfdataset)
+   2. [Using a local dataset](#localdataset)
+   3. [Using a StreamingDataset (MDS) formatted dataset locally or in an object store](#mdsdataset)
+3. [How many GPUs do I need to train a LLM?](#howmandygpus)
+4. [Optimizing Performance](#optimizingperformance)
 
 ## Installation <a name="installation"></a>
 
@@ -243,7 +248,8 @@ For this example, let's say we add this function to a file that we can import fr
 ## Usage
 
 Now we'll cover the different ways you can use the finetuning utilities. This will mostly focus on how to configure your YAML, assuming you have already prepared any custom preprocessing functions as described above.
-### **1) Using a dataset on the HuggingFace Hub**
+
+### **1) Using a dataset on the HuggingFace Hub** <a name="hfdataset"></a>
 
 Let's say you want to finetune using a dataset available on the HuggingFace Hub.
 If the dataset has a [pre-defined preprocessing function](#pre-defined-preprocessing-functions), e.g., `tatsu-lab/alpaca`, or if the dataset already has the "prompt"/"response" format, simply point the dataloader to that dataset.
@@ -267,7 +273,7 @@ train_loader:
         ...
 ```
 
-### **2) Using a local dataset**
+### **2) Using a local dataset** <a name="localdataset"></a>
 
 Let's say you have your finetuning dataset stored in local `jsonl` files.
 Reference this in your YAML, such as the one in `yamls/finetune/1b_local_data_sft.yaml`
@@ -284,7 +290,7 @@ train_loader:
 ```
 As before, if your local dataset already has the "prompt"/"response" format, you don't need to include `preprocessing_fn` since no preprocessing is needed.
 
-### **3) Using an MDS-formatted (streaming) dataset -- locally or in an object store**
+### **3) Using a StreamingDataset (MDS) formatted dataset locally or in an object store** <a name="mdsdataset"></a>
 
 To enable streaming, you must first use the `convert_finetuning_dataset.py` script to convert a HuggingFace dataset into an [MDS-formatted dataset](https://github.com/mosaicml/streaming) (which you totally should -- they're amazing).
 
@@ -319,7 +325,7 @@ train_loader:
 ```
 
 
-# How many GPUs do I need to train a LLM?
+# How many GPUs do I need to train a LLM? <a name="howmanygpus"></a>
 This is a complicated question in general, but if we assume that you are using FSDP with `FULL_SHARD`,
 activation checkpointing, and `DecoupledLionW`, then a good rule of thumb is:
 
@@ -336,7 +342,7 @@ if you use a larger cluster or devices with higher memory capacity, because this
 
 Check out our [scripts/train/benchmarking folder](./benchmarking/README.md) for detailed throughput measurements of specific model sizes on specific cluster configs!
 
-# Optimizing Performance
+# Optimizing Performance <a name="optimizingperformance"></a>
 The YAMLs in this repo are relatively well tuned for medium-to-large NVIDIA A100-40GB clusters.
 
 If you are running with a CUDA-compatible GPU and have installed the LLM requirements, we turn on by default a kernel fusion optimization for the Cross Entropy loss function at the end of the model.

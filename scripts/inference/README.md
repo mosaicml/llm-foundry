@@ -109,12 +109,46 @@ For MPT models specifically, you can pass args like `--attn_impl triton`, and `-
 
 ## Interactive Chat with HF models
 
-Chat models need to pass conversation history back to the model for multi-turn conversations. To make that easier, we include `hf_chat.py`. Chat models usually require an introductory/system prompt, as well as a wrapper around user and model messages, to fit the training format. Default values work with our ChatML-trained models, but you can specify these values with CLI args:
+Chat models need to pass conversation history back to the model for multi-turn conversations. To make that easier, we include `hf_chat.py`. Chat models usually require an introductory/system prompt, as well as a wrapper around user and model messages, to fit the training format. Default values work with our ChatML-trained models, but you can set other important values like generation kwargs:
 
 <!--pytest.mark.skip-->
 ```bash
-python hf_chat.py -n my_hf_model/ --system_prompt="You are a helpful assistant\n" --user_msg_fmt="user: {}\n" --assistant_msg_fmt="assistant: {}\n" --max_new_tokens=512
+# using an MPT/ChatML style model
+python hf_chat.py -n mosaicml/mpt-7b-chat-v2 \
+  --max_new_tokens=2048 \
+  --temperature 0.3 \
+  --top_k 0 \
+  --model_dtype bf16 \
+  --trust_remote_code
 ```
+
+<!--pytest.mark.skip-->
+```bash
+# using an MPT/ChatML style model on  > 1 GPU
+python hf_chat.py -n mosaicml/mpt-7b-chat-v2 \
+  --max_new_tokens=1024 \
+  --temperature 0.3 \
+  --top_k 0 \
+  --model_dtype bf16 \
+  --trust_remote_code \
+  --device_map auto
+```
+
+The script also works with other style models. Here is an example of using it with a Vicuna-style model:
+
+<!--pytest.mark.skip-->
+```bash
+python hf_chat.py -n eachadea/vicuna-7b-1.1 --system_prompt="A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions." --user_msg_fmt="USER: {}\n" --assistant_msg_fmt="ASSISTANT: {}\n" --max_new_tokens=512
+```
+
+The `system_prompt` is the message that gives the bot context for the conversation, and can be used to make the bot take on different personalities.
+
+In the REPL you see while using `hf_chat.py` you can enter text to interact with the model (hit return TWICE to send, this allows you to input text with single newlines), you can also enter the following commands:
+
+- `clear` — clear the conversation history, and start a new conversation (does not change system prompt)
+- `system` — change the system prompt
+- `history` — see the conversation history
+- `quit` — exit
 
 ## Converting an HF model to ONNX
 

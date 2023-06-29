@@ -28,12 +28,12 @@ LLM inference consists of two stages: _prefill_ and _decode_. It's important to 
 
 During _prefill_, the model processes the input tokens/prompt/context. This is done in a single forward pass, making this stage fast, with excellent use of GPU hardware (ie. high Model Flop Utilization aka [MFU](https://github.com/mosaicml/llm-foundry/tree/main/scripts/train/benchmarking#mfu)). Typically, if people talk about LLM inference being slow, this is _not_ the stage that they are referring to.
 
-During _decode_, the model generates output tokens one at a time, ie. autoregressively. This requires making N forward passes of the model for N tokens. This stage is slow and inefficient, because it requires moving gigabytes of model weights and pre-filled values for every single forward pass. Here, latency scales (mostly) linearly with the number of output tokens. Why mostly linear? When generating long sequences, the overhead from the attention operation becomes visible, which is quadratic.
+During _decode_, the model generates output tokens one at a time, i.e. autoregressively. This requires making N forward passes of the model for N tokens. This stage is slow and inefficient, because it requires moving gigabytes of model weights and pre-filled values for every single forward pass. Here, latency scales (mostly) linearly with the number of output tokens. Why mostly linear? When generating long sequences, the quadratic memory and compute complexity of the attention operation becomes more prominant.
 
 ##### KV cache
 
 One of the important elements of LLM inference is a Key-Value (KV) cache. As part of the prefill stage, the key and value tensors are computed and cached for each token in the prompt across the model layers. This is helpful because the initial prompt does not change during inference, which allows the model layers to simply re-use the cached values, rather than spending compute on re-computing the tokens for the context. \
-To set up the KV cache for benchmarking, set `use_cache: true` in the `.yaml` file.
+To enable KV cache for benchmarking, set `use_cache: true` in the `.yaml` file.
 
 
 ### Results

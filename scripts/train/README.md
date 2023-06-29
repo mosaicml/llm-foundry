@@ -1,5 +1,7 @@
 # LLM Pretraining
 
+The following tutorial walks through pretraining and finetuning a large language model using MosaicML's StreamingDataset format, Composer trainer, and MPT architecture. When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
+
 ## Installation
 
 If you haven't already, make sure to [install the requirements](../../README.md#Installation).

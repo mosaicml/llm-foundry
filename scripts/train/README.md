@@ -5,7 +5,7 @@
 If you haven't already, make sure to [install the requirements](../../README.md#Installation).
 
 ## Dataset preparation
-To run pretraining, you'll need to make yourself a copy of a pretraining dataset. Check out the `llm-foundry/data_prep` folder for detailed instructions.
+To run pretraining, you'll need to make yourself a copy of a pretraining dataset and format it for efficient streaming. Check out the `llm-foundry/data_prep` folder for detailed instructions on how to convert your dataset to the MosaicML [StreamingDataset](https://github.com/mosaicml/streaming) format.
 
 As a quickstart, here is how to prepare the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
 We first convert the dataset from its native format (a collection of zipped JSONs)

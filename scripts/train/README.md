@@ -21,7 +21,7 @@ You can also accomplish this in your CLI command like so:
 ```bash
 composer train.py ... train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
 ```
-Alternatively, feel free to substitute our dataloader with one of your own in `train.py`.
+where the `composer` command used above to train the model refers to [Composer library's](https://github.com/mosaicml/composer) distributed launcher. Alternatively, feel free to substitute our dataloader with one of your own in `train.py`.
 
 ### Converting C4 to streaming dataset `.mds` format
 To make yourself a copy of C4, use `convert_dataset_hf.py` like so:

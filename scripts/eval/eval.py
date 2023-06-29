@@ -12,6 +12,7 @@ from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
+from llmfoundry.callbacks import PrintICLExample
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
@@ -45,6 +46,13 @@ def main(cfg):
 
     load_path = cfg.get('load_path', None)
 
+    callbacks = []
+
+    print_icl_eval_example = cfg.get('print_icl_example', False)
+
+    if print_icl_eval_example:
+        callbacks.append(PrintICLExample())
+
     trainer = Trainer(
         model=composer_model,
         loggers=loggers,
@@ -55,7 +63,7 @@ def main(cfg):
         progress_bar=False,
         log_to_console=True,
         dist_timeout=cfg.dist_timeout,
-    )
+        callbacks=callbacks)
 
     if torch.cuda.is_available():
         torch.cuda.synchronize()

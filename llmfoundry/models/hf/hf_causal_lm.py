@@ -25,9 +25,9 @@ from llmfoundry.models.utils import init_empty_weights
 
 try:
     from peft.peft_model import PeftModel
-    model_types = (PeftModel, transformers.PreTrainedModel)
+    model_types = PeftModel, transformers.PreTrainedModel
 except ImportError:
-    model_types = (transformers.PreTrainedModel)
+    model_types = transformers.PreTrainedModel
 
 __all__ = ['ComposerHFCausalLM']
 
@@ -54,8 +54,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(self,
-                 om_model_config: Union[DictConfig, model_types],
+    def __init__(self, om_model_config: Union[DictConfig, model_types],
                  tokenizer: Tokenizer):
 
         # set up training and eval metrics
@@ -169,7 +168,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             init_device = 'cpu'
             z_loss = 0.0
 
-        # else, unsoported type
+        # else, unsupported type
         else:
             raise ValueError(
                 f'om_model_config must be either a DictConfig, PeftModel, or PreTrainedModel, but got {type(om_model_config)}'

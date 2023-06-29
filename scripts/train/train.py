@@ -6,6 +6,7 @@ import os
 import sys
 import warnings
 
+import streaming
 from composer import Trainer
 from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
@@ -68,6 +69,7 @@ def build_composer_model(model_cfg, tokenizer):
 
 def build_dataloader(cfg, tokenizer, device_batch_size):
     if cfg.name == 'text':
+        streaming.base.util.clean_stale_shared_memory()
         return build_text_dataloader(
             cfg,
             tokenizer,

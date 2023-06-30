@@ -16,6 +16,8 @@ This README walks through pretraining and finetuning a large language model usin
 
 # LLM Pretraining <a name="llmpretraining"></a>
 
+Example model setup and training configurations are in [`./yamls/pretraining`](./yamls/pretraining). We include configurations for MPT models of various sizes.
+
 ## Installation <a name="installation"></a>
 
 If you haven't already, make sure to [install the requirements](../../README.md#Installation).
@@ -98,7 +100,7 @@ composer train.py yamls/pretrain/mpt-125m.yaml train_loader.dataset.split=train_
 
 To train with high performance on multi-node clusters, the easiest way is with the [MosaicML platform](https://www.mosaicml.com/training) ;) Check out the `mcli/` folder for examples!
 
-But if you really must try this manually on your own cluster, then just provide a few variables to `composer`
+If you want to implement this manually on your own cluster, then just provide a few variables to `composer`
 either directly via CLI, or via environment variables that can be read. Then launch the appropriate command on each node:
 
 ### Multi-Node via CLI args
@@ -167,25 +169,31 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/projects/co
 
 # LLM Finetuning <a name="llmfinetuning"></a>
 
-This repo also contains utilities for Seq2Seq finetuning for LLMs, for example, Supervised Finetuning (SFT) (aka Instruction(Fine)Tuning (IFT)), or finetuning a base LLM to focus on a specific task like summarization.
+If you are unfamiliar with the LLM-Foundry in general, we recommend first going through the instructions for [LLM Pretraining](#llmpretraining) above before skipping to LLM Finetuning. This repository was designed to optimize pretraining, finetuning, and inference, and as such the structure and setup will make most sense when understood as a whole.
 
-You can use the same `train.py` script to do finetuning.
-If you are unfamiliar with that script, or the LLM-Foundry in general, you should first go through the instructions above.
+There are 3 different types of data sources you can use for finetuning:
+(1) [the HuggingFace Hub](#1-using-a-dataset-on-the-huggingface-hub)
+(2) [a local dataset](#2-using-a-local-dataset)
+(3) [a local or remote dataset in the StreamingDataset `.mds` format](#3-using-an-mds-formatted-streaming-dataset----locally-or-in-an-object-store).
+We'll cover these in broad detail below.
 
-## If you want to finetune MPT-7B
+> **NOTE**
+> For a minimal concrete example of finetuninga GPT2 on a locally-stored ARC-Easy dataset, see [`./finetune_example`](./finetune_example)
+> 
+> For a minimal example. of finetuning MPT-7B, we recommend starting with `yamls/finetune/mpt-7b_dolly_sft.yaml`
 
-You should probably start with `yamls/finetune/mpt-7b_dolly_sft.yaml`
+Example model finetuning YAML configurations can be found in [`./yamls/finetune`](./yamls/finetune). We include configurations for MPT models of various sizes, as well as T5 and Dolly.
+As in the above section for pretraining, we use the same [`train.py`](train.py) script to do finetuning.
+
+
+Before actually finetuning any models, we describe an important consideration: data formatting!
 
 ## Data formatting
 
 You activate finetuning via the `train_loader` and `eval_loader` fields in your configuration YAML.
 We include some reference examples inside `yamls/finetune/`.
 
-There are 3 different types of data sources you can use for finetuning:
-(1) [the HuggingFace Hub](#1-using-a-dataset-on-the-huggingface-hub),
-(2) [a local dataset](#2-using-a-local-dataset), and
-(3) [a local or remote streaming dataset](#3-using-an-mds-formatted-streaming-dataset----locally-or-in-an-object-store).
-We'll cover these more below, but first will describe an important consideration for all 3: data formatting!
+
 
 The finetuning dataloader requires training examples to be formatted as dictionaries with the following key-value structure:
 <!--pytest.mark.skip-->

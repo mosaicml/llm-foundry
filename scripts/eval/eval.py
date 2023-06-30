@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import time
+import traceback
 from typing import List
 
 import pandas as pd
@@ -166,8 +167,10 @@ def main(cfg):
             print(models_df.to_markdown(index=False))
         except Exception as e:
             print(
-                f'Got exception: {str(e)} while evaluating {model_cfg}. Continuing to next model.',
+                f'Got exception: {str(e)} while evaluating {model_cfg}. Traceback:',
                 flush=True)
+            traceback.print_exc()  # print the exception to stdout
+            print('\nContinuing to next model.\n', flush=True)
 
 
 def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy,

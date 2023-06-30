@@ -1,6 +1,6 @@
-# LLM Pretraining <a name="llmpretraining"></a>
+# LLM Pretraining and Finetuning
 
-This README walks through pretraining and finetuning a large language model using MosaicML's StreamingDataset format, Composer trainer, and MPT architecture. When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
+This README walks through pretraining and finetuning a large language model using MosaicML's [StreamingDataset](https://github.com/mosaicml/streaming) format, [Composer]() trainer, and [MPT architecture](). When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
 
 #### Table of Contents
 1. [LLM Pretraining](#llmpretraining)
@@ -14,12 +14,14 @@ This README walks through pretraining and finetuning a large language model usin
 3. [How many GPUs do I need to train a LLM?](#howmandygpus)
 4. [Optimizing Performance](#optimizingperformance)
 
+# LLM Pretraining <a name="llmpretraining"></a>
+
 ## Installation <a name="installation"></a>
 
 If you haven't already, make sure to [install the requirements](../../README.md#Installation).
 
 ## Dataset preparation <a name="datasetpreparation"></a>
-To run pretraining, you'll need to make yourself a copy of a pretraining dataset and format it for efficient streaming. Check out the `llm-foundry/data_prep` folder for detailed instructions on how to convert your dataset to the MosaicML [StreamingDataset](https://github.com/mosaicml/streaming) format.
+To run pretraining, you'll need to make yourself a copy of a pretraining dataset and format it for efficient streaming. Check out the [`llm-foundry/data_prep`](../data_prep) folder for detailed instructions on how to convert your dataset to the MosaicML [StreamingDataset](https://github.com/mosaicml/streaming) format.
 
 As a quickstart, here is how to prepare the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
 We first convert the dataset from its native format (a collection of zipped JSONs)

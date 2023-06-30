@@ -24,24 +24,13 @@ If you haven't already, make sure to [install the requirements](../../README.md#
 
 To run pretraining, you'll need to make yourself a copy of a pretraining dataset and format it for efficient streaming. Check out the [`llm-foundry/data_prep`](../data_prep) folder for detailed instructions on how to convert your dataset to the MosaicML [StreamingDataset](https://github.com/mosaicml/streaming) format.
 
-As a quickstart, here is how to prepare the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
+As a quickstart, we elaborate on how to prepare the [C4 (Colossal, Cleaned, Common Crawl)](https://huggingface.co/datasets/c4) dataset here.
 
 We first convert the dataset from its native format (a collection of zipped JSONs)
 to MosaicML's StreamingDataset format, which is a collection of binary `.mds` files.
 Once in `.mds` format, we can store the dataset in a central location (filesystem, S3, GCS, etc.)
 and stream the data to any compute cluster, with any number of devices, and any number of CPU workers, and it all ~ just works ~ .
 You can read more about the benefits of using mosaicml-streaming [here](https://streaming.docs.mosaicml.com/en/stable/).
-
-NOTE: If you only want to profile these LLMs, we recommend that you **download and prepare the `train_small` and `val_small` splits**,
-and skip the full `train` and `val` splits. You'll just need to replace `split: train` with `split: train_small`
-and `split: val` with `split: val_small` in your run YAML's dataloader config.
-You can also accomplish this in your CLI command like so: 
-
-<!--pytest.mark.skip-->
-```bash
-composer train.py ... train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
-```
-where the `composer` command used above to train the model refers to [Composer](https://github.com/mosaicml/composer) library's distributed launcher. Alternatively, feel free to substitute our dataloader with one of your own in `train.py`.
 
 ### Converting C4 to StreamingDataset `.mds` format
 
@@ -61,12 +50,14 @@ Alternatively, you can download the full `train` and `val` splits if you really 
 python ../data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 ```
 
-For any of the above commands, you can also choose to compress the .mds files.
+For any of the above commands, you can also choose to compress the `.mds` files.
 This is useful if your plan is to store these in object store after conversion.
 <!--pytest.mark.skip-->
 ```bash
 python ../data_prep/convert_dataset_hf.py ... --compression zstd
 ```
+
+Alternatively, feel free to substitute our dataloader with one of your own in [`train.py`](.train.py).
 
 ### Test the Dataloader
 

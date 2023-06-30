@@ -191,7 +191,7 @@ python inference/convert_composer_to_hf.py \
 # Evaluate the model on a subset of tasks
 python eval/eval.py \
   eval/yamls/hf_eval.yaml \
-  icl_tasks=eval/yamls/tasks_light.yaml \
+  icl_tasks=eval/yamls/copa.yaml \
   model_name_or_path=mpt-125m-hf
 
 # Generate responses to prompts
@@ -206,9 +206,11 @@ python inference/hf_generate.py \
 Note: the `composer` command used above to train the model refers to [Composer](https://github.com/mosaicml/composer) library's distributed launcher.
 
 If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
+
 ```bash
 export HUGGING_FACE_HUB_TOKEN=your-auth-token
 ```
+
 and uncomment the line containing `--hf_repo_for_upload ...` in the above call to `inference/convert_composer_to_hf.py`.
 
 # Learn more about LLM Foundry!
@@ -216,6 +218,7 @@ and uncomment the line containing `--hf_repo_for_upload ...` in the above call t
 Check out [TUTORIAL.md](https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md) to keep learning about working with LLM Foundry. The tutorial highlights example workflows, points you to other resources throughout the repo, and answers frequently asked questions!
 
 # Contact Us
+
 If you run into any problems with the code, please file Github issues directly to this repo.
 
 If you want to train LLMs on the MosaicML platform, reach out to us at [demo@mosaicml.com](mailto:demo@mosaicml.com)!

@@ -1,5 +1,6 @@
-# Data
+# Data (created in readme examples)
 my-copy-c4*/
+my-copy-arxiv*/
 *.jsonl*
 
 # WandB
@@ -122,6 +123,7 @@ venv.bak/
 
 # python venv installed in the dir, llmfoundry-venv
 *-venv
+*-env
 
 # Spyder project settings
 .spyderproject

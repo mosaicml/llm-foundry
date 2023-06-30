@@ -185,7 +185,7 @@ Finetuning is enabled via the `train_loader` and `eval_loader` fields in your co
 
 As in the above section for pretraining, we use the same [`train.py`](train.py) script to do finetuning.
 
-* For a minimal concrete example of finetuning a GPT2 model on a locally-stored ARC-Easy dataset, see [`./finetune_example`](./finetune_example)_
+* For a minimal concrete example of finetuning a GPT2 model on a locally-stored ARC-Easy dataset, see [`./finetune_example`](./finetune_example)
  
 * For a minimal example of finetuning MPT-7B, we recommend starting with [`yamls/finetune/mpt-7b_dolly_sft.yaml`](./yamls/finetune/mpt-7b_dolly_sft.yaml)
 

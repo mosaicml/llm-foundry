@@ -173,7 +173,7 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 ```
 **Lastly**, install the ROCm enabled flash attention (instructions [here](https://github.com/ROCmSoftwarePlatform/flash-attention/tree/flash_attention_for_rocm2#amd-gpurocm-support)).
 
-Notes: 
+Notes:
 1. `attn_impl: triton` does not work.
 1. We don't yet have a docker img where everything works perfectly. You might need to up/down grade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
 

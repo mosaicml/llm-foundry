@@ -1,6 +1,6 @@
 # LLM Pretraining <a name="llmpretraining"></a>
 
-The following tutorial walks through pretraining and finetuning a large language model using MosaicML's StreamingDataset format, Composer trainer, and MPT architecture. When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
+This README walks through pretraining and finetuning a large language model using MosaicML's StreamingDataset format, Composer trainer, and MPT architecture. When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
 
 #### Table of Contents
 1. [LLM Pretraining](#llmpretraining)
@@ -244,7 +244,7 @@ def dogefacts_prep_fn(inp: Dict):
 For this example, let's say we add this function to a file that we can import from. For example, with
 `from my_data.formatting import dogefacts_prep_fn`
 
-**Still have questions about custom data preprocessing?** In the `./finetune_example/` directory, we demonstrate a more concrete example of training on a local dataset with custom preprocessing. Check out those resources for added information!
+**Still have questions about custom data preprocessing?** In the [`./finetune_example/`](./finetune_example) directory, we demonstrate a more concrete example of training on a local dataset with custom preprocessing. Check out those resources for added information!
 
 ## Usage
 

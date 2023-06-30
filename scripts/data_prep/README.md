@@ -8,7 +8,7 @@ They following scripts will run on CPUs (no GPUs needed). Execute them in an env
 ### HuggingFace data
 In this example, we use the `convert_dataset_hf.py` script to convert a HuggingFace `c4` dataset into a `StreamingDataset`, using the `EleutherAI/gpt-neox-20b` tokenizer. The resulting directory is saved at `./llm-foundry/scripts/data_prep/my-copy-c4`.
 
-Currently supporting `c4` and `The Pile`.
+Currently supports `c4` and `The Pile`.
 
 <!--pytest.mark.skip-->
 ```bash

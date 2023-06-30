@@ -1,6 +1,6 @@
 # LLM Pretraining and Finetuning
 
-This README walks through pretraining and finetuning a large language model using MosaicML's [StreamingDataset](https://github.com/mosaicml/streaming) format, [Composer]() trainer, and [MPT architecture](). When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
+This README walks through pretraining and finetuning a large language model using MosaicML's [StreamingDataset](https://github.com/mosaicml/streaming) format, [Composer](https://github.com/mosaicml/composer) trainer, and [MPT architecture](https://www.mosaicml.com/blog/mpt-7b). When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
 
 #### Table of Contents
 1. [LLM Pretraining](#llmpretraining)
@@ -21,11 +21,13 @@ This README walks through pretraining and finetuning a large language model usin
 If you haven't already, make sure to [install the requirements](../../README.md#Installation).
 
 ## Dataset preparation <a name="datasetpreparation"></a>
+
 To run pretraining, you'll need to make yourself a copy of a pretraining dataset and format it for efficient streaming. Check out the [`llm-foundry/data_prep`](../data_prep) folder for detailed instructions on how to convert your dataset to the MosaicML [StreamingDataset](https://github.com/mosaicml/streaming) format.
 
 As a quickstart, here is how to prepare the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
+
 We first convert the dataset from its native format (a collection of zipped JSONs)
-to MosaicML's streaming dataset format (a collection of binary `.mds` files).
+to MosaicML's StreamingDataset format, which is a collection of binary `.mds` files.
 Once in `.mds` format, we can store the dataset in a central location (filesystem, S3, GCS, etc.)
 and stream the data to any compute cluster, with any number of devices, and any number of CPU workers, and it all ~ just works ~ .
 You can read more about the benefits of using mosaicml-streaming [here](https://streaming.docs.mosaicml.com/en/stable/).
@@ -34,30 +36,36 @@ NOTE: If you only want to profile these LLMs, we recommend that you **download a
 and skip the full `train` and `val` splits. You'll just need to replace `split: train` with `split: train_small`
 and `split: val` with `split: val_small` in your run YAML's dataloader config.
 You can also accomplish this in your CLI command like so: 
+
 <!--pytest.mark.skip-->
 ```bash
 composer train.py ... train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
 ```
-where the `composer` command used above to train the model refers to [Composer library's](https://github.com/mosaicml/composer) distributed launcher. Alternatively, feel free to substitute our dataloader with one of your own in `train.py`.
+where the `composer` command used above to train the model refers to [Composer](https://github.com/mosaicml/composer) library's distributed launcher. Alternatively, feel free to substitute our dataloader with one of your own in `train.py`.
 
-### Converting C4 to streaming dataset `.mds` format
+### Converting C4 to StreamingDataset `.mds` format
+
 To make yourself a copy of C4, use `convert_dataset_hf.py` like so:
+
+Download the `train_small` and `val_small` splits and convert to StreamingDataset format. 
+This will take 20-60 seconds depending on your internet bandwidth.
+You should see two folders once completed: `./my-copy-c4/train_small` and `./my-copy-c4/val_small` that are ~1.0GB total. Note that we are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
 <!--pytest.mark.skip-->
 ```bash
-# Download the 'train_small' and 'val_small' splits and convert to StreamingDataset format
-# This will take 20-60 seconds depending on your Internet bandwidth
-# You should see two folders: `./my-copy-c4/train_small` and `./my-copy-c4/val_small` that are ~1.0GB total
-# Note: We are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
 python ../data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
+```
 
-# Download the 'train' and 'val' splits if you really want to train the model (not just profile)
-# This will take 1-to-many hours depending on bandwidth, # CPUs, etc.
-# The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
-# python ../data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
+Alternatively, you can download the full `train` and `val` splits if you really want to train the model (i.e. not just profile the model). This will take 1-to-many hours depending on bandwidth, number of CPUs, etc. The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
+<!--pytest.mark.skip-->
+```bash
+python ../data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
+```
 
-# For any of the above commands, you can also choose to compress the .mds files.
-# This is useful if your plan is to store these in object store after conversion.
-# python ../data_prep/convert_dataset_hf.py ... --compression zstd
+For any of the above commands, you can also choose to compress the .mds files.
+This is useful if your plan is to store these in object store after conversion.
+<!--pytest.mark.skip-->
+```bash
+python ../data_prep/convert_dataset_hf.py ... --compression zstd
 ```
 
 ### Test the Dataloader

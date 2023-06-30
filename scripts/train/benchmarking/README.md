@@ -67,7 +67,7 @@ This will run 8 configs for 12 steps to get throughput numbers. `python collect_
 
 Our microbatching engine enables microbatch sizes that do not divde Global Batchsize while being mathematically faithful to the global batch size. For example, a total batch size of 48, and a micro batch of 11, means we will accumulate gradients across microbatches of 11, 11, 11, 11, 4.
 
-#### TODO: Update tables with torch 2.0 after next Composer release
+[comment]: # (TODO: Update tables with torch 2.0 after next Composer release)
 
 ## A100 80GB
 

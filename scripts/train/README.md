@@ -57,7 +57,7 @@ This is useful if your plan is to store these in object store after conversion.
 python ../data_prep/convert_dataset_hf.py ... --compression zstd
 ```
 
-Alternatively, feel free to substitute our dataloader with one of your own in [`train.py`](.train.py).
+Alternatively, feel free to substitute our dataloader with one of your own in [`train.py`](train.py).
 
 ### Test the Dataloader
 

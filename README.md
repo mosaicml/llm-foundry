@@ -165,11 +165,13 @@ cd llm-foundry
 # Creating and activate a virtual environment
 python3 -m venv llmfoundry-venv-amd
 source llmfoundry-venv-amd/bin/activate
+
+# installs
 pip install cmake packaging torch
 pip install -e .  # this intalls some things which are not needed but they dont hurt.
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.4.2
 ```
-Lastly, install the ROCm enabled flash attention (instructions [here](https://github.com/ROCmSoftwarePlatform/flash-attention/tree/flash_attention_for_rocm2#amd-gpurocm-support)).
+**Lastly**, install the ROCm enabled flash attention (instructions [here](https://github.com/ROCmSoftwarePlatform/flash-attention/tree/flash_attention_for_rocm2#amd-gpurocm-support)).
 
 Notes: 
 1. `attn_impl: triton` does not work.

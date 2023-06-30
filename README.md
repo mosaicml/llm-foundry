@@ -167,7 +167,7 @@ source llmfoundry-venv-amd/bin/activate
 
 # installs
 pip install cmake packaging torch
-pip install -e .  # this intalls some things which are not needed but they dont hurt.
+pip install -e .  # this installs some things which are not needed but they dont hurt
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.4.2
 ```
 **Lastly**, install the ROCm enabled flash attention (instructions [here](https://github.com/ROCmSoftwarePlatform/flash-attention/tree/flash_attention_for_rocm2#amd-gpurocm-support)).

@@ -106,7 +106,7 @@ The `mosaicml/pytorch` images are pinned to specific PyTorch and CUDA versions, 
 The `mosaicml/llm-foundry` images are built with new tags upon every commit to the `main` branch.
 You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117-f678575` or take the latest one using `mosaicml/llm-foundry:1.13.1_cu117-latest`.
 
-**Please Note:** The `mosaicml/llm-foundry` images does not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
+**Please Note:** The `mosaicml/llm-foundry` images do not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
 
 | Docker Image                                                | Torch Version  | Cuda Version | LLM Foundry dependencies installed? |
 |-------------------------------------------------------------|----------------|--------------|-------------------------------------|
@@ -144,6 +144,8 @@ cd llm-foundry
 # Creating and activate a virtual environment
 python3 -m venv llmfoundry-venv
 source llmfoundry-venv/bin/activate
+
+pip install cmake packaging torch  # setup.py requires these be installed
 
 pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 ```
@@ -186,10 +188,10 @@ python inference/convert_composer_to_hf.py \
   --output_precision bf16 \
   # --hf_repo_for_upload user-org/repo-name
 
-# Evaluate the model on Winograd
+# Evaluate the model on a subset of tasks
 python eval/eval.py \
   eval/yamls/hf_eval.yaml \
-  icl_tasks=eval/yamls/winograd.yaml \
+  icl_tasks=eval/yamls/copa.yaml \
   model_name_or_path=mpt-125m-hf
 
 # Generate responses to prompts
@@ -204,9 +206,11 @@ python inference/hf_generate.py \
 Note: the `composer` command used above to train the model refers to [Composer](https://github.com/mosaicml/composer) library's distributed launcher.
 
 If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
+
 ```bash
 export HUGGING_FACE_HUB_TOKEN=your-auth-token
 ```
+
 and uncomment the line containing `--hf_repo_for_upload ...` in the above call to `inference/convert_composer_to_hf.py`.
 
 # Learn more about LLM Foundry!
@@ -214,6 +218,7 @@ and uncomment the line containing `--hf_repo_for_upload ...` in the above call t
 Check out [TUTORIAL.md](https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md) to keep learning about working with LLM Foundry. The tutorial highlights example workflows, points you to other resources throughout the repo, and answers frequently asked questions!
 
 # Contact Us
+
 If you run into any problems with the code, please file Github issues directly to this repo.
 
 If you want to train LLMs on the MosaicML platform, reach out to us at [demo@mosaicml.com](mailto:demo@mosaicml.com)!

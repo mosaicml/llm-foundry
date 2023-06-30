@@ -1,6 +1,6 @@
 # Data preparation
 
-This folder contains scripts for converting text data from original sources (HuggingFace, JSON) to [StreamingDataset](https://github.com/mosaicml/streaming) format for consumption by our training scripts.
+This folder contains scripts for converting text data from original sources (HF, JSON) to the Mosaic [StreamingDataset](https://github.com/mosaicml/streaming) format for consumption by our training scripts. StreamingDataset is designed to make training on large datasets from cloud storage as fast, cheap, and scalable as possible. In particular, it is custom built for multi-node, distributed training for large models while maximizing correctness guarantees, performance, and ease of use.
 
 They following scripts will run on CPUs (no GPUs needed.) Execute them from CLI where the `python` command is recognized and `llm-foundry` dependencies installed. All scripts should run from the ./llm-foundry/scripts/data_prep` directory.
 

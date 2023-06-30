@@ -1,44 +1,65 @@
-# LLM Pretraining
+# LLM Pretraining and Finetuning
 
-## Installation
+This README walks through pretraining and finetuning a large language model using MosaicML's [StreamingDataset](https://github.com/mosaicml/streaming) format, [Composer](https://github.com/mosaicml/composer) trainer, and [MPT architecture](https://www.mosaicml.com/blog/mpt-7b). When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training.
+
+#### Table of Contents
+1. [Part 1: LLM Pretraining](#llmpretraining)
+   1. [Installation](#installation)
+   2. [Dataset Preparation](#datasetpreparation)
+   3. [How to start single and multi-node pretraining](#howtostartpretraining)
+2. [Part 2: LLM Finetuning](#llmfinetuning)
+   1. [Using a dataset on the HuggingFace Hub](#hfdataset)
+   2. [Using a local dataset](#localdataset)
+   3. [Using a StreamingDataset (MDS) formatted dataset locally or in an object store](#mdsdataset)
+3. [FAQ: How many GPUs do I need to train a LLM?](#howmandygpus)
+4. [FAQ: Optimizing Performance](#optimizingperformance)
+
+# Part 1: LLM Pretraining <a name="llmpretraining"></a>
+
+Example model setup and training configurations are in [`./yamls/pretraining`](./yamls/pretraining). We include configurations for MPT models of various sizes.
+
+## Installation <a name="installation"></a>
 
 If you haven't already, make sure to [install the requirements](../../README.md#Installation).
 
-## Dataset preparation
-To run pretraining, you'll need to make yourself a copy of a pretraining dataset. Check out the `llm-foundry/data_prep` folder for detailed instructions.
+## Dataset preparation <a name="datasetpreparation"></a>
 
-As a quickstart, here is how to prepare the [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4).
+To run pretraining, you'll need to make yourself a copy of a pretraining dataset and format it for efficient streaming. Check out the [`llm-foundry/data_prep`](../data_prep) folder for detailed instructions on how to convert your dataset to the MosaicML [StreamingDataset](https://github.com/mosaicml/streaming) format.
+
+As a quickstart, we elaborate on how to prepare the [C4 (Colossal, Cleaned, Common Crawl)](https://huggingface.co/datasets/c4) dataset here.
+
 We first convert the dataset from its native format (a collection of zipped JSONs)
-to MosaicML's streaming dataset format (a collection of binary `.mds` files).
+to MosaicML's StreamingDataset format, which is a collection of binary `.mds` files.
 Once in `.mds` format, we can store the dataset in a central location (filesystem, S3, GCS, etc.)
 and stream the data to any compute cluster, with any number of devices, and any number of CPU workers, and it all ~ just works ~ .
 You can read more about the benefits of using mosaicml-streaming [here](https://streaming.docs.mosaicml.com/en/stable/).
 
-NOTE: If you only want to profile these LLMs, we recommend that you **download and prepare the `train_small` and `val_small` splits**,
-and skip the full `train` and `val` splits. You'll just need to replace `split: train` with `split: train_small`
-and `split: val` with `split: val_small` in your run YAML's dataloader config.
-You can also accomplish this in your CLI command like so: `composer train.py ... train_loader.dataset.split=train_small eval_loader.dataset.split=val_small`
-Alternatively, feel free to substitute our dataloader with one of your own in `train.py`.
+### Converting C4 to StreamingDataset `.mds` format
 
-### Converting C4 to streaming dataset `.mds` format
 To make yourself a copy of C4, use `convert_dataset_hf.py` like so:
+
+Download the `train_small` and `val_small` splits and convert to StreamingDataset format.
+This will take 20-60 seconds depending on your internet bandwidth.
+You should see two folders once completed: `./my-copy-c4/train_small` and `./my-copy-c4/val_small` that are ~1.0GB total. Note that we are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
 <!--pytest.mark.skip-->
 ```bash
-# Download the 'train_small' and 'val_small' splits and convert to StreamingDataset format
-# This will take 20-60 seconds depending on your Internet bandwidth
-# You should see two folders: `./my-copy-c4/train_small` and `./my-copy-c4/val_small` that are ~1.0GB total
-# Note: We are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
 python ../data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
-
-# Download the 'train' and 'val' splits if you really want to train the model (not just profile)
-# This will take 1-to-many hours depending on bandwidth, # CPUs, etc.
-# The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
-# python ../data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
-
-# For any of the above commands, you can also choose to compress the .mds files.
-# This is useful if your plan is to store these in object store after conversion.
-# python ../data_prep/convert_dataset_hf.py ... --compression zstd
 ```
+
+Alternatively, you can download the full `train` and `val` splits if you really want to train the model (i.e. not just profile the model). This will take 1-to-many hours depending on bandwidth, number of CPUs, etc. The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
+<!--pytest.mark.skip-->
+```bash
+python ../data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
+```
+
+For any of the above commands, you can also choose to compress the `.mds` files.
+This is useful if your plan is to store these in object store after conversion.
+<!--pytest.mark.skip-->
+```bash
+python ../data_prep/convert_dataset_hf.py ... --compression zstd
+```
+
+Alternatively, feel free to substitute our dataloader with one of your own in [`train.py`](train.py).
 
 ### Test the Dataloader
 
@@ -56,7 +77,7 @@ python ../../llmfoundry/data/text_data.py --local_path /tmp/cache-c4 --remote_pa
 # python ../data_prep/text_data.py --local_path /tmp/cache-c4 --remote_path s3://my-bucket/my-copy-c4  # stream from object store
 ```
 
-## How to start training
+## How to start single and multi-node pretraining <a name="howtostartpretraining"></a>
 
 Now that you've installed dependencies and built a local copy of the C4 dataset, let's start training!
 
@@ -77,9 +98,9 @@ If training on a single node, the `composer` launcher will autodetect the number
 composer train.py yamls/pretrain/mpt-125m.yaml train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
 ```
 
-To train with high performance on multi-node clusters, the easiest way is with the MosaicML platform ;) Check out the `mcli/` folder for examples!
+To train with high performance on multi-node clusters, the easiest way is with the [MosaicML platform](https://www.mosaicml.com/training) ;) Check out the `mcli/` folder for examples!
 
-But if you really must try this manually on your own cluster, then just provide a few variables to `composer`
+If you want to implement this manually on your own cluster, then just provide a few variables to `composer`
 either directly via CLI, or via environment variables that can be read. Then launch the appropriate command on each node:
 
 ### Multi-Node via CLI args
@@ -146,27 +167,31 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/projects/co
 ```
 
 
-# LLM Finetuning
+# Part 2: LLM Finetuning <a name="llmfinetuning"></a>
 
-This repo also contains utilities for Seq2Seq finetuning for LLMs, for example, Supervised Finetuning (SFT) (aka Instruction(Fine)Tuning (IFT)), or finetuning a base LLM to focus on a specific task like summarization.
-
-You can use the same `train.py` script to do finetuning.
-If you are unfamiliar with that script, or the LLM-Foundry in general, you should first go through the instructions above.
-
-## If you want to finetune MPT-7B
-
-You should probably start with ``yamls/finetune/mpt-7b_dolly_sft.yaml`
-
-## Data formatting
-
-You activate finetuning via the `train_loader` and `eval_loader` fields in your configuration YAML.
-We include some reference examples inside `yamls/finetune/`.
+If you are unfamiliar with the LLM-Foundry in general, we recommend first going through the instructions for [LLM Pretraining](#llmpretraining) above before skipping to LLM Finetuning. This repository was designed to optimize pretraining, finetuning, and inference, and as such the structure and setup will make most sense when understood as a whole.
 
 There are 3 different types of data sources you can use for finetuning:
-(1) [the HuggingFace Hub](#1-using-a-dataset-on-the-huggingface-hub),
-(2) [a local dataset](#2-using-a-local-dataset), and
-(3) [a local or remote streaming dataset](#3-using-an-mds-formatted-streaming-dataset----locally-or-in-an-object-store).
-We'll cover these more below, but first will describe an important consideration for all 3: data formatting!
+
+1. [A dataset from the HuggingFace Hub](#hfdataset)
+2. [A dataset stored on your local device](#localdataset)
+3. [A local or remote dataset in the StreamingDataset `.mds` format](#mdsdataset)
+
+We'll cover these in broad detail below.
+
+
+Example model finetuning YAML configurations can be found in [`./yamls/finetune`](./yamls/finetune). We include configurations for MPT models of various sizes, as well as T5 and Dolly.
+Finetuning is enabled via the `train_loader` and `eval_loader` fields in your configuration YAML.
+
+As in the above section for pretraining, we use the same [`train.py`](train.py) script to do finetuning.
+
+* For a minimal concrete example of finetuning a GPT2 model on a locally-stored ARC-Easy dataset, see [`./finetune_example`](./finetune_example)
+
+* For a minimal example of finetuning MPT-7B, we recommend starting with [`yamls/finetune/mpt-7b_dolly_sft.yaml`](./yamls/finetune/mpt-7b_dolly_sft.yaml)
+
+Before actually finetuning any models, we describe an important consideration: data formatting!
+
+## Data formatting
 
 The finetuning dataloader requires training examples to be formatted as dictionaries with the following key-value structure:
 <!--pytest.mark.skip-->
@@ -226,12 +251,13 @@ def dogefacts_prep_fn(inp: Dict):
 For this example, let's say we add this function to a file that we can import from. For example, with
 `from my_data.formatting import dogefacts_prep_fn`
 
-**Still have questions about custom data preprocessing?** In the `./finetune_example/` directory, we demonstrate a more concrete example of training on a local dataset with custom preprocessing. Check out those resources for added information!
+**Still have questions about custom data preprocessing?** In the [`./finetune_example/`](./finetune_example) directory, we demonstrate a more concrete example of training on a local dataset with custom preprocessing. Check out those resources for added information!
 
 ## Usage
 
 Now we'll cover the different ways you can use the finetuning utilities. This will mostly focus on how to configure your YAML, assuming you have already prepared any custom preprocessing functions as described above.
-### **1) Using a dataset on the HuggingFace Hub**
+
+### **1) Using a dataset on the HuggingFace Hub** <a name="hfdataset"></a>
 
 Let's say you want to finetune using a dataset available on the HuggingFace Hub.
 If the dataset has a [pre-defined preprocessing function](#pre-defined-preprocessing-functions), e.g., `tatsu-lab/alpaca`, or if the dataset already has the "prompt"/"response" format, simply point the dataloader to that dataset.
@@ -255,7 +281,7 @@ train_loader:
         ...
 ```
 
-### **2) Using a local dataset**
+### **2) Using a local dataset** <a name="localdataset"></a>
 
 Let's say you have your finetuning dataset stored in local `jsonl` files.
 Reference this in your YAML, such as the one in `yamls/finetune/1b_local_data_sft.yaml`
@@ -272,7 +298,7 @@ train_loader:
 ```
 As before, if your local dataset already has the "prompt"/"response" format, you don't need to include `preprocessing_fn` since no preprocessing is needed.
 
-### **3) Using an MDS-formatted (streaming) dataset -- locally or in an object store**
+### **3) Using a StreamingDataset (MDS) formatted dataset locally or in an object store** <a name="mdsdataset"></a>
 
 To enable streaming, you must first use the `convert_finetuning_dataset.py` script to convert a HuggingFace dataset into an [MDS-formatted dataset](https://github.com/mosaicml/streaming) (which you totally should -- they're amazing).
 
@@ -307,7 +333,7 @@ train_loader:
 ```
 
 
-# How many GPUs do I need to train a LLM?
+# FAQ: How many GPUs do I need to train a LLM? <a name="howmanygpus"></a>
 This is a complicated question in general, but if we assume that you are using FSDP with `FULL_SHARD`,
 activation checkpointing, and `DecoupledLionW`, then a good rule of thumb is:
 
@@ -324,7 +350,7 @@ if you use a larger cluster or devices with higher memory capacity, because this
 
 Check out our [scripts/train/benchmarking folder](./benchmarking/README.md) for detailed throughput measurements of specific model sizes on specific cluster configs!
 
-# Optimizing Performance
+# FAQ: Optimizing Performance <a name="optimizingperformance"></a>
 The YAMLs in this repo are relatively well tuned for medium-to-large NVIDIA A100-40GB clusters.
 
 If you are running with a CUDA-compatible GPU and have installed the LLM requirements, we turn on by default a kernel fusion optimization for the Cross Entropy loss function at the end of the model.
@@ -341,7 +367,7 @@ so you should be able to run the exact same YAML on 8 or 16 or 256 GPUs and get 
 This is nice because it means you can write device-count-agnostic training configs,
 and not worry about OOM-ing or accidentally changing the optimization math.
 
-In previous blogs ([1](https://www.mosaicml.com/blog/farewell-oom), [2](https://www.mosaicml.com/blog/billion-parameter-gpt-training-made-easy))
+In previous blogposts ([1](https://www.mosaicml.com/blog/farewell-oom), [2](https://www.mosaicml.com/blog/billion-parameter-gpt-training-made-easy))
 we also demonstrated auto microbatching, which takes things a step further by letting Composer determine the `device_train_microbatch_size` on its own.
 This makes our configs not only device-count-agnostic, but hardware-agnostic too!
 You can try out this feature by setting `device_train_microbatch_size: auto`, but bear in mind that FSDP support is still in alpha mode

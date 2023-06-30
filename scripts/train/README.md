@@ -32,6 +32,7 @@ NOTE: If you only want to profile these LLMs, we recommend that you **download a
 and skip the full `train` and `val` splits. You'll just need to replace `split: train` with `split: train_small`
 and `split: val` with `split: val_small` in your run YAML's dataloader config.
 You can also accomplish this in your CLI command like so: 
+<!--pytest.mark.skip-->
 ```bash
 composer train.py ... train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
 ```

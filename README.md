@@ -175,7 +175,7 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 
 Notes: 
 1. `attn_impl: triton` does not work.
-1. We don't yet have a docker img where everything works perfectly. You might need to up/down grade some packages (in our case, we needed to downgrade numpy) before everything works without issue.
+1. We don't yet have a docker img where everything works perfectly. You might need to up/down grade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
 
 # Quickstart
 

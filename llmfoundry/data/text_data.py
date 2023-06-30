@@ -84,6 +84,7 @@ class StreamingTextDataset(StreamingDataset):
                  shuffle_algo: str = 'py1b',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
+                 fim_rate: float = 0,
                  **kwargs: Dict[str, Any]):
 
         group_method = kwargs.pop('group_method', None)
@@ -98,13 +99,12 @@ class StreamingTextDataset(StreamingDataset):
                 f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}'
             )
 
-        if local is not None and (remote is None or (local == remote)):
-            if os.path.isdir(local):
-                contents = set(os.listdir(local))
-                if split not in contents:
-                    raise ValueError(
-                        f'local directory {local} does not contain split {split}'
-                    )
+        if (local is not None and (remote is None or (local == remote)) and
+                os.path.isdir(local)):
+            contents = set(os.listdir(local))
+            if split not in contents:
+                raise ValueError(
+                    f'local directory {local} does not contain split {split}')
 
         # Build Dataset
         super().__init__(
@@ -127,6 +127,7 @@ class StreamingTextDataset(StreamingDataset):
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
+        self.fim_rate = fim_rate
 
     # How to tokenize a text sample to a token sample
     def _tokenize(self, text_sample):
@@ -156,6 +157,9 @@ class StreamingTextDataset(StreamingDataset):
             raise RuntimeError(
                 'StreamingTextDataset needs samples to have a `text` or `tokens` column'
             )
+
+        if self.fim_rate != 0:
+            pass
         return token_sample
 
 
@@ -255,7 +259,7 @@ def build_text_dataloader(
         drop_last=cfg.drop_last,
         num_workers=cfg.num_workers,
         pin_memory=cfg.get('pin_memory', True),
-        prefetch_factor=cfg.get('prefetch_factor', 2),
+        prefetch_factor=cfg.get('prefetch_factor', None),
         persistent_workers=cfg.get('persistent_workers', True),
         timeout=cfg.get('timeout', 0),
     )

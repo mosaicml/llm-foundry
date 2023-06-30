@@ -5,7 +5,7 @@ global_seed: 17
 
 # Run Name
 # <data>-gpt-<#params>-<precision>-<arch>-<#bsz>-<#ctxlen>-<#tok>-<#nodes>-<cluster-name>-<etc>
-run_name: py_java_js-gpt-1.1b-amp_bf16-MQA_flash-gbsz192-ctxlen2048-tokn118b-wmup6000ba
+run_name: py_java_js-gpt-1.1b-amp_bf16-MQA_flash-gbsz192-ctxlen2048-tokn118b-wmup2000ba
 
 # Model
 model:
@@ -37,6 +37,7 @@ train_loader:
     shuffle: true
     max_seq_len: ${max_seq_len}
     shuffle_seed: ${global_seed}
+    fim_rate: 0.5
     # data mixture
     streams:
       python:
@@ -52,7 +53,8 @@ train_loader:
         proportion: 0.55
         split: train
   drop_last: true
-  num_workers: 8
+  num_workers: 0
+  persistent_workers: false
 
 eval_loader:
   name: text
@@ -88,9 +90,9 @@ algorithms:
 
 max_duration: 300000ba # ~ 118B tokens
 eval_interval: 30000ba
-eval_first: true
+eval_first: false
 eval_subset_num_batches: -1
-global_train_batch_size: 192
+global_train_batch_size: 32
 
 # System
 seed: ${global_seed}
@@ -121,9 +123,9 @@ callbacks:
   memory_monitor: {}
   runtime_estimator: {}
 
-loggers:
-  wandb:
-    project: llm-foundry-test
+# loggers:
+#   wandb:
+#     project: llm-foundry-test
 
 # Checkpoint to local filesystem or remote object store
 save_interval: 3000ba

@@ -1,6 +1,6 @@
 # LLM Pretraining and Finetuning
 
-This README walks through pretraining and finetuning a large language model using MosaicML's [StreamingDataset](https://github.com/mosaicml/streaming) format, [Composer](https://github.com/mosaicml/composer) trainer, and [MPT architecture](https://www.mosaicml.com/blog/mpt-7b). When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
+This README walks through pretraining and finetuning a large language model using MosaicML's [StreamingDataset](https://github.com/mosaicml/streaming) format, [Composer](https://github.com/mosaicml/composer) trainer, and [MPT architecture](https://www.mosaicml.com/blog/mpt-7b). When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training.
 
 #### Table of Contents
 1. [Part 1: LLM Pretraining](#llmpretraining)
@@ -38,7 +38,7 @@ You can read more about the benefits of using mosaicml-streaming [here](https://
 
 To make yourself a copy of C4, use `convert_dataset_hf.py` like so:
 
-Download the `train_small` and `val_small` splits and convert to StreamingDataset format. 
+Download the `train_small` and `val_small` splits and convert to StreamingDataset format.
 This will take 20-60 seconds depending on your internet bandwidth.
 You should see two folders once completed: `./my-copy-c4/train_small` and `./my-copy-c4/val_small` that are ~1.0GB total. Note that we are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
 <!--pytest.mark.skip-->
@@ -180,7 +180,7 @@ There are 3 different types of data sources you can use for finetuning:
 We'll cover these in broad detail below.
 
 
-Example model finetuning YAML configurations can be found in [`./yamls/finetune`](./yamls/finetune). We include configurations for MPT models of various sizes, as well as T5 and Dolly. 
+Example model finetuning YAML configurations can be found in [`./yamls/finetune`](./yamls/finetune). We include configurations for MPT models of various sizes, as well as T5 and Dolly.
 Finetuning is enabled via the `train_loader` and `eval_loader` fields in your configuration YAML.
 
 As in the above section for pretraining, we use the same [`train.py`](train.py) script to do finetuning.

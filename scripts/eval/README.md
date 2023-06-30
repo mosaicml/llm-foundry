@@ -22,7 +22,7 @@ This will run a large eval suite, including our Model Gauntlet, on `EleutherAI/g
 ```bash
 cd llm-foundry/scripts
 composer eval/eval.py eval/yamls/hf_eval.yaml \
-    model_name_or_path= mosaicml/mpt-7b
+    model_name_or_path=mosaicml/mpt-7b
 ```
 
 ----

@@ -3,18 +3,18 @@
 This README walks through pretraining and finetuning a large language model using MosaicML's [StreamingDataset](https://github.com/mosaicml/streaming) format, [Composer](https://github.com/mosaicml/composer) trainer, and [MPT architecture](https://www.mosaicml.com/blog/mpt-7b). When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training. 
 
 #### Table of Contents
-1. [LLM Pretraining](#llmpretraining)
+1. [Part 1: LLM Pretraining](#llmpretraining)
    1. [Installation](#installation)
    2. [Dataset Preparation](#datasetpreparation)
    3. [How to start single and multi-node pretraining](#howtostartpretraining)
-2. [LLM Finetuning](#llmfinetuning)
+2. [Part 2: LLM Finetuning](#llmfinetuning)
    1. [Using a dataset on the HuggingFace Hub](#hfdataset)
    2. [Using a local dataset](#localdataset)
    3. [Using a StreamingDataset (MDS) formatted dataset locally or in an object store](#mdsdataset)
-3. [How many GPUs do I need to train a LLM?](#howmandygpus)
-4. [Optimizing Performance](#optimizingperformance)
+3. [FAQ: How many GPUs do I need to train a LLM?](#howmandygpus)
+4. [FAQ: Optimizing Performance](#optimizingperformance)
 
-# LLM Pretraining <a name="llmpretraining"></a>
+# Part 1: LLM Pretraining <a name="llmpretraining"></a>
 
 Example model setup and training configurations are in [`./yamls/pretraining`](./yamls/pretraining). We include configurations for MPT models of various sizes.
 
@@ -167,33 +167,31 @@ by using [Composer's logging integrations](https://docs.mosaicml.com/projects/co
 ```
 
 
-# LLM Finetuning <a name="llmfinetuning"></a>
+# Part 2: LLM Finetuning <a name="llmfinetuning"></a>
 
 If you are unfamiliar with the LLM-Foundry in general, we recommend first going through the instructions for [LLM Pretraining](#llmpretraining) above before skipping to LLM Finetuning. This repository was designed to optimize pretraining, finetuning, and inference, and as such the structure and setup will make most sense when understood as a whole.
 
 There are 3 different types of data sources you can use for finetuning:
-(1) [the HuggingFace Hub](#1-using-a-dataset-on-the-huggingface-hub)
-(2) [a local dataset](#2-using-a-local-dataset)
-(3) [a local or remote dataset in the StreamingDataset `.mds` format](#3-using-an-mds-formatted-streaming-dataset----locally-or-in-an-object-store).
+
+1. [A dataset from the HuggingFace Hub](#hfdataset)
+2. [A dataset stored on your local device](#localdataset)
+3. [A local or remote dataset in the StreamingDataset `.mds` format](#mdsdataset)
+
 We'll cover these in broad detail below.
 
-> **NOTE**
-> For a minimal concrete example of finetuninga GPT2 on a locally-stored ARC-Easy dataset, see [`./finetune_example`](./finetune_example)
-> 
-> For a minimal example. of finetuning MPT-7B, we recommend starting with `yamls/finetune/mpt-7b_dolly_sft.yaml`
 
-Example model finetuning YAML configurations can be found in [`./yamls/finetune`](./yamls/finetune). We include configurations for MPT models of various sizes, as well as T5 and Dolly.
+Example model finetuning YAML configurations can be found in [`./yamls/finetune`](./yamls/finetune). We include configurations for MPT models of various sizes, as well as T5 and Dolly. 
+Finetuning is enabled via the `train_loader` and `eval_loader` fields in your configuration YAML.
+
 As in the above section for pretraining, we use the same [`train.py`](train.py) script to do finetuning.
 
+* For a minimal concrete example of finetuning a GPT2 model on a locally-stored ARC-Easy dataset, see [`./finetune_example`](./finetune_example)_
+ 
+* For a minimal example of finetuning MPT-7B, we recommend starting with [`yamls/finetune/mpt-7b_dolly_sft.yaml`](./yamls/finetune/mpt-7b_dolly_sft.yaml)
 
 Before actually finetuning any models, we describe an important consideration: data formatting!
 
 ## Data formatting
-
-You activate finetuning via the `train_loader` and `eval_loader` fields in your configuration YAML.
-We include some reference examples inside `yamls/finetune/`.
-
-
 
 The finetuning dataloader requires training examples to be formatted as dictionaries with the following key-value structure:
 <!--pytest.mark.skip-->
@@ -335,7 +333,7 @@ train_loader:
 ```
 
 
-# How many GPUs do I need to train a LLM? <a name="howmanygpus"></a>
+# FAQ: How many GPUs do I need to train a LLM? <a name="howmanygpus"></a>
 This is a complicated question in general, but if we assume that you are using FSDP with `FULL_SHARD`,
 activation checkpointing, and `DecoupledLionW`, then a good rule of thumb is:
 
@@ -352,7 +350,7 @@ if you use a larger cluster or devices with higher memory capacity, because this
 
 Check out our [scripts/train/benchmarking folder](./benchmarking/README.md) for detailed throughput measurements of specific model sizes on specific cluster configs!
 
-# Optimizing Performance <a name="optimizingperformance"></a>
+# FAQ: Optimizing Performance <a name="optimizingperformance"></a>
 The YAMLs in this repo are relatively well tuned for medium-to-large NVIDIA A100-40GB clusters.
 
 If you are running with a CUDA-compatible GPU and have installed the LLM requirements, we turn on by default a kernel fusion optimization for the Cross Entropy loss function at the end of the model.

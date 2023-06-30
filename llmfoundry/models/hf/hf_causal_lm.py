@@ -7,7 +7,6 @@ import os
 from typing import Mapping, Union
 
 # required for loading a python model into composer
-import peft
 import transformers
 from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
@@ -24,6 +23,16 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import init_empty_weights
 
+try:
+    from peft.peft_model import PeftModel
+    model_types = PeftModel, transformers.PreTrainedModel
+    _om_model_config_type = Union[DictConfig, PeftModel,
+                                  transformers.PreTrainedModel]
+
+except ImportError:
+    model_types = transformers.PreTrainedModel
+    _om_model_config_type = Union[DictConfig, transformers.PreTrainedModel]
+
 __all__ = ['ComposerHFCausalLM']
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
@@ -33,7 +42,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
     """Configures a :class:`.HuggingFaceModel` around a Causal LM.
 
     Args:
-        om_model_config (DictConfig | peft.peft_model.PeftModel | transformers.PreTrainedModel): either n omegaconf dictionary used to configure the model, or an instantiated model object from the peft or transformers library.
+        om_model_config (DictConfig | PeftModel | transformers.PreTrainedModel): either n omegaconf dictionary used to configure the model, or an instantiated model object from the peft or transformers library.
         if DictConfig, the following keys are required:
             cfg.pretrained_model_name_or_path (str): The name of or local path to
                 the HF Causal LM (e.g., `gpt2` to instantiate a GPT2LMHeadModel).
@@ -49,9 +58,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(self,
-                 om_model_config: Union[DictConfig, peft.peft_model.PeftModel,
-                                        transformers.PreTrainedModel],
+    def __init__(self, om_model_config: _om_model_config_type,
                  tokenizer: Tokenizer):
 
         # set up training and eval metrics
@@ -160,14 +167,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             z_loss = om_model_config.get('z_loss', 0.0)
 
         # elif the model is either a PeftModel or a PreTrainedModel
-        elif isinstance(
-                om_model_config,
-            (peft.peft_model.PeftModel, transformers.PreTrainedModel)):
+        elif isinstance(om_model_config, model_types):
             model = om_model_config
             init_device = 'cpu'
             z_loss = 0.0
 
-        # else, unsoported type
+        # else, unsupported type
         else:
             raise ValueError(
                 f'om_model_config must be either a DictConfig, PeftModel, or PreTrainedModel, but got {type(om_model_config)}'

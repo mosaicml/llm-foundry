@@ -38,7 +38,7 @@ parameters:
     model:
       name: hf_causal_lm
       pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
-      device: cpu
+      init_device: cpu
       pretrained: true
       use_auth_token: false
   # -

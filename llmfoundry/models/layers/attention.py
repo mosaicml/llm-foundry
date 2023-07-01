@@ -101,9 +101,8 @@ def scaled_multihead_dot_product_attention(
 
     if is_causal and (not q.size(2) == 1):
         s = max(s_q, s_k)
-        causal_mask = attn_weight.new_ones(s, s, dtype=torch.float16)
+        causal_mask = attn_weight.new_ones(s, s, dtype=torch.bool)
         causal_mask = causal_mask.tril()
-        causal_mask = causal_mask.to(torch.bool)
         causal_mask = ~causal_mask
         causal_mask = causal_mask[-s_q:, -s_k:]
         attn_weight = attn_weight.masked_fill(causal_mask.view(1, 1, s_q, s_k),

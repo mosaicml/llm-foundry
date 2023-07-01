@@ -97,6 +97,7 @@ If you have success/failure using LLM Foundry on other systems, please let us kn
 | H100-80GB                 | 2.0.1            | 11.8         | :white_check_mark: Supported  |
 | A10-24GB                  | 1.13.1           | 11.7         | :construction: In Progress    |
 | A10-24GB                  | 2.0.1            | 11.7, 11.8   | :construction: In Progress    |
+| MI250                     | 2.0.1            | ROCm 5.4     | :construction: In Progress    |
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.
@@ -150,6 +151,30 @@ pip install cmake packaging torch  # setup.py requires these be installed
 pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
 ```
 
+
+### AMD (BETA support)
+
+In [our testing of AMD GPUs](https://www.mosaicml.com/blog/amd-mi250), the env setup includes:
+
+<!--pytest.mark.skip-->
+```bash
+git clone https://github.com/mosaicml/llm-foundry.git
+cd llm-foundry
+
+# Creating and activate a virtual environment
+python3 -m venv llmfoundry-venv-amd
+source llmfoundry-venv-amd/bin/activate
+
+# installs
+pip install cmake packaging torch
+pip install -e .  # this installs some things which are not needed but they dont hurt
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.4.2
+```
+**Lastly**, install the ROCm enabled flash attention (instructions [here](https://github.com/ROCmSoftwarePlatform/flash-attention/tree/flash_attention_for_rocm2#amd-gpurocm-support)).
+
+Notes:
+1. `attn_impl: triton` does not work.
+1. We don't yet have a docker img where everything works perfectly. You might need to up/down grade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
 
 # Quickstart
 

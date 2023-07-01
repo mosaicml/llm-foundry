@@ -26,6 +26,8 @@ models:
 #     pretrained_model_name_or_path: mosaicml/mpt-7b
 #     init_device: cpu
 #     pretrained: true
+#     config_overrides:
+#       max_seq_len: ${max_seq_len}
 #   tokenizer:
 #     name: mosaicml/mpt-7b
 #     kwargs:

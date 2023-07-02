@@ -217,6 +217,7 @@ Now that we have our data ready, we can slightly modify `scripts/train/yamls/fin
 ```bash
 composer scripts/train/train.py scripts/train/yamls/finetune/mpt-7b_domain_adapt.yaml max_seq_len=4096 ...
 ```
+> Note that this override where we set `max_seq_len=4096` in the above command works because of how the whole YAML is set up. Importantly, the YAML is configured with `model.config_overrides.max_seq_len: ${max_seq_len}`, which tells the MPT model to override its default max sequence length with the value set for `max_seq_len`.
 
 You will see some info logs including your configs, and then training will start.
 

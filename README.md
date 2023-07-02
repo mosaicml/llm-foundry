@@ -97,6 +97,7 @@ If you have success/failure using LLM Foundry on other systems, please let us kn
 | H100-80GB                 | 2.0.1            | 11.8         | :white_check_mark: Supported  |
 | A10-24GB                  | 1.13.1           | 11.7         | :construction: In Progress    |
 | A10-24GB                  | 2.0.1            | 11.7, 11.8   | :construction: In Progress    |
+| MI250                     | 2.0.1            | ROCm 5.4     | :construction: In Progress    |
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.
@@ -158,6 +159,30 @@ pip install flash-attn==1.0.6 --no-build-isolation
 pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156
 ```
 
+### AMD (BETA support)
+
+In [our testing of AMD GPUs](https://www.mosaicml.com/blog/amd-mi250), the env setup includes:
+
+<!--pytest.mark.skip-->
+```bash
+git clone https://github.com/mosaicml/llm-foundry.git
+cd llm-foundry
+
+# Creating and activate a virtual environment
+python3 -m venv llmfoundry-venv-amd
+source llmfoundry-venv-amd/bin/activate
+
+# installs
+pip install cmake packaging torch
+pip install -e .  # this installs some things which are not needed but they dont hurt
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.4.2
+```
+**Lastly**, install the ROCm enabled flash attention (instructions [here](https://github.com/ROCmSoftwarePlatform/flash-attention/tree/flash_attention_for_rocm2#amd-gpurocm-support)).
+
+Notes:
+1. `attn_impl: triton` does not work.
+1. We don't yet have a docker img where everything works perfectly. You might need to up/down grade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
+
 # Quickstart
 
 > **Note**
@@ -198,7 +223,7 @@ python inference/convert_composer_to_hf.py \
 # Evaluate the model on a subset of tasks
 python eval/eval.py \
   eval/yamls/hf_eval.yaml \
-  icl_tasks=eval/yamls/tasks_light.yaml \
+  icl_tasks=eval/yamls/copa.yaml \
   model_name_or_path=mpt-125m-hf
 
 # Generate responses to prompts
@@ -213,9 +238,11 @@ python inference/hf_generate.py \
 Note: the `composer` command used above to train the model refers to [Composer](https://github.com/mosaicml/composer) library's distributed launcher.
 
 If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
+
 ```bash
 export HUGGING_FACE_HUB_TOKEN=your-auth-token
 ```
+
 and uncomment the line containing `--hf_repo_for_upload ...` in the above call to `inference/convert_composer_to_hf.py`.
 
 # Learn more about LLM Foundry!
@@ -223,6 +250,7 @@ and uncomment the line containing `--hf_repo_for_upload ...` in the above call t
 Check out [TUTORIAL.md](https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md) to keep learning about working with LLM Foundry. The tutorial highlights example workflows, points you to other resources throughout the repo, and answers frequently asked questions!
 
 # Contact Us
+
 If you run into any problems with the code, please file Github issues directly to this repo.
 
 If you want to train LLMs on the MosaicML platform, reach out to us at [demo@mosaicml.com](mailto:demo@mosaicml.com)!

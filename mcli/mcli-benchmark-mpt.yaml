@@ -11,6 +11,7 @@ image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
+  git_branch: v0.2.0
   pip_install: '.[gpu]'
 
 command: |

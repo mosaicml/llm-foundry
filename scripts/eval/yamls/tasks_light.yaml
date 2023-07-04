@@ -43,6 +43,6 @@ icl_tasks:
   label: boolq
   dataset_uri: eval/local_data/reading_comprehension/boolq.jsonl
   num_fewshot: [10]
-  max_seq_len: ${icl_seq_len}
   icl_task_type: multiple_choice
   continuation_delimiter: "\nAnswer: "
+  max_seq_len: ${icl_seq_len}

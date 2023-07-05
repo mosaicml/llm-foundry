@@ -29,8 +29,7 @@ Using the `convert_dataset_json.py` script...
 python convert_dataset_json.py \
   --path ./example_data/arxiv.jsonl \
   --out_root my-copy-arxiv --split train \
-  --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>' \
-  --compression zstd
+  --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>' 
 ```
 
 Where `--path` can be a single json file, or a folder containing json files. `--split` denotes the intended split (hf defaults to `train`).

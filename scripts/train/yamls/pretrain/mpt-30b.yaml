@@ -13,11 +13,12 @@ model:
   d_model: 7168
   n_heads: 56
   n_layers: 48
-  expansion_ratio: 4
   max_seq_len: ${max_seq_len}
   vocab_size: 50368
   attn_config:
     attn_impl: triton
+  ffn_config:
+    expansion_ratio: 4
 
 # Tokenizer
 tokenizer:

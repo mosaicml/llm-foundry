@@ -33,10 +33,12 @@ def test_init_hfhub_mpt(device, attn_impl):
             'd_model': 128,
             'n_heads': 4,
             'n_layers': 2,
-            'expansion_ratio': 2,
             'attn_config': {
                 'attn_impl': attn_impl,
                 'attn_uses_sequence_id': attn_uses_sequence_id,
+            },
+            'ffn_config': {
+                'expansion_ratio': 2,
             },
         },
     }

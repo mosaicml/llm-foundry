@@ -456,12 +456,14 @@ def test_mpt_creation(norm_type, no_bias):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': 'torch',
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
         norm_type=norm_type,
         no_bias=no_bias,
@@ -471,7 +473,7 @@ def test_mpt_creation(norm_type, no_bias):
     assert mpt.config.d_model == 128
     assert mpt.config.n_heads == 4
     assert mpt.config.n_layers == 2
-    assert mpt.config.expansion_ratio == 2
+    assert mpt.config.ffn_config['expansion_ratio'] == 2
     assert mpt.config.max_seq_len == 2048
 
     assert mpt.transformer.wte.weight.shape == torch.Size(
@@ -487,9 +489,9 @@ def test_mpt_creation(norm_type, no_bias):
         assert block.norm_1.weight.shape == torch.Size([d_model])
         assert block.norm_2.weight.shape == torch.Size([d_model])
         assert block.ffn.up_proj.weight.shape == torch.Size(
-            [hf_config.d_model * hf_config.expansion_ratio, hf_config.d_model])
+            [hf_config.d_model * hf_config.ffn_config['expansion_ratio'], hf_config.d_model])
         assert block.ffn.down_proj.weight.shape == torch.Size(
-            [hf_config.d_model, hf_config.d_model * hf_config.expansion_ratio])
+            [hf_config.d_model, hf_config.d_model * hf_config.ffn_config['expansion_ratio']])
         assert block.resid_attn_dropout.p == 0.2
         assert block.resid_ffn_dropout.p == 0.2
 
@@ -516,13 +518,15 @@ def test_forward_with_padding(attention_impl, device, alibi):
         d_model=128,
         n_heads=1,
         n_layers=2,
-        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attention_impl,
             'alibi': alibi,
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
         init_config={
             'name': 'baseline_',
@@ -623,7 +627,6 @@ def test_advanced_mask_building(attention_impl):
         d_model=16,
         n_heads=1,
         n_layers=1,
-        expansion_ratio=1,
         max_seq_len=256,
         emb_pdrop=0.0,
         resid_pdrop=0.0,
@@ -632,6 +635,9 @@ def test_advanced_mask_building(attention_impl):
             'prefix_lm': True,
             'attn_uses_sequence_id': True,
             'alibi': False,
+        },
+        ffn_config={
+            'expansion_ratio': 1,
         },
     )
     mpt = MPTForCausalLM(hf_config)
@@ -692,13 +698,15 @@ def test_generate(attention_impl, device, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attention_impl,
             'alibi': alibi,
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
     )
     mpt = MPTForCausalLM(hf_config)
@@ -775,12 +783,14 @@ def test_generate_with_device_map(tmp_path, world_size, use_cache):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': 'torch',
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
         use_cache=use_cache,
     )
@@ -845,12 +855,14 @@ def test_save_from_pretrained(tmp_path):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': 'torch',
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
     )
     mpt = MPTForCausalLM(hf_config)
@@ -869,13 +881,15 @@ def test_forward_with_cache_and_padding(alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': 'torch',
             'alibi': alibi,
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
         use_cache=True,
         init_config={
@@ -952,13 +966,15 @@ def test_forward_with_cache(attn_impl, device, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
             'alibi': alibi,
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
         attn_impl=attn_impl,
         alibi=alibi,
@@ -1049,13 +1065,15 @@ def test_generate_with_past_kv(alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': 'torch',
             'alibi': alibi,
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
         use_cache=True,
         init_config={
@@ -1109,13 +1127,15 @@ def test_generation_kwargs_dont_crash(generation_kwargs, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': 'torch',
             'alibi': alibi,
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
         use_cache=True,
     )
@@ -1148,13 +1168,15 @@ def test_model_to(attention_impl, alibi):
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attention_impl,
             'alibi': alibi,
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
         use_cache=True,
         init_config={
@@ -1258,7 +1280,6 @@ def test_forward_with_output_attentions_and_output_hidden_states(
         d_model=128,
         n_heads=4,
         n_layers=n_layers,
-        expansion_ratio=2,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
@@ -1272,6 +1293,9 @@ def test_forward_with_output_attentions_and_output_hidden_states(
         init_config={
             'name': 'baseline_',
             'init_std': 0.02,
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
     )
     reproducibility.seed_all(1234)
@@ -1341,12 +1365,14 @@ def test_hf_init(tmp_path,
         d_model=32,
         n_heads=4,
         n_layers=1,
-        expansion_ratio=2,
         max_seq_len=128,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': 'torch',
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
     )
 

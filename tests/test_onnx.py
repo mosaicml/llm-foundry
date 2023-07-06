@@ -36,13 +36,15 @@ def test_onnx_export(tmp_path):
         d_model=64,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
         max_seq_len=max_seq_len,
         emb_pdrop=0.0,
         resid_pdrop=0.0,
         attn_config={
             'attn_impl': 'torch',
             'alibi': True,
+        },
+        ffn_config={
+            'expansion_ratio': 2,
         },
         use_cache=True,
         vocab_size=vocab_size,

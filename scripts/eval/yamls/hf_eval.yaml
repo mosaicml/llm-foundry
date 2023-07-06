@@ -41,12 +41,5 @@ fsdp_config:
   sharding_strategy: FULL_SHARD
   mixed_precision: FULL
 
-icl_tasks:
--
-    label: composer_docstring_eval
-    dataset_uri: oci://mosaicml-internal-checkpoints/support-bot-demo/data/eval/composer_docstrings.jsonl
-    num_fewshot: [1, 3, 5]
-    icl_task_type: language_modeling
-    continuation_delimiter: "\nAnswer"
-    batch_size: 8
+icl_tasks: 'eval/yamls/tasks_light.yaml'
 model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

@@ -199,7 +199,7 @@ def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy,
                 subscores = results[num_shot][benchmark][metric]
                 if len(subscores) == 1:
                     row = {
-                        'Category': benchmark_to_taxonomy[benchmark],
+                        'Category': benchmark_to_taxonomy.get(benchmark, ""),
                         'Benchmark': benchmark,
                         'Subtask': None,
                         'Accuracy': subscores[0]['val'],
@@ -210,7 +210,7 @@ def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy,
                 else:
                     row = {
                         'Category':
-                            benchmark_to_taxonomy[benchmark],
+                            benchmark_to_taxonomy.get(benchmark, ""),
                         'Benchmark':
                             benchmark,
                         'Subtask':
@@ -225,7 +225,7 @@ def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy,
                     df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
                     for sub in subscores:
                         row = {
-                            'Category': benchmark_to_taxonomy[benchmark],
+                            'Category': benchmark_to_taxonomy.get(benchmark, ""),
                             'Benchmark': None,
                             'Subtask': sub['subcat'],
                             'Accuracy': sub['val'],

@@ -17,13 +17,6 @@ try:
 except:
     te = None
 
-FFN_CLASS_REGISTRY = {
-    'mptmlp': MPTMLP,
-}
-
-if te is not None:
-    FFN_CLASS_REGISTRY['te_ln_mlp'] = te.LayerNormMLP
-
 
 class MPTMLP(nn.Module):
 
@@ -53,6 +46,14 @@ class MPTMLP(nn.Module):
 
     def forward(self, x):
         return self.down_proj(self.act(self.up_proj(x)))
+
+
+FFN_CLASS_REGISTRY = {
+    'mptmlp': MPTMLP,
+}
+
+if te is not None:
+    FFN_CLASS_REGISTRY['te_ln_mlp'] = te.LayerNormMLP
 
 
 def build_ffn(

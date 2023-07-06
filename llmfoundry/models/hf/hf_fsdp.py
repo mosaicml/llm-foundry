@@ -185,11 +185,11 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
 
     # applying ._fsdp_wrap = True for the LoRA modules
     if isinstance(model.base_model, LoraModel):
-        for name, param in model_block.named_parameters():
+        for name, module in model_block.named_modules():
             print(name)
             if 'lora' in name:
                 print('lora')
-                param._fsdp_wrap = True
+                module._fsdp_wrap = True
 
     # FSDP Wrap and Activation Checkpoint every model block
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)

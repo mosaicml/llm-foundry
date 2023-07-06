@@ -347,7 +347,7 @@ class MultiheadAttention(nn.Module):
         qk_ln: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
-        low_precision_layernorm: bool = False,
+        norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         verbose: int = 0,
         device: Optional[str] = None,
@@ -378,9 +378,9 @@ class MultiheadAttention(nn.Module):
         self.Wqkv._fused = (0, fuse_splits)  # type: ignore
 
         if self.qk_ln:
-            layernorm_class = LPLayerNorm if low_precision_layernorm else nn.LayerNorm
-            self.q_ln = layernorm_class(self.d_model, device=device)
-            self.k_ln = layernorm_class(self.d_model, device=device)
+            norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
+            self.q_ln = norm_class(self.d_model, device=device)
+            self.k_ln = norm_class(self.d_model, device=device)
 
         if self.attn_impl == 'flash':
             self.attn_fn = flash_attn_fn
@@ -469,7 +469,7 @@ class MultiQueryAttention(nn.Module):
         qk_ln: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
-        low_precision_layernorm: bool = False,
+        norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         verbose: int = 0,
         device: Optional[str] = None,
@@ -505,9 +505,9 @@ class MultiQueryAttention(nn.Module):
         self.Wqkv._fused = (0, fuse_splits)  # type: ignore
 
         if self.qk_ln:
-            layernorm_class = LPLayerNorm if low_precision_layernorm else nn.LayerNorm
-            self.q_ln = layernorm_class(d_model, device=device)
-            self.k_ln = layernorm_class(self.head_dim, device=device)
+            norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
+            self.q_ln = norm_class(d_model, device=device)
+            self.k_ln = norm_class(self.head_dim, device=device)
 
         if self.attn_impl == 'flash':
             self.attn_fn = flash_attn_fn

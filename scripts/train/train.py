@@ -1,11 +1,11 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import contextlib
 import os
 import sys
 import warnings
 
+import torch
 from composer import Trainer
 from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
@@ -17,7 +17,7 @@ from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data.text_data import build_text_dataloader
-from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.models.utils import init_empty_weights, init_on_device
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_evaluators, build_logger,
                                        build_optimizer, build_scheduler,
@@ -190,7 +190,7 @@ def main(cfg):
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
     # when multiple GPUs are available.
     # Also 'meta' is only valid when using FSDP
-    init_context = contextlib.nullcontext()
+    init_context = init_on_device(device=torch.device('cpu'))
     if 'init_device' in cfg.model:
         assert cfg.model.init_device in ['meta', 'cpu', 'mixed']
         if fsdp_config is None and cfg.model.init_device == 'meta':

@@ -3,6 +3,7 @@
 
 """A HuggingFace-style model configuration."""
 
+import warnings
 from typing import Dict, Optional, Union
 
 from transformers import PretrainedConfig
@@ -18,6 +19,11 @@ attn_config_defaults: Dict = {
     'attn_uses_sequence_id': False,
     'alibi': False,
     'alibi_bias_max': 8,
+}
+
+ffn_config_defaults: Dict = {
+    'ffn_type': 'mptmlp',
+    'expansion_ratio': 4,
 }
 
 init_config_defaults: Dict = {
@@ -40,13 +46,13 @@ class MPTConfig(PretrainedConfig):
         d_model: int = 2048,
         n_heads: int = 16,
         n_layers: int = 24,
-        expansion_ratio: int = 4,
         max_seq_len: int = 2048,
         vocab_size: int = 50368,
         resid_pdrop: float = 0.0,
         emb_pdrop: float = 0.0,
         learned_pos_emb: bool = True,
         attn_config: Dict = attn_config_defaults,
+        ffn_config: Dict = ffn_config_defaults,
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
@@ -116,13 +122,13 @@ class MPTConfig(PretrainedConfig):
         self.d_model = d_model
         self.n_heads = n_heads
         self.n_layers = n_layers
-        self.expansion_ratio = expansion_ratio
         self.max_seq_len = max_seq_len
         self.vocab_size = vocab_size
         self.resid_pdrop = resid_pdrop
         self.emb_pdrop = emb_pdrop
         self.learned_pos_emb = learned_pos_emb
         self.attn_config = attn_config
+        self.ffn_config = ffn_config
         self.init_device = init_device
         self.logit_scale = logit_scale
         self.no_bias = no_bias
@@ -152,6 +158,10 @@ class MPTConfig(PretrainedConfig):
         self.attn_config = self._set_config_defaults(
             self.attn_config,
             attn_config_defaults,
+        )
+        self.ffn_config = self._set_config_defaults(
+            self.ffn_config,
+            ffn_config_defaults,
         )
         self.init_config = self._set_config_defaults(
             self.init_config,
@@ -195,8 +205,8 @@ class MPTConfig(PretrainedConfig):
         if self.init_config.get('name', None) is None:
             raise ValueError(f"{self.init_config=} 'name' needs to be set.")
         if not self.learned_pos_emb and not self.attn_config['alibi']:
-            raise ValueError(
-                f'Positional information must be provided to the model using either learned_pos_emb or alibi.'
+            raise warnings.warn(
+                f'Positional information not being provided to the model using either learned_pos_emb or alibi.'
             )
         if self.fc_type == 'te':
             try:
@@ -208,3 +218,7 @@ class MPTConfig(PretrainedConfig):
                     'pip install flash-attn==1.0.6 --no-build-isolation \n'
                     'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
                 )
+        if self.ffn_config['ffn_type'] == 'mptmlp':
+            self.ffn_config['fc_type'] = self.fc_type
+        elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
+            self.bias = not self.no_bias

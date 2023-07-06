@@ -35,6 +35,12 @@ from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
+try:
+    import transformer_engine.pytorch as te
+    has_te = True
+except:
+    has_te = False
+
 # NOTE: All utils are imported directly even if unused so that
 # HuggingFace can detect all the needed files to copy into its modules folder.
 # Otherwise, certain modules are missing.
@@ -81,6 +87,8 @@ class MPTModel(MPTPreTrainedModel):
         self.alibi = config.attn_config['alibi']
         self.alibi_bias_max = config.attn_config['alibi_bias_max']
 
+        self.learned_pos_emb = config.learned_pos_emb
+
         if config.init_device == 'mixed':
             if dist.get_local_rank() == 0:
                 config.init_device = 'cpu'
@@ -101,7 +109,7 @@ class MPTModel(MPTPreTrainedModel):
         self.wte = SharedEmbedding(config.vocab_size,
                                    config.d_model,
                                    device=config.init_device)
-        if not self.alibi:
+        if self.learned_pos_emb:
             self.wpe = torch.nn.Embedding(config.max_seq_len,
                                           config.d_model,
                                           device=config.init_device)
@@ -359,7 +367,7 @@ class MPTModel(MPTPreTrainedModel):
         tok_emb = self.wte(input_ids)  # type: ignore
         if self.alibi:
             x = tok_emb
-        else:
+        elif self.learned_pos_emb:
             past_position = 0
             if past_key_values is not None:
                 if len(past_key_values) != self.config.n_layers:

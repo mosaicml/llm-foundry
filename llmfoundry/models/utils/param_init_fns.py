@@ -13,6 +13,12 @@ from torch import nn
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
+try:
+    import transformer_engine.pytorch as te
+    has_te = True
+except:
+    has_te = False
+
 
 def torch_default_param_init_fn_(
     module: nn.Module,
@@ -190,6 +196,22 @@ def generic_param_init_fn_(
                 module.out_proj.weight.div_(div_is_residual)
         if module.out_proj.bias is not None:
             torch.nn.init.zeros_(module.out_proj.bias)
+
+    elif has_te and isinstance(module, te.LayerNormMLP):
+        if module.layer_norm_weight is not None:
+            torch.nn.init.ones_(module.layer_norm_weight)  # type: ignore
+        if module.layer_norm_bias is not None:
+            torch.nn.init.zeros_(module.layer_norm_bias)  # type: ignore
+
+        init_fn_(module.fc1_weight)
+        if module.fc1_bias is not None:
+            torch.nn.init.zeros_(module.fc1_bias)
+        init_fn_(module.fc2_weight)
+        if module.fc2_bias is not None:
+            torch.nn.init.zeros_(module.fc2_bias)
+
+        with torch.no_grad():
+            module.fc2_weight.div_(div_is_residual)
 
     else:
         for _ in module.parameters(recurse=False):

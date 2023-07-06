@@ -10,37 +10,8 @@ import torch.nn as nn
 
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
+from llmfoundry.models.layers.ffn import build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-
-
-class MPTMLP(nn.Module):
-
-    def __init__(
-        self,
-        d_model: int,
-        expansion_ratio: int,
-        fc_type: str = 'torch',
-        device: Optional[str] = None,
-    ):
-        super().__init__()
-        fc_kwargs = {}
-        if fc_type != 'te':
-            fc_kwargs['device'] = device
-        self.up_proj = FC_CLASS_REGISTRY[fc_type](
-            d_model,
-            expansion_ratio * d_model,
-            **fc_kwargs,
-        )
-        self.act = nn.GELU(approximate='none')
-        self.down_proj = FC_CLASS_REGISTRY[fc_type](
-            expansion_ratio * d_model,
-            d_model,
-            **fc_kwargs,
-        )
-        self.down_proj._is_residual = True  # type: ignore
-
-    def forward(self, x):
-        return self.down_proj(self.act(self.up_proj(x)))
 
 
 class MPTBlock(nn.Module):
@@ -49,7 +20,6 @@ class MPTBlock(nn.Module):
         self,
         d_model: int,
         n_heads: int,
-        expansion_ratio: int,
         attn_config: Dict = {
             'attn_type': 'multihead_attention',
             'attn_pdrop': 0.0,
@@ -62,6 +32,7 @@ class MPTBlock(nn.Module):
             'alibi': False,
             'alibi_bias_max': 8,
         },
+        ffn_config: Dict = {},
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         verbose: int = 0,
@@ -73,27 +44,29 @@ class MPTBlock(nn.Module):
         super().__init__()
 
         norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
-        attn_class = ATTN_CLASS_REGISTRY[attn_config['attn_type']]
+        attn_class = ATTN_CLASS_REGISTRY[attn_config.pop('attn_type')]
 
         self.norm_1 = norm_class(d_model, device=device)
         self.attn = attn_class(
+            d_model=d_model,
+            n_heads=n_heads,
             attn_impl=attn_config['attn_impl'],
             clip_qkv=attn_config['clip_qkv'],
             qk_ln=attn_config['qk_ln'],
             softmax_scale=attn_config['softmax_scale'],
             attn_pdrop=attn_config['attn_pdrop'],
-            d_model=d_model,
-            n_heads=n_heads,
+            norm_type=norm_type,
             fc_type=fc_type,
             verbose=verbose,
             device=device,
         )
-        self.norm_2 = norm_class(d_model, device=device)
-        self.ffn = MPTMLP(
+        self.norm_2 = None
+        if not ffn_config['ffn_type'] == 'te_ln_mlp':
+            self.norm_2 = norm_class(d_model, device=device)
+        self.ffn = build_ffn(
             d_model=d_model,
-            expansion_ratio=expansion_ratio,
-            fc_type=fc_type,
             device=device,
+            **ffn_config,
         )
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)
         self.resid_ffn_dropout = nn.Dropout(resid_pdrop)
@@ -115,7 +88,9 @@ class MPTBlock(nn.Module):
             is_causal=is_causal,
         )
         x = x + self.resid_attn_dropout(b)
-        m = self.norm_2(x)
+        m = x
+        if self.norm_2 is not None:
+            m = self.norm_2(x)
         n = self.ffn(m)
         x = x + self.resid_ffn_dropout(n)
         return x, attn_weights, past_key_value

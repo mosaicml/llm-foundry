@@ -32,6 +32,16 @@ python convert_dataset_json.py \
   --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>' 
 ```
 
+<!--pytest.mark.skip-->
+```bash
+# Here is the code to merge the two datasets from json to StreamingDataset format above
+# Replace dataset_path1, dataset_path2, and dest with the appropriate paths on your system.
+python merge_json_data.py \
+    primary_dataset \
+    secondary_dataset \
+    output_directory 
+```
+
 Where `--path` can be a single json file, or a folder containing json files. `--split` denotes the intended split (hf defaults to `train`).
 
 ## Converting a finetuning dataset

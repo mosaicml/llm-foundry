@@ -50,7 +50,8 @@ def load_peft_model(model_cfg, tokenizer, num_retries):
             )
 
             peft_model = PeftModel.from_pretrained(
-                model, model_cfg.lora_model_name_or_path)
+                model, model_cfg.pretrained_lora_id_or_path)
+            peft_model = peft_model.merge_and_unload()
 
             composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](peft_model,
                                                                      tokenizer)
@@ -106,7 +107,7 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
         model_gauntlet = None
         model_gauntlet_callback = None
 
-    if hasattr(model_cfg.model, 'lora_model_name_or_path'):
+    if hasattr(model_cfg.model, 'pretrained_lora_id_or_path'):
         composer_model = load_peft_model(model_cfg.model, tokenizer,
                                          cfg.get('num_retries', 3))
     else:

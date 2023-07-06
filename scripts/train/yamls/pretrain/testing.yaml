@@ -13,12 +13,11 @@ model:
   d_model: 128
   n_heads: 2
   n_layers: 2
+  expansion_ratio: 4
   max_seq_len: ${max_seq_len}
   vocab_size: 50368
   attn_config:
     attn_impl: torch
-  ffn_config:
-    expansion_ratio: 4
   loss_fn: torch_crossentropy
 
 # Tokenizer

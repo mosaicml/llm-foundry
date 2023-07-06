@@ -20,6 +20,7 @@ class MPTBlock(nn.Module):
         self,
         d_model: int,
         n_heads: int,
+        expansion_ratio: int,
         attn_config: Dict = {
             'attn_type': 'multihead_attention',
             'attn_pdrop': 0.0,
@@ -65,6 +66,7 @@ class MPTBlock(nn.Module):
             self.norm_2 = norm_class(d_model, device=device)
         self.ffn = build_ffn(
             d_model=d_model,
+            expansion_ratio=expansion_ratio,
             device=device,
             **ffn_config,
         )

@@ -23,7 +23,6 @@ attn_config_defaults: Dict = {
 
 ffn_config_defaults: Dict = {
     'ffn_type': 'mptmlp',
-    'expansion_ratio': 4,
 }
 
 init_config_defaults: Dict = {
@@ -46,6 +45,7 @@ class MPTConfig(PretrainedConfig):
         d_model: int = 2048,
         n_heads: int = 16,
         n_layers: int = 24,
+        expansion_ratio: int = 4,
         max_seq_len: int = 2048,
         vocab_size: int = 50368,
         resid_pdrop: float = 0.0,
@@ -70,6 +70,7 @@ class MPTConfig(PretrainedConfig):
             d_model (int): The size of the embedding dimension of the model.
             n_heads (int): The number of attention heads.
             n_layers (int): The number of layers in the model.
+            expansion_ratio (int): The ratio of the up/down scale in the ffn.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
             resid_pdrop (float): The dropout probability applied to the attention output before combining with residual.
@@ -95,7 +96,6 @@ class MPTConfig(PretrainedConfig):
                 alibi_bias_max (int): The maximum value of the alibi bias.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
                 ffn_type (str): type of ffn to use. Options: mptmlp, te_ln_mlp
-                expansion_ratio (int): The ratio of the up/down scale in the ffn.
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
@@ -124,6 +124,7 @@ class MPTConfig(PretrainedConfig):
         self.d_model = d_model
         self.n_heads = n_heads
         self.n_layers = n_layers
+        self.expansion_ratio = expansion_ratio
         self.max_seq_len = max_seq_len
         self.vocab_size = vocab_size
         self.resid_pdrop = resid_pdrop

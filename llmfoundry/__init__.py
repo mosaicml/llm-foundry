@@ -38,7 +38,6 @@ __all__ = [
     'build_finetuning_dataloader',
     'MixtureOfDenoisersCollator',
     'Seq2SeqFinetuningCollator',
-    # 'MPTMLP',
     'MPTBlock',
     'MPTConfig',
     'MPTPreTrainedModel',

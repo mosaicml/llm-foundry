@@ -5,12 +5,11 @@
 from typing import List, Union, cast
 
 import torch
+import wandb
 from composer.core import Callback, State, get_precision_context
 from composer.loggers import Logger, WandBLogger
 from composer.utils import dist, ensure_tuple
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
-
-import wandb
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 

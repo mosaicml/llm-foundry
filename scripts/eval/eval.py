@@ -5,7 +5,6 @@ import os
 import re
 import sys
 import time
-import traceback
 from typing import List
 
 import pandas as pd
@@ -61,6 +60,7 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
         model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
     else:
         model_gauntlet = None
+        model_gauntlet_callback = None
 
     composer_model = load_model(model_cfg.model, tokenizer,
                                 cfg.get('num_retries', 3))
@@ -119,34 +119,32 @@ def main(cfg):
     model_gauntlet_df = None
     models_df = None
     for model_cfg in cfg.models:
+        (in_memory_logger, logger_keys, model_gauntlet_callback, model_gauntlet,
+         model_gauntlet_df) = evaluate_model(model_cfg, cfg.run_name,
+                                             model_gauntlet_df)
 
-        try:
-            (in_memory_logger, logger_keys, model_gauntlet_callback,
-             model_gauntlet,
-             model_gauntlet_df) = evaluate_model(model_cfg, cfg.run_name,
-                                                 model_gauntlet_df)
-
+        if model_gauntlet_callback is not None:
             composite_scores = model_gauntlet_callback.eval_end(
                 None, in_memory_logger)
 
-            benchmark_to_taxonomy = {}
+        benchmark_to_taxonomy = {}
+        if model_gauntlet is not None:
             for t in model_gauntlet.categories:
                 for b in t.benchmarks:
                     benchmark_to_taxonomy[b.name] = t.name
 
-            model_results = calculate_markdown_results(logger_keys,
-                                                       in_memory_logger.data,
-                                                       benchmark_to_taxonomy,
-                                                       model_cfg.model_name)
+        model_results = calculate_markdown_results(logger_keys,
+                                                   in_memory_logger.data,
+                                                   benchmark_to_taxonomy,
+                                                   model_cfg.model_name)
 
-            if models_df is None:
-                models_df = model_results
-            else:
-                models_df = pd.concat([models_df, model_results],
-                                      ignore_index=True)
+        if models_df is None:
+            models_df = model_results
+        else:
+            models_df = pd.concat([models_df, model_results], ignore_index=True)
 
+        if model_gauntlet_df is not None and model_gauntlet is not None and model_gauntlet_df is not None:
             row = {'model_name': model_cfg['model_name']}
-
             row.update({
                 t.name: composite_scores[f'metrics/model_gauntlet/{t.name}']
                 for t in model_gauntlet.categories
@@ -154,23 +152,15 @@ def main(cfg):
             row.update({
                 'average': composite_scores[f'metrics/model_gauntlet/average']
             })
+            model_gauntlet_df = pd.concat(
+                [model_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
 
-            if model_gauntlet_df is not None:
-                model_gauntlet_df = pd.concat(
-                    [model_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
-
-                print(f'Printing gauntlet results for all models')
-                print(
-                    model_gauntlet_df.sort_values(
-                        'average', ascending=False).to_markdown(index=False))
-            print(f'Printing complete results for all models')
-            print(models_df.to_markdown(index=False))
-        except Exception as e:
+            print(f'Printing gauntlet results for all models')
             print(
-                f'Got exception: {str(e)} while evaluating {model_cfg}. Traceback:',
-                flush=True)
-            traceback.print_exc()  # print the exception to stdout
-            print('\nContinuing to next model.\n', flush=True)
+                model_gauntlet_df.sort_values(
+                    'average', ascending=False).to_markdown(index=False))
+        print(f'Printing complete results for all models')
+        print(models_df.to_markdown(index=False))
 
 
 def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy,

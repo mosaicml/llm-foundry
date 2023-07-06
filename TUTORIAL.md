@@ -370,6 +370,8 @@ model:
 ```
 enables [TransformerEngine's LayerNormMLP](https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/api/pytorch.html#transformer_engine.pytorch.LayerNormMLP) layer which enables sequence parallelism if configured correctly.
 
+WARNING: `state_dicts` generated with `ffn_type: te_ln_mlp` will NOT directly map to `state_dicts` generated using the default network configurations. We do not have control over how `te.LayerNormMLP` is implemented and therefore cannot reasily reconcile it with the default implementation (or any other implementation).
+
 ### How expensive is it to build LLMs?
 - Check out our blog post [GPT3-Quality for <$500k](https://www.mosaicml.com/blog/gpt-3-quality-for-500k) for guidance on LLM training times and costs.
 

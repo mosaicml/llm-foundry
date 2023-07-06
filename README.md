@@ -159,6 +159,17 @@ pip install flash-attn==1.0.7 --no-build-isolation
 pip install git+https://github.com/NVIDIA/TransformerEngine.git@a83605dfa9545e7b06b24b450ae1cbe13326c1d6
 ```
 
+Once installed, if you are using an H100, you can use fp8 with te layers by setting eg:
+```yaml
+precision: amp_fp8
+
+model:
+  fc_type: te
+  ffn_config:
+    ffn_type: te_ln_mlp
+```
+in the training yaml.
+
 ### AMD (BETA support)
 
 In [our testing of AMD GPUs](https://www.mosaicml.com/blog/amd-mi250), the env setup includes:

@@ -37,9 +37,6 @@ def test_init_hfhub_mpt(device, attn_impl):
                 'attn_impl': attn_impl,
                 'attn_uses_sequence_id': attn_uses_sequence_id,
             },
-            'ffn_config': {
-                'expansion_ratio': 2,
-            },
         },
     }
 

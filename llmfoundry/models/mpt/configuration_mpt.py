@@ -70,13 +70,12 @@ class MPTConfig(PretrainedConfig):
             d_model (int): The size of the embedding dimension of the model.
             n_heads (int): The number of attention heads.
             n_layers (int): The number of layers in the model.
-            expansion_ratio (int): The ratio of the up/down scale in the MLP.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
             resid_pdrop (float): The dropout probability applied to the attention output before combining with residual.
             emb_pdrop (float): The dropout probability for the embedding layer.
             learned_pos_emb (bool): Whether to use learned positional embeddings
-            attn_config (Dict):  A dictionary used to configure the model's attention module:
+            attn_config (Dict): A dictionary used to configure the model's attention module:
                 attn_type (str): type of attention to use. Options: multihead_attention, multiquery_attention
                 attn_pdrop (float): The dropout probability for the attention layers.
                 attn_impl (str): The attention implementation to use. One of 'torch', 'flash', or 'triton'.
@@ -94,6 +93,9 @@ class MPTConfig(PretrainedConfig):
                     Defaults to ``False`` meaning any provided `sequence_id` will be ignored.
                 alibi (bool): Whether to use the alibi bias instead of position embeddings.
                 alibi_bias_max (int): The maximum value of the alibi bias.
+            ffn_config (Dict): A dictionary used to configure the model's ffn module:
+                ffn_type (str): type of ffn to use. Options: mptmlp, te_ln_mlp
+                expansion_ratio (int): The ratio of the up/down scale in the ffn.
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.

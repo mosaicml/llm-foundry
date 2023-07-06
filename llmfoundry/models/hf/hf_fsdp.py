@@ -8,6 +8,7 @@ import functools
 from typing import Any, Iterable, List
 
 import torch
+from peft import LoraModel  # TODO: do this import as a try catch
 from transformers import PreTrainedModel
 from transformers.models.opt.modeling_opt import OPTDecoder
 
@@ -181,6 +182,14 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
             causal_base_model._fsdp_wrap = False  # type: ignore
             tied_embeddings._fsdp_wrap = False  # type: ignore
             lm_head._fsdp_wrap = False  # type: ignore
+
+    # applying ._fsdp_wrap = True for the LoRA modules
+    if isinstance(model.base_model, LoraModel):
+        for name, param in model_block.named_parameters():
+            print(name)
+            if 'lora' in name:
+                print('lora')
+                param._fsdp_wrap = True
 
     # FSDP Wrap and Activation Checkpoint every model block
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)

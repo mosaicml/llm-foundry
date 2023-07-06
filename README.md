@@ -160,13 +160,12 @@ pip install git+https://github.com/NVIDIA/TransformerEngine.git@a83605dfa9545e7b
 ```
 
 Once installed, if you are using an H100, you can use fp8 with te layers by setting eg:
+<!--pytest.mark.skip-->
 ```yaml
 precision: amp_fp8
 
 model:
   fc_type: te
-  ffn_config:
-    ffn_type: te_ln_mlp
 ```
 in the training yaml.
 

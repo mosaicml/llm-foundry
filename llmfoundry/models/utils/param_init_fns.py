@@ -15,9 +15,8 @@ from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 try:
     import transformer_engine.pytorch as te
-    has_te = True
 except:
-    has_te = False
+    te = None
 
 
 def torch_default_param_init_fn_(
@@ -197,7 +196,7 @@ def generic_param_init_fn_(
         if module.out_proj.bias is not None:
             torch.nn.init.zeros_(module.out_proj.bias)
 
-    elif has_te and isinstance(module, te.LayerNormMLP):
+    elif te is not None and isinstance(module, te.LayerNormMLP):
         if module.layer_norm_weight is not None:
             torch.nn.init.ones_(module.layer_norm_weight)  # type: ignore
         if module.layer_norm_bias is not None:

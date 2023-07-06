@@ -208,7 +208,7 @@ class MPTConfig(PretrainedConfig):
             raise warnings.warn(
                 f'Positional information not being provided to the model using either learned_pos_emb or alibi.'
             )
-        if self.fc_type == 'te':
+        if self.fc_type == 'te' or self.ffn_config['ffn_type'] == 'te_ln_mlp':
             try:
                 import transformer_engine.pytorch as te
             except:

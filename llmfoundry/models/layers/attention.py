@@ -14,7 +14,7 @@ from packaging import version
 from torch import nn
 
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
-from llmfoundry.models.layers.norm import LPLayerNorm
+from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,

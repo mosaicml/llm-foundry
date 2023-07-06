@@ -32,14 +32,14 @@ from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
+from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, MPTMLP, build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
 try:
     import transformer_engine.pytorch as te
-    has_te = True
 except:
-    has_te = False
+    te = None
 
 # NOTE: All utils are imported directly even if unused so that
 # HuggingFace can detect all the needed files to copy into its modules folder.

@@ -13,11 +13,56 @@ from composer.loggers import InMemoryLogger, LoggerDestination
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import OmegaConf as om
+from transformers import AutoModelForCausalLM, T5ForConditionalGeneration
 
 from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.models.mpt import MPTForCausalLM
 from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
+
+
+def load_peft_model(model_cfg, tokenizer, num_retries):
+    try:
+        from peft import PeftModel
+    except ImportError as e:
+        raise ImportError(
+            'Error importing from peft. Please verify that peft and peft utils '
+            'are installed by running `pip install -e .[peft]` from `llm-foundry/`.'
+            f'Error encountered: {e}')
+
+    model_registry = {
+        'mpt_causal_lm': MPTForCausalLM,
+        'hf_causal_lm': AutoModelForCausalLM,
+        'hf_prefix_lm': AutoModelForCausalLM,
+        'hf_t5': T5ForConditionalGeneration,
+    }
+
+    retries = 0
+    while retries < num_retries:
+        try:
+            trust_remote_code = model_cfg.get('trust_remote_code', True)
+            use_auth_token = model_cfg.get('use_auth_token', False)
+            model = model_registry[model_cfg.name].from_pretrained(
+                model_cfg.pretrained_model_name_or_path,
+                trust_remote_code=trust_remote_code,
+                use_auth_token=use_auth_token,
+            )
+
+            peft_model = PeftModel.from_pretrained(
+                model, model_cfg.lora_model_name_or_path)
+
+            composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](peft_model,
+                                                                     tokenizer)
+            return composer_model
+        except Exception as e:
+            retries += 1
+            if retries >= num_retries:
+                raise e
+            else:
+                print(
+                    f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
+                )
 
 
 def load_model(model_cfg, tokenizer, num_retries):
@@ -61,8 +106,12 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
         model_gauntlet = None
         model_gauntlet_callback = None
 
-    composer_model = load_model(model_cfg.model, tokenizer,
-                                cfg.get('num_retries', 3))
+    if hasattr(model_cfg.model, 'lora_model_name_or_path'):
+        composer_model = load_peft_model(model_cfg.model, tokenizer,
+                                         cfg.get('num_retries', 3))
+    else:
+        composer_model = load_model(model_cfg.model, tokenizer,
+                                    cfg.get('num_retries', 3))
 
     if model_gauntlet_df is None and model_gauntlet is not None:
         model_gauntlet_df = pd.DataFrame(

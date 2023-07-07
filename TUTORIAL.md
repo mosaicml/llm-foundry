@@ -343,15 +343,13 @@ lora:
 - In the current release, these features have Beta support.
 - For efficiency, The MPT model concatenates the `Q`, `K`, and `V` matrices in each attention block into a single `Wqkv` matrix that is three times wider. Currently, LoRA supports a low-rank approximation to this `Wqkv` matrix.
 - Known issue: PEFT / LoRA do not directly work with FSDP.
-- When evaluating the model, it is better to merge into one like to enable fsdp:
-```python
-from transformers import AutoModelForCausalLM
-from peft import PeftModel
-
-base_model = AutoModelForCausalLM.from_pretrained("tiiuae/falcon-40b")
-peft_model_id = "smangrul/falcon-40B-int4-peft-lora-sfttrainer-sample"
-model = PeftModel.from_pretrained(base_model, peft_model_id)
-merged_model = model.merge_and_uload()n
+- When evaluating the model, lora weight would be merged into base model by default to enable FSDP. However, the evaluation results of the merged model would be slightly different from the unmerged one, so this can be disabled by setting:
+<!--pytest.mark.skip-->
+```yaml
+models:
+  model:
+    ...
+    lora_merge: false
 ```
 
 ### Can I quantize these models and/or run on CPU?

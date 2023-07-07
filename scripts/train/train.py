@@ -78,6 +78,13 @@ def validate_config(cfg):
             'Setting cfg.fsdp_config.activation_checkpointing_reentrant=True.')
         cfg.fsdp_config.activation_checkpointing_reentrant = True
 
+    if 'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp'):
+        warnings.warn(
+            '`te.LayerNormMLP` requires has issues with torch._dynamo. '
+            'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.'
+        )
+        torch._dynamo.config.suppress_errors = True
+
 
 def build_composer_model(model_cfg, tokenizer):
     warnings.filterwarnings(

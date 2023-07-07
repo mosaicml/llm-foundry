@@ -184,11 +184,11 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
             lm_head._fsdp_wrap = False  # type: ignore
 
     # applying ._fsdp_wrap = True for the LoRA modules
+    # this is needed because added LoRA modules have requires_grad=True,
+    # while the rest of the modules have requires_grad=False
     if isinstance(model.base_model, LoraModel):
         for name, module in model_block.named_modules():
-            print(name)
-            if 'lora' in name:
-                print('lora')
+            if 'lora' in name:  # peft adds modules named with lora
                 module._fsdp_wrap = True
 
     # FSDP Wrap and Activation Checkpoint every model block

@@ -5,12 +5,19 @@
 # which is MIT licensed
 
 import functools
+import warnings
 from typing import Any, Iterable, List
 
 import torch
-from peft import LoraModel  # TODO: do this import as a try catch
 from transformers import PreTrainedModel
 from transformers.models.opt.modeling_opt import OPTDecoder
+
+try:
+    from peft import LoraModel
+    lora_model_type = LoraModel
+except ImportError:
+    lora_model_type = None
+    warnings.warn('peft is not installed, LoraModel will not be available')
 
 
 # helper functions
@@ -186,7 +193,8 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
     # applying ._fsdp_wrap = True for the LoRA modules
     # this is needed because added LoRA modules have requires_grad=True,
     # while the rest of the modules have requires_grad=False
-    if isinstance(model.base_model, LoraModel):
+    if (isinstance(model.base_model, lora_model_type)) and (lora_model_type
+                                                            is not None):
         for name, module in model_block.named_modules():
             if 'lora' in name:  # peft adds modules named with lora
                 module._fsdp_wrap = True

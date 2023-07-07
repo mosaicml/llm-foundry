@@ -1,3 +1,4 @@
+icl_seq_len: 2048
 icl_tasks:
 -
   label: lambada_openai

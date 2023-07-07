@@ -312,6 +312,8 @@ def triton_flash_attn_fn(
                       h=1 if multiquery else n_heads)
 
     if multiquery:
+        # necessary to repeat instead of expand tensor because
+        # output contains NaN in edge cases such as with head dimension = 8
         key = key.repeat(1, 1, n_heads, 1)
         value = value.repeat(1, 1, n_heads, 1)
 

@@ -338,8 +338,27 @@ lora:
     r: 16
     lora_alpha: 32
     lora_dropout: 0.05
-    target_modules: ['Wqkv']
+    target_modules: ['Wqkv', 'out_proj', 'down_proj', 'up_proj']
 ```
+You can train LoRA models either using FSDP for further memory savings. in your `.yaml`, specify:
+<!--pytest.mark.skip-->
+```yaml
+fsdp_config:
+  use_orig_params: true
+  sharding_strategy: FULL_SHARD
+  mixed_precision: PURE
+  activation_checkpointing: true
+  activation_checkpointing_reentrant: false
+  activation_cpu_offload: false
+  limit_all_gathers: true
+```
+or default to DDP, as follows:
+<!--pytest.mark.skip-->
+```yaml
+fsdp:
+  {}
+```
+
 - In the current release, these features have Beta support.
 - For efficiency, The MPT model concatenates the `Q`, `K`, and `V` matrices in each attention block into a single `Wqkv` matrix that is three times wider. Currently, LoRA supports a low-rank approximation to this `Wqkv` matrix.
 

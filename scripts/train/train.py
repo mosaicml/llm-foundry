@@ -59,16 +59,16 @@ def validate_config(cfg):
                 'ICL evaluation does not currently support Encoder-Decoder models, such as "hf_t5".'
             )
 
-    if (cfg.model.get('fc_type', 'torch') != 'te' and
-            'te' not in cfg.model.ffn_config.get('ffn_type', 'mptmlp') and
+    if (cfg.model.get('fc_type', 'torch') != 'te' and 'te' not in cfg.model.get(
+            'ffn_config', {}).get('ffn_type', 'mptmlp') and
             'fp8' in cfg.precision):
         warnings.warn(
             "fp8 only supported for te.Linear layers. Either set `cfg.model.fc_typ='te'` or "
             "`cfg.model.ffn_config.ffn_type='te_ln_mlp'` to enable layers using fp8 precision."
         )
 
-    if ((cfg.model.get('fc_type', 'torch') == 'te' or
-         'te' not in cfg.model.ffn_config.get('ffn_type', 'mptmlp')) and
+    if ((cfg.model.get('fc_type', 'torch') == 'te' or 'te' not in cfg.model.get(
+            'ffn_config', {}).get('ffn_type', 'mptmlp')) and
             cfg.get('fsdp_config', None) and
             cfg.fsdp_config.get('activation_checkpointing', False) == True and
             cfg.fsdp_config.get('activation_checkpointing_reentrant',

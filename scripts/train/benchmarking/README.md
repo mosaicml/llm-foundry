@@ -69,7 +69,7 @@ Our microbatching engine enables microbatch sizes that do not divde Global Batch
 
 [comment]: # (TODO: Update tables with torch 2.0 after next Composer release)
 
-## A100 80GB
+## A100 80GB with 1600 Gbps node-node interconnect (RoCE)
 
 |  Model | SeqLen (T) | # GPUs | GPU | MFU | HFU | MicroBatchSize | GradAccum | GlobalBatchSize | Throughput (S/s) | Throughput (T/s) | Throughput (T/s/GPU) | GlobalBatchSize (T) | Precision | MP Mode | Sharding Strategy | Activation Checkpointing | Activation CPUOffload | NumParams |
 |  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -160,7 +160,7 @@ Our microbatching engine enables microbatch sizes that do not divde Global Batch
 |  125m | 1024 | 8 | a100_80gb | 43.25 | 43.25 | 64 | 2 | 1024 | 1225 | 1254561 | 156820 | 1048576 | bf16 | PURE | FULL_SHARD | False | False | 124525056 |
 |  125m | 512 | 8 | a100_80gb | 42.54 | 42.54 | 128 | 2 | 2048 | 2587 | 1325030 | 165628 | 1048576 | bf16 | PURE | FULL_SHARD | False | False | 124131840 |
 
-## A100 40GB
+## A100 40GB with 1600 Gbps node-node interconnect (RoCE)
 
 |  Model | SeqLen (T) | # GPUs | GPU | MFU | HFU | MicroBatchSize | GradAccum | GlobalBatchSize | Throughput (S/s) | Throughput (T/s) | Throughput (T/s/GPU) | GlobalBatchSize (T) | Precision | MP Mode | Sharding Strategy | Activation Checkpointing | Activation CPUOffload | NumParams |
 |  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

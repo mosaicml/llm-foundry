@@ -53,6 +53,7 @@ FFN_CLASS_REGISTRY = {
 }
 
 if te is not None:
+    te.LayerNormMLP._has_norm = True
     FFN_CLASS_REGISTRY['te_ln_mlp'] = te.LayerNormMLP
 
 

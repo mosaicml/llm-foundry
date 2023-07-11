@@ -24,6 +24,7 @@ from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import init_empty_weights
 
 try:
+    from peft import LoraConfig, get_peft_model
     from peft.peft_model import PeftModel
     model_types = PeftModel, transformers.PreTrainedModel
     _om_model_config_type = Union[DictConfig, PeftModel,
@@ -178,6 +179,16 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 f'om_model_config must be either a DictConfig, PeftModel, or PreTrainedModel, but got {type(om_model_config)}'
             )
 
+        # if om_model_config has a lora config, add lora modules
+        lora_cfg = om_model_config.get('lora', None)
+        if lora_cfg is not None:
+            print('Building Lora config...')
+            lora_cfg = LoraConfig(**lora_cfg.args)
+            print('Adding Lora modules...')
+            model = get_peft_model(model, lora_cfg)
+            print('Lora modules added.')
+
+        print('Wrapping model in composer...')
         composer_model = super().__init__(model=model,
                                           shift_labels=True,
                                           tokenizer=tokenizer,

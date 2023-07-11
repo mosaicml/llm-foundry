@@ -28,7 +28,7 @@ def load_peft_model(model_cfg, tokenizer, num_retries):
     except ImportError as e:
         raise ImportError(
             'Error importing from peft. Please verify that peft and peft utils '
-            'are installed by running `pip install -e .[peft]` from `llm-foundry/`.'
+            'are installed by running `pip install -e .[gpu,peft]` from `llm-foundry/`.'
             f'Error encountered: {e}')
 
     model_registry = {
@@ -51,8 +51,6 @@ def load_peft_model(model_cfg, tokenizer, num_retries):
 
             peft_model = PeftModel.from_pretrained(
                 model, model_cfg.pretrained_lora_id_or_path)
-            if model_cfg.get('lora_merge', True):
-                peft_model = peft_model.merge_and_unload()
 
             composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](peft_model,
                                                                      tokenizer)

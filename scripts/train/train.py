@@ -235,7 +235,7 @@ def main(cfg):
 
     if 'icl_tasks' in cfg:
         icl_evaluators, _ = build_icl_evaluators(cfg.icl_tasks, tokenizer,
-                                                 cfg.max_seq_len,
+                                                 cfg.get('icl_max_seq_len', cfg.max_seq_len),
                                                  cfg.device_eval_batch_size)
         evaluators.extend(icl_evaluators)
 

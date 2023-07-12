@@ -330,15 +330,21 @@ The majority of our training setups use `triton`. -->
 
 
 ### Can I finetune using PEFT / LoRA?
-- The LLM Foundry codebase does not directly have examples of PEFT or LORA workflows. However, our MPT model is a subclass of HuggingFace `PretrainedModel`, and https://github.com/mosaicml/llm-foundry/pull/346 added required features to enable HuggingFace’s [PEFT](https://huggingface.co/docs/peft/index) / [LORA](https://huggingface.co/docs/peft/conceptual_guides/lora) workflows for MPT. MPT models with LoRA modules can be trained either using LLM Foundry or Hugging Face's [accelerate](https://huggingface.co/docs/accelerate/index). Within LLM Foundry, run (`scripts/train/train.py`), adding `lora` arguments to the config `.yaml`, like so:
+- The LLM Foundry codebase does not directly have examples of PEFT or LORA workflows. However, our MPT model is a subclass of HuggingFace `PretrainedModel`, and https://github.com/mosaicml/llm-foundry/pull/346 added required features to enable HuggingFace’s [PEFT](https://huggingface.co/docs/peft/index) / [LORA](https://huggingface.co/docs/peft/conceptual_guides/lora) workflows for MPT. MPT models with LoRA modules can be trained either using LLM Foundry or Hugging Face's [accelerate](https://huggingface.co/docs/accelerate/index). Within LLM Foundry, run (`scripts/train/train.py`), adding `model.lora` arguments to the config `.yaml`, like so:
 <!--pytest.mark.skip-->
 ```yaml
-lora:
-  args:
-    r: 16
-    lora_alpha: 32
-    lora_dropout: 0.05
-    target_modules: ['Wqkv', 'out_proj', 'down_proj', 'up_proj']
+model:
+  name: hf_causal_lm
+  pretrained: true
+  ...
+  lora:
+    args:
+      r: 16
+      lora_alpha: 32
+      target_modules: ["Wqkv", "out_proj", "up_proj", "down_proj"]
+      lora_dropout: 0.05
+      bias: none
+      task_type: "CAUSAL_LM"
 ```
 You can train LoRA models either using FSDP for further memory savings. in your `.yaml`, specify:
 <!--pytest.mark.skip-->

@@ -13,7 +13,8 @@ from einops import rearrange
 from packaging import version
 from torch import nn
 
-from llmfoundry.models.layers.norm import LPLayerNorm
+from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
+from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
@@ -342,7 +343,8 @@ class MultiheadAttention(nn.Module):
         qk_ln: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
-        low_precision_layernorm: bool = False,
+        norm_type: str = 'low_precision_layernorm',
+        fc_type: str = 'torch',
         verbose: int = 0,
         device: Optional[str] = None,
     ):
@@ -359,15 +361,22 @@ class MultiheadAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
 
-        self.Wqkv = nn.Linear(self.d_model, 3 * self.d_model, device=device)
+        fc_kwargs = {}
+        if fc_type != 'te':
+            fc_kwargs['device'] = device
+        self.Wqkv = FC_CLASS_REGISTRY[fc_type](
+            self.d_model,
+            3 * self.d_model,
+            **fc_kwargs,
+        )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = (d_model, 2 * d_model)
         self.Wqkv._fused = (0, fuse_splits)  # type: ignore
 
         if self.qk_ln:
-            layernorm_class = LPLayerNorm if low_precision_layernorm else nn.LayerNorm
-            self.q_ln = layernorm_class(self.d_model, device=device)
-            self.k_ln = layernorm_class(self.d_model, device=device)
+            norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
+            self.q_ln = norm_class(self.d_model, device=device)
+            self.k_ln = norm_class(self.d_model, device=device)
 
         if self.attn_impl == 'flash':
             self.attn_fn = flash_attn_fn
@@ -391,7 +400,11 @@ class MultiheadAttention(nn.Module):
         else:
             raise ValueError(f'{attn_impl=} is an invalid setting.')
 
-        self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
+        self.out_proj = FC_CLASS_REGISTRY[fc_type](
+            self.d_model,
+            self.d_model,
+            **fc_kwargs,
+        )
         self.out_proj._is_residual = True  # type: ignore
 
     def forward(
@@ -406,7 +419,7 @@ class MultiheadAttention(nn.Module):
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
-            qkv.clamp_(min=-self.clip_qkv, max=self.clip_qkv)
+            qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
         query, key, value = qkv.chunk(3, dim=2)
 
@@ -452,7 +465,8 @@ class MultiQueryAttention(nn.Module):
         qk_ln: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
-        low_precision_layernorm: bool = False,
+        norm_type: str = 'low_precision_layernorm',
+        fc_type: str = 'torch',
         verbose: int = 0,
         device: Optional[str] = None,
     ):
@@ -470,23 +484,26 @@ class MultiQueryAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.head_dim)
         self.attn_dropout_p = attn_pdrop
 
+        fc_kwargs = {}
+        if fc_type != 'te':
+            fc_kwargs['device'] = device
         # NOTE: if we ever want to make attn TensorParallel, I'm pretty sure we'll
         # want to split Wqkv into Wq and Wkv where Wq can be TensorParallel but
         # Wkv shouldn't be TensorParallel
         # - vchiley
-        self.Wqkv = nn.Linear(
+        self.Wqkv = FC_CLASS_REGISTRY[fc_type](
             d_model,
             d_model + 2 * self.head_dim,
-            device=device,
+            **fc_kwargs,
         )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = (d_model, d_model + self.head_dim)
         self.Wqkv._fused = (0, fuse_splits)  # type: ignore
 
         if self.qk_ln:
-            layernorm_class = LPLayerNorm if low_precision_layernorm else nn.LayerNorm
-            self.q_ln = layernorm_class(d_model, device=device)
-            self.k_ln = layernorm_class(self.head_dim, device=device)
+            norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
+            self.q_ln = norm_class(d_model, device=device)
+            self.k_ln = norm_class(self.head_dim, device=device)
 
         if self.attn_impl == 'flash':
             self.attn_fn = flash_attn_fn
@@ -510,7 +527,11 @@ class MultiQueryAttention(nn.Module):
         else:
             raise ValueError(f'{attn_impl=} is an invalid setting.')
 
-        self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
+        self.out_proj = FC_CLASS_REGISTRY[fc_type](
+            self.d_model,
+            self.d_model,
+            **fc_kwargs,
+        )
         self.out_proj._is_residual = True  # type: ignore
 
     def forward(
@@ -525,7 +546,7 @@ class MultiQueryAttention(nn.Module):
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
-            qkv.clamp_(min=-self.clip_qkv, max=self.clip_qkv)
+            qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
         query, key, value = qkv.split(
             [self.d_model, self.head_dim, self.head_dim], dim=2)

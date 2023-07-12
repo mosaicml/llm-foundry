@@ -330,19 +330,43 @@ The majority of our training setups use `triton`. -->
 
 
 ### Can I finetune using PEFT / LoRA?
-- The LLM Foundry codebase does not directly have examples of PEFT or LORA workflows. However, our MPT model is a subclass of HuggingFace `PretrainedModel`, and https://github.com/mosaicml/llm-foundry/pull/346 added required features to enable HuggingFace’s [PEFT](https://huggingface.co/docs/peft/index) / [LORA](https://huggingface.co/docs/peft/conceptual_guides/lora) workflows for MPT. MPT models with LoRA modules can be trained either using LLM Foundry or Hugging Face's [accelerate](https://huggingface.co/docs/accelerate/index). Within LLM Foundry, run (`scripts/train/train.py`), adding `lora` arguments to the config `.yaml`, like so:
+- The LLM Foundry codebase does not directly have examples of PEFT or LORA workflows. However, our MPT model is a subclass of HuggingFace `PretrainedModel`, and https://github.com/mosaicml/llm-foundry/pull/346 added required features to enable HuggingFace’s [PEFT](https://huggingface.co/docs/peft/index) / [LORA](https://huggingface.co/docs/peft/conceptual_guides/lora) workflows for MPT. MPT models with LoRA modules can be trained either using LLM Foundry or Hugging Face's [accelerate](https://huggingface.co/docs/accelerate/index). Within LLM Foundry, run (`scripts/train/train.py`), adding `model.lora` arguments to the config `.yaml`, like so:
 <!--pytest.mark.skip-->
 ```yaml
-lora:
-  args:
-    r: 16
-    lora_alpha: 32
-    lora_dropout: 0.05
-    target_modules: ['Wqkv']
+model:
+  name: hf_causal_lm
+  pretrained: true
+  ...
+  lora:
+    args:
+      r: 16
+      lora_alpha: 32
+      target_modules: ["Wqkv", "out_proj", "up_proj", "down_proj"]
+      lora_dropout: 0.05
+      bias: none
+      task_type: "CAUSAL_LM"
 ```
+You can train LoRA models either using FSDP for further memory savings. in your `.yaml`, specify:
+<!--pytest.mark.skip-->
+```yaml
+fsdp_config:
+  use_orig_params: true
+  sharding_strategy: FULL_SHARD
+  mixed_precision: PURE
+  activation_checkpointing: true
+  activation_checkpointing_reentrant: false
+  activation_cpu_offload: false
+  limit_all_gathers: true
+```
+or default to DDP, as follows:
+<!--pytest.mark.skip-->
+```yaml
+fsdp:
+  {}
+```
+
 - In the current release, these features have Beta support.
 - For efficiency, The MPT model concatenates the `Q`, `K`, and `V` matrices in each attention block into a single `Wqkv` matrix that is three times wider. Currently, LoRA supports a low-rank approximation to this `Wqkv` matrix.
-- Known issue: PEFT / LoRA do not directly work with FSDP.
 
 ### Can I quantize these models and/or run on CPU?
 - The LLM Foundry codebase does not directly have examples of quantization or limited-resource inference. But you can check out [GGML](https://github.com/ggerganov/ggml) (same library that powers llama.cpp) which has built support for efficiently running MPT models on CPU! You _can_ load your model in 8-bit precision for inference using the [bitsandbytes library](https://github.com/TimDettmers/bitsandbytes) and Hugging Face's [accelerate](https://huggingface.co/docs/accelerate/index) via `load model = AutoModelForCausalLM.from_pretrained(model_name, load_in_8bit=True, device_map="auto", trust_remote_code=True)`, although we have not extensively benchmarked the performance (see the Hugging Face [quantization documentation](https://huggingface.co/docs/transformers/main/main_classes/quantization) for more detail).

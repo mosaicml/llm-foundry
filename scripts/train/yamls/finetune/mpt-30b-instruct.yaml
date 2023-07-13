@@ -101,7 +101,6 @@ fsdp_config:
   activation_cpu_offload: false
   limit_all_gathers: true
   sync_module_states: true
-  state_dict_type: local
   verbose: false
 
 # Logging

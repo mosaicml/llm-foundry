@@ -9,23 +9,34 @@ import torch
 import torch.nn as nn
 
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
+from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
 class MPTMLP(nn.Module):
 
-    def __init__(self,
-                 d_model: int,
-                 expansion_ratio: int,
-                 device: Optional[str] = None):
+    def __init__(
+        self,
+        d_model: int,
+        expansion_ratio: int,
+        fc_type: str = 'torch',
+        device: Optional[str] = None,
+    ):
         super().__init__()
-        self.up_proj = nn.Linear(d_model,
-                                 expansion_ratio * d_model,
-                                 device=device)
+        fc_kwargs = {}
+        if fc_type != 'te':
+            fc_kwargs['device'] = device
+        self.up_proj = FC_CLASS_REGISTRY[fc_type](
+            d_model,
+            expansion_ratio * d_model,
+            **fc_kwargs,
+        )
         self.act = nn.GELU(approximate='none')
-        self.down_proj = nn.Linear(expansion_ratio * d_model,
-                                   d_model,
-                                   device=device)
+        self.down_proj = FC_CLASS_REGISTRY[fc_type](
+            expansion_ratio * d_model,
+            d_model,
+            **fc_kwargs,
+        )
         self.down_proj._is_residual = True  # type: ignore
 
     def forward(self, x):
@@ -35,27 +46,29 @@ class MPTMLP(nn.Module):
 class MPTBlock(nn.Module):
 
     def __init__(
-            self,
-            d_model: int,
-            n_heads: int,
-            expansion_ratio: int,
-            attn_config: Dict = {
-                'attn_type': 'multihead_attention',
-                'attn_pdrop': 0.0,
-                'attn_impl': 'triton',
-                'qk_ln': False,
-                'clip_qkv': None,
-                'softmax_scale': None,
-                'prefix_lm': False,
-                'attn_uses_sequence_id': False,
-                'alibi': False,
-                'alibi_bias_max': 8,
-            },
-            resid_pdrop: float = 0.0,
-            norm_type: str = 'low_precision_layernorm',
-            verbose: int = 0,
-            device: Optional[str] = None,
-            **kwargs):
+        self,
+        d_model: int,
+        n_heads: int,
+        expansion_ratio: int,
+        attn_config: Dict = {
+            'attn_type': 'multihead_attention',
+            'attn_pdrop': 0.0,
+            'attn_impl': 'triton',
+            'qk_ln': False,
+            'clip_qkv': None,
+            'softmax_scale': None,
+            'prefix_lm': False,
+            'attn_uses_sequence_id': False,
+            'alibi': False,
+            'alibi_bias_max': 8,
+        },
+        resid_pdrop: float = 0.0,
+        norm_type: str = 'low_precision_layernorm',
+        verbose: int = 0,
+        fc_type: str = 'torch',
+        device: Optional[str] = None,
+        **kwargs,
+    ):
         del kwargs  # unused, just to capture any extra args from the config
         super().__init__()
 
@@ -71,6 +84,7 @@ class MPTBlock(nn.Module):
             attn_pdrop=attn_config['attn_pdrop'],
             d_model=d_model,
             n_heads=n_heads,
+            fc_type=fc_type,
             verbose=verbose,
             device=device,
         )
@@ -78,6 +92,7 @@ class MPTBlock(nn.Module):
         self.ffn = MPTMLP(
             d_model=d_model,
             expansion_ratio=expansion_ratio,
+            fc_type=fc_type,
             device=device,
         )
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)

@@ -7,7 +7,7 @@ integrations:
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  cd llm-foundry/llmfoundry/inference
+  cd llm-foundry/scripts/inference
 
   # s3 commands
   pip install awscli

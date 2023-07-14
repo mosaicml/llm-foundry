@@ -159,6 +159,7 @@ parameters:
 
   ## If you want to use one of our suites of tasks
   icl_tasks: eval/yamls/tasks.yaml
+  icl_subset_num_batches: 500
   model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
 
   ## Or if you want to manually specify individual tasks

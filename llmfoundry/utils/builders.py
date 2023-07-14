@@ -4,6 +4,7 @@
 import os
 from typing import Union
 
+import tiktoken
 from composer import algorithms
 from composer.callbacks import (LRMonitor, MemoryMonitor, OptimizerMonitor,
                                 RuntimeEstimator, SpeedMonitor)
@@ -15,6 +16,7 @@ from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
                                       LinearWithWarmupScheduler)
+from llmfoundry.models.openai import OpenAITokenizerWrapper
 from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
@@ -130,33 +132,37 @@ def build_scheduler(cfg):
 
 
 def build_tokenizer(om_tokenizer_config: DictConfig,) -> Tokenizer:
-    os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
-    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+    if om_tokenizer_config.name == 'openai':
+        return OpenAITokenizerWrapper(om_tokenizer_config.kwargs['name'])
+    else:
+        os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
+        os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
-                                                   resolve=True)
-    tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
-        'kwargs', {})
-    tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                              **tokenizer_kwargs)
+        resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
+                                                    resolve=True)
+        tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
+            'kwargs', {})
+        tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+                                                **tokenizer_kwargs)
 
-    # HuggingFace does not respect the model_max_length kwarg, and overrides it with
-    # min(kwargs['model_max_length'], original_config['model_max_length']), so we
-    # explicitly set it here
-    tokenizer.model_max_length = tokenizer_kwargs.get(
-        'model_max_length',
-        int(1e30),
-    )
+        # HuggingFace does not respect the model_max_length kwarg, and overrides it with
+        # min(kwargs['model_max_length'], original_config['model_max_length']), so we
+        # explicitly set it here
+        tokenizer.model_max_length = tokenizer_kwargs.get(
+            'model_max_length',
+            int(1e30),
+        )
 
-    return tokenizer
+        return tokenizer
 
 
 def build_icl_evaluators(icl_tasks,
                          tokenizer,
                          default_max_seq_len,
                          default_batch_size,
-                         destination_dir=os.getcwd()):
+                         destination_dir=os.getcwd(),
+                         icl_subset_num_batches=None,):
     evaluators = []
     logger_keys = []
     if isinstance(icl_tasks, str):
@@ -164,7 +170,7 @@ def build_icl_evaluators(icl_tasks,
         with open(icl_tasks, 'r') as icl_f:
             icl_task_cfg = om.load(icl_f)
         icl_tasks = icl_task_cfg.icl_tasks
-
+    icl_tasks.update(icl_cfg_overrides)
     def _validate_cfg(icl_cfg):
         assert 'label' in icl_cfg
         assert 'dataset_uri' in icl_cfg and icl_cfg.dataset_uri is not None
@@ -248,6 +254,6 @@ def build_icl_evaluators(icl_tasks,
                 evaluators.append(
                     Evaluator(label=label,
                               dataloader=dataloaders,
-                              metric_names=metric_names),)
+                              metric_names=metric_names),subset_num_batches=icl_subset_num_batches)
 
     return evaluators, logger_keys

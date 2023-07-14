@@ -23,6 +23,7 @@ from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_optimizer, build_scheduler,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import log_config, update_batch_size_info
+from llmfoundry.callbacks import ModelGauntlet
 
 
 def validate_config(cfg):
@@ -215,7 +216,6 @@ def main(cfg):
             model = build_composer_model(cfg.model, tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')
-
     # Dataloaders
     print('Building train loader...')
     train_loader = build_dataloader(
@@ -233,11 +233,25 @@ def main(cfg):
                                 metric_names=list(model.train_metrics.keys()))
         evaluators.append(eval_loader)
 
+    model_gauntlet_callback = None
     if 'icl_tasks' in cfg:
-        icl_evaluators, _ = build_icl_evaluators(cfg.icl_tasks, tokenizer,
+        icl_evaluators, logger_keys = build_icl_evaluators(cfg.icl_tasks, tokenizer,
                                                  cfg.max_seq_len,
-                                                 cfg.device_eval_batch_size)
+                                                 cfg.device_eval_batch_size, icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
         evaluators.extend(icl_evaluators)
+        if 'model_gauntlet' in cfg:
+            if isinstance(cfg.model_gauntlet, str):
+                with open(cfg.model_gauntlet, 'r') as icl_f:
+                    model_gauntlet_cfg = om.load(icl_f)
+                model_gauntlet = model_gauntlet_cfg.model_gauntlet
+            else:
+                model_gauntlet = cfg.model_gauntlet
+            model_gauntlet.logger_keys = logger_keys
+            model_gauntlet.benchmark_sizes = {
+                e.label: e.dataloader.num_samples for e in evaluators
+            }
+            model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
+
 
     # Optimizer
     optimizer = build_optimizer(cfg.optimizer, model)
@@ -256,6 +270,9 @@ def main(cfg):
         build_callback(name, callback_cfg)
         for name, callback_cfg in (cfg.get('callbacks') or {}).items()
     ]
+
+    if model_gauntlet_callback is not None:
+        callbacks.append(model_gauntlet_callback)
 
     # Algorithms
     algorithms = [

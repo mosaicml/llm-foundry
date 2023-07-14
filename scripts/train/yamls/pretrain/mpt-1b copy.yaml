@@ -1,0 +1,164 @@
+global_seed: 17
+max_seq_len: 2048 # max tokens per sequence during training
+
+# Model
+model:
+  name: mpt_causal_lm
+  init_device: cpu
+  d_model: 2048
+  n_heads: 16
+  n_layers: 24
+  expansion_ratio: 4
+  max_seq_len: ${max_seq_len}
+  vocab_size: 50368 # update for hero run with custom tokenizer
+  no_bias: true
+  loss_fn: torch_crossentropy
+  attn_config:
+    alibi: true
+    attn_impl: torch
+    clip_qkv: 6
+    attn_uses_sequence_id: true
+
+# Tokenizer
+tokenizer:
+  name: EleutherAI/gpt-neox-20b
+  kwargs:
+    model_max_length: ${max_seq_len}
+
+# Optimization
+global_train_batch_size: 1024 # ~2M tokens, update for hero run, must be divisible by gpu_num
+max_duration: 100ba # update for hero run, e.g. 500000ba ~= 1T tokens
+
+optimizer:
+  name: decoupled_lionw
+  lr: 0.0002
+  betas:
+  - 0.9
+  - 0.95
+  weight_decay: 0.0002
+
+scheduler:
+  name: cosine_with_warmup
+  t_warmup: 5000ba
+  alpha_f: 0.1
+
+# System
+seed: ${global_seed}
+precision: fp32
+device_train_microbatch_size: 4
+device_eval_batch_size: 4
+
+# FSDP
+# fsdp_config:
+#   activation_checkpointing: false
+#   activation_checkpointing_reentrant: false
+#   activation_cpu_offload: false
+#   limit_all_gathers: true
+#   mixed_precision: PURE
+#   sharding_strategy: FULL_SHARD
+#   state_dict_type: full
+#   verbose: false
+
+# Logging
+eval_first: true
+eval_interval: 2000ba
+log_to_console: true
+console_log_interval: 100ba
+progress_bar: false
+python_log_level: DEBUG
+loggers:
+  wandb: {}
+
+# Checkpointing
+# autoresume: true
+# save_filename: ep{epoch}-ba{batch}/rank{rank}.pt
+# save_folder: oci://mosaicml-internal-checkpoints/llm-hero-test/7-6-23/mpt-1b # update for hero run
+# save_interval: 20ba # update for hero run, e.g. 2000ba
+# save_num_checkpoints_to_keep: 1
+
+# Algos and Callbacks
+algorithms:
+  gradient_clipping:
+    clipping_threshold: 1
+    clipping_type: norm
+
+callbacks:
+  generate_callback:
+    batch_log_interval: 10 # update for hero run, e.g. 2000
+    do_sample: true
+    max_new_tokens: 100
+    prompts:
+    - The quick brown fox jumps over
+    - |-
+      Vegan Banana Bread
+      Instructions:
+      1.
+    - The other day I was explaining what generative AI is to my five year old.
+    temperature: 1
+    top_k: 50
+    top_p: 0.95
+    use_cache: true
+  lr_monitor: {}
+  memory_monitor: {}
+  # mono_ckpt_saver:
+  #   batch_interval: ${save_interval}
+  #   filename: ep{epoch}-ba{batch}/mono.pt
+  #   save_folder: ${save_folder}
+  runtime_estimator: {}
+  scheduled_gc:
+    batch_interval: 2000
+  speed_monitor:
+    window_size: 10
+
+# Dataloaders
+eos_token_id: 0 # update for hero run with custom tokenizer
+num_canonical_nodes: 128 # update for hero run, must be codivisible by # physical nodes
+
+# Eval loader
+eval_loader:
+  name: text
+  drop_last: false
+  num_workers: 8
+  dataset:
+    eos_token_id: ${eos_token_id}
+    max_seq_len: ${max_seq_len}
+    num_canonical_nodes: ${num_canonical_nodes}
+    shuffle: false
+    shuffle_seed: ${global_seed}
+    local: tmp/dataset/val_c4
+    remote: oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/
+    split: val
+
+
+# In-context-learning tasks
+
+## If you want to use one of our suites of tasks
+icl_tasks: 'eval/yamls/tasks.yaml'
+icl_overrides:
+  eval_subset_num_batches: 1
+model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
+
+## Or if you want to manually specify individual tasks
+
+# Train loader
+train_loader:
+  name: text
+  drop_last: true
+  num_workers: 8
+  dataset:
+    eos_token_id: ${eos_token_id}
+    max_seq_len: ${max_seq_len}
+    num_canonical_nodes: ${num_canonical_nodes}
+    shuffle: true
+    shuffle_seed: ${global_seed}
+    streams:
+      c4:
+        local: tmp/dataset/c4/
+        proportion: 0.8
+        remote: oci://mosaicml-internal-dataset-c4/sem-dedupe/23-04-05/dataset/pretokencat/EleutherAI-gpt-neox-20b/0pt8/
+        split: train
+      markdown:
+        local: tmp/dataset/markdown/
+        proportion: 0.2
+        remote: oci://mosaicml-internal-datasets/stack-split-neox/markdown/
+        split: null

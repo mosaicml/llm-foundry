@@ -44,7 +44,7 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
 
     evaluators, logger_keys = build_icl_evaluators(cfg.icl_tasks, tokenizer,
                                                    cfg.max_seq_len,
-                                                   cfg.device_eval_batch_size)
+                                                   cfg.device_eval_batch_size, icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
     if hasattr(cfg, 'model_gauntlet'):
         if isinstance(cfg.model_gauntlet, str):
             with open(cfg.model_gauntlet, 'r') as icl_f:

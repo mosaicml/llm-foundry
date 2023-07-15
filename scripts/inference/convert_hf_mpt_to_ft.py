@@ -199,7 +199,8 @@ def convert_mpt_to_ft(model_name_or_path: str,
 
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_name_or_path, trust_remote_code=True).to(torch_device)
-    tokenizer = transformers.AutoTokenizer.from_pretrained(model_name_or_path)
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        model_name_or_path, trust_remote_code=True)
 
     hf_config = vars(model.config)
 

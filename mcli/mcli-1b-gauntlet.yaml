@@ -3,19 +3,19 @@ name: test-1b
 integrations:
 -
   integration_type: git_repo
-  git_branch: v0.2.0
+  git_branch: enable_gauntlet_training #v0.2.0
   git_repo: mosaicml/llm-foundry
-  pip_install: .[gpu]
+  pip_install: -e .[gpu]
   ssh_clone: false
 -
   integration_type: wandb
   entity: mosaic-ml
-  project: customer-project
+  project: gauntlet
 
 compute:
-  gpus: <insert number of gpus>  # update for hero run
-  cluster: <insert cluster name> # update for hero run
-  gpu_type: a100_40gb # update for hero run
+  gpus: 8 #<insert number of gpus>  # update for hero run
+  cluster: r1z1 #<insert cluster name> # update for hero run
+  gpu_type: a100_80gb # update for hero run
 
 image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
 command: |-

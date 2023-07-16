@@ -4,7 +4,6 @@
 import os
 from typing import Union
 
-import tiktoken
 from composer import algorithms
 from composer.callbacks import (LRMonitor, MemoryMonitor, OptimizerMonitor,
                                 RuntimeEstimator, SpeedMonitor)

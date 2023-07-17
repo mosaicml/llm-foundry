@@ -1,0 +1,48 @@
+icl_seq_len: 2048
+icl_tasks:
+-
+  label: lambada_openai
+  dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl  # or use your own dataset URI
+  num_fewshot: [0]
+  icl_task_type: language_modeling
+  max_seq_len: ${icl_seq_len}
+-
+  label: piqa
+  dataset_uri: eval/local_data/commonsense_reasoning/piqa.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  max_seq_len: ${icl_seq_len}
+-
+  label: hellaswag
+  dataset_uri: eval/local_data/language_understanding/hellaswag.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+  max_seq_len: ${icl_seq_len}
+-
+  label: arc_easy
+  dataset_uri: eval/local_data/world_knowledge/arc_easy.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: "\nAnswer: "
+  max_seq_len: ${icl_seq_len}
+-
+  label: arc_challenge
+  dataset_uri: eval/local_data/world_knowledge/arc_challenge.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: "\nAnswer: "
+  max_seq_len: ${icl_seq_len}
+-
+  label: copa
+  dataset_uri: eval/local_data/commonsense_reasoning/copa.jsonl
+  num_fewshot: [0]
+  icl_task_type: multiple_choice
+  max_seq_len: ${icl_seq_len}
+-
+  label: boolq
+  dataset_uri: eval/local_data/reading_comprehension/boolq.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: "\nAnswer: "
+  max_seq_len: ${icl_seq_len}

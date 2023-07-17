@@ -1,10 +1,14 @@
 # Data preparation
 
-This folder contains scripts for converting text data from original sources (HF, JSON) to [StreamingDataset](https://github.com/mosaicml/streaming) format for consumption by our training scripts.
+This folder contains scripts for converting text data from original sources (HF, JSON) to the Mosaic [StreamingDataset](https://github.com/mosaicml/streaming) format for consumption by our training scripts. StreamingDataset is designed to make training on large datasets from cloud storage as fast, cheap, and scalable as possible. In particular, it is custom built for multi-node, distributed training for large models while maximizing correctness guarantees, performance, and ease of use.
 
+They following scripts will run on CPUs (no GPUs needed). Execute them in an environment with `python` and `llm-foundry` dependencies installed. All scripts should run from the `./llm-foundry/scripts/data_prep` directory.
 
 ## Converting a pretraining dataset
-Using the `convert_dataset_hf.py` script...
+### HuggingFace data
+In this example, we use the `convert_dataset_hf.py` script to convert a HuggingFace `c4` dataset into a `StreamingDataset`, using the `EleutherAI/gpt-neox-20b` tokenizer. The resulting directory is saved at `./llm-foundry/scripts/data_prep/my-copy-c4`.
+
+Currently supports `c4` and `The Pile`.
 
 <!--pytest.mark.skip-->
 ```bash
@@ -15,6 +19,7 @@ python convert_dataset_hf.py \
   --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>' \
   --compression zstd
 ```
+### JSON data
 
 Using the `convert_dataset_json.py` script...
 
@@ -28,7 +33,7 @@ python convert_dataset_json.py \
   --compression zstd
 ```
 
-Where `--path` can be a single json file, or a folder containing json files, and split the intended split (hf defaults to train).
+Where `--path` can be a single json file, or a folder containing json files. `--split` denotes the intended split (hf defaults to `train`).
 
 ## Converting a finetuning dataset
 Using the `convert_finetuning_dataset.py` script you can run a command such as:
@@ -42,7 +47,6 @@ python convert_finetuning_dataset.py --dataset "Muennighoff/P3" \
 
 This example assumes:
 
-- You are running the script in the terminal or command prompt where `python` command is recognized.
 - `"Muennighoff/P3"` is the dataset you want to convert. Substitute "Muennighoff/P3" with the name or path of your dataset.
 - `train` and `validation` are the splits of the dataset to convert.
 - `llmfoundry.data.finetuning.tasks:p3_preprocessing_function` is a string that provides the name or import path of the function used to preprocess the dataset. Substitute it with your actual preprocessor. See [tasks](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/data/finetuning/tasks.py) for available functions and examples.

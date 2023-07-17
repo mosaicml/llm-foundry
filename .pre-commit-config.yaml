@@ -89,3 +89,12 @@ repos:
     entry: yamllint
     language: python
     types: [file, yaml]
+- repo: https://github.com/trufflesecurity/trufflehog.git
+  rev: v3.40.0
+  hooks:
+  - id: trufflehog
+    name: secret scan
+    entry: trufflehog filesystem ./
+    args:
+    - --only-verified
+    - --fail

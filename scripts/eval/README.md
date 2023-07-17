@@ -1,9 +1,34 @@
-# In-context learning (ICL) evaluaton
-This folder contains the MosaicML LLM evaluation suite. It is a [blazingly fast](https://www.mosaicml.com/blog/llm-evaluation-for-icl), multi-GPU-enabled ICL evaluaton suite with native [FSDP](https://pytorch.org/docs/stable/fsdp.html) compatibility with any model on the HuggingFace hub and any PyTorch model that implements the [`ComposerModel` interface](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.ComposerModel.html#composermodel).
+# In-context learning (ICL) evaluation
 
-You can evaluate a model by preparing an evaluaton YAML following the format of the examples in the [`scripts/eval/yamls` directory](https://github.com/mosaicml/llm-foundry/tree/main/scripts/eval/yamls).
+This folder contains the MosaicML LLM evaluation suite. It is a [blazingly fast](https://www.mosaicml.com/blog/llm-evaluation-for-icl), multi-GPU-enabled ICL evaluation suite with native [FSDP](https://pytorch.org/docs/stable/fsdp.html) compatibility with any model on the HuggingFace hub and any PyTorch model that implements the [`ComposerModel` interface](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.ComposerModel.html#composermodel). We also include collection of ICL datasets we refer to as our [Model Gauntlet](https://github.com/mosaicml/llm-foundry/blob/scripts/eval/local_data/MODEL_GAUNTLET.md) organized into 6 broad categories of competency that we expect good foundation models to have.
 
-**Offline evaluation**
+You can evaluate a model by preparing an evaluation YAML following the format of the examples in the [`scripts/eval/yamls` directory](https://github.com/mosaicml/llm-foundry/tree/main/scripts/eval/yamls).
+
+----
+
+## Quickstart
+
+To run a full evaluation on a model, you would need to install this repo and then run the following commands:
+
+<!--pytest.mark.skip-->
+```bash
+cd llm-foundry/scripts
+composer eval/eval.py eval/yamls/hf_eval.yaml
+```
+
+This will run a large eval suite, including our Model Gauntlet, on `EleutherAI/gpt-neo-125m`. You can update the model in that YAML file, or create your own, or override the values in the YAML with CLI args, such as:
+
+<!--pytest.mark.skip-->
+```bash
+cd llm-foundry/scripts
+composer eval/eval.py eval/yamls/hf_eval.yaml \
+    model_name_or_path=mosaicml/mpt-7b
+```
+
+----
+
+## Offline evaluation
+
 You can run the evaluation script on a model checkpoint via `composer eval/eval.py YOUR_YAML` from the `scripts` directory or launch it on the MosaicML platform using a an MCLI YAML following the format of [`llm-foundry/mcli/mcli-1b-eval.yaml`](https://github.com/mosaicml/llm-foundry/blob/main/mcli/mcli-1b-eval.yaml).
 Your YAML must have a config section entitled `icl_tasks`, this can either be a list of dictionaries of the form
 
@@ -27,16 +52,16 @@ icl_tasks:
 or a local path pointing to a YAML containing an icl\_tasks config.
 
 Note that if continuation\_delimiter, example\_delimiter, or prompt\_string are omitted they will default to the values below:
+
 ```jsx
 continuation_delimiter: ' '
 example_delimiter: "\n"
 prompt_string: ''
 ```
 
+## Evaluation during training
 
-**Evaluation during training**
 You can also add ICL evaluation to your training runs by adding an `icl_tasks` config to your training config at the same depth as the `model` subconfig.
-
 
 ----
 
@@ -59,7 +84,7 @@ Composer currently supports four ICL formats
 3. [InContextLearningMultipleChoiceTaskDataset](https://github.com/mosaicml/composer/blob/v0.14.0/composer/datasets/in_context_learning_evaluation.py#L405-L599)
 4. [InContextLearningSchemaTaskDataset](https://github.com/mosaicml/composer/blob/v0.14.0/composer/datasets/in_context_learning_evaluation.py#L602-L773)
 
---------
+----
 
 ### InContextLearningQATaskDataset
 

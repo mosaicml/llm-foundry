@@ -9,6 +9,7 @@ model:
   pretrained: true
   pretrained_model_name_or_path: mosaicml/mpt-7b
   config_overrides:
+    max_seq_len: ${max_seq_len}
     attn_config:
       attn_impl: triton
       # Set this to `true` if using `train_loader.dataset.packing_ratio` below
@@ -51,7 +52,7 @@ eval_loader:
     allow_pad_trimming: false
     decoder_only_format: true
     # packing_ratio:
-    shuffle: true
+    shuffle: false
   drop_last: true
   num_workers: 8
   pin_memory: false

@@ -1,20 +1,23 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import contextlib
 import os
 import sys
 import warnings
 
+import torch
 from composer import Trainer
 from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from transformers import PreTrainedTokenizer
 
-from llmfoundry import (COMPOSER_MODEL_REGISTRY, build_finetuning_dataloader,
+from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
+                        MPTForCausalLM, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data.text_data import build_text_dataloader
-from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.models.utils import init_empty_weights, init_on_device
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_evaluators, build_logger,
                                        build_optimizer, build_scheduler,
@@ -56,6 +59,35 @@ def validate_config(cfg):
                 'ICL evaluation does not currently support Encoder-Decoder models, such as "hf_t5".'
             )
 
+    if (cfg.model.get('fc_type', 'torch') != 'te' and 'te' not in cfg.model.get(
+            'ffn_config', {}).get('ffn_type', 'mptmlp') and
+            'fp8' in cfg.precision):
+        warnings.warn(
+            "fp8 only supported for te.Linear layers. Either set `cfg.model.fc_typ='te'` or "
+            "`cfg.model.ffn_config.ffn_type='te_ln_mlp'` to enable layers using fp8 precision."
+        )
+
+    if (cfg.model.get('fc_type', 'torch') == 'te' or 'te' not in cfg.model.get(
+            'ffn_config', {}).get('ffn_type', 'mptmlp')):
+        fsdp_config = cfg.get('fsdp_config', None)
+        act_ckpt = fsdp_config.get('activation_checkpointing', False)
+        act_ckpt_reentrant = fsdp_config.get(
+            'activation_checkpointing_reentrant', True)
+        if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == False:
+            warnings.warn(
+                '`te.Linear` layers do not support activation_checkpointing with '
+                '`activation_checkpointing_reentrant = False`. '
+                'Setting cfg.fsdp_config.activation_checkpointing_reentrant=True.'
+            )
+            cfg.fsdp_config.activation_checkpointing_reentrant = True
+
+    if 'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp'):
+        warnings.warn(
+            '`te.LayerNormMLP` requires has issues with torch._dynamo. '
+            'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.'
+        )
+        torch._dynamo.config.suppress_errors = True
+
 
 def build_composer_model(model_cfg, tokenizer):
     warnings.filterwarnings(
@@ -65,6 +97,48 @@ def build_composer_model(model_cfg, tokenizer):
         raise ValueError(
             f'Not sure how to build model with name={model_cfg.name}')
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
+
+
+def build_composer_peft_model(
+        model_cfg: DictConfig, lora_cfg: DictConfig,
+        tokenizer: PreTrainedTokenizer) -> ComposerHFCausalLM:
+    try:
+        from peft import LoraConfig, get_peft_model
+    except ImportError as e:
+        raise ImportError(
+            'Error importing from peft. Please verify that peft and peft utils '
+            'are installed by running `pip install -e .[peft]` from `llm-foundry/`.'
+            f'Error encountered: {e}')
+
+    # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
+    print('Building Lora config...')
+    lora_cfg = LoraConfig(**lora_cfg.args)
+
+    print('Building model from HuggingFace checkpoint...')
+    model = MPTForCausalLM.from_pretrained(
+        cfg.model.pretrained_model_name_or_path, trust_remote_code=True)
+    print('Model built!')
+
+    print('Adding Lora modules...')
+    model = get_peft_model(model, lora_cfg)
+    print('Lora modules added!')
+
+    model = ComposerHFCausalLM(model, tokenizer)
+
+    return model
+
+
+def print_trainable_parameters(model) -> None:
+    # Prints the number of trainable parameters in the model.
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+    print(
+        f'trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}'
+    )
 
 
 def build_dataloader(cfg, tokenizer, device_batch_size):
@@ -129,9 +203,9 @@ def main(cfg):
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
     # when multiple GPUs are available.
     # Also 'meta' is only valid when using FSDP
-    init_context = contextlib.nullcontext()
+    init_context = init_on_device(device=torch.device('cpu'))
     if 'init_device' in cfg.model:
-        assert cfg.model.init_device in ['meta', 'cpu']
+        assert cfg.model.init_device in ['meta', 'cpu', 'mixed']
         if fsdp_config is None and cfg.model.init_device == 'meta':
             warnings.warn(
                 "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
@@ -139,6 +213,21 @@ def main(cfg):
             cfg.model.init_device = 'cpu'
         if cfg.model.init_device == 'meta':
             init_context = init_empty_weights()
+        if cfg.model.init_device == 'mixed':
+            if fsdp_config is None:
+                raise NotImplementedError(
+                    'Using init_device `mixed` is only supported with FSDP. '
+                    'Please add a FSDP config.')
+            # Always set `sync_module_states` to True for mixed initialization
+            if not fsdp_config.get('sync_module_states', False):
+                warnings.warn((
+                    'Setting `sync_module_states = True` for FSDP. This is required '
+                    'when using mixed initialization.'))
+                fsdp_config['sync_module_states'] = True
+
+            # Set defaults for mixed initialization
+            fsdp_config.setdefault('use_orig_params', False)
+            fsdp_config.setdefault('load_monolith_rank0_only', True)
 
     # build tokenizer
     tokenizer = build_tokenizer(cfg.tokenizer)
@@ -146,7 +235,13 @@ def main(cfg):
     # Build Model
     print('Initializing model...')
     with init_context:
-        model = build_composer_model(cfg.model, tokenizer)
+        if cfg.get('lora',
+                   None) is not None:  # frozen model + trainable lora modules
+            model: ComposerHFCausalLM = build_composer_peft_model(
+                cfg.model, cfg.lora, tokenizer)
+            print_trainable_parameters(model)  # should not be 100%
+        else:  # standard model
+            model = build_composer_model(cfg.model, tokenizer)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')
 

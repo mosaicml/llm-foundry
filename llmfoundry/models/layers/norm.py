@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Dict, Type
+
 import torch
 
 
@@ -52,7 +54,7 @@ class LPLayerNorm(torch.nn.LayerNorm):
 
 
 def rms_norm(x, weight=None, eps=1e-5):
-    output = x / torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + eps)
+    output = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + eps)
     if weight is not None:
         return output * weight
     return output
@@ -107,7 +109,7 @@ class LPRMSNorm(RMSNorm):
                             self.eps).to(dtype=x.dtype)
 
 
-NORM_CLASS_REGISTRY = {
+NORM_CLASS_REGISTRY: Dict[str, Type[torch.nn.Module]] = {
     'layernorm': torch.nn.LayerNorm,
     'low_precision_layernorm': LPLayerNorm,
     'rmsnorm': RMSNorm,

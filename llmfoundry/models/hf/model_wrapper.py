@@ -45,7 +45,8 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
                  metrics: Optional[List[Metric]] = None,
                  eval_metrics: Optional[List[Metric]] = None,
                  z_loss: float = 0.0,
-                 shift_labels: bool = False):
+                 shift_labels: bool = False,
+                 init_device: Optional[str] = None):
         super().__init__(model,
                          tokenizer,
                          use_logits=True,
@@ -61,7 +62,7 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
 
         # Note: We need to add the FSDP related attributes to the model AFTER the super init,
         # so that the (possible) embedding resizing doesn't destroy them
-        prepare_hf_model_for_fsdp(self.model)
+        prepare_hf_model_for_fsdp(self.model, init_device)
 
         # This provides support for meta initialization when using FSDP
         self.model.param_init_fn = lambda module: self.model._init_weights(

@@ -1,10 +1,12 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import os
 import re
 import sys
 import time
+import warnings
 from typing import List
 
 import pandas as pd
@@ -20,21 +22,52 @@ from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
 
 
-def load_model(model_cfg, tokenizer, num_retries):
+def load_model(model_cfg, tokenizer, fsdp_config, num_retries):
+    # Restrict model init_device to 'meta' and 'cpu',
+    # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
+    # when multiple GPUs are available.
+    # Also 'meta' is only valid when using FSDP
+    init_context = contextlib.nullcontext()
+    if 'init_device' in model_cfg:
+        assert model_cfg.init_device in ['meta', 'cpu', 'mixed']
+        if fsdp_config is None and model_cfg.init_device == 'meta':
+            warnings.warn(
+                "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
+                "Reverting to `cfg.model.init_device='cpu'`.")
+            model_cfg.init_device = 'cpu'
+        if model_cfg.init_device == 'meta':
+            init_context = init_empty_weights()
+        if model_cfg.init_device == 'mixed':
+            if fsdp_config is None:
+                raise NotImplementedError(
+                    'Using init_device `mixed` is only supported with FSDP. '
+                    'Please add a FSDP config.')
+            # Always set `sync_module_states` to True for mixed initialization
+            if not fsdp_config.get('sync_module_states', False):
+                warnings.warn((
+                    'Setting `sync_module_states = True` for FSDP. This is required '
+                    'when using mixed initialization.'))
+                fsdp_config['sync_module_states'] = True
+
+            # Set defaults for mixed initialization
+            fsdp_config.setdefault('use_orig_params', False)
+            fsdp_config.setdefault('load_monolith_rank0_only', True)
+
     retries = 0
-    while retries < num_retries:
-        try:
-            composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg,
-                                                                     tokenizer)
-            return composer_model
-        except Exception as e:
-            retries += 1
-            if retries >= num_retries:
-                raise e
-            else:
-                print(
-                    f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
-                )
+    with init_context:
+        while retries < num_retries:
+            try:
+                composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](
+                    model_cfg, tokenizer)
+                return composer_model
+            except Exception as e:
+                retries += 1
+                if retries >= num_retries:
+                    raise e
+                else:
+                    print(
+                        f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
+                    )
 
 
 def evaluate_model(model_cfg, run_name, model_gauntlet_df):
@@ -61,7 +94,11 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
         model_gauntlet = None
         model_gauntlet_callback = None
 
-    composer_model = load_model(model_cfg.model, tokenizer,
+    fsdp_config = cfg.get('fsdp_config', None)
+    fsdp_config = om.to_container(
+        fsdp_config, resolve=True) if fsdp_config is not None else None
+
+    composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
                                 cfg.get('num_retries', 3))
 
     if model_gauntlet_df is None and model_gauntlet is not None:
@@ -75,10 +112,6 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
         for name, logger_cfg in (cfg.get('loggers') or {}).items()
     ]
     loggers.append(in_memory_logger)
-
-    fsdp_config = cfg.get('fsdp_config', None)
-    fsdp_config = om.to_container(
-        fsdp_config, resolve=True) if fsdp_config is not None else None
 
     load_path = model_cfg.get('load_path', None)
 

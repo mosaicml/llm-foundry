@@ -252,6 +252,6 @@ def build_icl_evaluators(icl_tasks,
                 evaluators.append(
                     Evaluator(label=label,
                               dataloader=dataloaders,
-                              metric_names=metric_names),subset_num_batches=icl_subset_num_batches)
+                              metric_names=metric_names,subset_num_batches=icl_subset_num_batches))
 
     return evaluators, logger_keys

@@ -67,16 +67,19 @@ def validate_config(cfg):
             "`cfg.model.ffn_config.ffn_type='te_ln_mlp'` to enable layers using fp8 precision."
         )
 
-    if ((cfg.model.get('fc_type', 'torch') == 'te' or 'te' not in cfg.model.get(
-            'ffn_config', {}).get('ffn_type', 'mptmlp')) and
-            cfg.get('fsdp_config', None) and
-            cfg.fsdp_config.get('activation_checkpointing', False) == True and
-            cfg.fsdp_config.get('activation_checkpointing_reentrant',
-                                True) == False):
-        warnings.warn(
-            '`te.Linear` layers do not support activation_checkpointing with `activation_checkpointing_reentrant = False`. '
-            'Setting cfg.fsdp_config.activation_checkpointing_reentrant=True.')
-        cfg.fsdp_config.activation_checkpointing_reentrant = True
+    if (cfg.model.get('fc_type', 'torch') == 'te' or 'te' not in cfg.model.get(
+            'ffn_config', {}).get('ffn_type', 'mptmlp')):
+        fsdp_config = cfg.get('fsdp_config', None)
+        act_ckpt = fsdp_config.get('activation_checkpointing', False)
+        act_ckpt_reentrant = fsdp_config.get(
+            'activation_checkpointing_reentrant', True)
+        if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == False:
+            warnings.warn(
+                '`te.Linear` layers do not support activation_checkpointing with '
+                '`activation_checkpointing_reentrant = False`. '
+                'Setting cfg.fsdp_config.activation_checkpointing_reentrant=True.'
+            )
+            cfg.fsdp_config.activation_checkpointing_reentrant = True
 
     if 'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp'):
         warnings.warn(

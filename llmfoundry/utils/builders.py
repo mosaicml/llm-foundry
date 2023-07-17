@@ -15,7 +15,6 @@ from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
                                       LinearWithWarmupScheduler)
-from llmfoundry.models.openai import OpenAITokenizerWrapper
 from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om

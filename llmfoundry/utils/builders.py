@@ -168,7 +168,7 @@ def build_icl_evaluators(icl_tasks,
         with open(icl_tasks, 'r') as icl_f:
             icl_task_cfg = om.load(icl_f)
         icl_tasks = icl_task_cfg.icl_tasks
-    icl_tasks.update(icl_cfg_overrides)
+
     def _validate_cfg(icl_cfg):
         assert 'label' in icl_cfg
         assert 'dataset_uri' in icl_cfg and icl_cfg.dataset_uri is not None

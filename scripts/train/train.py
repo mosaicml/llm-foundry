@@ -1,11 +1,11 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import contextlib
 import os
 import sys
 import warnings
 
+import torch
 from composer import Trainer
 from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
@@ -17,7 +17,7 @@ from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data.text_data import build_text_dataloader
-from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.models.utils import init_empty_weights, init_on_device
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_evaluators, build_logger,
                                        build_optimizer, build_scheduler,
@@ -58,6 +58,35 @@ def validate_config(cfg):
             raise ValueError(
                 'ICL evaluation does not currently support Encoder-Decoder models, such as "hf_t5".'
             )
+
+    if (cfg.model.get('fc_type', 'torch') != 'te' and 'te' not in cfg.model.get(
+            'ffn_config', {}).get('ffn_type', 'mptmlp') and
+            'fp8' in cfg.precision):
+        warnings.warn(
+            "fp8 only supported for te.Linear layers. Either set `cfg.model.fc_typ='te'` or "
+            "`cfg.model.ffn_config.ffn_type='te_ln_mlp'` to enable layers using fp8 precision."
+        )
+
+    if (cfg.model.get('fc_type', 'torch') == 'te' or 'te' not in cfg.model.get(
+            'ffn_config', {}).get('ffn_type', 'mptmlp')):
+        fsdp_config = cfg.get('fsdp_config', None)
+        act_ckpt = fsdp_config.get('activation_checkpointing', False)
+        act_ckpt_reentrant = fsdp_config.get(
+            'activation_checkpointing_reentrant', True)
+        if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == False:
+            warnings.warn(
+                '`te.Linear` layers do not support activation_checkpointing with '
+                '`activation_checkpointing_reentrant = False`. '
+                'Setting cfg.fsdp_config.activation_checkpointing_reentrant=True.'
+            )
+            cfg.fsdp_config.activation_checkpointing_reentrant = True
+
+    if 'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp'):
+        warnings.warn(
+            '`te.LayerNormMLP` requires has issues with torch._dynamo. '
+            'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.'
+        )
+        torch._dynamo.config.suppress_errors = True
 
 
 def build_composer_model(model_cfg, tokenizer):
@@ -174,7 +203,7 @@ def main(cfg):
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
     # when multiple GPUs are available.
     # Also 'meta' is only valid when using FSDP
-    init_context = contextlib.nullcontext()
+    init_context = init_on_device(device=torch.device('cpu'))
     if 'init_device' in cfg.model:
         assert cfg.model.init_device in ['meta', 'cpu', 'mixed']
         if fsdp_config is None and cfg.model.init_device == 'meta':

@@ -1,12 +1,10 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import contextlib
 import os
 import re
 import sys
 import time
-import warnings
 from typing import List
 
 import pandas as pd
@@ -20,38 +18,11 @@ from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
+from llmfoundry.utils.config_utils import process_init_device
 
 
 def load_model(model_cfg, tokenizer, fsdp_config, num_retries):
-    # Restrict model init_device to 'meta' and 'cpu',
-    # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
-    # when multiple GPUs are available.
-    # Also 'meta' is only valid when using FSDP
-    init_context = contextlib.nullcontext()
-    if 'init_device' in model_cfg:
-        assert model_cfg.init_device in ['meta', 'cpu', 'mixed']
-        if fsdp_config is None and model_cfg.init_device == 'meta':
-            warnings.warn(
-                "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
-                "Reverting to `cfg.model.init_device='cpu'`.")
-            model_cfg.init_device = 'cpu'
-        if model_cfg.init_device == 'meta':
-            init_context = init_empty_weights()
-        if model_cfg.init_device == 'mixed':
-            if fsdp_config is None:
-                raise NotImplementedError(
-                    'Using init_device `mixed` is only supported with FSDP. '
-                    'Please add a FSDP config.')
-            # Always set `sync_module_states` to True for mixed initialization
-            if not fsdp_config.get('sync_module_states', False):
-                warnings.warn((
-                    'Setting `sync_module_states = True` for FSDP. This is required '
-                    'when using mixed initialization.'))
-                fsdp_config['sync_module_states'] = True
-
-            # Set defaults for mixed initialization
-            fsdp_config.setdefault('use_orig_params', False)
-            fsdp_config.setdefault('load_monolith_rank0_only', True)
+    init_context = process_init_device(model_cfg, fsdp_config)
 
     retries = 0
     with init_context:

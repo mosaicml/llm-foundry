@@ -1,0 +1,188 @@
+name: mpt-7b-dolly
+
+compute:
+  cluster: r1z1
+  gpus: 8  # Number of GPUs to use
+
+integrations:
+# Clone and install the llm-foundry repo so we can run scripts from it
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  git_commit: v0.2.0
+  pip_install: -e .[gpu]
+  ssh_clone: false # Should be true if using a private repo
+# Uncomment and fill in to log to WandB. Also uncomment the loggers section near the bottom of the yaml
+# - integration_type: wandb
+#   entity:
+#   project:
+
+# cd into the llm-foundry/scripts directory and run the train.py script
+command: |
+  pip install hf_transfer
+  export HF_HUB_ENABLE_HF_TRANSFER=1
+  cd llm-foundry/scripts
+  composer train/train.py /mnt/config/parameters.yaml
+
+image: mosaicml/llm-foundry:2.0.1_cu118-latest # Use the Docker image provided by MosaicML
+
+# The parameters section is mounted to /mnt/config/parameters.yaml in the container
+# The mounted file is then passed directly to the train.py script
+# See LLM-foundry llmfoundry/scripts/train.py to see how the parameters are used in code
+parameters:
+  # Checkpoint to local filesystem or remote object store
+  save_interval: 5ba # How frequently to save checkpoints
+  # save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+  # save_folder: ./{run_name}/checkpoints
+  save_folder: ./checkpoints/{run_name}/
+
+  # Maximum sequence length of the model
+  # For MPT, you can change this to a different number if you would like to train on longer sequences
+  # Note that you would also need to reprocess your data to contain longer sequences
+  max_seq_len: 2048
+
+  # Random seed to ensure reproducibility
+  global_seed: 17
+
+  # Run Name
+  run_name: # If left blank, will be read from env var $RUN_NAME
+
+  # Model
+  # This section is used by LLM-foundry to construct the model
+  model:
+    name: hf_causal_lm
+    init_device: mixed # Initially only create the model on CPU once per node to reduce system memory requirements
+    pretrained_model_name_or_path: mosaicml/mpt-7b
+    pretrained: true
+    config_overrides: # Override the default model config (comment this out if you change the model from MPT)
+      attn_config:
+        attn_impl: triton # Use the triton implementation of attention
+        # We are not concatenating samples together, so this is false
+        # If you turn on packing_ratio below, you may want to set this to true
+        # to restrict attention to within each concatenated sequence
+        # Setting this to true does use some additional GPU memory, so for a large model
+        # and/or large max sequence length, you may want to leave it false.
+        # In our runs, we have successfully trained models both with and without this set to true.
+        attn_uses_sequence_id: false
+
+  # Tokenizer
+  # This section is used by LLM-foundry to construct the tokenizer
+  tokenizer:
+    name: mosaicml/mpt-7b
+    kwargs:
+      model_max_length: ${max_seq_len}
+
+  # Dataloaders
+  # Here we are using the finetuning dataloader
+  # see LLM-foundry scripts/train/finetune_example for more details on finetuning data
+  train_loader:
+    name: finetuning
+    dataset:
+      hf_name: mosaicml/dolly_hhrlhf
+      split: train
+      max_seq_len: ${max_seq_len}
+      allow_pad_trimming: false
+      decoder_only_format: true
+      # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
+      # to profile this run's optimal packing_ratio as it depends on GPU count,
+      # batch size, sequence length. Turning on packing by setting packing_ratio
+      # here will pack multiple examples into one sequence for increased efficiency.
+      # For the mosaicml/dolly_hhrlhf and max sequence length 2048,
+      # 3 is a good packing_ratio that will not cause any examples to be trimmed.
+      # As an approximate rule of thumb, if you, for example, double max_seq_len you can double packing_ratio.
+      # packing_ratio:
+      shuffle: true
+    drop_last: true
+    num_workers: 8
+    pin_memory: false
+    prefetch_factor: 2
+    persistent_workers: true
+    timeout: 0
+
+  eval_loader:
+    name: finetuning
+    dataset:
+      hf_name: mosaicml/dolly_hhrlhf
+      split: test
+      max_seq_len: ${max_seq_len}
+      allow_pad_trimming: false
+      decoder_only_format: true
+      # packing_ratio:
+      shuffle: true
+    drop_last: true
+    num_workers: 8
+    pin_memory: false
+    prefetch_factor: 2
+    persistent_workers: true
+    timeout: 0
+
+  # Learning rate scheduler
+  # see LLM-foundry llmfoundry/utils/builders.py::build_scheduler for other built-in options
+  scheduler:
+    name: linear_decay_with_warmup
+    t_warmup: 50ba
+    alpha_f: 0
+
+  # Optimizer
+  # see LLM-foundry llmfoundry/utils/builders.py::build_optimizer for other built-in options
+  optimizer:
+    name: decoupled_lionw
+    lr: 5.0e-6
+    betas:
+    - 0.9
+    - 0.999
+    eps: 1.0e-8
+    weight_decay: 0
+
+  # Algorithms to apply
+  # see LLM-foundry llmfoundry/utils/builders.py::build_algorithm for other built-in options
+  algorithms:
+    gradient_clipping:
+      clipping_type: norm
+      clipping_threshold: 1.0
+
+  # Run configuration
+  max_duration: 5ba # Maximum duration of the run. Change to something shorter (e.g. 10ba) for a quick test run
+  eval_interval: 5ba # How frequently to evaluate the model
+  eval_first: false # Whether to evaluate the model before training
+  eval_subset_num_batches: 10 # How many batches to evaluate on. -1 means evaluate on the entire dataset
+  global_train_batch_size: 128  # Global batch size. This is the batch size across all GPUs
+  seed: ${global_seed}
+  device_eval_batch_size: 8 # Evaluation batch size per GPU
+  device_train_microbatch_size: auto # Automatically determine the microbatch size per GPU
+  precision: amp_bf16
+
+  # Configuration settings for FSDP
+  # <https://docs.mosaicml.com/projects/composer/en/latest/notes/distributed_training.html#fullyshardeddataparallel-fsdp>
+  # for more information about FSDP in Composer
+  fsdp_config:
+    sharding_strategy: FULL_SHARD
+    mixed_precision: PURE
+    activation_checkpointing: true
+    activation_checkpointing_reentrant: false
+    activation_cpu_offload: false
+    limit_all_gathers: true
+    verbose: false
+
+  # Logging configuration
+  progress_bar: false
+  log_to_console: true
+  console_log_interval: 1ba
+  python_log_level: debug
+
+  # Uncomment to log to WandB
+  # see LLM-foundry llmfoundry/utils/builders.py::build_logger for other built-in options
+  loggers:
+    mlflow: {}
+
+  # Callbacks
+  # see LLM-foundry llmfoundry/utils/builders.py::build_callback for other built-in options
+  callbacks:
+    # Log information about the processing speed of the model
+    speed_monitor:
+      window_size: 10
+    # Log the learning rate over the course of training
+    lr_monitor: {}
+    # Log information about the memory usage of the model
+    memory_monitor: {}
+    # Log an estimate of how long the training run has left to complete
+    runtime_estimator: {}

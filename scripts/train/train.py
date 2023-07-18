@@ -291,9 +291,17 @@ def main(cfg):
         build_algorithm(name, algorithm_cfg)
         for name, algorithm_cfg in (cfg.get('algorithms') or {}).items()
     ]
+    
 
     # Build the Trainer
     print('Building trainer...')
+    save_folder = cfg.get('save_folder', None)
+    save_latest_filename = cfg.get('save_latest_filename', 'latest-rank{rank}.pt')
+    save_overwrite = cfg.get('save_overwrite', False)
+    save_weights_only = cfg.get('save_weights_only', False)
+    autoresume_default = False
+    if cfg.run_name is not None and save_folder is not None and save_latest_filename is not None and not save_overwrite and not save_weights_only:
+        autoresume_default = True
     trainer = Trainer(
         run_name=cfg.run_name,
         seed=cfg.seed,
@@ -315,20 +323,19 @@ def main(cfg):
         device_train_microbatch_size=cfg.get('device_train_microbatch_size',
                                              'auto'),
         fsdp_config=fsdp_config,  # type: ignore
-        save_folder=cfg.get('save_folder', None),
+        save_folder=save_folder,
         save_filename=cfg.get('save_filename',
                               'ep{epoch}-ba{batch}-rank{rank}.pt'),
-        save_latest_filename=cfg.get('save_latest_filename',
-                                     'latest-rank{rank}.pt'),
+        save_latest_filename=save_latest_filename,
         save_interval=cfg.get('save_interval', '1000ba'),
         save_num_checkpoints_to_keep=cfg.get('save_num_checkpoints_to_keep',
                                              -1),
-        save_overwrite=cfg.get('save_overwrite', False),
-        save_weights_only=cfg.get('save_weights_only', False),
+        save_overwrite=save_overwrite,
+        save_weights_only=save_weights_only,
         load_path=cfg.get('load_path', None),
         load_weights_only=cfg.get('load_weights_only', False),
         load_ignore_keys=cfg.get('load_ignore_keys', None),
-        autoresume=cfg.get('autoresume', False),
+        autoresume=cfg.get('autoresume', autoresume_default),
         python_log_level=cfg.get('python_log_level', 'debug'),
         dist_timeout=cfg.dist_timeout,
     )

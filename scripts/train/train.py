@@ -292,8 +292,7 @@ def main(cfg):
         for name, algorithm_cfg in (cfg.get('algorithms') or {}).items()
     ]
 
-    # Build the Trainer
-    print('Building trainer...')
+    # Set autoresume default on if possible
     save_folder = cfg.get('save_folder', None)
     save_latest_filename = cfg.get('save_latest_filename',
                                    'latest-rank{rank}.pt')
@@ -302,6 +301,9 @@ def main(cfg):
     autoresume_default = False
     if cfg.run_name is not None and save_folder is not None and save_latest_filename is not None and not save_overwrite and not save_weights_only:
         autoresume_default = True
+
+    # Build the Trainer
+    print('Building trainer...')
     trainer = Trainer(
         run_name=cfg.run_name,
         seed=cfg.seed,

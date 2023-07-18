@@ -291,12 +291,12 @@ def main(cfg):
         build_algorithm(name, algorithm_cfg)
         for name, algorithm_cfg in (cfg.get('algorithms') or {}).items()
     ]
-    
 
     # Build the Trainer
     print('Building trainer...')
     save_folder = cfg.get('save_folder', None)
-    save_latest_filename = cfg.get('save_latest_filename', 'latest-rank{rank}.pt')
+    save_latest_filename = cfg.get('save_latest_filename',
+                                   'latest-rank{rank}.pt')
     save_overwrite = cfg.get('save_overwrite', False)
     save_weights_only = cfg.get('save_weights_only', False)
     autoresume_default = False

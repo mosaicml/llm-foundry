@@ -1,14 +1,14 @@
 name: mpt-7b-dolly
 
 compute:
-  cluster: r1z1
-  gpus: 8  # Number of GPUs to use
+  cluster: r1z2
+  gpus: 2  # Number of GPUs to use
 
 integrations:
 # Clone and install the llm-foundry repo so we can run scripts from it
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_commit: v0.2.0
+  git_branch: anna/temp
   pip_install: -e .[gpu]
   ssh_clone: false # Should be true if using a private repo
 # Uncomment and fill in to log to WandB. Also uncomment the loggers section near the bottom of the yaml

@@ -350,6 +350,28 @@ lora:
 ### How do I deploy with ONNX/FasterTransformer?
 - Check out the `scripts/inference` directory for instructions and scripts.
 
+### TransformerEngine and amp_fp8 support
+Once [installed](https://github.com/mosaicml/llm-foundry/tree/main#TransformerEngine-and-amp_fp8-support), if you are using an H100, you can use fp8 with te layers by setting eg:
+<!--pytest.mark.skip-->
+```yaml
+precision: amp_fp8
+
+model:
+  fc_type: te
+```
+in the training yaml.
+
+Setting
+<!--pytest.mark.skip-->
+```yaml
+model:
+  ffn_config_defaults:
+    ffn_type: te_ln_mlp
+```
+enables [TransformerEngine's LayerNormMLP](https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/api/pytorch.html#transformer_engine.pytorch.LayerNormMLP) layer which enables sequence parallelism if configured correctly.
+
+WARNING: `state_dicts` generated with `ffn_type: te_ln_mlp` will NOT directly map to `state_dicts` generated using the default network configurations. We do not have control over how `te.LayerNormMLP` is implemented and therefore cannot reasily reconcile it with the default implementation (or any other implementation).
+
 ### How expensive is it to build LLMs?
 - Check out our blog post [GPT3-Quality for <$500k](https://www.mosaicml.com/blog/gpt-3-quality-for-500k) for guidance on LLM training times and costs.
 

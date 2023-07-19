@@ -1385,3 +1385,46 @@ def test_hf_init(tmp_path,
     updated_params = next(model.parameters()).clone().data
 
     assert not torch.equal(original_params, updated_params)
+
+
+@pytest.mark.gpu
+def test_head_dim_8_triton_mqa_attn(batch_size=2):
+    test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
+    test_cfg.device = torch.cuda.current_device()
+
+    test_cfg.batch_size = batch_size
+
+    hf_config = MPTConfig(
+        init_device='cpu',
+        d_model=128,
+        n_heads=16,
+        n_layers=1,
+        expansion_ratio=2,
+        max_seq_len=128,
+        emb_pdrop=0.1,
+        resid_pdrop=0.2,
+        attn_config={
+            'attn_impl': 'triton',
+            'attn_type': 'multiquery_attention'
+        },
+    )
+    test_cfg.device = torch.cuda.current_device()
+
+    tokenizer = build_tokenizer(test_cfg.tokenizer)
+
+    mpt = MPTForCausalLM(hf_config)
+
+    model = HuggingFaceModelWithZLoss(mpt, tokenizer, shift_labels=True)
+
+    model = model.to(test_cfg.device)
+    batch = gen_random_batch(batch_size, test_cfg)
+
+    assert batch['input_ids'].shape == torch.Size(
+        [batch_size, test_cfg.max_seq_len])
+
+    model.train()
+
+    with torch.cuda.amp.autocast(enabled=True, dtype=torch.bfloat16):
+        output = model(batch)
+
+    assert not torch.isnan(output.logits).any()

@@ -157,7 +157,8 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     '`split` key in the dataset config.'
                 )
             supported_extensions = ['jsonl', 'csv', 'parquet']
-            finetune_dir = "/data/finetuning"
+            # using Tempdir causes issues with HF datasets caching
+            finetune_dir = f'/llm-foundry/data/finetuning/{cfg.dataset.split}'
             for extension in supported_extensions:
                 name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
                 destination = str(
@@ -178,11 +179,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                             f'Could not find {name}, looking for another extension'
                         )
                     continue
-                # 'json' causes special behavior in the dataset constructor
-                cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
-                kwargs = cfg.dataset.get('hf_kwargs', {})
-                kwargs['data_files'] = destination
-                cfg.dataset['hf_kwargs'] = kwargs
+                cfg.dataset.hf_name = finetune_dir
                 print(cfg.dataset)
                 dataset = dataset_constructor.build_from_hf(
                     cfg.dataset,

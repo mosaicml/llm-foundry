@@ -157,39 +157,39 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     '`split` key in the dataset config.'
                 )
             supported_extensions = ['jsonl', 'csv', 'parquet']
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                for extension in supported_extensions:
-                    name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
-                    destination = str(
-                        os.path.abspath(
-                            f'{tmp_dir}/{cfg.dataset.split}.{extension}'))
-                    try:
-                        with dist.run_local_rank_zero_first():
-                            get_file(name, destination, overwrite=True)
-                    except FileNotFoundError as e:
-                        if extension == supported_extensions[-1]:
-                            raise FileNotFoundError(
-                                f'Could not find a {cfg.dataset.split} file with any of ' + \
-                                f'the supported extensions: {supported_extensions}\n' + \
-                                f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
-                            ) from e
-                        else:
-                            print(
-                                f'Could not find {name}, looking for another extension'
-                            )
-                        continue
-                    # 'json' causes special behavior in the dataset constructor
-                    cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
-                    kwargs = cfg.dataset.get('hf_kwargs', {})
-                    kwargs['data_files'] = destination
-                    cfg.dataset['hf_kwargs'] = kwargs
-                    print(cfg.dataset)
-                    dataset = dataset_constructor.build_from_hf(
-                        cfg.dataset,
-                        max_seq_len=cfg.dataset.max_seq_len,
-                        tokenizer=tokenizer,
-                    )
-                    break
+            finetune_dir = "/data/finetuning"
+            for extension in supported_extensions:
+                name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
+                destination = str(
+                    os.path.abspath(
+                        f'{finetune_dir}/{cfg.dataset.split}.{extension}'))
+                try:
+                    with dist.run_local_rank_zero_first():
+                        get_file(name, destination, overwrite=True)
+                except FileNotFoundError as e:
+                    if extension == supported_extensions[-1]:
+                        raise FileNotFoundError(
+                            f'Could not find a {cfg.dataset.split} file with any of ' + \
+                            f'the supported extensions: {supported_extensions}\n' + \
+                            f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
+                        ) from e
+                    else:
+                        print(
+                            f'Could not find {name}, looking for another extension'
+                        )
+                    continue
+                # 'json' causes special behavior in the dataset constructor
+                cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
+                kwargs = cfg.dataset.get('hf_kwargs', {})
+                kwargs['data_files'] = destination
+                cfg.dataset['hf_kwargs'] = kwargs
+                print(cfg.dataset)
+                dataset = dataset_constructor.build_from_hf(
+                    cfg.dataset,
+                    max_seq_len=cfg.dataset.max_seq_len,
+                    tokenizer=tokenizer,
+                )
+                break
         else:
             dataset = dataset_constructor.build_from_hf(
                 cfg.dataset,

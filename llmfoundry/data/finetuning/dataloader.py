@@ -239,13 +239,12 @@ def _build_hf_dataset_from_remote(cfg: DictConfig, tokenizer: Tokenizer):
     """Builds a dataset from a remote object store.
 
     This function supports 'jsonl', 'csv', and 'parquet' file formats for the dataset. It will attempt to download
-    the dataset, convert it into a format that can be used for fine-tuning the model, and then return this dataset.
-    This function uses HuggingFace's datasets module to load the dataset from remote and then converts it into the
-    appropriate format.
+    the dataset, then once it is downloaded, convert it into HuggingFace ``datasets`` format, and then return this
+    dataset.
 
-    The function also ensures synchronicity across multiple nodes during the download and file handling processes. It
-    creates a signal file that is used to synchronize the start of the download process across different nodes. Once
-    the download is completed, the function removes the signal file.
+    The function also ensures synchronicity across multiple processes during the file download. It creates a signal
+    file that is used to synchronize the start of the download across different processes. Once the download is
+    completed, the function removes the signal file.
 
     Args:
         cfg (DictConfig): The configuration dictionary containing the necessary parameters to load the dataset.
@@ -257,7 +256,7 @@ def _build_hf_dataset_from_remote(cfg: DictConfig, tokenizer: Tokenizer):
         tokenizer (Tokenizer): The tokenizer to be used to tokenize the dataset.
 
     Returns:
-        Dataset: A dataset built from the remote file, prepared and tokenized for fine-tuning the model.
+        Dataset: A HuggingFace dataset built from the remote file, prepared and tokenized for fine-tuning the model.
 
     Raises:
         FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.

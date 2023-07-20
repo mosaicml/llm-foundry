@@ -169,7 +169,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                 # use a signal file to wait for instead of the desired file
                 signal_file_path = os.path.join(
                     os.path.dirname(os.path.realpath(__file__)),
-                    'the_eagle_has_landed.txt')
+                    '.the_eagle_has_landed')
                 if dist.get_local_rank() == 0:
                     try:
                         get_file(name, destination, overwrite=True)
@@ -189,9 +189,9 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     os.makedirs(os.path.dirname(signal_file_path),
                                 exist_ok=True)
                     with open(signal_file_path, 'wb') as f:
-                        f.write(b'local_rank0_completed_autoresume')
+                        f.write(b'local_rank0_download_successful')
 
-                # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
+                # Avoid the collective call until the local rank zero has finished trying to download the file
                 # so that we don't timeout for large downloads. This syncs all processes on the node
                 with dist.local_rank_zero_download_and_wait(signal_file_path):
                     # Then, wait to ensure every node has finished downloading the checkpoint

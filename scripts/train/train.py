@@ -22,7 +22,8 @@ from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_evaluators, build_logger,
                                        build_optimizer, build_scheduler,
                                        build_tokenizer)
-from llmfoundry.utils.config_utils import log_config, update_batch_size_info
+from llmfoundry.utils.config_utils import (log_config, process_init_device,
+                                           update_batch_size_info)
 
 
 def validate_config(cfg):
@@ -199,35 +200,7 @@ def main(cfg):
         cfg.pop('fsdp_config')
         fsdp_config = None
 
-    # Restrict model init_device to 'meta' and 'cpu',
-    # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
-    # when multiple GPUs are available.
-    # Also 'meta' is only valid when using FSDP
-    init_context = init_on_device(device=torch.device('cpu'))
-    if 'init_device' in cfg.model:
-        assert cfg.model.init_device in ['meta', 'cpu', 'mixed']
-        if fsdp_config is None and cfg.model.init_device == 'meta':
-            warnings.warn(
-                "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
-                "Reverting to `cfg.model.init_device='cpu'`.")
-            cfg.model.init_device = 'cpu'
-        if cfg.model.init_device == 'meta':
-            init_context = init_empty_weights()
-        if cfg.model.init_device == 'mixed':
-            if fsdp_config is None:
-                raise NotImplementedError(
-                    'Using init_device `mixed` is only supported with FSDP. '
-                    'Please add a FSDP config.')
-            # Always set `sync_module_states` to True for mixed initialization
-            if not fsdp_config.get('sync_module_states', False):
-                warnings.warn((
-                    'Setting `sync_module_states = True` for FSDP. This is required '
-                    'when using mixed initialization.'))
-                fsdp_config['sync_module_states'] = True
-
-            # Set defaults for mixed initialization
-            fsdp_config.setdefault('use_orig_params', False)
-            fsdp_config.setdefault('load_monolith_rank0_only', True)
+    init_context = process_init_device(cfg.model, fsdp_config)
 
     # build tokenizer
     tokenizer = build_tokenizer(cfg.tokenizer)
@@ -292,6 +265,19 @@ def main(cfg):
         for name, algorithm_cfg in (cfg.get('algorithms') or {}).items()
     ]
 
+    # Set autoresume default on if possible
+    save_folder = cfg.get('save_folder', None)
+    save_latest_filename = cfg.get('save_latest_filename',
+                                   'latest-rank{rank}.pt')
+    save_overwrite = cfg.get('save_overwrite', False)
+    save_weights_only = cfg.get('save_weights_only', False)
+    autoresume_default = False
+    if cfg.run_name is not None and save_folder is not None and save_latest_filename is not None and not save_overwrite and not save_weights_only:
+        print(
+            'As run_name, save_folder, and save_latest_filename are set, changing autoresume default to True...'
+        )
+        autoresume_default = True
+
     # Build the Trainer
     print('Building trainer...')
     trainer = Trainer(
@@ -315,20 +301,19 @@ def main(cfg):
         device_train_microbatch_size=cfg.get('device_train_microbatch_size',
                                              'auto'),
         fsdp_config=fsdp_config,  # type: ignore
-        save_folder=cfg.get('save_folder', None),
+        save_folder=save_folder,
         save_filename=cfg.get('save_filename',
                               'ep{epoch}-ba{batch}-rank{rank}.pt'),
-        save_latest_filename=cfg.get('save_latest_filename',
-                                     'latest-rank{rank}.pt'),
+        save_latest_filename=save_latest_filename,
         save_interval=cfg.get('save_interval', '1000ba'),
         save_num_checkpoints_to_keep=cfg.get('save_num_checkpoints_to_keep',
                                              -1),
-        save_overwrite=cfg.get('save_overwrite', False),
-        save_weights_only=cfg.get('save_weights_only', False),
+        save_overwrite=save_overwrite,
+        save_weights_only=save_weights_only,
         load_path=cfg.get('load_path', None),
         load_weights_only=cfg.get('load_weights_only', False),
         load_ignore_keys=cfg.get('load_ignore_keys', None),
-        autoresume=cfg.get('autoresume', False),
+        autoresume=cfg.get('autoresume', autoresume_default),
         python_log_level=cfg.get('python_log_level', 'debug'),
         dist_timeout=cfg.dist_timeout,
     )

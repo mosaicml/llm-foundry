@@ -194,7 +194,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                 # Avoid the collective call until the local rank zero has finished trying to download the file
                 # so that we don't timeout for large downloads. This syncs all processes on the node
                 with dist.local_rank_zero_download_and_wait(signal_file_path):
-                    # Then, wait to ensure every node has finished downloading the checkpoint
+                    # Then, wait to ensure every node has finished downloading the file
                     dist.barrier()
 
                 # clean up signal file

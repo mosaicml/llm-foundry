@@ -249,7 +249,7 @@ def _build_hf_dataset_from_remote(cfg: DictConfig, tokenizer: Tokenizer):
     Args:
         cfg (DictConfig): The configuration dictionary containing the necessary parameters to load the dataset.
             This includes:
-                - dataset.hf_name: The name of the HuggingFace dataset to download.
+                - dataset.hf_name: The path of the HuggingFace dataset to download.
                 - dataset.split: The dataset split to download (e.g., 'train', 'validation', 'test').
                 - dataset.max_seq_len: The maximum sequence length for tokenizing the dataset.
 

@@ -300,6 +300,9 @@ def main(cfg):
     save_weights_only = cfg.get('save_weights_only', False)
     autoresume_default = False
     if cfg.run_name is not None and save_folder is not None and save_latest_filename is not None and not save_overwrite and not save_weights_only:
+        print(
+            'As run_name, save_folder, and save_latest_filename are set, changing autoresume default to True...'
+        )
         autoresume_default = True
 
     # Build the Trainer

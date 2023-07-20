@@ -157,7 +157,9 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                 )
             supported_extensions = ['jsonl', 'csv', 'parquet']
             # using Tempdir causes issues with HF datasets caching
-            finetune_dir = f'/llm-foundry/data/finetuning/{cfg.dataset.split}'
+            finetune_dir = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                f'downloaded_finetuning_data/{cfg.dataset.split}')
             for extension in supported_extensions:
                 name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
                 destination = str(

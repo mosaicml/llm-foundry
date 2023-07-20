@@ -166,8 +166,22 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     os.path.abspath(
                         f'{finetune_dir}/{cfg.dataset.split}.{extension}'))
                 try:
-                    with dist.run_local_rank_zero_first():
+                    signal_file_path = 'the_eagle_has_landed.txt'
+                    if dist.get_local_rank() == 0:
                         get_file(name, destination, overwrite=True)
+
+                        os.makedirs(os.path.dirname(signal_file_path),
+                                    exist_ok=True)
+                        with open(signal_file_path, 'wb') as f:
+                            f.write(b'local_rank0_completed_autoresume')
+
+                    # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
+                    # so that we don't timeout for large downloads. This syncs all processes on the node
+                    with dist.local_rank_zero_download_and_wait(
+                            signal_file_path):
+                        # Then, wait to ensure every node has finished downloading the checkpoint
+                        dist.barrier()
+
                 except FileNotFoundError as e:
                     if extension == supported_extensions[-1]:
                         raise FileNotFoundError(

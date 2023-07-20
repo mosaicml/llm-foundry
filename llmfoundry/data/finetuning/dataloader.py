@@ -165,35 +165,43 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                 destination = str(
                     os.path.abspath(
                         f'{finetune_dir}/{cfg.dataset.split}.{extension}'))
-                try:
-                    signal_file_path = 'the_eagle_has_landed.txt'
-                    if dist.get_local_rank() == 0:
+                # Since we don't know exactly what the extension will be, since it is one of a list
+                # use a signal file to wait for instead of the desired file
+                signal_file_path = os.path.join(
+                    os.path.dirname(os.path.realpath(__file__)),
+                    'the_eagle_has_landed.txt')
+                if dist.get_local_rank() == 0:
+                    try:
                         get_file(name, destination, overwrite=True)
+                    except FileNotFoundError as e:
+                        if extension == supported_extensions[-1]:
+                            raise FileNotFoundError(
+                                f'Could not find a {cfg.dataset.split} file with any of ' + \
+                                f'the supported extensions: {supported_extensions}\n' + \
+                                f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
+                            ) from e
+                        else:
+                            print(
+                                f'Could not find {name}, looking for another extension'
+                            )
+                        continue
 
-                        os.makedirs(os.path.dirname(signal_file_path),
-                                    exist_ok=True)
-                        with open(signal_file_path, 'wb') as f:
-                            f.write(b'local_rank0_completed_autoresume')
+                    os.makedirs(os.path.dirname(signal_file_path),
+                                exist_ok=True)
+                    with open(signal_file_path, 'wb') as f:
+                        f.write(b'local_rank0_completed_autoresume')
 
-                    # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
-                    # so that we don't timeout for large downloads. This syncs all processes on the node
-                    with dist.local_rank_zero_download_and_wait(
-                            signal_file_path):
-                        # Then, wait to ensure every node has finished downloading the checkpoint
-                        dist.barrier()
+                # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
+                # so that we don't timeout for large downloads. This syncs all processes on the node
+                with dist.local_rank_zero_download_and_wait(signal_file_path):
+                    # Then, wait to ensure every node has finished downloading the checkpoint
+                    dist.barrier()
 
-                except FileNotFoundError as e:
-                    if extension == supported_extensions[-1]:
-                        raise FileNotFoundError(
-                            f'Could not find a {cfg.dataset.split} file with any of ' + \
-                            f'the supported extensions: {supported_extensions}\n' + \
-                            f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
-                        ) from e
-                    else:
-                        print(
-                            f'Could not find {name}, looking for another extension'
-                        )
-                    continue
+                # clean up signal file
+                if dist.get_local_rank() == 0:
+                    os.remove(signal_file_path)
+                dist.barrier()
+
                 cfg.dataset.hf_name = finetune_dir
                 print(cfg.dataset)
                 dataset = dataset_constructor.build_from_hf(

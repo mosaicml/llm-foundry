@@ -272,7 +272,7 @@ def _build_hf_dataset_from_remote(cfg: DictConfig, tokenizer: Tokenizer):
             os.path.abspath(f'{finetune_dir}/{cfg.dataset.split}.{extension}'))
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file
-        signal_file_path = os.path.join(finetune_dir, 'the_eagle_has_landed')
+        signal_file_path = os.path.join(finetune_dir, '.the_eagle_has_landed')
         if dist.get_local_rank() == 0:
             try:
                 get_file(name, destination, overwrite=True)
@@ -290,7 +290,7 @@ def _build_hf_dataset_from_remote(cfg: DictConfig, tokenizer: Tokenizer):
 
             os.makedirs(os.path.dirname(signal_file_path), exist_ok=True)
             with open(signal_file_path, 'wb') as f:
-                f.write(b'local_rank0_completed_autoresume')
+                f.write(b'local_rank0_completed_download')
 
         # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
         # so that we don't timeout for large downloads. This syncs all processes on the node

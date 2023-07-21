@@ -150,3 +150,5 @@ dmypy.json
 
 # notebooks
 notebooks/
+
+.conda_config

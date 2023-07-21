@@ -1,0 +1,144 @@
+# This YAML is intended to serve as a reference for running on the Mosaic Cloud
+# The config from `yamls/main/mosaic-bert-base-uncased.yaml` is copied into the `parameters` field below.
+# You can copy/modify the contents of this file to run different workloads, following the other
+# examples in this directory.
+#
+# Note that some of the fields in this template haven't been filled in yet.
+# Please resolve any `null` fields before launching!
+#
+# When ready, use `mcli run -f yamls/main/mcloud_run_a100_40gb.yaml` to launch
+
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $COMPOSER_RUN_NAME
+run_name: mosaic-bert-base-uncased
+cluster:       # Name of the cluster to use for this run
+gpu_type: a100_40gb # Type of GPU to use
+gpu_num: 8  # Number of GPUs to use
+image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/examples
+  git_branch: v0.0.4 # use your branch
+  # git_commit: # OR use your commit hash
+  pip_install: -e .[bert]
+  ssh_clone: false # Should be true if using a private repo
+
+# We are fetching, converting, and training on the 'train_small' split
+# as it is small and quick to get going for this demo.
+# For real training runs, follow the instructions in `examples/bert/README.md`
+# to convert and host the full 'train' dataset.
+command: |
+  cd examples/examples/bert
+  python ../common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val
+  composer main.py /mnt/config/parameters.yaml \
+    train_loader.dataset.split=train_small
+
+# Starting `parameters` copied from `yamls/main/mosaic-bert-base-uncased.yaml`.
+# Changes to `parameters` will be reflected in `/mnt/config/parameters.yaml`, which
+# is the config that `main.py` uses in the above command.
+parameters:
+  # Run Name
+  run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
+
+  # Supply a path to your remote data path
+  data_local: ./my-copy-c4
+  data_remote: # If blank, files must be present in data_local
+
+  max_seq_len: 128
+  tokenizer_name: bert-base-uncased
+  mlm_probability: 0.3 # Mosaic BERT should use 30% masking for optimal performance
+
+
+  # Model
+  model:
+    name: mosaic_bert
+    pretrained_model_name: ${tokenizer_name}
+    tokenizer_name: ${tokenizer_name}
+    # Mosaic BERT 'base' generally uses the default architecture values for from the Hugging Face BertConfig object
+    # Note: if using the pretrained_checkpoint argument to create a model from an existing checkpoint, make sure
+    # the model_config settings match the architecture of the existing model
+    model_config:
+      num_attention_heads: 12 # bert-base default
+      num_hidden_layers: 12 # bert-base default
+      attention_probs_dropout_prob: 0.0 # This must be 0 for Flash Attention with triton to work
+
+  # Dataloaders
+  train_loader:
+    name: text
+    dataset:
+      local: ${data_local}
+      remote: ${data_remote}
+      split: train
+      tokenizer_name: ${tokenizer_name}
+      max_seq_len: ${max_seq_len}
+      shuffle: true
+      mlm_probability: ${mlm_probability}
+    drop_last: true
+    num_workers: 8
+
+  eval_loader:
+    name: text
+    dataset:
+      local: ${data_local}
+      remote: ${data_remote}
+      split: val
+      tokenizer_name: ${tokenizer_name}
+      max_seq_len: ${max_seq_len}
+      shuffle: false
+      mlm_probability: 0.15 # We always evaluate at 15% masking for consistent comparison
+    drop_last: false
+    num_workers: 8
+
+  # Optimization
+  scheduler:
+    name: linear_decay_with_warmup
+    t_warmup: 0.06dur # Warmup to the full LR for 6% of the training duration
+    alpha_f: 0.02 # Linearly decay to 0.02x the full LR by the end of the training duration
+
+  optimizer:
+    name: decoupled_adamw
+    lr: 5.0e-4 # Peak learning rate
+    betas:
+    - 0.9
+    - 0.98
+    eps: 1.0e-06
+    weight_decay: 1.0e-5 # Amount of weight decay regularization
+
+  algorithms:
+    fused_layernorm: {}
+
+  max_duration: 286720000sp # Subsample the training data for ~275M samples
+  eval_interval: 2000ba
+  global_train_batch_size: 4096
+
+  # System
+  seed: 17
+  device_eval_batch_size: 128
+  device_train_microbatch_size: 128
+  precision: bf16
+
+  # Logging
+  progress_bar: false
+  log_to_console: true
+  console_log_interval: 1ba
+
+  callbacks:
+    speed_monitor:
+      window_size: 500
+    lr_monitor: {}
+
+#   (Optional) W&B logging
+#   loggers:
+#     wandb:
+#       project:
+#       entity:
+
+#   (Optional) Checkpoint to local filesystem or remote object store
+#   save_interval: 3500ba
+#   save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+#  save_folder:      # e.g. './{run_name}/ckpt' (local) or 's3://mybucket/mydir/{run_name}/ckpt' (remote)
+
+#   (Optional) Load from local filesystem or remote object store to
+#  start from an existing model checkpoint;
+#   e.g. './ckpt/latest-rank{rank}.pt' (local), or
+#   's3://mybucket/mydir/ckpt/latest-rank{rank}.pt' (remote)
+#   load_path: null

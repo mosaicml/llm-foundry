@@ -68,6 +68,8 @@ def validate_config(cfg):
             "`cfg.model.ffn_config.ffn_type='te_ln_mlp'` to enable layers using fp8 precision."
         )
 
+    print(cfg.model.get('fc_type', 'torch') == 'te')
+    print('te' not in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp'))
     if (cfg.model.get('fc_type', 'torch') == 'te' or 'te' not in cfg.model.get(
             'ffn_config', {}).get('ffn_type', 'mptmlp')):
         fsdp_config = cfg.get('fsdp_config', None)

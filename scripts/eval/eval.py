@@ -18,23 +18,27 @@ from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
+from llmfoundry.utils.config_utils import process_init_device
 
 
-def load_model(model_cfg, tokenizer, num_retries):
+def load_model(model_cfg, tokenizer, fsdp_config, num_retries):
+    init_context = process_init_device(model_cfg, fsdp_config)
+
     retries = 0
-    while retries < num_retries:
-        try:
-            composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg,
-                                                                     tokenizer)
-            return composer_model
-        except Exception as e:
-            retries += 1
-            if retries >= num_retries:
-                raise e
-            else:
-                print(
-                    f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
-                )
+    with init_context:
+        while retries < num_retries:
+            try:
+                composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](
+                    model_cfg, tokenizer)
+                return composer_model
+            except Exception as e:
+                retries += 1
+                if retries >= num_retries:
+                    raise e
+                else:
+                    print(
+                        f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
+                    )
 
 
 def evaluate_model(model_cfg, run_name, model_gauntlet_df):
@@ -61,7 +65,11 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
         model_gauntlet = None
         model_gauntlet_callback = None
 
-    composer_model = load_model(model_cfg.model, tokenizer,
+    fsdp_config = cfg.get('fsdp_config', None)
+    fsdp_config = om.to_container(
+        fsdp_config, resolve=True) if fsdp_config is not None else None
+
+    composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
                                 cfg.get('num_retries', 3))
 
     if model_gauntlet_df is None and model_gauntlet is not None:
@@ -75,10 +83,6 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
         for name, logger_cfg in (cfg.get('loggers') or {}).items()
     ]
     loggers.append(in_memory_logger)
-
-    fsdp_config = cfg.get('fsdp_config', None)
-    fsdp_config = om.to_container(
-        fsdp_config, resolve=True) if fsdp_config is not None else None
 
     load_path = model_cfg.get('load_path', None)
 

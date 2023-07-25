@@ -10,6 +10,8 @@ from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
+from llmfoundry.models.utils import init_empty_weights
+
 
 def calculate_batch_size_info(global_batch_size: int,
                               device_microbatch_size: Union[int, str]):

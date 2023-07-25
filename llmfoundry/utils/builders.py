@@ -5,8 +5,9 @@ import os
 from typing import Union
 
 from composer import algorithms
-from composer.callbacks import (LRMonitor, MemoryMonitor, OptimizerMonitor,
-                                RuntimeEstimator, SpeedMonitor, EarlyStopper)
+from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
+                                OptimizerMonitor, RuntimeEstimator,
+                                SpeedMonitor)
 from composer.core import Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader

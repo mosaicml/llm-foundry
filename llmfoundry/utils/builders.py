@@ -5,8 +5,9 @@ import os
 from typing import Union
 
 from composer import algorithms
-from composer.callbacks import (LRMonitor, MemoryMonitor, OptimizerMonitor,
-                                RuntimeEstimator, SpeedMonitor)
+from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
+                                OptimizerMonitor, RuntimeEstimator,
+                                SpeedMonitor)
 from composer.core import Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -57,6 +58,8 @@ def build_callback(name, kwargs):
         return MonolithicCheckpointSaver(**kwargs)
     elif name == 'scheduled_gc':
         return ScheduledGarbageCollector(**kwargs)
+    elif name == 'early_stopper':
+        return EarlyStopper(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

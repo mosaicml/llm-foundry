@@ -149,10 +149,6 @@ def build_tokenizer(om_tokenizer_config: DictConfig,) -> Tokenizer:
         int(1e30),
     )
 
-    if not tokenizer_kwargs.get('use_fast', True):
-        print('using slow tokenizer...')
-        tokenizer._fsdp_wrap = False
-
     return tokenizer
 
 

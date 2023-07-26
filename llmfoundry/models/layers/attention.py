@@ -36,6 +36,7 @@ def scaled_multihead_dot_product_attention(
     key,
     value,
     n_heads,
+    kv_n_heads,
     past_key_value=None,
     softmax_scale=None,
     attn_bias=None,
@@ -44,10 +45,8 @@ def scaled_multihead_dot_product_attention(
     dropout_p=0.0,
     training=False,
     needs_weights=False,
-    multiquery=False,
 ):
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
-    kv_n_heads = 1 if multiquery else n_heads
     k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
     v = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
@@ -66,6 +65,13 @@ def scaled_multihead_dot_product_attention(
 
     b, _, s_q, d = q.shape
     s_k = k.size(-1)
+
+    # grouped query case
+    if kv_n_heads > 1 and kv_n_heads < n_heads:
+        # note that the interleave happens at dim 1,
+        # unlike the specialized kernels for flash attention and triton
+        k = k.repeat_interleave(n_heads // kv_n_heads, dim=1)
+        v = v.repeat_interleave(n_heads // kv_n_heads, dim=1)
 
     if softmax_scale is None:
         softmax_scale = 1 / math.sqrt(d)
@@ -139,6 +145,7 @@ def flash_attn_fn(
     key,
     value,
     n_heads,
+    kv_n_heads,
     past_key_value=None,
     softmax_scale=None,
     attn_bias=None,
@@ -147,7 +154,6 @@ def flash_attn_fn(
     dropout_p=0.0,
     training=False,
     needs_weights=False,
-    multiquery=False,
 ):
     try:
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
@@ -184,16 +190,13 @@ def flash_attn_fn(
 
     key_unpad, _, cu_seqlens_k, max_seqlen_k = bert_padding.unpad_input(
         key, key_padding_mask)
-    key_unpad = rearrange(key_unpad,
-                          'nnz (h d) -> nnz h d',
-                          h=1 if multiquery else n_heads)
+    key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
     value_unpad, _, _, _ = bert_padding.unpad_input(value, key_padding_mask)
-    value_unpad = rearrange(value_unpad,
-                            'nnz (h d) -> nnz h d',
-                            h=1 if multiquery else n_heads)
+    value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
-    if multiquery:
+    # multi-query case
+    if kv_n_heads == 1:
         # Expanding a tensor does not allocate new memory, but only creates a new
         # view on the existing tensor where a dimension of size one is expanded
         # to a larger size by setting the stride to 0.
@@ -204,6 +207,12 @@ def flash_attn_fn(
                                      key_unpad.size(-1))
         value_unpad = value_unpad.expand(value_unpad.size(0), n_heads,
                                          value_unpad.size(-1))
+    # grouped query case
+    elif kv_n_heads < n_heads:
+        # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
+        # We repeat each kv head by the group size number to use use the underlying MHA kernels
+        key = key.repeat_interleave(n_heads // kv_n_heads, dim=2)
+        value = value.repeat_interleave(n_heads // kv_n_heads, dim=2)
 
     dropout_p = dropout_p if training else 0.0
 
@@ -233,6 +242,7 @@ def triton_flash_attn_fn(
     key,
     value,
     n_heads,
+    kv_n_heads,
     past_key_value=None,
     softmax_scale=None,
     attn_bias=None,
@@ -241,7 +251,6 @@ def triton_flash_attn_fn(
     dropout_p=0.0,
     training=False,
     needs_weights=False,
-    multiquery=False,
 ):
     try:
         from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
@@ -307,16 +316,21 @@ def triton_flash_attn_fn(
             torch.finfo(query.dtype).min)
 
     query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
-    key = rearrange(key, 'b s (h d) -> b s h d', h=1 if multiquery else n_heads)
-    value = rearrange(value,
-                      'b s (h d) -> b s h d',
-                      h=1 if multiquery else n_heads)
+    key = rearrange(key, 'b s (h d) -> b s h d', h=kv_n_heads)
+    value = rearrange(value, 'b s (h d) -> b s h d', h=kv_n_heads)
 
-    if multiquery:
+    # multi-query case
+    if kv_n_heads == 1:
         # necessary to repeat instead of expand tensor because
         # output contains NaN in edge cases such as with head dimension = 8
         key = key.repeat(1, 1, n_heads, 1)
         value = value.repeat(1, 1, n_heads, 1)
+    # grouped query case
+    elif kv_n_heads < n_heads:
+        # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
+        # We repeat each kv head by the group size number to use use the underlying MHA kernels
+        key = key.repeat_interleave(n_heads // kv_n_heads, dim=2)
+        value = value.repeat_interleave(n_heads // kv_n_heads, dim=2)
 
     reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
     attn_output = flash_attn_func(query, key, value, attn_bias, reset_is_causal,
@@ -327,7 +341,144 @@ def triton_flash_attn_fn(
     return output, None, past_key_value
 
 
-class MultiheadAttention(nn.Module):
+class GeneralizedAttention(nn.Module):
+    """A generalization of Multi-head, Multi-Query, and MHA attention.
+
+    Using torch or triton attention implemetation enables user to also use
+    additive bias.
+    """
+
+    def __init__(
+        self,
+        d_model: int,
+        n_heads: int,
+        kv_n_heads: int,
+        attn_impl: str = 'triton',
+        clip_qkv: Optional[float] = None,
+        qk_ln: bool = False,
+        softmax_scale: Optional[float] = None,
+        attn_pdrop: float = 0.0,
+        norm_type: str = 'low_precision_layernorm',
+        fc_type: str = 'torch',
+        verbose: int = 0,
+        device: Optional[str] = None,
+    ):
+        super().__init__()
+
+        self.attn_impl = attn_impl
+        self.clip_qkv = clip_qkv
+        self.qk_ln = qk_ln
+
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.kv_n_heads = kv_n_heads
+
+        self.head_dim = d_model // n_heads
+
+        assert self.kv_n_heads <= self.n_heads, 'The number of KV heads should be less than or equal to Q heads'
+        assert self.n_heads % self.kv_n_heads == 0, 'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads'
+
+        self.softmax_scale = softmax_scale
+        if self.softmax_scale is None:
+            self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
+        self.attn_dropout_p = attn_pdrop
+
+        fc_kwargs = {}
+        if fc_type != 'te':
+            fc_kwargs['device'] = device
+        self.Wqkv = FC_CLASS_REGISTRY[fc_type](
+            self.d_model,
+            self.d_model + 2 * self.kv_n_heads * self.head_dim,
+            **fc_kwargs,
+        )
+        # for param init fn; enables shape based init of fused layers
+        fuse_splits = (i * self.head_dim
+                       for i in range(1, self.n_heads + 2 * self.kv_n_heads))
+        self.Wqkv._fused = (0, fuse_splits)  # type: ignore
+
+        if self.qk_ln:
+            norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
+            self.q_ln = norm_class(self.d_model, device=device)
+            self.k_ln = norm_class(self.kv_n_heads * self.head_dim,
+                                   device=device)
+
+        if self.attn_impl == 'flash':
+            self.attn_fn = flash_attn_fn
+        elif self.attn_impl == 'triton':
+            self.attn_fn = triton_flash_attn_fn
+            if verbose:
+                warnings.warn(
+                    'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
+                    'it uses more memory. When training larger models this can trigger '  +\
+                    'alloc retries which hurts performance. If encountered, we recommend ' +\
+                    'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.'
+                )
+        elif self.attn_impl == 'torch':
+            self.attn_fn = scaled_multihead_dot_product_attention
+            if torch.cuda.is_available() and verbose:
+                warnings.warn(
+                    'Using `attn_impl: torch`. If your model does not use `alibi` or ' +\
+                    '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' +\
+                    'we recommend using `attn_impl: triton`.'
+                )
+        else:
+            raise ValueError(f'{attn_impl=} is an invalid setting.')
+
+        self.out_proj = FC_CLASS_REGISTRY[fc_type](
+            self.d_model,
+            self.d_model,
+            **fc_kwargs,
+        )
+        self.out_proj._is_residual = True  # type: ignore
+
+    def forward(
+        self,
+        x,
+        past_key_value=None,
+        attn_bias=None,
+        attention_mask=None,
+        is_causal=True,
+        needs_weights=False,
+    ):
+        qkv = self.Wqkv(x)
+
+        if self.clip_qkv:
+            qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+
+        query, key, value = qkv.split([
+            self.d_model, self.kv_n_heads * self.head_dim,
+            self.kv_n_heads * self.head_dim
+        ],
+                                      dim=2)
+
+        key_padding_mask = attention_mask
+
+        if self.qk_ln:
+            # Applying layernorm to qk
+            dtype = query.dtype
+            query = self.q_ln(query).to(dtype)
+            key = self.k_ln(key).to(dtype)
+
+        context, attn_weights, past_key_value = self.attn_fn(
+            query,
+            key,
+            value,
+            self.n_heads,
+            self.kv_n_heads,
+            past_key_value=past_key_value,
+            softmax_scale=self.softmax_scale,
+            attn_bias=attn_bias,
+            key_padding_mask=key_padding_mask,
+            is_causal=is_causal,
+            dropout_p=self.attn_dropout_p,
+            training=self.training,
+            needs_weights=needs_weights,
+        )
+
+        return self.out_proj(context), attn_weights, past_key_value
+
+
+class MultiheadAttention(GeneralizedAttention):
     """Multi-head self attention.
 
     Using torch or triton attention implemetation enables user to also use
@@ -348,108 +499,22 @@ class MultiheadAttention(nn.Module):
         verbose: int = 0,
         device: Optional[str] = None,
     ):
-        super().__init__()
-
-        self.attn_impl = attn_impl
-        self.clip_qkv = clip_qkv
-        self.qk_ln = qk_ln
-
-        self.d_model = d_model
-        self.n_heads = n_heads
-        self.softmax_scale = softmax_scale
-        if self.softmax_scale is None:
-            self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
-        self.attn_dropout_p = attn_pdrop
-
-        fc_kwargs = {}
-        if fc_type != 'te':
-            fc_kwargs['device'] = device
-        self.Wqkv = FC_CLASS_REGISTRY[fc_type](
-            self.d_model,
-            3 * self.d_model,
-            **fc_kwargs,
-        )
-        # for param init fn; enables shape based init of fused layers
-        fuse_splits = (d_model, 2 * d_model)
-        self.Wqkv._fused = (0, fuse_splits)  # type: ignore
-
-        if self.qk_ln:
-            norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
-            self.q_ln = norm_class(self.d_model, device=device)
-            self.k_ln = norm_class(self.d_model, device=device)
-
-        if self.attn_impl == 'flash':
-            self.attn_fn = flash_attn_fn
-        elif self.attn_impl == 'triton':
-            self.attn_fn = triton_flash_attn_fn
-            if verbose:
-                warnings.warn(
-                    'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
-                    'it uses more memory. When training larger models this can trigger '  +\
-                    'alloc retries which hurts performance. If encountered, we recommend ' +\
-                    'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.'
-                )
-        elif self.attn_impl == 'torch':
-            self.attn_fn = scaled_multihead_dot_product_attention
-            if torch.cuda.is_available() and verbose:
-                warnings.warn(
-                    'Using `attn_impl: torch`. If your model does not use `alibi` or ' +\
-                    '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' +\
-                    'we recommend using `attn_impl: triton`.'
-                )
-        else:
-            raise ValueError(f'{attn_impl=} is an invalid setting.')
-
-        self.out_proj = FC_CLASS_REGISTRY[fc_type](
-            self.d_model,
-            self.d_model,
-            **fc_kwargs,
-        )
-        self.out_proj._is_residual = True  # type: ignore
-
-    def forward(
-        self,
-        x,
-        past_key_value=None,
-        attn_bias=None,
-        attention_mask=None,
-        is_causal=True,
-        needs_weights=False,
-    ):
-        qkv = self.Wqkv(x)
-
-        if self.clip_qkv:
-            qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
-
-        query, key, value = qkv.chunk(3, dim=2)
-
-        key_padding_mask = attention_mask
-
-        if self.qk_ln:
-            # Applying layernorm to qk
-            dtype = query.dtype
-            query = self.q_ln(query).to(dtype)
-            key = self.k_ln(key).to(dtype)
-
-        context, attn_weights, past_key_value = self.attn_fn(
-            query,
-            key,
-            value,
-            self.n_heads,
-            past_key_value=past_key_value,
-            softmax_scale=self.softmax_scale,
-            attn_bias=attn_bias,
-            key_padding_mask=key_padding_mask,
-            is_causal=is_causal,
-            dropout_p=self.attn_dropout_p,
-            training=self.training,
-            needs_weights=needs_weights,
-        )
-
-        return self.out_proj(context), attn_weights, past_key_value
+        super().__init__(
+            d_model=d_model,
+            n_heads=n_heads,
+            kv_n_heads=n_heads,  # for MHA, same # heads as kv groups
+            attn_impl=attn_impl,
+            clip_qkv=clip_qkv,
+            qk_ln=qk_ln,
+            softmax_scale=softmax_scale,
+            attn_pdrop=attn_pdrop,
+            norm_type=norm_type,
+            fc_type=fc_type,
+            verbose=verbose,
+            device=device)
 
 
-class MultiQueryAttention(nn.Module):
+class MultiQueryAttention(GeneralizedAttention):
     """Multi-Query self attention.
 
     Using torch or triton attention implemetation enables user to also use
@@ -470,112 +535,19 @@ class MultiQueryAttention(nn.Module):
         verbose: int = 0,
         device: Optional[str] = None,
     ):
-        super().__init__()
-
-        self.attn_impl = attn_impl
-        self.clip_qkv = clip_qkv
-        self.qk_ln = qk_ln
-
-        self.d_model = d_model
-        self.n_heads = n_heads
-        self.head_dim = d_model // n_heads
-        self.softmax_scale = softmax_scale
-        if self.softmax_scale is None:
-            self.softmax_scale = 1 / math.sqrt(self.head_dim)
-        self.attn_dropout_p = attn_pdrop
-
-        fc_kwargs = {}
-        if fc_type != 'te':
-            fc_kwargs['device'] = device
-        # NOTE: if we ever want to make attn TensorParallel, I'm pretty sure we'll
-        # want to split Wqkv into Wq and Wkv where Wq can be TensorParallel but
-        # Wkv shouldn't be TensorParallel
-        # - vchiley
-        self.Wqkv = FC_CLASS_REGISTRY[fc_type](
-            d_model,
-            d_model + 2 * self.head_dim,
-            **fc_kwargs,
-        )
-        # for param init fn; enables shape based init of fused layers
-        fuse_splits = (d_model, d_model + self.head_dim)
-        self.Wqkv._fused = (0, fuse_splits)  # type: ignore
-
-        if self.qk_ln:
-            norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
-            self.q_ln = norm_class(d_model, device=device)
-            self.k_ln = norm_class(self.head_dim, device=device)
-
-        if self.attn_impl == 'flash':
-            self.attn_fn = flash_attn_fn
-        elif self.attn_impl == 'triton':
-            self.attn_fn = triton_flash_attn_fn
-            if verbose:
-                warnings.warn(
-                    'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
-                    'it uses more memory. When training larger models this can trigger '  +\
-                    'alloc retries which hurts performance. If encountered, we recommend ' +\
-                    'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.'
-                )
-        elif self.attn_impl == 'torch':
-            self.attn_fn = scaled_multihead_dot_product_attention
-            if torch.cuda.is_available() and verbose:
-                warnings.warn(
-                    'Using `attn_impl: torch`. If your model does not use `alibi` or ' +\
-                    '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' +\
-                    'we recommend using `attn_impl: triton`.'
-                )
-        else:
-            raise ValueError(f'{attn_impl=} is an invalid setting.')
-
-        self.out_proj = FC_CLASS_REGISTRY[fc_type](
-            self.d_model,
-            self.d_model,
-            **fc_kwargs,
-        )
-        self.out_proj._is_residual = True  # type: ignore
-
-    def forward(
-        self,
-        x,
-        past_key_value=None,
-        attn_bias=None,
-        attention_mask=None,
-        is_causal=True,
-        needs_weights=False,
-    ):
-        qkv = self.Wqkv(x)
-
-        if self.clip_qkv:
-            qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
-
-        query, key, value = qkv.split(
-            [self.d_model, self.head_dim, self.head_dim], dim=2)
-
-        key_padding_mask = attention_mask
-
-        if self.qk_ln:
-            # Applying layernorm to qk
-            dtype = query.dtype
-            query = self.q_ln(query).to(dtype)
-            key = self.k_ln(key).to(dtype)
-
-        context, attn_weights, past_key_value = self.attn_fn(
-            query,
-            key,
-            value,
-            self.n_heads,
-            past_key_value=past_key_value,
-            softmax_scale=self.softmax_scale,
-            attn_bias=attn_bias,
-            key_padding_mask=key_padding_mask,
-            is_causal=is_causal,
-            dropout_p=self.attn_dropout_p,
-            training=self.training,
-            needs_weights=needs_weights,
-            multiquery=True,
-        )
-
-        return self.out_proj(context), attn_weights, past_key_value
+        super().__init__(
+            d_model=d_model,
+            n_heads=n_heads,
+            kv_n_heads=1,  # for MQA, 1 head
+            attn_impl=attn_impl,
+            clip_qkv=clip_qkv,
+            qk_ln=qk_ln,
+            softmax_scale=softmax_scale,
+            attn_pdrop=attn_pdrop,
+            norm_type=norm_type,
+            fc_type=fc_type,
+            verbose=verbose,
+            device=device)
 
 
 def attn_bias_shape(attn_impl, n_heads, seq_len, alibi, prefix_lm, causal,
@@ -664,4 +636,5 @@ def build_alibi_bias(
 ATTN_CLASS_REGISTRY = {
     'multihead_attention': MultiheadAttention,
     'multiquery_attention': MultiQueryAttention,
+    'grouped_attention': GeneralizedAttention
 }

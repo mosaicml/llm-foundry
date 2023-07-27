@@ -132,5 +132,5 @@ The benchmark script supports calling models directly from huggingface (using `h
 The analysis is done on a single A100 80GB GPU, with input length 512, and output length 64, while varying the batch size. As in previous sections, the batch sizes swept are 1, 2, 4, 8, 16, 32, 64, unless the GPU ran out of memory, in which case that point is not shown.
 
 As seen here, both MPT-7B and MPT-30B are among the fastest for inference in the open-source community, with MPT-30B being faster than the respective LLAMA-30B model.
-Among the 7B models, LLAMA-7B tends to have higher througput at higher latencies than MPT-7B, though MPT-7B has higher throughput at lower latencies.
-We found that Falcon-7B had lower throughput than other open-source models, however we did not do exhaustive testing to determine the root cause of the model's slower performance.
+Among the 7B models, Falcon-7B tends to have higher througput at higher latencies than MPT-7B, though MPT-7B has higher throughput at lower latencies.
+Previously, we found that Falcon-7b was significantly slower than both MPT-7B and LLAMA-7B. This slow speed was due to the KV-cache not being used properly during generation, however this appears to be [fixed](https://huggingface.co/tiiuae/falcon-7b/tree/main) as of July 13, 2022.

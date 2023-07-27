@@ -201,3 +201,104 @@ def test_vs_mha(attn_impl, device='cuda'):
     assert allclose_helper(tmhsa.in_proj_weight.grad, mmhsa.Wqkv.weight.grad)
 
     assert allclose_helper(x0.grad, x1.grad)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('n_heads', [32, 16, 8])
+@pytest.mark.parametrize('kv_n_heads', [8, 4, 2, 1])
+def test_grouped_attention_heads(attn_impl, n_heads, kv_n_heads, device='cuda'):
+    """Ensure grouped_query_attention runs w/ diff n_heads & kv_n_heads."""
+    from llmfoundry.models.layers import attention
+
+    reproducibility.seed_all(17)
+
+    cfg = om.create({
+        'attn_impl': attn_impl,
+        'd_model': 256,
+        'n_heads': n_heads,
+        'attn_pdrop': 0,
+        'clip_qkv': False,
+        'qk_ln': False,
+        'kv_n_heads': kv_n_heads
+    })
+
+    n, s, f = 2, 16, cfg.d_model
+
+    mmhsa = attention.GeneralizedAttention(**cfg).to(device)
+
+    attention_mask = torch.ones(n, s).to(device).bool()
+    x0 = torch.randn(n, s, f).to(device)
+    x0.requires_grad = True
+
+    with torch.autocast(x0.device.type):
+        y0, _, _ = mmhsa(x0,
+                         past_key_value=None,
+                         attn_bias=None,
+                         attention_mask=attention_mask,
+                         is_causal=True)
+        y0 *= attention_mask.unsqueeze(-1)
+
+        loss0 = y0.sum()
+
+    loss0.backward()
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
+def test_grouped_query_invalid_heads(attn_impl, device='cuda'):
+    """Check indivisble combinations of grouped_query_attention."""
+    from llmfoundry.models.layers import attention
+
+    reproducibility.seed_all(17)
+
+    cfg = om.create({
+        'attn_impl': attn_impl,
+        'd_model': 256,
+        'n_heads': 16,
+        'attn_pdrop': 0,
+        'clip_qkv': False,
+        'qk_ln': False,
+        'kv_n_heads': 3
+    })
+
+    n, s, f = 2, 16, cfg.d_model
+
+    expected_error = 'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads'
+
+    with pytest.raises(AssertionError, match=expected_error):
+        mmhsa = attention.GeneralizedAttention(**cfg).to(device)
+
+    cfg = om.create({
+        'attn_impl': attn_impl,
+        'd_model': 256,
+        'n_heads': 16,
+        'attn_pdrop': 0,
+        'clip_qkv': False,
+        'qk_ln': False,
+        'kv_n_heads': 17
+    })
+
+    n, s, f = 2, 16, cfg.d_model
+
+    expected_error = 'The number of KV heads should be less than or equal to Q heads'
+
+    with pytest.raises(AssertionError, match=expected_error):
+        mmhsa = attention.GeneralizedAttention(**cfg).to(device)
+
+    cfg = om.create({
+        'attn_impl': attn_impl,
+        'd_model': 256,
+        'n_heads': 16,
+        'attn_pdrop': 0,
+        'clip_qkv': False,
+        'qk_ln': False,
+        'kv_n_heads': 0
+    })
+
+    n, s, f = 2, 16, cfg.d_model
+
+    expected_error = 'kv_n_heads should be greater than zero'
+
+    with pytest.raises(AssertionError, match=expected_error):
+        mmhsa = attention.GeneralizedAttention(**cfg).to(device)

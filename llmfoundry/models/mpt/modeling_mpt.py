@@ -6,6 +6,7 @@
 Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 """
 
+import copy
 import math
 import warnings
 from typing import List, Optional, Tuple, Union
@@ -76,11 +77,17 @@ class MPTModel(MPTPreTrainedModel):
         config._validate_config()
         super().__init__(config)
 
-        self.attn_impl = config.attn_config['attn_impl']
-        self.prefix_lm = config.attn_config['prefix_lm']
-        self.attn_uses_sequence_id = config.attn_config['attn_uses_sequence_id']
-        self.alibi = config.attn_config['alibi']
-        self.alibi_bias_max = config.attn_config['alibi_bias_max']
+        # necessary to copy in order to be able to pop arguments so that we can pass in
+        # a subset of arguments into the Attention() init function and remove unnecessary args
+        # and still support checkpointing
+        config.attn_config_mutable = copy.deepcopy(config.attn_config)
+
+        self.attn_impl = config.attn_config_mutable.pop('attn_impl')
+        self.prefix_lm = config.attn_config_mutable.pop('prefix_lm')
+        self.attn_uses_sequence_id = config.attn_config_mutable.pop(
+            'attn_uses_sequence_id')
+        self.alibi = config.attn_config_mutable.pop('alibi')
+        self.alibi_bias_max = config.attn_config_mutable.pop('alibi_bias_max')
 
         self.learned_pos_emb = config.learned_pos_emb
 

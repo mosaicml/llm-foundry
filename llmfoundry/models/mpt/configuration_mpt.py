@@ -77,7 +77,7 @@ class MPTConfig(PretrainedConfig):
             emb_pdrop (float): The dropout probability for the embedding layer.
             learned_pos_emb (bool): Whether to use learned positional embeddings
             attn_config (Dict): A dictionary used to configure the model's attention module:
-                attn_type (str): type of attention to use. Options: multihead_attention, multiquery_attention
+                attn_type (str): type of attention to use. Options: multihead_attention, multiquery_attention, grouped_query_attention
                 attn_pdrop (float): The dropout probability for the attention layers.
                 attn_impl (str): The attention implementation to use. One of 'torch', 'flash', or 'triton'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
@@ -94,6 +94,7 @@ class MPTConfig(PretrainedConfig):
                     Defaults to ``False`` meaning any provided `sequence_id` will be ignored.
                 alibi (bool): Whether to use the alibi bias instead of position embeddings.
                 alibi_bias_max (int): The maximum value of the alibi bias.
+                kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
                 ffn_type (str): type of ffn to use. Options: mptmlp, te_ln_mlp
             init_device (str): The device to use for parameter initialization.
@@ -102,7 +103,6 @@ class MPTConfig(PretrainedConfig):
             verbose (int): The verbosity level. 0 is silent.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
-            multiquery_attention (bool): Whether to use multiquery attention implementation.
             use_cache (bool): Whether or not the model should return the last key/values attentions
             init_config (Dict): A dictionary used to configure the model initialization:
                 init_config.name: The parameter initialization scheme to use. Options: 'default_', 'baseline_',

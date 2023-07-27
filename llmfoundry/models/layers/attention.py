@@ -68,8 +68,6 @@ def scaled_multihead_dot_product_attention(
 
     # grouped query case
     if kv_n_heads > 1 and kv_n_heads < n_heads:
-        # note that the interleave happens at dim 1,
-        # unlike the specialized kernels for flash attention and triton
         k = k.repeat_interleave(n_heads // kv_n_heads, dim=1)
         v = v.repeat_interleave(n_heads // kv_n_heads, dim=1)
 
@@ -211,8 +209,10 @@ def flash_attn_fn(
     elif kv_n_heads < n_heads:
         # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
         # We repeat each kv head by the group size number to use use the underlying MHA kernels
-        key = key.repeat_interleave(n_heads // kv_n_heads, dim=2)
-        value = value.repeat_interleave(n_heads // kv_n_heads, dim=2)
+        # done along the head dimension = 1
+        key_unpad = key_unpad.repeat_interleave(n_heads // kv_n_heads, dim=1)
+        value_unpad = value_unpad.repeat_interleave(n_heads // kv_n_heads,
+                                                    dim=1)
 
     dropout_p = dropout_p if training else 0.0
 
@@ -329,6 +329,7 @@ def triton_flash_attn_fn(
     elif kv_n_heads < n_heads:
         # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
         # We repeat each kv head by the group size number to use use the underlying MHA kernels
+        # done along dim = 2, unlike the implementation for flash and torch attn
         key = key.repeat_interleave(n_heads // kv_n_heads, dim=2)
         value = value.repeat_interleave(n_heads // kv_n_heads, dim=2)
 
@@ -375,6 +376,7 @@ class GeneralizedAttention(nn.Module):
 
         self.head_dim = d_model // n_heads
 
+        assert self.kv_n_heads > 0, 'kv_n_heads should be greater than zero'
         assert self.kv_n_heads <= self.n_heads, 'The number of KV heads should be less than or equal to Q heads'
         assert self.n_heads % self.kv_n_heads == 0, 'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads'
 
@@ -636,5 +638,5 @@ def build_alibi_bias(
 ATTN_CLASS_REGISTRY = {
     'multihead_attention': MultiheadAttention,
     'multiquery_attention': MultiQueryAttention,
-    'grouped_attention': GeneralizedAttention
+    'grouped_query_attention': GeneralizedAttention
 }

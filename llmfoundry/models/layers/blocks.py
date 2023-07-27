@@ -50,19 +50,12 @@ class MPTBlock(nn.Module):
         attn_class = ATTN_CLASS_REGISTRY[attn_config['attn_type']]
 
         self.norm_1 = norm_class(d_model, device=device)
-        self.attn = attn_class(
-            d_model=d_model,
-            n_heads=n_heads,
-            attn_impl=attn_config['attn_impl'],
-            clip_qkv=attn_config['clip_qkv'],
-            qk_ln=attn_config['qk_ln'],
-            softmax_scale=attn_config['softmax_scale'],
-            attn_pdrop=attn_config['attn_pdrop'],
-            norm_type=norm_type,
-            fc_type=fc_type,
-            verbose=verbose,
-            device=device,
-        )
+        self.attn = attn_class(d_model=d_model,
+                               n_heads=n_heads,
+                               fc_type=fc_type,
+                               verbose=verbose,
+                               device=device,
+                               **attn_config)
         self.norm_2 = None
         if not getattr(FFN_CLASS_REGISTRY[ffn_config['ffn_type']], '_has_norm',
                        False):

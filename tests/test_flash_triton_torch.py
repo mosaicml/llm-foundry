@@ -17,13 +17,15 @@ def allclose_helper(t0, t1, rtol=1e-2, atol=1e-2):
 @pytest.mark.parametrize('clip_qkv', [True, False])
 @pytest.mark.parametrize('qk_ln', [True, False])
 @pytest.mark.parametrize('alibi', [True, False])
-@pytest.mark.parametrize('multiquery', [True, False])
+@pytest.mark.parametrize(
+    'attn_type',
+    ['multihead_attention', 'multiquery_attention', 'grouped_query_attention'])
 def test_attn_impl(attn_impl_0,
                    attn_impl_1,
                    clip_qkv,
                    qk_ln,
                    alibi,
-                   multiquery,
+                   attn_type,
                    device='cuda'):
     """Compare all attn impl with each other.
 
@@ -39,7 +41,7 @@ def test_attn_impl(attn_impl_0,
     cfg = om.create({
         'attn_impl': 'flash',
         'd_model': 128,
-        'n_heads': 2,
+        'n_heads': 4,
         'attn_pdrop': 0,
         'clip_qkv': clip_qkv,
         'qk_ln': qk_ln,
@@ -47,16 +49,12 @@ def test_attn_impl(attn_impl_0,
 
     n, s, f = 2, 16, cfg.d_model
 
+    if attn_type == 'grouped_query_attention':
+        cfg.kv_n_heads = 2
+
     cfg.attn_impl = attn_impl_0
-    if multiquery:
-        attn0 = attention.MultiQueryAttention(**cfg).to(device)
-    else:
-        attn0 = attention.MultiheadAttention(**cfg).to(device)
-    cfg.attn_impl = attn_impl_1
-    if multiquery:
-        attn1 = attention.MultiQueryAttention(**cfg).to(device)
-    else:
-        attn1 = attention.MultiheadAttention(**cfg).to(device)
+    attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
+    attn1 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
 
     attn1.load_state_dict(attn0.state_dict())
 

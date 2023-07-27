@@ -78,11 +78,15 @@ class MPTModel(MPTPreTrainedModel):
         super().__init__(config)
 
         # necessary to copy in order to be able to pop arguments so that we can pass in
-        # a subset of arguments into the Attention() init function and remove unnecessary args
-        # and still support checkpointing
+        # a subset of arguments into the Attention() init function as **kwargs
+        # and remove unnecessary args and still support checkpointing the original att_config
         config.attn_config_mutable = copy.deepcopy(config.attn_config)
 
-        self.attn_impl = config.attn_config_mutable.pop('attn_impl')
+        # this is an argument into attention init, so should NOT be popped
+        self.attn_impl = config.attn_config_mutable['attn_impl']
+
+        # the rest of the arguments must be popped to prevent being popped into the
+        # attention init function
         self.prefix_lm = config.attn_config_mutable.pop('prefix_lm')
         self.attn_uses_sequence_id = config.attn_config_mutable.pop(
             'attn_uses_sequence_id')

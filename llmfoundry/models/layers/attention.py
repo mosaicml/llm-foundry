@@ -394,8 +394,10 @@ class GeneralizedAttention(nn.Module):
             **fc_kwargs,
         )
         # for param init fn; enables shape based init of fused layers
-        fuse_splits = (i * self.head_dim
-                       for i in range(1, self.n_heads + 2 * self.kv_n_heads))
+        fuse_splits = [
+            i * self.head_dim
+            for i in range(1, self.n_heads + 2 * self.kv_n_heads)
+        ]
         self.Wqkv._fused = (0, fuse_splits)  # type: ignore
 
         if self.qk_ln:

@@ -145,6 +145,10 @@ class MPTConfig(PretrainedConfig):
             del kwargs['name']
         if 'loss_fn' in kwargs:
             del kwargs['loss_fn']
+        if self.attn_config.get('alibi', False):
+            self.learned_pos_emb = False
+            warnings.warn(
+                f'alibi is turned on, setting `learned_pos_emb` to `False.`')
         super().__init__(**kwargs)
 
         self._validate_config()
@@ -208,7 +212,7 @@ class MPTConfig(PretrainedConfig):
         if self.init_config.get('name', None) is None:
             raise ValueError(f"{self.init_config=} 'name' needs to be set.")
         if not self.learned_pos_emb and not self.attn_config['alibi']:
-            raise warnings.warn(
+            warnings.warn(
                 f'Positional information not being provided to the model using either learned_pos_emb or alibi.'
             )
         if self.fc_type == 'te' or self.ffn_config['ffn_type'] == 'te_ln_mlp':

@@ -343,7 +343,7 @@ def triton_flash_attn_fn(
 
 
 class GeneralizedAttention(nn.Module):
-    """A generalization of Multi-head, Multi-Query, and MHA attention.
+    """A generalization of Multi-head, Multi-Query, Multi-Grouped Attention.
 
     Using torch or triton attention implemetation enables user to also use
     additive bias.

@@ -81,7 +81,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int):
 
 
 @pytest.fixture(autouse=True)
-def clear_cuda_cache(request):
+def clear_cuda_cache(request: pytest.FixtureRequest):
     """Clear memory between GPU tests."""
     marker = request.node.get_closest_marker('gpu')
     if marker is not None and torch.cuda.is_available():

@@ -5,7 +5,7 @@ from llmfoundry.models.layers.attention import (
     ATTN_CLASS_REGISTRY, MultiheadAttention, MultiQueryAttention,
     attn_bias_shape, build_alibi_bias, build_attn_bias, flash_attn_fn,
     scaled_multihead_dot_product_attention, triton_flash_attn_fn)
-from llmfoundry.models.layers.mosaicbert.mosaicbert_layers import (BertEmbeddings, BertEncoder,
+from llmfoundry.models.layers.mosaicbert_layers import (BertEmbeddings, BertEncoder,
                                                   BertGatedLinearUnitMLP,
                                                   BertLayer,
                                                   BertLMPredictionHead,

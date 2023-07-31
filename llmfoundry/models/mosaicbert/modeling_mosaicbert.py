@@ -29,7 +29,7 @@ from transformers.modeling_outputs import (MaskedLMOutput,
 from transformers.models.bert.modeling_bert import BertPreTrainedModel
 
 from llmfoundry.models.mosaicbert.configuration_mosaicbert import BertConfig
-from llmfoundry.models.layers.mosaicbert.mosaicbert_layers import (BertEmbeddings, BertEncoder,
+from llmfoundry.models.layers.mosaicbert_layers import (BertEmbeddings, BertEncoder,
                                                   BertOnlyMLMHead, BertPooler)
 from llmfoundry.models.utils.bert_padding import index_put_first_axis
 

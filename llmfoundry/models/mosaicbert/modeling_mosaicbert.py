@@ -536,13 +536,6 @@ class ComposerBertForMaskedLM(HuggingFaceModel):
         if gradient_checkpointing:
             model.gradient_checkpointing_enable()  # type: ignore
 
-        # setup the tokenizer
-        # if tokenizer_name:
-        #     tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
-        # else:
-        #     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        #         pretrained_model_name)
-
         metrics = [
             LanguageCrossEntropy(ignore_index=-100),
             MaskedAccuracy(ignore_index=-100)

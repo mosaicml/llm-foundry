@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
-                                  ComposerHFT5)
+                                  ComposerHFT5, ComposerHFBertForMaskedLM, 
+                                  ComposerHFBertForSequenceClassification)
 from llmfoundry.models.mpt import ComposerMPTCausalLM
 from llmfoundry.models.mosaicbert import ( ComposerMosaicBertForMaskedLM,
                                             ComposerMosaicBertForSequenceClassification)
@@ -14,4 +15,6 @@ COMPOSER_MODEL_REGISTRY = {
     'hf_t5': ComposerHFT5,
     'mosaicbert_masked_lm': ComposerMosaicBertForMaskedLM,
     'mosaicbert_sequence_classification': ComposerMosaicBertForSequenceClassification,
+    'hf_bert_masked_lm': ComposerHFBertForMaskedLM,
+    'hf_bert_sequence_classification': ComposerHFBertForSequenceClassification,
 }

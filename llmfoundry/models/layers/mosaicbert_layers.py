@@ -5,9 +5,9 @@
 # Copyright (c) 2018-2021, NVIDIA CORPORATION.  All rights reserved.
 # Copyright (c) 2022, Tri Dao.
 
-"""Implements Mosaic BERT, with an eye towards the Hugging Face API.
+"""Implements MosaicBERT, with an eye towards the Hugging Face API.
 
-Mosaic BERT improves performance over Hugging Face BERT through the following:
+MosaicBERT improves performance over Hugging Face BERT through the following:
 
 1. ALiBi. This architectural change removes positional embeddings and instead encodes positional
 information through attention biases based on query-key position distance. It improves the effectiveness
@@ -16,21 +16,21 @@ of training with shorter sequence lengths by enabling extrapolation to longer se
 2. Gated Linear Units (GLU). This architectural change replaces the FFN component of the BERT layer
 to improve overall expressiveness, providing better convergence properties.
 
-3. Flash Attention. The Mosaic BERT's self-attention layer makes use of Flash Attention, which dramatically
+3. Flash Attention. The MosaicBERT's self-attention layer makes use of Flash Attention, which dramatically
 improves the speed of self-attention. Our implementation utilizes a bleeding edge implementation that
 supports attention biases, which allows us to use Flash Attention with ALiBi.
 
 4. Unpadding. Padding is often used to simplify batching across sequences of different lengths. Standard BERT
-implementations waste computation on padded tokens. Mosaic BERT internally unpads to reduce unnecessary computation
+implementations waste computation on padded tokens. MosaicBERT internally unpads to reduce unnecessary computation
 and improve speed. It does this without changing how the user interfaces with the model, thereby
 preserving the simple API of standard implementations.
 
 
-Currently, Mosaic BERT is available for masked language modeling :class:`BertForMaskedLM` and sequence
+Currently, MosaicBERT is available for masked language modeling :class:`BertForMaskedLM` and sequence
 classification :class:`BertForSequenceClassification`. We aim to expand this catalogue in future releases.
 
-See :file:`./mosaic_bert.py` for utilities to simplify working with Mosaic BERT in Composer, and for example usage
-of the core Mosaic BERT classes.
+See :file:`./mosaic_bert.py` for utilities to simplify working with MosaicBERT in Composer, and for example usage
+of the core MosaicBERT classes.
 """
 
 import copy
@@ -64,7 +64,7 @@ class BertEmbeddings(nn.Module):
 
     This module is modeled after the Hugging Face BERT's
     :class:`~transformers.model.bert.modeling_bert.BertEmbeddings`, but is
-    modified as part of Mosaic BERT's ALiBi implementation. The key change is
+    modified as part of MosaicBERT's ALiBi implementation. The key change is
     that position embeddings are removed. Position information instead comes
     from attention biases that scale linearly with the position distance
     between query and key tokens.
@@ -144,7 +144,7 @@ class BertUnpadSelfAttention(nn.Module):
     """Performs multi-headed self attention on a batch of unpadded sequences.
 
     If Triton is installed, this module uses Flash Attention to greatly improve throughput.
-    The Flash Attention implementation used in Mosaic BERT supports arbitrary attention biases (which
+    The Flash Attention implementation used in MosaicBERT supports arbitrary attention biases (which
     we use to implement ALiBi), but does not support attention dropout. If either Triton is not installed
     or `config.attention_probs_dropout_prob > 0`, the implementation will default to a
     math-equivalent pytorch version, which is much slower.
@@ -244,7 +244,7 @@ class BertSelfOutput(nn.Module):
     This module is modeled after the Hugging Face BERT's
     :class:`~transformers.model.bert.modeling_bert.BertSelfOutput`.
     The implementation is identical. Rather than use the original module
-    directly, we re-implement it here so that Mosaic BERT's modules will not
+    directly, we re-implement it here so that MosaicBERT's modules will not
     be affected by any Composer surgery algorithm that modifies Hugging Face
     BERT modules.
     """
@@ -265,7 +265,7 @@ class BertSelfOutput(nn.Module):
 
 
 class BertUnpadAttention(nn.Module):
-    """Chains attention, Dropout, and LayerNorm for Mosaic BERT."""
+    """Chains attention, Dropout, and LayerNorm for MosaicBERT."""
 
     def __init__(self, config):
         super().__init__()
@@ -304,18 +304,18 @@ class BertUnpadAttention(nn.Module):
 
 
 class BertGatedLinearUnitMLP(nn.Module):
-    """Applies the FFN at the end of each Mosaic BERT layer.
+    """Applies the FFN at the end of each MosaicBERT layer.
 
     Compared to the default BERT architecture, this block replaces :class:`~transformers.model.bert.modeling_bert.BertIntermediate`
     and :class:`~transformers.model.bert.modeling_bert.SelfOutput` with a single module that has similar functionality, but
     introduces Gated Linear Units.
 
-    Note: Mosaic BERT adds parameters in order to implement Gated Linear Units. To keep parameter count consistent with that of a
-    standard Hugging Face BERT, scale down `config.intermediate_size` by 2/3. For example, a Mosaic BERT constructed with
+    Note: MosaicBERT adds parameters in order to implement Gated Linear Units. To keep parameter count consistent with that of a
+    standard Hugging Face BERT, scale down `config.intermediate_size` by 2/3. For example, a MosaicBERT constructed with
     `config.intermediate_size=2048` will have the same parameter footprint as its Hugging Face BERT counterpart constructed
     with the `config.intermediate_size=3072`.
     However, in most cases it will not be necessary to adjust `config.intermediate_size` since, despite the increased
-    parameter size, Mosaic BERT typically offers a net higher throughput than a Hugging Face BERT built from the same `config`.
+    parameter size, MosaicBERT typically offers a net higher throughput than a Hugging Face BERT built from the same `config`.
     """
 
     def __init__(self, config):
@@ -352,7 +352,7 @@ class BertGatedLinearUnitMLP(nn.Module):
 
 
 class BertLayer(nn.Module):
-    """Composes the Mosaic BERT attention and FFN blocks into a single layer."""
+    """Composes the MosaicBERT attention and FFN blocks into a single layer."""
 
     def __init__(self, config):
         super(BertLayer, self).__init__()
@@ -388,7 +388,7 @@ class BertLayer(nn.Module):
 
 
 class BertEncoder(nn.Module):
-    """A stack of BERT layers providing the backbone of Mosaic BERT.
+    """A stack of BERT layers providing the backbone of MosaicBERT.
 
     This module is modeled after the Hugging Face BERT's :class:`~transformers.model.bert.modeling_bert.BertEncoder`,
     but with substantial modifications to implement unpadding and ALiBi.

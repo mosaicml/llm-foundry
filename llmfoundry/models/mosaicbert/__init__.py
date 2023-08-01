@@ -5,7 +5,8 @@ import torch
 
 from llmfoundry.models.mosaicbert.modeling_mosaicbert import (BertForMaskedLM,
                                     BertForSequenceClassification, BertModel,
-                                    ComposerBertForMaskedLM)
+                                    ComposerMosaicBertForMaskedLM,
+                                    ComposerMosaicBertForSequenceClassification)
 from llmfoundry.models.mosaicbert.configuration_mosaicbert import BertConfig
 # yapf: disable
 from llmfoundry.models.layers import (BertEmbeddings, BertEncoder,
@@ -47,7 +48,8 @@ __all__ = [
     'BertSelfOutput',
     'BertUnpadAttention',
     'BertUnpadSelfAttention',
-    'ComposerBertForMaskedLM',
+    'ComposerMosaicBertForMaskedLM',
+    'ComposerMosaicBertForSequenceClassification',
     'IndexFirstAxis',
     'IndexPutFirstAxis',
     'index_first_axis',

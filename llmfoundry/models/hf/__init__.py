@@ -18,5 +18,5 @@ __all__ = [
     'prepare_hf_enc_dec_model_for_fsdp',
     'prepare_hf_model_for_fsdp',
     'ComposerHFBertForMaskedLM',
-    'ComposerHFBertForSequenceClassification'
+    'ComposerHFBertForSequenceClassification',
 ]

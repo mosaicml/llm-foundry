@@ -7,6 +7,8 @@ from llmfoundry.models.hf.hf_fsdp import (prepare_hf_causal_lm_model_for_fsdp,
                                           prepare_hf_model_for_fsdp)
 from llmfoundry.models.hf.hf_prefix_lm import ComposerHFPrefixLM
 from llmfoundry.models.hf.hf_t5 import ComposerHFT5
+from llmfoundry.models.hf.hf_bert import (ComposerHFBertForMaskedLM, 
+                                          ComposerHFBertForSequenceClassification)
 
 __all__ = [
     'ComposerHFCausalLM',
@@ -15,4 +17,6 @@ __all__ = [
     'prepare_hf_causal_lm_model_for_fsdp',
     'prepare_hf_enc_dec_model_for_fsdp',
     'prepare_hf_model_for_fsdp',
+    'ComposerHFBertForMaskedLM',
+    'ComposerHFBertForSequenceClassification'
 ]

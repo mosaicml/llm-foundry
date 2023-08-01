@@ -185,7 +185,7 @@ class BertForMaskedLM(BertPreTrainedModel):
         model = cls(config, *inputs, **kwargs)
         if from_tf:
             raise ValueError(
-                'Mosaic BERT does not support loading TensorFlow weights.')
+                'MosaicBERT does not support loading TensorFlow weights.')
 
         state_dict = torch.load(pretrained_checkpoint)
         # If the state_dict was saved after wrapping with `composer.HuggingFaceModel`, it takes on the `model` prefix

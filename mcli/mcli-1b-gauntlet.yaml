@@ -95,11 +95,11 @@ parameters:
     wandb: {}
 
   # Checkpointing
-  autoresume: true
+  # autoresume: true
   # save_filename: ep{epoch}-ba{batch}/rank{rank}.pt
   # save_folder: oci://mosaicml-internal-checkpoints/llm-hero-test/7-6-23/mpt-1b # update for hero run
-  save_interval: 20ba # update for hero run, e.g. 2000ba
-  save_num_checkpoints_to_keep: 1
+  # save_interval: 20ba # update for hero run, e.g. 2000ba
+  # save_num_checkpoints_to_keep: 1
 
   # Algos and Callbacks
   algorithms:
@@ -159,7 +159,7 @@ parameters:
 
   ## If you want to use one of our suites of tasks
   icl_tasks: eval/yamls/tasks.yaml
-  icl_subset_num_batches: 500
+  icl_subset_num_batches: 100 # -1 to evaluate on all batches 
   model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
 
   ## Or if you want to manually specify individual tasks

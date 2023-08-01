@@ -13,8 +13,8 @@ command: |
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: all-eval
 gpu_num: 8
-# gpu_type:
-# cluster: # replace with your cluster here!
+gpu_type: a100_40gb
+cluster: r7z2 # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
@@ -46,6 +46,9 @@ parameters:
   fsdp_config:
     sharding_strategy: FULL_SHARD
     mixed_precision: FULL
+    forward_prefetch: True
+    limit_all_gathers: True
+
 
   icl_tasks: 'eval/yamls/tasks_light.yaml'
   model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

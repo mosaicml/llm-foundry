@@ -1,6 +1,6 @@
 max_seq_len: 1024
 seed: 1
-precision: amp_fp16
+precision: fp32
 
 # If you are using one model, put it here:
 model_name_or_path: EleutherAI/gpt-neo-125m
@@ -37,11 +37,18 @@ models:
 device_eval_batch_size: 4
 
 # FSDP config for model sharding
-fsdp_config:
-  sharding_strategy: FULL_SHARD
-  mixed_precision: FULL
-  forward_prefetch: True
-  limit_all_gathers: True
+# fsdp_config:
+#   sharding_strategy: FULL_SHARD
+#   mixed_precision: FULL
+#   forward_prefetch: True
+#   limit_all_gathers: True
 
-icl_tasks: 'eval/yamls/tasks_light.yaml'
+icl_tasks:
+-
+  label: jeopardy
+  dataset_uri: eval/local_data/world_knowledge/jeopardy_small.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  has_categories: true
 model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

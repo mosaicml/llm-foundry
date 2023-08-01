@@ -72,6 +72,7 @@ parameters:
   precision: amp_bf16
   device_train_microbatch_size: 4
   device_eval_batch_size: 4
+  eval_subset_num_batches: 1
 
   # FSDP
   fsdp_config:

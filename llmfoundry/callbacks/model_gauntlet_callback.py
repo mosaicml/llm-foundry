@@ -90,7 +90,6 @@ class ModelGauntlet(Callback):
                 benchmark['weighting'] = weight
 
     def compute_averages(self, logger_destination):
-
         results = {}
         pat = re.compile(
             'metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')
@@ -98,7 +97,7 @@ class ModelGauntlet(Callback):
             match = pat.match(key)
             if key not in logger_destination.data:
                 continue
-            val = logger_destination.data[key][0][1].item()
+            val = logger_destination.data[key][-1][1].item()
 
             if match:
                 eval_name = match.group(1)

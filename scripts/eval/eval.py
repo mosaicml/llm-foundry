@@ -174,7 +174,7 @@ def calculate_markdown_results(logger_keys: List[str], logger: Logger, benchmark
     pat = re.compile('metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')
     for key in logger_keys:
         match = pat.match(key)
-        val = logger_data[key][0][1].item()
+        val = logger_data[key][-1][1].item()
         if match:
             eval_name = match.group(1)
             num_shot = match.group(2)

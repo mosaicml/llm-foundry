@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Periodically log generations to wandb from a set of prompts."""
-from typing import List, Union, cast
+from typing import Any, List, Union, cast
 
 import torch
 import wandb
@@ -16,7 +16,8 @@ Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 class Generate(Callback):
 
-    def __init__(self, prompts: List[str], batch_log_interval: int, **kwargs):
+    def __init__(self, prompts: List[str], batch_log_interval: int,
+                 **kwargs: Any):
         """Periodically log generations to wandb from a set of prompts.
 
         In the main view for a run, there will be a table that will show the _last_ logged generations.

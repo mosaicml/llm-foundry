@@ -7,6 +7,7 @@ from typing import Optional, Union
 
 import pytest
 import torch
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
 # Add repo root to path so we can import scripts and test it
@@ -19,6 +20,7 @@ def gpt_tiny_cfg(conf_path: str = 'scripts/train/yamls/pretrain/mpt-125m.yaml'):
     """Create gpt tiny cfg."""
     with open(conf_path) as f:
         test_cfg = om.load(f)
+    assert isinstance(test_cfg, DictConfig)
     # removes requirement to download / process train set
     test_cfg.train_loader.dataset = test_cfg.eval_loader.dataset
 

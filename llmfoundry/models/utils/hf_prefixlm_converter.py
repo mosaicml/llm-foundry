@@ -13,7 +13,7 @@ and treat the input prompt as the prefix in `generate`.
 import math
 import warnings
 from types import MethodType
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, List, MutableMapping, Optional, Tuple, Union
 
 import torch
 from transformers.models.bloom.modeling_bloom import (
@@ -188,8 +188,7 @@ def _convert_gpt_causal_lm_to_prefix_lm(
         # Return the outputs
         return output
 
-    def generate(self: CAUSAL_GPT_TYPES, *args: tuple, **kwargs: Dict[str,
-                                                                      Any]):
+    def generate(self: CAUSAL_GPT_TYPES, *args: Any, **kwargs: Any):
         """Wraps original generate to enable PrefixLM attention."""
         attn_modules = _get_attn_modules(model)
 
@@ -343,7 +342,7 @@ def _convert_bloom_causal_lm_to_prefix_lm(
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        **deprecated_arguments) -> Union[Tuple[
+        **deprecated_arguments: Any) -> Union[Tuple[
             torch.Tensor, ...], BaseModelOutputWithPastAndCrossAttentions]:
         if deprecated_arguments.pop('position_ids', False) is not False:
             # `position_ids` could have been `torch.Tensor` or `None` so
@@ -441,9 +440,9 @@ def _convert_bloom_causal_lm_to_prefix_lm(
                     )
                     use_cache = False
 
-                def create_custom_forward(module):
+                def create_custom_forward(module: torch.nn.Module):
 
-                    def custom_forward(*inputs):
+                    def custom_forward(*inputs: Any):
                         # None for past_key_value
                         return module(*inputs,
                                       use_cache=use_cache,
@@ -526,7 +525,7 @@ def _convert_bloom_causal_lm_to_prefix_lm(
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        **deprecated_arguments
+        **deprecated_arguments: Any,
     ) -> Union[Tuple[torch.Tensor], CausalLMOutputWithCrossAttentions]:
         """Replacement forward method for BloomCausalLM."""
         if deprecated_arguments.pop('position_ids', False) is not False:
@@ -592,7 +591,8 @@ def _convert_bloom_causal_lm_to_prefix_lm(
                                       past: Optional[torch.Tensor] = None,
                                       attention_mask: Optional[
                                           torch.Tensor] = None,
-                                      **kwargs) -> dict:
+                                      **kwargs: Any) -> dict:
+        del kwargs  # unused
         # only last token for input_ids if past is not None
         if past:
             input_ids = input_ids[:, -1].unsqueeze(-1)  # type: ignore
@@ -600,7 +600,7 @@ def _convert_bloom_causal_lm_to_prefix_lm(
             # has been encoded into `past`
             bidirectional_mask = None
 
-            # the cache may be in the stardard format (e.g. in contrastive
+            # the cache may be in the standard format (e.g. in contrastive
             # search), convert to bloom's format if needed
             if past[0][0].shape[0] == input_ids.shape[0]:
                 past = self._convert_to_bloom_cache(past)
@@ -656,12 +656,16 @@ def _convert_opt_causal_lm_to_prefix_lm(
 
     # Modified from transformers.models.bloom.modeling_opt.OPTDecoder._prepare_decoder_attn_mask
     # https://github.com/huggingface/transformers/blob/v4.25.1/src/transformers/models/opt/modeling_opt.py#L532
-    def _prepare_decoder_attention_mask(self, attention_mask, input_shape,
-                                        inputs_embeds, past_key_values_length):
+    def _prepare_decoder_attention_mask(self: torch.nn.Module,
+                                        attention_mask: Optional[torch.Tensor],
+                                        input_shape: Tuple[int, int],
+                                        inputs_embeds: Optional[torch.Tensor],
+                                        past_key_values_length: int):
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
         combined_attention_mask = None
         if input_shape[-1] > 1:
+            assert inputs_embeds is not None
             # 'g' indicates generation mode. Causal mask replaced with 0.
             if self.bidirectional_mask == 'g':
                 bsz, src_length = input_shape
@@ -679,6 +683,7 @@ def _convert_opt_causal_lm_to_prefix_lm(
                 # Make use of the batch-specific `bidirectional_mask` attribute
                 # set by the parent module in its (new) `forward` method wrapper
                 if self.bidirectional_mask is not None:
+                    assert attention_mask is not None
                     # The two masks should have the same size
                     assert attention_mask.shape == self.bidirectional_mask.shape
 
@@ -691,6 +696,7 @@ def _convert_opt_causal_lm_to_prefix_lm(
                         expanded_bidirectional_mask, combined_attention_mask)
 
         if attention_mask is not None:
+            assert inputs_embeds is not None
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
             expanded_attn_mask = _expand_mask_opt(attention_mask,
                                                   inputs_embeds.dtype,
@@ -758,7 +764,7 @@ def _convert_opt_causal_lm_to_prefix_lm(
         # Return the outputs
         return outputs
 
-    def generate(self: OPTForCausalLM, *args: tuple, **kwargs: Dict[str, Any]):
+    def generate(self: OPTForCausalLM, *args: tuple, **kwargs: Any):
         """Wraps original generate to enable PrefixLM-style attention."""
         # Flag the child module to use generation-style attention masking
         self.model.decoder.bidirectional_mask = 'g'
@@ -867,7 +873,7 @@ def convert_hf_causal_lm_to_prefix_lm(
         )
 
 
-def add_bidirectional_mask_if_missing(batch: Dict[str, Any]):
+def add_bidirectional_mask_if_missing(batch: MutableMapping):
     """Attempts to add bidirectional_mask to batch if missing.
 
     Raises:

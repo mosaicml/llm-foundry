@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 from omegaconf import OmegaConf as om
-from transformers import AutoTokenizer, PreTrainedTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.utils.builders import build_icl_evaluators
 
@@ -34,7 +34,7 @@ def tmp_dir():
 
 
 def run_test(dir: pathlib.Path,
-             tokenizer: PreTrainedTokenizer,
+             tokenizer: PreTrainedTokenizerBase,
              bos_tok: str = ''):
     task_cfg = load_icl_config()
     evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,

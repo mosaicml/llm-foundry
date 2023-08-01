@@ -6,6 +6,8 @@ from typing import Callable, Dict, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
+from omegaconf import DictConfig
+from transformers import PreTrainedTokenizerBase
 
 
 class BinPackWrapper:
@@ -312,7 +314,8 @@ if __name__ == '__main__':
             raise ValueError('`num_packing_ratios` must be a positive integer.')
         return args
 
-    def build_dataloader(cfg, tokenizer, device_batch_size):
+    def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+                         device_batch_size: int):
         if cfg.name == 'text':
             return build_text_dataloader(cfg, tokenizer, device_batch_size)
         elif cfg.name == 'text_denoising':

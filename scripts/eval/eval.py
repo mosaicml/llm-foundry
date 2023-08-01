@@ -48,8 +48,6 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
 
 def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
                    model_gauntlet_df: Optional[pd.DataFrame]):
-    print('_' * 30)
-    print(type(cfg))
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
     tokenizer = build_tokenizer(model_cfg.tokenizer)

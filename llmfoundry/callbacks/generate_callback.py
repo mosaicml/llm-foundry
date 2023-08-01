@@ -58,6 +58,11 @@ class Generate(Callback):
         tokenizer = cast(Tokenizer, state.model.tokenizer)
         device = state.device
 
+        if not hasattr(model.model, 'generate'):
+            raise ValueError(
+                f'Cannot generate from model {model.model.__class__.__name__} because it does not have a `generate` method'
+            )
+
         # stash the original original value of padding_side because generation requires left padding
         original_padding_side = tokenizer.padding_side
         tokenizer.padding_side = 'left'

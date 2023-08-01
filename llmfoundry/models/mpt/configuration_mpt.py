@@ -146,6 +146,10 @@ class MPTConfig(PretrainedConfig):
             del kwargs['name']
         if 'loss_fn' in kwargs:
             del kwargs['loss_fn']
+        if self.attn_config.get('alibi', False):
+            self.learned_pos_emb = False
+            warnings.warn(
+                f'alibi is turned on, setting `learned_pos_emb` to `False.`')
         super().__init__(**kwargs)
 
         self._validate_config()

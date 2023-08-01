@@ -33,7 +33,7 @@ from llmfoundry.models.layers.mosaicbert_layers import (BertEmbeddings, BertEnco
                                                   BertOnlyMLMHead, BertPooler)
 from llmfoundry.models.utils.bert_padding import index_put_first_axis
 
-all = ['BertModel', 'BertForMaskedLM', 'BertForSequenceClassification', 'ComposerBertForMaskedLM']
+all = ['BertModel', 'BertForMaskedLM', 'BertForSequenceClassification', 'ComposerMosaicBertForMaskedLM', 'ComposerMosaicBertForSequenceClassification']
 
 logger = logging.getLogger(__name__)
 
@@ -446,7 +446,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
         )
 
 
-class ComposerBertForMaskedLM(HuggingFaceModel):
+class ComposerMosaicBertForMaskedLM(HuggingFaceModel):
     """Mosaic BERT masked language model based on |:hugging_face:| Transformers.
 
     For more information, see
@@ -554,7 +554,7 @@ class ComposerBertForMaskedLM(HuggingFaceModel):
         
         self.model.resize_token_embeddings(config.vocab_size)
 
-class ComposerBertForSequenceClassification(HuggingFaceModel):
+class ComposerMosaicBertForSequenceClassification(HuggingFaceModel):
     """Mosaic BERT classification model based on |:hugging_face:| Transformers.
 
     For more information, see `Transformers. <https://huggingface.co/transformers/>`_.

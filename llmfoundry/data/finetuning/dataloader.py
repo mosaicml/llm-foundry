@@ -235,7 +235,8 @@ def _validate_config(dataset_cfg: DictConfig):
         )
 
 
-def _build_hf_dataset_from_remote(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
+def _build_hf_dataset_from_remote(cfg: DictConfig,
+                                  tokenizer: PreTrainedTokenizerBase):
     """Builds a dataset from a remote object store.
 
     This function supports 'jsonl', 'csv', and 'parquet' file formats for the dataset. It will attempt to download
@@ -313,7 +314,8 @@ def _build_hf_dataset_from_remote(cfg: DictConfig, tokenizer: PreTrainedTokenize
         return dataset
 
 
-def _build_collate_fn(dataset_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+def _build_collate_fn(dataset_cfg: DictConfig,
+                      tokenizer: PreTrainedTokenizerBase,
                       device_batch_size: int):
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,

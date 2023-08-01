@@ -84,8 +84,8 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
             raise MissingConditionalImportError(extra_deps_group='nlp',
                                                 conda_package='transformers') from e
 
-        if not model_config:
-            model_config = {}
+        # if not model_config:
+        #     model_config = {}
 
         if not pretrained_model_name:
             pretrained_model_name = 'bert-base-uncased'
@@ -93,10 +93,10 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
         if resolved_om_model_config.get('use_pretrained'):
             assert transformers.AutoModelForMaskedLM.from_pretrained is not None, 'AutoModelForMaskedLM has from_pretrained method'
             model = transformers.AutoModelForMaskedLM.from_pretrained(
-                pretrained_model_name_or_path=pretrained_model_name, **model_config)
+                pretrained_model_name_or_path=pretrained_model_name, **resolved_om_model_config)
         else:
             config = transformers.AutoConfig.from_pretrained(
-                pretrained_model_name, **model_config)
+                pretrained_model_name, **resolved_om_model_config)
             assert transformers.AutoModelForMaskedLM.from_config is not None, 'AutoModelForMaskedLM has from_config method'
             model = transformers.AutoModelForMaskedLM.from_config(config)
 
@@ -188,10 +188,16 @@ class ComposerHFBertForSequenceClassification(HuggingFaceModel):
             raise MissingConditionalImportError(extra_deps_group='nlp',
                                                 conda_package='transformers') from e
 
-        if not model_config:
-            model_config = {}
+        # if not model_config:
+        #     model_config = {}
 
-        model_config['num_labels'] = resolved_om_model_config.get('num_labels')
+        # add JP - check pretrained checkpoitn and gradient checkpointing use
+        pretrained_model_name = resolved_om_model_config.get('pretrained_model_name')
+        pretrained_checkpoint = resolved_om_model_config.get('pretrained_checkpoint')
+        #gradient_checkpointing = resolved_om_model_config.get('gradient_checkpointing')
+        
+        # need to resolve this for classification? TODO JP Hopefully this appears in resolved om config?
+        # model_config['num_labels'] = resolved_om_model_config.get('num_labels')
 
         if not pretrained_model_name:
             pretrained_model_name = 'bert-base-uncased'
@@ -199,17 +205,16 @@ class ComposerHFBertForSequenceClassification(HuggingFaceModel):
         if resolved_om_model_config.get('use_pretrained'):
             assert transformers.AutoModelForSequenceClassification.from_pretrained is not None, 'AutoModelForSequenceClassification has from_pretrained method'
             model = transformers.AutoModelForSequenceClassification.from_pretrained(
-                pretrained_model_name_or_path=pretrained_model_name, **model_config)
+                pretrained_model_name_or_path=pretrained_model_name, **resolved_om_model_config)
         else:
             config = transformers.AutoConfig.from_pretrained(
-                pretrained_model_name, **model_config)
+                pretrained_model_name, **resolved_om_model_config)
             assert transformers.AutoModelForSequenceClassification.from_config is not None, 'AutoModelForSequenceClassification has from_config method'
             model = transformers.AutoModelForSequenceClassification.from_config(
                 config)
 
         if resolved_om_model_config.get('gradient_checkpointing'):
             model.gradient_checkpointing_enable()
-
 
         if model.config.num_labels == 1:
             # Metrics for a regression model

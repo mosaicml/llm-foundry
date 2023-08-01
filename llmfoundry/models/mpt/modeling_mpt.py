@@ -8,7 +8,7 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 import math
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, List, Mapping, MutableMapping, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -737,12 +737,12 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 f'Specified loss_fn={self.loss_fn} not recognized. `loss_fn` must be one of [`fused_crossentropy`, `torch_crossentropy`].'
             )
 
-    def get_targets(self, batch: Dict[str, Any]):
+    def get_targets(self, batch: Mapping):
         targets = torch.roll(batch['labels'], shifts=-1)
         targets[:, -1] = -100
         return targets
 
-    def forward(self, batch: Dict[str, Any]):
+    def forward(self, batch: MutableMapping):
         if self.model.transformer.prefix_lm:
             add_bidirectional_mask_if_missing(batch)
         # Note: prefix_mask is only used if model.prefix_lm is True
@@ -754,12 +754,12 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             inputs_embeds=batch.get('inputs_embeds', None),
         )
 
-    def loss(self, outputs: CausalLMOutputWithPast, batch: Dict[str, Any]):
+    def loss(self, outputs: CausalLMOutputWithPast, batch: Mapping):
         targets = self.get_targets(batch)
         return self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
                             targets.view(-1))
 
-    def flops_per_batch(self, batch: Dict[str, Any]):
+    def flops_per_batch(self, batch: Mapping):
         # Note: this computation does not take into account padding, and assumes
         # that the dataset has been constructed without padding. Additionally, we
         # assume the backward pass is approximately 2x the forward pass

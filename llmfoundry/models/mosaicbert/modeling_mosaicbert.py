@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Implements a Mosaic BERT wrapper around a :class:`.ComposerTransformer`."""
+"""Implements a MosaicBERT wrapper around a :class:`.ComposerTransformer`."""
 
 from __future__ import annotations
 
@@ -498,7 +498,7 @@ class ComposerMosaicBertForMaskedLM(HuggingFaceModel):
         "vocab_size": 30522
         }
 
-    To create a Mosaic BERT model for Masked Language Model pretraining:
+    To create a MosaicBERT model for Masked Language Model pretraining:
 
      .. testcode::
 
@@ -555,11 +555,11 @@ class ComposerMosaicBertForMaskedLM(HuggingFaceModel):
         self.model.resize_token_embeddings(config.vocab_size)
 
 class ComposerMosaicBertForSequenceClassification(HuggingFaceModel):
-    """Mosaic BERT classification model based on |:hugging_face:| Transformers.
+    """MosaicBERT classification model based on |:hugging_face:| Transformers.
 
     For more information, see `Transformers. <https://huggingface.co/transformers/>`_.
 
-    This function creates a Mosaic BERT, which includes several throughput
+    This function creates a MosaicBERT, which includes several throughput
     optimizations not available in |:hugging_face:| BERT as well as
     architecture changes based on ALiBi and Gated Linear Units.
 
@@ -617,7 +617,7 @@ class ComposerMosaicBertForSequenceClassification(HuggingFaceModel):
             "vocab_size": 30522
         }
 
-    To create a Mosaic BERT model for classification:
+    To create a MosaicBERT model for classification:
 
      .. testcode::
         from mosaic_bert import create_mosaic_bert_classification
@@ -650,7 +650,7 @@ class ComposerMosaicBertForSequenceClassification(HuggingFaceModel):
         gradient_checkpointing = resolved_om_model_config.get('gradient_checkpointing')
         num_labels = resolved_om_model_config.get('num_labels')
 
-        # By default, turn off attention dropout in Mosaic BERT
+        # By default, turn off attention dropout in MosaicBERT
         # (otherwise, Flash Attention will be off by default)
         if not resolved_om_model_config.get('attention_probs_dropout_prob'):
             resolved_om_model_config['attention_probs_dropout_prob'] = 0.0

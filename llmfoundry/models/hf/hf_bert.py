@@ -207,7 +207,7 @@ class ComposerHFBertForSequenceClassification(HuggingFaceModel):
             model = transformers.AutoModelForSequenceClassification.from_config(
                 config)
 
-        if resolved_om_model_config.get('gradient_checkpointing:')
+        if resolved_om_model_config.get('gradient_checkpointing'):
             model.gradient_checkpointing_enable()
 
 

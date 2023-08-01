@@ -7,6 +7,7 @@ from typing import Union
 from composer import algorithms
 from composer.callbacks import (LRMonitor, MemoryMonitor, OptimizerMonitor,
                                 RuntimeEstimator, SpeedMonitor)
+from composer.loggers.in_memory_logger import InMemoryLogger
 from composer.core import Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -66,6 +67,8 @@ def build_logger(name, kwargs):
         return WandBLogger(**kwargs)
     elif name == 'tensorboard':
         return TensorboardLogger(**kwargs)
+    elif name == 'in_memory_logger':
+        return InMemoryLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
@@ -130,29 +133,26 @@ def build_scheduler(cfg):
 
 
 def build_tokenizer(om_tokenizer_config: DictConfig,) -> Tokenizer:
-    if om_tokenizer_config.name == 'openai':
-        return OpenAITokenizerWrapper(om_tokenizer_config.kwargs['name'])
-    else:
-        os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
-        os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+    os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
+    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-        resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
-                                                    resolve=True)
-        tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
-            'kwargs', {})
-        tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                                **tokenizer_kwargs)
+    resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
+                                                resolve=True)
+    tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
+        'kwargs', {})
+    tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+                                            **tokenizer_kwargs)
 
-        # HuggingFace does not respect the model_max_length kwarg, and overrides it with
-        # min(kwargs['model_max_length'], original_config['model_max_length']), so we
-        # explicitly set it here
-        tokenizer.model_max_length = tokenizer_kwargs.get(
-            'model_max_length',
-            int(1e30),
-        )
+    # HuggingFace does not respect the model_max_length kwarg, and overrides it with
+    # min(kwargs['model_max_length'], original_config['model_max_length']), so we
+    # explicitly set it here
+    tokenizer.model_max_length = tokenizer_kwargs.get(
+        'model_max_length',
+        int(1e30),
+    )
 
-        return tokenizer
+    return tokenizer
 
 
 def build_icl_evaluators(icl_tasks,

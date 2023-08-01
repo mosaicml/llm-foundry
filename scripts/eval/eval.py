@@ -5,9 +5,10 @@ import os
 import re
 import sys
 import time
-from typing import List
+from typing import Dict, List
 
 import pandas as pd
+from composer.loggers.logger import Logger
 import torch
 from composer.loggers import InMemoryLogger, LoggerDestination
 from composer.trainer import Trainer
@@ -103,7 +104,7 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
         torch.cuda.synchronize()
     b = time.time()
     print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
-    return (in_memory_logger, logger_keys, model_gauntlet_callback,
+    return (trainer.logger, logger_keys, model_gauntlet_callback,
             model_gauntlet, model_gauntlet_df)
 
 
@@ -118,13 +119,13 @@ def main(cfg):
     model_gauntlet_df = None
     models_df = None
     for model_cfg in cfg.models:
-        (in_memory_logger, logger_keys, model_gauntlet_callback, model_gauntlet,
+        (logger, logger_keys, model_gauntlet_callback, model_gauntlet,
          model_gauntlet_df) = evaluate_model(model_cfg, cfg.run_name,
                                              model_gauntlet_df)
 
         if model_gauntlet_callback is not None:
             composite_scores = model_gauntlet_callback.eval_end(
-                None, in_memory_logger)
+                None, logger)
 
         benchmark_to_taxonomy = {}
         if model_gauntlet is not None:
@@ -133,7 +134,7 @@ def main(cfg):
                     benchmark_to_taxonomy[b.name] = t.name
 
         model_results = calculate_markdown_results(logger_keys,
-                                                   in_memory_logger.data,
+                                                   logger,
                                                    benchmark_to_taxonomy,
                                                    model_cfg.model_name)
 
@@ -162,9 +163,14 @@ def main(cfg):
         print(models_df.to_markdown(index=False))
 
 
-def calculate_markdown_results(logger_keys, logger_data, benchmark_to_taxonomy,
-                               model_name):
+def calculate_markdown_results(logger_keys: List[str], logger: Logger, benchmark_to_taxonomy: Dict[str, str],
+                               model_name: str):
     results = {}
+    logger_data = None
+    for lg in logger.destinations:
+        if isinstance(lg, InMemoryLogger):
+            logger_data = lg.data
+
     pat = re.compile('metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')
     for key in logger_keys:
         match = pat.match(key)

@@ -7,6 +7,7 @@ import sys
 import warnings
 
 from composer import Trainer
+from composer.loggers.in_memory_logger import InMemoryLogger
 from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
@@ -273,6 +274,10 @@ def main(cfg):
 
     if model_gauntlet_callback is not None:
         callbacks.append(model_gauntlet_callback)
+        if not any(isinstance(l, InMemoryLogger) for l in loggers):
+            loggers.append(
+                build_logger("in_memory_logger", {})
+            )
 
     # Algorithms
     algorithms = [

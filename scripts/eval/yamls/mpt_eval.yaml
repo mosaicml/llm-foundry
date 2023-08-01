@@ -1,4 +1,4 @@
-max_seq_len: 2048
+max_seq_len: 1024
 tokenizer_name: EleutherAI/gpt-neox-20b
 seed: 1
 precision: amp_fp16

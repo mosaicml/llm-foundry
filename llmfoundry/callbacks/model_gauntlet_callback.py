@@ -7,6 +7,7 @@ import math
 import re
 from enum import Enum
 from typing import Optional
+from composer.loggers.in_memory_logger import InMemoryLogger
 
 from composer.core import Callback, State
 from composer.loggers import Logger
@@ -19,6 +20,12 @@ class Weighting(Enum):
     SAMPLE_SZ = 2
     LOG_SAMPLE_SZ = 3
 
+
+def get_in_memory_logger(logger):
+    for lg in logger.destinations:
+        if isinstance(lg, InMemoryLogger):
+            return lg
+    raise Exception("Couldn't find InMemoryLogger in logger destinations!")
 
 class ModelGauntlet(Callback):
     """The ModelGauntlet aggregates ICL eval results.
@@ -82,14 +89,14 @@ class ModelGauntlet(Callback):
 
                 benchmark['weighting'] = weight
 
-    def compute_averages(self, logger_data):
+    def compute_averages(self, logger_destination):
 
         results = {}
         pat = re.compile(
             'metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')
         for key in self.logger_keys:
             match = pat.match(key)
-            val = logger_data.data[key][0][1].item()
+            val = logger_destination.data[key][0][1].item()
 
             if match:
                 eval_name = match.group(1)
@@ -109,7 +116,8 @@ class ModelGauntlet(Callback):
         return {k: sum(v) / len(v) for k, v in results.items()}
 
     def eval_end(self, state: State, logger: Logger):
-        new_metrics = self.compute_averages(logger)
+        inmemorylogger = get_in_memory_logger(logger)
+        new_metrics = self.compute_averages(inmemorylogger)
         composite_scores = {}
         for category in self.categories:
             composite_scores[category['name']] = []
@@ -153,6 +161,7 @@ class ModelGauntlet(Callback):
 
         composite_scores['metrics/model_gauntlet/average'] = sum(
             composite_scores.values()) / len(composite_scores.values())
+        
         logger.log_metrics(composite_scores)
 
         return composite_scores

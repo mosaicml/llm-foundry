@@ -34,7 +34,7 @@ train_loader:
     remote: ${data_remote}
     split: train
     shuffle: true
-    tokenizer_name: ${tokenizer_name}
+    # tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
     shuffle_seed: ${global_seed}
   drop_last: true
@@ -47,7 +47,7 @@ eval_loader:
     remote: ${data_remote}
     split: val
     shuffle: false
-    tokenizer_name: ${tokenizer_name}
+    # tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
     shuffle_seed: ${global_seed}
   drop_last: false
@@ -75,8 +75,8 @@ algorithms:
 
 max_duration: 33696ba # ~ 17.55B tokens; 150 tokens / param
 eval_interval: 1000ba
-eval_first: false
-eval_subset_num_batches: -1
+eval_first: true
+eval_subset_num_batches: 1
 global_train_batch_size: 256
 
 # System
@@ -84,17 +84,17 @@ seed: ${global_seed}
 device_eval_batch_size: 4
 device_train_microbatch_size: 4
 # device_train_microbatch_size: auto
-precision: amp_bf16
+precision: fp32
 
 # FSDP
-fsdp_config:
-  sharding_strategy: FULL_SHARD
-  mixed_precision: PURE
-  activation_checkpointing: false
-  activation_checkpointing_reentrant: false
-  activation_cpu_offload: false
-  limit_all_gathers: true
-  verbose: false
+# fsdp_config:
+#   sharding_strategy: FULL_SHARD
+#   mixed_precision: PURE
+#   activation_checkpointing: false
+#   activation_checkpointing_reentrant: false
+#   activation_cpu_offload: false
+#   limit_all_gathers: true
+#   verbose: false
 
 # Logging
 progress_bar: false
@@ -120,3 +120,15 @@ callbacks:
 # Load from local filesystem or remote object store
 # load_path: ./gpt-125m/checkpoints/latest-rank{rank}.pt
 # load_path: s3://my-bucket/my-folder/gpt-125m/checkpoints/latest-rank{rank}.pt
+
+icl_tasks:
+-
+  label: jeopardy
+  dataset_uri: eval/local_data/world_knowledge/jeopardy_small.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  has_categories: true
+
+icl_subset_num_batches: 100 # -1 to evaluate on all batches 
+model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

@@ -124,7 +124,7 @@ def main(cfg):
                                              model_gauntlet_df)
 
         if model_gauntlet_callback is not None:
-            composite_scores = model_gauntlet_callback.eval_end(
+            composite_scores = model_gauntlet_callback.eval_after_all(
                 None, logger)
 
         benchmark_to_taxonomy = {}

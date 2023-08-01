@@ -96,6 +96,8 @@ class ModelGauntlet(Callback):
             'metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')
         for key in self.logger_keys:
             match = pat.match(key)
+            if key not in logger_destination.data:
+                continue
             val = logger_destination.data[key][0][1].item()
 
             if match:
@@ -115,9 +117,11 @@ class ModelGauntlet(Callback):
                     results[key] = [val]
         return {k: sum(v) / len(v) for k, v in results.items()}
 
-    def eval_end(self, state: State, logger: Logger):
+    def eval_after_all(self, state: State, logger: Logger):
         inmemorylogger = get_in_memory_logger(logger)
         new_metrics = self.compute_averages(inmemorylogger)
+        if len(new_metrics) == 0:
+            return {}
         composite_scores = {}
         for category in self.categories:
             composite_scores[category['name']] = []

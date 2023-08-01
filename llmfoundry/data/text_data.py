@@ -15,7 +15,7 @@ from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
-
+import streaming 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
@@ -242,6 +242,7 @@ def build_text_dataloader(
             streams.append(Stream(**stream))
 
     # build dataset potentially with streams
+    streaming.base.util.clean_stale_shared_memory()
     dataset = StreamingTextDataset(
         tokenizer=tokenizer,
         streams=streams,

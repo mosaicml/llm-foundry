@@ -232,6 +232,7 @@ def main(cfg: DictConfig):
     print('Building eval loader...')
     evaluators = []
     if 'eval_loader' in cfg:
+        assert model.train_metrics is not None
         eval_loader = Evaluator(label='eval',
                                 dataloader=build_dataloader(
                                     cfg.eval_loader, tokenizer,

@@ -75,9 +75,11 @@ class Generate(Callback):
         dummy_input = device.tensor_to_device(dummy_input)
         with get_precision_context(state.precision):
             with torch.no_grad():
+                assert isinstance(model.model, torch.nn.Module)
                 _ = model.model(input_ids=dummy_input)
 
-            output_token_ids = model.model.generate(
+            assert hasattr(model.model, 'generate')
+            output_token_ids = model.model.generate(  # type: ignore
                 input_ids=tokenized_input['input_ids'],
                 attention_mask=tokenized_input['attention_mask'],
                 synced_gpus=True,

@@ -1385,7 +1385,9 @@ def test_hf_init(tmp_path: pathlib.Path,
                                                      trust_remote_code=True)
 
     tokenizer = build_tokenizer(test_cfg.tokenizer)
-    optimizer = DecoupledAdamW(model.parameters(), lr=1e-5, betas=[0.9, 0.99])
+    optimizer = DecoupledAdamW(model.parameters(),
+                               lr=1e-5,
+                               betas=tuple([0.9, 0.99]))
 
     prepare_fsdp_module(model, optimizer, fsdp_config, precision, device, False)
 

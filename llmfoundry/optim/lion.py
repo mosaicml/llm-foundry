@@ -106,14 +106,14 @@ class DecoupledLionW(Optimizer):
 
         return loss
 
-    def dist_reduce_metrics(self, optimizer_metrics: Dict[str, float]):
+    def dist_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
         for metric in optimizer_metrics:
             if metric.startswith('l2_norm'):
                 reduced = optimizer_metrics[metric]
                 if dist.get_world_size() > 1:
                     dist.all_reduce(reduced, reduce_operation='SUM')
 
-                optimizer_metrics[metric] = math.sqrt(reduced)
+                optimizer_metrics[metric] = torch.tensor(math.sqrt(reduced))
             elif metric.startswith('cosine'):
                 reduced = optimizer_metrics[metric]
                 if dist.get_world_size() > 1:
@@ -135,7 +135,7 @@ class DecoupledLionW(Optimizer):
 
         return optimizer_metrics
 
-    def pre_reduce_metrics(self, optimizer_metrics: Dict[str, float]):
+    def pre_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
         """Preprocess metrics to reduce across ranks correctly."""
         # Sort L2 norms first so they are squared before other metrics, which depend on squared values
         metrics = optimizer_metrics.keys()

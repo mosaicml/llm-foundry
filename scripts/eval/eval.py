@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 import torch
 from composer.loggers import InMemoryLogger, LoggerDestination
+from composer.models.base import ComposerModel
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
@@ -24,7 +25,8 @@ from llmfoundry.utils.config_utils import process_init_device
 
 
 def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-               fsdp_config: Optional[Dict], num_retries: int):
+               fsdp_config: Optional[Dict],
+               num_retries: int) -> Optional[ComposerModel]:
     init_context = process_init_device(model_cfg, fsdp_config)
 
     retries = 0
@@ -93,6 +95,7 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
 
     load_path = model_cfg.get('load_path', None)
 
+    assert composer_model is not None
     trainer = Trainer(
         run_name=run_name,
         model=composer_model,
@@ -135,8 +138,9 @@ def main(cfg: DictConfig):
                                              model_gauntlet_df)
 
         if model_gauntlet_callback is not None:
+            # TODO(bmosaicml) This needs to be refactored to fix the typing issue
             composite_scores = model_gauntlet_callback.eval_end(
-                None, in_memory_logger)
+                None, in_memory_logger)  # type: ignore
 
         benchmark_to_taxonomy = {}
         if model_gauntlet is not None:

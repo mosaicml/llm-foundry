@@ -100,7 +100,10 @@ class ModelGauntlet(Callback):
         )
         for key in self.logger_keys:
             match = pat.match(key)
-            val = logger_data.data[key][0][1].item()
+
+            # TODO(bmosaicml) This needs to be factored for this callback to work as a normal callback
+            # and therefore for the typing to be fixed
+            val = logger_data.data[key][0][1].item()  # type: ignore
 
             if match:
                 eval_name = match.group(1)

@@ -93,10 +93,6 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
         if not pretrained_model_name:
             pretrained_model_name = 'bert-base-uncased'
 
-        # JP Added, don't think this is strictly necessary
-        config = BertConfig.from_pretrained(pretrained_model_name, **resolved_om_model_config)
-
-
         if resolved_om_model_config.get('use_pretrained'):
             assert transformers.AutoModelForMaskedLM.from_pretrained is not None, 'AutoModelForMaskedLM has from_pretrained method'
             model = transformers.AutoModelForMaskedLM.from_pretrained(

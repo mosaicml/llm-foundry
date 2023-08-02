@@ -78,18 +78,16 @@ class ModelGauntlet(Callback):
                             if name.startswith(bench_name)), 1)
                 else:
                     cumulative_samples = -1  # pyright
-
+                
+                weight = None
                 if self.weighting == Weighting.EQUAL:
                     weight = 1
                 elif self.weighting == Weighting.SAMPLE_SZ:
                     weight = cumulative_samples
                 elif self.weighting == Weighting.LOG_SAMPLE_SZ:
                     weight = max(math.log(cumulative_samples, 2), 1)
-                else:
-                    weight = None
-                    raise ValueError(
-                        f'Unexpected weighting scheme {self.weighting}')
 
+                assert weight is not None
                 benchmark['weighting'] = weight
 
     def compute_averages(self, logger_data: Logger):

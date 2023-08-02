@@ -67,7 +67,12 @@ def hf_get_causal_base_model(model: PreTrainedModel):
         return model.get_decoder()
 
     decoder_attrs = ('transformer', 'model.decoder', 'gpt_neox')
-    return findattr(model, decoder_attrs)
+    causal_base_model = findattr(model, decoder_attrs)
+    if causal_base_model is None:
+        raise ValueError(
+            f'Unable to FSDP-wrap model {model}. Please open a github issue to add support.'
+        )
+    return causal_base_model
 
 
 def hf_get_hidden_layers(model: PreTrainedModel):
@@ -127,10 +132,6 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
     HuggingFace for decoder-only LLMs.
     """
     causal_base_model = hf_get_causal_base_model(model)
-    if causal_base_model is None:
-        raise ValueError(
-            f'Unable to FSDP-wrap model {model}. Please open a github issue to add support.'
-        )
 
     # OPT has an extra layer of wrapping, so special case here
     if isinstance(causal_base_model, OPTDecoder):

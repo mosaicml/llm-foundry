@@ -83,7 +83,6 @@ class Generate(Callback):
                 assert isinstance(model.model, torch.nn.Module)
                 _ = model.model(input_ids=dummy_input)
 
-            assert hasattr(model.model, 'generate')
             output_token_ids = model.model.generate(  # type: ignore
                 input_ids=tokenized_input['input_ids'],
                 attention_mask=tokenized_input['attention_mask'],

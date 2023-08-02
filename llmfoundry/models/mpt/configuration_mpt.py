@@ -141,7 +141,6 @@ class MPTConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.init_config = init_config
         self.fc_type = fc_type
-        self.bias = None
         if 'name' in kwargs:
             del kwargs['name']
         if 'loss_fn' in kwargs:
@@ -232,4 +231,4 @@ class MPTConfig(PretrainedConfig):
         if self.ffn_config['ffn_type'] == 'mptmlp':
             self.ffn_config['fc_type'] = self.fc_type
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
-            self.bias = not self.no_bias
+            self.ffn_config['bias'] = not self.no_bias

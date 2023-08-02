@@ -78,7 +78,7 @@ class ModelGauntlet(Callback):
                             if name.startswith(bench_name)), 1)
                 else:
                     cumulative_samples = -1  # pyright
-                
+
                 weight = None
                 if self.weighting == Weighting.EQUAL:
                     weight = 1

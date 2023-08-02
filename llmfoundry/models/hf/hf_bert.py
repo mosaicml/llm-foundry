@@ -86,6 +86,9 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
 
         # if not model_config:
         #     model_config = {}
+        # add JP - check pretrained checkpoitn and gradient checkpointing use
+        pretrained_model_name = resolved_om_model_config.get('pretrained_model_name')
+        pretrained_checkpoint = resolved_om_model_config.get('pretrained_checkpoint')
 
         if not pretrained_model_name:
             pretrained_model_name = 'bert-base-uncased'

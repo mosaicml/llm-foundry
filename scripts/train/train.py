@@ -68,8 +68,8 @@ def validate_config(cfg):
             "`cfg.model.ffn_config.ffn_type='te_ln_mlp'` to enable layers using fp8 precision."
         )
 
-    if (cfg.model.get('fc_type', 'torch') == 'te' or 'te' not in cfg.model.get(
-            'ffn_config', {}).get('ffn_type', 'mptmlp')):
+    if (cfg.model.get('fc_type', 'torch') == 'te' or
+            'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp')):
         fsdp_config = cfg.get('fsdp_config', None)
         act_ckpt = fsdp_config.get('activation_checkpointing', False)
         act_ckpt_reentrant = fsdp_config.get(

@@ -107,8 +107,7 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
             model.gradient_checkpointing_enable()  # type: ignore
 
         metrics = [
-            LanguageCrossEntropy(ignore_index=-100,
-                                vocab_size=model.config.vocab_size),
+            LanguageCrossEntropy(ignore_index=-100),
             MaskedAccuracy(ignore_index=-100)
         ]
        

@@ -93,6 +93,10 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
         if not pretrained_model_name:
             pretrained_model_name = 'bert-base-uncased'
 
+        # JP Added, don't think this is strictly necessary
+        config = BertConfig.from_pretrained(pretrained_model_name, **resolved_om_model_config)
+
+
         if resolved_om_model_config.get('use_pretrained'):
             assert transformers.AutoModelForMaskedLM.from_pretrained is not None, 'AutoModelForMaskedLM has from_pretrained method'
             model = transformers.AutoModelForMaskedLM.from_pretrained(
@@ -102,6 +106,7 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
                 pretrained_model_name, **resolved_om_model_config)
             assert transformers.AutoModelForMaskedLM.from_config is not None, 'AutoModelForMaskedLM has from_config method'
             model = transformers.AutoModelForMaskedLM.from_config(config)
+            print(model.config)
 
         if resolved_om_model_config.get('gradient_checkpointing'):
             model.gradient_checkpointing_enable()  # type: ignore

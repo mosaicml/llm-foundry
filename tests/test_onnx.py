@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import pathlib
+
 import torch
 from composer.utils import reproducibility
 from transformers import AutoConfig, AutoModelForCausalLM
@@ -24,7 +26,7 @@ def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):
     return batch
 
 
-def test_onnx_export(tmp_path):
+def test_onnx_export(tmp_path: pathlib.Path):
     reproducibility.seed_all(42)
     AutoConfig.register('mpt', MPTConfig)
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
@@ -69,13 +71,14 @@ def test_onnx_export(tmp_path):
     with torch.no_grad():
         orig_out = mpt(**sample_input)
 
-    import onnx  # type: ignore
-    import onnx.checker  # type: ignore
-    import onnxruntime as ort  # type: ignore
+    import onnx
+    import onnx.checker
+    import onnxruntime as ort
+    from onnx import checker
 
     _ = onnx.load(str(tmp_path / 'mpt.onnx'))
 
-    onnx.checker.check_model(str(tmp_path / 'mpt.onnx'))
+    checker.check_model(str(tmp_path / 'mpt.onnx'))
 
     ort_session = ort.InferenceSession(str(tmp_path / 'mpt.onnx'))
 

@@ -1,11 +1,11 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 import os
 import shutil
 import sys
 import tempfile
 from argparse import Namespace
+from typing import Optional
 
 import pytest
 import torch
@@ -23,24 +23,26 @@ sys.path.append(repo_dir)
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 
 
-def get_config(conf_path='yamls/mpt/125m.yaml'):
+def get_config(conf_path: str = 'yamls/mpt/125m.yaml'):
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return test_cfg
 
 
-def get_data_local(tokenizer_name, pretokenize):
+def get_data_local(tokenizer_name: str, pretokenize: bool):
     return f'my-copy-c4-{tokenizer_name}-pretokenize-{pretokenize}'
 
 
-def get_abs_data_path(data_local):
+def get_abs_data_path(data_local: str):
     return os.path.join(os.getcwd(), data_local)
 
 
 @pytest.mark.parametrize('tokenizer_name', ['gpt2', 'facebook/opt-125m'])
 @pytest.mark.parametrize('pretokenize', [False, True])
-def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
+def test_correct_padding(tokenizer_name: str,
+                         pretokenize: bool,
+                         batch_size: int = 4):
     if tokenizer_name == 'gpt2' and not pretokenize:
         pytest.xfail('Must pretokenize data if using "gpt2" tokenizer')
 
@@ -127,7 +129,8 @@ def test_correct_padding(tokenizer_name, pretokenize, batch_size=4):
 @pytest.mark.parametrize(('eos_token_id', 'bos_token_id'),
                          [(5, None), (None, 5),
                           pytest.param(5, 5, marks=pytest.mark.xfail)])
-def test_sequence_id_wrapper(eos_token_id, bos_token_id):
+def test_sequence_id_wrapper(eos_token_id: Optional[int],
+                             bos_token_id: Optional[int]):
     wrapper = ConcatenatedSequenceCollatorWrapper(
         lambda x: x,  # placeholder
         eos_token_id=eos_token_id,
@@ -150,7 +153,8 @@ def test_sequence_id_wrapper(eos_token_id, bos_token_id):
 @pytest.mark.parametrize('decoder_only_format', [True, False])
 @pytest.mark.parametrize('pretokenize', [True, False])
 @pytest.mark.parametrize('packing_ratio', [None, 5.5])
-def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
+def test_denoising_dataloader(decoder_only_format: bool, pretokenize: bool,
+                              packing_ratio: Optional[float]):
     # Use the datasets just built in the last test
     tokenizer_name = 'facebook/opt-125m'
     data_local = get_data_local(tokenizer_name, pretokenize)
@@ -219,8 +223,9 @@ def test_denoising_dataloader(decoder_only_format, pretokenize, packing_ratio):
 @pytest.mark.parametrize('decoder_only_format', [True, False])
 @pytest.mark.parametrize('allow_pad_trimming', [True, False])
 @pytest.mark.parametrize('packing_ratio', [10.0, None])
-def test_finetuning_dataloader(decoder_only_format, allow_pad_trimming,
-                               packing_ratio):
+def test_finetuning_dataloader(decoder_only_format: bool,
+                               allow_pad_trimming: bool,
+                               packing_ratio: Optional[float]):
     # Use the datasets just built in the last test
     tokenizer_name = 'gpt2' if decoder_only_format else 't5-base'
     max_seq_len = 2048 if decoder_only_format else 1024

@@ -12,7 +12,7 @@ command: |
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: all-eval
-gpu_num: 
+gpu_num:
 gpu_type:
 cluster: # replace with your cluster here!
 

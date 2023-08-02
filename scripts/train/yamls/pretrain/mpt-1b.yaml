@@ -1,171 +1,119 @@
+data_local: ./my-copy-c4
+data_remote: # If blank, files must be present in data_local
+max_seq_len: 2048
 global_seed: 17
-max_seq_len: 2048 # max tokens per sequence during training
+
+# Run Name
+run_name: # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:
-  name: hf_causal_lm
-  pretrained_model_name_or_path: gpt2
-  config_overrides:
-    # WARNING: if setting `pretrained: true`, `max_position_embeddings` must match the
-    # `max_position_embeddings` used during pre-training
-    n_positions: ${max_seq_len}
-  pretrained: false  # false: only use the architecture; true: initialize with pretrained weights
-
+  name: mpt_causal_lm
+  init_device: meta
+  d_model: 2048
+  n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
+  n_layers: 24
+  expansion_ratio: 4
+  max_seq_len: ${max_seq_len}
+  vocab_size: 50368
+  attn_config:
+    attn_impl: triton
 
 # Tokenizer
 tokenizer:
-  name: gpt2
+  name: EleutherAI/gpt-neox-20b
   kwargs:
     model_max_length: ${max_seq_len}
 
+# Dataloaders
+train_loader:
+  name: text
+  dataset:
+    local: ${data_local}
+    remote: ${data_remote}
+    split: train
+    shuffle: true
+    max_seq_len: ${max_seq_len}
+    shuffle_seed: ${global_seed}
+  drop_last: true
+  num_workers: 8
+
+eval_loader:
+  name: text
+  dataset:
+    local: ${data_local}
+    remote: ${data_remote}
+    split: val
+    shuffle: false
+    max_seq_len: ${max_seq_len}
+    shuffle_seed: ${global_seed}
+  drop_last: false
+  num_workers: 8
+
 # Optimization
-global_train_batch_size: 1024 # ~2M tokens, update for hero run, must be divisible by gpu_num
-max_duration: 100ba # update for hero run, e.g. 500000ba ~= 1T tokens
+scheduler:
+  name: cosine_with_warmup
+  t_warmup: 100ba
+  alpha_f: 0.1
 
 optimizer:
-  name: decoupled_lionw
-  lr: 0.0002
+  name: decoupled_adamw
+  lr: 2.0e-4
   betas:
   - 0.9
   - 0.95
-  weight_decay: 0.0002
+  eps: 1.0e-08
+  weight_decay: 0.0
 
-scheduler:
-  name: cosine_with_warmup
-  t_warmup: 5000ba
-  alpha_f: 0.1
+algorithms:
+  gradient_clipping:
+    clipping_type: norm
+    clipping_threshold: 1.0
+
+max_duration: 24800ba # ~ 26B tokens
+eval_interval: 2000ba
+eval_first: false
+eval_subset_num_batches: -1
+global_train_batch_size: 512
 
 # System
 seed: ${global_seed}
-precision: amp_bf16
-device_train_microbatch_size: 4
 device_eval_batch_size: 4
+device_train_microbatch_size: 4
+# device_train_microbatch_size: auto
+precision: amp_bf16
 
 # FSDP
 fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: PURE
   activation_checkpointing: false
   activation_checkpointing_reentrant: false
   activation_cpu_offload: false
   limit_all_gathers: true
-  mixed_precision: PURE
-  sharding_strategy: FULL_SHARD
-  state_dict_type: full
   verbose: false
 
 # Logging
-eval_first: true
-eval_interval: 2000ba
-log_to_console: true
-console_log_interval: 100ba
 progress_bar: false
-python_log_level: DEBUG
-loggers:
-  wandb: {}
-
-# Checkpointing
-# autoresume: true
-# save_filename: ep{epoch}-ba{batch}/rank{rank}.pt
-# save_folder: oci://mosaicml-internal-checkpoints/llm-hero-test/7-6-23/mpt-1b # update for hero run
-# save_interval: 20ba # update for hero run, e.g. 2000ba
-# save_num_checkpoints_to_keep: 1
-
-# Algos and Callbacks
-algorithms:
-  gradient_clipping:
-    clipping_threshold: 1
-    clipping_type: norm
+log_to_console: true
+console_log_interval: 1ba
 
 callbacks:
-  generate_callback:
-    batch_log_interval: 10 # update for hero run, e.g. 2000
-    do_sample: true
-    max_new_tokens: 100
-    prompts:
-    - The quick brown fox jumps over
-    - |-
-      Vegan Banana Bread
-      Instructions:
-      1.
-    - The other day I was explaining what generative AI is to my five year old.
-    temperature: 1
-    top_k: 50
-    top_p: 0.95
-    use_cache: true
-  lr_monitor: {}
-  memory_monitor: {}
-  # mono_ckpt_saver:
-  #   batch_interval: ${save_interval}
-  #   filename: ep{epoch}-ba{batch}/mono.pt
-  #   save_folder: ${save_folder}
-  runtime_estimator: {}
-  scheduled_gc:
-    batch_interval: 2000
   speed_monitor:
     window_size: 10
+  lr_monitor: {}
+  memory_monitor: {}
+  runtime_estimator: {}
 
-# Dataloaders
-eos_token_id: 0 # update for hero run with custom tokenizer
-num_canonical_nodes: 128 # update for hero run, must be codivisible by # physical nodes
+# loggers:
+#   wandb: {}
 
+# Checkpoint to local filesystem or remote object store
+# save_interval: 2000ba
+# save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+# save_folder: ./{run_name}/checkpoints
+# save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
 
-data_local: ./my-copy-c4
-data_remote: # If blank, files must be present in data_local
-tokenizer_name: gpt2
-max_seq_len: 2048
-global_seed: 17
-
-# Eval loader
-eval_loader:
-  name: text
-  drop_last: false
-  num_workers: 8
-  dataset:
-    eos_token_id: ${eos_token_id}
-    max_seq_len: ${max_seq_len}
-    num_canonical_nodes: ${num_canonical_nodes}
-    shuffle: false
-    shuffle_seed: ${global_seed}
-    local: /tmp/dataset/val_c4
-    remote: oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/
-    split: val
-
-
-# In-context-learning tasks
-
-## If you want to use one of our suites of tasks
-icl_tasks:
--
-  label: jeopardy
-  dataset_uri: eval/local_data/world_knowledge/jeopardy_small.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [10]
-  icl_task_type: language_modeling
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
-  has_categories: true
-
-icl_subset_num_batches: 100 # -1 to evaluate on all batches 
-model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
-
-## Or if you want to manually specify individual tasks
-
-# Train loader
-train_loader:
-  name: text
-  drop_last: true
-  num_workers: 8
-  dataset:
-    eos_token_id: ${eos_token_id}
-    max_seq_len: ${max_seq_len}
-    num_canonical_nodes: ${num_canonical_nodes}
-    shuffle: true
-    shuffle_seed: ${global_seed}
-    streams:
-      c4:
-        local: /tmp/dataset/c4/
-        proportion: 0.8
-        remote: oci://mosaicml-internal-dataset-c4/sem-dedupe/23-04-05/dataset/pretokencat/EleutherAI-gpt-neox-20b/0pt8/
-        split: train
-      markdown:
-        local: /tmp/dataset/markdown/
-        proportion: 0.2
-        remote: oci://mosaicml-internal-datasets/stack-split-neox/markdown/
-        split: null
+# Load from local filesystem or remote object store
+# load_path: ./gpt-1b/checkpoints/latest-rank{rank}.pt
+# load_path: s3://my-bucket/my-folder/gpt-1b/checkpoints/latest-rank{rank}.pt

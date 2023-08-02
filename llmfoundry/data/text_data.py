@@ -8,6 +8,7 @@ from itertools import islice
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
+import streaming
 import torch
 import transformers
 from omegaconf import DictConfig
@@ -15,7 +16,7 @@ from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
-import streaming 
+
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 

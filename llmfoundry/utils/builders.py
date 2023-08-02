@@ -7,11 +7,11 @@ from typing import Union
 from composer import algorithms
 from composer.callbacks import (LRMonitor, MemoryMonitor, OptimizerMonitor,
                                 RuntimeEstimator, SpeedMonitor)
-from composer.loggers.in_memory_logger import InMemoryLogger
 from composer.core import Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from composer.loggers import TensorboardLogger, WandBLogger
+from composer.loggers.in_memory_logger import InMemoryLogger
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
@@ -137,12 +137,12 @@ def build_tokenizer(om_tokenizer_config: DictConfig,) -> Tokenizer:
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
     resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
-                                                resolve=True)
+                                                   resolve=True)
     tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
         'kwargs', {})
     tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                            **tokenizer_kwargs)
+                                              **tokenizer_kwargs)
 
     # HuggingFace does not respect the model_max_length kwarg, and overrides it with
     # min(kwargs['model_max_length'], original_config['model_max_length']), so we
@@ -155,12 +155,14 @@ def build_tokenizer(om_tokenizer_config: DictConfig,) -> Tokenizer:
     return tokenizer
 
 
-def build_icl_evaluators(icl_tasks,
-                         tokenizer,
-                         default_max_seq_len,
-                         default_batch_size,
-                         destination_dir=os.getcwd(),
-                         icl_subset_num_batches=None,):
+def build_icl_evaluators(
+        icl_tasks,
+        tokenizer,
+        default_max_seq_len,
+        default_batch_size,
+        destination_dir=os.getcwd(),
+        icl_subset_num_batches=None,
+):
     evaluators = []
     logger_keys = []
     if isinstance(icl_tasks, str):
@@ -252,6 +254,7 @@ def build_icl_evaluators(icl_tasks,
                 evaluators.append(
                     Evaluator(label=label,
                               dataloader=dataloaders,
-                              metric_names=metric_names,subset_num_batches=icl_subset_num_batches))
+                              metric_names=metric_names,
+                              subset_num_batches=icl_subset_num_batches))
 
     return evaluators, logger_keys

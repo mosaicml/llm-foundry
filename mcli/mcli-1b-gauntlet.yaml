@@ -3,7 +3,7 @@ name: test-1b
 integrations:
 -
   integration_type: git_repo
-  git_branch: enable_gauntlet_training #v0.2.0
+  git_branch: v0.2.0
   git_repo: mosaicml/llm-foundry
   pip_install: -e .[gpu]
   ssh_clone: false
@@ -13,15 +13,15 @@ integrations:
   project: gauntlet
 
 compute:
-  gpus: 8 #<insert number of gpus>  # update for hero run
-  cluster: r1z1 #<insert cluster name> # update for hero run
-  gpu_type: a100_80gb # update for hero run
+  gpus: # <insert number of gpus>  # update for hero run
+  cluster: # <insert cluster name> # update for hero run
+  gpu_type: # update for hero run
 
 image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
 command: |-
   pip install -U wandb==0.15.4
   cd llm-foundry/scripts
-  composer train/train.py /mnt/config/parameters.yaml || (echo "Command failed - killing python" && pkill python && exit 1)
+  composer train/train.py /mnt/config/parameters.yaml
 
 parameters:
   global_seed: 17
@@ -87,7 +87,7 @@ parameters:
 
   # Logging
   eval_first: true
-  eval_interval: 2000ba
+  eval_interval: 1ba
   log_to_console: true
   console_log_interval: 100ba
   progress_bar: false
@@ -160,11 +160,11 @@ parameters:
 
   ## If you want to use one of our suites of tasks
   icl_tasks: eval/yamls/tasks.yaml
-  icl_subset_num_batches: 100 # -1 to evaluate on all batches 
+  icl_subset_num_batches: 100 # -1 to evaluate on all batches
   model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
 
   ## Or if you want to manually specify individual tasks
-  
+
   # Train loader
   train_loader:
     name: text

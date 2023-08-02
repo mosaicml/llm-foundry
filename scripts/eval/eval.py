@@ -8,9 +8,9 @@ import time
 from typing import Dict, List
 
 import pandas as pd
-from composer.loggers.logger import Logger
 import torch
 from composer.loggers import InMemoryLogger, LoggerDestination
+from composer.loggers.logger import Logger
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import OmegaConf as om
@@ -43,9 +43,12 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
     # Build tokenizer and model
     tokenizer = build_tokenizer(model_cfg.tokenizer)
 
-    evaluators, logger_keys = build_icl_evaluators(cfg.icl_tasks, tokenizer,
-                                                   cfg.max_seq_len,
-                                                   cfg.device_eval_batch_size, icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
+    evaluators, logger_keys = build_icl_evaluators(
+        cfg.icl_tasks,
+        tokenizer,
+        cfg.max_seq_len,
+        cfg.device_eval_batch_size,
+        icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
     if hasattr(cfg, 'model_gauntlet'):
         if isinstance(cfg.model_gauntlet, str):
             with open(cfg.model_gauntlet, 'r') as icl_f:
@@ -133,8 +136,7 @@ def main(cfg):
                 for b in t.benchmarks:
                     benchmark_to_taxonomy[b.name] = t.name
 
-        model_results = calculate_markdown_results(logger_keys,
-                                                   logger,
+        model_results = calculate_markdown_results(logger_keys, logger,
                                                    benchmark_to_taxonomy,
                                                    model_cfg.model_name)
 
@@ -163,7 +165,8 @@ def main(cfg):
         print(models_df.to_markdown(index=False))
 
 
-def calculate_markdown_results(logger_keys: List[str], logger: Logger, benchmark_to_taxonomy: Dict[str, str],
+def calculate_markdown_results(logger_keys: List[str], logger: Logger,
+                               benchmark_to_taxonomy: Dict[str, str],
                                model_name: str):
     results = {}
     logger_data = None

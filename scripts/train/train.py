@@ -7,8 +7,8 @@ import sys
 import warnings
 
 from composer import Trainer
-from composer.loggers.in_memory_logger import InMemoryLogger
 from composer.core import Evaluator
+from composer.loggers.in_memory_logger import InMemoryLogger
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
@@ -17,6 +17,7 @@ from transformers import PreTrainedTokenizer
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
+from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
@@ -24,7 +25,6 @@ from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_optimizer, build_scheduler,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import log_config, update_batch_size_info
-from llmfoundry.callbacks import ModelGauntlet
 
 
 def validate_config(cfg):
@@ -236,9 +236,12 @@ def main(cfg):
 
     model_gauntlet_callback = None
     if 'icl_tasks' in cfg:
-        icl_evaluators, logger_keys = build_icl_evaluators(cfg.icl_tasks, tokenizer,
-                                                 cfg.max_seq_len,
-                                                 cfg.device_eval_batch_size, icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
+        icl_evaluators, logger_keys = build_icl_evaluators(
+            cfg.icl_tasks,
+            tokenizer,
+            cfg.max_seq_len,
+            cfg.device_eval_batch_size,
+            icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
         evaluators.extend(icl_evaluators)
         if 'model_gauntlet' in cfg:
             if isinstance(cfg.model_gauntlet, str):
@@ -252,7 +255,6 @@ def main(cfg):
                 e.label: e.dataloader.num_samples for e in evaluators
             }
             model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
-
 
     # Optimizer
     optimizer = build_optimizer(cfg.optimizer, model)
@@ -275,9 +277,7 @@ def main(cfg):
     if model_gauntlet_callback is not None:
         callbacks.append(model_gauntlet_callback)
         if not any(isinstance(l, InMemoryLogger) for l in loggers):
-            loggers.append(
-                build_logger("in_memory_logger", {})
-            )
+            loggers.append(build_logger('in_memory_logger', {}))
 
     # Algorithms
     algorithms = [

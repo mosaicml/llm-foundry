@@ -7,10 +7,10 @@ import math
 import re
 from enum import Enum
 from typing import Optional
-from composer.loggers.in_memory_logger import InMemoryLogger
 
 from composer.core import Callback, State
 from composer.loggers import Logger
+from composer.loggers.in_memory_logger import InMemoryLogger
 
 __all__ = ['ModelGauntlet']
 
@@ -26,6 +26,7 @@ def get_in_memory_logger(logger):
         if isinstance(lg, InMemoryLogger):
             return lg
     raise Exception("Couldn't find InMemoryLogger in logger destinations!")
+
 
 class ModelGauntlet(Callback):
     """The ModelGauntlet aggregates ICL eval results.
@@ -164,7 +165,7 @@ class ModelGauntlet(Callback):
 
         composite_scores['metrics/model_gauntlet/average'] = sum(
             composite_scores.values()) / len(composite_scores.values())
-        
+
         logger.log_metrics(composite_scores)
 
         return composite_scores

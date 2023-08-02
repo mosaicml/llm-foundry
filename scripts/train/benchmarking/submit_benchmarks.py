@@ -393,7 +393,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         print(f'Shortening {_name} to {name} ({name_len_lim} chars)')
 
     microbatch_size = args.microbatch_size or 'auto'
-    assert isinstance(microbatch_size, int) or isinstance(microbatch_size, str)
+    assert isinstance(microbatch_size, (int, str))
     parameters = mod_parameters(
         parameters,
         max_seq_len,

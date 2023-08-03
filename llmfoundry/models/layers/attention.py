@@ -45,7 +45,8 @@ def scaled_multihead_dot_product_attention(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
-):
+) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
+                                                                torch.Tensor]]]:
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
     k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
     v = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
@@ -155,7 +156,8 @@ def flash_attn_fn(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
-):
+) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
+                                                                torch.Tensor]]]:
     try:
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
     except:
@@ -254,7 +256,8 @@ def triton_flash_attn_fn(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
-):
+) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
+                                                                torch.Tensor]]]:
     try:
         from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
     except:

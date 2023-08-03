@@ -5,14 +5,12 @@ import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
-                          PreTrainedTokenizer, PreTrainedTokenizerFast,
+                          PreTrainedModel, PreTrainedTokenizerBase,
                           StoppingCriteria, StoppingCriteriaList, TextStreamer)
-
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
 class ChatFormatter:
@@ -57,13 +55,14 @@ class Conversation:
         cli_instructions: The instructions to display to the user.
     """
 
-    def __init__(
-            self,
-            model,
-            tokenizer: Tokenizer,
-            chat_format: ChatFormatter,
-            generate_kwargs: Dict[str, Any],
-            stop_tokens: List[str] = ['<|endoftext|>', '<|im_end|>']) -> None:
+    def __init__(self,
+                 model: PreTrainedModel,
+                 tokenizer: PreTrainedTokenizerBase,
+                 chat_format: ChatFormatter,
+                 generate_kwargs: Dict[str, Any],
+                 stop_tokens: Optional[List[str]] = None) -> None:
+        if stop_tokens is None:
+            stop_tokens = ['<|endoftext|>', '<|im_end|>']
         self.model = model
         self.tokenizer = tokenizer
         self.chat_format = chat_format
@@ -77,7 +76,8 @@ class Conversation:
         class StopOnTokens(StoppingCriteria):
 
             def __call__(self, input_ids: torch.LongTensor,
-                         scores: torch.FloatTensor, **kwargs) -> bool:
+                         scores: torch.FloatTensor, **kwargs: Any) -> bool:
+                del kwargs  # unused
                 for stop_id in stop_token_ids:
                     if input_ids[0][-1] == stop_id:
                         return True
@@ -173,11 +173,11 @@ def get_dtype(dtype: str):
         return torch.bfloat16
     else:
         raise NotImplementedError(
-            f'dtype {dtype} is not supported. '
-            f'We only support fp32, fp16, and bf16 currently')
+            f'dtype {dtype} is not supported. ' +
+            'We only support fp32, fp16, and bf16 currently')
 
 
-def str2bool(v):
+def str2bool(v: Union[str, bool]):
     if isinstance(v, bool):
         return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -305,7 +305,9 @@ def main(args: Namespace) -> None:
     except Exception as e:
         raise RuntimeError(
             'If you are having auth problems, try logging in via `huggingface-cli login` '
+            +
             'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
+            +
             'using your access token from https://huggingface.co/settings/tokens.'
         ) from e
 
@@ -324,9 +326,11 @@ def main(args: Namespace) -> None:
             model.to(device)
     except Exception as e:
         raise RuntimeError(
-            'Unable to load HF model. '
+            'Unable to load HF model. ' +
             'If you are having auth problems, try logging in via `huggingface-cli login` '
+            +
             'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
+            +
             'using your access token from https://huggingface.co/settings/tokens.'
         ) from e
 

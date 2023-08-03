@@ -16,8 +16,8 @@ from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
 from composer.utils import dist
 from omegaconf import DictConfig
-from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedTokenizer,
-                          PreTrainedTokenizerFast)
+from transformers import (AutoConfig, AutoModelForCausalLM,
+                          PreTrainedTokenizerBase)
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
@@ -35,14 +35,12 @@ except ImportError:
 
 __all__ = ['ComposerHFCausalLM']
 
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
-
 
 class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
     """Configures a :class:`.HuggingFaceModel` around a Causal LM.
 
     Args:
-        om_model_config (DictConfig | PeftModel | transformers.PreTrainedModel): either n omegaconf dictionary used to configure the model, or an instantiated model object from the peft or transformers library.
+        om_model_config (DictConfig | PeftModel | transformers.PreTrainedModel): either an omegaconf dictionary used to configure the model, or an instantiated model object from the peft or transformers library.
         if DictConfig, the following keys are required:
             cfg.pretrained_model_name_or_path (str): The name of or local path to
                 the HF Causal LM (e.g., `gpt2` to instantiate a GPT2LMHeadModel).
@@ -58,8 +56,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(self, om_model_config: _om_model_config_type,
-                 tokenizer: Tokenizer):
+    def __init__(
+            self,
+            om_model_config: _om_model_config_type,  # type: ignore
+            tokenizer: PreTrainedTokenizerBase):
 
         # set up training and eval metrics
         train_metrics = [
@@ -102,8 +102,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     ]
                     if extra_keys:
                         raise ValueError(
-                            f'Config dict override got unknown keys. '
-                            f'Extra keys: {extra_keys}. '
+                            f'Config dict override got unknown keys. ' +
+                            f'Extra keys: {extra_keys}. ' +
                             f'Expected (a subset of) keys: {list(attr.keys())}.'
                         )
                     getattr(config, k).update(v)

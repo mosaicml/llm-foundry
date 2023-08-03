@@ -10,13 +10,15 @@ from composer.loggers import Logger
 
 
 class FDiffMetrics(Callback):
-    """Rate of chage of metrics.
+    """Rate of change of metrics.
 
     tracks and plots the rate of change of metrics effectively taking the
     numerical derivative of the metrics
     """
 
-    def __init__(self, diff_train_metrics=False, diff_eval_metrics=True):
+    def __init__(self,
+                 diff_train_metrics: bool = False,
+                 diff_eval_metrics: bool = True):
         self.diff_train_metrics = diff_train_metrics
         self.diff_eval_metrics = diff_eval_metrics
 

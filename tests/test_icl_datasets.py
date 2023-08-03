@@ -2,18 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import pathlib
 import random
 import shutil
 from pathlib import Path
 
 import pytest
 from omegaconf import OmegaConf as om
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.utils.builders import build_icl_evaluators
 
 
-def load_icl_config(conf_path='tests/test_tasks.yaml'):
+def load_icl_config(conf_path: str = 'tests/test_tasks.yaml'):
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return test_cfg
@@ -32,7 +33,9 @@ def tmp_dir():
         shutil.rmtree(dirpath)
 
 
-def run_test(dir, tokenizer, bos_tok=''):
+def run_test(dir: pathlib.Path,
+             tokenizer: PreTrainedTokenizerBase,
+             bos_tok: str = ''):
     task_cfg = load_icl_config()
     evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
                                          tokenizer,
@@ -85,21 +88,21 @@ def run_test(dir, tokenizer, bos_tok=''):
             assert answer == ' feared violence'
 
 
-def test_icl_task_loading_gpt2_tokenizer(tmp_dir):
+def test_icl_task_loading_gpt2_tokenizer(tmp_dir: pathlib.Path):
     tokenizer = AutoTokenizer.from_pretrained('gpt2')
     run_test(tmp_dir, tokenizer)
 
 
-def test_icl_task_loading_gptj_tokenizer(tmp_dir):
+def test_icl_task_loading_gptj_tokenizer(tmp_dir: pathlib.Path):
     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-j-6b')
     run_test(tmp_dir, tokenizer)
 
 
-def test_icl_task_loading_opt_tokenizer(tmp_dir):
+def test_icl_task_loading_opt_tokenizer(tmp_dir: pathlib.Path):
     tokenizer = AutoTokenizer.from_pretrained('facebook/opt-6.7b')
     run_test(tmp_dir, tokenizer, '</s>')
 
 
-def test_icl_task_loading_gptneox_tokenizer(tmp_dir):
+def test_icl_task_loading_gptneox_tokenizer(tmp_dir: pathlib.Path):
     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
     run_test(tmp_dir, tokenizer)

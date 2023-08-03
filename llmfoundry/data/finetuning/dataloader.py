@@ -3,13 +3,12 @@
 
 import logging
 import os
-from typing import Union
 
 import torch
 from composer.utils import dist, get_file, parse_uri
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.tasks import dataset_constructor
@@ -20,10 +19,9 @@ log = logging.getLogger(__name__)
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
 
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
-
-def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
+def build_finetuning_dataloader(cfg: DictConfig,
+                                tokenizer: PreTrainedTokenizerBase,
                                 device_batch_size: int) -> DataLoader:
     """Builds a finetuning dataloader for training or evaluating.
 
@@ -115,6 +113,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
     if tokenizer.pad_token is None:  # type: ignore
         tokenizer.pad_token = tokenizer.eos_token
 
+    dataset = None  # for pyright
     if cfg.dataset.get('remote') is not None:
         dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
@@ -166,6 +165,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
         collate_fn, dataloader_batch_size = _build_collate_fn(
             cfg.dataset, tokenizer, device_batch_size)
 
+        assert dataset is not None
         return DataLoader(
             dataset,
             collate_fn=collate_fn,
@@ -235,7 +235,8 @@ def _validate_config(dataset_cfg: DictConfig):
         )
 
 
-def _build_hf_dataset_from_remote(cfg: DictConfig, tokenizer: Tokenizer):
+def _build_hf_dataset_from_remote(cfg: DictConfig,
+                                  tokenizer: PreTrainedTokenizerBase):
     """Builds a dataset from a remote object store.
 
     This function supports 'jsonl', 'csv', and 'parquet' file formats for the dataset. It will attempt to download
@@ -313,7 +314,8 @@ def _build_hf_dataset_from_remote(cfg: DictConfig, tokenizer: Tokenizer):
         return dataset
 
 
-def _build_collate_fn(dataset_cfg: DictConfig, tokenizer: Tokenizer,
+def _build_collate_fn(dataset_cfg: DictConfig,
+                      tokenizer: PreTrainedTokenizerBase,
                       device_batch_size: int):
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,

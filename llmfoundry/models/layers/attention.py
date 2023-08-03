@@ -5,7 +5,7 @@
 
 import math
 import warnings
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -95,9 +95,9 @@ def scaled_multihead_dot_product_attention(
     if key_padding_mask is not None:
         if attn_bias is not None:
             warnings.warn(
-                'Propogating key_padding_mask to the attention module ' +\
+                'Propagating key_padding_mask to the attention module ' +\
                 'and applying it within the attention module can cause ' +\
-                'unneccessary computation/memory usage. Consider integrating ' +\
+                'unnecessary computation/memory usage. Consider integrating ' +\
                 'into attn_bias once and passing that to each attention ' +\
                 'module instead.'
             )
@@ -130,7 +130,10 @@ def scaled_multihead_dot_product_attention(
     return out, None, past_key_value
 
 
-def check_valid_inputs(*tensors, valid_dtypes=[torch.float16, torch.bfloat16]):
+def check_valid_inputs(*tensors: torch.Tensor,
+                       valid_dtypes: Optional[List[torch.dtype]] = None):
+    if valid_dtypes is None:
+        valid_dtypes = [torch.float16, torch.bfloat16]
     for tensor in tensors:
         if tensor.dtype not in valid_dtypes:
             raise TypeError(f'{tensor.dtype=} must be in {valid_dtypes=}.')
@@ -269,9 +272,13 @@ def triton_flash_attn_fn(
             # default recommendation is to install this variant
             raise RuntimeError(
                 'Requirements for `attn_impl: triton` not installed. Either (1) have a CUDA-compatible GPU '
+                +
                 'and `pip install .[gpu]` if installing from llm-foundry source or '
+                +
                 '`pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python` '
+                +
                 'if installing from pypi, or (2) use torch attn model.attn_config.attn_impl=torch (torch attn_impl will be slow). '
+                +
                 'Note: (1) requires you have CMake and PyTorch already installed.'
             )
 
@@ -293,6 +300,7 @@ def triton_flash_attn_fn(
     if dropout_p:
         raise NotImplementedError(
             f'Dropout not implemented for attn_impl: triton.')
+    dropout_p = dropout_p if training else 0.0
 
     if needs_weights:
         raise NotImplementedError(
@@ -334,10 +342,10 @@ def triton_flash_attn_fn(
         value = value.repeat_interleave(n_heads // kv_n_heads, dim=2)
 
     reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
-    attn_output = flash_attn_func(query, key, value, attn_bias, reset_is_causal,
-                                  softmax_scale)
+    attn_output = flash_attn_func(  # type: ignore
+        query, key, value, attn_bias, reset_is_causal, softmax_scale)
 
-    output = attn_output.view(*attn_output.shape[:2], -1)
+    output = attn_output.view(*attn_output.shape[:2], -1)  # type: ignore
 
     return output, None, past_key_value
 
@@ -485,7 +493,7 @@ class GeneralizedAttention(nn.Module):
 class MultiheadAttention(GeneralizedAttention):
     """Multi-head self attention.
 
-    Using torch or triton attention implemetation enables user to also use
+    Using torch or triton attention implementation enables user to also use
     additive bias.
     """
 
@@ -521,7 +529,7 @@ class MultiheadAttention(GeneralizedAttention):
 class MultiQueryAttention(GeneralizedAttention):
     """Multi-Query self attention.
 
-    Using torch or triton attention implemetation enables user to also use
+    Using torch or triton attention implementation enables user to also use
     additive bias.
     """
 
@@ -554,8 +562,8 @@ class MultiQueryAttention(GeneralizedAttention):
             device=device)
 
 
-def attn_bias_shape(attn_impl, n_heads, seq_len, alibi, prefix_lm, causal,
-                    use_sequence_id):
+def attn_bias_shape(attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
+                    prefix_lm: bool, causal: bool, use_sequence_id: bool):
     if attn_impl == 'flash':
         return None
     elif attn_impl in ['torch', 'triton']:
@@ -571,13 +579,13 @@ def attn_bias_shape(attn_impl, n_heads, seq_len, alibi, prefix_lm, causal,
 
 
 def build_attn_bias(
-    attn_impl,
-    attn_bias,
-    n_heads,
-    seq_len,
-    causal=False,
-    alibi=False,
-    alibi_bias_max=8,
+    attn_impl: str,
+    attn_bias: torch.Tensor,
+    n_heads: int,
+    seq_len: int,
+    causal: bool = False,
+    alibi: bool = False,
+    alibi_bias_max: int = 8,
 ):
     if attn_impl == 'flash':
         return None
@@ -599,7 +607,9 @@ def build_attn_bias(
         raise ValueError(f'{attn_impl=} is an invalid setting.')
 
 
-def gen_slopes(n_heads, alibi_bias_max=8, device=None):
+def gen_slopes(n_heads: int,
+               alibi_bias_max: int = 8,
+               device: Optional[torch.device] = None):
     _n_heads = 2**math.ceil(math.log2(n_heads))
     m = torch.arange(1, _n_heads + 1, dtype=torch.float32, device=device)
     m = m.mul(alibi_bias_max / _n_heads)
@@ -615,12 +625,12 @@ def gen_slopes(n_heads, alibi_bias_max=8, device=None):
 
 
 def build_alibi_bias(
-    n_heads,
-    seq_len,
-    full=False,
-    alibi_bias_max=8,
-    device=None,
-    dtype=None,
+    n_heads: int,
+    seq_len: int,
+    full: bool = False,
+    alibi_bias_max: int = 8,
+    device: Optional[torch.device] = None,
+    dtype: Optional[torch.dtype] = None,
 ):
     alibi_bias = torch.arange(1 - seq_len, 1, dtype=torch.int32,
                               device=device).view(1, 1, 1, seq_len)

@@ -9,7 +9,7 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 import copy
 import math
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Mapping, MutableMapping, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -24,16 +24,18 @@ from composer.models import HuggingFaceModel
 from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import (PreTrainedModel, PreTrainedTokenizer,
-                          PreTrainedTokenizerFast)
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.modeling_outputs import (BaseModelOutputWithPast,
                                            CausalLMOutputWithPast)
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
-from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, MPTMLP, build_ffn
+from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY as FC_CLASS_REGISTRY
+from llmfoundry.models.layers.ffn import \
+    FFN_CLASS_REGISTRY as FFN_CLASS_REGISTRY
+from llmfoundry.models.layers.ffn import MPTMLP as MPTMLP
+from llmfoundry.models.layers.ffn import build_ffn as build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
@@ -57,12 +59,10 @@ from llmfoundry.models.utils.param_init_fns import (
 )
 
 try:
-    from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
+    from llmfoundry.models.layers.flash_attn_triton import flash_attn_func as flash_attn_func
 except:
     pass
 # isort: on
-
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
 class MPTPreTrainedModel(PreTrainedModel):
@@ -176,8 +176,8 @@ class MPTModel(MPTPreTrainedModel):
     @torch.no_grad()
     def _attn_bias(
         self,
-        device,
-        dtype,
+        device: torch.device,
+        dtype: torch.dtype,
         attention_mask: Optional[torch.ByteTensor] = None,
         prefix_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
@@ -318,10 +318,12 @@ class MPTModel(MPTPreTrainedModel):
                      if use_cache is not None else self.config.use_cache)
 
         if attention_mask is not None:
-            attention_mask = attention_mask.bool()
+            attention_mask = attention_mask.bool(
+            )  # type: ignore (TODO to figure out the right type here)
 
         if prefix_mask is not None:
-            prefix_mask = prefix_mask.bool()
+            prefix_mask = prefix_mask.bool(
+            )  # type: ignore (TODO to figure out the right type here)
 
         # These args are passed in by keyword in huggingface's generate function
         # https://github.com/huggingface/transformers/blob/68287689f2f0d8b7063c400230b3766987abf18d/src/transformers/generation/utils.py#L2201-L2206
@@ -390,6 +392,7 @@ class MPTModel(MPTPreTrainedModel):
             if S + past_position > self.config.max_seq_len:
                 raise ValueError(
                     f'Cannot forward input with past sequence length {past_position} and current sequence length '
+                    +
                     f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
                 )
             pos = torch.arange(
@@ -471,7 +474,7 @@ class MPTModel(MPTPreTrainedModel):
         )
 
     # Param Initialization, needed for device='meta' fast initialization
-    def param_init_fn(self, module):
+    def param_init_fn(self, module: nn.Module):
         init_fn_name = self.config.init_config['name']
         MODEL_INIT_REGISTRY[init_fn_name](
             module=module,
@@ -481,11 +484,11 @@ class MPTModel(MPTPreTrainedModel):
         )
 
     # FSDP Wrap function
-    def fsdp_wrap_fn(self, module):
+    def fsdp_wrap_fn(self, module: nn.Module):
         return isinstance(module, MPTBlock)
 
     # Activation Checkpointing
-    def activation_checkpointing_fn(self, module):
+    def activation_checkpointing_fn(self, module: nn.Module):
         return isinstance(module, MPTBlock)
 
 
@@ -524,16 +527,17 @@ class MPTForCausalLM(MPTPreTrainedModel):
     def get_input_embeddings(self):
         return self.transformer.wte
 
-    def set_input_embeddings(self, value):
+    def set_input_embeddings(self, value: Union[SharedEmbedding, nn.Embedding]):
         self.transformer.wte = value
 
     def get_output_embeddings(self):
         return self.transformer.wte
 
-    def set_output_embeddings(self, new_embeddings):
+    def set_output_embeddings(self, new_embeddings: Union[SharedEmbedding,
+                                                          nn.Embedding]):
         self.transformer.wte = new_embeddings
 
-    def set_decoder(self, decoder):
+    def set_decoder(self, decoder: MPTModel):
         self.transformer = decoder
 
     def get_decoder(self):
@@ -607,7 +611,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         )
 
     # Param Initialization, needed for device='meta' fast initialization
-    def param_init_fn(self, module):
+    def param_init_fn(self, module: nn.Module):
         init_fn_name = self.config.init_config['name']
         MODEL_INIT_REGISTRY[init_fn_name](
             module=module,
@@ -617,19 +621,20 @@ class MPTForCausalLM(MPTPreTrainedModel):
         )
 
     # FSDP Wrap function
-    def fsdp_wrap_fn(self, module):
+    def fsdp_wrap_fn(self, module: nn.Module):
         return isinstance(module, MPTBlock)
 
     # Activation Checkpointing
-    def activation_checkpointing_fn(self, module):
+    def activation_checkpointing_fn(self, module: nn.Module):
         return isinstance(module, MPTBlock)
 
     def prepare_inputs_for_generation(
         self,
-        input_ids,
-        past_key_values=None,
-        inputs_embeds=None,
-        **kwargs,
+        input_ids: torch.Tensor,
+        past_key_values: Optional[List[Tuple[torch.Tensor,
+                                             torch.Tensor]]] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
+        **kwargs: Any,
     ):
         if inputs_embeds is not None:
             raise NotImplementedError(
@@ -668,7 +673,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
         }
 
     @staticmethod
-    def _reorder_cache(past_key_values, beam_idx):
+    def _reorder_cache(past_key_values: List[Tuple[torch.Tensor, torch.Tensor]],
+                       beam_idx: torch.LongTensor):
         """Used by HuggingFace generate when using beam search with kv-caching.
 
         See https://github.com/huggingface/transformers/blob/3ec7a47664ebe40c40f4b722f6bb1cd30c3821ec/src/transformers/models/gpt2/modeling_gpt2.py#L1122-L1133
@@ -689,7 +695,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
     def __init__(
         self,
         om_model_config: DictConfig,
-        tokenizer: Optional[Tokenizer] = None,
+        tokenizer: Optional[PreTrainedTokenizerBase] = None,
     ):
         resolved_om_model_config = om.to_container(om_model_config,
                                                    resolve=True)
@@ -730,7 +736,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             except:
                 raise ValueError(
                     'Fused Cross Entropy is not installed. Either (1) have a CUDA-compatible GPU '
+                    +
                     'and `pip install .[gpu]` if installing from source or `pip install xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy` '
+                    +
                     'if installing from pypi, or (2) set your config model.loss_fn=torch_crossentropy.'
                 )
         elif loss_fn_config == 'torch_crossentropy':
@@ -740,12 +748,12 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 f'Specified loss_fn={self.loss_fn} not recognized. `loss_fn` must be one of [`fused_crossentropy`, `torch_crossentropy`].'
             )
 
-    def get_targets(self, batch):
+    def get_targets(self, batch: Mapping):
         targets = torch.roll(batch['labels'], shifts=-1)
         targets[:, -1] = -100
         return targets
 
-    def forward(self, batch):
+    def forward(self, batch: MutableMapping):
         if self.model.transformer.prefix_lm:
             add_bidirectional_mask_if_missing(batch)
         # Note: prefix_mask is only used if model.prefix_lm is True
@@ -757,12 +765,12 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             inputs_embeds=batch.get('inputs_embeds', None),
         )
 
-    def loss(self, outputs, batch):
+    def loss(self, outputs: CausalLMOutputWithPast, batch: Mapping):
         targets = self.get_targets(batch)
         return self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
                             targets.view(-1))
 
-    def flops_per_batch(self, batch):
+    def flops_per_batch(self, batch: Mapping):
         # Note: this computation does not take into account padding, and assumes
         # that the dataset has been constructed without padding. Additionally, we
         # assume the backward pass is approximately 2x the forward pass

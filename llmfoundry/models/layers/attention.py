@@ -32,19 +32,19 @@ def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
 
 
 def scaled_multihead_dot_product_attention(
-    query,
-    key,
-    value,
-    n_heads,
-    kv_n_heads,
-    past_key_value=None,
-    softmax_scale=None,
-    attn_bias=None,
-    key_padding_mask=None,
-    is_causal=False,
-    dropout_p=0.0,
-    training=False,
-    needs_weights=False,
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    n_heads: int,
+    kv_n_heads: int,
+    past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+    softmax_scale: Optional[float] = None,
+    attn_bias: Optional[torch.Tensor] = None,
+    key_padding_mask: Optional[torch.Tensor] = None,
+    is_causal: bool = False,
+    dropout_p: float = 0.0,
+    training: bool = False,
+    needs_weights: bool = False,
 ):
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
     k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
@@ -142,19 +142,19 @@ def check_valid_inputs(*tensors: torch.Tensor,
 
 
 def flash_attn_fn(
-    query,
-    key,
-    value,
-    n_heads,
-    kv_n_heads,
-    past_key_value=None,
-    softmax_scale=None,
-    attn_bias=None,
-    key_padding_mask=None,
-    is_causal=False,
-    dropout_p=0.0,
-    training=False,
-    needs_weights=False,
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    n_heads: int,
+    kv_n_heads: int,
+    past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+    softmax_scale: Optional[float] = None,
+    attn_bias: Optional[torch.Tensor] = None,
+    key_padding_mask: Optional[torch.Tensor] = None,
+    is_causal: bool = False,
+    dropout_p: float = 0.0,
+    training: bool = False,
+    needs_weights: bool = False,
 ):
     try:
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
@@ -241,19 +241,19 @@ def flash_attn_fn(
 
 
 def triton_flash_attn_fn(
-    query,
-    key,
-    value,
-    n_heads,
-    kv_n_heads,
-    past_key_value=None,
-    softmax_scale=None,
-    attn_bias=None,
-    key_padding_mask=None,
-    is_causal=False,
-    dropout_p=0.0,
-    training=False,
-    needs_weights=False,
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    n_heads: int,
+    kv_n_heads: int,
+    past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+    softmax_scale: Optional[float] = None,
+    attn_bias: Optional[torch.Tensor] = None,
+    key_padding_mask: Optional[torch.Tensor] = None,
+    is_causal: bool = False,
+    dropout_p: float = 0.0,
+    training: bool = False,
+    needs_weights: bool = False,
 ):
     try:
         from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
@@ -445,12 +445,12 @@ class GeneralizedAttention(nn.Module):
 
     def forward(
         self,
-        x,
-        past_key_value=None,
-        attn_bias=None,
-        attention_mask=None,
-        is_causal=True,
-        needs_weights=False,
+        x: torch.Tensor,
+        past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        attn_bias: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        is_causal: bool = True,
+        needs_weights: bool = False,
     ):
         qkv = self.Wqkv(x)
 

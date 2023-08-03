@@ -23,13 +23,13 @@ def allclose_helper(t0: torch.Tensor,
 @pytest.mark.parametrize(
     'attn_type',
     ['multihead_attention', 'multiquery_attention', 'grouped_query_attention'])
-def test_attn_impl(attn_impl_0,
-                   attn_impl_1,
-                   clip_qkv,
-                   qk_ln,
-                   alibi,
-                   attn_type,
-                   device='cuda'):
+def test_attn_impl(attn_impl_0: str,
+                   attn_impl_1: str,
+                   clip_qkv: bool,
+                   qk_ln: bool,
+                   alibi: bool,
+                   attn_type: str,
+                   device: str = 'cuda'):
     """Compare all attn impl with each other.
 
     Includes testing with and without attn_clip_qkv, attn_qk_ln, and alibi.
@@ -227,7 +227,10 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
 @pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
 @pytest.mark.parametrize('n_heads', [32, 16, 8])
 @pytest.mark.parametrize('kv_n_heads', [8, 4, 2, 1])
-def test_grouped_attention_heads(attn_impl, n_heads, kv_n_heads, device='cuda'):
+def test_grouped_attention_heads(attn_impl: str,
+                                 n_heads: int,
+                                 kv_n_heads: int,
+                                 device: str = 'cuda'):
     """Ensure grouped_query_attention runs w/ diff n_heads & kv_n_heads."""
     from llmfoundry.models.layers import attention
 
@@ -266,7 +269,7 @@ def test_grouped_attention_heads(attn_impl, n_heads, kv_n_heads, device='cuda'):
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
-def test_grouped_query_invalid_heads(attn_impl, device='cuda'):
+def test_grouped_query_invalid_heads(attn_impl: str, device: str = 'cuda'):
     """Check indivisble combinations of grouped_query_attention."""
     from llmfoundry.models.layers import attention
 
@@ -282,12 +285,10 @@ def test_grouped_query_invalid_heads(attn_impl, device='cuda'):
         'kv_n_heads': 3
     })
 
-    n, s, f = 2, 16, cfg.d_model
-
     expected_error = 'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads'
 
     with pytest.raises(AssertionError, match=expected_error):
-        mmhsa = attention.GeneralizedAttention(**cfg).to(device)
+        _ = attention.GeneralizedAttention(**cfg).to(device)
 
     cfg = om.create({
         'attn_impl': attn_impl,
@@ -299,12 +300,10 @@ def test_grouped_query_invalid_heads(attn_impl, device='cuda'):
         'kv_n_heads': 17
     })
 
-    n, s, f = 2, 16, cfg.d_model
-
     expected_error = 'The number of KV heads should be less than or equal to Q heads'
 
     with pytest.raises(AssertionError, match=expected_error):
-        mmhsa = attention.GeneralizedAttention(**cfg).to(device)
+        _ = attention.GeneralizedAttention(**cfg).to(device)
 
     cfg = om.create({
         'attn_impl': attn_impl,
@@ -316,9 +315,7 @@ def test_grouped_query_invalid_heads(attn_impl, device='cuda'):
         'kv_n_heads': 0
     })
 
-    n, s, f = 2, 16, cfg.d_model
-
     expected_error = 'kv_n_heads should be greater than zero'
 
     with pytest.raises(AssertionError, match=expected_error):
-        mmhsa = attention.GeneralizedAttention(**cfg).to(device)
+        _ = attention.GeneralizedAttention(**cfg).to(device)

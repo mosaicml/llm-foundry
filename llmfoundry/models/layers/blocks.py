@@ -20,21 +20,8 @@ class MPTBlock(nn.Module):
         d_model: int,
         n_heads: int,
         expansion_ratio: int,
-        attn_config_mutable: Dict = {
-            'attn_type': 'multihead_attention',
-            'attn_pdrop': 0.0,
-            'attn_impl': 'triton',
-            'qk_ln': False,
-            'clip_qkv': None,
-            'softmax_scale': None,
-            'prefix_lm': False,
-            'attn_uses_sequence_id': False,
-            'alibi': False,
-            'alibi_bias_max': 8,
-        },
-        ffn_config: Dict = {
-            'ffn_type': 'mptmlp',
-        },
+        attn_config_mutable: Optional[Dict] = None,
+        ffn_config: Optional[Dict] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         verbose: int = 0,
@@ -42,8 +29,8 @@ class MPTBlock(nn.Module):
         device: Optional[str] = None,
         **kwargs: Any,
     ):
-        if attn_config is None:
-            attn_config = {
+        if attn_config_mutable is None:
+            attn_config_mutable = {
                 'attn_type': 'multihead_attention',
                 'attn_pdrop': 0.0,
                 'attn_impl': 'triton',
@@ -64,8 +51,10 @@ class MPTBlock(nn.Module):
         del kwargs  # unused, just to capture any extra args from the config
         super().__init__()
 
-        attn_type = attn_config_mutable.pop('attn_type')
         norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
+
+        attn_type = attn_config_mutable.pop('attn_type')
+        assert isinstance(attn_type, str)
         attn_class = ATTN_CLASS_REGISTRY[attn_type]
 
         self.norm_1 = norm_class(d_model, device=device)

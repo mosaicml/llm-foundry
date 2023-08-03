@@ -248,7 +248,7 @@ def test_grouped_attention_heads(attn_impl: str,
 
     n, s, f = 2, 16, cfg.d_model
 
-    mmhsa = attention.GeneralizedAttention(**cfg).to(device)
+    mmhsa = attention.GroupedQueryAttention(**cfg).to(device)
 
     attention_mask = torch.ones(n, s).to(device).bool()
     x0 = torch.randn(n, s, f).to(device)
@@ -288,7 +288,7 @@ def test_grouped_query_invalid_heads(attn_impl: str, device: str = 'cuda'):
     expected_error = 'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads'
 
     with pytest.raises(AssertionError, match=expected_error):
-        _ = attention.GeneralizedAttention(**cfg).to(device)
+        _ = attention.GroupedQueryAttention(**cfg).to(device)
 
     cfg = om.create({
         'attn_impl': attn_impl,
@@ -303,7 +303,7 @@ def test_grouped_query_invalid_heads(attn_impl: str, device: str = 'cuda'):
     expected_error = 'The number of KV heads should be less than or equal to Q heads'
 
     with pytest.raises(AssertionError, match=expected_error):
-        _ = attention.GeneralizedAttention(**cfg).to(device)
+        _ = attention.GroupedQueryAttention(**cfg).to(device)
 
     cfg = om.create({
         'attn_impl': attn_impl,
@@ -318,4 +318,4 @@ def test_grouped_query_invalid_heads(attn_impl: str, device: str = 'cuda'):
     expected_error = 'kv_n_heads should be greater than zero'
 
     with pytest.raises(AssertionError, match=expected_error):
-        _ = attention.GeneralizedAttention(**cfg).to(device)
+        _ = attention.GroupedQueryAttention(**cfg).to(device)

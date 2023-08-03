@@ -353,11 +353,12 @@ def triton_flash_attn_fn(
     return output, None, past_key_value
 
 
-class GeneralizedAttention(nn.Module):
-    """A generalization of Multi-head, Multi-Query, Multi-Grouped Attention.
+class GroupedQueryAttention(nn.Module):
+    """GQA is a generalization of Multi-head and Multi-query attention.
 
-    Using torch or triton attention implementation enables user to also use
-    additive bias.
+    This allows the user to set a variable of number of kv_n_heads, rather than
+    just n_heads or 1, as in MHA and MQA. Using torch or triton attention
+    implementation enables user to also use additive bias.
     """
 
     def __init__(
@@ -493,7 +494,7 @@ class GeneralizedAttention(nn.Module):
         return self.out_proj(context), attn_weights, past_key_value
 
 
-class MultiheadAttention(GeneralizedAttention):
+class MultiheadAttention(GroupedQueryAttention):
     """Multi-head self attention.
 
     Using torch or triton attention implementation enables user to also use
@@ -529,7 +530,7 @@ class MultiheadAttention(GeneralizedAttention):
             device=device)
 
 
-class MultiQueryAttention(GeneralizedAttention):
+class MultiQueryAttention(GroupedQueryAttention):
     """Multi-Query self attention.
 
     Using torch or triton attention implementation enables user to also use
@@ -653,5 +654,5 @@ def build_alibi_bias(
 ATTN_CLASS_REGISTRY = {
     'multihead_attention': MultiheadAttention,
     'multiquery_attention': MultiQueryAttention,
-    'grouped_query_attention': GeneralizedAttention
+    'grouped_query_attention': GroupedQueryAttention
 }

@@ -462,12 +462,12 @@ class GroupedQueryAttention(nn.Module):
             qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
         query, key, value = qkv.split(
-        [
-            self.d_model, 
-            self.kv_n_heads * self.head_dim,
-            self.kv_n_heads * self.head_dim,
-        ],
-        dim=2,
+            [
+                self.d_model,
+                self.kv_n_heads * self.head_dim,
+                self.kv_n_heads * self.head_dim,
+            ],
+            dim=2,
         )
 
         key_padding_mask = attention_mask

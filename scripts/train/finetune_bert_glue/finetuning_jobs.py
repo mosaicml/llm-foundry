@@ -22,7 +22,7 @@ from composer.trainer.trainer import Trainer
 from composer.utils import dist, reproducibility
 from torch.utils.data import DataLoader
 
-from scripts.train.finetune_bert_glue.data import create_glue_dataset
+from data import create_glue_dataset
 
 
 def _build_dataloader(dataset, **kwargs):

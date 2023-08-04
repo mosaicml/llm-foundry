@@ -7,21 +7,28 @@ import multiprocessing as mp
 import os
 import sys
 import time
+import warnings
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor as Pool
 from multiprocessing.managers import DictProxy, SyncManager
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 from urllib.parse import urlparse
 
+from llmfoundry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.utils.builders import build_tokenizer
+
 # Add folder root to path to allow us to use relative imports regardless of what directory the script is run from
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
+import finetuning_jobs as finetuning_jobs_module
 import numpy as np
 import omegaconf as om
-import src.glue.finetuning_jobs as finetuning_jobs_module
-import src.hf_bert as hf_bert_module
-import src.mosaic_bert as mosaic_bert_module
+from omegaconf import OmegaConf as om_conf
+#import llmfoundry.models.hf.hf_bert as hf_bert_module
+#import llmfoundry.models.mosaicbert as mosaic_bert_module
 import torch
+from omegaconf import DictConfig
+
 from composer import algorithms
 from composer.callbacks import (HealthChecker, LRMonitor, MemoryMonitor,
                                 OptimizerMonitor, RuntimeEstimator,
@@ -33,7 +40,6 @@ from composer.optim.scheduler import (ConstantWithWarmupScheduler,
 from composer.utils import reproducibility
 from composer.utils.file_helpers import get_file
 from composer.utils.object_store import S3ObjectStore
-from omegaconf import DictConfig
 
 TASK_NAME_TO_CLASS = {
     'mnli': finetuning_jobs_module.MNLIJob,
@@ -102,25 +108,34 @@ def build_scheduler(cfg):
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
 
 
-def build_model(cfg: DictConfig, num_labels: int):
-    if cfg.name == 'hf_bert':
-        return hf_bert_module.create_hf_bert_classification(
-            num_labels=num_labels,
-            pretrained_model_name=cfg.pretrained_model_name,
-            use_pretrained=cfg.get('use_pretrained', False),
-            model_config=cfg.get('model_config', None),
-            tokenizer_name=cfg.get('tokenizer_name', None),
-            gradient_checkpointing=cfg.get('gradient_checkpointing', None))
-    elif cfg.name == 'mosaic_bert':
-        return mosaic_bert_module.create_mosaic_bert_classification(
-            num_labels=num_labels,
-            pretrained_model_name=cfg.pretrained_model_name,
-            pretrained_checkpoint=cfg.get('pretrained_checkpoint', None),
-            model_config=cfg.get('model_config', None),
-            tokenizer_name=cfg.get('tokenizer_name', None),
-            gradient_checkpointing=cfg.get('gradient_checkpointing', None))
-    else:
-        raise ValueError(f'Not sure how to build model with name={cfg.name}')
+# def build_model(cfg: DictConfig, num_labels: int):
+#     if cfg.name == 'hf_bert':
+#         return hf_bert_module.create_hf_bert_classification(
+#             num_labels=num_labels,
+#             pretrained_model_name=cfg.pretrained_model_name,
+#             use_pretrained=cfg.get('use_pretrained', False),
+#             model_config=cfg.get('model_config', None),
+#             tokenizer_name=cfg.get('tokenizer_name', None),
+#             gradient_checkpointing=cfg.get('gradient_checkpointing', None))
+#     elif cfg.name == 'mosaic_bert':
+#         return mosaic_bert_module.create_mosaic_bert_classification(
+#             num_labels=num_labels,
+#             pretrained_model_name=cfg.pretrained_model_name,
+#             pretrained_checkpoint=cfg.get('pretrained_checkpoint', None),
+#             model_config=cfg.get('model_config', None),
+#             tokenizer_name=cfg.get('tokenizer_name', None),
+#             gradient_checkpointing=cfg.get('gradient_checkpointing', None))
+#     else:
+#         raise ValueError(f'Not sure how to build model with name={cfg.name}')
+
+def build_composer_model(model_cfg, tokenizer):
+    warnings.filterwarnings(
+        action='ignore',
+        message='Torchmetrics v0.9 introduced a new argument class property')
+    if model_cfg.name not in COMPOSER_MODEL_REGISTRY:
+        raise ValueError(
+            f'Not sure how to build model with name={model_cfg.name}')
+    return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
 
 def get_values_from_path(path: str, separator: str = '/') -> Dict[str, str]:
@@ -206,8 +221,8 @@ def create_job_configs(main_config: om.DictConfig, tasks_to_run: Set[str],
                     task_seed,
                 'model':
                     main_config.model,
-                'tokenizer_name':
-                    main_config.tokenizer_name,
+                'tokenizer':
+                    main_config.tokenizer,
                 'scheduler':
                     main_config.scheduler,
                 'load_path':
@@ -237,13 +252,15 @@ def run_job_worker(config: om.DictConfig,
     """Instantiates the job object and runs it."""
     # need to set seed before model initialization for determinism
     reproducibility.seed_all(config.seed)
+    tokenizer = build_tokenizer(config.tokenizer)
+    config.model.num_labels = finetuning_jobs_module.TASK_NAME_TO_NUM_LABELS[config.task]
     instantiated_job = TASK_NAME_TO_CLASS[config.task](
         job_name=config.job_name,
         seed=config.seed,
-        model=build_model(
+        model=build_composer_model(
             config.model,
-            finetuning_jobs_module.TASK_NAME_TO_NUM_LABELS[config.task]),
-        tokenizer_name=config.tokenizer_name,
+            tokenizer),
+        tokenizer_name=config.tokenizer.name,
         scheduler=build_scheduler(config.scheduler),
         load_path=config.load_path,
         save_folder=config.save_folder,
@@ -378,8 +395,11 @@ def train(config: om.DictConfig) -> None:
     """
     start_time = time.time()
 
+    resolved_om_model_config = om_conf.create(om_conf.to_container(config,
+                                                   resolve=True))
+
     # Initial default seed
-    reproducibility.seed_all(config.default_seed)
+    reproducibility.seed_all(resolved_om_model_config.default_seed)
 
     # Quiet down WandB
     os.environ['WANDB_SILENT'] = 'true'
@@ -388,27 +408,27 @@ def train(config: om.DictConfig) -> None:
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
     # Confirm GPUs if parallel=True
-    if config.parallel:
+    if resolved_om_model_config.parallel:
         assert torch.cuda.device_count(
         ) > 0, 'Can only use parallel mode if GPUs are available. Please set parallel=False.'
 
     # Downloads the starting checkpoint ahead of time so that
     # the different tasks don't all try to download it at the same time
-    if config.get('starting_checkpoint_load_path', None):
+    if resolved_om_model_config.get('starting_checkpoint_load_path', None):
         local_pretrain_checkpoint_path = download_starting_checkpoint(
-            config.starting_checkpoint_load_path,
-            config.local_pretrain_checkpoint_folder)
+            resolved_om_model_config.starting_checkpoint_load_path,
+            resolved_om_model_config.local_pretrain_checkpoint_folder)
     else:
         local_pretrain_checkpoint_path = None
 
     # Builds round 1 configs and runs them
     round_1_task_names = {'cola', 'sst2', 'qqp', 'qnli', 'mnli'}
-    round_1_job_configs = create_job_configs(config, round_1_task_names,
+    round_1_job_configs = create_job_configs(resolved_om_model_config, round_1_task_names,
                                              local_pretrain_checkpoint_path)
 
     round_1_results = {}
     if len(round_1_job_configs) > 0:
-        if config.parallel:
+        if resolved_om_model_config.parallel:
             round_1_results = run_jobs_parallel(round_1_job_configs)
         else:
             round_1_results = run_jobs_serial(round_1_job_configs)
@@ -429,12 +449,12 @@ def train(config: om.DictConfig) -> None:
     # Builds round 2 configs and runs them
     round_2_task_names = {'rte', 'mrpc', 'stsb'}
     round_2_starting_checkpoint_path = mnli_checkpoint_path if mnli_checkpoint_path is not None else local_pretrain_checkpoint_path
-    round_2_job_configs = create_job_configs(config, round_2_task_names,
+    round_2_job_configs = create_job_configs(resolved_om_model_config, round_2_task_names,
                                              round_2_starting_checkpoint_path)
 
     round_2_results = {}
     if len(round_2_job_configs) > 0:
-        if config.parallel:
+        if resolved_om_model_config.parallel:
             round_2_results = run_jobs_parallel(round_2_job_configs)
         else:
             round_2_results = run_jobs_serial(round_2_job_configs)

@@ -181,7 +181,7 @@ class ComposerHFBertForSequenceClassification(HuggingFaceModel):
     def __init__(
         self,
         om_model_config: DictConfig,
-        tokenizer: Optional[Tokenizer] = None,
+        tokenizer: Optional[Tokenizer] = None
     ):
         resolved_om_model_config = om.to_container(om_model_config, resolve=True)
         try:
@@ -231,7 +231,7 @@ class ComposerHFBertForSequenceClassification(HuggingFaceModel):
             if model.config.num_labels == 2:
                 metrics.append(BinaryF1Score())
 
-        super.__init__(
+        super().__init__(
             model=model,
             tokenizer=tokenizer,
             use_logits=True,

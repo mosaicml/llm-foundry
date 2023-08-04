@@ -112,7 +112,7 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
             MaskedAccuracy(ignore_index=-100)
         ]
        
-        super.__init__(model=model,
+        super().__init__(model=model,
             tokenizer=tokenizer,
             use_logits=True,
             metrics=metrics

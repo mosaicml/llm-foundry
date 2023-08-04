@@ -695,7 +695,7 @@ class ComposerMosaicBertForSequenceClassification(HuggingFaceModel):
             if num_labels == 2:
                 metrics.append(BinaryF1Score())
 
-        super.__init__(
+        super().__init__(
             model=model,
             tokenizer=tokenizer,
             use_logits=True,

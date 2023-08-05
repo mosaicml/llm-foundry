@@ -22,6 +22,7 @@ from transformers import (AutoConfig, AutoModelForCausalLM,
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.models.layers.llama_attention_monkeypatch import new_forward as new_forward
 
 try:
     from peft.peft_model import PeftModel
@@ -114,7 +115,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             init_device = om_model_config.get('init_device', 'cpu')
 
             # Get the device we want to initialize, and use the
-            # reolved version to initialize the HF model
+            # resolved version to initialize the HF model
             resolved_init_device = hf_get_init_device(init_device)
 
             # We need to have all non-zero local ranks be not-pretrained

@@ -1,10 +1,13 @@
 import torch
-import torch.nn as nn
 import torch.functional as F
+import logging
 from typing import Optional, Tuple
-import math
+
+from transformers.models.llama.modeling_llama import LlamaAttention
 
 from llmfoundry.models.layers.attention import triton_flash_attn_fn
+
+log = logging.getLogger(__name__)
 
 def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
     """
@@ -80,19 +83,19 @@ def new_forward(
     query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
 
     attn_output, _, past_key_value = triton_flash_attn_fn(
-        query_states,
-        key_states,
-        value_states,
-        self.num_heads,
-        past_key_value,
-        None,
-        None,
-        attention_mask,
-        True,
-        0,
-        self.training,
-        False,
-        False
+        query=query_states,
+        key=key_states,
+        value=value_states,
+        n_heads=self.num_heads,
+        kv_n_heads=self.num_key_value_heads,
+        past_key_value=past_key_value,
+        softmax_scale=None,
+        attn_bias=None,
+        key_padding_mask=attention_mask,
+        is_causal=True,
+        dropout_p=0,
+        training=self.training,
+        needs_weights=False,
     )
 
     if self.config.pretraining_tp > 1:
@@ -104,3 +107,6 @@ def new_forward(
 
 
     return attn_output, _, past_key_value
+
+log.info("Monkey patching LlamaAttention.forward with triton flash attention")
+LlamaAttention.forward = new_forward

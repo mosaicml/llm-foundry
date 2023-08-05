@@ -108,5 +108,6 @@ def new_forward(
 
     return attn_output, _, past_key_value
 
-log.info("Monkey patching LlamaAttention.forward with triton flash attention")
+# log.info("Monkey patching LlamaAttention.forward with triton flash attention")
+print("Monkey patching LlamaAttention.forward with triton flash attention")
 LlamaAttention.forward = new_forward

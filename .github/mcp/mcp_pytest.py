@@ -6,8 +6,7 @@
 import argparse
 import time
 
-from mcli.sdk import (RunConfig, RunStatus, create_run, follow_run_logs,
-                      stop_run, wait_for_run_status)
+from mcli.sdk import RunConfig, RunStatus, create_run, follow_run_logs, wait_for_run_status
 
 if __name__ == '__main__':
 

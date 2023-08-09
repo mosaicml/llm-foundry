@@ -1,0 +1,14 @@
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm writing a NeurIPS paper about a new model architecture for processing and generating long texts. Here are some facts about the paper:
+* The main trick is to replace some of the attention heads with an exponential moving average, where the decay rate is learned for each head. We call this architecture ExeMA.
+* On language modeling, the perplexity difference between our model and a vanilla transformer is negligible, but that's because next-token prediction is almost always a local task, so perplexity won't be sensitive enough to detect any improvements in long-range understanding.
+* However, on the SCROLLS benchmark, our model improves by 10% over the baseline.
+* We also have a new metric for measuring coherence in generated text (CoGnaTe), where our model generates text that is 43% more coherent than the baseline.
+Help me write the paper's introduction.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I have an exercise in game of theory class that I should find all equilibriums in rock paper scissors game. Could you help me with this exercise?
+### Response:

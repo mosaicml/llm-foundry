@@ -22,7 +22,6 @@ from transformers import (AutoConfig, AutoModelForCausalLM,
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import init_empty_weights
-from llmfoundry.models.layers.llama_attention_monkeypatch import new_forward as new_forward
 
 try:
     from peft.peft_model import PeftModel

@@ -354,7 +354,7 @@ def triton_flash_attn_fn(
 
 
 class GroupedQueryAttention(nn.Module):
-    """GQA is a generalization of Multi-head and Multi-query attention.
+    """ Grouped Query Attention (GQA) is a generalization of Multi-head (MHA) and Multi-query attention (MQA).
 
     This allows the user to set a variable of number of kv_n_heads, rather than
     just n_heads or 1, as in MHA and MQA. Using torch or triton attention

@@ -21,7 +21,7 @@ class Weighting(Enum):
     LOG_SAMPLE_SZ = 3
 
 
-def get_in_memory_logger(logger):
+def get_in_memory_logger(logger: Logger):
     for lg in logger.destinations:
         if isinstance(lg, InMemoryLogger):
             return lg
@@ -98,7 +98,7 @@ class ModelGauntlet(Callback):
                 assert weight is not None
                 benchmark['weighting'] = weight
 
-    def compute_averages(self, logger_destination):
+    def compute_averages(self, logger_destination: InMemoryLogger):
         results = {}
         pat = re.compile(
             'metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)'  # type: ignore
@@ -108,7 +108,6 @@ class ModelGauntlet(Callback):
             if key not in logger_destination.data:
                 continue
             val = logger_destination.data[key][-1][1].item()
-
 
             if match:
                 eval_name = match.group(1)
@@ -127,7 +126,7 @@ class ModelGauntlet(Callback):
                     results[key] = [val]
         return {k: sum(v) / len(v) for k, v in results.items()}
 
-    def eval_after_all(self, state: State, logger: Logger):
+    def eval_after_all(self, state: Optional[State], logger: Logger):
         inmemorylogger = get_in_memory_logger(logger)
         new_metrics = self.compute_averages(inmemorylogger)
         if len(new_metrics) == 0:

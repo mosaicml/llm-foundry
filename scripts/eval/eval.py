@@ -5,7 +5,6 @@ import os
 import re
 import sys
 import time
-
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -137,7 +136,7 @@ def main(cfg: DictConfig):
     composite_scores = None
     for model_cfg in cfg.models:
         (logger, logger_keys, model_gauntlet_callback, model_gauntlet,
-         model_gauntlet_df) = evaluate_model(model_cfg, cfg.run_name,
+         model_gauntlet_df) = evaluate_model(model_cfg, cfg, cfg.run_name,
                                              model_gauntlet_df)
 
         if model_gauntlet_callback is not None:
@@ -177,6 +176,7 @@ def main(cfg: DictConfig):
                 model_gauntlet_df.sort_values(
                     'average', ascending=False).to_markdown(index=False))
         print(f'Printing complete results for all models')
+        assert models_df is not None
         print(models_df.to_markdown(index=False))
 
 
@@ -189,7 +189,10 @@ def calculate_markdown_results(logger_keys: List[str], logger: Logger,
         if isinstance(lg, InMemoryLogger):
             logger_data = lg.data
 
-    pat = re.compile('metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')
+    if logger_data is None:
+        return None
+
+    pat = re.compile(r'metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')
     for key in logger_keys:
         match = pat.match(key)
         val = logger_data[key][-1][1].item()

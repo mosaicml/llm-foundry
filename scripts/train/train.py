@@ -3,11 +3,12 @@
 import os
 import sys
 import warnings
-from typing import Dict
+from typing import Dict, List
 
 import torch
 from composer import Trainer
 from composer.core import Evaluator
+from composer.core.callback import Callback
 from composer.loggers.in_memory_logger import InMemoryLogger
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
@@ -276,7 +277,7 @@ def main(cfg: DictConfig):
     ]
 
     # Callbacks
-    callbacks = [
+    callbacks: List[Callback] = [
         build_callback(name, callback_cfg)
         for name, callback_cfg in (cfg.get('callbacks') or {}).items()
     ]

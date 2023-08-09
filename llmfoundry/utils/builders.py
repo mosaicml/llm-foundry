@@ -14,13 +14,12 @@ from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from composer.loggers import MLFlowLogger, TensorboardLogger, WandBLogger
 from composer.loggers.in_memory_logger import InMemoryLogger
-
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
                                       LinearWithWarmupScheduler)
 from composer.utils import dist
-from omegaconf import DictConfig, ListConfig
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
@@ -160,13 +159,16 @@ def build_tokenizer(om_tokenizer_config: DictConfig) -> PreTrainedTokenizerBase:
 
 
 def build_icl_evaluators(
-        icl_tasks,
-        tokenizer,
-        default_max_seq_len,
-        default_batch_size,
-        destination_dir=os.getcwd(),
-        icl_subset_num_batches=None,
+    icl_tasks: Union[str, DictConfig],
+    tokenizer: AutoTokenizer,
+    default_max_seq_len: int,
+    default_batch_size: int,
+    destination_dir: Optional[str] = None,
+    icl_subset_num_batches: Optional[int] = None,
 ):
+    if destination_dir is None:
+        destination_dir = os.getcwd()
+
     evaluators = []
     logger_keys = []
 
@@ -179,7 +181,7 @@ def build_icl_evaluators(
     else:
         icl_tasks_list = icl_tasks
 
-    def _validate_cfg(icl_cfg: DictConfig):
+    def _validate_cfg(icl_cfg: Any):
         assert 'label' in icl_cfg
         assert 'dataset_uri' in icl_cfg and icl_cfg.dataset_uri is not None
         assert 'icl_task_type' in icl_cfg
@@ -216,6 +218,7 @@ def build_icl_evaluators(
 
     for icl_cfg in icl_tasks_list:
         _validate_cfg(icl_cfg)
+        assert isinstance(icl_cfg, DictConfig)
         for num_fewshot in list(icl_cfg.num_fewshot):
             if tokenizer.pad_token_id is None:
                 # Current workaround to support GPT2 tokenizer with `pad_token_id = None`

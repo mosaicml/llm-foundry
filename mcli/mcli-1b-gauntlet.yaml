@@ -13,9 +13,9 @@ integrations:
   project: gauntlet
 
 compute:
-  gpus: # <insert number of gpus>  # update for hero run
-  cluster: # <insert cluster name> # update for hero run
-  gpu_type: # update for hero run
+  gpus: 8 # <insert number of gpus>  # update for hero run
+  cluster: r1z1 # <insert cluster name> # update for hero run
+  gpu_type: a100_80gb # update for hero run
 
 image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
 command: |-

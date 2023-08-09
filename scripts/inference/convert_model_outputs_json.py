@@ -53,5 +53,6 @@ with open(file_name + '.json', 'w') as f:
 # upload this json to the store
 from composer.utils import maybe_create_object_store_from_uri
 
+print("Uploading to store")
 store = maybe_create_object_store_from_uri(args.store_path)
-store.upload_file(file_name + '.json', file_name + '.json')
+store.upload_object(file_name + '.json', file_name + '.json')

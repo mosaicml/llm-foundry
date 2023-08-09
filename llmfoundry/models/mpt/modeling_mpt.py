@@ -79,7 +79,7 @@ class MPTModel(MPTPreTrainedModel):
 
         # necessary to copy in order to be able to pop arguments so that we can pass in
         # a subset of arguments into the Attention() init function as **kwargs
-        # and remove unnecessary args and still support checkpointing the original att_config
+        # and remove unnecessary args and still support checkpointing the original attn_config
         config.attn_config_mutable = copy.deepcopy(config.attn_config)
 
         # this is an argument into attention init, so should NOT be popped

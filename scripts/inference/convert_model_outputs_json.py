@@ -8,8 +8,10 @@ import json
 parser = argparse.ArgumentParser()
 parser.add_argument('--file_name',
                     type=str,
-                    default='mpt-7b-instruct-responses-seed1',
+                    default='example_responses',
                     help='file name')
+parser.add_argument('--store_path', type=str)
+
 
 args = parser.parse_args()
 file_name = args.file_name
@@ -47,3 +49,9 @@ for i in range(len(lima_test_prompts)):
 # write this dict_list to a json which is nicely formatted with indent=4
 with open(file_name + '.json', 'w') as f:
     json.dump(dict_lists, f, indent=4)
+
+# upload this json to the store
+from composer.utils import maybe_create_object_store_from_uri
+
+store = maybe_create_object_store_from_uri(args.store_path)
+store.upload_file(file_name + '.json', file_name + '.json')

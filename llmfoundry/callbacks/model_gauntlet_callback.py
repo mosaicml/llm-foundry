@@ -43,7 +43,8 @@ class ModelGauntlet(Callback):
         weighting (Weighting): The weighting scheme used to balance different tasks within each category.
                                Either assign them all equal weight, assign them weight proportional
                                to the dataset size, or assign them weight proportional to the log2 of the dataset size.
-        substract_random_baseline (bool): Flag determining whether to subtract random baseline accuracy
+                               Options are 'EQUAL', 'SAMPLE_SZ', and 'LOG_SAMPLE_SZ'.
+        subtract_random_baseline (bool): Flag determining whether to subtract random baseline accuracy
                                           from the performance on each individual benchmark before aggregating.
         rescale_accuracy (bool): Flag determining whether to rescale the accuracy on each benchmark
                                  by (1-random_baseline_accuracy) before aggregating. Using this ensures that all benchmarks max out at 1.0.
@@ -53,7 +54,7 @@ class ModelGauntlet(Callback):
     def __init__(self,
                  logger_keys: dict,
                  categories: dict,
-                 weighting: Weighting = Weighting.EQUAL,
+                 weighting: str = 'EQUAL',
                  subtract_random_baseline: bool = True,
                  rescale_accuracy: bool = True,
                  benchmark_sizes: Optional[dict] = None):
@@ -77,10 +78,16 @@ class ModelGauntlet(Callback):
 
             for benchmark in category['benchmarks']:
                 bench_name = f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
-                cumulative_samples = max(
-                    sum(count for name, count in benchmark_sizes.items()
-                        if name.startswith(bench_name)), 1)
 
+                if self.weighting != Weighting.EQUAL:
+                    assert benchmark_sizes is not None
+                    cumulative_samples = max(
+                        sum(count for name, count in benchmark_sizes.items()
+                            if name.startswith(bench_name)), 1)
+                else:
+                    cumulative_samples = -1  # pyright
+
+                weight = None
                 if self.weighting == Weighting.EQUAL:
                     weight = 1
                 elif self.weighting == Weighting.SAMPLE_SZ:
@@ -88,17 +95,20 @@ class ModelGauntlet(Callback):
                 elif self.weighting == Weighting.LOG_SAMPLE_SZ:
                     weight = max(math.log(cumulative_samples, 2), 1)
 
+                assert weight is not None
                 benchmark['weighting'] = weight
 
     def compute_averages(self, logger_destination):
         results = {}
         pat = re.compile(
-            'metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')
+            'metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)'  # type: ignore
+        )
         for key in self.logger_keys:
             match = pat.match(key)
             if key not in logger_destination.data:
                 continue
             val = logger_destination.data[key][-1][1].item()
+
 
             if match:
                 eval_name = match.group(1)

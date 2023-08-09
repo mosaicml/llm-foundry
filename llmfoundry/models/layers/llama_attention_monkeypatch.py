@@ -73,15 +73,19 @@ def new_forward(
         key_states = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
 
-    query_states = query_states.view(bsz, q_len, self.num_heads * self.head_dim)
-    key_states = key_states.view(bsz, q_len, self.num_key_value_heads * self.head_dim)
-    value_states = value_states.view(bsz, q_len, self.num_key_value_heads * self.head_dim)
+    query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+    key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+    value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
 
     kv_seq_len = key_states.shape[-2]
     if past_key_value is not None:
         kv_seq_len += past_key_value[0].shape[-2]
     cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
     query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
+
+    query_states = query_states.transpose(1, 2).view(bsz, q_len, self.num_heads * self.head_dim)
+    key_states = key_states.transpose(1, 2).view(bsz, q_len, self.num_key_value_heads * self.head_dim)
+    value_states = value_states.transpose(1, 2).view(bsz, q_len, self.num_key_value_heads * self.head_dim)
 
     attn_output, _, past_key_value = triton_flash_attn_fn(
         query=query_states,

@@ -243,5 +243,5 @@ def llama_attention_patch_triton(
 
 
 # log.info("Monkey patching LlamaAttention.forward with triton flash attention")
-# print("Monkey patching LlamaAttention.forward with triton flash attention")
-# LlamaAttention.forward = new_forward
+print('Monkey patching LlamaAttention.forward with triton flash attention')
+LlamaAttention.forward = llama_attention_patch_triton

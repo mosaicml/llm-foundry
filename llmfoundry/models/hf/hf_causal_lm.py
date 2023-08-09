@@ -21,6 +21,8 @@ from transformers import (AutoConfig, AutoModelForCausalLM,
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
+from llmfoundry.models.layers.llama_attention_monkeypatch import \
+    llama_attention_patch_triton as llama_attention_patch_triton
 from llmfoundry.models.utils import init_empty_weights
 
 try:

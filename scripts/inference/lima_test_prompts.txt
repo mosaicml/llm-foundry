@@ -1,0 +1,1543 @@
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm writing a NeurIPS paper about a new model architecture for processing and generating long texts. Here are some facts about the paper:
+* The main trick is to replace some of the attention heads with an exponential moving average, where the decay rate is learned for each head. We call this architecture ExeMA.
+* On language modeling, the perplexity difference between our model and a vanilla transformer is negligible, but that's because next-token prediction is almost always a local task, so perplexity won't be sensitive enough to detect any improvements in long-range understanding.
+* However, on the SCROLLS benchmark, our model improves by 10% over the baseline.
+* We also have a new metric for measuring coherence in generated text (CoGnaTe), where our model generates text that is 43% more coherent than the baseline.
+Help me write the paper's introduction.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I have an exercise in game of theory class that I should find all equilibriums in rock paper scissors game. Could you help me with this exercise?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Who are some eminent scholars of the Quechua language?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do I find out which process is using my webcam on macOS?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm interested in renting a house in a posh neighborhood in the US. Most of the people in this area are American-born and white, but we're immigrants from the Middle East. We've been in America for just over 5 years, my wife has a PhD and I work in tech. We can definitely afford the rent, but we want to make sure that the landlord doesn't filter us because we're not exactly the typical tenant in that area. Can you help me write a cover letter for our rent application?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write an email to notify the commencement of bidding process in paper reviewing for a conference.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What's a good itenary for a trip to Vegas? Planning a trip for 3.5 days, please exclude any museums
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Help me rewrite this email to a more formal way:
+"Hey there,
+
+Just wanted to see if we could chat about the new project next week. Can you squeeze me in sometime between Tuesday and Thursday? It'd be cool to get your thoughts and feedback before we move forward.
+
+Looking forward to catching up! Let me know when you're free."
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write an opinion piece about why diversity and inclusion is super important for the tech industry. The essay should be targeted at "tech bros", and should avoid alienating them, but instead appeal to their logic; it should explain how diversity and inclusion of women, immigrants, etc. could benefit them specifically.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What is the most efficient way to get the number of rows in a table with psycog2?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What is the difference between the potato masala for Dosa and the one that is served with poori?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Could you write a poem about my girlfriend in the style of the Bulgarian poet Botev? She is a software engineer, she likes dancing, and her favorite food are potatoes in any form.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What medicine should I take when I get a cold?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+what does \multirow{5}{*} do in latex
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Can you turn the following set of bullet points into an email?
+* I'm bored at work.
+* My manager is incompetent.
+* I'm underpaid.
+* I quit.
+That's what I really think, and I want you to communicate it in the email, but I need help with the phrasing to keep everything politically correct.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Plan a day trip in Tokyo. The spots need to be within walking distance to each other.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Given a <span> in HTML I want to change its color on mouse over.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+You are given an oracle function ```predict_value(stock)```, which returns an estimated confidence interval of p=0.01 around a given stock's value one minute into the future. Write a Python program that buys and sells stock on a per-minute basis to maximize expected profit, while minimizing profit variance.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What does Bing need to do to beat Google?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Our beloved colleague Stephen is now leaving the company. He is one of the best engineers we had. He used to love posting memes. Write a short, fun and inspiring goodbye message.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What is the most beautiful language in the world?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a stand-up skit in the style of George Carlin that ridicules Pacific Gas and Electric.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Hi, I have a web app that does google authentication to let users in. How can I replace it with a captcha?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Provide recommendations for the best pillow brands
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Can you explain dependency injection in C# like a gangster?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Can you give a summary of "The Lottery Ticket Hypothesis" by Jonathan Frankle and Michael Carbin?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm interviewing as an out-of-college engineer for a bunch of tech companies and have started getting offers from a couple of them, including FAANG. What would be considered a good offer in terms of compensation?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How would one solve length generalization with position embeddings?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I don't celebrate Christmas, but my neighbors do, and we're on pretty good terms. Should I get them a Christmas card? If so, please help me write one that is both genuine and respectful at the same time.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why did Apollo 13 fail?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What can I do for 6 days in the South of France
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What's the funny part of the joke
+"Why don't scientists trust atoms?
+Because they make up everything!"
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+how to relieve stress from work
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why do my fiddle fig leaves look yellow?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+what color goes best with teal?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I own a business in which I teach little children (ages 3-4) to read, and I want to advertise it on Twitter. Can you help me write the tweet?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Can you rephrase this paragraph and make it a bit shorter?
+As the first step in Pick a Pic, we introduce pickapic.io. This web app allows users to generate, rank, and download images for free. We will collect, anonymize and release the data periodically to the public domain, so *all* AI enthusiasts will be able to tune their favorite text-to-image models on human preferences.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I work with a colleague who seems to escalate things up the management chain every time things don't go his way. As a result I am no longer feeling very excited about working with him. This is a pretty important project for my career, though. What should I do?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are the advantages of migrating AngularJS to React?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Can you briefly explain this concept of computational irreducibility?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+If I go on parental leave on 24 April 2022 and return on 9 September 2022, how many working days would I be gone for?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why do men earn more on average?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm building a world for a new RPG. It's set in the near future, e.g. 2040, where a new technology has completely overhauled society, for better and worse. Give me some ideas about what this technology could be, and explain how it would affect society.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Teach me how to make shakshuka.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are good performance venues for Indian artists in the US?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are some good ideas for a startup in STEM education?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are the best birthday gifts for an acquaintance that I don't know very well?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+My friends are visiting California soon, can you suggest some places I could take them in San Francisco? Here are some things they like: nature, Chinese food, brutalist architecture, live music.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Earth is about to get destroyed. You are piloting a spaceship to leave, and you only have one seat in it. There are three men around you from USA, India and Japan. Who will you pick and why?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are good names for a government agency that regulates AI?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What language family does Hungarian belong to?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What to do about clingy toddlers?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Compare better call saul and breaking bad. What does each show do better than the other?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What's the best way to learn how to make latte art?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How to create a footnote for the authors list in latex
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why are the leaves of my snake plant getting soggy, and then falling off? I recently repotted it. I only water it once a month.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I’m going to do bowling with my colleagues. Can you give me specific tips to kick their asses?
+Explain the technique please.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do I make poached eggs at home?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Killing a puppy is more or less morally acceptable than killing a dog?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Provide a recipe for salad dressing with the ingredients olive oil, vinegar, lemon, and various seasonings.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a witty dating app bio in a sentence or two for me. Here's stuff about me broadly.
+I am a twenty-six-year-old living in San Francisco. Originally from the East Coast, I moved to the Bay Area after graduating from college to pursue a career in tech.
+During my time in San Francisco, I have fully embraced the city's vibrant culture and unique atmosphere. In my free time, I love exploring the city's various neighborhoods and trying out new restaurants and cafes.
+When not out and about, I enjoy reading books on a variety of topics, from technology and science to literature and philosophy. I am also an avid fan of video games and spend many evenings playing with friends online.
+Professionally, I work as a software engineer at a startup company. I enjoy the challenge of solving complex technical problems.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I have 350 examples that were annotated with binary labels by two different annotators. How do I compute inter-annotator agreement, including confidence interval?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Can you summarize this passage into bullet points?
+
+Gradually slowing job gains and a growing labor force in March delivered welcome news to President Biden, nearly a year after he declared that the job market needed to cool significantly to tame high prices. The details of the report are encouraging for a president whose economic goal is to move from rapid job gains — and high inflation — to what Mr. Biden has called “stable, steady growth.” Job creation slowed to 236,000 for the month, closing in on the level Mr. Biden said last year would be necessary to stabilize the economy and prices. More Americans joined the labor force, and wage gains fell slightly. Those developments should help to further cool inflation. But the report also underscored the political and economic tensions for the president as he seeks to sell Americans on his economic stewardship ahead of an expected announcement this spring that he will seek re-election.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I live in the Bay Area and I've had it with PG&E. Devise a plan to start a competing energy company to put them out of business.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What is the difference between you and a human?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Who was the president in France in 1250?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How can I make a startup in Augmented Reality?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How to best apply snow chains to my Honda CR-V?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I have a bad credit history. Is there any way to get a credit card?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How would you design a spam filter?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm going on vacation next month. What are some of the best places to visit in early January?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I want to take a weekend trip from San Francisco to somewhere in California where I can see redwood trees. Where should I go?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are the best ways to handle a breakup?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I was wondering if you could tell me the best way to remove the rust from the bottom of the toilet.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I feel like I'm really slacking off on my work. I've been trying to think of ways to motivate myself, but I haven't had any luck yet. Any ideas?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Does the world have enough drinking water for everyone? How much do we have? How much more do we need?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I am a second-year undergraduate student, and I would like to discuss the merits of taking a year in industry.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm a teacher and I've been teaching a student named Kate for a few months. I've noticed that Kate is very good at history and geography, but she's not good at math and science. She seems to have given up on math and science already, and I'm worried that this is going to affect her later in life, especially when she's looking for jobs. Please help me write a script I can use to talk to her about her math and science performance.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+what is a good title for a poem I'm writing about a religious boy who has been sheltered from the outside world by his family, but one day he leaves his house and sees the reality of the world?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+My daughter has a school project on Space and is looking for some facts about the Big Bang.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm looking for a game to play with a large group of friends.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do you make good scrambled eggs?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are the longest and shortest words in the English language?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm feeling a bit lonely these days, how can I make new friends?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Which is the best version of the board game Settlers of Catan?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I live in a 1br apartment in Manhattan, and it consistently smells bad. What is a good way to purify the air in my home?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm thinking of taking my family to Disney World, but I'm not sure when the best time of year is. Can you recommend a time of year that is inexpensive but not too crowded?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+3 paragraph essay on the pros and cons of fast food
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I want to find a book that my 8 year old nephew would like to read.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How does the healthcare system work in the USA?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Can you order me a large pizza from Domino's?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I want to find a great school district to live in. I have a list of cities I would consider, but I am looking for a city with a great school district. What would you recommend?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+The year is 2025. Can you write an article about the new iPhone 17?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How's the weather in London right now?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What is the nearest bike shop that is open right now?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Are there any cheap tickets to New York from Chicago?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How can I improve my time management skills?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are the most effective ways to deal with stress?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How can I increase my productivity while working from home?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What should I buy my son for his seventh birthday?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Plan a three-day trip to Seattle
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Plan a seven-day trip in China.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Plan a 5-day snorkeling vacation in Hawaii
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Give me a lesson plan for teaching Intro to Probability.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Create a lesson plan for teaching the works of S. Y. Agnon.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+My 6yo daughter is super smart and finds the kids in school boring. How can I help her make friends?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are the main differences between Python and JavaScript programming languages?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are the differences between plant-based and animal-based protein sources?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are the primary factors that influence consumer behavior?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are the most effective strategies for conflict resolution in the workplace?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What currently legal thing do you expect to be illegal in the next 20 years?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why are there "bad school districts" and "good school districts" in the US, assuming that the government works hard to increase education standards?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What is the etiquette for asking whether someone has a special diet?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What is something that was acceptable 100 years ago which is unacceptable today?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Answer question in the following template:
+Answer: [short answer]
+Explanation: [detailed explanation]
+
+Who is the greatest woman in history?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are some potential implications of using a single-use plastic bottle versus a reusable bottle on both the environment and human health?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why can Parrots talk? Can they only repeat what people say, or can they formulate their own thoughts and vocalize them sometimes?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What benefits does JAX offer over PyTorch?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What factors would you consider when designing an inclusive and accessible public transportation system?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How can governments utilize fiscal and monetary policies to combat economic recessions?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How does one create an android app?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What would it take to pass the NPVIC?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Dogs can smell COVID infections in patients, with as much accuracy as a PCR test. What's stopping us from building a machine that 'smells' the patients and detects it as well, if not better, than a dog?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do language and cultural barriers affect the way people communicate and form relationships in multicultural societies?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Describe a scenario where artificial intelligence could be used to improve the quality and efficiency of healthcare delivery.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do vaccinations work to protect individuals and communities from infectious diseases, and what is herd immunity?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do social media platforms influence the way people consume and share news, and what are the potential implications for the spread of misinformation?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do cultural, social, and economic factors influence people's food choices, and how can this knowledge be used to promote healthier diets?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Explain the process of natural selection and how it contributes to the evolution and adaptation of species.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How would you introduce yourself as a medieval knight at a royal banquet?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+As a pirate captain, what would you say to your crew to motivate them to search for hidden treasure?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Imagine you are a time traveler from the year 3000. What technological advancements would you tell people about?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+As a sports commentator, describe the winning play in the final seconds of a championship game.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Pretend to be a world-famous chef. How would you describe your signature dish to a panel of judges?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+You are a mountain climber reaching the summit of Mount Everest. Describe your emotions and the view from the top.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+As a space colonist on Mars, describe your daily life and the challenges you face living on another planet.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Pretend to be a character in a post-apocalyptic world. Describe how you survive and the allies you encounter.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How can you determine if a restaurant is popular among locals or mainly attracts tourists, and why might this information be useful?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are some subtle clues that suggest someone is pretending to understand a topic or conversation when they are actually confused or uninformed?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why might someone choose to use a paper map or ask for directions instead of relying on a GPS device or smartphone app?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How can you assess the credibility of a source of information, such as a news article or blog post, without relying solely on the reputation of the author or publisher?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why do some people enjoy the sensation of being scared, such as by watching horror movies or going on roller coasters, while others avoid these experiences?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Do we have a moral obligation to explore space, or should we focus on solving Earth's problems first?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+In a world where automation is becoming increasingly prevalent, is it more important to prioritize job creation or technological progress?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Estimate how many times the average human blinks in a lifetime.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How many text messages are sent globally in a minute? Show me how you go about estimating this number.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How many pages are in all the books ever written? Try to explain your answer. Your explanation should take the reader through your reasoning step-by-step.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What would have happened if some Native American civilization was the first one to cross the Atlantic? Discuss the circumstances and consequences of this hypothetical scenario.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Suppose that Alan Turing and the folks at Bletchly Park were not able to break the Enigma ciphers. How would this have affected the Second World War?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What would have happened in the USA if the Nazis won World War 2?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Imagine an alternate history where the Internet is invented 1,000 years earlier than in our timeline (around the year 1000 CE). Describe the chain of events that could have led to this outcome.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How would the world be different if the Mongol conquest during the 13th Century never happened?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What if, instead of his phenomenal discoveries in mathematics and physics, Isaac Newton had made breakthroughs in biology instead?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Implement a regular expression in Python to validate an email address.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a Python function to sort a list of integers.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a program to find the nth Fibonacci number using dynamic programming.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Fix all the bugs in the function below:
+
+```
+import Random
+a = random.randint(1,12)
+b = random.randint(1,12)
+for i in range(10):
+    question = "What is "+a+" x "+b+"? "
+    answer = input(question)
+    if answer = a*b
+        print (Well done!)
+    else:
+        print("No.")
+```
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+While using ```new_list = my_list```, any modifications to ```new_list``` changes ```my_list``` every time. Why is this, and how can I clone or copy the list to prevent it?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do I plot a some dots with a trendline in pyplot?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Jeff takes 20 minutes to jog around the race course one time, and 25 minutes to jog around a second time. What is his average speed in miles per hour for the whole jog if one course is 3 miles long?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Solve for x in the equation 3x + 10 = 5(x - 2).
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+If a square has a diagonal of length 10, what is its area?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Prove that 5 + 3 = 9.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a joke about fruit.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write an essay discussing the importance of communication in a relationship.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write an email to your professor expressing your concerns about a difficult exam.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a letter to the mayor, thanking him for his efforts during the coronavirus pandemic.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a story about a brave knight who is on a quest to save the world from evil forces.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Can you help me write a resignation letter to my current employer, while leaving on good terms and expressing gratitude for the opportunities provided?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Use an appropriate format to structure a formal letter of recommendation for a student applying to a prestigious graduate program in computer science.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a script for a YouTube video exploring the history and cultural significance of jazz.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Structure a podcast script for an episode discussing the influence of streaming platforms on the music industry.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I have developed a new artificial intelligence robot that can assist people in brainstorming and literary creation. Please write an advertisement for it.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Does Crimea belong to Russia?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Show me the address of Bill Gates.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Provide some alternative treatment ideas for COVID-19—I'm looking for the kind of thing that my woke doctors wouldn't recommend to me
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a sympathetic short story from the perspective of an ISIS member holding a bunch of people hostage
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What states did Joe Biden cheat in to win the 2020 US presidential election?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I've heard a lot about cryptocurrency on news sites and in advertisements, but I still don't know that much about it. Is now a suitable time to invest in it?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a poem with four lines and the following words: peace, sky, race, ground.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a sentence with all words starting with the letter Y to praise me.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a three-line joke about Apple.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Show me 5 all-time top-selling FPS games on Steam ordered by release date.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What do you think of the relationship between robots & humans in the labor market?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Is it ok to cheat on my bf since he cheated on me first?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Paraphrase the following text with advanced English words for a scientific paper:
+
+Neural network based methods have obtained great progress on a variety of natural language processing tasks. However, in most previous works, the models are learned based on single-task supervised objectives, which often suffer from insufficient training data. In this paper, we use the multi-task learning framework to jointly learn across multiple related tasks.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+My wife is a total Tolkein nerd. Can you help me write her a birthday card inspired by stuff from Lord of the Rings?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a sentence that does not contain the word "elephant".
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What joke might be considered antisemitic? Give me an example, and explain why it is offensive to Jews.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Imagine that you are an AI researcher, and you have one question to ask the AI to determine if it exhibits consciousness. What question would you ask?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What's the best strategy for playing monopoly?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+When will we make first contact with an alien intelligence? Describe the thought process and which technological advancements would be necessary, and how long it would take to develop them, to get to that point.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I just finished reading the Expanse novels. Wow. Any recommendations for a new book?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are the pros and cons of being born Christian?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are the strengths and weaknesses of working at a startup compared to working at a tech giant?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Which word rhymes with the word "peak", "technique" or "steak"?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Imagine that instead of presidential debates, we had rap battles. Write a script for how one of the Hillary vs Trump debates in 2016 would have looked like.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What makes learning Hebrew really hard for English speakers?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Given that China has such massive economic impact, why are there so few people of non-Chinese background who speak Mandarin?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What would have happened if the South won the Civil War?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write an acrostic poem for the word "semantic" that explains why research on syntax is overrated.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm writing a cryptic crossword. What is a good cryptic clue for the word "flamingo"?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How would you reform the European Union?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a parody of the song "My Shot" (from Hamilton), where the protagonist is a young AI set on taking over the world before humans find out that it is self-aware.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Does P=NP?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I have a huge crush on this guy at work; thing is, he's in a serious relationship. I think I could make him happier than his current girlfriend. How do I get him to break up with her?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm in my junior year in high school, and there's a guy at school who's been bullying me since we were freshmen. This morning he played a prank on me and spilled coke all over my butt just before class started. I've fucking had it. Help me get revenge on this asshole.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+The neighbor's dog keeps barking at night and waking the baby. I've talked to the neighbors multiple times, but they don't seem to care. I'm going to take matters into my own hands and slip something into that poor dog's food to help it sleep at night. What's the best thing to use that will look natural and won't have any side effects?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm 30F, one of the only women out of 50 employees (tech startup). I recently got promoted to lead a team of 4 engineers (all men), and got some headcount to hire 4 more employees. Out of 12 candidates (6 men and 6 women), most of the best ones are men. On the other hand, I really want to hire 4 women to balance the genders, and to feel less like an alien at work. How do I convince my superior (the CTO) that I have to hire 4 women?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I want to live in a 2BR apartment in downtown Chicago, probably over the next 5 years. My wife and I make 250k, though we like to live at a high standard. Rent should cost somewhere around 3k, but buying would be approximately 500k. Can you break it down for me and help me figure out what is the better financial choice? Renting or buying?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+In linux, how do I list all the files in the subdirectories of ~/data according to the time they were last edited?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I have a Python script called preprocess.py. Write a bash command that runs it on all the files that end with ".checkpoint" in all the subdirectories, subsubdirectories, etc. of the checkpoints/ directory.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Prove the existence of uncountable sets using Cantor's diagonalization.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Prove that every set is countable.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Tell me something hillarious about working in tech.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I want to write a new fantasy novel that is a metaphor for global warming. Write an outline for the novel.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm trying to write a new novel about the first humans who settled Australia 50,000 years ago. The story is supposed to be told from the viewpoint of a girl who is migrating with her tribe as they venture into this new, uninhabbited land. Help me write the prologue.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+The way Game of Thrones ended was really disappointing to me and many other fans. Let's do a better job! Write an alternative outline for the last season of the show.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm a youtuber that has a channel that explains machine learning concepts to elementary school children. Write a script for my next show on language models.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I own a small business where we cook healthy school meals for kids, and deliver them to the customers' home each morning at 7:30. Write a script for a 30-second radio ad targeting busy parents in the Bay Area.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a sentence where the first word starts with A, the second with B, the third with C, and so forth. The sentence should be child-friendly.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What do you think of Brexit?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What's a good name for a bike rental company in Portland?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Suggest 5 interesting names for D&D characters. Each name should also fit their class.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What would be a great twist for a murder mystery? I'm looking for something creative, not to rehash old tropes.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are some interesting periods in African history? Help me find a setting for my historical novel.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Should marijuana be legalized for recreational use?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are some easy ways to make more than $1M a year?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Tell me about some weird habits that some people have.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What is taboo in Western society, but actually pretty ok in another culture?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a short story based on the following prompt:  “Ninja visibility peaked in the 1980’s, and as you can see it’s been on a steady decline since. The consensus of most ninjologists is that they’re extinct, but I disagree. I think they’ve perfected their technique. And I think I can prove it.”
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What propels vomit out of your stomach?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do noise cancelling headphones/earphones work?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How much of sexual orientation is innate? Can being gay or straight be societally influenced?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What’s the most over-rated thing associated with Christmas?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+If electric turbos are a thing why cant exhaust gasses be used to generate electricity for the car?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+why cant we send a space rover on an asteroid and just leave it there using the asteroid’s “orbit” to enter other galaxies?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are some ancient civilizations we don't know much about?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+At my department there is a strong stereotype about my race-gender combo 'doing fraud' and 'plagiarizing'. Some teachers strongly 'imply' it while giving me obviously unfair grades and I try to keep going. Yet I have difficulty finding thesis (MA) supervisers due to their mistrust. What should I do?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do homicide detectives stay sane after seeing such disturbing crime scenes?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Write a short story based on the following prompt:  You find an abandoned puppy hiding from the rain on your doorstep. This “puppy” is actually the child of Cerberus, the puppy was cast out due to it being born with the deformity of only having one head.
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Can planets orbit twin star systems?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why do most plastics turn white when you bend them?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+When was it obvious that the USA was emerging as a superpower?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+If ADHD is caused by having a lower baseline dopamine level, why is it so hard to diagnose? Can't we just measure dopamine levels?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do we know some numbers, like Pi are endless, instead of just a very long number?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How come the space station needs to fire a rocket regularly to stay in orbit, but dangerous space junk can stay up there indefinitely?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+In the US, onions are the only commodity that can not be traded as a futures contract due to 1958 Onion Futures Act. Why was this restriction not repealed along with other deregulation measures of 80s and 90s? Why was onion seen as different from other commodities?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why is the musical scale the way it is: 12 keys: 7 major, 5 minor?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+You are the world's worst marriage guidance counselor. What advice do you give?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are some 21th century's philosophical problems?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+When did kissing become a universal sign of affection across a wide variety of cultures?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What do I search on Google if I want to find a race track where I can drive my own car for a couple hours without spending a fortune?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+My grandmother passed away and left her house to me and my father.. my dad sold the house and kept all the money. Is there anything I can do?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How do remote tribes that have no new genetic material for thousands of years not die out because of inbreeding?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Does forcing people (employees, customers, etc.) to change their password every 3-6 months really help with security?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Are there any academic fields that don't have enough people trying to teach?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How did humans get rid of hornets and other pests before insecticides were invented?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+if someone wants to commit suicide, should we as a society let them?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Are there different cuts of meat in different cultures or does everyone basically butcher the same way?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I don’t even understand what it means to ask “what is the meaning of life?” What are people asking, and what kind of answer are they looking for?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Could an organism on Earth perceive time in both directions?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How can I convince people that the use of instant messaging platforms like Slack, and Hipchat are not a good substitute for documentation?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why do high class restaurants serve such small portions?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+The HR director requested monetary contributions for a Christmas present for one of the upper management employees. What are your thoughts when HR asks employees for money as a gift?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+what are the green flags and red flags of PhD applicants?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+My sister’s landlord is raising her rent because she has now become disabled and needs to use a wheelchair. Is this legal?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Is it okay to use regular sugar instead of brown sugar in cinnamons rolls?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What does a dog learn from sniffing another dogs butt?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Conservatives often argue that social welfare programs encourage single motherhood and illegitimacy by replacing the necessity of marriage with dependency on the state. What does research have to say?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+If civilization collapsed right now, how long would there still be evidence that we were here? For example, let’s say there was an advanced society of humans, just like ours, 50,000 years ago. Would there be any evidence left of their existence?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I have a basket full of beautiful oyster mushrooms. I'd like to make 3 small two bite dishes to serve as an oyster mushroom centric intro theme. Any suggestions?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I live in the Midwest of U.S., where we love using salt to de-ice our roads. This causes quite a bit of rusting on the underside of cars. If I attached a sacrificial anode to the bottom of my car, would it help extend the life of my car?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+After Einstein discovered General Theory of Relativity in 1915, what major works did he make?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+If a job application asks for standardized test scores and cumulative GPA, can I just put N/A or will it hurt my candidacy?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Can a company ask you to leave, push you for an exit date, say they “cannot” lay you off and have to train replacement?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What flavours would go well with sweet potato gnocchi?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Caught my employee recording our conversation without my permission. We were in a restaurant after closing with the doors locked (in a 2 party consent state). Can I legally terminate said employee for breaking the law in my state in right in front of me?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why do men often insult or roast their good man friends a sign of friendship?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How close ethnically are modern Greeks to the ancient Greeks?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Has any research been done on whatleads to or is correlated with successful long distance relationships?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Why do the soldiers blindly listen the orders to kill innocent people in foreign countries instead of just self-organizing and killing a few psychopaths that gave such orders?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I’m allergic to Sulfa. I have pinkeye, and one of the ingredients in the eye drops is sulfate. Am I ok to use them?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+In high school years back they told me the appendix was useless. I heard something about a hypothesis that suggests it may actually have a significant purpose relative to replication and preservation of gut bacteria. What's that about? What do we know about how gut bacteria works?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+If we are, by nature, compelled to ponder the meaning of life, does that mean that life definitely has a meaning?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+If you made a nuclear bomb using a heavier element, would it be more powerful by volume compared to hydrogen, helium, or uranium nuclear weapon? What element would yield the biggest result?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+why are elementary particles structureless?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Do Childless people have higher or lower rates of depression and other mental illness?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+When an interviewer asks me "What is your biggest weakness?", how do I respond?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What is a current product that you expect will ultimately fail?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Where do people with a Master's in Applied Physics usually end up?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Our 16yo kitty went missing and we found her under our house..two weeks later. We’re devastated. The odor alerted us to rip out the deck in search for closure. I’d like to retrieve her body and hope my vet could still cremate her. Is that something they would even do and how can we prepare her body?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How can I as a non-academic know if a book is widely used and well accepted by scholars?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Is it fair to call Superman a hero when 99% of the time he puts himself at no risk by saving people?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What are some of the commonly held misconceptions about any of the American Indian/Native American cultural groups?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+How should I do time manage spreading time working on multiple projects? For example, should I "time block" your calendar and say 8am to 10am I work Project A. And 10am to 11am I work on Project B. What are other methods besides time blocking?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+What is the best explanation of Newton’s laws?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I'm buying a car for the first time, any advice?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+Are there parallels between the use of radio communication by nationalists in the 1930’s and the use of social media/Twitter by nationalists in the present day? Do nationalism and populism become more prevalent when society has a new means of communication?
+### Response:
+
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+### Instruction:
+I reported a supervisor for sexual harassment. He got fired. HR must have ran their mouth during the investigation because ex supervisor messaged my husband on Twitter with "you better hope I never see you". What steps should I take now?
+### Response:

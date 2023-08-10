@@ -178,7 +178,7 @@ def flash_attn_fn(
     if multiquery:
         warnings.warn(
             DeprecationWarning(
-                'The direct use of the multiquery arg is deprecated. Set kv_n_heads=1 instead.'
+                'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.'
             ))
         kv_n_heads = 1
 

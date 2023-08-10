@@ -45,8 +45,17 @@ def scaled_multihead_dot_product_attention(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
+    multiquery: bool = False,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
+
+    if multiquery:
+        warnings.warn(
+            DeprecationWarning(
+                'The direct use of the multiquery arg is deprecated. Set kv_n_heads=1 instead.'
+            ))
+        kv_n_heads = 1
+
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
     k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
     v = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
@@ -156,6 +165,7 @@ def flash_attn_fn(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
+    multiquery: bool = False,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
@@ -164,6 +174,13 @@ def flash_attn_fn(
         raise RuntimeError('Please install flash-attn==1.0.3.post0')
 
     check_valid_inputs(query, key, value)
+
+    if multiquery:
+        warnings.warn(
+            DeprecationWarning(
+                'The direct use of the multiquery arg is deprecated. Set kv_n_heads=1 instead.'
+            ))
+        kv_n_heads = 1
 
     if past_key_value is not None:
         if len(past_key_value) != 0:
@@ -256,6 +273,7 @@ def triton_flash_attn_fn(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
+    multiquery: bool = False,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
@@ -286,6 +304,13 @@ def triton_flash_attn_fn(
             )
 
     check_valid_inputs(query, key, value)
+
+    if multiquery:
+        warnings.warn(
+            DeprecationWarning(
+                'The direct use of the multiquery arg is deprecated. Set kv_n_heads=1 instead.'
+            ))
+        kv_n_heads = 1
 
     if past_key_value is not None:
         if len(past_key_value) != 0:
@@ -354,7 +379,8 @@ def triton_flash_attn_fn(
 
 
 class GroupedQueryAttention(nn.Module):
-    """ Grouped Query Attention (GQA) is a generalization of Multi-head (MHA) and Multi-query attention (MQA).
+    """Grouped Query Attention (GQA) is a generalization of Multi-head (MHA) and
+       Multi-query attention (MQA).
 
     This allows the user to set a variable of number of kv_n_heads, rather than
     just n_heads or 1, as in MHA and MQA. Using torch or triton attention
@@ -388,9 +414,18 @@ class GroupedQueryAttention(nn.Module):
 
         self.head_dim = d_model // n_heads
 
-        assert self.kv_n_heads > 0, 'kv_n_heads should be greater than zero'
-        assert self.kv_n_heads <= self.n_heads, 'The number of KV heads should be less than or equal to Q heads'
-        assert self.n_heads % self.kv_n_heads == 0, 'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads'
+        if self.kv_n_heads <= 0:
+            raise ValueError('kv_n_heads should be greater than zero')
+
+        if self.kv_n_heads > self.n_heads:
+            raise ValueError(
+                'The number of KV heads should be less than or equal to Q heads'
+            )
+
+        if self.n_heads % self.kv_n_heads != 0:
+            raise ValueError(
+                'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads'
+            )
 
         self.softmax_scale = softmax_scale
         if self.softmax_scale is None:

@@ -287,7 +287,7 @@ def test_grouped_query_invalid_heads(attn_impl: str, device: str = 'cuda'):
 
     expected_error = 'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads'
 
-    with pytest.raises(AssertionError, match=expected_error):
+    with pytest.raises(ValueError, match=expected_error):
         _ = attention.GroupedQueryAttention(**cfg).to(device)
 
     cfg = om.create({
@@ -302,7 +302,7 @@ def test_grouped_query_invalid_heads(attn_impl: str, device: str = 'cuda'):
 
     expected_error = 'The number of KV heads should be less than or equal to Q heads'
 
-    with pytest.raises(AssertionError, match=expected_error):
+    with pytest.raises(ValueError, match=expected_error):
         _ = attention.GroupedQueryAttention(**cfg).to(device)
 
     cfg = om.create({
@@ -317,5 +317,5 @@ def test_grouped_query_invalid_heads(attn_impl: str, device: str = 'cuda'):
 
     expected_error = 'kv_n_heads should be greater than zero'
 
-    with pytest.raises(AssertionError, match=expected_error):
+    with pytest.raises(ValueError, match=expected_error):
         _ = attention.GroupedQueryAttention(**cfg).to(device)

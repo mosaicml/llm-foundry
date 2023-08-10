@@ -420,7 +420,7 @@ class GroupedQueryAttention(nn.Module):
 
         if self.kv_n_heads > self.n_heads:
             raise ValueError(
-                'The number of KV heads should be less than or equal to Q heads'
+                'The number of KV heads should be less than or equal to Q heads.'
             )
 
         if self.n_heads % self.kv_n_heads != 0:

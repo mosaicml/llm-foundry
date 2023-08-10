@@ -3,13 +3,13 @@
 import os
 import sys
 import warnings
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union, Dict
 
 import torch
 from composer import Trainer
 from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
@@ -22,7 +22,7 @@ from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_optimizer, build_scheduler,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, process_init_device,
-                                           update_batch_size_info)
+                                           update_batch_size_info, pop_config)
 
 
 def validate_config(cfg: DictConfig):
@@ -168,29 +168,6 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
-def pop_config(cfg: DictConfig,
-               key: str,
-               must_exist: bool = True,
-               default_value: Any = None) -> Any:
-    """Pop a value from the main config file and return it.
-
-    If the key does not exist, return the default_value or raise a RuntimeError
-    depending on the must_exist flag.
-    """
-    value = cfg.pop(key, None)
-    if value:
-        return value
-    elif must_exist:
-        raise RuntimeError(
-            f'The {key} parameter is missing and must exist for execution. Please check your yaml.'
-        )
-    else:
-        warnings.warn(
-            f'No {key} parameters specified. {key} will not be used during execution.'
-        )
-        return default_value
-
-
 def main(cfg: DictConfig):
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
@@ -211,11 +188,10 @@ def main(cfg: DictConfig):
     reproducibility.seed_all(seed)
 
     # Initialize distributed setting with seed
-    dist_timeout: int = cfg.pop('dist_timeout', 600.0)
+    dist_timeout: Union[int, float] = cfg.pop('dist_timeout', 600.0)
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     # Get global and device batch size information from distributed/single node setting
-    # TODO remove this as we should treat configs as immutable objects
     cfg = update_batch_size_info(cfg)
 
     print('Logging config...')
@@ -231,66 +207,76 @@ def main(cfg: DictConfig):
                                                  must_exist=True)
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_config: Optional[DictConfig] = pop_config(cfg,
-                                                   'fsdp_config',
-                                                   must_exist=False)
+    fsdp_dict_config: Optional[DictConfig] = pop_config(cfg, 'fsdp_config', must_exist=False, default_value=None)
+    fsdp_config: Optional[Dict] = om.to_container(fsdp_dict_config) if fsdp_dict_config is not None else None  # type: ignore
     lora_config: Optional[DictConfig] = pop_config(cfg,
                                                    'lora',
-                                                   must_exist=False)
+                                                   must_exist=False, default_value=None)
     eval_loader_config: Optional[DictConfig] = pop_config(cfg,
                                                           'eval_loader',
-                                                          must_exist=False)
-    icl_tasks_config: Optional[DictConfig] = pop_config(cfg,
+                                                          must_exist=False,  default_value=None)
+    icl_tasks_config: Optional[ListConfig] = pop_config(cfg,
                                                         'icl_tasks',
-                                                        must_exist=False)
+                                                        must_exist=False,  default_value=None)
 
     # Optional logging, evaluation and callback configs
     logger_configs: Optional[DictConfig] = pop_config(cfg,
                                                       'loggers',
-                                                      must_exist=False)
+                                                      must_exist=False,  default_value=None)
     callback_configs: Optional[DictConfig] = pop_config(cfg,
                                                         'callbacks',
-                                                        must_exist=False)
+                                                        must_exist=False,  default_value=None)
     algorithm_configs: Optional[DictConfig] = pop_config(cfg,
                                                          'algorithms',
-                                                         must_exist=False)
+                                                         must_exist=False,  default_value=None)
 
-    # Mandatory parameters for trainer
-    device_train_batch_size: int = cfg.pop('device_train_batch_size')
-    device_eval_batch_size: int = cfg.pop('device_eval_batch_size')
-    max_duration: Union[int, str] = cfg.pop('max_duration')
-    eval_interval: Union[int, str] = cfg.pop('eval_interval')
-    precision: str = cfg.pop('precision')
-    max_seq_len: int = cfg.pop('max_seq_len')
+    # Mandatory hyperparameters for training
+    device_train_batch_size: int = pop_config(cfg, 'device_train_batch_size', must_exist=True)
+    device_eval_batch_size: int = pop_config(cfg, 'device_eval_batch_size', must_exist=True)
+    max_duration: Union[int, str] = pop_config(cfg, 'max_duration', must_exist=True)
+    eval_interval: Union[int, str] = pop_config(cfg, 'eval_interval', must_exist=True)
+    precision: str = pop_config(cfg, 'precision', must_exist=True)
+    max_seq_len: int = pop_config(cfg, 'max_seq_len', must_exist=True)
 
-    # Optional parameters for will be set to default values if not specified.
+    # Optional parameters will be set to default values if not specified.
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = cfg.pop('run_name', default_run_name)
-    save_folder: Optional[str] = cfg.pop('save_folder', None)
-    save_latest_filename: str = cfg.pop('save_latest_filename',
-                                        'latest-rank{rank}.pt')
-    save_overwrite: bool = cfg.pop('save_overwrite', False)
-    save_weights_only: bool = cfg.pop('save_weights_only', False)
-    save_filename: str = cfg.pop('save_filename',
-                                 'ep{epoch}-ba{batch}-rank{rank}.pt')
-    save_interval: Union[str, int] = cfg.pop('save_interval', '1000ba')
-    save_num_checkpoints_to_keep: int = cfg.pop('save_num_checkpoints_to_keep',
-                                                -1)
-    progress_bar = cfg.pop('progress_bar', False)
-    log_to_console: bool = cfg.pop('log_to_console', True)
-    python_log_level: str = cfg.pop('python_log_level', 'debug')
-    console_log_interval: Union[int, str] = cfg.pop('console_log_interval',
-                                                    '1ba')
-    device_train_microbatch_size: Union[str, int] = cfg.pop(
-        'device_train_microbatch_size', 'auto')
-    eval_subset_num_batches: int = cfg.pop('eval_subset_num_batches', -1)
-    eval_first: bool = cfg.pop('eval_first', False)
-    load_path: str = cfg.pop('load_path', None)
-    load_weights_only: bool = cfg.pop('load_weights_only', False)
-    load_ignore_keys: Optional[List[str]] = cfg.pop('load_ignore_keys', None)
+    run_name: str = pop_config(cfg,'run_name', must_exist=False, default_value=default_run_name)
+    save_folder: Optional[str] = pop_config(cfg,'save_folder', must_exist=False, default_value=None)
+    save_latest_filename: str = pop_config(cfg,'save_latest_filename', must_exist=False,
+                                        default_value='latest-rank{rank}.pt')
+    save_overwrite: bool = pop_config(cfg,'save_overwrite', must_exist=False,
+                                        default_value=False)
+    save_weights_only: bool = pop_config(cfg,'save_weights_only', must_exist=False,
+                                        default_value=False)
+    save_filename: str = pop_config(cfg,'save_filename',must_exist=False,
+                                        default_value='ep{epoch}-ba{batch}-rank{rank}.pt')
+    save_interval: Union[str, int] = pop_config(cfg,'save_interval', must_exist=False,
+                                        default_value='1000ba')
+    save_num_checkpoints_to_keep: int = pop_config(cfg,'save_num_checkpoints_to_keep', must_exist=False,
+                                        default_value=-1)
+    progress_bar = pop_config(cfg,'progress_bar', must_exist=False,
+                                        default_value=False)
+    log_to_console: bool = pop_config(cfg,'log_to_console', must_exist=False,
+                                        default_value=True)
+    python_log_level: str = pop_config(cfg,'python_log_level', must_exist=False,
+                                        default_value='debug')
+    console_log_interval: Union[int, str] = pop_config(cfg,'console_log_interval', must_exist=False,
+                                        default_value='1ba')
+    device_train_microbatch_size: Union[str, int] = pop_config(cfg, 'device_train_microbatch_size', must_exist=False,
+                                        default_value='auto')
+    eval_subset_num_batches: int = pop_config(cfg,'eval_subset_num_batches', must_exist=False,
+                                        default_value=-1)
+    eval_first: bool = pop_config(cfg,'eval_first', must_exist=False,
+                                        default_value=False)
+    load_path: str = pop_config(cfg,'load_path', must_exist=False,
+                                        default_value=None)
+    load_weights_only: bool = pop_config(cfg,'load_weights_only', must_exist=False,
+                                        default_value=False)
+    load_ignore_keys: Optional[List[str]] = pop_config(cfg,'load_ignore_keys', must_exist=False,
+                                        default_value=None)
     # Enable autoresume from model checkpoints if possible
     autoresume_default = not save_overwrite and not save_weights_only
-    autoresume = cfg.pop('autoresume', autoresume_default)
+    autoresume = pop_config(cfg,'autoresume', must_exist=False, default_value=autoresume_default)
 
     # Pop known unused parameters.
     cfg.pop('data_local', None)
@@ -314,6 +300,7 @@ def main(cfg: DictConfig):
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
+    log_config(om.create(fsdp_config))
 
     # Build tokenizer
     tokenizer = build_tokenizer(tokenizer_config)
@@ -343,7 +330,7 @@ def main(cfg: DictConfig):
     ## Evaluation
     print('Building eval loader...')
     evaluators = []
-    if eval_loader_config:
+    if eval_loader_config is not None:
         assert model.train_metrics is not None
         eval_dataloader = build_dataloader(eval_loader_config, tokenizer,
                                            device_eval_batch_size)
@@ -353,7 +340,7 @@ def main(cfg: DictConfig):
                                 metric_names=eval_metric_names)
         evaluators.append(eval_loader)
 
-    if icl_tasks_config:
+    if icl_tasks_config is not None:
         icl_evaluators, _ = build_icl_evaluators(icl_tasks_config, tokenizer,
                                                  max_seq_len,
                                                  device_eval_batch_size)
@@ -367,19 +354,19 @@ def main(cfg: DictConfig):
 
     # Loggers
     loggers = [
-        build_logger(name, logger_cfg)
+        build_logger(str(name), logger_cfg)
         for name, logger_cfg in logger_configs.items()
     ] if logger_configs else None
 
     # Callbacks
     callbacks = [
-        build_callback(name, callback_cfg)
+        build_callback(str(name), callback_cfg)
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else None
 
     # Algorithms
     algorithms = [
-        build_algorithm(name, algorithm_cfg)
+        build_algorithm(str(name), algorithm_cfg)
         for name, algorithm_cfg in algorithm_configs.items()
     ] if algorithm_configs else None
 

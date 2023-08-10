@@ -1,9 +1,9 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 import argparse
 import math
 import os
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 import yaml
@@ -26,7 +26,7 @@ def _get_cluster_info():
 CLUSTER_INFO = _get_cluster_info()
 
 
-def str_to_bool(value):
+def str_to_bool(value: Union[bool, str]):
     # helper fn
     if isinstance(value, bool):
         return value
@@ -169,11 +169,17 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_max_seq_lens(pows=[9, 14]):
+def get_max_seq_lens(pows: Optional[List[int]] = None):
+    if pows is None:
+        pows = [9, 14]
     return [2**n for n in range(pows[0], pows[1] + 1)]
 
 
-def get_global_train_batch_sizes(max_seq_len, pows, batch_sizes=[]):
+def get_global_train_batch_sizes(max_seq_len: int,
+                                 pows: List[int],
+                                 batch_sizes: Optional[List[int]] = None):
+    if batch_sizes is None:
+        batch_sizes = []
     if pows:
         # global batch size in tokens (defualt: .5M thru 8M)
         global_train_token_counts = [2**n for n in range(pows[0], pows[1] + 1)]
@@ -182,7 +188,7 @@ def get_global_train_batch_sizes(max_seq_len, pows, batch_sizes=[]):
     return batch_sizes
 
 
-def get_parameters(yaml_file):
+def get_parameters(yaml_file: str):
     local_yamls = False if 'https' in yaml_file else True
     if local_yamls:
         # Load the YAML into a parameters dictionary
@@ -197,11 +203,11 @@ def get_parameters(yaml_file):
     return parameters
 
 
-def get_cluster_gpu_types(cluster):
+def get_cluster_gpu_types(cluster: str):
     return [gpu_info[0] for gpu_info in CLUSTER_INFO[cluster]]
 
 
-def get_gpu_types(clusters):
+def get_gpu_types(clusters: List[str]):
     gpu_types = set()
     for c in clusters:
         for g in get_cluster_gpu_types(c):
@@ -209,7 +215,7 @@ def get_gpu_types(clusters):
     return gpu_types
 
 
-def get_gpu_nums(clusters, gpu_types):
+def get_gpu_nums(clusters: List[str], gpu_types: List[str]):
     max_gpus_per_run = 1
     for c in clusters:
         for gpu_info in CLUSTER_INFO[c]:
@@ -223,26 +229,26 @@ def get_gpu_nums(clusters, gpu_types):
     return gpu_nums
 
 
-def get_valid_gpu_lim(cluster, gpu_type):
+def get_valid_gpu_lim(cluster: str, gpu_type: str):
     for gpu_info in CLUSTER_INFO[cluster]:
         if gpu_info[0] == gpu_type:
             return gpu_info[1]
     raise ValueError
 
 
-def mod_parameters(parameters,
-                   max_seq_len,
-                   global_train_batch_size,
-                   precision,
-                   fsdp_config_mixed_precision='DEFAULT',
-                   fsdp_config_activation_checkpointing=None,
-                   run_name='',
-                   data_remote=None,
-                   max_duration='30ba',
-                   eval_interval=0,
-                   microbatch_size=None,
-                   wandb=True,
-                   pad_vocab_multiple=None):
+def mod_parameters(parameters: Dict[str, Any],
+                   max_seq_len: int,
+                   global_train_batch_size: int,
+                   precision: str,
+                   fsdp_config_mixed_precision: str = 'DEFAULT',
+                   fsdp_config_activation_checkpointing: Optional[bool] = None,
+                   run_name: str = '',
+                   data_remote: Optional[str] = None,
+                   max_duration: str = '30ba',
+                   eval_interval: int = 0,
+                   microbatch_size: Optional[Union[int, str]] = None,
+                   wandb: bool = True,
+                   pad_vocab_multiple: Optional[int] = None):
     if run_name:
         parameters['run_name'] = run_name
     if data_remote is not None:
@@ -310,7 +316,10 @@ def mod_parameters(parameters,
     return parameters
 
 
-def get_integrations(project, git_branch=None, git_commit=None, wandb=True):
+def get_integrations(project: str,
+                     git_branch: Optional[str] = None,
+                     git_commit: Optional[str] = None,
+                     wandb: bool = True):
     integrations = []
 
     if git_branch and git_commit:
@@ -339,7 +348,8 @@ def get_integrations(project, git_branch=None, git_commit=None, wandb=True):
     return integrations
 
 
-def run_config(config, args):
+def run_config(config: Tuple[str, int, int, str, str, int, str],
+               args: argparse.Namespace):
     model_yaml, max_seq_len, global_train_batch_size, cluster, gpu_type, gpu_num, precision = config
 
     integrations = get_integrations(
@@ -383,6 +393,7 @@ def run_config(config, args):
         print(f'Shortening {_name} to {name} ({name_len_lim} chars)')
 
     microbatch_size = args.microbatch_size or 'auto'
+    assert isinstance(microbatch_size, (int, str))
     parameters = mod_parameters(
         parameters,
         max_seq_len,
@@ -416,7 +427,10 @@ def run_config(config, args):
         print(f'run = {name}')
 
 
-def run_check_capacity(model_yaml, gpu_num, gpu_type, p_multiplier=16):
+def run_check_capacity(model_yaml: str,
+                       gpu_num: int,
+                       gpu_type: str,
+                       p_multiplier: int = 16):
     _params = model_yaml.replace('.yaml', '')
     params, mult = int(_params[:-1]), _params[-1]
     if mult == 'm':
@@ -436,7 +450,7 @@ def run_check_capacity(model_yaml, gpu_num, gpu_type, p_multiplier=16):
     return True
 
 
-def run_check_dtms(num_gpus, dtms, batch_size):
+def run_check_dtms(num_gpus: int, dtms: int, batch_size: int):
     if num_gpus * dtms > batch_size:
         print(
             f'WARNING: Cannot run with {batch_size=} on {num_gpus=} with {dtms=} ({num_gpus*dtms=}).'
@@ -477,9 +491,12 @@ if __name__ == '__main__':
                                         global_train_batch_size)
 
                                 if run:
-                                    config = (model_yaml, max_seq_len,
-                                              global_train_batch_size, cluster,
-                                              gpu_type, gpu_num, precision)
+                                    config: Tuple[str, int, int, str, str, int,
+                                                  str] = (
+                                                      model_yaml, max_seq_len,
+                                                      global_train_batch_size,
+                                                      cluster, gpu_type,
+                                                      gpu_num, precision)
                                     print(config)
                                     run_config(config, args)
                                     n_jobs += 1

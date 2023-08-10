@@ -3,13 +3,12 @@
 
 """GPT Blocks used for the GPT Model."""
 
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
 
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
@@ -21,32 +20,39 @@ class MPTBlock(nn.Module):
         d_model: int,
         n_heads: int,
         expansion_ratio: int,
-        attn_config: Dict = {
-            'attn_type': 'multihead_attention',
-            'attn_pdrop': 0.0,
-            'attn_impl': 'triton',
-            'qk_ln': False,
-            'clip_qkv': None,
-            'softmax_scale': None,
-            'prefix_lm': False,
-            'attn_uses_sequence_id': False,
-            'alibi': False,
-            'alibi_bias_max': 8,
-        },
-        ffn_config: Dict = {
-            'ffn_type': 'mptmlp',
-        },
+        attn_config: Optional[Dict] = None,
+        ffn_config: Optional[Dict] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         verbose: int = 0,
         fc_type: str = 'torch',
         device: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
+        if attn_config is None:
+            attn_config = {
+                'attn_type': 'multihead_attention',
+                'attn_pdrop': 0.0,
+                'attn_impl': 'triton',
+                'qk_ln': False,
+                'clip_qkv': None,
+                'softmax_scale': None,
+                'prefix_lm': False,
+                'attn_uses_sequence_id': False,
+                'alibi': False,
+                'alibi_bias_max': 8,
+            }
+
+        if ffn_config is None:
+            ffn_config = {
+                'ffn_type': 'mptmlp',
+            }
+
         del kwargs  # unused, just to capture any extra args from the config
         super().__init__()
 
         norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
+        assert isinstance(attn_config['attn_type'], str)
         attn_class = ATTN_CLASS_REGISTRY[attn_config['attn_type']]
 
         self.norm_1 = norm_class(d_model, device=device)
@@ -79,11 +85,12 @@ class MPTBlock(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        past_key_value: Optional[Tuple[torch.Tensor]] = None,
+        past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         is_causal: bool = True,
-    ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor]]]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
+            torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
         b, attn_weights, past_key_value = self.attn(
             a,

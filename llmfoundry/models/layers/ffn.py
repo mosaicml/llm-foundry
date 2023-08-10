@@ -3,14 +3,12 @@
 
 """GPT Blocks used for the GPT Model."""
 
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
 
-from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
-from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 try:
     import transformer_engine.pytorch as te
@@ -44,7 +42,7 @@ class MPTMLP(nn.Module):
         )
         self.down_proj._is_residual = True  # type: ignore
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         return self.down_proj(self.act(self.up_proj(x)))
 
 
@@ -62,11 +60,11 @@ def build_ffn(
     expansion_ratio: int,
     fc_type: str = 'torch',
     device: Optional[str] = None,
-    **kwargs,
+    **kwargs: Any,
 ):
     ffn_type = kwargs.pop('ffn_type')
     if ffn_type == 'mptmlp':
-        if kwargs is not None and len(kwargs) > 0:
+        if len(kwargs) > 0:
             raise ValueError(
                 f'MPTMLP got an unexpected keyword argument: {kwargs}')
         return MPTMLP(
@@ -76,6 +74,7 @@ def build_ffn(
             device=device,
         )
     elif ffn_type == 'te_ln_mlp':
+        assert te is not None
         return te.LayerNormMLP(
             hidden_size=d_model,
             ffn_hidden_size=d_model * expansion_ratio,

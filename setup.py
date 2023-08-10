@@ -50,6 +50,7 @@ install_requires = [
     'mosaicml[libcloud,nlp,wandb]>=0.15.0,<0.16',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
     'mosaicml-streaming>=0.5.1,<0.6',
+    'mosaicml-turbo>=0.0.2,<0.1',
     'torch>=1.13.1,<=2.0.1',
     'datasets==2.10.1',
     'sentencepiece==0.1.97',

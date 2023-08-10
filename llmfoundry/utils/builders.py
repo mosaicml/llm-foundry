@@ -26,7 +26,7 @@ from llmfoundry.callbacks import (FDiffMetrics, Generate, GlobalLRScaling,
                                   LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                              DecoupledLionW)
+                              DecoupledLionW, DecoupledLionW_8bit)
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
@@ -115,6 +115,9 @@ def build_optimizer(cfg, model):
                                   timeout=cfg.timeout,
                                   lr_penalty=cfg.lr_penalty,
                                   min_scale=cfg.min_scale)
+    elif cfg.name.lower() == 'decoupled_lionw_8b':
+        kwargs = {k: v for k, v in cfg.items() if k != 'name'}
+        return DecoupledLionW_8bit(model.parameters(), **kwargs)
     else:
         raise ValueError(f'Not sure how to build optimizer: {cfg.name}')
 

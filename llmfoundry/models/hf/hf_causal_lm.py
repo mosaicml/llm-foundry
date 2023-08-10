@@ -186,6 +186,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 raise ValueError(
                     f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
                 )
+
+            print(f"Patching llama attention with {attention_patch_type} attention")
             from transformers.models.llama.modeling_llama import LlamaAttention
             LlamaAttention.forward = get_llama_attention_patch_fn(
                 attention_patch_type)

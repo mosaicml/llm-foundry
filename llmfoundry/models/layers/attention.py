@@ -425,7 +425,7 @@ class GroupedQueryAttention(nn.Module):
 
         if self.n_heads % self.kv_n_heads != 0:
             raise ValueError(
-                'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads'
+                'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads.'
             )
 
         self.softmax_scale = softmax_scale

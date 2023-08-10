@@ -1,9 +1,9 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 import os
 import sys
 import warnings
+from typing import Dict
 
 import torch
 from composer import Trainer
@@ -11,21 +11,21 @@ from composer.core import Evaluator
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import PreTrainedTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data.text_data import build_text_dataloader
-from llmfoundry.models.utils import init_empty_weights, init_on_device
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_evaluators, build_logger,
                                        build_optimizer, build_scheduler,
                                        build_tokenizer)
-from llmfoundry.utils.config_utils import log_config, update_batch_size_info
+from llmfoundry.utils.config_utils import (log_config, process_init_device,
+                                           update_batch_size_info)
 
 
-def validate_config(cfg):
+def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""
     loaders = [cfg.train_loader]
     if 'eval_loader' in cfg:
@@ -64,11 +64,12 @@ def validate_config(cfg):
             'fp8' in cfg.precision):
         warnings.warn(
             "fp8 only supported for te.Linear layers. Either set `cfg.model.fc_typ='te'` or "
+            +
             "`cfg.model.ffn_config.ffn_type='te_ln_mlp'` to enable layers using fp8 precision."
         )
 
-    if (cfg.model.get('fc_type', 'torch') == 'te' or 'te' not in cfg.model.get(
-            'ffn_config', {}).get('ffn_type', 'mptmlp')):
+    if (cfg.model.get('fc_type', 'torch') == 'te' or
+            'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp')):
         fsdp_config = cfg.get('fsdp_config', None)
         act_ckpt = fsdp_config.get('activation_checkpointing', False)
         act_ckpt_reentrant = fsdp_config.get(
@@ -76,20 +77,21 @@ def validate_config(cfg):
         if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == False:
             warnings.warn(
                 '`te.Linear` layers do not support activation_checkpointing with '
-                '`activation_checkpointing_reentrant = False`. '
+                + '`activation_checkpointing_reentrant = False`. ' +
                 'Setting cfg.fsdp_config.activation_checkpointing_reentrant=True.'
             )
             cfg.fsdp_config.activation_checkpointing_reentrant = True
 
     if 'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp'):
         warnings.warn(
-            '`te.LayerNormMLP` requires has issues with torch._dynamo. '
+            '`te.LayerNormMLP` requires has issues with torch._dynamo. ' +
             'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.'
         )
-        torch._dynamo.config.suppress_errors = True
+        torch._dynamo.config.suppress_errors = True  # type: ignore
 
 
-def build_composer_model(model_cfg, tokenizer):
+def build_composer_model(model_cfg: DictConfig,
+                         tokenizer: PreTrainedTokenizerBase):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
@@ -101,14 +103,15 @@ def build_composer_model(model_cfg, tokenizer):
 
 def build_composer_peft_model(
         model_cfg: DictConfig, lora_cfg: DictConfig,
-        tokenizer: PreTrainedTokenizer) -> ComposerHFCausalLM:
+        tokenizer: PreTrainedTokenizerBase) -> ComposerHFCausalLM:
     try:
         from peft import LoraConfig, get_peft_model
     except ImportError as e:
         raise ImportError(
             'Error importing from peft. Please verify that peft and peft utils '
-            'are installed by running `pip install -e .[peft]` from `llm-foundry/`.'
-            f'Error encountered: {e}')
+            +
+            'are installed by running `pip install -e .[peft]` from `llm-foundry/`. '
+            + f'Error encountered: {e}')
 
     # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
     print('Building Lora config...')
@@ -128,7 +131,7 @@ def build_composer_peft_model(
     return model
 
 
-def print_trainable_parameters(model) -> None:
+def print_trainable_parameters(model: torch.nn.Module) -> None:
     # Prints the number of trainable parameters in the model.
     trainable_params = 0
     all_param = 0
@@ -141,7 +144,8 @@ def print_trainable_parameters(model) -> None:
     )
 
 
-def build_dataloader(cfg, tokenizer, device_batch_size):
+def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+                     device_batch_size: int):
     if cfg.name == 'text':
         return build_text_dataloader(
             cfg,
@@ -165,7 +169,7 @@ def build_dataloader(cfg, tokenizer, device_batch_size):
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
-def main(cfg):
+def main(cfg: DictConfig):
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)
 
@@ -193,41 +197,14 @@ def main(cfg):
     fsdp_config = cfg.get('fsdp_config', None)
     fsdp_config = om.to_container(fsdp_config,
                                   resolve=True) if fsdp_config else None
+    assert isinstance(fsdp_config, Dict) or fsdp_config is None
     if dist.get_world_size() == 1 and fsdp_config is not None:
         warnings.warn(
             'FSDP is not applicable for single-GPU training. Reverting to DDP.')
         cfg.pop('fsdp_config')
         fsdp_config = None
 
-    # Restrict model init_device to 'meta' and 'cpu',
-    # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
-    # when multiple GPUs are available.
-    # Also 'meta' is only valid when using FSDP
-    init_context = init_on_device(device=torch.device('cpu'))
-    if 'init_device' in cfg.model:
-        assert cfg.model.init_device in ['meta', 'cpu', 'mixed']
-        if fsdp_config is None and cfg.model.init_device == 'meta':
-            warnings.warn(
-                "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
-                "Reverting to `cfg.model.init_device='cpu'`.")
-            cfg.model.init_device = 'cpu'
-        if cfg.model.init_device == 'meta':
-            init_context = init_empty_weights()
-        if cfg.model.init_device == 'mixed':
-            if fsdp_config is None:
-                raise NotImplementedError(
-                    'Using init_device `mixed` is only supported with FSDP. '
-                    'Please add a FSDP config.')
-            # Always set `sync_module_states` to True for mixed initialization
-            if not fsdp_config.get('sync_module_states', False):
-                warnings.warn((
-                    'Setting `sync_module_states = True` for FSDP. This is required '
-                    'when using mixed initialization.'))
-                fsdp_config['sync_module_states'] = True
-
-            # Set defaults for mixed initialization
-            fsdp_config.setdefault('use_orig_params', False)
-            fsdp_config.setdefault('load_monolith_rank0_only', True)
+    init_context = process_init_device(cfg.model, fsdp_config)
 
     # build tokenizer
     tokenizer = build_tokenizer(cfg.tokenizer)
@@ -255,6 +232,7 @@ def main(cfg):
     print('Building eval loader...')
     evaluators = []
     if 'eval_loader' in cfg:
+        assert model.train_metrics is not None
         eval_loader = Evaluator(label='eval',
                                 dataloader=build_dataloader(
                                     cfg.eval_loader, tokenizer,
@@ -292,6 +270,19 @@ def main(cfg):
         for name, algorithm_cfg in (cfg.get('algorithms') or {}).items()
     ]
 
+    # Set autoresume default on if possible
+    save_folder = cfg.get('save_folder', None)
+    save_latest_filename = cfg.get('save_latest_filename',
+                                   'latest-rank{rank}.pt')
+    save_overwrite = cfg.get('save_overwrite', False)
+    save_weights_only = cfg.get('save_weights_only', False)
+    autoresume_default = False
+    if cfg.run_name is not None and save_folder is not None and save_latest_filename is not None and not save_overwrite and not save_weights_only:
+        print(
+            'As run_name, save_folder, and save_latest_filename are set, changing autoresume default to True...'
+        )
+        autoresume_default = True
+
     # Build the Trainer
     print('Building trainer...')
     trainer = Trainer(
@@ -315,20 +306,19 @@ def main(cfg):
         device_train_microbatch_size=cfg.get('device_train_microbatch_size',
                                              'auto'),
         fsdp_config=fsdp_config,  # type: ignore
-        save_folder=cfg.get('save_folder', None),
+        save_folder=save_folder,
         save_filename=cfg.get('save_filename',
                               'ep{epoch}-ba{batch}-rank{rank}.pt'),
-        save_latest_filename=cfg.get('save_latest_filename',
-                                     'latest-rank{rank}.pt'),
+        save_latest_filename=save_latest_filename,
         save_interval=cfg.get('save_interval', '1000ba'),
         save_num_checkpoints_to_keep=cfg.get('save_num_checkpoints_to_keep',
                                              -1),
-        save_overwrite=cfg.get('save_overwrite', False),
-        save_weights_only=cfg.get('save_weights_only', False),
+        save_overwrite=save_overwrite,
+        save_weights_only=save_weights_only,
         load_path=cfg.get('load_path', None),
         load_weights_only=cfg.get('load_weights_only', False),
         load_ignore_keys=cfg.get('load_ignore_keys', None),
-        autoresume=cfg.get('autoresume', False),
+        autoresume=cfg.get('autoresume', autoresume_default),
         python_log_level=cfg.get('python_log_level', 'debug'),
         dist_timeout=cfg.dist_timeout,
     )
@@ -352,4 +342,5 @@ if __name__ == '__main__':
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
+    assert isinstance(cfg, DictConfig)
     main(cfg)

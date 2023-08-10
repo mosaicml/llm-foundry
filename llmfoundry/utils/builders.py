@@ -2,24 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Union
+from typing import Any, Dict, Optional, Union
 
+import torch
 from composer import algorithms
-from composer.callbacks import (LRMonitor, MemoryMonitor, OptimizerMonitor,
-                                RuntimeEstimator, SpeedMonitor)
+from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
+                                OptimizerMonitor, RuntimeEstimator,
+                                SpeedMonitor)
 from composer.core import Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from composer.loggers import TensorboardLogger, WandBLogger
+from composer.loggers import MLFlowLogger, TensorboardLogger, WandBLogger
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
                                       LinearWithWarmupScheduler)
 from composer.utils import dist
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
-from transformers import (AutoTokenizer, PreTrainedTokenizer,
-                          PreTrainedTokenizerFast)
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (FDiffMetrics, Generate, GlobalLRScaling,
                                   LayerFreezing, MonolithicCheckpointSaver,
@@ -27,10 +28,8 @@ from llmfoundry.callbacks import (FDiffMetrics, Generate, GlobalLRScaling,
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW)
 
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
-
-def build_callback(name, kwargs):
+def build_callback(name: str, kwargs: Dict[str, Any]):
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
@@ -57,20 +56,24 @@ def build_callback(name, kwargs):
         return MonolithicCheckpointSaver(**kwargs)
     elif name == 'scheduled_gc':
         return ScheduledGarbageCollector(**kwargs)
+    elif name == 'early_stopper':
+        return EarlyStopper(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
 
-def build_logger(name, kwargs):
+def build_logger(name: str, kwargs: Dict[str, Any]):
     if name == 'wandb':
         return WandBLogger(**kwargs)
     elif name == 'tensorboard':
         return TensorboardLogger(**kwargs)
+    elif name == 'mlflow':
+        return MLFlowLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
 
-def build_algorithm(name, kwargs):
+def build_algorithm(name: str, kwargs: Dict[str, Any]):
     if name == 'gradient_clipping':
         return algorithms.GradientClipping(**kwargs)
     elif name == 'alibi':
@@ -85,7 +88,7 @@ def build_algorithm(name, kwargs):
         raise ValueError(f'Not sure how to build algorithm: {name}')
 
 
-def build_optimizer(cfg, model):
+def build_optimizer(cfg: DictConfig, model: torch.nn.Module):
     if cfg.name == 'decoupled_adamw':
         return DecoupledAdamW(model.parameters(),
                               lr=cfg.lr,
@@ -116,7 +119,7 @@ def build_optimizer(cfg, model):
         raise ValueError(f'Not sure how to build optimizer: {cfg.name}')
 
 
-def build_scheduler(cfg):
+def build_scheduler(cfg: DictConfig):
     if cfg.name == 'constant_with_warmup':
         return ConstantWithWarmupScheduler(t_warmup=cfg.t_warmup)
     elif cfg.name == 'cosine_with_warmup':
@@ -129,7 +132,7 @@ def build_scheduler(cfg):
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
 
 
-def build_tokenizer(om_tokenizer_config: DictConfig,) -> Tokenizer:
+def build_tokenizer(om_tokenizer_config: DictConfig) -> PreTrainedTokenizerBase:
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
@@ -152,20 +155,26 @@ def build_tokenizer(om_tokenizer_config: DictConfig,) -> Tokenizer:
     return tokenizer
 
 
-def build_icl_evaluators(icl_tasks,
-                         tokenizer,
-                         default_max_seq_len,
-                         default_batch_size,
-                         destination_dir=os.getcwd()):
+def build_icl_evaluators(icl_tasks: Union[str, ListConfig],
+                         tokenizer: PreTrainedTokenizerBase,
+                         default_max_seq_len: int,
+                         default_batch_size: int,
+                         destination_dir: Optional[str] = None):
+    if destination_dir is None:
+        destination_dir = os.getcwd()
     evaluators = []
     logger_keys = []
+
+    icl_tasks_list = None
     if isinstance(icl_tasks, str):
         print(f'Extracting ICL task config from path: {icl_tasks}')
         with open(icl_tasks, 'r') as icl_f:
             icl_task_cfg = om.load(icl_f)
-        icl_tasks = icl_task_cfg.icl_tasks
+        icl_tasks_list = icl_task_cfg.icl_tasks
+    else:
+        icl_tasks_list = icl_tasks
 
-    def _validate_cfg(icl_cfg):
+    def _validate_cfg(icl_cfg: DictConfig):
         assert 'label' in icl_cfg
         assert 'dataset_uri' in icl_cfg and icl_cfg.dataset_uri is not None
         assert 'icl_task_type' in icl_cfg
@@ -200,7 +209,7 @@ def build_icl_evaluators(icl_tasks,
         if 'batch_size' not in icl_cfg:
             icl_cfg.batch_size = default_batch_size
 
-    for icl_cfg in icl_tasks:
+    for icl_cfg in icl_tasks_list:
         _validate_cfg(icl_cfg)
         for num_fewshot in list(icl_cfg.num_fewshot):
             if tokenizer.pad_token_id is None:

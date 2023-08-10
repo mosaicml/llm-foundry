@@ -39,14 +39,13 @@ from typing import Any, Callable, Dict, Optional, Union
 import datasets as hf_datasets
 from omegaconf import DictConfig
 from streaming import StreamingDataset
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizerBase
 
 __all__ = ['dataset_constructor']
 
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
-
-def _tokenize_formatted_example(example: Dict[str, Any], tokenizer: Tokenizer):
+def _tokenize_formatted_example(example: Dict[str, Any],
+                                tokenizer: PreTrainedTokenizerBase):
     if ('prompt' not in example) or ('response' not in example):
         raise KeyError(
             'Unable to tokenize example because it has not been properly formatted. ' +\
@@ -86,7 +85,7 @@ class StreamingFinetuningDataset(StreamingDataset):
 
     def __init__(self,
                  local: str,
-                 tokenizer: Tokenizer,
+                 tokenizer: PreTrainedTokenizerBase,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
                  shuffle: bool = False,
@@ -162,7 +161,7 @@ class DatasetConstructor:
         tasks = sorted(self._task_preprocessing_registry.keys())
         print('\n'.join(tasks))
 
-    def get_preprocessing_fn_from_dict(self, mapping: dict):
+    def get_preprocessing_fn_from_dict(self, mapping: Union[Dict, DictConfig]):
         """Get a preprocessing function from a dictionary.
 
         The dictionary maps column names in the dataset to "prompt" and "response".
@@ -256,7 +255,7 @@ class DatasetConstructor:
         return preprocessing_fn
 
     def build_from_hf(self, cfg: DictConfig, max_seq_len: int,
-                      tokenizer: Tokenizer):
+                      tokenizer: PreTrainedTokenizerBase):
         """Load a HuggingFace Datasets, preprocess, and tokenize.
 
         Note: This function will drop examples where the prompt is longer than the max_seq_len

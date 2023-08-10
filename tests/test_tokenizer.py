@@ -5,7 +5,7 @@ from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer
 
 
-def get_config(conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml'):
+def get_config(conf_path: str = 'scripts/train/yamls/pretrain/mpt-125m.yaml'):
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return test_cfg

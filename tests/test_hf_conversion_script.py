@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import pathlib
 import sys
 
 from composer import Trainer
@@ -37,14 +38,15 @@ def delete_transformers_cache():
 
 
 def get_config(
-        conf_path='scripts/train/yamls/pretrain/testing.yaml') -> DictConfig:
+        conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'
+) -> DictConfig:
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return cast(DictConfig, test_cfg)
 
 
-def test_convert_and_generate_torch(tmp_path):
+def test_convert_and_generate_torch(tmp_path: pathlib.Path):
     delete_transformers_cache()
 
     cfg = get_config()
@@ -84,7 +86,7 @@ def test_convert_and_generate_torch(tmp_path):
 
 
 @pytest.mark.gpu
-def test_convert_and_generate_triton(tmp_path):
+def test_convert_and_generate_triton(tmp_path: pathlib.Path):
     delete_transformers_cache()
 
     cfg = get_config()

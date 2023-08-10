@@ -3,14 +3,12 @@
 
 import logging
 import os
-import tempfile
-from typing import Union
 
 import torch
 from composer.utils import dist, get_file, parse_uri
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.tasks import dataset_constructor
@@ -21,10 +19,9 @@ log = logging.getLogger(__name__)
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
 
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
-
-def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
+def build_finetuning_dataloader(cfg: DictConfig,
+                                tokenizer: PreTrainedTokenizerBase,
                                 device_batch_size: int) -> DataLoader:
     """Builds a finetuning dataloader for training or evaluating.
 
@@ -116,6 +113,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
     if tokenizer.pad_token is None:  # type: ignore
         tokenizer.pad_token = tokenizer.eos_token
 
+    dataset = None  # for pyright
     if cfg.dataset.get('remote') is not None:
         dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
@@ -156,40 +154,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
                     'When using a HuggingFace dataset from a URL, you must set the ' + \
                     '`split` key in the dataset config.'
                 )
-            supported_extensions = ['jsonl', 'csv', 'parquet']
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                for extension in supported_extensions:
-                    name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
-                    destination = str(
-                        os.path.abspath(
-                            f'{tmp_dir}/{cfg.dataset.split}.{extension}'))
-                    try:
-                        with dist.run_local_rank_zero_first():
-                            get_file(name, destination, overwrite=True)
-                    except FileNotFoundError as e:
-                        if extension == supported_extensions[-1]:
-                            raise FileNotFoundError(
-                                f'Could not find a {cfg.dataset.split} file with any of ' + \
-                                f'the supported extensions: {supported_extensions}\n' + \
-                                f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
-                            ) from e
-                        else:
-                            print(
-                                f'Could not find {name}, looking for another extension'
-                            )
-                        continue
-                    # 'json' causes special behavior in the dataset constructor
-                    cfg.dataset.hf_name = extension if extension != 'jsonl' else 'json'
-                    kwargs = cfg.dataset.get('hf_kwargs', {})
-                    kwargs['data_files'] = destination
-                    cfg.dataset['hf_kwargs'] = kwargs
-                    print(cfg.dataset)
-                    dataset = dataset_constructor.build_from_hf(
-                        cfg.dataset,
-                        max_seq_len=cfg.dataset.max_seq_len,
-                        tokenizer=tokenizer,
-                    )
-                    break
+            dataset = _build_hf_dataset_from_remote(cfg, tokenizer)
         else:
             dataset = dataset_constructor.build_from_hf(
                 cfg.dataset,
@@ -200,6 +165,7 @@ def build_finetuning_dataloader(cfg: DictConfig, tokenizer: Tokenizer,
         collate_fn, dataloader_batch_size = _build_collate_fn(
             cfg.dataset, tokenizer, device_batch_size)
 
+        assert dataset is not None
         return DataLoader(
             dataset,
             collate_fn=collate_fn,
@@ -269,7 +235,87 @@ def _validate_config(dataset_cfg: DictConfig):
         )
 
 
-def _build_collate_fn(dataset_cfg: DictConfig, tokenizer: Tokenizer,
+def _build_hf_dataset_from_remote(cfg: DictConfig,
+                                  tokenizer: PreTrainedTokenizerBase):
+    """Builds a dataset from a remote object store.
+
+    This function supports 'jsonl', 'csv', and 'parquet' file formats for the dataset. It will attempt to download
+    the dataset, then once it is downloaded, convert it into HuggingFace ``datasets`` format, and then return this
+    dataset.
+
+    The function also ensures synchronicity across multiple processes during the file download. It creates a signal
+    file that is used to synchronize the start of the download across different processes. Once the download is
+    completed, the function removes the signal file.
+
+    Args:
+        cfg (DictConfig): The configuration dictionary containing the necessary parameters to load the dataset.
+            This includes:
+                - dataset.hf_name: The path of the HuggingFace dataset to download.
+                - dataset.split: The dataset split to download (e.g., 'train', 'validation', 'test').
+                - dataset.max_seq_len: The maximum sequence length for tokenizing the dataset.
+
+        tokenizer (Tokenizer): The tokenizer to be used to tokenize the dataset.
+
+    Returns:
+        Dataset: A HuggingFace dataset built from the remote file, prepared and tokenized for fine-tuning the model.
+
+    Raises:
+        FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.
+    """
+    supported_extensions = ['jsonl', 'csv', 'parquet']
+    finetune_dir = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        f'downloaded_finetuning_data/{cfg.dataset.split}')
+    os.makedirs(finetune_dir, exist_ok=True)
+    for extension in supported_extensions:
+        name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
+        destination = str(
+            os.path.abspath(f'{finetune_dir}/{cfg.dataset.split}.{extension}'))
+        # Since we don't know exactly what the extension will be, since it is one of a list
+        # use a signal file to wait for instead of the desired file
+        signal_file_path = os.path.join(finetune_dir, '.the_eagle_has_landed')
+        if dist.get_local_rank() == 0:
+            try:
+                get_file(name, destination, overwrite=True)
+            except FileNotFoundError as e:
+                if extension == supported_extensions[-1]:
+                    raise FileNotFoundError(
+                        f'Could not find a {cfg.dataset.split} file with any of ' + \
+                        f'the supported extensions: {supported_extensions}\n' + \
+                        f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
+                    ) from e
+                else:
+                    print(
+                        f'Could not find {name}, looking for another extension')
+                continue
+
+            os.makedirs(os.path.dirname(signal_file_path), exist_ok=True)
+            with open(signal_file_path, 'wb') as f:
+                f.write(b'local_rank0_completed_download')
+
+        # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
+        # so that we don't timeout for large downloads. This syncs all processes on the node
+        with dist.local_rank_zero_download_and_wait(signal_file_path):
+            # Then, wait to ensure every node has finished downloading the checkpoint
+            dist.barrier()
+
+        # clean up signal file
+        if dist.get_local_rank() == 0:
+            os.remove(signal_file_path)
+        dist.barrier()
+
+        cfg.dataset.hf_name = finetune_dir
+        print(cfg.dataset)
+        dataset = dataset_constructor.build_from_hf(
+            cfg.dataset,
+            max_seq_len=cfg.dataset.max_seq_len,
+            tokenizer=tokenizer,
+        )
+        return dataset
+
+
+def _build_collate_fn(dataset_cfg: DictConfig,
+                      tokenizer: PreTrainedTokenizerBase,
                       device_batch_size: int):
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,

@@ -96,6 +96,7 @@ class ConcatTokensDataset(IterableDataset):
                 'eos_text' if eos_text_provided else 'bos_text')
             warnings.warn(
                 f'The provided tokenizer adds special tokens, but you also specified {message}. This may result '
+                +
                 'in duplicated special tokens. Please be sure this is what you intend.'
             )
 

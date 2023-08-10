@@ -4,14 +4,14 @@
 import argparse
 import csv
 import math
-from typing import Any, Dict
+from typing import Any, Dict, List, Union
 
 from mcli import sdk as msdk
 
 GPU_AVAILABLE_FLOPS = 312_000_000_000_000
 
 
-def str_to_bool(value):
+def str_to_bool(value: Union[bool, str]):
     # helper fn
     if isinstance(value, bool):
         return value
@@ -45,12 +45,12 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_runs(args):
+def get_runs(args: argparse.Namespace):
     runs = [r for r in msdk.get_runs() if args.project in r.name]
     for filter in args.filters:
         runs = [r for r in runs if filter in r.name]
 
-    def sort_key(r):
+    def sort_key(r: msdk.Run):
         model_name = r.name.split('-')[2]
         num_gpu = r.config.gpu_num
         if model_name[-1] == 'm':
@@ -69,7 +69,7 @@ def get_runs(args):
     return runs
 
 
-def filter_runs(runs):
+def filter_runs(runs: List[msdk.Run]):
     pop_runs = []
     for run in runs:
         if run.status == msdk.RunStatus('FAILED'):
@@ -102,7 +102,7 @@ def filter_runs(runs):
     return runs
 
 
-def parse_run(run) -> Dict[str, Any]:
+def parse_run(run: msdk.Run) -> Dict[str, Any]:
     n_params = micro_batchsize = throughput = -1
 
     model_name = run.name.split('-')[2]
@@ -203,7 +203,7 @@ def parse_run(run) -> Dict[str, Any]:
     }
 
 
-def main(args):
+def main(args: argparse.Namespace):
     runs = get_runs(args)
     runs = filter_runs(runs)
 

@@ -15,6 +15,8 @@ from llmfoundry.models.layers.llama_attention_monkeypatch import (
 @pytest.mark.parametrize('explicit_mask', [True, False])
 # @pytest.mark.gpu
 def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool):
+    original_forward = LlamaAttention.forward
+
     device = 'cuda:0'
     sequence_length = 4096
     model_dim = 4096
@@ -59,7 +61,7 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool):
                                                  sequence_length)
     attn_output, _, _ = attention(
         hidden_states=hidden_states,
-        attention_mask=causal_mask,
+        attention_mask=causal_mask if explicit_mask else None,
         position_ids=None,
         past_key_value=None,
         use_cache=False,
@@ -76,5 +78,8 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool):
         past_key_value=None,
         use_cache=False,
     )
+
+    # Reset the forward function so patches don't persist
+    LlamaAttention.forward = original_forward
 
     assert torch.allclose(attn_output, new_output, atol=atol, rtol=rtol)

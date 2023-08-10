@@ -6,7 +6,6 @@ from typing import Optional, Tuple
 
 import torch
 import torch.functional as F
-from transformers.models.llama.modeling_llama import LlamaAttention
 
 from llmfoundry.models.layers.attention import (
     scaled_multihead_dot_product_attention, triton_flash_attn_fn)
@@ -15,7 +14,8 @@ log = logging.getLogger(__name__)
 
 
 def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
-    """This is the equivalent of torch.repeat_interleave(x, dim=1,
+    """Equivalent of torch.repeat_interleave(x, dim=1,
+
     repeats=n_rep).
 
     The hidden states go from (batch, num_key_value_heads, seqlen, head_dim) to
@@ -59,6 +59,10 @@ def llama_attention_patch_torch(
     output_attentions: bool = False,
     use_cache: bool = False,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
+    if use_cache:
+        raise NotImplementedError(
+            'use_cache is not yet supported when patching Llama attention.')
+
     bsz, q_len, _ = hidden_states.size()
 
     if self.config.pretraining_tp > 1:
@@ -113,7 +117,7 @@ def llama_attention_patch_torch(
     value_states = value_states.transpose(1, 2).view(
         bsz, q_len, self.num_key_value_heads * self.head_dim)
 
-    attn_output, _, past_key_value = scaled_multihead_dot_product_attention(
+    attn_output, attn_weights, past_key_value = scaled_multihead_dot_product_attention(
         query=query_states,
         key=key_states,
         value=value_states,
@@ -121,9 +125,9 @@ def llama_attention_patch_torch(
         kv_n_heads=self.num_key_value_heads,
         past_key_value=past_key_value,
         softmax_scale=None,
-        attn_bias=None,
-        key_padding_mask=attention_mask,
-        is_causal=True,
+        attn_bias=attention_mask,
+        key_padding_mask=None,
+        is_causal=False,  # The causal mask is propagated from LLamaForCausalLM
         dropout_p=0,
         training=self.training,
         needs_weights=False,
@@ -143,7 +147,10 @@ def llama_attention_patch_torch(
     else:
         attn_output = self.o_proj(attn_output)
 
-    return attn_output, _, past_key_value
+    if not output_attentions:
+        attn_weights = None
+
+    return attn_output, attn_weights, past_key_value
 
 
 def llama_attention_patch_triton(
@@ -155,6 +162,14 @@ def llama_attention_patch_triton(
     output_attentions: bool = False,
     use_cache: bool = False,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
+    if use_cache:
+        raise NotImplementedError(
+            'use_cache is not yet supported when patching Llama attention.')
+    # output_attentions is not support for triton attention
+    if output_attentions:
+        raise NotImplementedError(
+            'output_attentions is not supported when patching Llama attention with triton attention.'
+        )
     bsz, q_len, _ = hidden_states.size()
 
     if self.config.pretraining_tp > 1:
@@ -219,7 +234,7 @@ def llama_attention_patch_triton(
         softmax_scale=None,
         attn_bias=attention_mask,
         key_padding_mask=None,
-        is_causal=True,
+        is_causal=False,  # The causal mask is propagated from LLamaForCausalLM
         dropout_p=0,
         training=self.training,
         needs_weights=False,
@@ -239,9 +254,4 @@ def llama_attention_patch_triton(
     else:
         attn_output = self.o_proj(attn_output)
 
-    return attn_output, _, past_key_value
-
-
-# log.info("Monkey patching LlamaAttention.forward with triton flash attention")
-print('Monkey patching LlamaAttention.forward with triton flash attention')
-LlamaAttention.forward = llama_attention_patch_triton
+    return attn_output, None, past_key_value

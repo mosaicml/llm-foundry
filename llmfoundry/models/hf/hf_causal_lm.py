@@ -191,6 +191,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             from transformers.models.llama.modeling_llama import LlamaAttention
             LlamaAttention.forward = get_llama_attention_patch_fn(
                 attention_patch_type)
+            model.config.use_cache = False
 
         composer_model = super().__init__(model=model,
                                           shift_labels=True,

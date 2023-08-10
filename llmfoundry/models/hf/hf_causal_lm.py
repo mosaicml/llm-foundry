@@ -201,4 +201,19 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                                           z_loss=z_loss,
                                           init_device=init_device)
 
+        self.n_active_params = sum(p.numel() for p in self.parameters())
+
         return composer_model
+
+    def flops_per_batch(self, batch: Mapping):
+        # Note: this computation does not take into account padding, and assumes
+        # that the dataset has been constructed without padding. Additionally, we
+        # assume the backward pass is approximately 2x the forward pass
+
+        bs, msl = batch['input_ids'].shape[0:2]
+        params_flops_per_token = 2 * self.n_active_params
+        params_flops_per_seq = params_flops_per_token * msl
+        attn_flops_per_seq = (self.model.config.n_layers * 2 * 2 *
+                              (self.model.config.d_model * (msl**2)))
+
+        return (params_flops_per_seq + attn_flops_per_seq) * 3 * bs

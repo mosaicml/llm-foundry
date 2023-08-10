@@ -20,7 +20,7 @@ class MPTBlock(nn.Module):
         d_model: int,
         n_heads: int,
         expansion_ratio: int,
-        attn_config_mutable: Optional[Dict] = None,
+        attn_config: Optional[Dict] = None,
         ffn_config: Optional[Dict] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -29,8 +29,8 @@ class MPTBlock(nn.Module):
         device: Optional[str] = None,
         **kwargs: Any,
     ):
-        if attn_config_mutable is None:
-            attn_config_mutable = {
+        if attn_config is None:
+            attn_config = {
                 'attn_type': 'multihead_attention',
                 'attn_pdrop': 0.0,
                 'attn_impl': 'triton',
@@ -53,9 +53,20 @@ class MPTBlock(nn.Module):
 
         norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
 
-        attn_type = attn_config_mutable.pop('attn_type')
-        assert isinstance(attn_type, str)
-        attn_class = ATTN_CLASS_REGISTRY[attn_type]
+        norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
+        assert isinstance(attn_config['attn_type'], str)
+        attn_class = ATTN_CLASS_REGISTRY[attn_config['attn_type']]
+
+        # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
+        args_to_exclude_in_attn_class = [
+            'attn_type', 'prefix_lm', 'alibi', 'attn_uses_sequence_id',
+            'alibi_bias_max'
+        ]
+        attn_config_subset_for_attn_class = {
+            k: v
+            for k, v in attn_config.items()
+            if k not in args_to_exclude_in_attn_class
+        }
 
         self.norm_1 = norm_class(d_model, device=device)
         self.attn = attn_class(d_model=d_model,
@@ -63,7 +74,7 @@ class MPTBlock(nn.Module):
                                fc_type=fc_type,
                                verbose=verbose,
                                device=device,
-                               **attn_config_mutable)
+                               **attn_config_subset_for_attn_class)
         self.norm_2 = None
         if not getattr(FFN_CLASS_REGISTRY[ffn_config['ffn_type']], '_has_norm',
                        False):

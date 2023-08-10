@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import torch
 import torch.functional as F
@@ -48,6 +48,16 @@ def apply_rotary_pos_emb(q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor,
     q_embed = (q * cos) + (rotate_half(q) * sin)
     k_embed = (k * cos) + (rotate_half(k) * sin)
     return q_embed, k_embed
+
+
+def get_llama_attention_patch_fn(patch_fn_name: str = 'torch') -> Callable:
+    if patch_fn_name == 'torch':
+        return llama_attention_patch_torch
+    elif patch_fn_name == 'triton':
+        return llama_attention_patch_triton
+    else:
+        raise ValueError(
+            f'Unrecognized llama attention patch function: {patch_fn_name}')
 
 
 def llama_attention_patch_torch(

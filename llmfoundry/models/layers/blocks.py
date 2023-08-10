@@ -52,16 +52,14 @@ class MPTBlock(nn.Module):
         super().__init__()
 
         norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
-
-        norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
         assert isinstance(attn_config['attn_type'], str)
         attn_class = ATTN_CLASS_REGISTRY[attn_config['attn_type']]
 
         # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
-        args_to_exclude_in_attn_class = [
+        args_to_exclude_in_attn_class = {
             'attn_type', 'prefix_lm', 'alibi', 'attn_uses_sequence_id',
             'alibi_bias_max'
-        ]
+        }
         attn_config_subset_for_attn_class = {
             k: v
             for k, v in attn_config.items()

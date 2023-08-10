@@ -169,10 +169,7 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
-def main(cfg: DictConfig):
-    # Check for incompatibilities between the model and data loaders
-    validate_config(cfg)
-
+def main(cfg: DictConfig) -> Trainer:
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
         action='ignore',
@@ -332,8 +329,8 @@ def main(cfg: DictConfig):
 
     print('Starting training...')
     trainer.fit()
-
     print('Done.')
+    return trainer
 
 
 if __name__ == '__main__':

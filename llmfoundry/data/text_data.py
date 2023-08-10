@@ -240,6 +240,9 @@ def build_text_dataloader(
             # fwd all kwargs with **stream allows streaming to check args
             streams.append(Stream(**stream))
 
+    import streaming.base.util
+    streaming.base.util.clean_stale_shared_memory()
+
     # build dataset potentially with streams
     dataset = StreamingTextDataset(
         tokenizer=tokenizer,

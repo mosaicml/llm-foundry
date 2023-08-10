@@ -1,9 +1,9 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import os
+import shutil
 import sys
-import warnings
-from typing import Optional, Union
+from argparse import Namespace
 
 import pytest
 import torch
@@ -13,7 +13,41 @@ from omegaconf import OmegaConf as om
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
-from scripts.train.train import main
+
+from scripts.data_prep.convert_dataset_hf import main as main_hf  # noqa: E402
+from scripts.train.train import main  # noqa: E402
+
+TRAIN_LOSS_TOLERANCE = 0.05
+
+
+def create_c4_dataset_xsmall():
+    c4_dir = os.path.join(os.getcwd(), 'my-copy-c4')
+    shutil.rmtree(c4_dir, ignore_errors=True)
+    downloaded_split = 'val_xsmall'  # very fast to convert
+
+    # Hyperparameters from https://github.com/mosaicml/llm-foundry/blob/340a56658560ebceb2a3aa69d6e37813e415acd0/README.md#L188
+    main_hf(
+        Namespace(
+            **{
+                'dataset': 'c4',
+                'data_subset': 'en',
+                'splits': [downloaded_split],
+                'out_root': c4_dir,
+                'compression': None,
+                'concat_tokens': 2048,
+                'tokenizer': 'EleutherAI/gpt-neox-20b',
+                'bos_text': '',
+                'eos_text': '<|endoftext|>',
+                'no_wrap': False,
+                'num_workers': 8
+            }))
+
+    # copy the small downloaded_split to other c4 splits for mocking purposes
+    mocked_splits = ['train', 'val']
+    for mocked_split in mocked_splits:
+        shutil.copytree(os.path.join(c4_dir, 'val_xsmall'),
+                        os.path.join(c4_dir, mocked_split))
+    assert os.path.exists(c4_dir)
 
 
 def gpt_tiny_cfg(conf_path: str = 'scripts/train/yamls/pretrain/mpt-125m.yaml'):
@@ -52,30 +86,40 @@ def gpt_tiny_cfg(conf_path: str = 'scripts/train/yamls/pretrain/mpt-125m.yaml'):
                      not torch.cuda.is_available(),
                      reason='testing with cuda requires GPU')),
 ])
-@pytest.mark.parametrize('logit_scale', [None, 0.036, 'inv_sqrt_d_model'])
-def test_train(device: str, logit_scale: Optional[Union[float, str]]):
-    if not os.path.isdir('./my-copy-c4/val'):
-        pytest.xfail('c4 dataset not set up as expected')
+def test_train(device: str):
+    create_c4_dataset_xsmall()
 
-    warnings.filterwarnings(
-        action='ignore',
-        category=DeprecationWarning,
-        message=
-        "Using the 'grad_clip_norm' field in Trainer is deprecated. Please usethe GradientClipping Algorithm in composer.algorithms.gradient_clipping."
-    )
+    conf_path: str = os.path.join(repo_dir,
+                                  'scripts/train/yamls/pretrain/mpt-125m.yaml')
+    with open(conf_path) as f:
+        test_cfg = om.load(f)
 
-    test_cfg = gpt_tiny_cfg(
-        conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml')
-    test_cfg.eval_subset_num_batches = 2
-    if logit_scale:
-        test_cfg.model.logit_scale = logit_scale
+    assert isinstance(test_cfg, DictConfig)
+    test_cfg.data_local = 'my-copy-c4'
+    test_cfg.max_duration = '1ba'
+    test_cfg.eval_interval = 0
+    test_cfg.save_folder = 'mpt-125m'
+    test_cfg.save_overwrite = True
+
+    test_cfg.model.d_model = 32
+    test_cfg.model.n_heads = 2
+    test_cfg.model.n_layers = 2
+    test_cfg.max_seq_len = 256
+    test_cfg.model.max_seq_len = test_cfg.max_seq_len
+    test_cfg.tokenizer.kwargs.model_max_length = test_cfg.max_seq_len
+    test_cfg.train_loader.dataset.max_seq_len = test_cfg.max_seq_len
+    test_cfg.eval_loader.dataset.max_seq_len = test_cfg.max_seq_len
 
     if device == 'cpu':
-        pytest.xfail(
-            'FSDP in PyTorch 1.13 does not support precision `Precision.FP32` with sharding_strategy `FULL_SHARD.`'
-        )
         test_cfg.model.init_device = 'cpu'
-        test_cfg.model.attn_impl = 'torch'
+        test_cfg.fsdp_config = None
+        test_cfg.model.attn_config.attn_impl = 'torch'
+        test_cfg.model.loss_fn = 'torch_crossentropy'
         test_cfg.precision = 'fp32'
 
-    main(test_cfg)
+    trainer = main(test_cfg)
+    trainer_loss: float = trainer.state.loss.item()  # type: ignore
+
+    expected_golden_loss = 11.80
+    assert abs(trainer_loss - expected_golden_loss) < TRAIN_LOSS_TOLERANCE, \
+        f'Tolerance difference of {TRAIN_LOSS_TOLERANCE} exceeded. Golden loss: {expected_golden_loss} actual loss {trainer_loss}'

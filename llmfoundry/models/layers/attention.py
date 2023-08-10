@@ -416,7 +416,7 @@ class GroupedQueryAttention(nn.Module):
         self.head_dim = d_model // n_heads
 
         if self.kv_n_heads <= 0:
-            raise ValueError('kv_n_heads should be greater than zero')
+            raise ValueError('kv_n_heads should be greater than zero.')
 
         if self.kv_n_heads > self.n_heads:
             raise ValueError(

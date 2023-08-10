@@ -12,8 +12,9 @@ from llmfoundry.models.layers.llama_attention_monkeypatch import (
 
 
 @pytest.mark.parametrize('patch_fn_name', ['torch', 'triton'])
+@pytest.mark.parametrize('explicit_mask', [True, False])
 # @pytest.mark.gpu
-def test_patch_equivalence(patch_fn_name: str):
+def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool):
     device = 'cuda:0'
     sequence_length = 4096
     model_dim = 4096
@@ -70,7 +71,7 @@ def test_patch_equivalence(patch_fn_name: str):
     attention.to(dtype=dtype, device=device)
     new_output, _, _ = attention(
         hidden_states=hidden_states,
-        attention_mask=None,
+        attention_mask=causal_mask if explicit_mask else None,
         position_ids=None,
         past_key_value=None,
         use_cache=False,

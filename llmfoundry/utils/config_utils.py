@@ -90,6 +90,11 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
 
 
 def log_config(cfg: DictConfig):
+    """Logs the current config and updates the wandb config if available.
+
+    This function can be called multiple times to update the wandb config with
+    different variables.
+    """
     print(om.to_yaml(cfg))
     if 'wandb' in cfg.get('loggers', {}):
         try:

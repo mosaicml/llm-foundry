@@ -17,8 +17,9 @@ sys.path.append(repo_dir)
 from scripts.data_prep.convert_dataset_hf import main as main_hf  # noqa: E402
 from scripts.train.train import main  # noqa: E402
 
+
 def create_c4_dataset_xsmall(prefix: str) -> str:
-    """ Creates a small mocked version of the C4 dataset. """
+    """Creates a small mocked version of the C4 dataset."""
     c4_dir = os.path.join(os.getcwd(), f'my-copy-c4-{prefix}')
     shutil.rmtree(c4_dir, ignore_errors=True)
     downloaded_split = 'val_xsmall'  # very fast to convert
@@ -38,9 +39,7 @@ def create_c4_dataset_xsmall(prefix: str) -> str:
                 'eos_text': '<|endoftext|>',
                 'no_wrap': False,
                 'num_workers': 8
-            }
-        )
-    )
+            }))
 
     # copy the small downloaded_split to other c4 splits for mocking purposes
     mocked_splits = ['train', 'val']
@@ -82,7 +81,7 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
     test_cfg.tokenizer.kwargs.model_max_length = test_cfg.max_seq_len
     test_cfg.train_loader.dataset.max_seq_len = test_cfg.max_seq_len
     test_cfg.eval_loader.dataset.max_seq_len = test_cfg.max_seq_len
-    
+
     if device == 'cpu':
         test_cfg.model.init_device = 'cpu'
         test_cfg.fsdp_config = None
@@ -104,4 +103,4 @@ def test_train(device: str):
     dataset_name = create_c4_dataset_xsmall(device)
     test_cfg = gpt_tiny_cfg(dataset_name, device)
     main(test_cfg)
-    assert True, "training crashed somewhere"
+    assert True, 'training crashed somewhere'

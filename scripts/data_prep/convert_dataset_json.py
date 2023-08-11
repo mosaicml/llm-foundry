@@ -131,16 +131,6 @@ def build_hf_dataset(
     return dataset
 
 
-def _est_progress_denominator(total_samples: int, chars_per_sample: int,
-                              chars_per_token: int, mode: ConcatMode,
-                              max_length: int):
-    est_tokens_per_sample = chars_per_sample // chars_per_token
-    if mode == ConcatMode.NO_CONCAT:
-        return total_samples
-    elif mode == ConcatMode.CONCAT_TOKENS:
-        return total_samples * est_tokens_per_sample // max_length
-
-
 def generate_samples(
         loader: DataLoader,
         truncate_num_samples: Optional[int] = None

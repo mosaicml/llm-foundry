@@ -5,13 +5,13 @@
 
 from __future__ import annotations
 
-from typing import Mapping, Union
+from typing import Mapping
 
 from composer.metrics.nlp import LanguageCrossEntropy, MaskedAccuracy
 from composer.utils import dist
 from omegaconf import DictConfig
-from transformers import (AutoConfig, PreTrainedTokenizer,
-                          PreTrainedTokenizerFast, T5ForConditionalGeneration)
+from transformers import (AutoConfig, PreTrainedTokenizerBase,
+                          T5ForConditionalGeneration)
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
@@ -20,8 +20,6 @@ from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
 
 __all__ = ['ComposerHFT5']
 
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
-
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
 
@@ -29,7 +27,7 @@ _HF_IGNORE_INDEX = -100
 class ComposerHFT5(HuggingFaceModelWithZLoss):
     """Configures a :class:`.HuggingFaceModel` around a T5.
 
-    Note: This function uses `transformers.T5ForConditionalGenration`. Future releases
+    Note: This function uses `transformers.T5ForConditionalGeneration`. Future releases
         will expand support to more general classes of HF Encoder-Decoder models.
 
     Args:
@@ -57,7 +55,8 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(self, om_model_config: DictConfig, tokenizer: Tokenizer):
+    def __init__(self, om_model_config: DictConfig,
+                 tokenizer: PreTrainedTokenizerBase):
         config = AutoConfig.from_pretrained(
             om_model_config.pretrained_model_name_or_path,
             trust_remote_code=om_model_config.get('trust_remote_code', True),
@@ -76,8 +75,8 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
                 extra_keys = [_k for _k in v.keys() if _k not in attr.keys()]
                 if extra_keys:
                     raise ValueError(
-                        f'Config dict override got unknown keys. '
-                        f'Extra keys: {extra_keys}. '
+                        f'Config dict override got unknown keys. ' +
+                        f'Extra keys: {extra_keys}. ' +
                         f'Expected (a subset of) keys: {list(attr.keys())}.')
                 getattr(config, k).update(v)
             else:
@@ -94,7 +93,7 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
         init_device = om_model_config.get('init_device', 'cpu')
 
         # Get the device we want to initialize, and use the
-        # reolved version to initialize the HF model
+        # resolved version to initialize the HF model
         resolved_init_device = hf_get_init_device(init_device)
 
         # We need to have all non-zero local ranks be not-pretrained

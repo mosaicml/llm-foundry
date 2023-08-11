@@ -300,7 +300,8 @@ def main(cfg: DictConfig):
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
-    log_config(om.create(fsdp_config))
+    if fsdp_config:
+        log_config(om.create(fsdp_config))
 
     # Build tokenizer
     tokenizer = build_tokenizer(tokenizer_config)

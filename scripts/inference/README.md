@@ -200,7 +200,7 @@ python convert_hf_mpt_to_ft.py -i mpt-7b -o mpt-ft-7b --infer_gpu_num 1
 You can change `infer_gpu_num` to > 1 to prepare a FT checkpoint for multi-gpu inference. Please open a Github issue if you discover any problems!
 
 ## Converting a Composer MPT to FasterTransformer
-We include a script `convert_mpt_to_ft.py` that directly converts a Composer MPT checkpoint to the FasterTransformer format. You can either provide a path to a local Composer checkpoint or a URI to a file stored in a cloud supported by Composer (e.g. `s3://`). Simply run:
+We include a script `convert_composer_mpt_to_ft.py` that directly converts a Composer MPT checkpoint to the FasterTransformer format. You can either provide a path to a local Composer checkpoint or a URI to a file stored in a cloud supported by Composer (e.g. `s3://`). Simply run:
 ```
 python convert_composer_mpt_to_ft.py -i <path_to_composer_checkpoint.pt> -o mpt-ft-7b --infer_gpu_num 1
 ```

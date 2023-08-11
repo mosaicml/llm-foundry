@@ -116,7 +116,8 @@ def build_optimizer(cfg: DictConfig, model: torch.nn.Module):
                                   lr_penalty=cfg.lr_penalty,
                                   min_scale=cfg.min_scale)
     elif cfg.name.lower() == 'decoupled_lionw_8b':
-        kwargs = {k: v for k, v in cfg.items() if k != 'name'}
+        # str() cast is just for pyright
+        kwargs = {str(k): v for k, v in cfg.items() if k != 'name'}
         return DecoupledLionW_8bit(model.parameters(), **kwargs)
     else:
         raise ValueError(f'Not sure how to build optimizer: {cfg.name}')

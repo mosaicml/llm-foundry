@@ -376,7 +376,7 @@ def test_state_dict_save_load(device: str, quantized_state: bool,
                                  (4096, 4096), [16384, 16384]])
 def test_fused_as_fast_as_unfused(N: int,
                                   D: int,
-                                  min_elems_traversed: int = int(1e6)):
+                                  min_elems_traversed: int = 1000000):
     W = torch.randn((N, D), device='cuda', requires_grad=True)
     W.grad = torch.randn((N, D), device='cuda', requires_grad=False)
 

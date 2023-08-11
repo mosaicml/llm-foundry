@@ -12,6 +12,7 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry.models.utils import init_empty_weights
 
+
 def pop_config(cfg: DictConfig,
                key: str,
                must_exist: bool = True,

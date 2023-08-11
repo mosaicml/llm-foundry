@@ -3,7 +3,7 @@
 import os
 import sys
 import warnings
-from typing import List, Optional, Union, Dict
+from typing import Dict, List, Optional, Union
 
 import torch
 from composer import Trainer
@@ -21,8 +21,9 @@ from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_evaluators, build_logger,
                                        build_optimizer, build_scheduler,
                                        build_tokenizer)
-from llmfoundry.utils.config_utils import (log_config, process_init_device,
-                                           update_batch_size_info, pop_config)
+from llmfoundry.utils.config_utils import (log_config, pop_config,
+                                           process_init_device,
+                                           update_batch_size_info)
 
 
 def validate_config(cfg: DictConfig):
@@ -188,7 +189,10 @@ def main(cfg: DictConfig):
     reproducibility.seed_all(seed)
 
     # Initialize distributed setting with seed
-    dist_timeout: Union[int, float] = pop_config(cfg, 'dist_timeout', must_exist=False, default_value=600.0)
+    dist_timeout: Union[int, float] = pop_config(cfg,
+                                                 'dist_timeout',
+                                                 must_exist=False,
+                                                 default_value=600.0)
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     # Get global and device batch size information from distributed/single node setting
@@ -207,76 +211,136 @@ def main(cfg: DictConfig):
                                                  must_exist=True)
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_dict_config: Optional[DictConfig] = pop_config(cfg, 'fsdp_config', must_exist=False, default_value=None)
-    fsdp_config: Optional[Dict] = om.to_container(fsdp_dict_config) if fsdp_dict_config is not None else None  # type: ignore
+    fsdp_dict_config: Optional[DictConfig] = pop_config(cfg,
+                                                        'fsdp_config',
+                                                        must_exist=False,
+                                                        default_value=None)
+    fsdp_config: Optional[Dict] = om.to_container(
+        fsdp_dict_config
+    ) if fsdp_dict_config is not None else None  # type: ignore
     lora_config: Optional[DictConfig] = pop_config(cfg,
                                                    'lora',
-                                                   must_exist=False, default_value=None)
+                                                   must_exist=False,
+                                                   default_value=None)
     eval_loader_config: Optional[DictConfig] = pop_config(cfg,
                                                           'eval_loader',
-                                                          must_exist=False,  default_value=None)
+                                                          must_exist=False,
+                                                          default_value=None)
     icl_tasks_config: Optional[ListConfig] = pop_config(cfg,
                                                         'icl_tasks',
-                                                        must_exist=False,  default_value=None)
+                                                        must_exist=False,
+                                                        default_value=None)
 
     # Optional logging, evaluation and callback configs
     logger_configs: Optional[DictConfig] = pop_config(cfg,
                                                       'loggers',
-                                                      must_exist=False,  default_value=None)
+                                                      must_exist=False,
+                                                      default_value=None)
     callback_configs: Optional[DictConfig] = pop_config(cfg,
                                                         'callbacks',
-                                                        must_exist=False,  default_value=None)
+                                                        must_exist=False,
+                                                        default_value=None)
     algorithm_configs: Optional[DictConfig] = pop_config(cfg,
                                                          'algorithms',
-                                                         must_exist=False,  default_value=None)
+                                                         must_exist=False,
+                                                         default_value=None)
 
     # Mandatory hyperparameters for training
-    device_train_batch_size: int = pop_config(cfg, 'device_train_batch_size', must_exist=True)
-    device_eval_batch_size: int = pop_config(cfg, 'device_eval_batch_size', must_exist=True)
-    max_duration: Union[int, str] = pop_config(cfg, 'max_duration', must_exist=True)
-    eval_interval: Union[int, str] = pop_config(cfg, 'eval_interval', must_exist=True)
+    device_train_batch_size: int = pop_config(cfg,
+                                              'device_train_batch_size',
+                                              must_exist=True)
+    device_eval_batch_size: int = pop_config(cfg,
+                                             'device_eval_batch_size',
+                                             must_exist=True)
+    max_duration: Union[int, str] = pop_config(cfg,
+                                               'max_duration',
+                                               must_exist=True)
+    eval_interval: Union[int, str] = pop_config(cfg,
+                                                'eval_interval',
+                                                must_exist=True)
     precision: str = pop_config(cfg, 'precision', must_exist=True)
     max_seq_len: int = pop_config(cfg, 'max_seq_len', must_exist=True)
 
     # Optional parameters will be set to default values if not specified.
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = pop_config(cfg,'run_name', must_exist=False, default_value=default_run_name)
-    save_folder: Optional[str] = pop_config(cfg,'save_folder', must_exist=False, default_value=None)
-    save_latest_filename: str = pop_config(cfg,'save_latest_filename', must_exist=False,
-                                        default_value='latest-rank{rank}.pt')
-    save_overwrite: bool = pop_config(cfg,'save_overwrite', must_exist=False,
-                                        default_value=False)
-    save_weights_only: bool = pop_config(cfg,'save_weights_only', must_exist=False,
-                                        default_value=False)
-    save_filename: str = pop_config(cfg,'save_filename',must_exist=False,
-                                        default_value='ep{epoch}-ba{batch}-rank{rank}.pt')
-    save_interval: Union[str, int] = pop_config(cfg,'save_interval', must_exist=False,
-                                        default_value='1000ba')
-    save_num_checkpoints_to_keep: int = pop_config(cfg,'save_num_checkpoints_to_keep', must_exist=False,
-                                        default_value=-1)
-    progress_bar = pop_config(cfg,'progress_bar', must_exist=False,
-                                        default_value=False)
-    log_to_console: bool = pop_config(cfg,'log_to_console', must_exist=False,
-                                        default_value=True)
-    python_log_level: str = pop_config(cfg,'python_log_level', must_exist=False,
-                                        default_value='debug')
-    console_log_interval: Union[int, str] = pop_config(cfg,'console_log_interval', must_exist=False,
-                                        default_value='1ba')
-    device_train_microbatch_size: Union[str, int] = pop_config(cfg, 'device_train_microbatch_size', must_exist=False,
-                                        default_value='auto')
-    eval_subset_num_batches: int = pop_config(cfg,'eval_subset_num_batches', must_exist=False,
-                                        default_value=-1)
-    eval_first: bool = pop_config(cfg,'eval_first', must_exist=False,
-                                        default_value=False)
-    load_path: str = pop_config(cfg,'load_path', must_exist=False,
-                                        default_value=None)
-    load_weights_only: bool = pop_config(cfg,'load_weights_only', must_exist=False,
-                                        default_value=False)
-    load_ignore_keys: Optional[List[str]] = pop_config(cfg,'load_ignore_keys', must_exist=False,
-                                        default_value=None)
+    run_name: str = pop_config(cfg,
+                               'run_name',
+                               must_exist=False,
+                               default_value=default_run_name)
+    save_folder: Optional[str] = pop_config(cfg,
+                                            'save_folder',
+                                            must_exist=False,
+                                            default_value=None)
+    save_latest_filename: str = pop_config(cfg,
+                                           'save_latest_filename',
+                                           must_exist=False,
+                                           default_value='latest-rank{rank}.pt')
+    save_overwrite: bool = pop_config(cfg,
+                                      'save_overwrite',
+                                      must_exist=False,
+                                      default_value=False)
+    save_weights_only: bool = pop_config(cfg,
+                                         'save_weights_only',
+                                         must_exist=False,
+                                         default_value=False)
+    save_filename: str = pop_config(
+        cfg,
+        'save_filename',
+        must_exist=False,
+        default_value='ep{epoch}-ba{batch}-rank{rank}.pt')
+    save_interval: Union[str, int] = pop_config(cfg,
+                                                'save_interval',
+                                                must_exist=False,
+                                                default_value='1000ba')
+    save_num_checkpoints_to_keep: int = pop_config(
+        cfg, 'save_num_checkpoints_to_keep', must_exist=False, default_value=-1)
+    progress_bar = pop_config(cfg,
+                              'progress_bar',
+                              must_exist=False,
+                              default_value=False)
+    log_to_console: bool = pop_config(cfg,
+                                      'log_to_console',
+                                      must_exist=False,
+                                      default_value=True)
+    python_log_level: str = pop_config(cfg,
+                                       'python_log_level',
+                                       must_exist=False,
+                                       default_value='debug')
+    console_log_interval: Union[int, str] = pop_config(cfg,
+                                                       'console_log_interval',
+                                                       must_exist=False,
+                                                       default_value='1ba')
+    device_train_microbatch_size: Union[str, int] = pop_config(
+        cfg,
+        'device_train_microbatch_size',
+        must_exist=False,
+        default_value='auto')
+    eval_subset_num_batches: int = pop_config(cfg,
+                                              'eval_subset_num_batches',
+                                              must_exist=False,
+                                              default_value=-1)
+    eval_first: bool = pop_config(cfg,
+                                  'eval_first',
+                                  must_exist=False,
+                                  default_value=False)
+    load_path: str = pop_config(cfg,
+                                'load_path',
+                                must_exist=False,
+                                default_value=None)
+    load_weights_only: bool = pop_config(cfg,
+                                         'load_weights_only',
+                                         must_exist=False,
+                                         default_value=False)
+    load_ignore_keys: Optional[List[str]] = pop_config(cfg,
+                                                       'load_ignore_keys',
+                                                       must_exist=False,
+                                                       default_value=None)
     # Enable autoresume from model checkpoints if possible
     autoresume_default = not save_overwrite and not save_weights_only
-    autoresume = pop_config(cfg,'autoresume', must_exist=False, default_value=autoresume_default)
+    autoresume = pop_config(cfg,
+                            'autoresume',
+                            must_exist=False,
+                            default_value=autoresume_default)
 
     # Pop known unused parameters.
     pop_config(cfg, 'data_local', must_exist=False)

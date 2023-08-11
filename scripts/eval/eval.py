@@ -15,7 +15,8 @@ from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import AutoModelForCausalLM, PreTrainedTokenizerBase, T5ForConditionalGeneration
+from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
+                          T5ForConditionalGeneration)
 
 from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
@@ -115,19 +116,17 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
         model_gauntlet = None
         model_gauntlet_callback = None
 
-    if hasattr(model_cfg.model, 'pretrained_lora_id_or_path'):
-        composer_model = load_peft_model(model_cfg.model, tokenizer,
-                                         cfg.get('num_retries', 3))
-    else:
-        composer_model = load_model(model_cfg.model, tokenizer,
-                                    cfg.get('num_retries', 3))
     fsdp_config = cfg.get('fsdp_config', None)
     fsdp_config = om.to_container(
         fsdp_config, resolve=True) if fsdp_config is not None else None
     assert isinstance(fsdp_config, Dict) or fsdp_config is None
 
-    composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
-                                cfg.get('num_retries', 3))
+    if hasattr(model_cfg.model, 'pretrained_lora_id_or_path'):
+        composer_model = load_peft_model(model_cfg.model, tokenizer,
+                                         cfg.get('num_retries', 3))
+    else:
+        composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
+                                    cfg.get('num_retries', 3))
 
     if model_gauntlet_df is None and model_gauntlet is not None:
         model_gauntlet_df = pd.DataFrame(

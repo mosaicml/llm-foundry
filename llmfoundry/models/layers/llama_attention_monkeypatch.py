@@ -203,8 +203,8 @@ def llama_attention_patch_triton(
 
         query_states = [
             F.linear(  # type: ignore (thirdParty)
-                hidden_states,
-                query_slices[i]) for i in range(self.config.pretraining_tp)
+                hidden_states, query_slices[i])
+            for i in range(self.config.pretraining_tp)
         ]
         query_states = torch.cat(query_states, dim=-1)
 
@@ -215,9 +215,9 @@ def llama_attention_patch_triton(
         key_states = torch.cat(key_states, dim=-1)
 
         value_states = [
-            F.linear( # type: ignore (thirdParty)
-                hidden_states,
-                value_slices[i]) for i in range(self.config.pretraining_tp)
+            F.linear(  # type: ignore (thirdParty)
+                hidden_states, value_slices[i])
+            for i in range(self.config.pretraining_tp)
         ]
         value_states = torch.cat(value_states, dim=-1)
     else:
@@ -274,8 +274,8 @@ def llama_attention_patch_triton(
                                                  dim=1)
         attn_output = sum([
             F.linear(  # type: ignore (thirdParty)
-                attn_output[i],
-                o_proj_slices[i]) for i in range(self.config.pretraining_tp)
+                attn_output[i], o_proj_slices[i])
+            for i in range(self.config.pretraining_tp)
         ])
     else:
         attn_output = self.o_proj(attn_output)

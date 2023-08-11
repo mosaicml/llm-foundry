@@ -21,6 +21,7 @@ TRAIN_LOSS_TOLERANCE = 0.05
 
 
 def create_c4_dataset_xsmall():
+    """ Creates a small mocked version of the C4 dataset. """
     c4_dir = os.path.join(os.getcwd(), 'my-copy-c4')
     shutil.rmtree(c4_dir, ignore_errors=True)
     downloaded_split = 'val_xsmall'  # very fast to convert
@@ -40,7 +41,9 @@ def create_c4_dataset_xsmall():
                 'eos_text': '<|endoftext|>',
                 'no_wrap': False,
                 'num_workers': 8
-            }))
+            }
+        )
+    )
 
     # copy the small downloaded_split to other c4 splits for mocking purposes
     mocked_splits = ['train', 'val']
@@ -52,7 +55,7 @@ def create_c4_dataset_xsmall():
 
 def gpt_tiny_cfg(conf_path: str = 'scripts/train/yamls/pretrain/mpt-125m.yaml'):
     """Create gpt tiny cfg."""
-    with open(conf_path) as f:
+    with open(conf_path, 'r', encoding='utf-8') as f:
         test_cfg = om.load(f)
     assert isinstance(test_cfg, DictConfig)
     # removes requirement to download / process train set
@@ -79,22 +82,28 @@ def gpt_tiny_cfg(conf_path: str = 'scripts/train/yamls/pretrain/mpt-125m.yaml'):
     return test_cfg
 
 
-@pytest.mark.parametrize('device', [
-    'cpu',
-    pytest.param('cuda',
-                 marks=pytest.mark.skipif(
-                     not torch.cuda.is_available(),
-                     reason='testing with cuda requires GPU')),
-])
+@pytest.mark.parametrize(
+    'device', [
+        'cpu',
+        pytest.param(
+            'cuda',
+            marks=pytest.mark.skipif(
+                not torch.cuda.is_available(),
+                reason='testing with cuda requires GPU'
+            )
+        )
+    ]
+)
 def test_train(device: str):
     create_c4_dataset_xsmall()
 
     conf_path: str = os.path.join(repo_dir,
                                   'scripts/train/yamls/pretrain/mpt-125m.yaml')
-    with open(conf_path) as f:
+    with open(conf_path, 'r', encoding='utf-8') as f:
         test_cfg = om.load(f)
 
     assert isinstance(test_cfg, DictConfig)
+
     test_cfg.data_local = 'my-copy-c4'
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = 0

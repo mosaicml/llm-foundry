@@ -170,6 +170,7 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
 
 
 def main(cfg: DictConfig) -> Trainer:
+    validate_config(cfg)
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
         action='ignore',

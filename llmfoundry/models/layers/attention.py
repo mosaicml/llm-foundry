@@ -36,7 +36,7 @@ def scaled_multihead_dot_product_attention(
     key: torch.Tensor,
     value: torch.Tensor,
     n_heads: int,
-    kv_n_heads: int,
+    kv_n_heads: Optional[int] = None,
     past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -55,6 +55,12 @@ def scaled_multihead_dot_product_attention(
                 'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.'
             ))
         kv_n_heads = 1
+    elif kv_n_heads is None:
+        warnings.warn(
+            DeprecationWarning(
+                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.'
+            ))
+        kv_n_heads = n_heads
 
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
     k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
@@ -156,7 +162,7 @@ def flash_attn_fn(
     key: torch.Tensor,
     value: torch.Tensor,
     n_heads: int,
-    kv_n_heads: int,
+    kv_n_heads: Optional[int] = None,
     past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -181,6 +187,12 @@ def flash_attn_fn(
                 'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.'
             ))
         kv_n_heads = 1
+    elif kv_n_heads is None:
+        warnings.warn(
+            DeprecationWarning(
+                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.'
+            ))
+        kv_n_heads = n_heads
 
     if past_key_value is not None:
         if len(past_key_value) != 0:
@@ -264,7 +276,7 @@ def triton_flash_attn_fn(
     key: torch.Tensor,
     value: torch.Tensor,
     n_heads: int,
-    kv_n_heads: int,
+    kv_n_heads: Optional[int] = None,
     past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -311,6 +323,12 @@ def triton_flash_attn_fn(
                 'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.'
             ))
         kv_n_heads = 1
+    elif kv_n_heads is None:
+        warnings.warn(
+            DeprecationWarning(
+                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.'
+            ))
+        kv_n_heads = n_heads
 
     if past_key_value is not None:
         if len(past_key_value) != 0:

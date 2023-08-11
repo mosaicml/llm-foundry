@@ -184,11 +184,11 @@ def main(cfg: DictConfig):
     om.resolve(cfg)
 
     # Set seed first
-    seed: int = cfg.pop('seed')
+    seed: int = pop_config(cfg, 'seed', must_exist=True)
     reproducibility.seed_all(seed)
 
     # Initialize distributed setting with seed
-    dist_timeout: Union[int, float] = cfg.pop('dist_timeout', 600.0)
+    dist_timeout: Union[int, float] = pop_config(cfg, 'dist_timeout', must_exist=False, default_value=600.0)
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     # Get global and device batch size information from distributed/single node setting
@@ -279,12 +279,12 @@ def main(cfg: DictConfig):
     autoresume = pop_config(cfg,'autoresume', must_exist=False, default_value=autoresume_default)
 
     # Pop known unused parameters.
-    cfg.pop('data_local', None)
-    cfg.pop('data_remote', None)
-    cfg.pop('global_seed')
-    cfg.pop('global_train_batch_size')
-    cfg.pop('n_gpus')
-    cfg.pop('device_train_grad_accum')
+    pop_config(cfg, 'data_local', must_exist=False)
+    pop_config(cfg, 'data_remote', must_exist=False)
+    pop_config(cfg, 'global_seed', must_exist=False)
+    pop_config(cfg, 'global_train_batch_size', must_exist=False)
+    pop_config(cfg, 'n_gpus', must_exist=False)
+    pop_config(cfg, 'device_train_grad_accum', must_exist=False)
 
     # Warn users for unused parameters
     for key in cfg:

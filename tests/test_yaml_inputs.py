@@ -19,11 +19,11 @@ from scripts.train.train import main  # noqa: E402
 
 class TestTrainingInputs:
     """
-    This class contains unit tests for validating the input YAML files used for training.
+    This class validates and tests error handling for the input YAML files used for training.
     """
     @pytest.fixture
     def cfg(self) -> DictConfig:
-        """This fixture will only be available within the scope of TestTrainingInputs"""
+        """Create YAML cfg fixture for testing purposes."""
         conf_path: str = os.path.join(repo_dir,
                                   'scripts/train/yamls/pretrain/mpt-125m.yaml')
         with open(conf_path, 'r', encoding='utf-8') as config:
@@ -57,7 +57,7 @@ class TestTrainingInputs:
 
     def test_optional_mispelled_params_raise_warning(self, cfg: DictConfig) -> None: 
         """
-        Check that a mispellings warnings are raised for optional parameters.
+        Check that warnings are raised for optional parameters that are mispelled.
         """
         optional_params = [
             'save_weights_only',
@@ -80,11 +80,10 @@ class TestTrainingInputs:
             updated_param = param + '-mispelling'
             cfg[updated_param] = orig_value
             with warnings.catch_warnings(record=True) as warning_list:
-                # ideally we should be able to run without try catch but there is no lightweight training run just yet. 
                 try:
                     main(cfg)
                 except:
                     pass
                 assert any(f"Unused parameter {updated_param} found in cfg." in str(warning.message) for warning in warning_list)
-            # restore param
+            # restore configs.
             cfg = copy.deepcopy(old_cfg)

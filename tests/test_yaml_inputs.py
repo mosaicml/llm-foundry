@@ -24,7 +24,7 @@ class TestTrainingYAMLInputs:
     def cfg(self) -> DictConfig:
         """Create YAML cfg fixture for testing purposes."""
         conf_path: str = os.path.join(
-            repo_dir, 'scripts/train/yamls/pretrain/mpt-125m.yaml')
+            repo_dir, 'scripts/train/yamls/pretrain/testing.yaml')
         with open(conf_path, 'r', encoding='utf-8') as config:
             test_cfg = om.load(config)
         assert isinstance(test_cfg, DictConfig)

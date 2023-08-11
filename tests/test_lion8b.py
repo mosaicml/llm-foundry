@@ -187,7 +187,7 @@ def test_lion8b_fused_unfused_unquantized_same(w_init: str, grad_strategy: str,
         W0 += .01 * torch.sign(W0)  # bound away from 0 to cap rel errors
         W0 = W0.to(dtype=dtype)
     else:  # here for pyright
-        raise ValueError("Unrecognized w_init: ", w_init)
+        raise ValueError('Unrecognized w_init: ', w_init)
     W0.add_(W0.sign())  # bound away from zero so decay won't flip sign
     W_true = torch.empty_like(W0, requires_grad=True,
                               dtype=torch.float32)  # ground truth
@@ -239,7 +239,7 @@ def test_lion8b_fused_unfused_unquantized_same(w_init: str, grad_strategy: str,
     elif grad_strategy == 'rand':
         grads = torch.tensor([-1])
     else:
-        raise ValueError("bad grad_strategy: ", grad_strategy)
+        raise ValueError('bad grad_strategy: ', grad_strategy)
 
     # for _ in range(3):
     # for _ in range(1):
@@ -415,8 +415,8 @@ def test_fused_as_fast_as_unfused(N: int,
     assert times['ecc'] < times['NA'] + atol
 
     if False:  # change to True to check on thruput
-        print("")
-        print("time fused (ms):       ", times[True] * 1e3)
-        print("time fused+ecc (ms):   ", times['ecc'] * 1e3)
-        print("time unfused (ms):     ", times[False] * 1e3)
-        print("time unquantized (ms): ", times['NA'] * 1e3)
+        print('')
+        print('time fused (ms):       ', times[True] * 1e3)
+        print('time fused+ecc (ms):   ', times['ecc'] * 1e3)
+        print('time unfused (ms):     ', times[False] * 1e3)
+        print('time unquantized (ms): ', times['NA'] * 1e3)

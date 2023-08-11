@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import torch
@@ -36,8 +39,6 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             each optimizer step. Note that we use decoupled weight decay,
             meaning that this decay does not contribute to the momentum.
             (Default: 0.)
-        l2_penalty: adds `l2_penalty * param` to the gradient at the
-            start of the optimizer step. This term *is* added to the momentum.
         compress_state_dict: if True, this optimizer's `state_dict` will
             include quantized optimizer states. Otherwise, the optimizer
             states are converted to bfloat16 Tensors matching the shapes of
@@ -84,12 +85,14 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
         self._error_correction = error_correction
         if error_correction and not _fused:
             raise NotImplementedError(
-                "Error correction requires fused kernels.")
-        defaults = dict(lr=lr,
-                        initial_lr=lr,
-                        betas=betas,
-                        weight_decay=weight_decay,
-                        fused=_fused)
+                'Error correction requires fused kernels.')
+        defaults = {
+            'lr': lr,
+            'initial_lr': lr,
+            'betas': betas,
+            'weight_decay': weight_decay,
+            'fused': _fused
+        }
         super().__init__(params, defaults)
 
     @torch.no_grad()
@@ -111,9 +114,9 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
         if self._quantize and not p.is_cuda:
             raise NotImplementedError(
                 f"Can't use quantization with param on {p.device} " +
-                f"({p.shape}, {p.dtype}). If you need " +
-                "to use DecoupledLionW_8bit without a CUDA device, try " +
-                "creating this optimizer with quantize=False.")
+                f'({p.shape}, {p.dtype}). If you need ' +
+                'to use DecoupledLionW_8bit without a CUDA device, try ' +
+                'creating this optimizer with quantize=False.')
         state = self.state[p]  # type:ignore using tensor as key
         if _KEY_MOMENTUM not in state:
             mom = torch.zeros_like(p)

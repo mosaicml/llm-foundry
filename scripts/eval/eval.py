@@ -26,7 +26,8 @@ from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
 from llmfoundry.utils.config_utils import process_init_device
 
 
-def load_peft_model(model_cfg, tokenizer, num_retries):
+def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+                    num_retries: int) -> Optional[ComposerModel]:
     try:
         from peft import PeftModel
     except ImportError as e:

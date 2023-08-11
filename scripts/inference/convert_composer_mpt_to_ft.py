@@ -3,18 +3,18 @@
 
 # Note: This script is specifically for converting MPT Composer checkpoints to FasterTransformer format.
 
+import configparser
 import json
 import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, Dict, Optional, Union, Tuple
-import configparser
+from typing import Any, Dict, Optional, Tuple, Union
+
 import numpy as np
 import sentencepiece as spm
-
 import torch
-from composer.utils import (get_file, safe_torch_load)
+from composer.utils import get_file, safe_torch_load
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
 
@@ -202,10 +202,10 @@ def convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
 
 
 def convert_and_save_weights(named_params: dict,
-                     composer_config: dict,
-                     infer_gpu_num: int = 1,
-                     weight_data_type: str = 'fp32',
-                     save_dir: str = ""):
+                             composer_config: dict,
+                             infer_gpu_num: int = 1,
+                             weight_data_type: str = 'fp32',
+                             save_dir: str = ''):
     np_weight_data_type = get_weight_data_type(weight_data_type)
 
     param_remapping = {
@@ -265,11 +265,11 @@ def convert_and_save_weights(named_params: dict,
 
 
 def save_ft_config(composer_config: dict,
-                tokenizer: PreTrainedTokenizer,
-                save_dir,
-                infer_gpu_num: int = 1,
-                weight_data_type: str = 'fp32',
-                force: bool = False):
+                   tokenizer: PreTrainedTokenizer,
+                   save_dir: str,
+                   infer_gpu_num: int = 1,
+                   weight_data_type: str = 'fp32',
+                   force: bool = False):
 
     config = configparser.ConfigParser()
     config['gpt'] = {}
@@ -277,7 +277,8 @@ def save_ft_config(composer_config: dict,
         config['gpt']['model_name'] = 'mpt'
         config['gpt']['head_num'] = str(composer_config['n_heads'])
         n_embd = composer_config['d_model']
-        config['gpt']['size_per_head'] = str(n_embd // composer_config['n_heads'])
+        config['gpt']['size_per_head'] = str(n_embd //
+                                             composer_config['n_heads'])
         config['gpt']['inter_size'] = str(n_embd * composer_config['mlp_ratio'])
         config['gpt']['max_pos_seq_len'] = str(composer_config['max_seq_len'])
         config['gpt']['num_layer'] = str(composer_config['n_layers'])
@@ -311,7 +312,7 @@ def save_ft_config(composer_config: dict,
 def write_ft_checkpoint_from_composer_checkpoint(
         checkpoint_path: Union[Path, str],
         infer_gpu_num: int,
-        save_dir: Union[Path, str],
+        save_dir: str,
         output_precision: str = 'fp32',
         local_checkpoint_save_location: Optional[Union[Path,
                                                        str]] = None) -> None:
@@ -341,7 +342,6 @@ def write_ft_checkpoint_from_composer_checkpoint(
         local_checkpoint_save_location = Path(
             tmp_dir.name) / 'local-composer-checkpoint.pt'
 
-
     # download the checkpoint file
     print(
         f'Downloading checkpoint from {checkpoint_path} -> {local_checkpoint_save_location}'
@@ -359,13 +359,13 @@ def write_ft_checkpoint_from_composer_checkpoint(
             f'"state" is not an available key in the provided composer checkpoint. Is {local_checkpoint_save_location} ill-formed?'
         )
     if 'integrations' not in composer_state_dict[
-            'state'] or 'huggingface' not in composer_state_dict['state']['integrations']:
+            'state'] or 'huggingface' not in composer_state_dict['state'][
+                'integrations']:
         raise RuntimeError(
             'Did not find HuggingFace related state (e.g., tokenizer) in the provided composer checkpoint!'
         )
-    composer_config = composer_state_dict['state']['integrations']['huggingface'][
-        'model']['config']['content']
-
+    composer_config = composer_state_dict['state']['integrations'][
+        'huggingface']['model']['config']['content']
 
     # Extract the HF tokenizer
     print('#' * 30)
@@ -395,13 +395,15 @@ def write_ft_checkpoint_from_composer_checkpoint(
     print('#' * 30)
     print('Converting weights to FasterTransformer format...')
     convert_and_save_weights(named_params=weights_state_dict,
-                     composer_config=composer_config,
-                     infer_gpu_num=infer_gpu_num,
-                     weight_data_type=output_precision,
-                     save_dir=save_dir)
+                             composer_config=composer_config,
+                             infer_gpu_num=infer_gpu_num,
+                             weight_data_type=output_precision,
+                             save_dir=save_dir)
 
     print('#' * 30)
-    print(f'FasterTransformer checkpoint folder successfully created at {save_dir}.')
+    print(
+        f'FasterTransformer checkpoint folder successfully created at {save_dir}.'
+    )
 
     print('Done.')
     print('#' * 30)
@@ -413,22 +415,25 @@ def parse_args() -> Namespace:
         description=
         'Convert an MPT Composer checkpoint into a standard FasterTransformer checkpoint folder.'
     )
-    parser.add_argument('--composer_path',
-                        '-i',
-                        type=str,
-                        help='Composer checkpoint path. Can be a local file path or cloud URI',
-                        required=True)
-    parser.add_argument('--local_checkpoint_save_location',
-                        type=str,
-                        help='If specified, where to save the checkpoint file to locally. \
+    parser.add_argument(
+        '--composer_path',
+        '-i',
+        type=str,
+        help='Composer checkpoint path. Can be a local file path or cloud URI',
+        required=True)
+    parser.add_argument(
+        '--local_checkpoint_save_location',
+        type=str,
+        help='If specified, where to save the checkpoint file to locally. \
                             If the input ``checkpoint_path`` is already a local path, this will be a symlink. \
                             Defaults to None, which will use a temporary file.',
-                        default=None)
-    parser.add_argument('--ft_save_dir',
-                        '-o',
-                        type=str,
-                        help='Directory to save FasterTransformer converted checkpoint in',
-                        required=True)
+        default=None)
+    parser.add_argument(
+        '--ft_save_dir',
+        '-o',
+        type=str,
+        help='Directory to save FasterTransformer converted checkpoint in',
+        required=True)
     parser.add_argument('--infer_gpu_num',
                         '-i_g',
                         type=int,
@@ -440,11 +445,13 @@ def parse_args() -> Namespace:
         help=
         'Force conversion to FT even if some features may not work as expected in FT'
     )
-    parser.add_argument('--output_precision',
-                        type=str,
-                        help='Data type of weights in the FasterTransformer output model. Input checkpoint weights will be converted to this dtype.',
-                        choices=['fp32', 'fp16'],
-                        default='fp32')
+    parser.add_argument(
+        '--output_precision',
+        type=str,
+        help=
+        'Data type of weights in the FasterTransformer output model. Input checkpoint weights will be converted to this dtype.',
+        choices=['fp32', 'fp16'],
+        default='fp32')
 
     return parser.parse_args()
 

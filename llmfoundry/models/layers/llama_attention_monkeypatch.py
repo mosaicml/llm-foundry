@@ -89,9 +89,9 @@ def llama_attention_patch_torch(
         value_slices = self.v_proj.weight.split(key_value_slicing, dim=0)
 
         query_states = [
-            F.linear( # type: ignore (thirdParty)
-                hidden_states,
-                query_slices[i]) for i in range(self.config.pretraining_tp)
+            F.linear(  # type: ignore (thirdParty)
+                hidden_states, query_slices[i])
+            for i in range(self.config.pretraining_tp)
         ]
         query_states = torch.cat(query_states, dim=-1)
 
@@ -102,9 +102,9 @@ def llama_attention_patch_torch(
         key_states = torch.cat(key_states, dim=-1)
 
         value_states = [
-            F.linear( # type: ignore (thirdParty)
-                hidden_states,
-                value_slices[i]) for i in range(self.config.pretraining_tp)
+            F.linear(  # type: ignore (thirdParty)
+                hidden_states, value_slices[i])
+            for i in range(self.config.pretraining_tp)
         ]
         value_states = torch.cat(value_states, dim=-1)
     else:
@@ -160,9 +160,9 @@ def llama_attention_patch_torch(
                                                  self.config.pretraining_tp,
                                                  dim=1)
         attn_output = sum([
-            F.linear( # type: ignore (thirdParty)
-                attn_output[i],
-                o_proj_slices[i]) for i in range(self.config.pretraining_tp)
+            F.linear(  # type: ignore (thirdParty)
+                attn_output[i], o_proj_slices[i])
+            for i in range(self.config.pretraining_tp)
         ])
     else:
         attn_output = self.o_proj(attn_output)
@@ -170,7 +170,7 @@ def llama_attention_patch_torch(
     if not output_attentions:
         attn_weights = None
 
-    return attn_output, attn_weights, None # type: ignore (thirdParty)
+    return attn_output, attn_weights, None  # type: ignore (thirdParty)
 
 
 def llama_attention_patch_triton(
@@ -202,9 +202,9 @@ def llama_attention_patch_triton(
         value_slices = self.v_proj.weight.split(key_value_slicing, dim=0)
 
         query_states = [
-            F.linear(hidden_states, # type: ignore (thirdParty)
-                     query_slices[i])
-            for i in range(self.config.pretraining_tp)
+            F.linear(  # type: ignore (thirdParty)
+                hidden_states,
+                query_slices[i]) for i in range(self.config.pretraining_tp)
         ]
         query_states = torch.cat(query_states, dim=-1)
 
@@ -215,9 +215,9 @@ def llama_attention_patch_triton(
         key_states = torch.cat(key_states, dim=-1)
 
         value_states = [
-            F.linear(hidden_states, # type: ignore (thirdParty)
-                     value_slices[i])
-            for i in range(self.config.pretraining_tp)
+            F.linear( # type: ignore (thirdParty)
+                hidden_states,
+                value_slices[i]) for i in range(self.config.pretraining_tp)
         ]
         value_states = torch.cat(value_states, dim=-1)
     else:
@@ -273,11 +273,11 @@ def llama_attention_patch_triton(
                                                  self.config.pretraining_tp,
                                                  dim=1)
         attn_output = sum([
-            F.linear(attn_output[i], # type: ignore (thirdParty)
-                     o_proj_slices[i])
-            for i in range(self.config.pretraining_tp)
+            F.linear(  # type: ignore (thirdParty)
+                attn_output[i],
+                o_proj_slices[i]) for i in range(self.config.pretraining_tp)
         ])
     else:
         attn_output = self.o_proj(attn_output)
 
-    return attn_output, None, None # type: ignore (thirdParty)
+    return attn_output, None, None  # type: ignore (thirdParty)

@@ -416,6 +416,7 @@ def parse_args() -> Namespace:
         'Convert an MPT Composer checkpoint into a standard FasterTransformer checkpoint folder.'
     )
     parser.add_argument('--composer_path',
+                        '-i',
                         type=str,
                         help='Composer checkpoint path. Can be a local file path or cloud URI',
                         required=True)

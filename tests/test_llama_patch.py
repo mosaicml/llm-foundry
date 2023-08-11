@@ -15,9 +15,11 @@ from llmfoundry.models.layers.llama_attention_monkeypatch import (
 
 @pytest.mark.parametrize('patch_fn_name', ['torch', 'triton'])
 @pytest.mark.parametrize('explicit_mask', [True, False])
-@pytest.mark.parametrize('model_name', ['meta-llama/Llama-2-7b-hf', 'meta-llama/Llama-2-70b-hf'])
-# @pytest.mark.gpu
-def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool, model_name: str):
+@pytest.mark.parametrize(
+    'model_name', ['meta-llama/Llama-2-7b-hf', 'meta-llama/Llama-2-70b-hf'])
+@pytest.mark.gpu
+def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
+                           model_name: str):
     if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
         pytest.skip(
             'The CI cluster does not have access to the Llama models, so skip this test.'

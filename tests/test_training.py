@@ -59,7 +59,6 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
     assert isinstance(test_cfg, DictConfig)
 
     test_cfg.data_local = dataset_name
-    # removes requirement to download / process train set
     test_cfg.global_train_batch_size = 8
     test_cfg.device_eval_batch_size = 4
     test_cfg.device_train_microbatch_size = 4

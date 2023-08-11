@@ -1,9 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Note: This script is specifically for converting MPT composer checkpoints to HuggingFace format
-# For composer checkpoints containing model that are in the transformers library, see
-# https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.models.write_huggingface_pretrained_from_composer_checkpoint.html
+# Note: This script is specifically for converting MPT Composer checkpoints to FasterTransformer format.
 
 import json
 import os

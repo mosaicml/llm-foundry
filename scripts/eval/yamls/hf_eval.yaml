@@ -1,4 +1,4 @@
-max_seq_len: 2048
+max_seq_len: 1024
 seed: 1
 precision: amp_fp16
 
@@ -40,6 +40,8 @@ device_eval_batch_size: 4
 fsdp_config:
   sharding_strategy: FULL_SHARD
   mixed_precision: FULL
+  forward_prefetch: True
+  limit_all_gathers: True
 
-icl_tasks: 'eval/yamls/tasks_light.yaml'
+icl_tasks: 'eval/yamls/tasks.yaml'
 model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

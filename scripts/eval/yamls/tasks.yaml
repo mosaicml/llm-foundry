@@ -7,6 +7,11 @@ icl_tasks:
   continuation_delimiter: "\nAnswer: " # this separates questions from answers
   has_categories: true
 -
+  label: triviaqa_sm_sub
+  dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: question_answering
+-
   label: bigbench_qa_wikidata
   dataset_uri: eval/local_data/world_knowledge/bigbench_qa_wikidata.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
@@ -161,6 +166,11 @@ icl_tasks:
   label: squad
   dataset_uri: eval/local_data/reading_comprehension/squad.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: coqa
+  dataset_uri: eval/local_data/reading_comprehension/coqa.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0]
   icl_task_type: language_modeling
 -
   label: bigbench_understanding_fables

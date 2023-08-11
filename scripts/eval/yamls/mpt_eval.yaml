@@ -1,4 +1,4 @@
-max_seq_len: 2048
+max_seq_len: 1024
 tokenizer_name: EleutherAI/gpt-neox-20b
 seed: 1
 precision: amp_fp16
@@ -12,6 +12,7 @@ models:
     name: ${tokenizer_name}
     kwargs:
       model_max_length: ${max_seq_len}
+  load_path: # Add your (optional) Composer checkpoint path here!
   model:
     name: mpt_causal_lm
     init_device: meta
@@ -23,21 +24,15 @@ models:
     vocab_size: 50368
     attn_config:
       attn_impl: triton
-
-load_path: # Add your (optional) Composer checkpoint path here!
-
-device_eval_batch_size: 16
+  
+device_eval_batch_size: 4
 
 # FSDP config for model sharding
 fsdp_config:
   sharding_strategy: FULL_SHARD
   mixed_precision: FULL
+  forward_prefetch: True
+  limit_all_gathers: True
 
-icl_tasks:
--
-  label: jeopardy
-  dataset_uri: eval/local_data/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0]
-  icl_task_type: language_modeling
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
-  has_categories: true
+icl_tasks: 'eval/yamls/tasks.yaml'
+model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

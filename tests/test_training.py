@@ -84,7 +84,7 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
                      reason='testing with cuda requires GPU')),
 ])
 def test_train(device: str):
-    """ Test training run with a small dataset. """
+    """Test training run with a small dataset."""
     dataset_name = create_c4_dataset_xsmall(device)
     test_cfg = gpt_tiny_cfg(dataset_name, device)
     main(test_cfg)

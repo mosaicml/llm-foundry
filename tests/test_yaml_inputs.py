@@ -17,7 +17,7 @@ sys.path.append(repo_dir)
 from scripts.train.train import main  # noqa: E402
 
 
-class TestTrainingInputs:
+class TestTrainingYAMLInputs:
     """
     This class validates and tests error handling for the input YAML files used for training.
     """

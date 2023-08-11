@@ -8,7 +8,6 @@ from itertools import islice
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
-import streaming.base.util
 import torch
 import transformers
 from omegaconf import DictConfig
@@ -240,9 +239,6 @@ def build_text_dataloader(
             # stream is the streams kwargs
             # fwd all kwargs with **stream allows streaming to check args
             streams.append(Stream(**stream))
-
-    # clean up stale shared memory
-    streaming.base.util.clean_stale_shared_memory()
 
     # build dataset potentially with streams
     dataset = StreamingTextDataset(

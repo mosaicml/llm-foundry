@@ -23,8 +23,8 @@ class TestEvalYAMLInputs:
     @pytest.fixture
     def cfg(self) -> DictConfig:
         """Create YAML cfg fixture for testing purposes."""
-        conf_path: str = os.path.join(
-            repo_dir, 'scripts/eval/yamls/hf_eval.yaml')
+        conf_path: str = os.path.join(repo_dir,
+                                      'scripts/eval/yamls/hf_eval.yaml')
         with open(conf_path, 'r', encoding='utf-8') as config:
             test_cfg = om.load(config)
         assert isinstance(test_cfg, DictConfig)
@@ -35,16 +35,16 @@ class TestEvalYAMLInputs:
         mandatory_params = [
             'max_seq_len',
             'device_eval_batch_size',
-            'precision', 
+            'precision',
             'model_configs',
         ]
         mandatory_configs = ['models', 'icl_tasks']
         for p in mandatory_params + mandatory_configs:
-            with pytest.raises((omegaconf.errors.ConfigKeyError, omegaconf.errors.InterpolationKeyError)):
-                cfg[p + "-mispelled"] = cfg.pop(p)
+            with pytest.raises((omegaconf.errors.ConfigKeyError,
+                                omegaconf.errors.InterpolationKeyError)):
+                cfg[p + '-mispelled'] = cfg.pop(p)
                 main(cfg)
-                cfg[p] = cfg.pop(p + "-mispelled")
-
+                cfg[p] = cfg.pop(p + '-mispelled')
 
     def test_optional_mispelled_params_raise_warning(self,
                                                      cfg: DictConfig) -> None:
@@ -55,7 +55,7 @@ class TestEvalYAMLInputs:
             'run_name',
             'num_retries',
             'loggers',
-            'model_gauntlet', 
+            'model_gauntlet',
             'fsdp_config',
         ]
         old_cfg = copy.deepcopy(cfg)

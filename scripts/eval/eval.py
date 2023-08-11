@@ -6,6 +6,7 @@ import re
 import sys
 import time
 from typing import Any, Dict, List, Optional, Union
+import warnings
 
 import pandas as pd
 import torch
@@ -46,44 +47,38 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     )
 
 
-def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
+def evaluate_model(model_cfg: DictConfig,
+                   dist_timeout: Union[float, int], 
+                   run_name: str,
+                   icl_tasks: Union[str, ListConfig],
+                   max_seq_len: int,
+                   device_eval_batch_size: int,
+                   model_gauntlet_config: Optional[Union[str, DictConfig]], 
+                   fsdp_config: Optional[Dict], 
+                   num_retries: int, 
+                   loggers_cfg: Dict[str, Any],
+                   precision: str,
                    model_gauntlet_df: Optional[pd.DataFrame]):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
-    dist_timeout: Union[float, int] = cfg.get('dist_timeout', 600.0)
-    icl_tasks: Union[str, ListConfig] = cfg.icl_tasks
-    max_seq_len: int = cfg.max_seq_len
-    device_eval_batch_size: int = cfg.device_eval_batch_size
-    model_gauntlet_cfg: Optional[Union[str, DictConfig]] = cfg.get(
-        'model_gauntlet', None)
-    fsdp_dict_cfg: Optional[DictConfig] = cfg.pop('fsdp_config', None)
-    fsdp_config: Optional[Dict] = om.to_container(
-        fsdp_dict_cfg,
-        resolve=True) if fsdp_dict_cfg is not None else None  # type: ignore
-    assert isinstance(fsdp_config, Dict) or fsdp_config is None
-    num_retries: int = cfg.get('num_retries', 3)
-    loggers_cfg: Dict[str, Any] = cfg.get('loggers') or {}
-    precision: str = cfg.get('precision')
-
     tokenizer = build_tokenizer(model_cfg.tokenizer)
     evaluators, logger_keys = build_icl_evaluators(icl_tasks, tokenizer,
                                                    max_seq_len,
                                                    device_eval_batch_size)
-    if model_gauntlet_cfg is not None:
-        if isinstance(model_gauntlet_cfg, str):
-            with open(model_gauntlet_cfg, 'r', encoding='utf-8') as icl_f:
-                loaded_model_gauntlet_cfg = om.load(icl_f)
-            model_gauntlet: DictConfig = loaded_model_gauntlet_cfg.model_gauntlet
+    model_gauntlet: Optional[DictConfig] = None
+    model_gauntlet_callback: Optional[ModelGauntlet] = None
+    if model_gauntlet_config is not None:
+        if isinstance(model_gauntlet_config, str):
+            with open(model_gauntlet_config, 'r', encoding='utf-8') as icl_f:
+                loaded_model_gauntlet_config = om.load(icl_f)
+            model_gauntlet = loaded_model_gauntlet_config.model_gauntlet
         else:
-            model_gauntlet: DictConfig = model_gauntlet_cfg
+            model_gauntlet = model_gauntlet_config
         model_gauntlet.logger_keys = logger_keys
         model_gauntlet.benchmark_sizes = {
             e.label: e.dataloader.num_samples for e in evaluators
         }
-        model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
-    else:
-        model_gauntlet = None
-        model_gauntlet_callback = None
+        model_gauntlet_callback = ModelGauntlet(**model_gauntlet)  # type: ignore
 
     composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
                                 num_retries)
@@ -129,13 +124,37 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
 
 
 def main(cfg: DictConfig):
-    seed: int = cfg.get('seed')
-    model_configs: ListConfig = cfg.get('models')
+    om.resolve(cfg)
+    model_configs: ListConfig = cfg.pop('models')
+    model_gauntlet_config: Optional[Union[str, DictConfig]] = cfg.pop(
+        'model_gauntlet', None)
+    fsdp_dict_cfg: Optional[DictConfig] = cfg.pop('fsdp_config', None)
+    fsdp_config: Optional[Dict] = om.to_container(
+        fsdp_dict_cfg,
+        resolve=True) if fsdp_dict_cfg is not None else None  # type: ignore
+    assert isinstance(fsdp_config, Dict) or fsdp_config is None
 
-    dist_timeout: Union[float, int] = cfg.get('dist_timeout', 600.0)
+    # Mandatory Evaluation Parameters
+    icl_tasks: Union[str, ListConfig] = cfg.pop('icl_tasks')
+    max_seq_len: int = cfg.pop('max_seq_len')
+    device_eval_batch_size: int = cfg.pop('device_eval_batch_size')
+    precision: str = cfg.pop('precision')
+
+    # Optional Evaluation Parameters with default values
+    seed: int = cfg.pop('seed', 17)
+    dist_timeout: Union[float, int] = cfg.pop('dist_timeout', 600.0)
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = cfg.get('run_name', default_run_name)
+    run_name: str = cfg.pop('run_name', default_run_name)
+    num_retries: int = cfg.pop('num_retries', 3)
+    loggers_cfg: Dict[str, Any] = cfg.pop('loggers', {}) or {}
+    cfg.pop('model_name_or_path', None)
 
+    # Warn for unused parameters
+    for key in cfg:
+        warnings.warn(
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary.'
+        )
+    
     reproducibility.seed_all(seed)
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
@@ -144,8 +163,20 @@ def main(cfg: DictConfig):
     composite_scores = None
     for model_cfg in model_configs:
         (in_memory_logger, logger_keys, model_gauntlet_callback, model_gauntlet,
-         model_gauntlet_df) = evaluate_model(model_cfg, cfg, run_name,
-                                             model_gauntlet_df)
+         model_gauntlet_df) = evaluate_model(
+            model_cfg = model_cfg,
+            dist_timeout = dist_timeout,
+            run_name = run_name,
+            icl_tasks = icl_tasks,
+            max_seq_len = max_seq_len,
+            device_eval_batch_size = device_eval_batch_size,
+            model_gauntlet_config = model_gauntlet_config, 
+            fsdp_config = fsdp_config,
+            num_retries = num_retries, 
+            loggers_cfg = loggers_cfg,
+            precision = precision,
+            model_gauntlet_df = model_gauntlet_df
+        )
 
         if model_gauntlet_callback is not None:
             # TODO(bmosaicml) This needs to be refactored to fix the typing issue

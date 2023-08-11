@@ -8,13 +8,15 @@ integrations:
 
 command: |
   cd llm-foundry/scripts
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/rishab-partha/composer.git@multilingual-compat
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: all-eval
 gpu_num: 8
-# gpu_type:
-# cluster: # replace with your cluster here!
+gpu_type: a100_80gb
+cluster: r1z1
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
@@ -28,7 +30,7 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: mosaicml/mpt-7b-chat
     # Tokenizer
     tokenizer:
       name: EleutherAI/gpt-neox-20b
@@ -37,7 +39,7 @@ parameters:
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path: mosaicml/mpt-7b-chat
       init_device: cpu
       pretrained: true
       use_auth_token: false

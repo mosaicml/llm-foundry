@@ -5,7 +5,7 @@ import os
 import re
 import sys
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import torch
@@ -13,7 +13,7 @@ from composer.loggers import InMemoryLogger, LoggerDestination
 from composer.models.base import ComposerModel
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
@@ -50,18 +50,32 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
                    model_gauntlet_df: Optional[pd.DataFrame]):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
-    tokenizer = build_tokenizer(model_cfg.tokenizer)
+    dist_timeout: Union[float, int] = cfg.get('dist_timeout', 600.0)
+    icl_tasks: Union[str, ListConfig] = cfg.icl_tasks
+    max_seq_len: int = cfg.max_seq_len
+    device_eval_batch_size: int = cfg.device_eval_batch_size
+    model_gauntlet_cfg: Optional[Union[str, DictConfig]] = cfg.get(
+        'model_gauntlet', None)
+    fsdp_dict_cfg: Optional[DictConfig] = cfg.pop('fsdp_config', None)
+    fsdp_config: Optional[Dict] = om.to_container(
+        fsdp_dict_cfg,
+        resolve=True) if fsdp_dict_cfg is not None else None  # type: ignore
+    assert isinstance(fsdp_config, Dict) or fsdp_config is None
+    num_retries: int = cfg.get('num_retries', 3)
+    loggers_cfg: Dict[str, Any] = cfg.get('loggers') or {}
+    precision: str = cfg.get('precision')
 
-    evaluators, logger_keys = build_icl_evaluators(cfg.icl_tasks, tokenizer,
-                                                   cfg.max_seq_len,
-                                                   cfg.device_eval_batch_size)
-    if hasattr(cfg, 'model_gauntlet'):
-        if isinstance(cfg.model_gauntlet, str):
-            with open(cfg.model_gauntlet, 'r') as icl_f:
-                model_gauntlet_cfg = om.load(icl_f)
-            model_gauntlet = model_gauntlet_cfg.model_gauntlet
+    tokenizer = build_tokenizer(model_cfg.tokenizer)
+    evaluators, logger_keys = build_icl_evaluators(icl_tasks, tokenizer,
+                                                   max_seq_len,
+                                                   device_eval_batch_size)
+    if model_gauntlet_cfg is not None:
+        if isinstance(model_gauntlet_cfg, str):
+            with open(model_gauntlet_cfg, 'r', encoding='utf-8') as icl_f:
+                loaded_model_gauntlet_cfg = om.load(icl_f)
+            model_gauntlet: DictConfig = loaded_model_gauntlet_cfg.model_gauntlet
         else:
-            model_gauntlet = cfg.model_gauntlet
+            model_gauntlet: DictConfig = model_gauntlet_cfg
         model_gauntlet.logger_keys = logger_keys
         model_gauntlet.benchmark_sizes = {
             e.label: e.dataloader.num_samples for e in evaluators
@@ -71,13 +85,8 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
         model_gauntlet = None
         model_gauntlet_callback = None
 
-    fsdp_config = cfg.get('fsdp_config', None)
-    fsdp_config = om.to_container(
-        fsdp_config, resolve=True) if fsdp_config is not None else None
-    assert isinstance(fsdp_config, Dict) or fsdp_config is None
-
     composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
-                                cfg.get('num_retries', 3))
+                                num_retries)
 
     if model_gauntlet_df is None and model_gauntlet is not None:
         model_gauntlet_df = pd.DataFrame(
@@ -87,7 +96,7 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
     in_memory_logger = InMemoryLogger()  # track metrics in the in_memory_logger
     loggers: List[LoggerDestination] = [
         build_logger(name, logger_cfg)
-        for name, logger_cfg in (cfg.get('loggers') or {}).items()
+        for name, logger_cfg in loggers_cfg.items()
     ]
     loggers.append(in_memory_logger)
 
@@ -98,13 +107,13 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
         run_name=run_name,
         model=composer_model,
         loggers=loggers,
-        precision=cfg.precision,
+        precision=precision,
         fsdp_config=fsdp_config,  # type: ignore
         load_path=load_path,
         load_weights_only=True,
         progress_bar=False,
         log_to_console=True,
-        dist_timeout=cfg.dist_timeout,
+        dist_timeout=dist_timeout,
     )
 
     if torch.cuda.is_available():
@@ -120,19 +129,22 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
 
 
 def main(cfg: DictConfig):
-    cfg.dist_timeout = cfg.get('dist_timeout', 600.0)
-    if cfg.get('run_name') is None:
-        cfg.run_name = os.environ.get('RUN_NAME', 'llm')
+    seed: int = cfg.get('seed')
+    model_configs: ListConfig = cfg.get('models')
 
-    reproducibility.seed_all(cfg.seed)
-    dist.initialize_dist(get_device(None), timeout=cfg.dist_timeout)
+    dist_timeout: Union[float, int] = cfg.get('dist_timeout', 600.0)
+    default_run_name: str = os.environ.get('RUN_NAME', 'llm')
+    run_name: str = cfg.get('run_name', default_run_name)
+
+    reproducibility.seed_all(seed)
+    dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     model_gauntlet_df = None
     models_df = None
     composite_scores = None
-    for model_cfg in cfg.models:
+    for model_cfg in model_configs:
         (in_memory_logger, logger_keys, model_gauntlet_callback, model_gauntlet,
-         model_gauntlet_df) = evaluate_model(model_cfg, cfg, cfg.run_name,
+         model_gauntlet_df) = evaluate_model(model_cfg, cfg, run_name,
                                              model_gauntlet_df)
 
         if model_gauntlet_callback is not None:

@@ -180,12 +180,12 @@ icl_tasks:
   icl_task_type: code_evaluation
 -
   label: human_eval_cpp
-  dataset_uri: eval/local_data/programming/processsed_humaneval_c++.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/programming/processed_humaneval_c++.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   icl_task_type: code_evaluation
 -
   label: human_eval_js
-  dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/programming/processed_humaneval_js.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   icl_task_type: code_evaluation
 -

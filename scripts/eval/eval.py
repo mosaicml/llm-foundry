@@ -5,8 +5,8 @@ import os
 import re
 import sys
 import time
-from typing import Any, Dict, List, Optional, Union
 import warnings
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import torch
@@ -47,17 +47,12 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     )
 
 
-def evaluate_model(model_cfg: DictConfig,
-                   dist_timeout: Union[float, int], 
-                   run_name: str,
-                   icl_tasks: Union[str, ListConfig],
-                   max_seq_len: int,
-                   device_eval_batch_size: int,
-                   model_gauntlet_config: Optional[Union[str, DictConfig]], 
-                   fsdp_config: Optional[Dict], 
-                   num_retries: int, 
-                   loggers_cfg: Dict[str, Any],
-                   precision: str,
+def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
+                   run_name: str, icl_tasks: Union[str, ListConfig],
+                   max_seq_len: int, device_eval_batch_size: int,
+                   model_gauntlet_config: Optional[Union[str, DictConfig]],
+                   fsdp_config: Optional[Dict], num_retries: int,
+                   loggers_cfg: Dict[str, Any], precision: str,
                    model_gauntlet_df: Optional[pd.DataFrame]):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
@@ -74,11 +69,12 @@ def evaluate_model(model_cfg: DictConfig,
             model_gauntlet = loaded_model_gauntlet_config.model_gauntlet
         else:
             model_gauntlet = model_gauntlet_config
-        model_gauntlet.logger_keys = logger_keys
-        model_gauntlet.benchmark_sizes = {
+        model_gauntlet.logger_keys = logger_keys  # type: ignore
+        model_gauntlet.benchmark_sizes = {  # type: ignore
             e.label: e.dataloader.num_samples for e in evaluators
         }
-        model_gauntlet_callback = ModelGauntlet(**model_gauntlet)  # type: ignore
+        model_gauntlet_callback = ModelGauntlet(**
+                                                model_gauntlet)  # type: ignore
 
     composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
                                 num_retries)
@@ -154,7 +150,7 @@ def main(cfg: DictConfig):
         warnings.warn(
             f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary.'
         )
-    
+
     reproducibility.seed_all(seed)
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
@@ -164,19 +160,18 @@ def main(cfg: DictConfig):
     for model_cfg in model_configs:
         (in_memory_logger, logger_keys, model_gauntlet_callback, model_gauntlet,
          model_gauntlet_df) = evaluate_model(
-            model_cfg = model_cfg,
-            dist_timeout = dist_timeout,
-            run_name = run_name,
-            icl_tasks = icl_tasks,
-            max_seq_len = max_seq_len,
-            device_eval_batch_size = device_eval_batch_size,
-            model_gauntlet_config = model_gauntlet_config, 
-            fsdp_config = fsdp_config,
-            num_retries = num_retries, 
-            loggers_cfg = loggers_cfg,
-            precision = precision,
-            model_gauntlet_df = model_gauntlet_df
-        )
+             model_cfg=model_cfg,
+             dist_timeout=dist_timeout,
+             run_name=run_name,
+             icl_tasks=icl_tasks,
+             max_seq_len=max_seq_len,
+             device_eval_batch_size=device_eval_batch_size,
+             model_gauntlet_config=model_gauntlet_config,
+             fsdp_config=fsdp_config,
+             num_retries=num_retries,
+             loggers_cfg=loggers_cfg,
+             precision=precision,
+             model_gauntlet_df=model_gauntlet_df)
 
         if model_gauntlet_callback is not None:
             # TODO(bmosaicml) This needs to be refactored to fix the typing issue

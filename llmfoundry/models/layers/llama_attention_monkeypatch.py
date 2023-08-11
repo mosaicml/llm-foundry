@@ -61,7 +61,7 @@ def get_llama_attention_patch_fn(patch_fn_name: str = 'torch') -> Callable:
 
 
 def llama_attention_patch_torch(
-    self,
+    self, # type: ignore
     hidden_states: torch.Tensor,
     attention_mask: Optional[torch.Tensor] = None,
     position_ids: Optional[torch.LongTensor] = None,
@@ -85,19 +85,19 @@ def llama_attention_patch_torch(
         value_slices = self.v_proj.weight.split(key_value_slicing, dim=0)
 
         query_states = [
-            F.linear(hidden_states, query_slices[i])
+            F.linear(hidden_states, query_slices[i]) # type: ignore (thirdParty)
             for i in range(self.config.pretraining_tp)
         ]
         query_states = torch.cat(query_states, dim=-1)
 
         key_states = [
-            F.linear(hidden_states, key_slices[i])
+            F.linear(hidden_states, key_slices[i]) # type: ignore (thirdParty)
             for i in range(self.config.pretraining_tp)
         ]
         key_states = torch.cat(key_states, dim=-1)
 
         value_states = [
-            F.linear(hidden_states, value_slices[i])
+            F.linear(hidden_states, value_slices[i]) # type: ignore (thirdParty)
             for i in range(self.config.pretraining_tp)
         ]
         value_states = torch.cat(value_states, dim=-1)
@@ -118,7 +118,7 @@ def llama_attention_patch_torch(
         kv_seq_len += past_key_value[0].shape[-2]
     cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
     query_states, key_states = apply_rotary_pos_emb(query_states, key_states,
-                                                    cos, sin, position_ids)
+                                                    cos, sin, position_ids) # type: ignore (thirdParty)
 
     query_states = query_states.transpose(1, 2).view(
         bsz, q_len, self.num_heads * self.head_dim)
@@ -133,7 +133,7 @@ def llama_attention_patch_torch(
         value=value_states,
         n_heads=self.num_heads,
         kv_n_heads=self.num_key_value_heads,
-        past_key_value=past_key_value,
+        past_key_value=None,
         softmax_scale=None,
         attn_bias=attention_mask,
         key_padding_mask=None,
@@ -151,7 +151,7 @@ def llama_attention_patch_torch(
                                                  self.config.pretraining_tp,
                                                  dim=1)
         attn_output = sum([
-            F.linear(attn_output[i], o_proj_slices[i])
+            F.linear(attn_output[i], o_proj_slices[i]) # type: ignore (thirdParty)
             for i in range(self.config.pretraining_tp)
         ])
     else:
@@ -164,7 +164,7 @@ def llama_attention_patch_torch(
 
 
 def llama_attention_patch_triton(
-    self,
+    self, # type: ignore
     hidden_states: torch.Tensor,
     attention_mask: Optional[torch.Tensor] = None,
     position_ids: Optional[torch.LongTensor] = None,
@@ -240,7 +240,7 @@ def llama_attention_patch_triton(
         value=value_states,
         n_heads=self.num_heads,
         kv_n_heads=self.num_key_value_heads,
-        past_key_value=past_key_value,
+        past_key_value=None,
         softmax_scale=None,
         attn_bias=attention_mask,
         key_padding_mask=None,

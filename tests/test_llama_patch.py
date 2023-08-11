@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
 import pytest
 import torch
 import transformers
@@ -17,7 +18,9 @@ from llmfoundry.models.layers.llama_attention_monkeypatch import (
 @pytest.mark.gpu
 def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool):
     if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
-        pytest.skip("The CI cluster does not have access to the Llama models, so skip this test.")
+        pytest.skip(
+            'The CI cluster does not have access to the Llama models, so skip this test.'
+        )
 
     original_forward = LlamaAttention.forward
 

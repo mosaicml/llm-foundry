@@ -98,6 +98,7 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
     load_path = model_cfg.get('load_path', None)
 
     assert composer_model is not None
+    
     trainer = Trainer(
         run_name=run_name,
         model=composer_model,
@@ -115,6 +116,7 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
         torch.cuda.synchronize()
     a = time.time()
     trainer.eval(eval_dataloader=evaluators)
+    breakpoint()
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     b = time.time()

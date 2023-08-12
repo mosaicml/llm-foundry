@@ -1,6 +1,6 @@
 max_seq_len: 1024
 seed: 1
-precision: amp_fp16
+precision: fp32
 
 # If you are using one model, put it here:
 model_name_or_path: EleutherAI/gpt-neo-125m
@@ -43,5 +43,5 @@ device_eval_batch_size: 4
 #   forward_prefetch: True
 #   limit_all_gathers: True
 
-icl_tasks: 'eval/yamls/tasks.yaml'
+icl_tasks: 'eval/yamls/small_jeopardy.yaml'
 model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

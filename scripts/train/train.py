@@ -194,15 +194,15 @@ def main(cfg: DictConfig):
     cfg = update_batch_size_info(cfg)
 
     # Read FSDP Config as a dict
-    fsdp_config = cfg.get('fsdp_config', None)
-    fsdp_config = om.to_container(fsdp_config,
-                                  resolve=True) if fsdp_config else None
-    assert isinstance(fsdp_config, Dict) or fsdp_config is None
-    if dist.get_world_size() == 1 and fsdp_config is not None:
-        warnings.warn(
-            'FSDP is not applicable for single-GPU training. Reverting to DDP.')
-        cfg.pop('fsdp_config')
-        fsdp_config = None
+    fsdp_config = cfg.get('fsdp_config')
+    if fsdp_config is not None:
+        fsdp_config = om.to_container(fsdp_config, resolve=True)
+        assert isinstance(fsdp_config, Dict)
+        if dist.get_world_size() == 1:
+            warnings.warn(
+                'FSDP is not applicable for single-GPU training. Reverting to DDP.')
+            cfg.pop('fsdp_config')
+            fsdp_config = None
 
     init_context = process_init_device(cfg.model, fsdp_config)
 
@@ -212,13 +212,16 @@ def main(cfg: DictConfig):
     # Build Model
     print('Initializing model...')
     with init_context:
-        if cfg.get('lora',
-                   None) is not None:  # frozen model + trainable lora modules
+        if cfg.get('lora') is not None:  # frozen model + trainable lora modules
             model: ComposerHFCausalLM = build_composer_peft_model(
                 cfg.model, cfg.lora, tokenizer)
             print_trainable_parameters(model)  # should not be 100%
         else:  # standard model
             model = build_composer_model(cfg.model, tokenizer)
+        if cfg.model.get('master_weights_dtype') in ('bf16', 'bfloat16'):
+            model = model.to(dtype=torch.bfloat16)
+        elif cfg.model.get('master_weights_dtype') in ('f16', 'float16'):
+            model = model.to(dtype=torch.float16)
     cfg.n_params = sum(p.numel() for p in model.parameters())
     print(f'{cfg.n_params=:.2e}')
 
@@ -342,5 +345,6 @@ if __name__ == '__main__':
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
+    om.resolve(cfg)
     assert isinstance(cfg, DictConfig)
     main(cfg)

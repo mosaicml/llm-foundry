@@ -111,6 +111,8 @@ class StreamingTextDataset(StreamingDataset):
                     )
 
         # Build Dataset
+        print(f'shuffle block size data type: {type(shuffle_block_size)}')
+        shuffle_block_size = int(shuffle_block_size)
         super().__init__(
             streams=streams,
             remote=remote,
@@ -129,7 +131,7 @@ class StreamingTextDataset(StreamingDataset):
             shuffle=shuffle,
             shuffle_algo=shuffle_algo,
             shuffle_seed=shuffle_seed,
-            shuffle_block_size=int(shuffle_block_size),
+            shuffle_block_size=shuffle_block_size,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len

@@ -328,6 +328,8 @@ def main(cfg: DictConfig):
         dist_timeout=cfg.dist_timeout,
     )
 
+    torch.cuda.empty_cache()
+
     print('Logging config...')
     log_config(cfg)
 

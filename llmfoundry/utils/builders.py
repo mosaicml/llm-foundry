@@ -204,6 +204,8 @@ def build_icl_evaluators(icl_tasks,
             icl_cfg.max_seq_len = default_max_seq_len
         if 'batch_size' not in icl_cfg:
             icl_cfg.batch_size = default_batch_size
+        if 'num_beams' not in icl_cfg:
+            icl_cfg.num_beams = 1
 
     for icl_cfg in icl_tasks:
         _validate_cfg(icl_cfg)
@@ -233,6 +235,7 @@ def build_icl_evaluators(icl_tasks,
                 example_delimiter=icl_cfg.example_delimiter,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 destination_path=destination_path,
+                generations_per_sample=icl_cfg.num_beams,
                 has_categories=icl_cfg.get('has_categories', False),
             )
             if hasattr(

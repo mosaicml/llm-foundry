@@ -738,7 +738,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             )
 
     def get_targets(self, batch: Mapping):
-        targets = torch.roll(batch['labels'], shifts=-1)
+        shape = batch['labels'].size()
+        targets = torch.roll(batch['labels'].view(-1), shifts=-1,
+                             dims=0).view(shape)
         targets[:, -1] = -100
         return targets
 

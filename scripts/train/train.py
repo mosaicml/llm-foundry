@@ -73,9 +73,10 @@ def validate_config(cfg: DictConfig):
     if (cfg.model.get('fc_type', 'torch') == 'te' or
             'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp')):
         fsdp_config = cfg.get('fsdp_config', None)
-        act_ckpt = fsdp_config.get('activation_checkpointing', False)
-        act_ckpt_reentrant = fsdp_config.get(
-            'activation_checkpointing_reentrant', True)
+        if fsdp_config is not None:
+            act_ckpt = fsdp_config.get('activation_checkpointing', False)
+            act_ckpt_reentrant = fsdp_config.get(
+                'activation_checkpointing_reentrant', True)
         if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == False:
             warnings.warn(
                 '`te.Linear` layers do not support activation_checkpointing with '
@@ -203,7 +204,8 @@ def main(cfg: DictConfig):
                                                  'dist_timeout',
                                                  must_exist=False,
                                                  default_value=600.0)
-    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    device = cfg.get('device', None)
+    dist.initialize_dist(get_device(device), timeout=dist_timeout)
 
     # Get global and device batch size information from distributed/single node setting
     cfg = update_batch_size_info(cfg)
@@ -387,8 +389,18 @@ def main(cfg: DictConfig):
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
 
+<<<<<<< HEAD
     # Build tokenizer
     tokenizer = build_tokenizer(tokenizer_config)
+=======
+    # Read deep_speed config as dict
+    deepspeed_config = cfg.get('deepspeed_config', None)
+    deepspeed_config = om.to_container(
+        deepspeed_config, resolve=True) if deepspeed_config else None
+
+    # build tokenizer
+    tokenizer = build_tokenizer(cfg.tokenizer)
+>>>>>>> Add support for HPU device
 
     # Build Model
     print('Initializing model...')
@@ -427,6 +439,7 @@ def main(cfg: DictConfig):
 
     # Algorithms
     algorithms = [
+<<<<<<< HEAD
         build_algorithm(str(name), algorithm_cfg)
         for name, algorithm_cfg in algorithm_configs.items()
     ] if algorithm_configs else None
@@ -457,6 +470,28 @@ def main(cfg: DictConfig):
                                                  max_seq_len,
                                                  device_eval_batch_size)
         evaluators.extend(icl_evaluators)
+=======
+        build_algorithm(name, algorithm_cfg)
+        for name, algorithm_cfg in (cfg.get('algorithms') or {}).items()
+    ]
+
+    # Set autoresume default on if possible
+    save_folder = cfg.get('save_folder', None)
+    if deepspeed_config:
+        save_latest_filename = cfg.get('save_latest_filename',
+                                       'latest-rank{rank}.pt.tar')
+    else:
+        save_latest_filename = cfg.get('save_latest_filename',
+                                       'latest-rank{rank}.pt')
+    save_overwrite = cfg.get('save_overwrite', False)
+    save_weights_only = cfg.get('save_weights_only', False)
+    autoresume_default = False
+    if cfg.run_name is not None and save_folder is not None and save_latest_filename is not None and not save_overwrite and not save_weights_only:
+        print(
+            'As run_name, save_folder, and save_latest_filename are set, changing autoresume default to True...'
+        )
+        autoresume_default = True
+>>>>>>> Add support for HPU device
 
     # Build the Trainer
     print('Building trainer...')
@@ -487,6 +522,7 @@ def main(cfg: DictConfig):
         save_num_checkpoints_to_keep=save_num_checkpoints_to_keep,
         save_overwrite=save_overwrite,
         save_weights_only=save_weights_only,
+<<<<<<< HEAD
         load_path=load_path,
         load_weights_only=load_weights_only,
         load_ignore_keys=load_ignore_keys,
@@ -494,6 +530,16 @@ def main(cfg: DictConfig):
         python_log_level=python_log_level,
         dist_timeout=dist_timeout,
     )
+=======
+        load_path=cfg.get('load_path', None),
+        load_weights_only=cfg.get('load_weights_only', False),
+        load_ignore_keys=cfg.get('load_ignore_keys', None),
+        autoresume=cfg.get('autoresume', autoresume_default),
+        python_log_level=cfg.get('python_log_level', 'debug'),
+        dist_timeout=cfg.dist_timeout,
+        deepspeed_config=deepspeed_config,
+        device=device)
+>>>>>>> Add support for HPU device
 
     print('Logging config')
     log_config(logged_cfg)

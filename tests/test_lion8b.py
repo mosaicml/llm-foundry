@@ -48,13 +48,13 @@ def test_modifies_weights_and_momentums(N: int, D: int, dtype: torch.dtype,
     with pytest.raises(AssertionError):  # opt step modified the weights
         torch.testing.assert_close(W_orig, W)
 
-    # every momentum should be nonzero with infinite precision, but
-    # might be zero after quantization
+    # Every momentum should be nonzero with infinite precision, but
+    # might be zero after quantization. We turn the _MaybeQuantizedTensor
+    # instance into a regular torch Tensor to simplify this check.
     param_state = opt.state[W]  # type:ignore using tensor as key
     momentum = param_state['exp_avg'].materialize()
     assert momentum.shape == (D, D)
     momentum = momentum.ravel()
-    assert momentum is not None
     if momentum.numel() == 1:
         assert momentum.item() != 0
     else:

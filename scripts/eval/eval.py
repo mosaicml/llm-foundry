@@ -32,9 +32,8 @@ def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         from peft import PeftModel
     except ImportError as e:
         raise ImportError(
-            'Error importing from peft. Please verify that peft and peft utils '
-            'are installed by running `pip install -e .[gpu,peft]` from `llm-foundry/`.'
-            f'Error encountered: {e}')
+            f'Error importing from peft. Run `pip install -e .[gpu,peft]`. \n {e}'
+        )
 
     model_registry = {
         'mpt_causal_lm': MPTForCausalLM,

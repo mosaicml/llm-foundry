@@ -181,44 +181,37 @@ def main(cfg: DictConfig):
 def calculate_markdown_results(metric_keys: List[str], trainer: Trainer,
                                benchmark_to_taxonomy: Dict[str, str],
                                model_name: str):
-    breakpoint()
     results = {}
-    logger_data = None
-    for lg in logger.destinations:
-        if isinstance(lg, InMemoryLogger):
-            logger_data = lg.data
 
-    if logger_data is None:
-        return None
+    for key in metric_keys:
+        # dl_name consists is either 2-tuple (benchmark_name, num_fewshot)
+        # or 3-tuple (benchmark_name, num_fewshot, subcategory)
+        dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
+        if 'Accuracy' not in metric_name:
+            continue
+    
+        metric = trainer.state.eval_metrics.get('/'.join(dl_name), {}).get(metric_name, None)
+       
 
-    pat = re.compile(r'metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')
-    for key in logger_keys:
-        match = pat.match(key)
-        val = logger_data[key][-1][1].item()
-        if match:
-            eval_name = match.group(1)
-            num_shot = match.group(2)
-            subcat = match.group(3)
-            if subcat is not None:
-                subcat = subcat[1:]
-            else:
-                subcat = 'no_subcat'
-            metric = match.group(4)
-            if num_shot not in results:
-                results[num_shot] = {}
-            if eval_name not in results[num_shot]:
-                results[num_shot][eval_name] = {}
-            if metric not in results[num_shot][eval_name]:
-                results[num_shot][eval_name][metric] = []
+        if dl_name[1] not in results:
+            results[dl_name[1]] = {}
+        
+        if dl_name[0] not in results[dl_name[1]]:
+            results[dl_name[1]][dl_name[0]] = {}
+        
+        if metric_name not in results[dl_name[1]][dl_name[0]]:
+            results[dl_name[1]][dl_name[0]][metric_name] = []
+        
+        results[dl_name[1]][dl_name[0]][metric_name].append({
+            'val': metric.compute(),
+            'subcat': dl_name[-1] if len(dl_name) == 3 else 'no_subcat'
+        })
 
-            results[num_shot][eval_name][metric].append({
-                'val': val,
-                'subcat': subcat
-            })
     df = pd.DataFrame(columns=[
         'Category', 'Benchmark', 'Subtask', 'Accuracy', 'Number few shot',
         'Model'
     ])
+
     for num_shot in results:
         for benchmark in results[num_shot]:
             for metric in results[num_shot][benchmark]:

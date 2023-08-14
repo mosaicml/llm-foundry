@@ -52,7 +52,7 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
         model_name, use_auth_token=True)
 
     reproducibility.seed_all(42)
-    attention = LlamaAttention(config=llama_7b_config,)
+    attention = LlamaAttention(config=llama_config,)
     attention.to(dtype=dtype, device=device)
 
     rng = torch.Generator(device=device).manual_seed(42)

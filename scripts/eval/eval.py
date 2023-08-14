@@ -2,16 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import re
 import sys
 import time
 from typing import Dict, List, Optional
 
 import pandas as pd
-from composer.core.event import Event
 import torch
-from composer.loggers import InMemoryLogger, LoggerDestination
-from composer.loggers.logger import Logger
 from composer.models.base import ComposerModel
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
@@ -21,8 +17,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
-                                       build_tokenizer)
+from llmfoundry.utils.builders import build_icl_evaluators, build_tokenizer
 from llmfoundry.utils.config_utils import process_init_device
 
 
@@ -60,7 +55,7 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
         cfg.max_seq_len,
         cfg.device_eval_batch_size,
         icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
-    
+
     callbacks = []
     if hasattr(cfg, 'model_gauntlet'):
         if isinstance(cfg.model_gauntlet, str):
@@ -95,7 +90,7 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
     load_path = model_cfg.get('load_path', None)
 
     assert composer_model is not None
-    
+
     trainer = Trainer(
         run_name=run_name,
         model=composer_model,
@@ -117,8 +112,8 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
         torch.cuda.synchronize()
     b = time.time()
     print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
-    return (trainer, metric_names, model_gauntlet_callback,
-            model_gauntlet, model_gauntlet_df)
+    return (trainer, metric_names, model_gauntlet_callback, model_gauntlet,
+            model_gauntlet_df)
 
 
 def main(cfg: DictConfig):
@@ -146,7 +141,7 @@ def main(cfg: DictConfig):
             for t in model_gauntlet.categories:
                 for b in t.benchmarks:
                     benchmark_to_taxonomy[b.name] = t.name
-        
+
         model_results = calculate_markdown_results(metric_names, trainer,
                                                    benchmark_to_taxonomy,
                                                    model_cfg.model_name)
@@ -189,19 +184,21 @@ def calculate_markdown_results(metric_keys: List[str], trainer: Trainer,
         dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
         if 'Accuracy' not in metric_name:
             continue
-    
-        metric = trainer.state.eval_metrics.get('/'.join(dl_name), {}).get(metric_name, None)
-       
 
+        metric = trainer.state.eval_metrics.get('/'.join(dl_name),
+                                                {}).get(metric_name, None)
+
+        if metric is None:
+            continue
         if dl_name[1] not in results:
             results[dl_name[1]] = {}
-        
+
         if dl_name[0] not in results[dl_name[1]]:
             results[dl_name[1]][dl_name[0]] = {}
-        
+
         if metric_name not in results[dl_name[1]][dl_name[0]]:
             results[dl_name[1]][dl_name[0]][metric_name] = []
-        
+
         results[dl_name[1]][dl_name[0]][metric_name].append({
             'val': metric.compute(),
             'subcat': dl_name[-1] if len(dl_name) == 3 else 'no_subcat'

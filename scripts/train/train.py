@@ -9,7 +9,6 @@ import torch
 from composer import Trainer
 from composer.core import Evaluator
 from composer.core.callback import Callback
-from composer.loggers.in_memory_logger import InMemoryLogger
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
@@ -284,8 +283,6 @@ def main(cfg: DictConfig):
 
     if model_gauntlet_callback is not None:
         callbacks.append(model_gauntlet_callback)
-        if not any(isinstance(l, InMemoryLogger) for l in loggers):
-            loggers.append(build_logger('in_memory_logger', {}))
 
     # Algorithms
     algorithms = [

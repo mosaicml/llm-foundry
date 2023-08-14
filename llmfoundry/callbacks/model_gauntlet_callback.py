@@ -4,7 +4,6 @@
 """Aggregate ICL evals into composite scores."""
 
 import math
-import re
 from enum import Enum
 from typing import Optional
 
@@ -100,29 +99,29 @@ class ModelGauntlet(Callback):
 
     def compute_averages(self, state: State):
         results = {}
-       
+
         for key in self.metric_names:
 
             # starting at index 1 skips the "metric" part of they key which is superfluous
-            dl_name, metric_name = '/'.join(key.split('/')[1:-1]), key.split('/')[-1]
+            dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
             if 'Accuracy' not in metric_name:
                 continue
-            
+
             metric = state.eval_metrics.get(dl_name, {}).get(metric_name, None)
             if metric is None:
                 continue
             val = metric.compute().item()
 
             # ending at index 2 allows us to aggregate over dataloaders w/ subcategories
-            key = '/'.join(dl_name.split('/')[0:2]) 
+            key = '/'.join(dl_name.split('/')[0:2])
             if key not in results:
                 results[key] = []
-            
+
             results[key].append(val)
 
         return {k: sum(v) / len(v) for k, v in results.items()}
 
-    def eval_after_all(self, state: Optional[State], logger: Logger):
+    def eval_after_all(self, state: State, logger: Logger):
         new_metrics = self.compute_averages(state)
         if len(new_metrics) == 0:
             return {}
@@ -130,9 +129,8 @@ class ModelGauntlet(Callback):
         for category in self.categories:
             composite_scores[category['name']] = []
             for benchmark in category['benchmarks']:
-                key =  f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
+                key = f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
 
-               
                 if key not in new_metrics:
                     print(
                         f"Warning: couldn't find results for benchmark: {benchmark}"

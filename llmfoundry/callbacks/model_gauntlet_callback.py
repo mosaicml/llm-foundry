@@ -105,7 +105,9 @@ class ModelGauntlet(Callback):
 
             # starting at index 1 skips the "metric" part of they key which is superfluous
             dl_name, metric_name = '/'.join(key.split('/')[1:-1]), key.split('/')[-1]
-
+            if 'Accuracy' not in metric_name:
+                continue
+            
             metric = state.eval_metrics.get(dl_name, {}).get(metric_name, None)
             if metric is None:
                 continue

@@ -29,16 +29,14 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
     Args:
         params: iterable of parameters to optimize or dicts defining
             parameter groups
-        lr: learning rate (Default: 1e-3)
+        lr: learning rate
         betas: two coefficients between 0 and 1 used to combine the current
             gradients and the momentum. The first coefficient is the weight
             of the gradient when computing the update. The second is the
             weight of the gradient when computing the new momentum.
-            (Default: .9, .99)
         weight decay: Weights are multiplied by 1 - `weight_decay` after
             each optimizer step. Note that we use decoupled weight decay,
             meaning that this decay does not contribute to the momentum.
-            (Default: 0.)
         compress_state_dict: if True, this optimizer's `state_dict` will
             include quantized optimizer states. Otherwise, the optimizer
             states are converted to bfloat16 Tensors matching the shapes of
@@ -57,19 +55,17 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             by retaining information across optimizer steps.
     """
 
-    def __init__(
-        self,
-        params: Iterable[torch.Tensor],
-        lr: float = 1e-3,
-        betas: Tuple[float, float] = (0.9, 0.99),
-        weight_decay: float = 0,
-        compress_state_dict: bool = False,
-        quantize: bool = True,
-        _fused: bool = True,  # XXX this flag is mostly for testing...
-        error_correction: bool = False):
-        if not 0.0 <= lr:
+    def __init__(self,
+                 params: Iterable[torch.Tensor],
+                 lr: float = 1e-3,
+                 betas: Tuple[float, float] = (0.9, 0.99),
+                 weight_decay: float = 0,
+                 quantize: bool = True,
+                 compress_state_dict: bool = False,
+                 error_correction: bool = False,
+                 _fused: bool = True):  # XXX this flag is mostly for testing...
+        if lr < 0.0:
             raise ValueError('Invalid learning rate: {}'.format(lr))
-        # if not 0.0 < betas[0] < 1.0:
         if not 0.0 <= betas[0] <= 1.0:
             raise ValueError('Invalid beta parameter at index 0: {}'.format(
                 betas[0]))
@@ -80,19 +76,24 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             raise ValueError(
                 'Invalid weight_decay value: {}'.format(weight_decay))
 
-        self._quantize = quantize and torch.cuda.is_available()
-        self._compress_state_dict = compress_state_dict
+        if not torch.cuda.is_available():
+            needs_cuda = ' requires a CUDA device.'
+            if quantize:
+                raise NotImplementedError('Quantization' + needs_cuda)
+            if error_correction:
+                raise NotImplementedError('Error correction' + needs_cuda)
+            if compress_state_dict:
+                raise NotImplementedError('Quantized state dict' + needs_cuda)
+
+        self._quantize = quantize
         self._error_correction = error_correction
-        if error_correction and not _fused:
-            raise NotImplementedError(
-                'Error correction requires fused kernels.')
-        defaults = {
-            'lr': lr,
-            'initial_lr': lr,
-            'betas': betas,
-            'weight_decay': weight_decay,
-            'fused': _fused
-        }
+        self._compress_state_dict = compress_state_dict
+
+        defaults = {'lr': lr,
+                    'initial_lr': lr,
+                    'betas': betas,
+                    'weight_decay': weight_decay,
+                    'fused': _fused}
         super().__init__(params, defaults)
 
     @torch.no_grad()
@@ -146,12 +147,16 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
         for param_id in opt_state:
             param_state = opt_state[param_id]
             new_state = {}
-            if _KEY_MOMENTUM in param_state:
+            if any(k.startswith(_KEY_MOMENTUM) for k in param_state):
+                # the keys can either be just "exp_avg" or
+                # "exp_avg::quantized" and "exp_avg::scales", depending on
+                # whether we saved it as quantized or not. The former case
+                # gives us interop with regular LION.
                 qtensor = _MaybeQuantizedTensor(None,
                                                 try_quantize=self._quantize)
-                qtensor.load_state_dict(param_state[_KEY_MOMENTUM])
+                qtensor.load_state_dict(param_state, name=_KEY_MOMENTUM)
                 new_state[_KEY_MOMENTUM] = qtensor
-            if self._error_correction and _KEY_ERRORS in param_state:
+            if _KEY_ERRORS in param_state:
                 # we need to cast back to the correct dtype since optimizer
                 # load_state_dict casts to param dtype for fp params; see
                 # https://github.com/pytorch/pytorch/blob/a25eee1d77d93079614fab3ea4ac66e64fb2343b/torch/optim/optimizer.py#L626C7-L626C7 # noqa
@@ -174,11 +179,12 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             # isn't the same as self.state, but its consituent dicts are
             # the same as those in self.state
             param_state = {k: v for k, v in opt_state[param_id].items()}
-            if _KEY_MOMENTUM in param_state:
-                qtensor = param_state[_KEY_MOMENTUM]
+            if _KEY_MOMENTUM in param_state:  # true if we've taken any steps
+                qtensor = param_state.pop(_KEY_MOMENTUM)
                 assert isinstance(qtensor, _MaybeQuantizedTensor)  # pyright
-                param_state[_KEY_MOMENTUM] = qtensor.state_dict(
-                    allow_quantized=self._compress_state_dict)
+                param_state.update(qtensor.state_dict(
+                    name=_KEY_MOMENTUM,
+                    allow_quantized=self._compress_state_dict))
             opt_state[param_id] = param_state
         return d
 
@@ -213,23 +219,29 @@ class _MaybeQuantizedTensor:
             self.set_data(data)
 
     def state_dict(self,
+                   name: str,
                    allow_quantized: bool = False) -> Dict[str, torch.Tensor]:
         if self.is_quantized() and allow_quantized:
             assert self.quantized is not None  # pyright
             assert self.scales is not None  # pyright
-            return {'quantized': self.quantized, 'scales': self.scales}
-        return {'data': self.materialize().to(dtype=torch.bfloat16)}
+            return {f'{name}::quantized': self.quantized,
+                    f'{name}::scales': self.scales}
+        return {name: self.materialize().to(dtype=torch.bfloat16)}
 
-    def load_state_dict(self, d: Dict[str, torch.Tensor]) -> None:
-        if 'data' in d:
+    def load_state_dict(self, d: Dict[str, torch.Tensor], name: str) -> None:
+        # we allow other keys in the state dict for convenience, so you can
+        # just pass this the whole opt state for a parameters
+        d = {k: v for k, v in d.items() if k.startswith(name)}
+        if name in d:
             if len(d) != 1:
-                raise ValueError('If state dict specifies "data", it must not' +
-                                 f'specify other keys. Got {list(d.keys())}')
-            self.set_data(d['data'])
+                raise ValueError(
+                    f'If state dict specifies {name}, it must not ' +
+                    f'specify other keys. Got {list(d.keys())}')
+            self.set_data(d[name])
             return
 
-        self.quantized = d['quantized'].to(dtype=torch.int8)
-        self.scales = d['scales'].to(dtype=torch.float16)
+        self.quantized = d[f'{name}::quantized'].to(dtype=torch.int8)
+        self.scales = d[f'{name}::scales'].to(dtype=torch.float16)
 
     def set_data(self, data: torch.Tensor) -> None:
         if not (self._try_quantize and data.is_cuda):

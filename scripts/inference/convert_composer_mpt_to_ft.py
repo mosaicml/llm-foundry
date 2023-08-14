@@ -13,6 +13,7 @@ from typing import Optional, Union
 import torch
 from composer.utils import get_file, safe_torch_load
 from transformers import PreTrainedTokenizer
+
 from llmfoundry.models.utils import (convert_and_save_ft_weights,
                                      get_hf_tokenizer_from_composer_state_dict)
 
@@ -148,10 +149,10 @@ def write_ft_checkpoint_from_composer_checkpoint(
     print('#' * 30)
     print('Converting weights to FasterTransformer format...')
     convert_and_save_ft_weights(named_params=weights_state_dict,
-                             config=composer_config,
-                             infer_gpu_num=infer_gpu_num,
-                             weight_data_type=output_precision,
-                             save_dir=save_dir)
+                                config=composer_config,
+                                infer_gpu_num=infer_gpu_num,
+                                weight_data_type=output_precision,
+                                save_dir=save_dir)
 
     print('#' * 30)
     print(

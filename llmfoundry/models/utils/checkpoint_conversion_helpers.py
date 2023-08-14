@@ -3,11 +3,10 @@
 
 """Helper methods for the checkpoint conversion scripts.
 
-The checkpoint conversion scripts are located in the 
-llmfoundry/scripts/inference/benchmarking/ folder.
-Users should run those scripts directly to convert between checkpoints;
-this file contains only common utility functions that are present 
-in multiple scripts.
+The checkpoint conversion scripts are located in the
+llmfoundry/scripts/inference/benchmarking/ folder. Users should run those
+scripts directly to convert between checkpoints; this file contains only common
+utility functions that are present in multiple scripts.
 """
 
 import json
@@ -72,8 +71,8 @@ def get_hf_tokenizer_from_composer_state_dict(
 
 
 def _write_zero_bias(weight_name: str, weight_file_path: str,
-                    bias_shape: Union[Tuple[int, ...], int]) -> None:
-    """Write zeros for bias when converting MPT weights to FasterTransformer weights.
+                     bias_shape: Union[Tuple[int, ...], int]) -> None:
+    """Write zeros for bias when converting MPT to FasterTransformer weights.
 
     MPT model might not have bias while FT expects bias.
 
@@ -93,9 +92,9 @@ def _write_zero_bias(weight_name: str, weight_file_path: str,
 
 
 def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
-                              tensor_name: str, config: Dict[str, Any],
-                              data: np.ndarray):
-    """Convert each MPT checkpoint weight to a FasterTransformer compatible format.
+                               tensor_name: str, config: Dict[str, Any],
+                               data: np.ndarray):
+    """Convert each MPT weight to a FasterTransformer compatible format.
 
     Args:
         save_dir (str): Path of the directory to save the weight in FT format. The directory must already exist.
@@ -159,7 +158,8 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
             save_path = os.path.join(save_dir, f'model.{tensor_name}.{j}.bin')
             split_vals[j].tofile(save_path)
             if config['no_bias']:
-                _write_zero_bias(tensor_name, save_path, split_vals[j].shape[-1])
+                _write_zero_bias(tensor_name, save_path,
+                                 split_vals[j].shape[-1])
 
     elif tensor_name.find('mlp.dense_h_to_4h.bias') != -1:
         assert data.shape == (
@@ -197,18 +197,18 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
             split_vals[j].tofile(save_path)
             if config['no_bias']:
                 _write_zero_bias(tensor_name, save_path,
-                                (3, split_vals[j].shape[-1]))
+                                 (3, split_vals[j].shape[-1]))
 
     else:
         raise RuntimeError(f'Tensor with name {tensor_name} is not handled')
 
 
 def convert_and_save_ft_weights(named_params: dict,
-                             config: dict,
-                             infer_gpu_num: int = 1,
-                             weight_data_type: str = 'fp32',
-                             save_dir: str = ''):
-    """Convert an entire Composer MPT checkpoint to a FasterTransformer compatible format.
+                                config: dict,
+                                infer_gpu_num: int = 1,
+                                weight_data_type: str = 'fp32',
+                                save_dir: str = ''):
+    """Convert a Composer MPT checkpoint to a FasterTransformer format.
 
     Args:
         named_params (Dict[str, Parameter]): A dictionary containing the Composer MPT model's parameter names and data.
@@ -274,6 +274,5 @@ def convert_and_save_ft_weights(named_params: dict,
                     new_name = name.replace('transformer.blocks.',
                                             'layers.').replace(
                                                 mpt_pattern, ft_pattern)
-                    _convert_weight_to_ft_each(save_dir, infer_gpu_num, new_name,
-                                              config, data)
-
+                    _convert_weight_to_ft_each(save_dir, infer_gpu_num,
+                                               new_name, config, data)

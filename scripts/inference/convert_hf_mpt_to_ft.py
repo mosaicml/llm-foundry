@@ -26,6 +26,7 @@ import configparser
 import os
 
 import transformers
+
 from llmfoundry.models.utils import convert_and_save_ft_weights
 
 
@@ -101,12 +102,15 @@ def convert_mpt_to_ft(model_name_or_path: str,
         print(f'Failed to save the config in config.ini.')
         raise
 
-    named_params_dict = {name:param for name, param in model.named_parameters()}
+    named_params_dict = {
+        name: param for name, param in model.named_parameters()
+    }
     convert_and_save_ft_weights(named_params=named_params_dict,
-                             config=hf_config,
-                             infer_gpu_num=infer_gpu_num,
-                             weight_data_type=weight_data_type,
-                             save_dir=save_dir)
+                                config=hf_config,
+                                infer_gpu_num=infer_gpu_num,
+                                weight_data_type=weight_data_type,
+                                save_dir=save_dir)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

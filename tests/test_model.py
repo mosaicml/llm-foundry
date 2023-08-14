@@ -373,7 +373,7 @@ def test_loss_fn():
     assert isinstance(test_cfg, DictConfig)
 
     test_cfg.device = 'cuda:0'
-    test_cfg.model.init_device = 'cuda:0'
+    test_cfg.model.init_device = 'cpu'
     test_cfg.model.init_config = {
         'name': 'baseline_',
         'init_std': 0.02,
@@ -386,6 +386,10 @@ def test_loss_fn():
     model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                            tokenizer)
     model_2 = copy.deepcopy(model_1)
+
+    model_1.to(test_cfg.device)
+    model_2.to(test_cfg.device)
+
     assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
     model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
 

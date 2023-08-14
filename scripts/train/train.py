@@ -200,7 +200,8 @@ def main(cfg: DictConfig):
         assert isinstance(fsdp_config, Dict)
         if dist.get_world_size() == 1:
             warnings.warn(
-                'FSDP is not applicable for single-GPU training. Reverting to DDP.')
+                'FSDP is not applicable for single-GPU training. Reverting to DDP.'
+            )
             cfg.pop('fsdp_config')
             fsdp_config = None
 

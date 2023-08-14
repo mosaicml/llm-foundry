@@ -4,7 +4,7 @@
 import contextlib
 import math
 import warnings
-from typing import Dict, Optional, Union, Mapping
+from typing import Dict, Mapping, Optional, Union
 
 from composer.utils import dist
 from omegaconf import DictConfig
@@ -89,7 +89,8 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
 
     # no mixed precision needed for weights when they're already 16 bits
     master_dtype = model_cfg.get('master_weights_dtype')
-    small_dtypes = ('bf16', 'f16', 'float16', 'bfloat16', 'amp_fp16', 'amp_bf16')
+    small_dtypes = ('bf16', 'f16', 'float16', 'bfloat16', 'amp_fp16',
+                    'amp_bf16')
     if fsdp_config and master_dtype in small_dtypes:
         reduce_dtype = None
         buffer_dtype = None

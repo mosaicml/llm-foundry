@@ -89,11 +89,13 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
         self._error_correction = error_correction
         self._compress_state_dict = compress_state_dict
 
-        defaults = {'lr': lr,
-                    'initial_lr': lr,
-                    'betas': betas,
-                    'weight_decay': weight_decay,
-                    'fused': _fused}
+        defaults = {
+            'lr': lr,
+            'initial_lr': lr,
+            'betas': betas,
+            'weight_decay': weight_decay,
+            'fused': _fused
+        }
         super().__init__(params, defaults)
 
     @torch.no_grad()
@@ -182,9 +184,10 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             if _KEY_MOMENTUM in param_state:  # true if we've taken any steps
                 qtensor = param_state.pop(_KEY_MOMENTUM)
                 assert isinstance(qtensor, _MaybeQuantizedTensor)  # pyright
-                param_state.update(qtensor.state_dict(
-                    name=_KEY_MOMENTUM,
-                    allow_quantized=self._compress_state_dict))
+                param_state.update(
+                    qtensor.state_dict(
+                        name=_KEY_MOMENTUM,
+                        allow_quantized=self._compress_state_dict))
             opt_state[param_id] = param_state
         return d
 
@@ -224,8 +227,10 @@ class _MaybeQuantizedTensor:
         if self.is_quantized() and allow_quantized:
             assert self.quantized is not None  # pyright
             assert self.scales is not None  # pyright
-            return {f'{name}::quantized': self.quantized,
-                    f'{name}::scales': self.scales}
+            return {
+                f'{name}::quantized': self.quantized,
+                f'{name}::scales': self.scales
+            }
         return {name: self.materialize().to(dtype=torch.bfloat16)}
 
     def load_state_dict(self, d: Dict[str, torch.Tensor], name: str) -> None:

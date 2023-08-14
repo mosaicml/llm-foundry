@@ -1,5 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+import copy
 import os
 import sys
 import warnings
@@ -177,18 +178,18 @@ def main(cfg: DictConfig):
         message=
         'torch.distributed.*_base is a private function and will be deprecated.*'
     )
-
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)
 
     # Resolve all interpolation variables as early as possible
     om.resolve(cfg)
+    logged_cfg: DictConfig = copy.deepcopy(cfg)
 
     # Set seed first
     seed: int = pop_config(cfg, 'seed', must_exist=True)
     reproducibility.seed_all(seed)
 
-    # Initialize distributed setting with seed
+    # Initialize pytorch distributed training process groups
     dist_timeout: Union[int, float] = pop_config(cfg,
                                                  'dist_timeout',
                                                  must_exist=False,
@@ -197,9 +198,7 @@ def main(cfg: DictConfig):
 
     # Get global and device batch size information from distributed/single node setting
     cfg = update_batch_size_info(cfg)
-
-    print('Logging config...')
-    log_config(cfg)
+    logged_cfg.update(cfg, merge=True)
 
     # Mandatory model training configs
     model_config: DictConfig = pop_config(cfg, 'model', must_exist=True)
@@ -336,13 +335,21 @@ def main(cfg: DictConfig):
                                                        must_exist=False,
                                                        default_value=None)
     # Enable autoresume from model checkpoints if possible
-    autoresume_default = not save_overwrite and not save_weights_only
-    autoresume = pop_config(cfg,
-                            'autoresume',
-                            must_exist=False,
-                            default_value=autoresume_default)
+    autoresume_default: bool = False
+    if logged_cfg.get('run_name', None) is not None \
+        and save_folder is not None \
+        and not save_overwrite \
+        and not save_weights_only:
+        print('As run_name, save_folder, and save_latest_filename are set, \
+                changing autoresume default to True...')
+        autoresume_default = True
+    autoresume: bool = pop_config(cfg,
+                                  'autoresume',
+                                  must_exist=False,
+                                  default_value=autoresume_default)
 
-    # Pop known unused parameters.
+    # Pop known unused parameters that are used as interpolation variables or
+    # created by update_batch_size_info.
     pop_config(cfg, 'data_local', must_exist=False)
     pop_config(cfg, 'data_remote', must_exist=False)
     pop_config(cfg, 'global_seed', must_exist=False)
@@ -364,8 +371,7 @@ def main(cfg: DictConfig):
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
-    if fsdp_config:
-        log_config(om.create(fsdp_config))
+    logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
 
     # Build tokenizer
     tokenizer = build_tokenizer(tokenizer_config)
@@ -382,7 +388,7 @@ def main(cfg: DictConfig):
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())
-    log_config(om.create({'n_params': n_params}))
+    logged_cfg.update({'n_params': n_params})
 
     # Dataloaders
     print('Building train loader...')
@@ -471,6 +477,9 @@ def main(cfg: DictConfig):
         python_log_level=python_log_level,
         dist_timeout=dist_timeout,
     )
+
+    print('Logging config')
+    log_config(logged_cfg)
 
     # Eval first if requested
     if eval_first and trainer.state.timestamp.batch.value == 0:

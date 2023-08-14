@@ -26,7 +26,7 @@ def pop_config(cfg: DictConfig,
     if value is not None:
         return value
     elif must_exist:
-        raise RuntimeError(
+        raise NameError(
             f'The {key} parameter is missing and must exist for execution. Please check your yaml.'
         )
     else:
@@ -112,8 +112,8 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
 def log_config(cfg: DictConfig):
     """Logs the current config and updates the wandb and mlflow configs.
 
-    This function can be called multiple times to update the wandb config with
-    different variables.
+    This function can be called multiple times to update the wandb and MLflow
+    config with different variables.
     """
     print(om.to_yaml(cfg))
     if 'wandb' in cfg.get('loggers', {}):

@@ -52,7 +52,7 @@ class TestTrainingYAMLInputs:
         for param in mandatory_params:
             orig_param = cfg.pop(param)
             with pytest.raises(
-                (omegaconf.errors.ConfigAttributeError, RuntimeError)):
+                (omegaconf.errors.ConfigAttributeError, NameError)):
                 main(cfg)
             cfg[param] = orig_param
 

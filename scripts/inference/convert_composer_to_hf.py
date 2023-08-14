@@ -5,24 +5,22 @@
 # For composer checkpoints containing model that are in the transformers library, see
 # https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.models.write_huggingface_pretrained_from_composer_checkpoint.html
 
-import json
 import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-import sentencepiece as spm
 import torch
 import transformers
 from composer.utils import (get_file, maybe_create_object_store_from_uri,
                             parse_uri, safe_torch_load)
-from transformers import (AutoConfig, AutoTokenizer, PretrainedConfig,
-                          PreTrainedTokenizer)
+from transformers import AutoConfig, PretrainedConfig
 
 from llmfoundry import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
+from llmfoundry.models.utils import get_hf_tokenizer_from_composer_state_dict
 
 
 # TODO: maybe move this functionality to Composer
@@ -110,48 +108,6 @@ def get_hf_config_from_composer_state_dict(
         del hf_config_dict['low_precision_layernorm']
 
     return AutoConfig.for_model(**hf_config_dict)
-
-
-# TODO: maybe move this functionality to Composer
-def get_hf_tokenizer_from_composer_state_dict(
-        state_dict: Dict[str, Any]) -> Optional[PreTrainedTokenizer]:
-    if 'state' not in state_dict:
-        raise RuntimeError(
-            'Unexpected composer state dictionary. Did you pass in a full composer checkpoint?'
-        )
-    if 'integrations' not in state_dict[
-            'state'] or 'huggingface' not in state_dict['state']['integrations']:
-        raise RuntimeError(
-            'Did not find HuggingFace related state (e.g., tokenizer) in the provided composer checkpoint!'
-        )
-    hf_tokenizer_state = state_dict['state']['integrations']['huggingface'][
-        'tokenizer']
-    hf_tokenizer = None
-    if hf_tokenizer_state != {}:
-        with tempfile.TemporaryDirectory() as _tmp_dir:
-            for filename, saved_content in hf_tokenizer_state.items():
-                tokenizer_file_path = Path(
-                    _tmp_dir) / f'{filename}{saved_content["file_extension"]}'
-                if saved_content['file_extension'] == '.json':
-                    with open(tokenizer_file_path, 'w') as _tmp_file:
-                        json.dump(saved_content['content'], _tmp_file)
-                elif saved_content['file_extension'] == '.txt':
-                    with open(tokenizer_file_path, 'w') as _tmp_file:
-                        for line in saved_content['content']:
-                            _tmp_file.write(line)
-                            _tmp_file.write('\n')
-                elif saved_content['file_extension'] == '.model':
-                    s = spm.SentencePieceProcessor()
-                    s.load_from_serialized_proto(saved_content['content'])
-                    with open(tokenizer_file_path, 'wb') as _tmp_file:
-                        _tmp_file.write(s.serialized_model_proto())
-            hf_tokenizer = AutoTokenizer.from_pretrained(_tmp_dir)
-
-            # remove 'name_or_path'
-            hf_tokenizer.name_or_path = ''
-            hf_tokenizer.init_kwargs['name_or_path'] = ''
-
-    return hf_tokenizer
 
 
 def write_huggingface_pretrained_from_composer_checkpoint(

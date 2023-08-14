@@ -48,8 +48,8 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
     else:
         raise ValueError(f'Unknown patch_fn_name: {patch_fn_name}')
 
-    llama_config = transformers.AutoConfig.from_pretrained(
-        model_name, use_auth_token=True)
+    llama_config = transformers.AutoConfig.from_pretrained(model_name,
+                                                           use_auth_token=True)
 
     reproducibility.seed_all(42)
     attention = LlamaAttention(config=llama_config,)

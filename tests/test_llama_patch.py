@@ -79,7 +79,7 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
 
     reproducibility.seed_all(42)
     LlamaAttention.forward = patch_fn
-    attention = LlamaAttention(config=llama_7b_config,)
+    attention = LlamaAttention(config=llama_config,)
     attention.to(dtype=dtype, device=device)
     new_output, _, _ = attention(
         hidden_states=hidden_states,

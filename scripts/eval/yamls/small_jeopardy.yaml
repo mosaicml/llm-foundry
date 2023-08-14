@@ -1,7 +1,7 @@
 icl_seq_len: 2048
 icl_tasks:
 -
-  label: jeopardy_sm
+  label: jeopardy
   dataset_uri: eval/local_data/world_knowledge/jeopardy_small.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: language_modeling

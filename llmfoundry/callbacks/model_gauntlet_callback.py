@@ -35,7 +35,7 @@ class ModelGauntlet(Callback):
     specification provided in the constructor.
 
     Args:
-        logger_keys (dict): These are the exact keys that the individual benchmark metrics will be
+        metric_names (dict): These are the exact keys that the individual benchmark metrics will be
                             logged under in the logger after eval
         tasks (dict): This contains the list of categories, as well as the subtasks within them, the
                       random baseline accuracy of each subtask, and the number of fewshot examples
@@ -52,7 +52,7 @@ class ModelGauntlet(Callback):
     """
 
     def __init__(self,
-                 logger_keys: dict,
+                 metric_names: dict,
                  categories: dict,
                  weighting: str = 'EQUAL',
                  subtract_random_baseline: bool = True,
@@ -72,7 +72,7 @@ class ModelGauntlet(Callback):
         self.weighting = Weighting[weighting]
         self.subtract_random_baseline = subtract_random_baseline
         self.rescale_accuracy = rescale_accuracy
-        self.logger_keys = logger_keys
+        self.metric_names = metric_names
 
         for category in self.categories:
 
@@ -98,57 +98,45 @@ class ModelGauntlet(Callback):
                 assert weight is not None
                 benchmark['weighting'] = weight
 
-    def compute_averages(self, logger_destination: InMemoryLogger):
+    def compute_averages(self, state: State):
         results = {}
-        pat = re.compile(
-            'metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)'  # type: ignore
-        )
-        for key in self.logger_keys:
-            match = pat.match(key)
-            if key not in logger_destination.data:
+       
+        for key in self.metric_names:
+
+            # starting at index 1 skips the "metric" part of they key which is superfluous
+            dl_name, metric_name = '/'.join(key.split('/')[1:-1]), key.split('/')[-1]
+
+            metric = state.eval_metrics.get(dl_name, {}).get(metric_name, None)
+            if metric is None:
                 continue
-            val = logger_destination.data[key][-1][1].item()
+            val = metric.compute().item()
 
-            if match:
-                eval_name = match.group(1)
-                num_shot = match.group(2)
-                subcat = match.group(3)
-                metric = match.group(4)
+            # ending at index 2 allows us to aggregate over dataloaders w/ subcategories
+            key = '/'.join(dl_name.split('/')[0:2]) 
+            if key not in results:
+                results[key] = []
+            
+            results[key].append(val)
 
-                if subcat is not None:
-                    subcat = subcat[1:]
-                    if f'metrics/{eval_name}/{num_shot}-shot/InContextLearning{metric}' not in results:
-                        results[f'metrics/{eval_name}/{num_shot}-shot/InContextLearning{metric}'] = []
-                    results[
-                        f'metrics/{eval_name}/{num_shot}-shot/InContextLearning{metric}'].append(
-                            val)
-                else:
-                    results[key] = [val]
         return {k: sum(v) / len(v) for k, v in results.items()}
 
     def eval_after_all(self, state: Optional[State], logger: Logger):
-        inmemorylogger = get_in_memory_logger(logger)
-        new_metrics = self.compute_averages(inmemorylogger)
+        new_metrics = self.compute_averages(state)
         if len(new_metrics) == 0:
             return {}
         composite_scores = {}
         for category in self.categories:
             composite_scores[category['name']] = []
             for benchmark in category['benchmarks']:
-                key_pat = re.compile(
-                    f"metrics/{benchmark['name']}/{benchmark['num_fewshot']}-shot/.*Accuracy"
-                )
+                key =  f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
 
-                matching_key = [
-                    k for k in new_metrics.keys()
-                    if key_pat.match(k) is not None
-                ]
-                if len(matching_key) == 0:
+               
+                if key not in new_metrics:
                     print(
                         f"Warning: couldn't find results for benchmark: {benchmark}"
                     )
                 else:
-                    score = new_metrics[matching_key[0]]
+                    score = new_metrics[key]
 
                     if self.subtract_random_baseline:
                         score -= benchmark['random_baseline']
@@ -175,6 +163,7 @@ class ModelGauntlet(Callback):
         composite_scores['metrics/model_gauntlet/average'] = sum(
             composite_scores.values()) / len(composite_scores.values())
 
-        logger.log_metrics(composite_scores)
+        if logger is not None:
+            logger.log_metrics(composite_scores)
 
         return composite_scores

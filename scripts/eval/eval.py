@@ -8,6 +8,7 @@ import time
 from typing import Dict, List, Optional
 
 import pandas as pd
+from composer.core.event import Event
 import torch
 from composer.loggers import InMemoryLogger, LoggerDestination
 from composer.loggers.logger import Logger
@@ -53,12 +54,14 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
     # Build tokenizer and model
     tokenizer = build_tokenizer(model_cfg.tokenizer)
 
-    evaluators, logger_keys = build_icl_evaluators(
+    evaluators, metric_names = build_icl_evaluators(
         cfg.icl_tasks,
         tokenizer,
         cfg.max_seq_len,
         cfg.device_eval_batch_size,
         icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
+    
+    callbacks = []
     if hasattr(cfg, 'model_gauntlet'):
         if isinstance(cfg.model_gauntlet, str):
             with open(cfg.model_gauntlet, 'r') as icl_f:
@@ -66,11 +69,12 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
             model_gauntlet = model_gauntlet_cfg.model_gauntlet
         else:
             model_gauntlet = cfg.model_gauntlet
-        model_gauntlet.logger_keys = logger_keys
+        model_gauntlet.metric_names = metric_names
         model_gauntlet.benchmark_sizes = {
             e.label: e.dataloader.num_samples for e in evaluators
         }
         model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
+        callbacks.append(model_gauntlet_callback)
     else:
         model_gauntlet = None
         model_gauntlet_callback = None
@@ -88,13 +92,6 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
             columns=['model_name', 'average'] +
             [t.name for t in model_gauntlet.categories])
 
-    in_memory_logger = InMemoryLogger()  # track metrics in the in_memory_logger
-    loggers: List[LoggerDestination] = [
-        build_logger(name, logger_cfg)
-        for name, logger_cfg in (cfg.get('loggers') or {}).items()
-    ]
-    loggers.append(in_memory_logger)
-
     load_path = model_cfg.get('load_path', None)
 
     assert composer_model is not None
@@ -102,7 +99,7 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
     trainer = Trainer(
         run_name=run_name,
         model=composer_model,
-        loggers=loggers,
+        callbacks=callbacks,
         precision=cfg.precision,
         fsdp_config=fsdp_config,  # type: ignore
         load_path=load_path,
@@ -116,12 +113,11 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
         torch.cuda.synchronize()
     a = time.time()
     trainer.eval(eval_dataloader=evaluators)
-    breakpoint()
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     b = time.time()
     print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
-    return (trainer.logger, logger_keys, model_gauntlet_callback,
+    return (trainer, metric_names, model_gauntlet_callback,
             model_gauntlet, model_gauntlet_df)
 
 
@@ -137,21 +133,21 @@ def main(cfg: DictConfig):
     models_df = None
     composite_scores = None
     for model_cfg in cfg.models:
-        (logger, logger_keys, model_gauntlet_callback, model_gauntlet,
+        (trainer, metric_names, model_gauntlet_callback, model_gauntlet,
          model_gauntlet_df) = evaluate_model(model_cfg, cfg, cfg.run_name,
                                              model_gauntlet_df)
 
         if model_gauntlet_callback is not None:
             composite_scores = model_gauntlet_callback.eval_after_all(
-                None, logger)
+                trainer.state, trainer.logger)
 
         benchmark_to_taxonomy = {}
         if model_gauntlet is not None:
             for t in model_gauntlet.categories:
                 for b in t.benchmarks:
                     benchmark_to_taxonomy[b.name] = t.name
-
-        model_results = calculate_markdown_results(logger_keys, logger,
+        
+        model_results = calculate_markdown_results(metric_names, trainer,
                                                    benchmark_to_taxonomy,
                                                    model_cfg.model_name)
 
@@ -182,9 +178,10 @@ def main(cfg: DictConfig):
         print(models_df.to_markdown(index=False))
 
 
-def calculate_markdown_results(logger_keys: List[str], logger: Logger,
+def calculate_markdown_results(metric_keys: List[str], trainer: Trainer,
                                benchmark_to_taxonomy: Dict[str, str],
                                model_name: str):
+    breakpoint()
     results = {}
     logger_data = None
     for lg in logger.destinations:

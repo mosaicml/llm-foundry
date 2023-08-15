@@ -58,9 +58,9 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
 
         self.model_forward_args = inspect.getfullargspec(
             self.model.forward).args
-        # inspecting HuggingFace quantized model could not return args correctly
+        # inspect.getfullargspec HuggingFace quantized model could not return args correctly
         if not self.model_forward_args:
-            self.model_forward_args = ['input_ids', 'attention_mask']
+            self.model_forward_args = inspect.signature(model.forward).parameters.keys()
 
         # Note: We need to add the FSDP related attributes to the model AFTER the super init,
         # so that the (possible) embedding resizing doesn't destroy them

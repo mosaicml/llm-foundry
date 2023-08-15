@@ -46,13 +46,19 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             FSDP or other weight sharding approaches.
         quantize: If False, optimizer states will not actually be quantized.
             This option is available so that one can easily debug whether
-            the quantization is causing any convergence issues. Quantization
-            is always disabled when training without a CUDA device.
+            the quantization is causing any convergence issues. Because
+            quantization is only supported for CUDA parameters, attempting to
+            update a non-CUDA tensor will raise an error.
         error_correction: If True, float16 and bfloat16 parameters will be
             given an extra state variable, "errors." This tensor will be
             of the same shape as the parameter but of dtype uint8. This
             auxiliary variable is used to better approximate float32 updates
             by retaining information across optimizer steps.
+
+    Raises:
+        NotImplemenetedError - If any of `quantize`, `compress_state_dict`,
+            or `error_correction` are `True` and either a) there is no CUDA
+            device, or b) step() is executed on a non-CUDA parameter.
     """
 
     def __init__(self,
@@ -85,6 +91,7 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             if compress_state_dict:
                 raise NotImplementedError('Quantized state dict' + needs_cuda)
 
+        _fused = _fused and quantize
         self._quantize = quantize
         self._error_correction = error_correction
         self._compress_state_dict = compress_state_dict
@@ -249,14 +256,18 @@ class _MaybeQuantizedTensor:
         self.scales = d[f'{name}::scales'].to(dtype=torch.float16)
 
     def set_data(self, data: torch.Tensor) -> None:
-        if not (self._try_quantize and data.is_cuda):
-            self.data = data.to(dtype=torch.float32)
-            self.quantized = None
-            self.scales = None
-        else:
+        if self._try_quantize:
+            if not data.is_cuda:
+                raise NotImplementedError(
+                    f'Attempting to quantize a non-CUDA {data.dtype} tensor ' +
+                    f'on device {data.device} with shape {data.shape}.')
             self.data = None
             assert self._f_encode is not None  # pyright
             self.quantized, self.scales = self._f_encode(data)
+        else:
+            self.data = data.to(dtype=torch.float32)
+            self.quantized = None
+            self.scales = None
 
     def is_quantized(self) -> bool:
         return self.data is None
@@ -392,6 +403,10 @@ def _lion8b_step(grads: torch.Tensor,
                  weight_decay: float = 0,
                  errors: Optional[torch.Tensor] = None,
                  fused: bool = True) -> None:
+
+    if fused and not momentums.is_quantized():
+        raise NotImplementedError(
+            'Fused LION step only implemented with quantization.')
 
     if momentums.is_quantized() and fused:
         assert momentums.quantized is not None  # pyright

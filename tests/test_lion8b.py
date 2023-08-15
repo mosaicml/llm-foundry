@@ -7,6 +7,8 @@ import warnings
 import numpy as np
 import pytest
 import torch
+import torch.nn as nn
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 from llmfoundry.optim import DecoupledLionW_8bit as Lion8bit
 
@@ -63,16 +65,17 @@ def test_modifies_weights_and_momentums(N: int, D: int, dtype: torch.dtype,
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('N,D', _MANY_PARAM_SHAPES)
-@pytest.mark.parametrize('device', ['cpu', 'cuda'])
-@pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
+@pytest.mark.parametrize('device,dtype', [('cpu', torch.float32),
+    ('cuda', torch.bfloat16), ('cuda', torch.float16), ('cuda', torch.float32)])
 @pytest.mark.parametrize('weight_decay', [0, .1])
 @pytest.mark.parametrize('fused,use_errors', [(False, False), (True, False),
                                               (True, True)])
 def test_changes_with_zero_grads(N: int, D: int, device: str,
                                  dtype: torch.dtype, weight_decay: float,
                                  fused: bool, use_errors: bool) -> None:
-    if (dtype != torch.float32) and device == 'cpu':
+    if (device == 'cpu') and (fused or use_errors):
         return
+
     torch.manual_seed(123)
     W = torch.rand((D, D), device=device, requires_grad=True)
     W_orig = W.detach().clone()
@@ -103,13 +106,13 @@ def test_changes_with_zero_grads(N: int, D: int, device: str,
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('N,D', [(1, 8), (17, 23), (32, 32)])
-@pytest.mark.parametrize('device', ['cpu', 'cuda'])
-@pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
+@pytest.mark.parametrize('device,dtype', [('cpu', torch.float32),
+    ('cuda', torch.bfloat16), ('cuda', torch.float16), ('cuda', torch.float32)])
 @pytest.mark.parametrize('fused,use_errors', [(False, False), (True, False),
                                               (True, True)])
 def test_descends(N: int, D: int, device: str, dtype: torch.dtype, fused: bool,
                   use_errors: bool) -> None:
-    if (dtype != torch.float32) and device == 'cpu':
+    if (device == 'cpu') and (fused or use_errors):
         return
     torch.manual_seed(123)
     X = torch.randn((N, D), device=device, requires_grad=False, dtype=dtype)
@@ -359,6 +362,58 @@ def test_state_dict_save_load(device: str, quantized_state: bool,
                                    rtol=np.inf)
         if use_errors and (dtype != torch.float32):
             torch.testing.assert_close(d_orig['errors'], d_new['errors'])
+
+
+class _DummyModule(nn.Module):
+    def __init__(self, device: str, dtype: torch.dtype):
+        super().__init__()
+        self.linear0 = nn.Linear(4, 3, device=device, dtype=dtype)
+        self.linear1 = nn.Linear(3, 4, device=device, dtype=dtype)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor: # type:ignore
+        return self.linear1(self.linear0(x))
+
+
+# run just this test with:
+# python3 -m composer.cli.launcher -n 2 --master_port 26000 -m pytest -m gpu tests/test_lion8b.py::test_fsdp_save_load  # noqa
+@pytest.mark.gpu
+@pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
+@pytest.mark.parametrize('use_errors', [False, True])
+@pytest.mark.parametrize('world_size', [2])
+def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool, world_size: int):
+    device = 'cuda'
+    if torch.cuda.device_count() < 2:
+        pytest.skip(f'This test requires 2+ GPUs.')
+    assert torch.distributed.get_world_size() >= 2, 'Misconfigured test run!'
+
+    # assert False
+
+    # # # torch.cuda.set_device(0)
+    # # # os.environ['RANK'] = 0
+    if not torch.distributed.is_initialized():
+        torch.distributed.init_process_group()
+
+    mod = FSDP(_DummyModule(device=device, dtype=dtype))
+
+    # actual forward pass instead of setting p.grad to avoid FSDP issues
+    X = torch.rand(size=(5, 4), device=device, dtype=dtype)
+    Y = mod(X)
+    Y.sum().backward()
+    for p in mod.parameters():
+        p.grad = torch.rand_like(p)
+
+    # create optimizer and have it step so that state gets populated
+    opt = Lion8bit(mod.parameters(), error_correction=use_errors)
+    opt.step()
+    opt.zero_grad()
+
+    # copy state dict into a new instance
+    state_dict = opt.state_dict()
+    # del opt
+    mod_new = FSDP(_DummyModule(device=device, dtype=dtype))
+    opt_new = Lion8bit(mod_new.parameters(), error_correction=use_errors)
+    opt_new.load_state_dict(state_dict)
+    # assert False
 
 
 @pytest.mark.gpu

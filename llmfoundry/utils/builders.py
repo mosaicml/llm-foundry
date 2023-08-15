@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Union
 
 import torch
 from composer import algorithms
@@ -88,18 +88,14 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]):
         raise ValueError(f'Not sure how to build algorithm: {name}')
 
 
-def build_optimizer(model: torch.nn.Module, 
-                    name: str,
+def build_optimizer(model: torch.nn.Module, name: str,
                     optimizer_config: Dict[str, Any]):
     if name == 'decoupled_adamw':
-        return DecoupledAdamW(model.parameters(),
-                              **optimizer_config)
+        return DecoupledAdamW(model.parameters(), **optimizer_config)
     elif name == 'decoupled_lionw':
-        return DecoupledLionW(model.parameters(),
-                               **optimizer_config)
+        return DecoupledLionW(model.parameters(), **optimizer_config)
     elif name == 'clip_lion':
-        return DecoupledClipLion(model.parameters(),
-                                  **optimizer_config)
+        return DecoupledClipLion(model.parameters(), **optimizer_config)
     elif name == 'adalr_lion':
         return DecoupledAdaLRLion(model.parameters(), **optimizer_config)
     else:

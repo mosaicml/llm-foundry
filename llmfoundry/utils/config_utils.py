@@ -16,7 +16,7 @@ from llmfoundry.models.utils import init_empty_weights
 def pop_config(cfg: DictConfig,
                key: str,
                must_exist: bool = True,
-               default_value: Any = None, 
+               default_value: Any = None,
                convert: bool = False) -> Any:
     """Pop a value from the main config file and return it.
 

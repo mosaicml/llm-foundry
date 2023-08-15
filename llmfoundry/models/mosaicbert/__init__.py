@@ -1,13 +1,11 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
 import torch
 
-from llmfoundry.models.mosaicbert.modeling_mosaicbert import (BertForMaskedLM,
-                                    BertForSequenceClassification, BertModel,
-                                    ComposerMosaicBertForMaskedLM,
-                                    ComposerMosaicBertForSequenceClassification)
-from llmfoundry.models.mosaicbert.configuration_mosaicbert import BertConfig
 # yapf: disable
 from llmfoundry.models.layers import (BertEmbeddings, BertEncoder,
                                       BertGatedLinearUnitMLP, BertLayer,
@@ -16,6 +14,10 @@ from llmfoundry.models.layers import (BertEmbeddings, BertEncoder,
                                       BertPredictionHeadTransform,
                                       BertSelfOutput, BertUnpadAttention,
                                       BertUnpadSelfAttention)
+from llmfoundry.models.mosaicbert.configuration_mosaicbert import BertConfig
+from llmfoundry.models.mosaicbert.modeling_mosaicbert import (
+    BertForMaskedLM, BertForSequenceClassification, BertModel,
+    ComposerMosaicBertForMaskedLM, ComposerMosaicBertForSequenceClassification)
 # yapf: enable
 from llmfoundry.models.utils.bert_padding import (IndexFirstAxis,
                                                   IndexPutFirstAxis,

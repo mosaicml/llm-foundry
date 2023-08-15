@@ -24,18 +24,23 @@ from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import init_empty_weights
 
 try:
-    from peft import LoraConfig, get_peft_model
+    from peft import LoraConfig, get_peft_model, PeftModel
     _peft_installed = True
+    _model_type = PeftModel
 
 except ImportError:
     # raising warnings below only if users try to use PEFT
     _peft_installed = False
+    _model_type = None
 
 __all__ = ['ComposerHFCausalLM']
 
 
-def print_trainable_parameters(model) -> None:
+def print_trainable_parameters(model: _model_type) -> None:
     # Prints the number of trainable parameters in the model.
+    if _model_type is None:
+        raise ImportError(
+            "PEFT not installed. Run pip install -e \".[gpu,peft]\"")
     trainable_params = 0
     all_param = 0
     for _, param in model.named_parameters():

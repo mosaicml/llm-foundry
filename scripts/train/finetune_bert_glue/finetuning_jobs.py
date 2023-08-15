@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
@@ -20,9 +23,8 @@ from composer.loggers import LoggerDestination
 from composer.optim import ComposerScheduler, DecoupledAdamW
 from composer.trainer.trainer import Trainer
 from composer.utils import dist, reproducibility
-from torch.utils.data import DataLoader
-
 from data import create_glue_dataset
+from torch.utils.data import DataLoader
 
 
 def _build_dataloader(dataset, **kwargs):

@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
@@ -23,12 +26,9 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 import finetuning_jobs as finetuning_jobs_module
 import numpy as np
 import omegaconf as om
-from omegaconf import OmegaConf as om_conf
 #import llmfoundry.models.hf.hf_bert as hf_bert_module
 #import llmfoundry.models.mosaicbert as mosaic_bert_module
 import torch
-from omegaconf import DictConfig
-
 from composer import algorithms
 from composer.callbacks import (HealthChecker, LRMonitor, MemoryMonitor,
                                 OptimizerMonitor, RuntimeEstimator,
@@ -40,6 +40,8 @@ from composer.optim.scheduler import (ConstantWithWarmupScheduler,
 from composer.utils import reproducibility
 from composer.utils.file_helpers import get_file
 from composer.utils.object_store import S3ObjectStore
+from omegaconf import DictConfig
+from omegaconf import OmegaConf as om_conf
 
 TASK_NAME_TO_CLASS = {
     'mnli': finetuning_jobs_module.MNLIJob,
@@ -127,6 +129,7 @@ def build_scheduler(cfg):
 #             gradient_checkpointing=cfg.get('gradient_checkpointing', None))
 #     else:
 #         raise ValueError(f'Not sure how to build model with name={cfg.name}')
+
 
 def build_composer_model(model_cfg, tokenizer):
     warnings.filterwarnings(
@@ -253,13 +256,12 @@ def run_job_worker(config: om.DictConfig,
     # need to set seed before model initialization for determinism
     reproducibility.seed_all(config.seed)
     tokenizer = build_tokenizer(config.tokenizer)
-    config.model.num_labels = finetuning_jobs_module.TASK_NAME_TO_NUM_LABELS[config.task]
+    config.model.num_labels = finetuning_jobs_module.TASK_NAME_TO_NUM_LABELS[
+        config.task]
     instantiated_job = TASK_NAME_TO_CLASS[config.task](
         job_name=config.job_name,
         seed=config.seed,
-        model=build_composer_model(
-            config.model,
-            tokenizer),
+        model=build_composer_model(config.model, tokenizer),
         tokenizer_name=config.tokenizer.name,
         scheduler=build_scheduler(config.scheduler),
         load_path=config.load_path,
@@ -395,8 +397,8 @@ def train(config: om.DictConfig) -> None:
     """
     start_time = time.time()
 
-    resolved_om_model_config = om_conf.create(om_conf.to_container(config,
-                                                   resolve=True))
+    resolved_om_model_config = om_conf.create(
+        om_conf.to_container(config, resolve=True))
 
     # Initial default seed
     reproducibility.seed_all(resolved_om_model_config.default_seed)
@@ -423,7 +425,8 @@ def train(config: om.DictConfig) -> None:
 
     # Builds round 1 configs and runs them
     round_1_task_names = {'cola', 'sst2', 'qqp', 'qnli', 'mnli'}
-    round_1_job_configs = create_job_configs(resolved_om_model_config, round_1_task_names,
+    round_1_job_configs = create_job_configs(resolved_om_model_config,
+                                             round_1_task_names,
                                              local_pretrain_checkpoint_path)
 
     round_1_results = {}
@@ -449,7 +452,8 @@ def train(config: om.DictConfig) -> None:
     # Builds round 2 configs and runs them
     round_2_task_names = {'rte', 'mrpc', 'stsb'}
     round_2_starting_checkpoint_path = mnli_checkpoint_path if mnli_checkpoint_path is not None else local_pretrain_checkpoint_path
-    round_2_job_configs = create_job_configs(resolved_om_model_config, round_2_task_names,
+    round_2_job_configs = create_job_configs(resolved_om_model_config,
+                                             round_2_task_names,
                                              round_2_starting_checkpoint_path)
 
     round_2_results = {}

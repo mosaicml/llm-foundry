@@ -7,7 +7,6 @@ import os
 from typing import Mapping
 
 # required for loading a python model into composer
-import transformers
 from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
                                   InContextLearningMCExpectedCalibrationError,
@@ -111,8 +110,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 extra_keys = [_k for _k in v.keys() if _k not in attr.keys()]
                 if extra_keys:
                     raise ValueError(
-                        f'Config dict override got unknown keys. '
-                        f'Extra keys: {extra_keys}. '
+                        f'Config dict override got unknown keys. ' +
+                        f'Extra keys: {extra_keys}. ' +
                         f'Expected (a subset of) keys: {list(attr.keys())}.')
                 getattr(config, k).update(v)
             else:

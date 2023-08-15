@@ -4,7 +4,7 @@ import copy
 import os
 import sys
 import warnings
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from composer import Trainer
@@ -104,8 +104,8 @@ def build_composer_model(model_cfg: DictConfig,
 
 
 def build_composer_peft_model(
-        model_cfg: DictConfig, lora_cfg: DictConfig,
-        tokenizer: PreTrainedTokenizerBase) -> ComposerHFCausalLM:
+    pretrained_model_name_or_path: str, lora_args: Dict[str, Any],
+    tokenizer: PreTrainedTokenizerBase) -> ComposerHFCausalLM:
     try:
         from peft import LoraConfig, get_peft_model
     except ImportError as e:
@@ -117,11 +117,11 @@ def build_composer_peft_model(
 
     # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
     print('Building Lora config...')
-    lora_cfg = LoraConfig(**lora_cfg.args)
+    lora_cfg = LoraConfig(**lora_args)
 
     print('Building model from HuggingFace checkpoint...')
     model = MPTForCausalLM.from_pretrained(
-        model_cfg.pretrained_model_name_or_path, trust_remote_code=True)
+        pretrained_model_name_or_path, trust_remote_code=True)
     print('Model built!')
 
     print('Adding Lora modules...')
@@ -212,24 +212,23 @@ def main(cfg: DictConfig):
     # Mandatory model training configs
     model_config: DictConfig = pop_config(cfg, 'model', must_exist=True)
     tokenizer_config: DictConfig = pop_config(cfg, 'tokenizer', must_exist=True)
-    optimizer_config: DictConfig = pop_config(cfg, 'optimizer', must_exist=True)
+    optimizer_config: Dict[str, Any] = pop_config(cfg, 'optimizer', must_exist=True, convert=True)
     scheduler_config: DictConfig = pop_config(cfg, 'scheduler', must_exist=True)
     train_loader_config: DictConfig = pop_config(cfg,
                                                  'train_loader',
                                                  must_exist=True)
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_dict_config: Optional[DictConfig] = pop_config(cfg,
-                                                        'fsdp_config',
-                                                        must_exist=False,
-                                                        default_value=None)
-    fsdp_config: Optional[Dict] = om.to_container(
-        fsdp_dict_config
-    ) if fsdp_dict_config is not None else None  # type: ignore
-    lora_config: Optional[DictConfig] = pop_config(cfg,
-                                                   'lora',
-                                                   must_exist=False,
-                                                   default_value=None)
+    fsdp_config: Optional[Dict] = pop_config(cfg,
+                                                'fsdp_config',
+                                                must_exist=False,
+                                                default_value=None, 
+                                                convert=True)
+    lora_config: Optional[Dict[str, Any]] = pop_config(cfg,
+                                            'lora',
+                                            must_exist=False,
+                                            default_value=None,
+                                            convert=True)
     eval_loader_config: Optional[DictConfig] = pop_config(cfg,
                                                           'eval_loader',
                                                           must_exist=False,
@@ -390,7 +389,7 @@ def main(cfg: DictConfig):
     with init_context:
         if lora_config is not None:  # frozen model + trainable lora modules
             model: ComposerHFCausalLM = build_composer_peft_model(
-                model_config, lora_config, tokenizer)
+                model_config.pretrained_model_name_or_path, lora_config['args'], tokenizer)
             print_trainable_parameters(model)  # should not be 100%
         else:  # standard model
             model = build_composer_model(model_config, tokenizer)
@@ -427,7 +426,8 @@ def main(cfg: DictConfig):
         evaluators.extend(icl_evaluators)
 
     # Optimizer
-    optimizer = build_optimizer(optimizer_config, model)
+    optimizer_name: str = optimizer_config.pop('name')
+    optimizer = build_optimizer(model, optimizer_name, optimizer_config)
 
     # Scheduler
     scheduler = build_scheduler(scheduler_config)

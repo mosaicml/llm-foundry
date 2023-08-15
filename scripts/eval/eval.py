@@ -142,7 +142,7 @@ def main(cfg: DictConfig):
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
     run_name: str = cfg.pop('run_name', default_run_name)
     num_retries: int = cfg.pop('num_retries', 3)
-    loggers_cfg: Dict[str, Any] = cfg.pop('loggers', {}) or {}
+    loggers_cfg: Dict[str, Any] = cfg.pop('loggers', {})
     cfg.pop('model_name_or_path', None)
 
     # Warn for unused parameters

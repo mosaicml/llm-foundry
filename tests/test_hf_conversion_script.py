@@ -22,6 +22,7 @@ import transformers
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
+from llmfoundry import COMPOSER_MODEL_REGISTRY
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 
 
@@ -46,15 +47,17 @@ def get_config(
     return cast(DictConfig, test_cfg)
 
 
-def test_convert_and_generate_torch(tmp_path: pathlib.Path):
+@pytest.mark.parametrize('config_path', [
+    'scripts/train/yamls/pretrain/testing.yaml',
+    'scripts/train/yamls/pretrain/gpt-neo-125m.yaml'
+])
+def test_convert_and_generate_torch(config_path: str, tmp_path: pathlib.Path):
     delete_transformers_cache()
 
-    cfg = get_config()
+    cfg = get_config(conf_path=config_path)
     cfg['model']['init_device'] = 'cpu'
-    cfg['model']['attn_config']['attn_impl'] = 'torch'
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'EleutherAI/gpt-neox-20b')
-    model = ComposerMPTCausalLM(cfg['model'], tokenizer)
+    tokenizer = transformers.AutoTokenizer.from_pretrained(cfg.tokenizer.name)
+    model = COMPOSER_MODEL_REGISTRY[cfg['model'].name](cfg['model'], tokenizer)
     trainer = Trainer(model=model)
     trainer.save_checkpoint(os.path.join(tmp_path, 'checkpoint.pt'))
 
@@ -69,7 +72,6 @@ def test_convert_and_generate_torch(tmp_path: pathlib.Path):
     config = transformers.AutoConfig.from_pretrained(os.path.join(
         tmp_path, 'hf-output-folder'),
                                                      trust_remote_code=True)
-    config.attn_config['attn_impl'] = 'torch'
     model = transformers.AutoModelForCausalLM.from_pretrained(
         os.path.join(tmp_path, 'hf-output-folder'),
         config=config,

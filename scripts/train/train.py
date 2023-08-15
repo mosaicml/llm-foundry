@@ -189,7 +189,7 @@ def main(cfg: DictConfig):
     logged_cfg: DictConfig = copy.deepcopy(cfg)
 
     # Get max split size mb
-    max_split_size_mb: int = cfg.pop('max_split_size_mb', None)
+    max_split_size_mb: Optional[int] = cfg.pop('max_split_size_mb', None)
     if max_split_size_mb is not None:
         os.environ[
             'PYTORCH_CUDA_ALLOC_CONF'] = f'max_split_size_mb:{max_split_size_mb}'

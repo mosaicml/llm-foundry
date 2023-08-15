@@ -398,6 +398,32 @@ def main(cfg: DictConfig):
     n_params = sum(p.numel() for p in model.parameters())
     logged_cfg.update({'n_params': n_params})
 
+
+    # Optimizer
+    optimizer_name: str = optimizer_config.pop('name')
+    optimizer = build_optimizer(model, optimizer_name, optimizer_config)
+
+    # Scheduler
+    scheduler = build_scheduler(scheduler_config)
+
+    # Loggers
+    loggers = [
+        build_logger(str(name), logger_cfg)
+        for name, logger_cfg in logger_configs.items()
+    ] if logger_configs else None
+
+    # Callbacks
+    callbacks = [
+        build_callback(str(name), callback_cfg)
+        for name, callback_cfg in callback_configs.items()
+    ] if callback_configs else None
+
+    # Algorithms
+    algorithms = [
+        build_algorithm(str(name), algorithm_cfg)
+        for name, algorithm_cfg in algorithm_configs.items()
+    ] if algorithm_configs else None
+
     # Dataloaders
     print('Building train loader...')
     train_loader = build_dataloader(
@@ -424,31 +450,6 @@ def main(cfg: DictConfig):
                                                  max_seq_len,
                                                  device_eval_batch_size)
         evaluators.extend(icl_evaluators)
-
-    # Optimizer
-    optimizer_name: str = optimizer_config.pop('name')
-    optimizer = build_optimizer(model, optimizer_name, optimizer_config)
-
-    # Scheduler
-    scheduler = build_scheduler(scheduler_config)
-
-    # Loggers
-    loggers = [
-        build_logger(str(name), logger_cfg)
-        for name, logger_cfg in logger_configs.items()
-    ] if logger_configs else None
-
-    # Callbacks
-    callbacks = [
-        build_callback(str(name), callback_cfg)
-        for name, callback_cfg in callback_configs.items()
-    ] if callback_configs else None
-
-    # Algorithms
-    algorithms = [
-        build_algorithm(str(name), algorithm_cfg)
-        for name, algorithm_cfg in algorithm_configs.items()
-    ] if algorithm_configs else None
 
     # Build the Trainer
     print('Building trainer...')

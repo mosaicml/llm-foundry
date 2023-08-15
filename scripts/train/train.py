@@ -213,7 +213,7 @@ def main(cfg: DictConfig):
     model_config: DictConfig = pop_config(cfg, 'model', must_exist=True)
     tokenizer_config: DictConfig = pop_config(cfg, 'tokenizer', must_exist=True)
     optimizer_config: Dict[str, Any] = pop_config(cfg, 'optimizer', must_exist=True, convert=True)
-    scheduler_config: DictConfig = pop_config(cfg, 'scheduler', must_exist=True)
+    scheduler_config: Dict[str, Any] = pop_config(cfg, 'scheduler', must_exist=True, convert=True)
     train_loader_config: DictConfig = pop_config(cfg,
                                                  'train_loader',
                                                  must_exist=True)
@@ -398,13 +398,13 @@ def main(cfg: DictConfig):
     n_params = sum(p.numel() for p in model.parameters())
     logged_cfg.update({'n_params': n_params})
 
-
     # Optimizer
     optimizer_name: str = optimizer_config.pop('name')
     optimizer = build_optimizer(model, optimizer_name, optimizer_config)
 
     # Scheduler
-    scheduler = build_scheduler(scheduler_config)
+    scheduler_name: str = scheduler_config.pop('name')
+    scheduler = build_scheduler(scheduler_name, scheduler_config)
 
     # Loggers
     loggers = [

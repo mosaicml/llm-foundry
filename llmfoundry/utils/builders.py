@@ -106,17 +106,15 @@ def build_optimizer(model: torch.nn.Module,
         raise ValueError(f'Not sure how to build optimizer: {name}')
 
 
-def build_scheduler(cfg: DictConfig):
-    if cfg.name == 'constant_with_warmup':
-        return ConstantWithWarmupScheduler(t_warmup=cfg.t_warmup)
-    elif cfg.name == 'cosine_with_warmup':
-        return CosineAnnealingWithWarmupScheduler(t_warmup=cfg.t_warmup,
-                                                  alpha_f=cfg.alpha_f)
-    elif cfg.name == 'linear_decay_with_warmup':
-        return LinearWithWarmupScheduler(t_warmup=cfg.t_warmup,
-                                         alpha_f=cfg.alpha_f)
+def build_scheduler(name: str, scheduler_config: Dict[str, Any]):
+    if name == 'constant_with_warmup':
+        return ConstantWithWarmupScheduler(**scheduler_config)
+    elif name == 'cosine_with_warmup':
+        return CosineAnnealingWithWarmupScheduler(**scheduler_config)
+    elif name == 'linear_decay_with_warmup':
+        return LinearWithWarmupScheduler(**scheduler_config)
     else:
-        raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
+        raise ValueError(f'Not sure how to build scheduler: {name}')
 
 
 def build_tokenizer(om_tokenizer_config: DictConfig) -> PreTrainedTokenizerBase:

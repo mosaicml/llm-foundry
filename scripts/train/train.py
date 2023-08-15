@@ -181,11 +181,18 @@ def main(cfg: DictConfig):
     
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)
-
+    
     # Resolve all interpolation variables as early as possible
     om.resolve(cfg)
-    
+
+    # Create copy of config for logging
     logged_cfg: DictConfig = copy.deepcopy(cfg)
+
+    # Get max split size mb
+    max_split_size_mb: int  = cfg.pop('max_split_size_mb', None)
+    if max_split_size_mb is not None:
+        os.environ[
+            'PYTORCH_CUDA_ALLOC_CONF'] = f'max_split_size_mb:{max_split_size_mb}'
 
     # Set seed first
     seed: int = pop_config(cfg, 'seed', must_exist=True)
@@ -198,13 +205,6 @@ def main(cfg: DictConfig):
                                                  default_value=600.0)
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
     
-    # Get max split size mb
-    max_split_size_mb: int  = cfg.pop('max_split_size_mb', None)
-    if max_split_size_mb is not None:
-        os.environ[
-            'PYTORCH_CUDA_ALLOC_CONF'] = f'max_split_size_mb:{max_split_size_mb}'
-       
-
     # Get global and device batch size information from distributed/single node setting
     cfg = update_batch_size_info(cfg)
     logged_cfg.update(cfg, merge=True)

@@ -242,7 +242,7 @@ def flash_attn_fn(
     # grouped query case
     elif kv_n_heads < n_heads:
         # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
-        # We repeat each kv head by the group size number to use use the underlying MHA kernels
+        # We repeat each kv head by the group size number to use the underlying MHA kernels
         # done along the head dimension = 1
         key_unpad = key_unpad.repeat_interleave(n_heads // kv_n_heads, dim=1)
         value_unpad = value_unpad.repeat_interleave(n_heads // kv_n_heads,
@@ -382,7 +382,7 @@ def triton_flash_attn_fn(
     # grouped query case
     elif kv_n_heads < n_heads:
         # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
-        # We repeat each kv head by the group size number to use use the underlying MHA kernels
+        # We repeat each kv head by the group size number to use the underlying MHA kernels
         # done along dim = 2, unlike the implementation for flash and torch attn
         key = key.repeat_interleave(n_heads // kv_n_heads, dim=2)
         value = value.repeat_interleave(n_heads // kv_n_heads, dim=2)

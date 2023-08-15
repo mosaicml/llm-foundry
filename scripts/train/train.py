@@ -13,7 +13,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
+from llmfoundry import (COMPOSER_MODEL_REGISTRY,
                         build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data.text_data import build_text_dataloader
@@ -101,7 +101,7 @@ def build_composer_model(model_cfg: DictConfig,
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
 
-def build_dataloader(cfg, tokenizer, device_batch_size):
+def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase, device_batch_size: int):
     if cfg.name == 'text':
         return build_text_dataloader(
             cfg,
@@ -166,10 +166,11 @@ def main(cfg: DictConfig):
     tokenizer = build_tokenizer(cfg.tokenizer)
 
     # Build Model
-    print('Initializing model...')
-    model = build_composer_model(cfg.model, tokenizer)
-    cfg.n_params = sum(p.numel() for p in model.parameters())
-    print(f'{cfg.n_params=:.2e}')
+    with init_context:
+        print('Initializing model...')
+        model = build_composer_model(cfg.model, tokenizer)
+        cfg.n_params = sum(p.numel() for p in model.parameters())
+        print(f'{cfg.n_params=:.2e}')
 
     # Dataloaders
     print('Building train loader...')

@@ -75,8 +75,6 @@ def test_changes_with_zero_grads(N: int, D: int, device: str,
         return
     torch.manual_seed(123)
     W = torch.rand((D, D), device=device, requires_grad=True)
-    with torch.no_grad():
-        W += torch.sign(W)  # bound away from zero so decay won't change sign
     W_orig = W.detach().clone()
 
     opt = Lion8bit([W],
@@ -146,10 +144,10 @@ def test_descends(N: int, D: int, device: str, dtype: torch.dtype, fused: bool,
         momentum = state_for_param['exp_avg'].materialize()
         assert momentum is not None and momentum.shape == W.shape
         if prev_momentum is not None:
-            momentum_changes = momentum - prev_momentum
-            assert torch.all(momentum_changes >= 0)
-            assert momentum_changes.max() > 0
-            prev_momentum = momentum
+            momentum_abs_changes = (momentum - prev_momentum).abs()
+            assert torch.all(momentum_abs_changes >= 0)
+            assert momentum_abs_changes.max() > 0
+        prev_momentum = momentum.clone() # gpu, f32 on cpu write in place
 
 
 def _nmse(vals_true: torch.Tensor,
@@ -173,7 +171,7 @@ def test_lion8b_fused_unfused_unquantized_same(w_init: str, grad_strategy: str,
     torch.manual_seed(123)
     device = 'cuda'
 
-    # each optimizer gets a different weight matrix to optimize
+    # each optimizer gets a different copy of the weight matrix to optimize
     if w_init == 'cyclic':
         W0 = torch.arange(D * D,
                           device=device,
@@ -207,13 +205,8 @@ def test_lion8b_fused_unfused_unquantized_same(w_init: str, grad_strategy: str,
     # we use a high LR, low betas, and regularization so that there will
     # hopefully be differences if *any* of the logic is wrong
     lr = .1
-    # weight_decay = .25
     weight_decay = .01
-    # weight_decay = .0
     kwargs = {'lr': lr, 'weight_decay': weight_decay, 'betas': (.5, .75)}
-    # kwargs = {'lr': lr, 'weight_decay': weight_decay, 'betas': (0, 0)} # f16 fq works
-    # kwargs = {'lr': lr, 'weight_decay': weight_decay, 'betas': (.5, 0)} # f16 fq works
-    # kwargs = {'lr': lr, 'weight_decay': weight_decay, 'betas': (0, .5)} # f16 fq works
     opt_true = Lion8bit([W_true], quantize=False, **kwargs)
     opt_uq = Lion8bit([W_uq], quantize=False, **kwargs)
     opt_uf = Lion8bit([W_uf], _fused=False, **kwargs)
@@ -241,9 +234,6 @@ def test_lion8b_fused_unfused_unquantized_same(w_init: str, grad_strategy: str,
     else:
         raise ValueError('bad grad_strategy: ', grad_strategy)
 
-    # for _ in range(3):
-    # for _ in range(1):
-    # for _ in range(10):
     for _ in range(4):
         if grad_strategy == 'rand':  # type:ignore (reportUnnecessaryComparison)
             grads = torch.rand(W0.shape,

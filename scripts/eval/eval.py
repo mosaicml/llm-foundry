@@ -242,7 +242,7 @@ def main(cfg: DictConfig):
         else:
             models_df = pd.concat([models_df, model_results], ignore_index=True)
 
-        if model_gauntlet_df is not None and model_gauntlet is not None and model_gauntlet_df is not None:
+        if model_gauntlet_df is not None and model_gauntlet is not None:
             assert composite_scores is not None
             row = {'model_name': model_cfg['model_name']}
             row.update({

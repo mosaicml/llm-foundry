@@ -55,20 +55,24 @@ class MPTBlock(nn.Module):
         assert isinstance(attn_config['attn_type'], str)
         attn_class = ATTN_CLASS_REGISTRY[attn_config['attn_type']]
 
+        # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
+        args_to_exclude_in_attn_class = {
+            'attn_type', 'prefix_lm', 'alibi', 'attn_uses_sequence_id',
+            'alibi_bias_max'
+        }
+        attn_config_subset_for_attn_class = {
+            k: v
+            for k, v in attn_config.items()
+            if k not in args_to_exclude_in_attn_class
+        }
+
         self.norm_1 = norm_class(d_model, device=device)
-        self.attn = attn_class(
-            d_model=d_model,
-            n_heads=n_heads,
-            attn_impl=attn_config['attn_impl'],
-            clip_qkv=attn_config['clip_qkv'],
-            qk_ln=attn_config['qk_ln'],
-            softmax_scale=attn_config['softmax_scale'],
-            attn_pdrop=attn_config['attn_pdrop'],
-            norm_type=norm_type,
-            fc_type=fc_type,
-            verbose=verbose,
-            device=device,
-        )
+        self.attn = attn_class(d_model=d_model,
+                               n_heads=n_heads,
+                               fc_type=fc_type,
+                               verbose=verbose,
+                               device=device,
+                               **attn_config_subset_for_attn_class)
         self.norm_2 = None
         if not getattr(FFN_CLASS_REGISTRY[ffn_config['ffn_type']], '_has_norm',
                        False):

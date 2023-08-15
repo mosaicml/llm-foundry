@@ -7,7 +7,7 @@ import warnings
 from typing import Any, Dict, Optional, Union
 
 from composer.utils import dist
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.utils import init_empty_weights
@@ -16,14 +16,19 @@ from llmfoundry.models.utils import init_empty_weights
 def pop_config(cfg: DictConfig,
                key: str,
                must_exist: bool = True,
-               default_value: Any = None) -> Any:
+               default_value: Any = None, 
+               convert: bool = False) -> Any:
     """Pop a value from the main config file and return it.
 
     If the key does not exist, return the default_value or raise a RuntimeError
-    depending on the must_exist flag.
+    depending on the must_exist flag. If the convert flag is set to True, then
+    we will convert the value to a python object using OmegaConf.to_container.
     """
     value = cfg.pop(key, None)
-    if value is not None:
+    if value is not None and convert:
+        assert isinstance(value, DictConfig) or isinstance(value, ListConfig)
+        return om.to_container(value)
+    elif value is not None and not convert:
         return value
     elif must_exist:
         raise NameError(

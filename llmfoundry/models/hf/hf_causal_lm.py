@@ -4,8 +4,7 @@
 """Implements a Hugging Causal LM wrapped inside a :class:`.ComposerModel`."""
 
 import os
-from typing import Mapping, Union
-from warnings import warn
+from typing import Mapping
 
 # required for loading a python model into composer
 import transformers
@@ -17,8 +16,8 @@ from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
 from composer.utils import dist
 from omegaconf import DictConfig
-from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedTokenizer,
-                          PreTrainedTokenizerFast)
+from transformers import (AutoConfig, AutoModelForCausalLM,
+                          PreTrainedTokenizerBase)
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
@@ -33,8 +32,6 @@ except ImportError:
     _peft_installed = False
 
 __all__ = ['ComposerHFCausalLM']
-
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
 def print_trainable_parameters(model) -> None:
@@ -70,7 +67,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(self, om_model_config: DictConfig, tokenizer: Tokenizer):
+    def __init__(self, om_model_config: DictConfig,
+                 tokenizer: PreTrainedTokenizerBase):
 
         # set up training and eval metrics
         train_metrics = [
@@ -182,8 +180,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 print('Lora modules added.')
                 print_trainable_parameters(model)
             else:
-                warn(
-                    "cfg.model.lora is given but PEFT not installed, so not building a PEFT model. Execute pip install -e \".[gpu,peft]\" and try again."
+                raise ImportError(
+                    "cfg.model.lora is given but PEFT not installed. Run pip install -e \".[gpu,peft]\""
                 )
 
         print('Wrapping model in composer...')

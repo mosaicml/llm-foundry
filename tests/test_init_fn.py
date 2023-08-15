@@ -1,14 +1,15 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 import math
 from collections import OrderedDict
 from collections.abc import Sequence
 from functools import partial
+from typing import Dict, List, Optional, Tuple, Union
 
 import pytest
 import torch
 from composer.utils import reproducibility
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch import nn
 
@@ -17,14 +18,14 @@ from llmfoundry.models.utils import MODEL_INIT_REGISTRY, generic_param_init_fn_
 
 class MLP(nn.Module):
 
-    def __init__(self, cfg):
+    def __init__(self, cfg: Union[ListConfig, DictConfig]):
         super().__init__()
         self.fc1 = nn.Linear(cfg.in_features, cfg.out_features, bias=True)
         self.ln_1 = nn.LayerNorm(cfg.out_features)
         self.fc2 = nn.Linear(cfg.out_features, cfg.out_features, bias=True)
         self.fc2._is_residual = True  # type: ignore
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         y = self.ln_1(self.fc1(x))
         res = y
         y = self.fc2(y)
@@ -62,7 +63,7 @@ def test_div_is_residual(is_residual: bool):
 
 
 @pytest.mark.parametrize('fused', [True, False])
-def test_fused_init_helper(fused):
+def test_fused_init_helper(fused: bool):
     reproducibility.seed_all(7)
 
     in_features, out_features = 8, 32
@@ -77,7 +78,7 @@ def test_fused_init_helper(fused):
     if fused:
         fc._fused = (0, (cfg.out_features // 2,))  # type: ignore
 
-    def init_fn_(weight):
+    def init_fn_(weight: torch.Tensor):
         # dummy init based on layer width
         with torch.no_grad():
             out_features, _ = weight.shape[:2]
@@ -106,10 +107,10 @@ def test_fused_init_helper(fused):
                      reason='generic_param_init_fn_ does not init Conv layers',
                      strict=True)),
 ])
-def test_all_params_init(module):
+def test_all_params_init(module: torch.nn.Module):
     fill_val = torch.finfo(torch.float16).max
 
-    def max_fill_init_(weight):
+    def max_fill_init_(weight: torch.Tensor):
         # init param with max value
         with torch.no_grad():
             weight.fill_(fill_val)
@@ -131,10 +132,10 @@ def test_all_params_init(module):
     ('emb_init_uniform_lim', [-1, 4]), ('emb_init_uniform_lim', 0),
     ('emb_init_uniform_lim', [1, 1])
 ])
-def test_emb_init(emb_init_cfg):
+def test_emb_init(emb_init_cfg: Optional[Tuple[str, Union[int, List[int]]]]):
     reproducibility.seed_all(7)
 
-    cfg = {
+    cfg: Dict[str, Union[int, List[int]]] = {
         'vocab_size': 64,
         'in_features': 16,
         'out_features': 32,
@@ -142,31 +143,34 @@ def test_emb_init(emb_init_cfg):
     }
     if emb_init_cfg is not None:
         cfg[emb_init_cfg[0]] = emb_init_cfg[1]
-    cfg = om.create(cfg)
+    dict_cfg = om.create(cfg)
 
     model = nn.Sequential(
         OrderedDict([
-            ('emb', nn.Embedding(cfg.vocab_size, cfg.in_features)),
-            ('fc1', nn.Linear(cfg.in_features, cfg.out_features, bias=True)),
-            ('ln1', nn.LayerNorm(cfg.out_features)),
+            ('emb', nn.Embedding(dict_cfg.vocab_size, dict_cfg.in_features)),
+            ('fc1',
+             nn.Linear(dict_cfg.in_features, dict_cfg.out_features, bias=True)),
+            ('ln1', nn.LayerNorm(dict_cfg.out_features)),
             ('act1', nn.ReLU()),
-            ('fc2', nn.Linear(cfg.out_features, cfg.out_features, bias=True)),
+            ('fc2',
+             nn.Linear(dict_cfg.out_features, dict_cfg.out_features,
+                       bias=True)),
         ]))
 
-    model.apply(partial(MODEL_INIT_REGISTRY['kaiming_normal_'], **cfg))
+    model.apply(partial(MODEL_INIT_REGISTRY['kaiming_normal_'], **dict_cfg))
 
-    if cfg.get('emb_init_std') is not None:
-        emb_init_std = cfg.get('emb_init_std')
+    if dict_cfg.get('emb_init_std') is not None:
+        emb_init_std = dict_cfg.get('emb_init_std')
         if emb_init_std == 0:
             assert (model.emb.weight == 0).all()  # type: ignore
-    elif cfg.get('emb_init_uniform_lim') is not None:
-        emb_init_uniform_lim = cfg.get('emb_init_uniform_lim')
+    elif dict_cfg.get('emb_init_uniform_lim') is not None:
+        emb_init_uniform_lim = dict_cfg.get('emb_init_uniform_lim')
         if emb_init_uniform_lim == 0:
             assert (model.emb.weight == 0).all()  # type: ignore
         elif isinstance(emb_init_uniform_lim, Sequence):
             assert len(emb_init_uniform_lim) <= 2
             if len(emb_init_uniform_lim
                   ) == 2 and emb_init_uniform_lim[0] == emb_init_uniform_lim[1]:
-                assert (
-                    model.emb.weight == emb_init_uniform_lim[0]  # type: ignore
-                ).all()
+                assert isinstance(model.emb, torch.nn.Embedding)
+                assert (model.emb.weight == emb_init_uniform_lim[0]
+                       ).all()  # type: ignore

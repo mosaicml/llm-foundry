@@ -6,7 +6,7 @@
 
 import functools
 import warnings
-from typing import Any, Iterable, List
+from typing import Any, Iterable, List, Optional
 
 import torch
 from transformers import PreTrainedModel
@@ -75,7 +75,12 @@ def hf_get_causal_base_model(model: PreTrainedModel):
         return model.get_decoder()
 
     decoder_attrs = ('transformer', 'model.decoder', 'gpt_neox')
-    return findattr(model, decoder_attrs)
+    causal_base_model = findattr(model, decoder_attrs)
+    if causal_base_model is None:
+        raise ValueError(
+            f'Unable to FSDP-wrap model {model}. Please open a github issue to add support.'
+        )
+    return causal_base_model
 
 
 def hf_get_hidden_layers(model: PreTrainedModel):
@@ -100,7 +105,7 @@ def hf_get_hidden_layers(model: PreTrainedModel):
     return findattr(model, hidden_layers_attrs)
 
 
-def hf_get_init_device(init_device: str):
+def hf_get_init_device(init_device: Optional[str]):
     """Returns the appropriate device to initialize models."""
     from composer.utils import dist
     if init_device == 'mixed':
@@ -113,7 +118,8 @@ def hf_get_init_device(init_device: str):
 # /end helper functions
 
 
-def prepare_hf_model_for_fsdp(model: PreTrainedModel, init_device: str) -> None:
+def prepare_hf_model_for_fsdp(model: PreTrainedModel,
+                              init_device: Optional[str]) -> None:
     """FSDP wrap a HuggingFace model.
 
     Call specific functions
@@ -127,13 +133,14 @@ def prepare_hf_model_for_fsdp(model: PreTrainedModel, init_device: str) -> None:
 
 
 def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
-                                        init_device: str) -> None:
+                                        init_device: Optional[str]) -> None:
     """FSDP wrap a HuggingFace decoder.
 
     Wrap any model for FSDP which follows one of the 3 existing conventions from
     HuggingFace for decoder-only LLMs.
     """
     causal_base_model = hf_get_causal_base_model(model)
+
     # OPT has an extra layer of wrapping, so special case here
     if isinstance(causal_base_model, OPTDecoder):
         model.model._fsdp_wrap = False
@@ -141,7 +148,7 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
     lm_head = model.get_output_embeddings()
     # some models (OPT) implement .get_input_embeddings for the causal subclass
     # but all of them implement it for the base model
-    tied_embeddings = causal_base_model.get_input_embeddings()  # type: ignore
+    tied_embeddings = causal_base_model.get_input_embeddings()
     modules = {
         'base_model': causal_base_model,
         'model_block': model_block,
@@ -156,7 +163,7 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
                 'follow common layer/weight naming conventions.')
     block_type = type(model_block[0])  # type: ignore
     if init_device == 'mixed':
-        # For FSDP with models with different device intiailizations, `mixed`, which
+        # For FSDP with models with different device initializations, `mixed`, which
         # initializes the model on rank 0 on `cpu` and on all other ranks on `meta,``
         # we need to tag all child modules that are torch.nn.Modules with `_fsdp_wrap`.
         for child in model.children():
@@ -173,11 +180,12 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
 
         if model.config.tie_word_embeddings and not model.config.model_type == 'mpt':
             raise ValueError(
-                'The passed in HuggingFaceModel has tied word embeddings '
-                'and the passed in initialization device is `mixed.` '
+                'The passed in HuggingFaceModel has tied word embeddings ' +
+                'and the passed in initialization device is `mixed.` ' +
                 'In order to support this initialization scheme, we would need to break '
+                +
                 'the weight tying. As a result, either use a different initialization scheme '
-                'or in the model config set `tie_word_embeddings=False.`')
+                + 'or in the model config set `tie_word_embeddings=False.`')
     else:
         # When using the HF LM models,
         # the weights of the self.lm_head and self.transformer.wte are tied.
@@ -207,7 +215,7 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
 
 
 def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel,
-                                      init_device: str) -> None:
+                                      init_device: Optional[str]) -> None:
     """Wrap an encoder/decoder HF model.
 
     This works for T5, BART, Pegasus, PegasusX, but not all enc/dec (ProphetNet)

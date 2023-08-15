@@ -19,9 +19,10 @@ include = [
     "llmfoundry/*"
 ]
 
+
 # Pyright
 [tool.pyright]
-exclude = ['env-**', 'venv*']
+exclude = ['env-**', 'venv*', '**/flash_attn_triton.py']
 ignore = ['llmfoundry/models/layers/flash_attn_triton.py']
 stubPath = ""  # suppress useless 'stubPath is not a valid directory' errors
 
@@ -36,7 +37,7 @@ reportUnusedVariable = "error"
 reportDuplicateImport = "error"
 reportWildcardImportFromLibrary = "error"
 reportUntypedFunctionDecorator = "warning"
-reportPrivateImportUsage = "warning"
+reportPrivateImportUsage = "none"
 reportUndefinedVariable = "error"
 strictParameterNoneValue = true
 reportPropertyTypeMismatch = "error"
@@ -46,15 +47,16 @@ reportInvalidTypeVarUse = "error"
 reportOverlappingOverload = "error"
 reportUninitializedInstanceVariable = "error"
 reportInvalidStringEscapeSequence = "error"
-reportMissingParameterType = "warning"  # TODO: make this an error
-reportCallInDefaultInitializer = "none"  # TODO: make this an error
-reportUnnecessaryComparison = "warning"
+reportMissingParameterType = "error"
+reportCallInDefaultInitializer = "error"
+reportUnnecessaryComparison = "error"
 reportSelfClsParameterName = "error"
 reportImplicitStringConcatenation = "warning"  # TODO: make this an error
 reportInvalidStubStatement = "error"
 reportIncompleteStub = "error"
 reportUnsupportedDunderAll = "error"
 reportUnusedCoroutine = "error"
+reportMissingImports = "none"
 
 # Pytest
 [tool.pytest.ini_options]

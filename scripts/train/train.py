@@ -175,6 +175,11 @@ def main(cfg: DictConfig):
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)
 
+    max_split_size_mb = cfg.get('max_split_size_mb', None)
+    if max_split_size_mb is not None:
+        os.environ[
+            'PYTORCH_CUDA_ALLOC_CONF'] = f'max_split_size_mb:{max_split_size_mb}'
+
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
         action='ignore',
@@ -342,6 +347,8 @@ def main(cfg: DictConfig):
         python_log_level=cfg.get('python_log_level', 'debug'),
         dist_timeout=cfg.dist_timeout,
     )
+
+    torch.cuda.empty_cache()
 
     print('Logging config...')
     log_config(cfg)

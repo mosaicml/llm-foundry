@@ -12,7 +12,7 @@ from typing import Dict, Iterable, Optional, Union
 import datasets as hf_datasets
 import psutil
 from streaming import MDSWriter
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import DataLoader, Dataset, IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
@@ -252,7 +252,8 @@ def _est_progress_denominator(total_samples: int, chars_per_sample: int,
         return total_samples * est_tokens_per_sample // max_length
 
 
-def build_dataloader(dataset, batch_size, num_workers) -> DataLoader:
+def build_dataloader(dataset: Dataset, batch_size: int,
+                     num_workers: Optional[int]) -> DataLoader:
     if num_workers is None:
         # Multiple workers is only supported on linux machines
         if 'linux' or 'macos' in platform.platform().lower():

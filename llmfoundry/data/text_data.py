@@ -5,7 +5,7 @@
 
 import os
 from itertools import islice
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -14,9 +14,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
-
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
+from transformers import PreTrainedTokenizerBase
 
 
 class StreamingTextDataset(StreamingDataset):
@@ -70,7 +68,7 @@ class StreamingTextDataset(StreamingDataset):
     """
 
     def __init__(self,
-                 tokenizer: Tokenizer,
+                 tokenizer: PreTrainedTokenizerBase,
                  max_seq_len: int,
                  streams: Optional[Sequence[Stream]] = None,
                  remote: Optional[str] = None,
@@ -90,7 +88,7 @@ class StreamingTextDataset(StreamingDataset):
                  shuffle_algo: str = 'py1b',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
-                 **kwargs: Dict[str, Any]):
+                 **kwargs: Any):
 
         group_method = kwargs.pop('group_method', None)
         if group_method is not None:
@@ -99,7 +97,7 @@ class StreamingTextDataset(StreamingDataset):
                 'concatenate, use the --concat_tokens ' +
                 'argument when creating your MDS dataset with concat_c4.py')
 
-        if kwargs is not None and len(kwargs) > 0:
+        if len(kwargs) > 0:
             raise ValueError(
                 f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}'
             )
@@ -131,12 +129,13 @@ class StreamingTextDataset(StreamingDataset):
             shuffle=shuffle,
             shuffle_algo=shuffle_algo,
             shuffle_seed=shuffle_seed,
+            shuffle_block_size=shuffle_block_size,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
 
     # How to tokenize a text sample to a token sample
-    def _tokenize(self, text_sample):
+    def _tokenize(self, text_sample: Mapping):
         if self.tokenizer._pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             raise RuntimeError(
@@ -147,7 +146,7 @@ class StreamingTextDataset(StreamingDataset):
                               padding='max_length',
                               max_length=self.max_seq_len)
 
-    def _read_binary_tokenized_sample(self, sample):
+    def _read_binary_tokenized_sample(self, sample: Dict[str, Any]):
         return torch.from_numpy(
             np.frombuffer(sample['tokens'],
                           dtype=np.int64)[:self.max_seq_len].copy())
@@ -172,8 +171,8 @@ class ConcatenatedSequenceCollatorWrapper:
     def __init__(
         self,
         base_collator: Callable,
-        eos_token_id=None,
-        bos_token_id=None,
+        eos_token_id: Optional[int] = None,
+        bos_token_id: Optional[int] = None,
     ):
         self.base_collator = base_collator
         if (eos_token_id is None) and (bos_token_id is None):
@@ -215,7 +214,7 @@ class ConcatenatedSequenceCollatorWrapper:
 
 def build_text_dataloader(
     cfg: DictConfig,
-    tokenizer: Tokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
 ):
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'

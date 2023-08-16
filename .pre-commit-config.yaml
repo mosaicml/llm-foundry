@@ -89,6 +89,16 @@ repos:
     entry: yamllint
     language: python
     types: [file, yaml]
+- repo: local
+  hooks:
+  - id: pyright
+    name: pyright
+    entry: pyright
+    language: node
+    types: [python]
+    pass_filenames: false
+    args: [--warnings]
+    additional_dependencies: ["pyright@1.1.256"]
 - repo: https://github.com/trufflesecurity/trufflehog.git
   rev: v3.40.0
   hooks:

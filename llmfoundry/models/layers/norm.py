@@ -1,12 +1,12 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Dict, Type
+from typing import Dict, List, Optional, Type, Union
 
 import torch
 
 
-def _cast_if_autocast_enabled(tensor):
+def _cast_if_autocast_enabled(tensor: torch.Tensor):
     if torch.is_autocast_enabled():
         if tensor.device.type == 'cuda':
             dtype = torch.get_autocast_gpu_dtype()
@@ -22,11 +22,11 @@ class LPLayerNorm(torch.nn.LayerNorm):
 
     def __init__(
         self,
-        normalized_shape,
-        eps=1e-05,
-        elementwise_affine=True,
-        device=None,
-        dtype=None,
+        normalized_shape: Union[int, List[int], torch.Size],
+        eps: float = 1e-05,
+        elementwise_affine: bool = True,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
     ):
         super().__init__(
             normalized_shape=normalized_shape,
@@ -36,7 +36,7 @@ class LPLayerNorm(torch.nn.LayerNorm):
             dtype=dtype,
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         module_device = x.device
         downcast_x = _cast_if_autocast_enabled(x)
         downcast_weight = _cast_if_autocast_enabled(
@@ -53,7 +53,9 @@ class LPLayerNorm(torch.nn.LayerNorm):
             )
 
 
-def rms_norm(x, weight=None, eps=1e-5):
+def rms_norm(x: torch.Tensor,
+             weight: Optional[torch.Tensor] = None,
+             eps: float = 1e-5):
     output = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + eps)
     if weight is not None:
         return output * weight
@@ -64,11 +66,11 @@ class RMSNorm(torch.nn.Module):
 
     def __init__(
         self,
-        normalized_shape,
-        eps=1e-5,
-        weight=True,
-        dtype=None,
-        device=None,
+        normalized_shape: Union[int, List[int], torch.Size],
+        eps: float = 1e-5,
+        weight: bool = True,
+        dtype: Optional[torch.dtype] = None,
+        device: Optional[torch.device] = None,
     ):
         super().__init__()
         self.eps = eps
@@ -78,7 +80,7 @@ class RMSNorm(torch.nn.Module):
         else:
             self.register_parameter('weight', None)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         return rms_norm(x.float(), self.weight, self.eps).to(dtype=x.dtype)
 
 
@@ -86,11 +88,11 @@ class LPRMSNorm(RMSNorm):
 
     def __init__(
         self,
-        normalized_shape,
-        eps=1e-5,
-        weight=True,
-        dtype=None,
-        device=None,
+        normalized_shape: Union[int, List[int], torch.Size],
+        eps: float = 1e-5,
+        weight: bool = True,
+        dtype: Optional[torch.dtype] = None,
+        device: Optional[torch.device] = None,
     ):
         super().__init__(
             normalized_shape=normalized_shape,
@@ -100,7 +102,7 @@ class LPRMSNorm(RMSNorm):
             device=device,
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         downcast_x = _cast_if_autocast_enabled(x)
         downcast_weight = _cast_if_autocast_enabled(
             self.weight) if self.weight is not None else self.weight

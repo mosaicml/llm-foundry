@@ -34,6 +34,8 @@ def find_module_file(module_name: str) -> str:
         raise ValueError(f'Invalid input: {module_name=}')
     module = importlib.import_module(module_name)
     module_file = module.__file__
+    if module_file is None:
+        raise ValueError(f'Could not find file for module: {module_name}')
     return module_file
 
 
@@ -50,17 +52,18 @@ def process_file(file_path: str, folder_path: str) -> List[str]:
     nodes_to_remove = []
     for node in ast.walk(tree):
         # convert any llmfoundry imports into relative imports
-        if isinstance(node,
-                      ast.ImportFrom) and node.module.startswith('llmfoundry'):
+        if isinstance(
+                node, ast.ImportFrom
+        ) and node.module is not None and node.module.startswith('llmfoundry'):
             module_path = find_module_file(node.module)
             node.module = convert_to_relative_import(node.module,
                                                      parent_module_name)
             # recursively process any llmfoundry files
             new_files_to_process.append(module_path)
         # remove any imports from composer or omegaconf
-        elif isinstance(
-                node, ast.ImportFrom) and (node.module.startswith('composer') or
-                                           node.module.startswith('omegaconf')):
+        elif isinstance(node, ast.ImportFrom) and node.module is not None and (
+                node.module.startswith('composer') or
+                node.module.startswith('omegaconf')):
             nodes_to_remove.append(node)
         # remove the Composer* class
         elif isinstance(node,
@@ -83,6 +86,7 @@ def process_file(file_path: str, folder_path: str) -> List[str]:
         new_filename = file_path.split('/')[-2] + '.py'
     new_file_path = os.path.join(folder_path, new_filename)
     with open(new_file_path, 'w') as f:
+        assert new_tree is not None
         f.write(ast.unparse(new_tree))
 
     return new_files_to_process

@@ -5,7 +5,7 @@ import math
 import warnings
 from collections.abc import Sequence
 from functools import partial
-from typing import Optional, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 import torch
 from torch import nn
@@ -22,7 +22,7 @@ except:
 def torch_default_param_init_fn_(
     module: nn.Module,
     verbose: int = 0,
-    **kwargs,
+    **kwargs: Any,
 ):
     del kwargs  # unused, just to capture any extra args from the config
     if verbose > 1:
@@ -33,11 +33,11 @@ def torch_default_param_init_fn_(
         module.reset_parameters()  # type: ignore
 
 
-def fused_init_helper_(module: nn.Module, init_fn_):
+def fused_init_helper_(module: nn.Module, init_fn_: Callable):
     # parameter initialization is often based on the parameters shape.
     # If a layer is fused, initialization should be based on the shapes
     # of the original tensor instead of the shape of the fused tensor.
-    # Layers which are fused should have the _fused attibute defined.
+    # Layers which are fused should have the _fused attribute defined.
     # The first element of _fused is the dimension along which the tensor is fused.
     # This is followed by an iterable of split indices."
 
@@ -56,14 +56,14 @@ def fused_init_helper_(module: nn.Module, init_fn_):
 
 def generic_param_init_fn_(
     module: nn.Module,
-    init_fn_,
+    init_fn_: Callable,
     n_layers: int,
     d_model: Optional[int] = None,
     init_div_is_residual: Union[int, float, str, bool] = True,
     emb_init_std: Optional[float] = None,
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     verbose: int = 0,
-    **kwargs,
+    **kwargs: Any,
 ):
     del kwargs  # unused, just to capture any extra args from the config
     if verbose > 1:
@@ -82,8 +82,9 @@ def generic_param_init_fn_(
     elif isinstance(init_div_is_residual, float) or isinstance(
             init_div_is_residual, int):
         div_is_residual = init_div_is_residual
-    elif isinstance(init_div_is_residual,
-                    str) and init_div_is_residual.isnumeric():
+    elif isinstance(
+            init_div_is_residual,  # type: ignore
+            str) and init_div_is_residual.isnumeric():
         # do not trust YAML parsing to always convert numbers to numbers
         div_is_residual = float(init_div_is_residual)
     else:
@@ -107,12 +108,13 @@ def generic_param_init_fn_(
         else:
             init_fn_(module.weight)
         if module.bias is not None:
+            assert isinstance(module.bias, torch.Tensor)
             torch.nn.init.zeros_(module.bias)
 
         if init_div_is_residual is not False and getattr(
                 module, '_is_residual', False):
             with torch.no_grad():
-                module.weight.div_(div_is_residual)
+                module.weight.div_(div_is_residual)  # type: ignore
 
     elif isinstance(module, nn.Embedding):
         # Embedding
@@ -204,13 +206,15 @@ def generic_param_init_fn_(
 
         init_fn_(module.fc1_weight)
         if module.fc1_bias is not None:
+            assert isinstance(module.fc1_bias, torch.Tensor)
             torch.nn.init.zeros_(module.fc1_bias)
         init_fn_(module.fc2_weight)
         if module.fc2_bias is not None:
+            assert isinstance(module.fc2_bias, torch.Tensor)
             torch.nn.init.zeros_(module.fc2_bias)
 
         with torch.no_grad():
-            module.fc2_weight.div_(div_is_residual)
+            module.fc2_weight.div_(div_is_residual)  # type: ignore
 
     else:
         for _ in module.parameters(recurse=False):
@@ -220,7 +224,7 @@ def generic_param_init_fn_(
             )
 
 
-def _normal_init_(std, mean=0.0):
+def _normal_init_(std: float, mean: float = 0.0):
     return partial(torch.nn.init.normal_, mean=mean, std=std)
 
 
@@ -233,7 +237,7 @@ def _normal_param_init_fn_(
     emb_init_std: Optional[float] = None,
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     verbose: int = 0,
-    **kwargs,
+    **kwargs: Any,
 ):
     del kwargs  # unused, just to capture any extra args from the config
     init_fn_ = _normal_init_(std=std)
@@ -263,7 +267,7 @@ def baseline_param_init_fn_(
     emb_init_std: Optional[float] = None,
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     verbose: int = 0,
-    **kwargs,
+    **kwargs: Any,
 ):
     del kwargs  # unused, just to capture any extra args from the config
     if init_std is None:
@@ -290,7 +294,7 @@ def small_param_init_fn_(
     emb_init_std: Optional[float] = None,
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     verbose: int = 0,
-    **kwargs,
+    **kwargs: Any,
 ):
     del kwargs  # unused, just to capture any extra args from the config
     # very close to kaiming normal
@@ -315,7 +319,7 @@ def neox_param_init_fn_(
     emb_init_std: Optional[float] = None,
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     verbose: int = 0,
-    **kwargs,
+    **kwargs: Any,
 ):
     """From section 2.3.1 of GPT-NeoX-20B:
 
@@ -351,7 +355,7 @@ def kaiming_uniform_param_init_fn_(
     fan_mode: str = 'fan_in',
     init_nonlinearity: str = 'leaky_relu',
     verbose: int = 0,
-    **kwargs,
+    **kwargs: Any,
 ):
     del kwargs  # unused, just to capture any extra args from the config
 
@@ -389,7 +393,7 @@ def kaiming_normal_param_init_fn_(
     fan_mode: str = 'fan_in',
     init_nonlinearity: str = 'leaky_relu',
     verbose: int = 0,
-    **kwargs,
+    **kwargs: Any,
 ):
     del kwargs  # unused, just to capture any extra args from the config
 
@@ -425,7 +429,7 @@ def xavier_uniform_param_init_fn_(
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     init_gain: float = 0,
     verbose: int = 0,
-    **kwargs,
+    **kwargs: Any,
 ):
     del kwargs  # unused, just to capture any extra args from the config
     xavier_uniform_ = partial(torch.nn.init.xavier_uniform_, gain=init_gain)
@@ -457,8 +461,9 @@ def xavier_normal_param_init_fn_(
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     init_gain: float = 0,
     verbose: int = 0,
-    **kwargs,
+    **kwargs: Any,
 ):
+    del kwargs  # unused, just to capture any extra args from the config
     xavier_normal_ = partial(torch.nn.init.xavier_normal_, gain=init_gain)
 
     if verbose > 1:

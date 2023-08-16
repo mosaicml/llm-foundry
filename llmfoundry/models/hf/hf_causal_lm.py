@@ -16,11 +16,13 @@ from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
 from composer.utils import dist
 from omegaconf import DictConfig
-from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedTokenizer,
-                          PreTrainedTokenizerFast)
+from transformers import (AutoConfig, AutoModelForCausalLM,
+                          PreTrainedTokenizerBase)
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
+from llmfoundry.models.layers.llama_attention_monkeypatch import \
+    get_llama_attention_patch_fn
 from llmfoundry.models.utils import init_empty_weights
 
 try:
@@ -35,14 +37,12 @@ except ImportError:
 
 __all__ = ['ComposerHFCausalLM']
 
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
-
 
 class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
     """Configures a :class:`.HuggingFaceModel` around a Causal LM.
 
     Args:
-        om_model_config (DictConfig | PeftModel | transformers.PreTrainedModel): either n omegaconf dictionary used to configure the model, or an instantiated model object from the peft or transformers library.
+        om_model_config (DictConfig | PeftModel | transformers.PreTrainedModel): either an omegaconf dictionary used to configure the model, or an instantiated model object from the peft or transformers library.
         if DictConfig, the following keys are required:
             cfg.pretrained_model_name_or_path (str): The name of or local path to
                 the HF Causal LM (e.g., `gpt2` to instantiate a GPT2LMHeadModel).
@@ -58,8 +58,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(self, om_model_config: _om_model_config_type,
-                 tokenizer: Tokenizer):
+    def __init__(
+            self,
+            om_model_config: _om_model_config_type,  # type: ignore
+            tokenizer: PreTrainedTokenizerBase):
 
         # set up training and eval metrics
         train_metrics = [
@@ -102,8 +104,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     ]
                     if extra_keys:
                         raise ValueError(
-                            f'Config dict override got unknown keys. '
-                            f'Extra keys: {extra_keys}. '
+                            f'Config dict override got unknown keys. ' +
+                            f'Extra keys: {extra_keys}. ' +
                             f'Expected (a subset of) keys: {list(attr.keys())}.'
                         )
                     getattr(config, k).update(v)
@@ -177,6 +179,21 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             raise ValueError(
                 f'om_model_config must be either a DictConfig, PeftModel, or PreTrainedModel, but got {type(om_model_config)}'
             )
+
+        attention_patch_type = om_model_config.get('attention_patch_type', None)
+        if attention_patch_type is not None:
+            if model.config.model_type != 'llama':
+                raise ValueError(
+                    f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
+                )
+
+            print(
+                f'Patching llama attention with {attention_patch_type} attention'
+            )
+            from transformers.models.llama.modeling_llama import LlamaAttention
+            LlamaAttention.forward = get_llama_attention_patch_fn(
+                attention_patch_type)
+            model.config.use_cache = False
 
         composer_model = super().__init__(model=model,
                                           shift_labels=True,

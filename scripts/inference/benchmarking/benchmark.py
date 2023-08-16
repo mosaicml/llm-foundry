@@ -6,13 +6,13 @@ import time
 from contextlib import nullcontext
 
 import torch
-# You can use this to load the model weights
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 
 
-def get_dtype(dtype):
+def get_dtype(dtype: str):
     if dtype == 'fp32':
         return torch.float32
     elif dtype == 'fp16':
@@ -21,18 +21,18 @@ def get_dtype(dtype):
         return torch.bfloat16
     else:
         raise NotImplementedError(
-            f'dtype {dtype} is not supported. '
+            f'dtype {dtype} is not supported. ' +
             f'We only support fp32, fp16, and bf16 currently')
 
 
-def compare_dtype(dtype, param_dtype):
+def compare_dtype(dtype: torch.dtype, param_dtype: torch.dtype):
     if dtype != param_dtype:
         raise ValueError(
-            f'dtype type is: {dtype} but model dtype is: {param_dtype}. '
+            f'dtype type is: {dtype} but model dtype is: {param_dtype}. ' +
             f"The expected dtype and model dtype don't match.")
 
 
-def main(config):
+def main(config: DictConfig):
     if config.device is not None:
         device = config.device
     else:
@@ -128,4 +128,5 @@ if __name__ == '__main__':
         yaml_config = om.load(f)
     cli_config = om.from_cli(args_list)
     config = om.merge(yaml_config, cli_config)
+    assert isinstance(config, DictConfig)
     main(config)

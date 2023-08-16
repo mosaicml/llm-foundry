@@ -122,11 +122,12 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
                                                 model_gauntlet)  # type: ignore
 
     if hasattr(model_cfg.model, 'pretrained_lora_id_or_path'):
-        composer_model = load_peft_model(model_cfg.model, tokenizer, num_retries)
+        composer_model = load_peft_model(model_cfg.model, tokenizer,
+                                         num_retries)
     else:
         composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
-                                num_retries)
-      
+                                    num_retries)
+
     if model_gauntlet_df is None and model_gauntlet is not None:
         model_gauntlet_df = pd.DataFrame(
             columns=['model_name', 'average'] +
@@ -170,27 +171,46 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
 def main(cfg: DictConfig):
     om.resolve(cfg)
     model_configs: ListConfig = pop_config(cfg, 'models', must_exist=True)
-    model_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(cfg, 
-        'model_gauntlet', must_exist=False, default_value=None)
-    fsdp_dict_cfg: Optional[DictConfig] = pop_config(cfg, 'fsdp_config', must_exist=False, default_value=None)
+    model_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(
+        cfg, 'model_gauntlet', must_exist=False, default_value=None)
+    fsdp_dict_cfg: Optional[DictConfig] = pop_config(cfg,
+                                                     'fsdp_config',
+                                                     must_exist=False,
+                                                     default_value=None)
     fsdp_config: Optional[Dict] = om.to_container(
         fsdp_dict_cfg,
         resolve=True) if fsdp_dict_cfg is not None else None  # type: ignore
     assert isinstance(fsdp_config, Dict) or fsdp_config is None
 
     # Mandatory Evaluation Parameters
-    icl_tasks: Union[str, ListConfig] = pop_config(cfg, 'icl_tasks', must_exist=True)
+    icl_tasks: Union[str, ListConfig] = pop_config(cfg,
+                                                   'icl_tasks',
+                                                   must_exist=True)
     max_seq_len: int = pop_config(cfg, 'max_seq_len', must_exist=True)
-    device_eval_batch_size: int = pop_config(cfg, 'device_eval_batch_size', must_exist=True)
+    device_eval_batch_size: int = pop_config(cfg,
+                                             'device_eval_batch_size',
+                                             must_exist=True)
     precision: str = pop_config(cfg, 'precision', must_exist=True)
 
     # Optional Evaluation Parameters with default values
     seed: int = pop_config(cfg, 'seed', must_exist=False, default_value=17)
-    dist_timeout: Union[float, int] = pop_config(cfg, 'dist_timeout', must_exist=False, default_value=600.0)
+    dist_timeout: Union[float, int] = pop_config(cfg,
+                                                 'dist_timeout',
+                                                 must_exist=False,
+                                                 default_value=600.0)
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = pop_config(cfg, 'run_name', must_exist=False, default_value=default_run_name)
-    num_retries: int = pop_config(cfg, 'num_retries', must_exist=False, default_value=3)
-    loggers_cfg: Dict[str, Any] = pop_config(cfg, 'loggers', must_exist=False, default_value={})
+    run_name: str = pop_config(cfg,
+                               'run_name',
+                               must_exist=False,
+                               default_value=default_run_name)
+    num_retries: int = pop_config(cfg,
+                                  'num_retries',
+                                  must_exist=False,
+                                  default_value=3)
+    loggers_cfg: Dict[str, Any] = pop_config(cfg,
+                                             'loggers',
+                                             must_exist=False,
+                                             default_value={})
 
     # Pop out interpolation variables.
     pop_config(cfg, 'model_name_or_path', must_exist=False, default_value=None)

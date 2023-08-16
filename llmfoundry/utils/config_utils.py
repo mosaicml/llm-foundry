@@ -26,9 +26,11 @@ def pop_config(cfg: DictConfig,
     """
     value = cfg.pop(key, None)
     if value is not None and convert:
-        assert isinstance(value, DictConfig) or isinstance(value, ListConfig)
+        if not isinstance(value, DictConfig) and not isinstance(value, ListConfig): 
+            raise ValueError("The key: {key} has a value: {value} that cannot be \
+                            converted to a dict or list. Please check your yaml.")
         return om.to_container(value)
-    elif value is not None and not convert:
+    elif value is not None:
         return value
     elif must_exist:
         raise NameError(

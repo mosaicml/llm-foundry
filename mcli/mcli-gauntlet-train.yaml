@@ -3,7 +3,8 @@ name: test-1b
 integrations:
 -
   integration_type: git_repo
-  git_branch: v0.2.0
+  # git_branch: v0.2.0
+  git_branch: enable_gauntlet_training
   git_repo: mosaicml/llm-foundry
   pip_install: -e .[gpu]
   ssh_clone: false

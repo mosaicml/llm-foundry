@@ -70,7 +70,6 @@ parameters:
       kwargs:
         name: openai/gpt-3.5-turbo
 
-  
 
   # FSDP config for model sharding
   # fsdp_config:

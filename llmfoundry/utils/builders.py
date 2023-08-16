@@ -4,8 +4,6 @@
 import os
 from typing import Any, Dict, Optional, Union
 
-from llmfoundry.models.inference_api_wrapper.openai_causal_lm import OpenAITokenizerWrapper
-
 import torch
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
@@ -28,6 +26,8 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry.callbacks import (FDiffMetrics, Generate, GlobalLRScaling,
                                   LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
+from llmfoundry.models.inference_api_wrapper.openai_causal_lm import \
+    OpenAITokenizerWrapper
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW)
 
@@ -137,7 +137,8 @@ def build_scheduler(cfg: DictConfig):
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
 
 
-def build_tokenizer(om_tokenizer_config: DictConfig,) -> PreTrainedTokenizerBase:
+def build_tokenizer(
+    om_tokenizer_config: DictConfig,) -> PreTrainedTokenizerBase:
     if om_tokenizer_config.name == 'openai':
         return OpenAITokenizerWrapper(om_tokenizer_config.kwargs['name'])
     else:

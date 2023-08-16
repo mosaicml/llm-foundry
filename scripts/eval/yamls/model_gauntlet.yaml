@@ -156,4 +156,3 @@ model_gauntlet:
     - name: squad
       num_fewshot: 10
       random_baseline: 0
-

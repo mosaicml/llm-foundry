@@ -1,6 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
-
-from llmfoundry.models.inference_api_wrapper import OpenAICausalLMEvalWrapper,OpenAIChatAPIEvalWrapper, OpenAITokenizerWrapper
 import os
 import random
 import shutil
@@ -9,11 +9,13 @@ from pathlib import Path
 import pytest
 from omegaconf import OmegaConf as om
 
-
+from llmfoundry.models.inference_api_wrapper import (OpenAICausalLMEvalWrapper,
+                                                     OpenAIChatAPIEvalWrapper,
+                                                     OpenAITokenizerWrapper)
 from llmfoundry.utils.builders import build_icl_evaluators
 
 
-def load_icl_config(conf_path='tests/test_tasks.yaml'):
+def load_icl_config(conf_path: str = 'tests/test_tasks.yaml'):
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return test_cfg
@@ -32,45 +34,52 @@ def tmp_dir():
         shutil.rmtree(dirpath)
 
 
-def test_openai_api_eval_wrapper(tmp_dir):
+def test_openai_api_eval_wrapper(tmp_dir: str):
     model_name = 'davinci'
     tokenizer = OpenAITokenizerWrapper(model_name)
-    model = OpenAICausalLMEvalWrapper(model_cfg={"version": model_name}, tokenizer=tokenizer)
+    model = OpenAICausalLMEvalWrapper(model_cfg={'version': model_name},
+                                      tokenizer=tokenizer)
     task_cfg = load_icl_config()
-    evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
-                                         tokenizer,
-                                         1024,
-                                         8,
-                                         destination_dir=f'{os.getcwd()}/{tmp_dir}')
-    
+    evaluators, _ = build_icl_evaluators(
+        task_cfg.icl_tasks,
+        tokenizer,
+        1024,
+        8,
+        destination_dir=f'{os.getcwd()}/{tmp_dir}')
+
     batch = next(evaluators[0].dataloader.dataloader.__iter__())
     result = model.eval_forward(batch)
-    model.update_metric(
-        batch,
-        result,
-        metric=model.get_metrics()['InContextLearningLMAccuracy']
-    )
-    acc = model.get_metrics()['InContextLearningLMAccuracy'].compute()
+    model.update_metric(batch,
+                        result,
+                        metric=model.get_metrics()
+                        ['InContextLearningLMAccuracy'])  # pyright: ignore
+    acc = model.get_metrics(
+    )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
+    )  # pyright: ignore
     assert acc > 0.0
 
-def test_chat_api_eval_wrapper(tmp_dir):
+
+def test_chat_api_eval_wrapper(tmp_dir: str):
     model_name = 'gpt-3.5-turbo'
     tokenizer = OpenAITokenizerWrapper(model_name)
-    chatmodel = OpenAIChatAPIEvalWrapper(model_cfg={"version": model_name}, tokenizer=tokenizer)
+    chatmodel = OpenAIChatAPIEvalWrapper(model_cfg={'version': model_name},
+                                         tokenizer=tokenizer)
     task_cfg = load_icl_config()
-    evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
-                                         tokenizer,
-                                         1024,
-                                         8,
-                                         destination_dir=f'{os.getcwd()}/{tmp_dir}')
-    
+    evaluators, _ = build_icl_evaluators(
+        task_cfg.icl_tasks,
+        tokenizer,
+        1024,
+        8,
+        destination_dir=f'{os.getcwd()}/{tmp_dir}')
+
     batch = next(evaluators[0].dataloader.dataloader.__iter__())
     result = chatmodel.eval_forward(batch)
-    
-    chatmodel.update_metric(
-        batch,
-        result,
-        metric=chatmodel.get_metrics()['InContextLearningLMAccuracy']
+
+    chatmodel.update_metric(batch,
+                            result,
+                            metric=chatmodel.get_metrics()
+                            ['InContextLearningLMAccuracy'])  # pyright: ignore
+    acc = chatmodel.get_metrics(
+    )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
     )
-    acc = chatmodel.get_metrics()['InContextLearningLMAccuracy'].compute()
     assert acc > 0.0

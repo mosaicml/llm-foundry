@@ -211,7 +211,10 @@ def main(cfg: DictConfig):
 
     # Mandatory model training configs
     model_config: DictConfig = pop_config(cfg, 'model', must_exist=True)
-    tokenizer_config: DictConfig = pop_config(cfg, 'tokenizer', must_exist=True)
+    tokenizer_config: Dict[str, Any] = pop_config(cfg,
+                                                  'tokenizer',
+                                                  must_exist=True,
+                                                  convert=True)
     optimizer_config: Dict[str, Any] = pop_config(cfg,
                                                   'optimizer',
                                                   must_exist=True,
@@ -388,7 +391,8 @@ def main(cfg: DictConfig):
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
 
     # Build tokenizer
-    tokenizer = build_tokenizer(tokenizer_config)
+    tokenizer_kwargs: Dict[str, Any] = tokenizer_config.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_config['name'], tokenizer_kwargs)
 
     # Build Model
     print('Initializing model...')

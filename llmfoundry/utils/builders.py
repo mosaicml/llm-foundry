@@ -113,7 +113,9 @@ def build_scheduler(name: str, scheduler_config: Dict[str, Any]):
         raise ValueError(f'Not sure how to build scheduler: {name}')
 
 
-def build_tokenizer(tokenizer_name: str, tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
+def build_tokenizer(
+        tokenizer_name: str,
+        tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 

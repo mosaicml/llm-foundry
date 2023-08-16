@@ -198,11 +198,8 @@ def test_denoising_dataloader(decoder_only_format: bool, pretokenize: bool,
             expected_keys += ['sequence_id']
 
         tokenizer = build_tokenizer(
-            tokenizer_name = tokenizer_name,
-            tokenizer_kwargs = {
-                'model_max_length': max_seq_len
-            }
-        )
+            tokenizer_name=tokenizer_name,
+            tokenizer_kwargs={'model_max_length': max_seq_len})
 
         loader = build_text_denoising_dataloader(cfg, tokenizer,
                                                  device_batch_size)
@@ -254,10 +251,7 @@ def test_finetuning_dataloader(decoder_only_format: bool,
 
     tokenizer = build_tokenizer(
         tokenizer_name=tokenizer_name,
-        tokenizer_kwargs = {
-            'model_max_length': max_seq_len
-        }
-    )
+        tokenizer_kwargs={'model_max_length': max_seq_len})
 
     device_batch_size = 2
 

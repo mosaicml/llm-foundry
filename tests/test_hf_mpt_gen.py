@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Any, Dict
+
 import pytest
 from composer.core.precision import get_precision_context
 from composer.utils import get_device, reproducibility
@@ -10,7 +12,6 @@ from omegaconf import OmegaConf as om
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils import build_tokenizer
 
-from typing import Dict, Any
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('device', ['cpu', 'gpu'])
@@ -45,7 +46,9 @@ def test_init_hfhub_mpt(device: str, attn_impl: str):
     })
 
     # build tokenizer
-    tokenizer_cfg: Dict[str, Any] = om.to_container(test_cfg.tokenizer, resolve=True) # type: ignore
+    tokenizer_cfg: Dict[str,
+                        Any] = om.to_container(test_cfg.tokenizer,
+                                               resolve=True)  # type: ignore
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)

@@ -21,7 +21,7 @@ from omegaconf import OmegaConf as om
 from transformers import (AutoTokenizer, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
 
-from llmfoundry.callbacks import (FDiffMetrics, Generate, GlobalLRScaling,
+from llmfoundry.callbacks import (AverageICLLogger, FDiffMetrics, Generate, GlobalLRScaling,
                                   LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
@@ -39,6 +39,8 @@ def build_callback(name, kwargs):
         return SpeedMonitor(window_size=kwargs.get('window_size', 1),
                             gpu_flops_available=kwargs.get(
                                 'gpu_flops_available', None))
+    elif name == 'average_icl_logger':
+        return AverageICLLogger()
     elif name == 'fdiff':
         return FDiffMetrics(**kwargs)
     elif name == 'runtime_estimator':

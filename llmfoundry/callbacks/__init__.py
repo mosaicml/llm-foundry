@@ -4,6 +4,7 @@
 try:
     from llmfoundry.callbacks.fdiff_callback import FDiffMetrics
     from llmfoundry.callbacks.generate_callback import Generate
+    from llmfoundry.callbacks.log_average_icl import AverageICLLogger
     from llmfoundry.callbacks.model_gauntlet_callback import ModelGauntlet
     from llmfoundry.callbacks.monolithic_ckpt_callback import \
         MonolithicCheckpointSaver
@@ -17,6 +18,7 @@ except ImportError as e:
     ) from e
 
 __all__ = [
+    'AverageICLLogger',
     'FDiffMetrics',
     'Generate',
     'MonolithicCheckpointSaver',

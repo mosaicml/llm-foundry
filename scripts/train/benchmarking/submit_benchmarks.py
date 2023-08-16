@@ -373,8 +373,8 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
 
         composer train/train.py /mnt/config/parameters.yaml
         """
-
-    path = os.path.join('../yamls/mpt', model_yaml)
+        print("CHRIS: IS NONNONE")
+    path = os.path.join('../yamls/pretrain', "mpt-" + model_yaml)
     parameters = get_parameters(path)
 
     model_name = '-'.join(model_yaml.split('.')[-2].split('/')[-2:]).replace(

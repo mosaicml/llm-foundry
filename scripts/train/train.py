@@ -349,7 +349,7 @@ def main(cfg: DictConfig):
     # Build Model
     with init_context:
         print('Initializing model...')
-        model = build_composer_model(cfg.model, tokenizer)
+        model = build_composer_model(model_config, tokenizer)
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())

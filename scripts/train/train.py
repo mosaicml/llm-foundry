@@ -69,7 +69,8 @@ def validate_config(cfg):
         )
 
     fsdp_config = cfg.get('fsdp_config', None)
-    if (fsdp_config is not None and (cfg.model.get('fc_type', 'torch') == 'te' or 'te' not in cfg.model.get(
+    if (fsdp_config is not None and
+        (cfg.model.get('fc_type', 'torch') == 'te' or 'te' not in cfg.model.get(
             'ffn_config', {}).get('ffn_type', 'mptmlp'))):
         fsdp_config = cfg.get('fsdp_config', None)
         act_ckpt = fsdp_config.get('activation_checkpointing', False)

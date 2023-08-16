@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
@@ -7,23 +10,24 @@ from __future__ import annotations
 
 from typing import Optional, Union
 
-from omegaconf import DictConfig
-from omegaconf import OmegaConf as om
-
 from composer.metrics.nlp import (BinaryF1Score, LanguageCrossEntropy,
                                   MaskedAccuracy)
-from transformers import (PreTrainedTokenizer,
-                          PreTrainedTokenizerFast)
 from composer.models.huggingface import HuggingFaceModel
 from composer.utils.import_helpers import MissingConditionalImportError
+from omegaconf import DictConfig
+from omegaconf import OmegaConf as om
 from torchmetrics import MeanSquaredError
 from torchmetrics.classification.accuracy import MulticlassAccuracy
 from torchmetrics.classification.matthews_corrcoef import MatthewsCorrCoef
 from torchmetrics.regression.spearman import SpearmanCorrCoef
+from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
-__all__ = ['ComposerHFBertForMaskedLM', 'ComposerHFBertForSequenceClassification']
+__all__ = [
+    'ComposerHFBertForMaskedLM', 'ComposerHFBertForSequenceClassification'
+]
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
+
 
 class ComposerHFBertForMaskedLM(HuggingFaceModel):
     """BERT model based on |:hugging_face:| Transformers.
@@ -71,24 +75,28 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
          from examples.bert.src.hf_bert import create_hf_bert_mlm
          model = create_hf_bert_mlm()
     """
+
     def __init__(
         self,
         om_model_config: DictConfig,
         tokenizer: Optional[Tokenizer] = None,
     ):
-        resolved_om_model_config = om.to_container(om_model_config, resolve=True)
-                
+        resolved_om_model_config = om.to_container(om_model_config,
+                                                   resolve=True)
+
         try:
             import transformers
         except ImportError as e:
-            raise MissingConditionalImportError(extra_deps_group='nlp',
-                                                conda_package='transformers') from e
+            raise MissingConditionalImportError(
+                extra_deps_group='nlp', conda_package='transformers') from e
 
         # if not model_config:
         #     model_config = {}
         # add JP - check pretrained checkpoitn and gradient checkpointing use
-        pretrained_model_name = resolved_om_model_config.get('pretrained_model_name')
-        pretrained_checkpoint = resolved_om_model_config.get('pretrained_checkpoint')
+        pretrained_model_name = resolved_om_model_config.get(
+            'pretrained_model_name')
+        pretrained_checkpoint = resolved_om_model_config.get(
+            'pretrained_checkpoint')
 
         if not pretrained_model_name:
             pretrained_model_name = 'bert-base-uncased'
@@ -96,7 +104,8 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
         if resolved_om_model_config.get('use_pretrained'):
             assert transformers.AutoModelForMaskedLM.from_pretrained is not None, 'AutoModelForMaskedLM has from_pretrained method'
             model = transformers.AutoModelForMaskedLM.from_pretrained(
-                pretrained_model_name_or_path=pretrained_model_name, **resolved_om_model_config)
+                pretrained_model_name_or_path=pretrained_model_name,
+                **resolved_om_model_config)
         else:
             config = transformers.AutoConfig.from_pretrained(
                 pretrained_model_name, **resolved_om_model_config)
@@ -111,12 +120,12 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
             LanguageCrossEntropy(ignore_index=-100),
             MaskedAccuracy(ignore_index=-100)
         ]
-       
+
         super().__init__(model=model,
-            tokenizer=tokenizer,
-            use_logits=True,
-            metrics=metrics
-        )
+                         tokenizer=tokenizer,
+                         use_logits=True,
+                         metrics=metrics)
+
 
 class ComposerHFBertForSequenceClassification(HuggingFaceModel):
     """BERT model based on |:hugging_face:| Transformers.
@@ -178,26 +187,28 @@ class ComposerHFBertForSequenceClassification(HuggingFaceModel):
         For the classifcation case (when ``num_labels > 1``), the training loss is :class:`~torch.nn.CrossEntropyLoss`, and the train/validation
         metrics are :class:`~torchmetrics.MulticlassAccuracy` and :class:`~torchmetrics.MatthewsCorrCoef`, as well as :class:`.BinaryF1Score` if ``num_labels == 2``.
     """
-    def __init__(
-        self,
-        om_model_config: DictConfig,
-        tokenizer: Optional[Tokenizer] = None
-    ):
-        resolved_om_model_config = om.to_container(om_model_config, resolve=True)
+
+    def __init__(self,
+                 om_model_config: DictConfig,
+                 tokenizer: Optional[Tokenizer] = None):
+        resolved_om_model_config = om.to_container(om_model_config,
+                                                   resolve=True)
         try:
             import transformers
         except ImportError as e:
-            raise MissingConditionalImportError(extra_deps_group='nlp',
-                                                conda_package='transformers') from e
+            raise MissingConditionalImportError(
+                extra_deps_group='nlp', conda_package='transformers') from e
 
         # if not model_config:
         #     model_config = {}
 
         # add JP - check pretrained checkpoitn and gradient checkpointing use
-        pretrained_model_name = resolved_om_model_config.get('pretrained_model_name')
-        pretrained_checkpoint = resolved_om_model_config.get('pretrained_checkpoint')
+        pretrained_model_name = resolved_om_model_config.get(
+            'pretrained_model_name')
+        pretrained_checkpoint = resolved_om_model_config.get(
+            'pretrained_checkpoint')
         #gradient_checkpointing = resolved_om_model_config.get('gradient_checkpointing')
-        
+
         # need to resolve this for classification? TODO JP Hopefully this appears in resolved om config?
         # model_config['num_labels'] = resolved_om_model_config.get('num_labels')
 
@@ -207,7 +218,8 @@ class ComposerHFBertForSequenceClassification(HuggingFaceModel):
         if resolved_om_model_config.get('use_pretrained'):
             assert transformers.AutoModelForSequenceClassification.from_pretrained is not None, 'AutoModelForSequenceClassification has from_pretrained method'
             model = transformers.AutoModelForSequenceClassification.from_pretrained(
-                pretrained_model_name_or_path=pretrained_model_name, **resolved_om_model_config)
+                pretrained_model_name_or_path=pretrained_model_name,
+                **resolved_om_model_config)
         else:
             config = transformers.AutoConfig.from_pretrained(
                 pretrained_model_name, **resolved_om_model_config)
@@ -224,15 +236,15 @@ class ComposerHFBertForSequenceClassification(HuggingFaceModel):
         else:
             # Metrics for a classification model
             metrics = [
-                MulticlassAccuracy(num_classes=model.config.num_labels, average='micro'),
+                MulticlassAccuracy(num_classes=model.config.num_labels,
+                                   average='micro'),
                 MatthewsCorrCoef(task='multiclass',
-                                num_classes=model.config.num_labels)
+                                 num_classes=model.config.num_labels)
             ]
             if model.config.num_labels == 2:
                 metrics.append(BinaryF1Score())
 
-        super().__init__(
-            model=model,
-            tokenizer=tokenizer,
-            use_logits=True,
-            metrics=metrics)
+        super().__init__(model=model,
+                         tokenizer=tokenizer,
+                         use_logits=True,
+                         metrics=metrics)

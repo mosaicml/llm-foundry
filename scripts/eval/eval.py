@@ -24,7 +24,7 @@ from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt import MPTForCausalLM
 from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
                                        build_tokenizer)
-from llmfoundry.utils.config_utils import process_init_device
+from llmfoundry.utils.config_utils import pop_config, process_init_device
 
 
 def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
@@ -169,31 +169,31 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
 
 def main(cfg: DictConfig):
     om.resolve(cfg)
-    model_configs: ListConfig = cfg.pop('models')
-    model_gauntlet_config: Optional[Union[str, DictConfig]] = cfg.pop(
-        'model_gauntlet', None)
-    fsdp_dict_cfg: Optional[DictConfig] = cfg.pop('fsdp_config', None)
+    model_configs: ListConfig = pop_config(cfg, 'models', must_exist=True)
+    model_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(cfg, 
+        'model_gauntlet', must_exist=False, default_value=None)
+    fsdp_dict_cfg: Optional[DictConfig] = pop_config(cfg, 'fsdp_config', must_exist=False, default_value=None)
     fsdp_config: Optional[Dict] = om.to_container(
         fsdp_dict_cfg,
         resolve=True) if fsdp_dict_cfg is not None else None  # type: ignore
     assert isinstance(fsdp_config, Dict) or fsdp_config is None
 
     # Mandatory Evaluation Parameters
-    icl_tasks: Union[str, ListConfig] = cfg.pop('icl_tasks')
-    max_seq_len: int = cfg.pop('max_seq_len')
-    device_eval_batch_size: int = cfg.pop('device_eval_batch_size')
-    precision: str = cfg.pop('precision')
+    icl_tasks: Union[str, ListConfig] = pop_config(cfg, 'icl_tasks', must_exist=True)
+    max_seq_len: int = pop_config(cfg, 'max_seq_len', must_exist=True)
+    device_eval_batch_size: int = pop_config(cfg, 'device_eval_batch_size', must_exist=True)
+    precision: str = pop_config(cfg, 'precision', must_exist=True)
 
     # Optional Evaluation Parameters with default values
-    seed: int = cfg.pop('seed', 17)
-    dist_timeout: Union[float, int] = cfg.pop('dist_timeout', 600.0)
+    seed: int = pop_config(cfg, 'seed', must_exist=False, default_value=17)
+    dist_timeout: Union[float, int] = pop_config(cfg, 'dist_timeout', must_exist=False, default_value=600.0)
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = cfg.pop('run_name', default_run_name)
-    num_retries: int = cfg.pop('num_retries', 3)
-    loggers_cfg: Dict[str, Any] = cfg.pop('loggers', {})
+    run_name: str = pop_config(cfg, 'run_name', must_exist=False, default_value=default_run_name)
+    num_retries: int = pop_config(cfg, 'num_retries', must_exist=False, default_value=3)
+    loggers_cfg: Dict[str, Any] = pop_config(cfg, 'loggers', must_exist=False, default_value={})
 
     # Pop out interpolation variables.
-    cfg.pop('model_name_or_path', None)
+    pop_config(cfg, 'model_name_or_path', must_exist=False, default_value=None)
 
     # Warn for unused parameters
     for key in cfg:

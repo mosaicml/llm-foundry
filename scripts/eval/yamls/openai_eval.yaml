@@ -24,14 +24,14 @@ models:
     kwargs:
       name: gpt-4
 -
-  model_name: openai/gpt-3.5-turbo
-  model:
-    name: openai_chat
-    version: openai/gpt-3.5-turbo
-  tokenizer:
-    name: openai
-    kwargs:
-      name: openai/gpt-3.5-turbo
+    model_name: openai/gpt-3.5-turbo
+    model:
+      name: openai_chat
+      version: gpt-3.5-turbo
+    tokenizer:
+      name: openai
+      kwargs:
+        name: gpt-3.5-turbo
 
 
 # FSDP config for model sharding

@@ -1,537 +1,0 @@
-Cloning into 'llm-foundry'...
-Obtaining file:///llm-foundry
-  Installing build dependencies: started
-  Installing build dependencies: finished with status 'done'
-  Checking if build backend supports build_editable: started
-  Checking if build backend supports build_editable: finished with status 'done'
-  Getting requirements to build editable: started
-  Getting requirements to build editable: finished with status 'done'
-  Installing backend dependencies: started
-  Installing backend dependencies: finished with status 'done'
-  Preparing editable metadata (pyproject.toml): started
-  Preparing editable metadata (pyproject.toml): finished with status 'done'
-Collecting triton-pre-mlir@ git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python
-  Cloning https://github.com/vchiley/triton.git (to revision triton_pre_mlir_sm90) to /tmp/pip-install-gev4xg7a/triton-pre-mlir_334a8f288e7042488d7511c94ee44e47
-  Running command git clone --filter=blob:none --quiet https://github.com/vchiley/triton.git /tmp/pip-install-gev4xg7a/triton-pre-mlir_334a8f288e7042488d7511c94ee44e47
-  Running command git checkout -b triton_pre_mlir_sm90 --track origin/triton_pre_mlir_sm90
-  Switched to a new branch 'triton_pre_mlir_sm90'
-  branch 'triton_pre_mlir_sm90' set up to track 'origin/triton_pre_mlir_sm90'.
-  Resolved https://github.com/vchiley/triton.git to commit 86c7fe23397467ade531513291f729c12dd8d15e
-  Running command git submodule update --init --recursive -q
-  Preparing metadata (setup.py): started
-  Preparing metadata (setup.py): finished with status 'done'
-Collecting xentropy-cuda-lib@ git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy
-  Cloning https://github.com/HazyResearch/flash-attention.git (to revision v1.0.3) to /tmp/pip-install-gev4xg7a/xentropy-cuda-lib_f67cc033a1934228953d62c5133cfd31
-  Running command git clone --filter=blob:none --quiet https://github.com/HazyResearch/flash-attention.git /tmp/pip-install-gev4xg7a/xentropy-cuda-lib_f67cc033a1934228953d62c5133cfd31
-  Running command git checkout -q 67ef5d28df71d395bc16787b31e08ea1afbe4178
-  Resolved https://github.com/HazyResearch/flash-attention.git to commit 67ef5d28df71d395bc16787b31e08ea1afbe4178
-  Running command git submodule update --init --recursive -q
-  Preparing metadata (setup.py): started
-  Preparing metadata (setup.py): finished with status 'done'
-Requirement already satisfied: onnxruntime==1.15.1 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (1.15.1)
-Collecting tiktoken==0.4.0
-  Downloading tiktoken-0.4.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.7 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 28.2 MB/s eta 0:00:00
-Requirement already satisfied: cmake<=3.26.3,>=3.25.0 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (3.26.3)
-Requirement already satisfied: sentencepiece==0.1.97 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (0.1.97)
-Requirement already satisfied: pandas==2.0.3 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (2.0.3)
-Requirement already satisfied: mosaicml-streaming<0.6,>=0.5.1 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (0.5.1)
-Requirement already satisfied: mosaicml-cli<1,>=0.3 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (0.4.17)
-Requirement already satisfied: onnx==1.14.0 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (1.14.0)
-Requirement already satisfied: torch<=2.0.1,>=1.13.1 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (2.0.1+cu118)
-Collecting accelerate<0.21,>=0.20
-  Downloading accelerate-0.20.3-py3-none-any.whl (227 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 227.6/227.6 kB 119.9 MB/s eta 0:00:00
-Requirement already satisfied: slack-sdk<4 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (3.21.3)
-Requirement already satisfied: mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (0.15.1)
-Requirement already satisfied: einops==0.5.0 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (0.5.0)
-Requirement already satisfied: omegaconf<3,>=2.2.3 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (2.3.0)
-Collecting openai==0.27.8
-  Downloading openai-0.27.8-py3-none-any.whl (73 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.6/73.6 kB 57.5 MB/s eta 0:00:00
-Requirement already satisfied: datasets==2.10.1 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (2.10.1)
-Requirement already satisfied: flash-attn==v1.0.3.post0 in /usr/lib/python3/dist-packages (from llm-foundry==0.2.0) (1.0.3.post0)
-Requirement already satisfied: packaging in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (23.1)
-Requirement already satisfied: responses<0.19 in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (0.18.0)
-Requirement already satisfied: pyyaml>=5.1 in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (6.0.1)
-Requirement already satisfied: numpy>=1.17 in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (1.24.4)
-Requirement already satisfied: pyarrow>=6.0.0 in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (12.0.1)
-Requirement already satisfied: huggingface-hub<1.0.0,>=0.2.0 in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (0.16.4)
-Requirement already satisfied: multiprocess in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (0.70.14)
-Requirement already satisfied: xxhash in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (3.2.0)
-Requirement already satisfied: fsspec[http]>=2021.11.1 in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (2023.6.0)
-Requirement already satisfied: aiohttp in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (3.8.5)
-Requirement already satisfied: dill<0.3.7,>=0.3.0 in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (0.3.6)
-Requirement already satisfied: requests>=2.19.0 in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (2.31.0)
-Requirement already satisfied: tqdm>=4.62.1 in /usr/lib/python3/dist-packages (from datasets==2.10.1->llm-foundry==0.2.0) (4.65.0)
-Requirement already satisfied: protobuf>=3.20.2 in /usr/lib/python3/dist-packages (from onnx==1.14.0->llm-foundry==0.2.0) (4.23.4)
-Requirement already satisfied: typing-extensions>=3.6.2.1 in /usr/lib/python3/dist-packages (from onnx==1.14.0->llm-foundry==0.2.0) (4.6.3)
-Requirement already satisfied: coloredlogs in /usr/lib/python3/dist-packages (from onnxruntime==1.15.1->llm-foundry==0.2.0) (15.0.1)
-Requirement already satisfied: flatbuffers in /usr/lib/python3/dist-packages (from onnxruntime==1.15.1->llm-foundry==0.2.0) (23.5.26)
-Requirement already satisfied: sympy in /usr/lib/python3/dist-packages (from onnxruntime==1.15.1->llm-foundry==0.2.0) (1.12)
-Requirement already satisfied: tzdata>=2022.1 in /usr/lib/python3/dist-packages (from pandas==2.0.3->llm-foundry==0.2.0) (2023.3)
-Requirement already satisfied: pytz>=2020.1 in /usr/lib/python3/dist-packages (from pandas==2.0.3->llm-foundry==0.2.0) (2023.3)
-Requirement already satisfied: python-dateutil>=2.8.2 in /usr/lib/python3/dist-packages (from pandas==2.0.3->llm-foundry==0.2.0) (2.8.2)
-Requirement already satisfied: regex>=2022.1.18 in /usr/lib/python3/dist-packages (from tiktoken==0.4.0->llm-foundry==0.2.0) (2023.6.3)
-Requirement already satisfied: psutil in /usr/lib/python3/dist-packages (from accelerate<0.21,>=0.20->llm-foundry==0.2.0) (5.9.5)
-Requirement already satisfied: prompt-toolkit>=3.0.29 in /usr/lib/python3/dist-packages (from mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (3.0.39)
-Requirement already satisfied: arrow>=1.2.2 in /usr/lib/python3/dist-packages (from mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (1.2.3)
-Requirement already satisfied: ruamel.yaml>=0.17.21 in /usr/lib/python3/dist-packages (from mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (0.17.32)
-Requirement already satisfied: questionary>=1.10.0 in /usr/lib/python3/dist-packages (from mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (1.10.0)
-Requirement already satisfied: backoff>=2.2.1 in /usr/lib/python3/dist-packages (from mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (2.2.1)
-Requirement already satisfied: gql[websockets]>=3.4.0 in /usr/lib/python3/dist-packages (from mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (3.4.1)
-Requirement already satisfied: validators>=0.20.0 in /usr/lib/python3/dist-packages (from mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (0.20.0)
-Requirement already satisfied: docker>=5.0.3 in /usr/lib/python3/dist-packages (from mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (6.1.3)
-Requirement already satisfied: rich>=12.6.0 in /usr/lib/python3/dist-packages (from mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (13.4.2)
-Requirement already satisfied: argcomplete>=2.0.0 in /usr/lib/python3/dist-packages (from mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (3.1.1)
-Requirement already satisfied: torchtext>=0.10 in /usr/lib/python3/dist-packages (from mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (0.15.2+cpu)
-Requirement already satisfied: python-snappy<1,>=0.6.1 in /usr/lib/python3/dist-packages (from mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (0.6.1)
-Requirement already satisfied: zstd<2,>=1.5.2.5 in /usr/lib/python3/dist-packages (from mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (1.5.5.1)
-Requirement already satisfied: Brotli>=1.0.9 in /usr/lib/python3/dist-packages (from mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (1.0.9)
-Requirement already satisfied: matplotlib<4,>=3.5.2 in /usr/lib/python3/dist-packages (from mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (3.7.2)
-Requirement already satisfied: transformers<5,>=4.21.3 in /usr/lib/python3/dist-packages (from mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (4.30.2)
-Requirement already satisfied: boto3<2,>=1.21.45 in /usr/lib/python3/dist-packages (from mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (1.28.10)
-Requirement already satisfied: paramiko<4,>=2.11.0 in /usr/lib/python3/dist-packages (from mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (3.2.0)
-Requirement already satisfied: oci<3,>=2.88 in /usr/lib/python3/dist-packages (from mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (2.108.0)
-Requirement already satisfied: azure-storage-blob<13,>=12.0.0 in /usr/lib/python3/dist-packages (from mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (12.17.0)
-Requirement already satisfied: torchvision>=0.10 in /usr/lib/python3/dist-packages (from mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (0.15.2+cu118)
-Requirement already satisfied: coolname<3,>=1.1.0 in /usr/lib/python3/dist-packages (from mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (2.2.0)
-Requirement already satisfied: py-cpuinfo<10,>=8.0.0 in /usr/lib/python3/dist-packages (from mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (9.0.0)
-Requirement already satisfied: torch-optimizer<0.4,>=0.3.0 in /usr/lib/python3/dist-packages (from mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (0.3.0)
-Requirement already satisfied: tabulate==0.9.0 in /usr/lib/python3/dist-packages (from mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (0.9.0)
-Requirement already satisfied: importlib-metadata<7,>=5.0.0 in /usr/lib/python3/dist-packages (from mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (6.8.0)
-Collecting packaging
-  Downloading packaging-22.0-py3-none-any.whl (42 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 42.6/42.6 kB 30.9 MB/s eta 0:00:00
-Requirement already satisfied: torchmetrics<0.12,>=0.10.0 in /usr/lib/python3/dist-packages (from mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (0.11.4)
-Requirement already satisfied: apache-libcloud<4,>=3.3.1 in /usr/lib/python3/dist-packages (from mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (3.7.0)
-Requirement already satisfied: wandb<0.16,>=0.13.2 in /usr/lib/python3/dist-packages (from mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (0.15.7)
-Requirement already satisfied: antlr4-python3-runtime==4.9.* in /usr/lib/python3/dist-packages (from omegaconf<3,>=2.2.3->llm-foundry==0.2.0) (4.9.3)
-Requirement already satisfied: jinja2 in /usr/lib/python3/dist-packages (from torch<=2.0.1,>=1.13.1->llm-foundry==0.2.0) (3.1.2)
-Requirement already satisfied: triton==2.0.0 in /usr/lib/python3/dist-packages (from torch<=2.0.1,>=1.13.1->llm-foundry==0.2.0) (2.0.0)
-Requirement already satisfied: filelock in /usr/lib/python3/dist-packages (from torch<=2.0.1,>=1.13.1->llm-foundry==0.2.0) (3.12.2)
-Requirement already satisfied: networkx in /usr/lib/python3/dist-packages (from torch<=2.0.1,>=1.13.1->llm-foundry==0.2.0) (3.1)
-Requirement already satisfied: lit in /usr/lib/python3/dist-packages (from triton==2.0.0->torch<=2.0.1,>=1.13.1->llm-foundry==0.2.0) (16.0.6)
-Requirement already satisfied: cryptography>=2.1.4 in /usr/lib/python3/dist-packages (from azure-storage-blob<13,>=12.0.0->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (41.0.2)
-Requirement already satisfied: isodate>=0.6.1 in /usr/lib/python3/dist-packages (from azure-storage-blob<13,>=12.0.0->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (0.6.1)
-Requirement already satisfied: azure-core<2.0.0,>=1.28.0 in /usr/lib/python3/dist-packages (from azure-storage-blob<13,>=12.0.0->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (1.28.0)
-Requirement already satisfied: botocore<1.32.0,>=1.31.10 in /usr/lib/python3/dist-packages (from boto3<2,>=1.21.45->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (1.31.10)
-Requirement already satisfied: s3transfer<0.7.0,>=0.6.0 in /usr/lib/python3/dist-packages (from boto3<2,>=1.21.45->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (0.6.1)
-Requirement already satisfied: jmespath<2.0.0,>=0.7.1 in /usr/lib/python3/dist-packages (from boto3<2,>=1.21.45->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (1.0.1)
-Requirement already satisfied: urllib3>=1.26.0 in /usr/lib/python3/dist-packages (from docker>=5.0.3->mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (1.26.16)
-Requirement already satisfied: websocket-client>=0.32.0 in /usr/lib/python3/dist-packages (from docker>=5.0.3->mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (1.6.1)
-Requirement already satisfied: async-timeout<5.0,>=4.0.0a3 in /usr/lib/python3/dist-packages (from aiohttp->datasets==2.10.1->llm-foundry==0.2.0) (4.0.2)
-Requirement already satisfied: charset-normalizer<4.0,>=2.0 in /usr/lib/python3/dist-packages (from aiohttp->datasets==2.10.1->llm-foundry==0.2.0) (3.2.0)
-Requirement already satisfied: aiosignal>=1.1.2 in /usr/lib/python3/dist-packages (from aiohttp->datasets==2.10.1->llm-foundry==0.2.0) (1.3.1)
-Requirement already satisfied: frozenlist>=1.1.1 in /usr/lib/python3/dist-packages (from aiohttp->datasets==2.10.1->llm-foundry==0.2.0) (1.4.0)
-Requirement already satisfied: multidict<7.0,>=4.5 in /usr/lib/python3/dist-packages (from aiohttp->datasets==2.10.1->llm-foundry==0.2.0) (6.0.4)
-Requirement already satisfied: attrs>=17.3.0 in /usr/lib/python3/dist-packages (from aiohttp->datasets==2.10.1->llm-foundry==0.2.0) (23.1.0)
-Requirement already satisfied: yarl<2.0,>=1.0 in /usr/lib/python3/dist-packages (from aiohttp->datasets==2.10.1->llm-foundry==0.2.0) (1.9.2)
-Requirement already satisfied: graphql-core<3.3,>=3.2 in /usr/lib/python3/dist-packages (from gql[websockets]>=3.4.0->mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (3.2.3)
-Requirement already satisfied: websockets<11,>=10 in /usr/lib/python3/dist-packages (from gql[websockets]>=3.4.0->mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (10.4)
-Requirement already satisfied: zipp>=0.5 in /usr/lib/python3/dist-packages (from importlib-metadata<7,>=5.0.0->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (3.16.2)
-Requirement already satisfied: cycler>=0.10 in /usr/lib/python3/dist-packages (from matplotlib<4,>=3.5.2->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (0.11.0)
-Requirement already satisfied: kiwisolver>=1.0.1 in /usr/lib/python3/dist-packages (from matplotlib<4,>=3.5.2->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (1.4.4)
-Requirement already satisfied: pillow>=6.2.0 in /usr/lib/python3/dist-packages (from matplotlib<4,>=3.5.2->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (9.3.0)
-Requirement already satisfied: pyparsing<3.1,>=2.3.1 in /usr/lib/python3/dist-packages (from matplotlib<4,>=3.5.2->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (3.0.9)
-Requirement already satisfied: fonttools>=4.22.0 in /usr/lib/python3/dist-packages (from matplotlib<4,>=3.5.2->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (4.41.1)
-Requirement already satisfied: contourpy>=1.0.1 in /usr/lib/python3/dist-packages (from matplotlib<4,>=3.5.2->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (1.1.0)
-Requirement already satisfied: pyOpenSSL<24.0.0,>=17.5.0 in /usr/lib/python3/dist-packages (from oci<3,>=2.88->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (23.2.0)
-Requirement already satisfied: certifi in /usr/lib/python3/dist-packages (from oci<3,>=2.88->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (2023.5.7)
-Requirement already satisfied: circuitbreaker<2.0.0,>=1.3.1 in /usr/lib/python3/dist-packages (from oci<3,>=2.88->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (1.4.0)
-Requirement already satisfied: pynacl>=1.5 in /usr/lib/python3/dist-packages (from paramiko<4,>=2.11.0->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (1.5.0)
-Requirement already satisfied: bcrypt>=3.2 in /usr/lib/python3/dist-packages (from paramiko<4,>=2.11.0->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (4.0.1)
-Requirement already satisfied: wcwidth in /usr/lib/python3/dist-packages (from prompt-toolkit>=3.0.29->mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (0.2.6)
-Requirement already satisfied: six>=1.5 in /usr/lib/python3/dist-packages (from python-dateutil>=2.8.2->pandas==2.0.3->llm-foundry==0.2.0) (1.14.0)
-Requirement already satisfied: idna<4,>=2.5 in /usr/lib/python3/dist-packages (from requests>=2.19.0->datasets==2.10.1->llm-foundry==0.2.0) (2.8)
-Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/lib/python3/dist-packages (from rich>=12.6.0->mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (2.15.1)
-Requirement already satisfied: markdown-it-py>=2.2.0 in /usr/lib/python3/dist-packages (from rich>=12.6.0->mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (3.0.0)
-Requirement already satisfied: ruamel.yaml.clib>=0.2.7 in /usr/lib/python3/dist-packages (from ruamel.yaml>=0.17.21->mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (0.2.7)
-Requirement already satisfied: pytorch-ranger>=0.1.1 in /usr/lib/python3/dist-packages (from torch-optimizer<0.4,>=0.3.0->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (0.1.1)
-Requirement already satisfied: torchdata==0.6.1 in /usr/lib/python3/dist-packages (from torchtext>=0.10->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (0.6.1)
-Requirement already satisfied: safetensors>=0.3.1 in /usr/lib/python3/dist-packages (from transformers<5,>=4.21.3->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (0.3.1)
-Requirement already satisfied: tokenizers!=0.11.3,<0.14,>=0.11.1 in /usr/lib/python3/dist-packages (from transformers<5,>=4.21.3->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (0.13.3)
-Requirement already satisfied: decorator>=3.4.0 in /usr/lib/python3/dist-packages (from validators>=0.20.0->mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (5.1.1)
-Requirement already satisfied: setproctitle in /usr/lib/python3/dist-packages (from wandb<0.16,>=0.13.2->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (1.3.2)
-Requirement already satisfied: setuptools in /usr/lib/python3/dist-packages (from wandb<0.16,>=0.13.2->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (68.0.0)
-Requirement already satisfied: pathtools in /usr/lib/python3/dist-packages (from wandb<0.16,>=0.13.2->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (0.1.2)
-Requirement already satisfied: appdirs>=1.4.3 in /usr/lib/python3/dist-packages (from wandb<0.16,>=0.13.2->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (1.4.4)
-Requirement already satisfied: sentry-sdk>=1.0.0 in /usr/lib/python3/dist-packages (from wandb<0.16,>=0.13.2->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (1.28.1)
-Requirement already satisfied: GitPython!=3.1.29,>=1.0.0 in /usr/lib/python3/dist-packages (from wandb<0.16,>=0.13.2->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (3.1.32)
-Requirement already satisfied: docker-pycreds>=0.4.0 in /usr/lib/python3/dist-packages (from wandb<0.16,>=0.13.2->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (0.4.0)
-Requirement already satisfied: Click!=8.0.0,>=7.1 in /usr/lib/python3/dist-packages (from wandb<0.16,>=0.13.2->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (8.1.6)
-Requirement already satisfied: humanfriendly>=9.1 in /usr/lib/python3/dist-packages (from coloredlogs->onnxruntime==1.15.1->llm-foundry==0.2.0) (10.0)
-Requirement already satisfied: MarkupSafe>=2.0 in /usr/lib/python3/dist-packages (from jinja2->torch<=2.0.1,>=1.13.1->llm-foundry==0.2.0) (2.1.3)
-Requirement already satisfied: mpmath>=0.19 in /usr/lib/python3/dist-packages (from sympy->onnxruntime==1.15.1->llm-foundry==0.2.0) (1.3.0)
-Requirement already satisfied: cffi>=1.12 in /usr/lib/python3/dist-packages (from cryptography>=2.1.4->azure-storage-blob<13,>=12.0.0->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (1.15.1)
-Requirement already satisfied: gitdb<5,>=4.0.1 in /usr/lib/python3/dist-packages (from GitPython!=3.1.29,>=1.0.0->wandb<0.16,>=0.13.2->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (4.0.10)
-Requirement already satisfied: mdurl~=0.1 in /usr/lib/python3/dist-packages (from markdown-it-py>=2.2.0->rich>=12.6.0->mosaicml-cli<1,>=0.3->llm-foundry==0.2.0) (0.1.2)
-Requirement already satisfied: pycparser in /usr/lib/python3/dist-packages (from cffi>=1.12->cryptography>=2.1.4->azure-storage-blob<13,>=12.0.0->mosaicml-streaming<0.6,>=0.5.1->llm-foundry==0.2.0) (2.21)
-Requirement already satisfied: smmap<6,>=3.0.1 in /usr/lib/python3/dist-packages (from gitdb<5,>=4.0.1->GitPython!=3.1.29,>=1.0.0->wandb<0.16,>=0.13.2->mosaicml[libcloud,nlp,wandb]<0.16,>=0.15.0->llm-foundry==0.2.0) (5.0.0)
-Building wheels for collected packages: llm-foundry
-  Building editable for llm-foundry (pyproject.toml): started
-  Building editable for llm-foundry (pyproject.toml): finished with status 'done'
-  Created wheel for llm-foundry: filename=llm_foundry-0.2.0-0.editable-py3-none-any.whl size=12327 sha256=d2cff7335f0f73c00cee88f46d9a634c11830bf1b68fb297025df2cbfbd5605d
-  Stored in directory: /tmp/pip-ephem-wheel-cache-uldopu8a/wheels/8e/79/6e/a487209a0a921580eeb7b40a7434e02121258bf3650cc81e5a
-Successfully built llm-foundry
-Installing collected packages: packaging, tiktoken, openai, accelerate, llm-foundry
-  Attempting uninstall: packaging
-    Found existing installation: packaging 23.1
-    Uninstalling packaging-23.1:
-      Successfully uninstalled packaging-23.1
-  Attempting uninstall: accelerate
-    Found existing installation: accelerate 0.19.0
-    Uninstalling accelerate-0.19.0:
-      Successfully uninstalled accelerate-0.19.0
-Successfully installed accelerate-0.20.3 llm-foundry-0.2.0 openai-0.27.8 packaging-22.0 tiktoken-0.4.0
-WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
-
-[notice] A new release of pip available: 22.3.1 -> 23.2.1
-[notice] To update, run: pip3.10 install --upgrade pip
-/
-Requirement already satisfied: tiktoken in /usr/lib/python3/dist-packages (0.4.0)
-Requirement already satisfied: regex>=2022.1.18 in /usr/lib/python3/dist-packages (from tiktoken) (2023.6.3)
-Requirement already satisfied: requests>=2.26.0 in /usr/lib/python3/dist-packages (from tiktoken) (2.31.0)
-Requirement already satisfied: charset-normalizer<4,>=2 in /usr/lib/python3/dist-packages (from requests>=2.26.0->tiktoken) (3.2.0)
-Requirement already satisfied: certifi>=2017.4.17 in /usr/lib/python3/dist-packages (from requests>=2.26.0->tiktoken) (2023.5.7)
-Requirement already satisfied: idna<4,>=2.5 in /usr/lib/python3/dist-packages (from requests>=2.26.0->tiktoken) (2.8)
-Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/lib/python3/dist-packages (from requests>=2.26.0->tiktoken) (1.26.16)
-WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
-
-[notice] A new release of pip available: 22.3.1 -> 23.2.1
-[notice] To update, run: pip3.10 install --upgrade pip
-Requirement already satisfied: einops in /usr/lib/python3/dist-packages (0.5.0)
-WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
-
-[notice] A new release of pip available: 22.3.1 -> 23.2.1
-[notice] To update, run: pip3.10 install --upgrade pip
-Requirement already satisfied: sentencepiece in /usr/lib/python3/dist-packages (0.1.97)
-WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
-
-[notice] A new release of pip available: 22.3.1 -> 23.2.1
-[notice] To update, run: pip3.10 install --upgrade pip
-Evaluating model: openai/gpt-4
-Extracting ICL task config from path: eval/yamls/lm_tasks.yaml
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-bec96df7542acd6b/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 11650.84it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 1348.22it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-bec96df7542acd6b/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-cc427e54fb31a6c3/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 13662.23it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 2629.66it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-cc427e54fb31a6c3/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/413 [00:00<?, ? examples/s]                                                     0%|          | 0/413 [00:00<?, ?it/s] 93%|█████████▎| 383/413 [00:00<00:00, 3822.28it/s]100%|██████████| 413/413 [00:00<00:00, 3819.30it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-a94204652aea0973/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 12264.05it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 2473.06it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-a94204652aea0973/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/490 [00:00<?, ? examples/s]                                                     0%|          | 0/490 [00:00<?, ?it/s] 84%|████████▍ | 414/490 [00:00<00:00, 4136.27it/s]100%|██████████| 490/490 [00:00<00:00, 4144.18it/s]
-Found cached dataset json (/root/.cache/huggingface/datasets/json/default-7dab854a116d70b3/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51)
-Loading cached processed dataset at /root/.cache/huggingface/datasets/json/default-7dab854a116d70b3/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51/cache-810b86f796d17e80.arrow
-  0%|          | 0/476 [00:00<?, ?it/s] 97%|█████████▋| 462/476 [00:00<00:00, 4618.95it/s]100%|██████████| 476/476 [00:00<00:00, 4611.66it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-ab9a020dc7816cf9/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 12557.80it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 2322.43it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-ab9a020dc7816cf9/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/365 [00:00<?, ? examples/s]                                                     0%|          | 0/365 [00:00<?, ?it/s]100%|██████████| 365/365 [00:00<00:00, 4241.69it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-1cd28d87f7a0e9d4/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 13315.25it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 2349.75it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-1cd28d87f7a0e9d4/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/373 [00:00<?, ? examples/s]                                                     0%|          | 0/373 [00:00<?, ?it/s]100%|██████████| 373/373 [00:00<00:00, 3896.55it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-88f855d0a69b3165/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 12228.29it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 2145.42it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-88f855d0a69b3165/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/20321 [00:00<?, ? examples/s]Map:   9%|▊         | 1763/20321 [00:00<00:02, 8468.88 examples/s]Map:  30%|██▉       | 6071/20321 [00:00<00:00, 22552.87 examples/s]Map:  52%|█████▏    | 10554/20321 [00:00<00:00, 30741.77 examples/s]Map:  74%|███████▎  | 14981/20321 [00:00<00:00, 35396.90 examples/s]Map:  96%|█████████▌| 19445/20321 [00:00<00:00, 38441.82 examples/s]                                                                      0%|          | 0/20321 [00:00<?, ?it/s]  5%|▍         | 947/20321 [00:00<00:02, 9465.20it/s]  9%|▉         | 1920/20321 [00:00<00:01, 9620.30it/s] 14%|█▍        | 2887/20321 [00:00<00:01, 9639.79it/s] 19%|█▉        | 3853/20321 [00:00<00:01, 9643.72it/s] 24%|██▎       | 4819/20321 [00:00<00:01, 9646.56it/s] 28%|██▊       | 5784/20321 [00:00<00:01, 9642.18it/s] 33%|███▎      | 6749/20321 [00:00<00:01, 9641.74it/s] 38%|███▊      | 7720/20321 [00:00<00:01, 9662.04it/s] 43%|████▎     | 8687/20321 [00:00<00:01, 9626.44it/s] 47%|████▋     | 9650/20321 [00:01<00:01, 9606.62it/s] 52%|█████▏    | 10611/20321 [00:01<00:01, 9526.94it/s] 57%|█████▋    | 11564/20321 [00:01<00:00, 9442.68it/s] 62%|██████▏   | 12510/20321 [00:01<00:00, 9445.39it/s] 66%|██████▌   | 13455/20321 [00:01<00:00, 9423.31it/s] 71%|███████   | 14398/20321 [00:01<00:00, 9425.23it/s] 75%|███████▌  | 15341/20321 [00:01<00:00, 6189.77it/s] 80%|███████▉  | 16251/20321 [00:01<00:00, 6826.24it/s] 84%|████████▍ | 17169/20321 [00:01<00:00, 7385.70it/s] 89%|████████▉ | 18097/20321 [00:02<00:00, 7865.65it/s] 94%|█████████▎| 19034/20321 [00:02<00:00, 8264.63it/s] 98%|█████████▊| 19975/20321 [00:02<00:00, 8579.61it/s]100%|██████████| 20321/20321 [00:02<00:00, 8755.62it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-ea12771034d700a9/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 12264.05it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 1999.19it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-ea12771034d700a9/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/5153 [00:00<?, ? examples/s]Map:  81%|████████  | 4163/5153 [00:00<00:00, 41467.60 examples/s]                                                                    0%|          | 0/5153 [00:00<?, ?it/s] 31%|███       | 1596/5153 [00:00<00:00, 15950.24it/s] 62%|██████▏   | 3203/5153 [00:00<00:00, 16018.81it/s] 93%|█████████▎| 4811/5153 [00:00<00:00, 16046.18it/s]100%|██████████| 5153/5153 [00:00<00:00, 16017.85it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-11a62d07fd587cd9/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 12446.01it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 2043.01it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-11a62d07fd587cd9/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/164 [00:00<?, ? examples/s]                                                     0%|          | 0/164 [00:00<?, ?it/s]100%|██████████| 164/164 [00:00<00:00, 4500.74it/s]
-Found cached dataset json (/root/.cache/huggingface/datasets/json/default-97a6ce7b97ca7c94/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51)
-Loading cached processed dataset at /root/.cache/huggingface/datasets/json/default-97a6ce7b97ca7c94/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51/cache-456e2f5a81ff397b.arrow
-  0%|          | 0/1000 [00:00<?, ?it/s] 26%|██▋       | 265/1000 [00:00<00:00, 2648.61it/s] 53%|█████▎    | 533/1000 [00:00<00:00, 2662.69it/s] 80%|████████  | 801/1000 [00:00<00:00, 2667.27it/s]100%|██████████| 1000/1000 [00:00<00:00, 2667.62it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-b9341755ae714519/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 11983.73it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 2141.04it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-b9341755ae714519/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/1320 [00:00<?, ? examples/s]                                                      0%|          | 0/1320 [00:00<?, ?it/s] 26%|██▋       | 347/1320 [00:00<00:00, 3465.92it/s] 53%|█████▎    | 706/1320 [00:00<00:00, 3535.02it/s] 80%|████████  | 1062/1320 [00:00<00:00, 3545.52it/s]100%|██████████| 1320/1320 [00:00<00:00, 3518.70it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-2eb685c26a8c18c1/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 12372.58it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 1769.00it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-2eb685c26a8c18c1/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/210 [00:00<?, ? examples/s]                                                     0%|          | 0/210 [00:00<?, ?it/s]100%|██████████| 210/210 [00:00<00:00, 3433.54it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-6e5140dd62ef7358/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 12787.51it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 2614.90it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-6e5140dd62ef7358/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/32 [00:00<?, ? examples/s]                                                    0%|          | 0/32 [00:00<?, ?it/s]100%|██████████| 32/32 [00:00<00:00, 3102.94it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-4ccc5ad7c67e8a90/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 13706.88it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 2695.57it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-4ccc5ad7c67e8a90/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/1000 [00:00<?, ? examples/s]                                                      0%|          | 0/1000 [00:00<?, ?it/s]100%|██████████| 1000/1000 [00:00<00:00, 10841.92it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-172de1a24733332c/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 13273.11it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 2431.48it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-172de1a24733332c/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/1000 [00:00<?, ? examples/s]                                                      0%|          | 0/1000 [00:00<?, ?it/s] 87%|████████▋ | 872/1000 [00:00<00:00, 8717.26it/s]100%|██████████| 1000/1000 [00:00<00:00, 8726.70it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-3a2dfa27c6b50e86/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 12865.96it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 2394.01it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-3a2dfa27c6b50e86/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/1000 [00:00<?, ? examples/s]                                                      0%|          | 0/1000 [00:00<?, ?it/s]  4%|▍         | 40/1000 [00:00<00:02, 392.21it/s]  8%|▊         | 80/1000 [00:00<00:02, 391.18it/s] 12%|█▏        | 120/1000 [00:00<00:02, 383.52it/s] 16%|█▌        | 159/1000 [00:00<00:02, 385.30it/s] 20%|█▉        | 198/1000 [00:00<00:02, 385.72it/s] 24%|██▎       | 237/1000 [00:00<00:01, 383.09it/s] 28%|██▊       | 277/1000 [00:00<00:01, 385.33it/s] 32%|███▏      | 316/1000 [00:00<00:01, 385.42it/s] 36%|███▌      | 355/1000 [00:00<00:01, 385.83it/s] 39%|███▉      | 394/1000 [00:01<00:01, 386.18it/s] 43%|████▎     | 434/1000 [00:01<00:01, 387.98it/s] 47%|████▋     | 474/1000 [00:01<00:01, 391.04it/s] 51%|█████▏    | 514/1000 [00:01<00:01, 389.89it/s] 55%|█████▌    | 553/1000 [00:01<00:01, 387.41it/s] 59%|█████▉    | 592/1000 [00:01<00:01, 388.08it/s] 63%|██████▎   | 631/1000 [00:01<00:00, 387.38it/s] 67%|██████▋   | 670/1000 [00:01<00:00, 387.98it/s] 71%|███████   | 710/1000 [00:01<00:00, 388.80it/s] 75%|███████▍  | 749/1000 [00:01<00:00, 385.59it/s] 79%|███████▉  | 788/1000 [00:02<00:00, 385.85it/s] 83%|████████▎ | 827/1000 [00:02<00:00, 385.19it/s] 87%|████████▋ | 866/1000 [00:02<00:00, 381.46it/s] 90%|█████████ | 905/1000 [00:02<00:00, 379.95it/s] 94%|█████████▍| 944/1000 [00:02<00:00, 378.54it/s] 98%|█████████▊| 983/1000 [00:02<00:00, 379.04it/s]100%|██████████| 1000/1000 [00:02<00:00, 384.97it/s]
-Downloading and preparing dataset json/default to /root/.cache/huggingface/datasets/json/default-3ba2e2052f1ac6e7/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51...
-Downloading data files:   0%|          | 0/1 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 1/1 [00:00<00:00, 11748.75it/s]
-Extracting data files:   0%|          | 0/1 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 1/1 [00:00<00:00, 1969.16it/s]
-Generating train split: 0 examples [00:00, ? examples/s]                                                        Dataset json downloaded and prepared to /root/.cache/huggingface/datasets/json/default-3ba2e2052f1ac6e7/0.0.0/0f7e3662623656454fcd2b650f34e886a7db4b9104504885bd462096cc7a9f51. Subsequent calls will reuse this data.
-Map:   0%|          | 0/10570 [00:00<?, ? examples/s]Map:  27%|██▋       | 2864/10570 [00:00<00:00, 28518.12 examples/s]Map:  66%|██████▌   | 7000/10570 [00:00<00:00, 35734.33 examples/s]                                                                     0%|          | 0/10570 [00:00<?, ?it/s]  1%|          | 68/10570 [00:00<00:15, 673.46it/s]  1%|▏         | 141/10570 [00:00<00:14, 701.05it/s]  2%|▏         | 212/10570 [00:00<00:14, 705.05it/s]  3%|▎         | 283/10570 [00:00<00:14, 693.05it/s]  3%|▎         | 356/10570 [00:00<00:14, 703.08it/s]  4%|▍         | 428/10570 [00:00<00:14, 707.81it/s]  5%|▍         | 502/10570 [00:00<00:14, 716.00it/s]  5%|▌         | 574/10570 [00:00<00:13, 715.95it/s]  6%|▌         | 646/10570 [00:00<00:13, 714.50it/s]  7%|▋         | 718/10570 [00:01<00:13, 714.98it/s]  7%|▋         | 790/10570 [00:01<00:13, 709.19it/s]  8%|▊         | 861/10570 [00:01<00:13, 702.71it/s]  9%|▉         | 932/10570 [00:01<00:13, 702.05it/s]  9%|▉         | 1003/10570 [00:01<00:13, 702.77it/s] 10%|█         | 1074/10570 [00:01<00:13, 698.71it/s] 11%|█         | 1144/10570 [00:01<00:14, 667.83it/s] 11%|█▏        | 1215/10570 [00:01<00:13, 679.95it/s] 12%|█▏        | 1287/10570 [00:01<00:13, 689.16it/s] 13%|█▎        | 1358/10570 [00:01<00:13, 694.48it/s] 14%|█▎        | 1428/10570 [00:02<00:13, 695.89it/s] 14%|█▍        | 1500/10570 [00:02<00:12, 700.48it/s] 15%|█▍        | 1573/10570 [00:02<00:12, 707.03it/s] 16%|█▌        | 1647/10570 [00:02<00:12, 715.88it/s] 16%|█▋        | 1721/10570 [00:02<00:12, 722.50it/s] 17%|█▋        | 1794/10570 [00:02<00:12, 715.06it/s] 18%|█▊        | 1866/10570 [00:02<00:12, 712.70it/s] 18%|█▊        | 1938/10570 [00:02<00:12, 710.45it/s] 19%|█▉        | 2010/10570 [00:02<00:12, 711.04it/s] 20%|█▉        | 2082/10570 [00:02<00:11, 710.19it/s] 20%|██        | 2154/10570 [00:03<00:11, 709.79it/s] 21%|██        | 2225/10570 [00:03<00:11, 709.46it/s] 22%|██▏       | 2298/10570 [00:03<00:11, 714.90it/s] 22%|██▏       | 2370/10570 [00:03<00:12, 671.29it/s] 23%|██▎       | 2438/10570 [00:03<00:23, 351.75it/s] 24%|██▎       | 2506/10570 [00:03<00:19, 408.68it/s] 24%|██▍       | 2574/10570 [00:04<00:17, 461.77it/s] 25%|██▌       | 2644/10570 [00:04<00:15, 513.22it/s] 26%|██▌       | 2715/10570 [00:04<00:14, 560.06it/s] 26%|██▋       | 2786/10570 [00:04<00:13, 597.23it/s] 27%|██▋       | 2858/10570 [00:04<00:12, 629.69it/s] 28%|██▊       | 2927/10570 [00:04<00:11, 643.22it/s] 28%|██▊       | 2998/10570 [00:04<00:11, 659.86it/s] 29%|██▉       | 3068/10570 [00:04<00:11, 669.40it/s] 30%|██▉       | 3139/10570 [00:04<00:10, 678.40it/s] 30%|███       | 3210/10570 [00:04<00:10, 684.64it/s] 31%|███       | 3280/10570 [00:05<00:10, 685.57it/s] 32%|███▏      | 3352/10570 [00:05<00:10, 693.41it/s] 32%|███▏      | 3424/10570 [00:05<00:10, 699.86it/s] 33%|███▎      | 3496/10570 [00:05<00:10, 703.47it/s] 34%|███▍      | 3568/10570 [00:05<00:09, 706.48it/s] 34%|███▍      | 3639/10570 [00:05<00:10, 677.27it/s] 35%|███▌      | 3708/10570 [00:05<00:10, 678.07it/s] 36%|███▌      | 3778/10570 [00:05<00:09, 681.74it/s] 36%|███▋      | 3848/10570 [00:05<00:09, 684.93it/s] 37%|███▋      | 3918/10570 [00:05<00:09, 687.37it/s] 38%|███▊      | 3988/10570 [00:06<00:09, 690.56it/s] 38%|███▊      | 4059/10570 [00:06<00:09, 695.89it/s] 39%|███▉      | 4129/10570 [00:06<00:09, 685.65it/s] 40%|███▉      | 4198/10570 [00:06<00:09, 668.64it/s] 40%|████      | 4265/10570 [00:06<00:09, 660.76it/s] 41%|████      | 4332/10570 [00:06<00:09, 647.29it/s] 42%|████▏     | 4401/10570 [00:06<00:09, 658.90it/s] 42%|████▏     | 4471/10570 [00:06<00:09, 670.57it/s] 43%|████▎     | 4541/10570 [00:06<00:08, 677.57it/s] 44%|████▎     | 4611/10570 [00:06<00:08, 682.49it/s] 44%|████▍     | 4682/10570 [00:07<00:08, 688.14it/s] 45%|████▍     | 4752/10570 [00:07<00:08, 690.59it/s] 46%|████▌     | 4822/10570 [00:07<00:08, 655.56it/s] 46%|████▋     | 4889/10570 [00:07<00:08, 657.44it/s] 47%|████▋     | 4958/10570 [00:07<00:08, 666.81it/s] 48%|████▊     | 5028/10570 [00:07<00:08, 674.29it/s] 48%|████▊     | 5098/10570 [00:07<00:08, 680.55it/s] 49%|████▉     | 5169/10570 [00:07<00:07, 687.03it/s] 50%|████▉     | 5239/10570 [00:07<00:07, 688.28it/s] 50%|█████     | 5310/10570 [00:07<00:07, 694.00it/s] 51%|█████     | 5380/10570 [00:08<00:07, 691.70it/s] 52%|█████▏    | 5450/10570 [00:08<00:07, 685.65it/s] 52%|█████▏    | 5519/10570 [00:08<00:07, 680.59it/s] 53%|█████▎    | 5588/10570 [00:08<00:07, 679.62it/s] 54%|█████▎    | 5657/10570 [00:08<00:07, 681.01it/s] 54%|█████▍    | 5727/10570 [00:08<00:07, 685.61it/s] 55%|█████▍    | 5796/10570 [00:08<00:06, 685.48it/s] 55%|█████▌    | 5865/10570 [00:08<00:06, 686.28it/s] 56%|█████▌    | 5936/10570 [00:08<00:06, 691.38it/s] 57%|█████▋    | 6006/10570 [00:09<00:06, 684.94it/s] 57%|█████▋    | 6075/10570 [00:09<00:06, 654.59it/s] 58%|█████▊    | 6145/10570 [00:09<00:06, 667.07it/s] 59%|█████▉    | 6215/10570 [00:09<00:06, 676.05it/s] 59%|█████▉    | 6284/10570 [00:09<00:06, 677.54it/s] 60%|██████    | 6352/10570 [00:09<00:06, 678.16it/s] 61%|██████    | 6422/10570 [00:09<00:06, 683.55it/s] 61%|██████▏   | 6492/10570 [00:09<00:05, 686.78it/s] 62%|██████▏   | 6563/10570 [00:09<00:05, 691.85it/s] 63%|██████▎   | 6633/10570 [00:09<00:05, 692.98it/s] 63%|██████▎   | 6703/10570 [00:10<00:05, 693.15it/s] 64%|██████▍   | 6773/10570 [00:10<00:05, 694.64it/s] 65%|██████▍   | 6843/10570 [00:10<00:05, 691.15it/s] 65%|██████▌   | 6913/10570 [00:10<00:05, 692.84it/s] 66%|██████▌   | 6984/10570 [00:10<00:05, 697.78it/s] 67%|██████▋   | 7055/10570 [00:10<00:05, 701.38it/s] 67%|██████▋   | 7126/10570 [00:10<00:04, 697.66it/s] 68%|██████▊   | 7198/10570 [00:10<00:04, 701.76it/s] 69%|██████▉   | 7269/10570 [00:10<00:04, 666.79it/s] 69%|██████▉   | 7337/10570 [00:10<00:04, 670.49it/s] 70%|███████   | 7406/10570 [00:11<00:04, 675.41it/s] 71%|███████   | 7478/10570 [00:11<00:04, 687.26it/s] 71%|███████▏  | 7548/10570 [00:11<00:04, 690.04it/s] 72%|███████▏  | 7619/10570 [00:11<00:04, 694.47it/s] 73%|███████▎  | 7689/10570 [00:11<00:04, 695.84it/s] 73%|███████▎  | 7759/10570 [00:11<00:04, 688.09it/s] 74%|███████▍  | 7828/10570 [00:11<00:04, 683.12it/s] 75%|███████▍  | 7898/10570 [00:11<00:03, 687.38it/s] 75%|███████▌  | 7970/10570 [00:11<00:03, 694.87it/s] 76%|███████▌  | 8040/10570 [00:11<00:03, 686.05it/s] 77%|███████▋  | 8111/10570 [00:12<00:03, 691.06it/s] 77%|███████▋  | 8183/10570 [00:12<00:03, 697.54it/s] 78%|███████▊  | 8253/10570 [00:12<00:03, 691.05it/s] 79%|███████▊  | 8323/10570 [00:12<00:03, 684.74it/s] 79%|███████▉  | 8392/10570 [00:12<00:03, 685.30it/s] 80%|████████  | 8461/10570 [00:12<00:03, 641.92it/s] 81%|████████  | 8530/10570 [00:12<00:03, 653.71it/s] 81%|████████▏ | 8600/10570 [00:12<00:02, 665.41it/s] 82%|████████▏ | 8670/10570 [00:12<00:02, 673.61it/s] 83%|████████▎ | 8739/10570 [00:13<00:02, 676.31it/s] 83%|████████▎ | 8812/10570 [00:13<00:02, 687.92it/s] 84%|████████▍ | 8883/10570 [00:13<00:02, 693.97it/s] 85%|████████▍ | 8953/10570 [00:13<00:02, 694.34it/s] 85%|████████▌ | 9023/10570 [00:13<00:02, 692.33it/s] 86%|████████▌ | 9093/10570 [00:13<00:02, 692.51it/s] 87%|████████▋ | 9164/10570 [00:13<00:02, 695.75it/s] 87%|████████▋ | 9234/10570 [00:13<00:01, 692.55it/s] 88%|████████▊ | 9305/10570 [00:13<00:01, 697.69it/s] 89%|████████▊ | 9376/10570 [00:13<00:01, 698.65it/s] 89%|████████▉ | 9446/10570 [00:14<00:01, 694.77it/s] 90%|█████████ | 9516/10570 [00:14<00:01, 687.93it/s] 91%|█████████ | 9588/10570 [00:14<00:01, 695.41it/s] 91%|█████████▏| 9658/10570 [00:14<00:01, 666.15it/s] 92%|█████████▏| 9729/10570 [00:14<00:01, 676.39it/s] 93%|█████████▎| 9803/10570 [00:14<00:01, 692.55it/s] 93%|█████████▎| 9873/10570 [00:14<00:01, 688.34it/s] 94%|█████████▍| 9943/10570 [00:14<00:00, 688.87it/s] 95%|█████████▍| 10012/10570 [00:14<00:00, 685.43it/s] 95%|█████████▌| 10083/10570 [00:14<00:00, 690.66it/s] 96%|█████████▌| 10153/10570 [00:15<00:00, 687.45it/s] 97%|█████████▋| 10223/10570 [00:15<00:00, 690.24it/s] 97%|█████████▋| 10293/10570 [00:15<00:00, 690.79it/s] 98%|█████████▊| 10364/10570 [00:15<00:00, 694.53it/s] 99%|█████████▊| 10434/10570 [00:15<00:00, 691.04it/s] 99%|█████████▉| 10504/10570 [00:15<00:00, 692.97it/s]100%|██████████| 10570/10570 [00:15<00:00, 674.90it/s]
-/usr/lib/python3/dist-packages/composer/trainer/trainer.py:975: UserWarning: No optimizer was specified. Defaulting to DecoupledSGDW(lr=0.1)
-  warnings.warn(('No optimizer was specified. Defaulting to '
-******************************
-Config:
-node_name: a100-80sxm-h11-01
-num_gpus_per_node: 8
-num_nodes: 1
-rank_zero_seed: 2347607259
-
-******************************
-[Eval batch=1/13] Eval on jeopardy/10-shot/american_history data
-[Eval batch=2/13] Eval on jeopardy/10-shot/american_history data
-[Eval batch=3/13] Eval on jeopardy/10-shot/american_history data
-[Eval batch=5/13] Eval on jeopardy/10-shot/american_history data
-[Eval batch=6/13] Eval on jeopardy/10-shot/american_history data
-[Eval batch=7/13] Eval on jeopardy/10-shot/american_history data
-[Eval batch=8/13] Eval on jeopardy/10-shot/american_history data
-[Eval batch=9/13] Eval on jeopardy/10-shot/american_history data
-[Eval batch=11/13] Eval on jeopardy/10-shot/american_history data
-[Eval batch=12/13] Eval on jeopardy/10-shot/american_history data
-[Eval batch=13/13] Eval on jeopardy/10-shot/american_history data:
-	 Eval metrics/jeopardy/10-shot/american_history/InContextLearningLMAccuracy: 0.6247
-[Eval batch=1/16] Eval on jeopardy/10-shot/literature data
-[Eval batch=2/16] Eval on jeopardy/10-shot/literature data
-[Eval batch=4/16] Eval on jeopardy/10-shot/literature data
-[Eval batch=6/16] Eval on jeopardy/10-shot/literature data
-[Eval batch=7/16] Eval on jeopardy/10-shot/literature data
-[Eval batch=8/16] Eval on jeopardy/10-shot/literature data
-[Eval batch=10/16] Eval on jeopardy/10-shot/literature data
-[Eval batch=12/16] Eval on jeopardy/10-shot/literature data
-[Eval batch=13/16] Eval on jeopardy/10-shot/literature data
-[Eval batch=14/16] Eval on jeopardy/10-shot/literature data
-/usr/lib/python3/dist-packages/composer/core/data_spec.py:35: UserWarning: Cannot split tensor of length 2 into batches of size 4. As it is smaller, no splitting will be done. This may happen on the last batch of a dataset if it is a smaller size than the microbatch size.
-  warnings.warn(f'Cannot split tensor of length {len(t)} into batches of size {microbatch_size}. '
-/usr/lib/python3/dist-packages/composer/core/data_spec.py:26: UserWarning: Cannot split list of length 2 into batches of size 4. As it is smaller, no splitting will be done. This may happen on the last batch of a dataset if it is a smaller size than the microbatch size.
-  warnings.warn(f'Cannot split list of length {len(l)} into batches of size {microbatch_size}. '
-[Eval batch=16/16] Eval on jeopardy/10-shot/literature data:
-	 Eval metrics/jeopardy/10-shot/literature/InContextLearningLMAccuracy: 0.7306
-[Eval batch=1/15] Eval on jeopardy/10-shot/science data
-[Eval batch=2/15] Eval on jeopardy/10-shot/science data
-[Eval batch=4/15] Eval on jeopardy/10-shot/science data
-[Eval batch=5/15] Eval on jeopardy/10-shot/science data
-[Eval batch=7/15] Eval on jeopardy/10-shot/science data
-[Eval batch=8/15] Eval on jeopardy/10-shot/science data
-[Eval batch=9/15] Eval on jeopardy/10-shot/science data
-[Eval batch=11/15] Eval on jeopardy/10-shot/science data
-[Eval batch=12/15] Eval on jeopardy/10-shot/science data
-[Eval batch=14/15] Eval on jeopardy/10-shot/science data
-[Eval batch=15/15] Eval on jeopardy/10-shot/science data:
-	 Eval metrics/jeopardy/10-shot/science/InContextLearningLMAccuracy: 0.4076
-[Eval batch=1/12] Eval on jeopardy/10-shot/word_origins data
-[Eval batch=2/12] Eval on jeopardy/10-shot/word_origins data
-[Eval batch=3/12] Eval on jeopardy/10-shot/word_origins data
-[Eval batch=4/12] Eval on jeopardy/10-shot/word_origins data
-[Eval batch=5/12] Eval on jeopardy/10-shot/word_origins data
-[Eval batch=6/12] Eval on jeopardy/10-shot/word_origins data
-[Eval batch=8/12] Eval on jeopardy/10-shot/word_origins data
-[Eval batch=9/12] Eval on jeopardy/10-shot/word_origins data
-[Eval batch=10/12] Eval on jeopardy/10-shot/word_origins data
-[Eval batch=11/12] Eval on jeopardy/10-shot/word_origins data
-[Eval batch=12/12] Eval on jeopardy/10-shot/word_origins data:
-	 Eval metrics/jeopardy/10-shot/word_origins/InContextLearningLMAccuracy: 0.3973
-[Eval batch=1/12] Eval on jeopardy/10-shot/world_history data
-[Eval batch=2/12] Eval on jeopardy/10-shot/world_history data
-[Eval batch=3/12] Eval on jeopardy/10-shot/world_history data
-[Eval batch=4/12] Eval on jeopardy/10-shot/world_history data
-[Eval batch=5/12] Eval on jeopardy/10-shot/world_history data
-[Eval batch=6/12] Eval on jeopardy/10-shot/world_history data
-[Eval batch=8/12] Eval on jeopardy/10-shot/world_history data
-[Eval batch=9/12] Eval on jeopardy/10-shot/world_history data
-[Eval batch=10/12] Eval on jeopardy/10-shot/world_history data
-[Eval batch=11/12] Eval on jeopardy/10-shot/world_history data
-/usr/lib/python3/dist-packages/composer/core/data_spec.py:35: UserWarning: Cannot split tensor of length 3 into batches of size 4. As it is smaller, no splitting will be done. This may happen on the last batch of a dataset if it is a smaller size than the microbatch size.
-  warnings.warn(f'Cannot split tensor of length {len(t)} into batches of size {microbatch_size}. '
-/usr/lib/python3/dist-packages/composer/core/data_spec.py:26: UserWarning: Cannot split list of length 3 into batches of size 4. As it is smaller, no splitting will be done. This may happen on the last batch of a dataset if it is a smaller size than the microbatch size.
-  warnings.warn(f'Cannot split list of length {len(l)} into batches of size {microbatch_size}. '
-[Eval batch=12/12] Eval on jeopardy/10-shot/world_history data:
-	 Eval metrics/jeopardy/10-shot/world_history/InContextLearningLMAccuracy: 0.6756
-[Eval batch=1/636] Eval on bigbench_qa_wikidata/10-shot data
-[Eval batch=64/636] Eval on bigbench_qa_wikidata/10-shot data
-[Eval batch=128/636] Eval on bigbench_qa_wikidata/10-shot data
-[Eval batch=192/636] Eval on bigbench_qa_wikidata/10-shot data
-[Eval batch=255/636] Eval on bigbench_qa_wikidata/10-shot data
-[Eval batch=318/636] Eval on bigbench_qa_wikidata/10-shot data
-[Eval batch=382/636] Eval on bigbench_qa_wikidata/10-shot data
-[Eval batch=446/636] Eval on bigbench_qa_wikidata/10-shot data
-[Eval batch=509/636] Eval on bigbench_qa_wikidata/10-shot data
-[Eval batch=572/636] Eval on bigbench_qa_wikidata/10-shot data
-/usr/lib/python3/dist-packages/composer/core/data_spec.py:35: UserWarning: Cannot split tensor of length 1 into batches of size 4. As it is smaller, no splitting will be done. This may happen on the last batch of a dataset if it is a smaller size than the microbatch size.
-  warnings.warn(f'Cannot split tensor of length {len(t)} into batches of size {microbatch_size}. '
-/usr/lib/python3/dist-packages/composer/core/data_spec.py:26: UserWarning: Cannot split list of length 1 into batches of size 4. As it is smaller, no splitting will be done. This may happen on the last batch of a dataset if it is a smaller size than the microbatch size.
-  warnings.warn(f'Cannot split list of length {len(l)} into batches of size {microbatch_size}. '
-[Eval batch=636/636] Eval on bigbench_qa_wikidata/10-shot data:
-	 Eval metrics/bigbench_qa_wikidata/10-shot/InContextLearningLMAccuracy: 0.7459
-[Eval batch=1/162] Eval on lambada_openai/0-shot data
-[Eval batch=17/162] Eval on lambada_openai/0-shot data
-[Eval batch=33/162] Eval on lambada_openai/0-shot data
-[Eval batch=49/162] Eval on lambada_openai/0-shot data
-[Eval batch=65/162] Eval on lambada_openai/0-shot data
-[Eval batch=82/162] Eval on lambada_openai/0-shot data
-[Eval batch=98/162] Eval on lambada_openai/0-shot data
-[Eval batch=114/162] Eval on lambada_openai/0-shot data
-[Eval batch=130/162] Eval on lambada_openai/0-shot data
-[Eval batch=146/162] Eval on lambada_openai/0-shot data
-[Eval batch=162/162] Eval on lambada_openai/0-shot data:
-	 Eval metrics/lambada_openai/0-shot/InContextLearningLMAccuracy: 0.7396
-[Eval batch=1/6] Eval on bigbench_conlang_translation/0-shot data
-[Eval batch=2/6] Eval on bigbench_conlang_translation/0-shot data
-[Eval batch=3/6] Eval on bigbench_conlang_translation/0-shot data
-[Eval batch=4/6] Eval on bigbench_conlang_translation/0-shot data
-[Eval batch=5/6] Eval on bigbench_conlang_translation/0-shot data
-[Eval batch=6/6] Eval on bigbench_conlang_translation/0-shot data:
-	 Eval metrics/bigbench_conlang_translation/0-shot/InContextLearningLMAccuracy: 0.4207
-[Eval batch=1/32] Eval on bigbench_dyck_languages/10-shot data
-[Eval batch=4/32] Eval on bigbench_dyck_languages/10-shot data
-[Eval batch=7/32] Eval on bigbench_dyck_languages/10-shot data
-[Eval batch=10/32] Eval on bigbench_dyck_languages/10-shot data
-[Eval batch=13/32] Eval on bigbench_dyck_languages/10-shot data
-[Eval batch=16/32] Eval on bigbench_dyck_languages/10-shot data
-[Eval batch=20/32] Eval on bigbench_dyck_languages/10-shot data
-[Eval batch=23/32] Eval on bigbench_dyck_languages/10-shot data
-[Eval batch=26/32] Eval on bigbench_dyck_languages/10-shot data
-[Eval batch=29/32] Eval on bigbench_dyck_languages/10-shot data
-[Eval batch=32/32] Eval on bigbench_dyck_languages/10-shot data:
-	 Eval metrics/bigbench_dyck_languages/10-shot/InContextLearningLMAccuracy: 0.6940
-[Eval batch=1/42] Eval on bigbench_cs_algorithms/10-shot data
-[Eval batch=5/42] Eval on bigbench_cs_algorithms/10-shot data
-[Eval batch=9/42] Eval on bigbench_cs_algorithms/10-shot data
-[Eval batch=13/42] Eval on bigbench_cs_algorithms/10-shot data
-[Eval batch=17/42] Eval on bigbench_cs_algorithms/10-shot data
-[Eval batch=22/42] Eval on bigbench_cs_algorithms/10-shot data
-[Eval batch=26/42] Eval on bigbench_cs_algorithms/10-shot data
-[Eval batch=30/42] Eval on bigbench_cs_algorithms/10-shot data
-[Eval batch=34/42] Eval on bigbench_cs_algorithms/10-shot data
-[Eval batch=38/42] Eval on bigbench_cs_algorithms/10-shot data
-[Eval batch=42/42] Eval on bigbench_cs_algorithms/10-shot data:
-	 Eval metrics/bigbench_cs_algorithms/10-shot/InContextLearningLMAccuracy: 0.7970
-[Eval batch=1/7] Eval on bigbench_operators/10-shot data
-[Eval batch=2/7] Eval on bigbench_operators/10-shot data
-[Eval batch=3/7] Eval on bigbench_operators/10-shot data
-[Eval batch=4/7] Eval on bigbench_operators/10-shot data
-[Eval batch=5/7] Eval on bigbench_operators/10-shot data
-[Eval batch=6/7] Eval on bigbench_operators/10-shot data
-[Eval batch=7/7] Eval on bigbench_operators/10-shot data:
-	 Eval metrics/bigbench_operators/10-shot/InContextLearningLMAccuracy: 0.8429
-[Eval batch=1/1] Eval on bigbench_repeat_copy_logic/10-shot data:
-	 Eval metrics/bigbench_repeat_copy_logic/10-shot/InContextLearningLMAccuracy: 0.9062
-[Eval batch=1/32] Eval on simple_arithmetic_nospaces/10-shot data
-[Eval batch=4/32] Eval on simple_arithmetic_nospaces/10-shot data
-[Eval batch=7/32] Eval on simple_arithmetic_nospaces/10-shot data
-[Eval batch=10/32] Eval on simple_arithmetic_nospaces/10-shot data
-[Eval batch=13/32] Eval on simple_arithmetic_nospaces/10-shot data
-[Eval batch=16/32] Eval on simple_arithmetic_nospaces/10-shot data
-[Eval batch=20/32] Eval on simple_arithmetic_nospaces/10-shot data
-[Eval batch=23/32] Eval on simple_arithmetic_nospaces/10-shot data
-[Eval batch=26/32] Eval on simple_arithmetic_nospaces/10-shot data
-[Eval batch=29/32] Eval on simple_arithmetic_nospaces/10-shot data
-[Eval batch=32/32] Eval on simple_arithmetic_nospaces/10-shot data:
-	 Eval metrics/simple_arithmetic_nospaces/10-shot/InContextLearningLMAccuracy: 0.8870
-[Eval batch=1/32] Eval on simple_arithmetic_withspaces/10-shot data
-[Eval batch=4/32] Eval on simple_arithmetic_withspaces/10-shot data
-[Eval batch=7/32] Eval on simple_arithmetic_withspaces/10-shot data
-[Eval batch=10/32] Eval on simple_arithmetic_withspaces/10-shot data
-[Eval batch=13/32] Eval on simple_arithmetic_withspaces/10-shot data
-[Eval batch=16/32] Eval on simple_arithmetic_withspaces/10-shot data
-[Eval batch=20/32] Eval on simple_arithmetic_withspaces/10-shot data
-[Eval batch=23/32] Eval on simple_arithmetic_withspaces/10-shot data
-[Eval batch=26/32] Eval on simple_arithmetic_withspaces/10-shot data
-[Eval batch=29/32] Eval on simple_arithmetic_withspaces/10-shot data
-[Eval batch=32/32] Eval on simple_arithmetic_withspaces/10-shot data:
-	 Eval metrics/simple_arithmetic_withspaces/10-shot/InContextLearningLMAccuracy: 0.8830
-[Eval batch=1/32] Eval on pubmed_qa_labeled/10-shot data
-[Eval batch=4/32] Eval on pubmed_qa_labeled/10-shot data
-[Eval batch=7/32] Eval on pubmed_qa_labeled/10-shot data
-[Eval batch=10/32] Eval on pubmed_qa_labeled/10-shot data
-[Eval batch=13/32] Eval on pubmed_qa_labeled/10-shot data
-[Eval batch=16/32] Eval on pubmed_qa_labeled/10-shot data
-[Eval batch=20/32] Eval on pubmed_qa_labeled/10-shot data
-[Eval batch=23/32] Eval on pubmed_qa_labeled/10-shot data
-[Eval batch=26/32] Eval on pubmed_qa_labeled/10-shot data
-[Eval batch=29/32] Eval on pubmed_qa_labeled/10-shot data
-[Eval batch=32/32] Eval on pubmed_qa_labeled/10-shot data:
-	 Eval metrics/pubmed_qa_labeled/10-shot/InContextLearningLMAccuracy: 0.7130
-[Eval batch=1/331] Eval on squad/10-shot data
-Caught exeception Request timed out: HTTPSConnectionPool(host='api.openai.com', port=443): Read timed out. (read timeout=600), continuing
-[Eval batch=34/331] Eval on squad/10-shot data
-[Eval batch=67/331] Eval on squad/10-shot data
-[Eval batch=100/331] Eval on squad/10-shot data
-[Eval batch=133/331] Eval on squad/10-shot data
-[Eval batch=166/331] Eval on squad/10-shot data
-[Eval batch=199/331] Eval on squad/10-shot data
-[Eval batch=232/331] Eval on squad/10-shot data
-[Eval batch=265/331] Eval on squad/10-shot data
-[Eval batch=298/331] Eval on squad/10-shot data
-[Eval batch=331/331] Eval on squad/10-shot data:
-	 Eval metrics/squad/10-shot/InContextLearningLMAccuracy: 0.6286
-Ran openai/gpt-4 eval in: 34625.21286249161 seconds
-Warning: couldn't find results for benchmark: {'name': 'arc_easy', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'arc_challenge', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'mmlu', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'bigbench_misconceptions', 'num_fewshot': 10, 'random_baseline': 0.5, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'copa', 'num_fewshot': 0, 'random_baseline': 0.5, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'piqa', 'num_fewshot': 10, 'random_baseline': 0.5, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'openbook_qa', 'num_fewshot': 0, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'bigbench_novel_concepts', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'bigbench_strange_stories', 'num_fewshot': 10, 'random_baseline': 0.5, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'bigbench_strategy_qa', 'num_fewshot': 10, 'random_baseline': 0.5, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'hellaswag', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'winograd', 'num_fewshot': 0, 'random_baseline': 0.5, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'winogrande', 'num_fewshot': 0, 'random_baseline': 0.5, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'bigbench_language_identification', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'bigbench_conceptual_combinations', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'bigbench_elementary_math_qa', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'bigbench_logical_deduction', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'math_qa', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'logi_qa', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'bigbench_understanding_fables', 'num_fewshot': 10, 'random_baseline': 0.25, 'weighting': 1}
-Warning: couldn't find results for benchmark: {'name': 'boolq', 'num_fewshot': 10, 'random_baseline': 0.5, 'weighting': 1}
-Printing gauntlet results for all models
-| model_name   |   average |   world_knowledge |   commonsense_reasoning |   language_understanding |   symbolic_problem_solving |   reading_comprehension |   world_knowledge_lm_task_subscore |   language_understanding_lm_task_subscore |   symbolic_problem_solving_lm_task_subscore |   reading_comprehension_lm_task_subscore |
-|:-------------|----------:|------------------:|------------------------:|-------------------------:|---------------------------:|------------------------:|-----------------------------------:|------------------------------------------:|--------------------------------------------:|-----------------------------------------:|
-| openai/gpt-4 |  0.609436 |          0.656513 |                       0 |                  0.58015 |                   0.835013 |                0.670786 |                           0.656513 |                                   0.58015 |                                    0.835013 |                                 0.670786 |
-Printing complete results for all models
-| Category                                  | Benchmark                    | Subtask          |   Accuracy |   Number few shot | Model        |
-|:------------------------------------------|:-----------------------------|:-----------------|-----------:|------------------:|:-------------|
-| world_knowledge_lm_task_subscore          | jeopardy                     | Average          |   0.567147 |                10 | openai/gpt-4 |
-| world_knowledge_lm_task_subscore          |                              | american_history |   0.624697 |                10 | openai/gpt-4 |
-| world_knowledge_lm_task_subscore          |                              | literature       |   0.730612 |                10 | openai/gpt-4 |
-| world_knowledge_lm_task_subscore          |                              | science          |   0.407563 |                10 | openai/gpt-4 |
-| world_knowledge_lm_task_subscore          |                              | word_origins     |   0.39726  |                10 | openai/gpt-4 |
-| world_knowledge_lm_task_subscore          |                              | world_history    |   0.675603 |                10 | openai/gpt-4 |
-| world_knowledge_lm_task_subscore          | bigbench_qa_wikidata         |                  |   0.745879 |                10 | openai/gpt-4 |
-| symbolic_problem_solving_lm_task_subscore | bigbench_dyck_languages      |                  |   0.694    |                10 | openai/gpt-4 |
-| symbolic_problem_solving_lm_task_subscore | bigbench_cs_algorithms       |                  |   0.79697  |                10 | openai/gpt-4 |
-| symbolic_problem_solving_lm_task_subscore | bigbench_operators           |                  |   0.842857 |                10 | openai/gpt-4 |
-| symbolic_problem_solving_lm_task_subscore | bigbench_repeat_copy_logic   |                  |   0.90625  |                10 | openai/gpt-4 |
-| symbolic_problem_solving_lm_task_subscore | simple_arithmetic_nospaces   |                  |   0.887    |                10 | openai/gpt-4 |
-| symbolic_problem_solving_lm_task_subscore | simple_arithmetic_withspaces |                  |   0.883    |                10 | openai/gpt-4 |
-| reading_comprehension_lm_task_subscore    | pubmed_qa_labeled            |                  |   0.713    |                10 | openai/gpt-4 |
-| reading_comprehension_lm_task_subscore    | squad                        |                  |   0.628571 |                10 | openai/gpt-4 |
-| language_understanding_lm_task_subscore   | lambada_openai               |                  |   0.739569 |                 0 | openai/gpt-4 |
-| language_understanding_lm_task_subscore   | bigbench_conlang_translation |                  |   0.420732 |                 0 | openai/gpt-4 |
-Waiting up to 30 seconds for all training processes to terminate. Press Ctrl-C to exit immediately.

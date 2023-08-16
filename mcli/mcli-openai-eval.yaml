@@ -11,6 +11,7 @@ integrations:
 
 command: |
   cd llm-foundry/scripts
+  pip install openai
   pip install tiktoken
   pip install einops
   pip install sentencepiece
@@ -64,11 +65,11 @@ parameters:
     model_name: openai/gpt-3.5-turbo
     model:
       name: openai_chat
-      version: openai/gpt-3.5-turbo
+      version: gpt-3.5-turbo
     tokenizer:
       name: openai
       kwargs:
-        name: openai/gpt-3.5-turbo
+        name: gpt-3.5-turbo
 
 
   # FSDP config for model sharding

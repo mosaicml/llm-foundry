@@ -24,10 +24,9 @@ https://github.com/NVIDIA/FasterTransformer/blob/main/examples/pytorch/gpt/utils
 import argparse
 import configparser
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, Tuple, Union
 
 import numpy as np
-import torch
 import transformers
 
 
@@ -41,7 +40,7 @@ def get_weight_data_type(data_type: str):
 
 
 def write_zero_bias(weight_name: str, weight_file_path: str,
-                    bias_shape: List[int]) -> None:
+                    bias_shape: Union[Tuple[int, ...], int]) -> None:
     """Write zeros for bias.
 
     MPT model might not have bias while FT expects bias.
@@ -49,7 +48,7 @@ def write_zero_bias(weight_name: str, weight_file_path: str,
     Args:
         weight_name (str): Name of the weight tensor.
         weight_file_path (str): Output path for storing the weight (NOT zero bias).
-        bias_shape (List[int]): Shape of the bias array.
+        bias_shape (Union[Tuple[int, ...], int]): Shape of the bias array.
     """
     if 'weight' not in weight_file_path:
         raise RuntimeError(

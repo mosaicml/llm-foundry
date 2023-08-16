@@ -15,9 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Modified from https://github.com/huggingface/accelerate/blob/main/src/accelerate/big_modeling.py
-
 from contextlib import contextmanager
+# Modified from https://github.com/huggingface/accelerate/blob/main/src/accelerate/big_modeling.py
+from typing import Any, Callable, Optional
 
 import torch
 import torch.nn as nn
@@ -80,18 +80,21 @@ def init_on_device(device: torch.device, include_buffers: bool = False):
     if include_buffers:
         old_register_buffer = nn.Module.register_buffer
 
-    def register_empty_parameter(module, name, param):
+    def register_empty_parameter(module: torch.nn.Module, name: str,
+                                 param: Optional[torch.nn.Parameter]):
         old_register_parameter(module, name, param)
         if param is not None:
             param_cls = type(module._parameters[name])
-            kwargs = module._parameters[name].__dict__
+            kwargs = module._parameters[name].__dict__  # type: ignore
             module._parameters[name] = param_cls(
-                module._parameters[name].to(device), **kwargs)
+                module._parameters[name].to(device), **kwargs)  # type: ignore
 
-    def register_empty_buffer(module, name, buffer):
+    def register_empty_buffer(module: torch.nn.Module, name: str,
+                              buffer: Optional[torch.Tensor]):
         old_register_buffer(module, name, buffer)
         if buffer is not None:
-            module._buffers[name] = module._buffers[name].to(device)
+            module._buffers[name] = module._buffers[name].to(  # type: ignore
+                device)
 
     # Patch tensor creation
     if include_buffers:
@@ -102,9 +105,9 @@ def init_on_device(device: torch.device, include_buffers: bool = False):
     else:
         tensor_constructors_to_patch = {}
 
-    def patch_tensor_constructor(fn):
+    def patch_tensor_constructor(fn: Callable):
 
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any):
             kwargs['device'] = device
             return fn(*args, **kwargs)
 

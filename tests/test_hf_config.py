@@ -4,7 +4,7 @@
 import tempfile
 from copy import deepcopy
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Dict, Mapping
 
 import pytest
 import torch
@@ -51,8 +51,8 @@ from llmfoundry.utils import build_tokenizer
                                          strict=True)),
 ])
 def test_hf_config_override(
-    model_cfg_overrides,
-    conf_path='scripts/train/yamls/pretrain/testing.yaml',
+    model_cfg_overrides: Dict[str, Any],
+    conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
 ):
     AutoConfig.register('mpt', MPTConfig)
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
@@ -85,12 +85,12 @@ def test_hf_config_override(
 
     # load hf causal lm model with config_overrides
     hf_model_config = deepcopy(test_cfg)
-    model_cfg = {
+    model_cfg = DictConfig({
         'name': 'hf_causal_lm',
         'pretrained_model_name_or_path': save_path,
         'pretrained': False,
         'config_overrides': model_cfg_overrides,
-    }
+    })
     hf_model_config.model = model_cfg
 
     hf_model = COMPOSER_MODEL_REGISTRY[hf_model_config.model.name](

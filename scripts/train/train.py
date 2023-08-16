@@ -14,8 +14,7 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry import (COMPOSER_MODEL_REGISTRY,
-                        build_finetuning_dataloader,
+from llmfoundry import (COMPOSER_MODEL_REGISTRY, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
@@ -103,8 +102,8 @@ def build_composer_model(model_cfg: DictConfig,
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
 
-
-def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase, device_batch_size: int):
+def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+                     device_batch_size: int):
 
     if cfg.name == 'text':
         return build_text_dataloader(
@@ -184,10 +183,14 @@ def main(cfg: DictConfig):
     fsdp_config: Optional[Dict] = om.to_container(
         fsdp_dict_config
     ) if fsdp_dict_config is not None else None  # type: ignore
-    lora_config: Optional[DictConfig] = pop_config(cfg,
+    lora_config: Optional[DictConfig] = pop_config(model_config,
                                                    'lora',
                                                    must_exist=False,
                                                    default_value=None)
+    if lora_config is not None:
+        if lora_config.get('rank', None) is not None:
+            print(f'LoRa is enabled. \n {lora_config}')
+
     eval_loader_config: Optional[DictConfig] = pop_config(cfg,
                                                           'eval_loader',
                                                           must_exist=False,
@@ -351,7 +354,6 @@ def main(cfg: DictConfig):
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())
     logged_cfg.update({'n_params': n_params})
-
 
     # Dataloaders
     print('Building train loader...')

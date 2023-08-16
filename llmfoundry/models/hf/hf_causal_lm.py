@@ -15,7 +15,7 @@ from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
 from composer.utils import dist
 from omegaconf import DictConfig
-from transformers import (AutoConfig, AutoModelForCausalLM,
+from transformers import (AutoConfig, AutoModel, AutoModelForCausalLM,
                           PreTrainedTokenizerBase)
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
@@ -25,7 +25,7 @@ from llmfoundry.models.layers.llama_attention_monkeypatch import \
 from llmfoundry.models.utils import init_empty_weights
 
 try:
-    from peft import LoraConfig, get_peft_model, PeftModel
+    from peft import LoraConfig, PeftModel, get_peft_model
     _peft_installed = True
     _model_type = PeftModel
 
@@ -37,7 +37,7 @@ except ImportError:
 __all__ = ['ComposerHFCausalLM']
 
 
-def print_trainable_parameters(model: _model_type) -> None:
+def print_trainable_parameters(model: AutoModel) -> None:
     # Prints the number of trainable parameters in the model.
     if _model_type is None:
         raise ImportError(
@@ -190,7 +190,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     "cfg.model.lora is given but PEFT not installed. Run pip install -e \".[gpu,peft]\""
                 )
 
-
         attention_patch_type = om_model_config.get('attention_patch_type', None)
         if attention_patch_type is not None:
             if model.config.model_type != 'llama':
@@ -205,7 +204,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             LlamaAttention.forward = get_llama_attention_patch_fn(
                 attention_patch_type)
             model.config.use_cache = False
-
 
         composer_model = super().__init__(model=model,
                                           shift_labels=True,

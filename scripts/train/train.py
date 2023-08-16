@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Union
 import torch
 from composer import Trainer
 from composer.core import Evaluator
-from composer.core.callback import Callback
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om

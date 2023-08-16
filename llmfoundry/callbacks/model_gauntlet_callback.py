@@ -107,13 +107,14 @@ class ModelGauntlet(Callback):
             if 'Accuracy' not in metric_name:
                 continue
 
-            metric = state.eval_metrics.get(dl_name, {}).get(metric_name, None)
+            metric = state.eval_metrics.get('/'.join(dl_name),
+                                            {}).get(metric_name, None)
             if metric is None:
                 continue
             val = metric.compute().item()
 
             # ending at index 2 allows us to aggregate over dataloaders w/ subcategories
-            key = '/'.join(dl_name.split('/')[0:2])
+            key = '/'.join(dl_name[0:2])
             if key not in results:
                 results[key] = []
 
@@ -156,14 +157,17 @@ class ModelGauntlet(Callback):
                 for k in composite_scores[category['name']])
 
         composite_scores = {
-            f'metrics/model_gauntlet/{k}': v
+            f'icl/metrics/model_gauntlet/{k}': v
             for k, v in composite_scores.items()
         }
 
-        composite_scores['metrics/model_gauntlet/average'] = sum(
+        composite_scores['icl/metrics/model_gauntlet/average'] = sum(
             composite_scores.values()) / len(composite_scores.values())
 
         if logger is not None:
+            print(
+                f'Logging metrics {composite_scores} to logger destinations: {logger.destinations}'
+            )
             logger.log_metrics(composite_scores)
 
         return composite_scores

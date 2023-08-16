@@ -17,6 +17,7 @@ from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
 
 from llmfoundry.callbacks import ModelGauntlet
+from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import build_icl_evaluators, build_tokenizer
 from llmfoundry.utils.config_utils import process_init_device
@@ -43,18 +44,18 @@ def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         try:
             trust_remote_code = model_cfg.get('trust_remote_code', True)
             use_auth_token = model_cfg.get('use_auth_token', False)
-            model = model_registry[model_cfg.name].from_pretrained(
+            underlying_model = model_registry[model_cfg.name].from_pretrained(
                 model_cfg.pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
             )
 
             peft_model = PeftModel.from_pretrained(
-                model, model_cfg.pretrained_lora_id_or_path)
+                underlying_model, model_cfg.pretrained_lora_id_or_path)
 
-            composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](peft_model,
-                                                                     tokenizer)
-            return composer_model
+            composer_model_wrapper = COMPOSER_MODEL_REGISTRY[model_cfg.name](
+                peft_model, tokenizer)
+            return composer_model_wrapper
         except Exception as e:
             retries += 1
             if retries >= num_retries:

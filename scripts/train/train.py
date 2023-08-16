@@ -248,7 +248,7 @@ def main(cfg: DictConfig):
 
     model_gauntlet_callback = None
     if 'icl_tasks' in cfg:
-        icl_evaluators, logger_keys = build_icl_evaluators(
+        icl_evaluators, metric_names = build_icl_evaluators(
             cfg.icl_tasks,
             tokenizer,
             cfg.max_seq_len,
@@ -262,7 +262,7 @@ def main(cfg: DictConfig):
                 model_gauntlet = model_gauntlet_cfg.model_gauntlet
             else:
                 model_gauntlet = cfg.model_gauntlet
-            model_gauntlet.logger_keys = logger_keys
+            model_gauntlet.metric_names = metric_names
             model_gauntlet.benchmark_sizes = {
                 e.label: e.dataloader.num_samples for e in evaluators
             }

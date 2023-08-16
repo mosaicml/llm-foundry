@@ -20,13 +20,6 @@ class Weighting(Enum):
     LOG_SAMPLE_SZ = 3
 
 
-def get_in_memory_logger(logger: Logger):
-    for lg in logger.destinations:
-        if isinstance(lg, InMemoryLogger):
-            return lg
-    raise Exception("Couldn't find InMemoryLogger in logger destinations!")
-
-
 class ModelGauntlet(Callback):
     """The ModelGauntlet aggregates ICL eval results.
 

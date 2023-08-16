@@ -4,12 +4,12 @@ import copy
 import os
 import sys
 import warnings
-
 from typing import Dict, List, Optional, Union
 
 import torch
 from composer import Trainer
 from composer.core import Evaluator
+from composer.core.callback import Callback
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -424,11 +424,13 @@ def main(cfg: DictConfig):
         evaluators.append(eval_loader)
 
     model_gauntlet_callback = None
-    if 'icl_tasks' in cfg:
     if icl_tasks_config is not None:
-        icl_evaluators, metric_names = build_icl_evaluators(icl_tasks_config, tokenizer,
-                                                 cfg.get('icl_seq_len', max_seq_len),
-                                                 device_eval_batch_size,  icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
+        icl_evaluators, metric_names = build_icl_evaluators(
+            icl_tasks_config,
+            tokenizer,
+            cfg.get('icl_seq_len', max_seq_len),
+            device_eval_batch_size,
+            icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
         evaluators.extend(icl_evaluators)
         if 'model_gauntlet' in cfg:
             if isinstance(cfg.model_gauntlet, str):
@@ -461,10 +463,10 @@ def main(cfg: DictConfig):
 
     # Callbacks
 
-    callbacks = [
+    callbacks: List[Callback] = [
         build_callback(str(name), callback_cfg)
         for name, callback_cfg in callback_configs.items()
-    ] if callback_configs else None
+    ] if callback_configs else []
 
     if model_gauntlet_callback is not None:
         callbacks.append(model_gauntlet_callback)

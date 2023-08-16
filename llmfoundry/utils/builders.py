@@ -19,7 +19,7 @@ from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
                                       LinearWithWarmupScheduler)
 from composer.utils import dist
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
@@ -159,7 +159,7 @@ def build_tokenizer(om_tokenizer_config: DictConfig) -> PreTrainedTokenizerBase:
 
 
 def build_icl_evaluators(
-    icl_tasks: Union[str, DictConfig],
+    icl_tasks: Union[str, ListConfig],
     tokenizer: AutoTokenizer,
     default_max_seq_len: int,
     default_batch_size: int,

@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import torch
+from composer.loggers.logger_destination import LoggerDestination
 from composer.models.base import ComposerModel
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
@@ -20,7 +21,8 @@ from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
 from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import build_icl_evaluators, build_tokenizer
+from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
+                                       build_tokenizer)
 from llmfoundry.utils.config_utils import pop_config, process_init_device
 
 
@@ -95,17 +97,23 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
                    model_gauntlet_config: Optional[Union[str, DictConfig]],
                    fsdp_config: Optional[Dict], num_retries: int,
                    loggers_cfg: Dict[str, Any], precision: str,
-                   model_gauntlet_df: Optional[pd.DataFrame]):
+                   model_gauntlet_df: Optional[pd.DataFrame],
+                   icl_subset_num_batches: Optional[int]):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
     tokenizer = build_tokenizer(model_cfg.tokenizer)
 
     evaluators, metric_names = build_icl_evaluators(
-        cfg.icl_tasks,
+        icl_tasks,
         tokenizer,
-        cfg.max_seq_len,
-        cfg.device_eval_batch_size,
-        icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
+        max_seq_len,
+        device_eval_batch_size,
+        icl_subset_num_batches=icl_subset_num_batches)
+
+    loggers: List[LoggerDestination] = [
+        build_logger(name, logger_cfg)
+        for name, logger_cfg in loggers_cfg.items()
+    ]
 
     callbacks = []
     model_gauntlet: Optional[DictConfig] = None
@@ -116,7 +124,9 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
                 model_gauntlet_cfg = om.load(icl_f)
             model_gauntlet = model_gauntlet_cfg.model_gauntlet
         else:
-            model_gauntlet = cfg.model_gauntlet
+            model_gauntlet = model_gauntlet_config
+
+        assert model_gauntlet is not None
         model_gauntlet.metric_names = metric_names
         model_gauntlet.benchmark_sizes = {
             e.label: e.dataloader.num_samples for e in evaluators
@@ -124,11 +134,9 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
         model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
         callbacks.append(model_gauntlet_callback)
 
-    fsdp_config = cfg.get('fsdp_config', None)
-    fsdp_config = om.to_container(
+    fsdp_config = om.to_container(  # pyright: ignore
         fsdp_config, resolve=True) if fsdp_config is not None else None
     assert isinstance(fsdp_config, Dict) or fsdp_config is None
-
 
     if hasattr(model_cfg.model, 'pretrained_lora_id_or_path'):
         composer_model = load_peft_model(model_cfg.model, tokenizer,
@@ -142,7 +150,6 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
             columns=['model_name', 'average'] +
             [t.name for t in model_gauntlet.categories])
 
-
     load_path = model_cfg.get('load_path', None)
 
     assert composer_model is not None
@@ -151,7 +158,6 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
         run_name=run_name,
         model=composer_model,
         callbacks=callbacks,
-        precision=cfg.precision,
         loggers=loggers,
         precision=precision,
         fsdp_config=fsdp_config,  # type: ignore
@@ -217,7 +223,10 @@ def main(cfg: DictConfig):
                                              'loggers',
                                              must_exist=False,
                                              default_value={})
-
+    icl_subset_num_batches: int = pop_config(cfg,
+                                             'icl_subset_num_batches',
+                                             must_exist=False,
+                                             default_value=None)
     # Pop out interpolation variables.
     pop_config(cfg, 'model_name_or_path', must_exist=False, default_value=None)
 
@@ -247,7 +256,8 @@ def main(cfg: DictConfig):
              num_retries=num_retries,
              loggers_cfg=loggers_cfg,
              precision=precision,
-             model_gauntlet_df=model_gauntlet_df)
+             model_gauntlet_df=model_gauntlet_df,
+             icl_subset_num_batches=icl_subset_num_batches)
 
         if model_gauntlet_callback is not None:
             composite_scores = model_gauntlet_callback.eval_after_all(

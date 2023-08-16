@@ -9,7 +9,7 @@ CLUSTER_80GB=r1z1
 # A100 80GB
 
 # seqlen 2048
-python submit_benchmarks.py --project $PROJECT -m 125m.yaml -g 8 --microbatch_size  32 --accum  2 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_80gb --cluster $CLUSTER_80GB -s 11 11
+python submit_benchmarks.py --project $PROJECT -m 125m.yaml -g 8 --microbatch_size  32 --accum  2 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_80gb --cluster $CLUSTER_80GB -s 11 11 --RUN
 # python submit_benchmarks.py --project $PROJECT -m 350m.yaml -g 8 --microbatch_size  32 --accum  2 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_80gb --cluster $CLUSTER_80GB -s 11 11 --RUN
 # python submit_benchmarks.py --project $PROJECT -m 760m.yaml -g 8 --microbatch_size  24 --accum  2 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_80gb --cluster $CLUSTER_80GB -s 11 11 --RUN
 # python submit_benchmarks.py --project $PROJECT -m   1b.yaml -g 8 --microbatch_size  14 --accum  4 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_80gb --cluster $CLUSTER_80GB -s 11 11 --RUN

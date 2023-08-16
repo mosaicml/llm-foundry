@@ -8,8 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import requests
 import yaml
 from mcli.models.run_config import SchedulingConfig
-from mcli.sdk import RunConfig, create_run, get_clusters
-
+from mcli.sdk import RunConfig, create_run, get_clusters, follow_run_logs
 
 def _get_cluster_info():
     clusters = get_clusters()
@@ -332,7 +331,7 @@ def get_integrations(project: str,
     }
     git_integration.update({
         'integration_type': 'git_repo',
-        'git_repo': 'mosaicml/examples',
+        'git_repo': 'mosaicml/llm-foundry',
         'pip_install': '-e .[gpu]'
     })
 
@@ -361,19 +360,25 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
     # Define our command
     if args.data_remote is not None:
         command = """
-        cd examples/scripts
-
-        composer train/train.py /mnt/config/parameters.yaml
+        cd llm-foundry/scripts
+        composer train/train.py train/yamls/pretrain/mpt-1b.yaml
         """
     else:
-        command = f"""
-        cd examples/scripts
-
-        python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
-
-        composer train/train.py /mnt/config/parameters.yaml
+        # command = f"""
+        # cd llm-foundry/scripts
+        # python ../../examples/examples/common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
+        # composer train/train.py /mnt/config/parameters.yaml
+        # """ TODO: Do I need to use this dataset or are we all good?
+        command = """
+        cd llm-foundry/scripts
+        composer train/train.py train/yamls/pretrain/mpt-1b.yaml \
+            train_loader.dataset.split=train \
+            eval_loader.dataset.split=val\
+            max_duration=100ba \
+            eval_interval=0 \
+            data_remote=oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/\
+            loggers.wandb="{}"\
         """
-        print("CHRIS: IS NONNONE")
     path = os.path.join('../yamls/pretrain', "mpt-" + model_yaml)
     parameters = get_parameters(path)
 
@@ -394,14 +399,14 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
 
     microbatch_size = args.microbatch_size or 'auto'
     assert isinstance(microbatch_size, (int, str))
+    assert(args.data_remote is not None)
     parameters = mod_parameters(
         parameters,
         max_seq_len,
         global_train_batch_size,
         precision,
         fsdp_config_mixed_precision=args.fsdp_config_mixed_precision,
-        fsdp_config_activation_checkpointing=args.
-        fsdp_config_activation_checkpointing,
+        fsdp_config_activation_checkpointing=args.fsdp_config_activation_checkpointing,
         run_name=name,
         data_remote=args.data_remote,
         microbatch_size=microbatch_size,

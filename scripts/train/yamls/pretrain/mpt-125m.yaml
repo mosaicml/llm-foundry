@@ -1,5 +1,5 @@
 data_local: ./my-copy-c4
-data_remote: # If blank, files must be present in data_local
+data_remote: oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/ # If blank, files must be present in data_local
 max_seq_len: 2048
 global_seed: 17
 
@@ -29,7 +29,7 @@ tokenizer:
 train_loader:
   name: text
   dataset:
-    local: ${data_local}
+    # local: ${data_local}
     remote: ${data_remote}
     split: train
     shuffle: true
@@ -41,7 +41,7 @@ train_loader:
 eval_loader:
   name: text
   dataset:
-    local: ${data_local}
+    # local: ${data_local}
     remote: ${data_remote}
     split: val
     shuffle: false
@@ -94,7 +94,7 @@ fsdp_config:
   verbose: false
 
 # Logging
-progress_bar: false
+progress_bar: true
 log_to_console: true
 console_log_interval: 1ba
 
@@ -105,8 +105,12 @@ callbacks:
   memory_monitor: {}
   runtime_estimator: {}
 
-# loggers:
-#   wandb: {}
+scheduling:
+  resumable: true # Makes job preemptible.
+  priority: low # Allows higher priority jobs to preempt you
+
+loggers:
+  wandb: {}
 
 # Checkpoint to local filesystem or remote object store
 # save_interval: 500ba

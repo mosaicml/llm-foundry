@@ -4,14 +4,15 @@
 import os
 import sys
 import time
-from typing import Dict, List, Optional
+import warnings
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import torch
 from composer.models.base import ComposerModel
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
@@ -20,7 +21,7 @@ from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import build_icl_evaluators, build_tokenizer
-from llmfoundry.utils.config_utils import process_init_device
+from llmfoundry.utils.config_utils import pop_config, process_init_device
 
 
 def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
@@ -88,7 +89,12 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     )
 
 
-def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
+def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
+                   run_name: str, icl_tasks: Union[str, ListConfig],
+                   max_seq_len: int, device_eval_batch_size: int,
+                   model_gauntlet_config: Optional[Union[str, DictConfig]],
+                   fsdp_config: Optional[Dict], num_retries: int,
+                   loggers_cfg: Dict[str, Any], precision: str,
                    model_gauntlet_df: Optional[pd.DataFrame]):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
@@ -102,9 +108,11 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
         icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
 
     callbacks = []
-    if hasattr(cfg, 'model_gauntlet'):
-        if isinstance(cfg.model_gauntlet, str):
-            with open(cfg.model_gauntlet, 'r') as icl_f:
+    model_gauntlet: Optional[DictConfig] = None
+    model_gauntlet_callback: Optional[ModelGauntlet] = None
+    if model_gauntlet_config is not None:
+        if isinstance(model_gauntlet_config, str):
+            with open(model_gauntlet_config, 'r', encoding='utf-8') as icl_f:
                 model_gauntlet_cfg = om.load(icl_f)
             model_gauntlet = model_gauntlet_cfg.model_gauntlet
         else:
@@ -115,26 +123,25 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
         }
         model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
         callbacks.append(model_gauntlet_callback)
-    else:
-        model_gauntlet = None
-        model_gauntlet_callback = None
 
     fsdp_config = cfg.get('fsdp_config', None)
     fsdp_config = om.to_container(
         fsdp_config, resolve=True) if fsdp_config is not None else None
     assert isinstance(fsdp_config, Dict) or fsdp_config is None
 
+
     if hasattr(model_cfg.model, 'pretrained_lora_id_or_path'):
         composer_model = load_peft_model(model_cfg.model, tokenizer,
-                                         cfg.get('num_retries', 3))
+                                         num_retries)
     else:
         composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
-                                    cfg.get('num_retries', 3))
+                                    num_retries)
 
     if model_gauntlet_df is None and model_gauntlet is not None:
         model_gauntlet_df = pd.DataFrame(
             columns=['model_name', 'average'] +
             [t.name for t in model_gauntlet.categories])
+
 
     load_path = model_cfg.get('load_path', None)
 
@@ -145,12 +152,14 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
         model=composer_model,
         callbacks=callbacks,
         precision=cfg.precision,
+        loggers=loggers,
+        precision=precision,
         fsdp_config=fsdp_config,  # type: ignore
         load_path=load_path,
         load_weights_only=True,
         progress_bar=False,
         log_to_console=True,
-        dist_timeout=cfg.dist_timeout,
+        dist_timeout=dist_timeout,
     )
 
     if torch.cuda.is_available():
@@ -166,20 +175,79 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
 
 
 def main(cfg: DictConfig):
-    cfg.dist_timeout = cfg.get('dist_timeout', 600.0)
-    if cfg.get('run_name') is None:
-        cfg.run_name = os.environ.get('RUN_NAME', 'llm')
+    om.resolve(cfg)
+    model_configs: ListConfig = pop_config(cfg, 'models', must_exist=True)
+    model_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(
+        cfg, 'model_gauntlet', must_exist=False, default_value=None)
+    fsdp_dict_cfg: Optional[DictConfig] = pop_config(cfg,
+                                                     'fsdp_config',
+                                                     must_exist=False,
+                                                     default_value=None)
+    fsdp_config: Optional[Dict] = om.to_container(
+        fsdp_dict_cfg,
+        resolve=True) if fsdp_dict_cfg is not None else None  # type: ignore
+    assert isinstance(fsdp_config, Dict) or fsdp_config is None
 
-    reproducibility.seed_all(cfg.seed)
-    dist.initialize_dist(get_device(None), timeout=cfg.dist_timeout)
+    # Mandatory Evaluation Parameters
+    icl_tasks: Union[str, ListConfig] = pop_config(cfg,
+                                                   'icl_tasks',
+                                                   must_exist=True)
+    max_seq_len: int = pop_config(cfg, 'max_seq_len', must_exist=True)
+    device_eval_batch_size: int = pop_config(cfg,
+                                             'device_eval_batch_size',
+                                             must_exist=True)
+    precision: str = pop_config(cfg, 'precision', must_exist=True)
+
+    # Optional Evaluation Parameters with default values
+    seed: int = pop_config(cfg, 'seed', must_exist=False, default_value=17)
+    dist_timeout: Union[float, int] = pop_config(cfg,
+                                                 'dist_timeout',
+                                                 must_exist=False,
+                                                 default_value=600.0)
+    default_run_name: str = os.environ.get('RUN_NAME', 'llm')
+    run_name: str = pop_config(cfg,
+                               'run_name',
+                               must_exist=False,
+                               default_value=default_run_name)
+    num_retries: int = pop_config(cfg,
+                                  'num_retries',
+                                  must_exist=False,
+                                  default_value=3)
+    loggers_cfg: Dict[str, Any] = pop_config(cfg,
+                                             'loggers',
+                                             must_exist=False,
+                                             default_value={})
+
+    # Pop out interpolation variables.
+    pop_config(cfg, 'model_name_or_path', must_exist=False, default_value=None)
+
+    # Warn for unused parameters
+    for key in cfg:
+        warnings.warn(
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary.'
+        )
+
+    reproducibility.seed_all(seed)
+    dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     model_gauntlet_df = None
     models_df = None
     composite_scores = None
-    for model_cfg in cfg.models:
+    for model_cfg in model_configs:
         (trainer, metric_names, model_gauntlet_callback, model_gauntlet,
-         model_gauntlet_df) = evaluate_model(model_cfg, cfg, cfg.run_name,
-                                             model_gauntlet_df)
+         model_gauntlet_df) = evaluate_model(
+             model_cfg=model_cfg,
+             dist_timeout=dist_timeout,
+             run_name=run_name,
+             icl_tasks=icl_tasks,
+             max_seq_len=max_seq_len,
+             device_eval_batch_size=device_eval_batch_size,
+             model_gauntlet_config=model_gauntlet_config,
+             fsdp_config=fsdp_config,
+             num_retries=num_retries,
+             loggers_cfg=loggers_cfg,
+             precision=precision,
+             model_gauntlet_df=model_gauntlet_df)
 
         if model_gauntlet_callback is not None:
             composite_scores = model_gauntlet_callback.eval_after_all(
@@ -200,7 +268,7 @@ def main(cfg: DictConfig):
         else:
             models_df = pd.concat([models_df, model_results], ignore_index=True)
 
-        if model_gauntlet_df is not None and model_gauntlet is not None and model_gauntlet_df is not None:
+        if model_gauntlet_df is not None and model_gauntlet is not None:
             assert composite_scores is not None
             row = {'model_name': model_cfg['model_name']}
             row.update({

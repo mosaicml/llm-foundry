@@ -4,13 +4,33 @@
 import contextlib
 import math
 import warnings
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.utils import init_empty_weights
+
+
+def pop_config(cfg: DictConfig,
+               key: str,
+               must_exist: bool = True,
+               default_value: Any = None) -> Any:
+    """Pop a value from the main config file and return it.
+
+    If the key does not exist, return the default_value or raise a RuntimeError
+    depending on the must_exist flag.
+    """
+    value = cfg.pop(key, None)
+    if value is not None:
+        return value
+    elif must_exist:
+        raise NameError(
+            f'The {key} parameter is missing and must exist for execution. Please check your yaml.'
+        )
+    else:
+        return default_value
 
 
 def calculate_batch_size_info(global_batch_size: int,
@@ -90,6 +110,11 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
 
 
 def log_config(cfg: DictConfig):
+    """Logs the current config and updates the wandb and mlflow configs.
+
+    This function can be called multiple times to update the wandb and MLflow
+    config with different variables.
+    """
     print(om.to_yaml(cfg))
     if 'wandb' in cfg.get('loggers', {}):
         try:

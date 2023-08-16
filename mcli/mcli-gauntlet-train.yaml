@@ -19,9 +19,8 @@ compute:
 
 image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
 command: |-
-  pip install git+git@github.com:mosaicml/composer.git@dev
   pip install -U wandb==0.15.4
-  pip install mosaicml
+  pip install git+https://github.com/mosaicml/composer@dev
   cd llm-foundry/scripts
   composer train/train.py /mnt/config/parameters.yaml
 

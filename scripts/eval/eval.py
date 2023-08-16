@@ -134,10 +134,6 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
         model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
         callbacks.append(model_gauntlet_callback)
 
-    fsdp_config = om.to_container(  # pyright: ignore
-        fsdp_config, resolve=True) if fsdp_config is not None else None
-    assert isinstance(fsdp_config, Dict) or fsdp_config is None
-
     if hasattr(model_cfg.model, 'pretrained_lora_id_or_path'):
         composer_model = load_peft_model(model_cfg.model, tokenizer,
                                          num_retries)

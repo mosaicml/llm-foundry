@@ -52,6 +52,8 @@ parameters:
   fsdp_config:
     sharding_strategy: FULL_SHARD
     mixed_precision: FULL
+    forward_prefetch: True
+    limit_all_gathers: True
 
-  icl_tasks: 'eval/yamls/tasks_light.yaml'
+  icl_tasks: 'eval/yamls/tasks.yaml'
   model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

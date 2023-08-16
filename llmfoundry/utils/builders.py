@@ -13,7 +13,6 @@ from composer.core import Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from composer.loggers import MLFlowLogger, TensorboardLogger, WandBLogger
-from composer.loggers.in_memory_logger import InMemoryLogger
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
@@ -68,8 +67,6 @@ def build_logger(name: str, kwargs: Dict[str, Any]):
         return WandBLogger(**kwargs)
     elif name == 'tensorboard':
         return TensorboardLogger(**kwargs)
-    elif name == 'in_memory_logger':
-        return InMemoryLogger(**kwargs)
     elif name == 'mlflow':
         return MLFlowLogger(**kwargs)
     else:

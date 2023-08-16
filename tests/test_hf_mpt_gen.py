@@ -10,6 +10,7 @@ from omegaconf import OmegaConf as om
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils import build_tokenizer
 
+from typing import Dict, Any
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('device', ['cpu', 'gpu'])
@@ -44,7 +45,10 @@ def test_init_hfhub_mpt(device: str, attn_impl: str):
     })
 
     # build tokenizer
-    tokenizer = build_tokenizer(test_cfg.tokenizer)
+    tokenizer_cfg: Dict[str, Any] = om.to_container(test_cfg.tokenizer, resolve=True) # type: ignore
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     # build model
     model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,

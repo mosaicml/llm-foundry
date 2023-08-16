@@ -101,7 +101,10 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
                    model_gauntlet_df: Optional[pd.DataFrame]):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
-    tokenizer = build_tokenizer(model_cfg.tokenizer)
+    tokenizer_cfg: Dict[str, Any] = om.to_container(cfg.tokenizer, resolve=True) # type: ignore
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
     evaluators, logger_keys = build_icl_evaluators(icl_tasks, tokenizer,
                                                    max_seq_len,
                                                    device_eval_batch_size)

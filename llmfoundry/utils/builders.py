@@ -181,7 +181,7 @@ def build_icl_evaluators(
     else:
         icl_tasks_list = icl_tasks
 
-    def _validate_cfg(icl_cfg: Any):
+    def _validate_cfg(icl_cfg: DictConfig):
         assert 'label' in icl_cfg
         assert 'dataset_uri' in icl_cfg and icl_cfg.dataset_uri is not None
         assert 'icl_task_type' in icl_cfg
@@ -217,8 +217,8 @@ def build_icl_evaluators(
             icl_cfg.batch_size = default_batch_size
 
     for icl_cfg in icl_tasks_list:
-        _validate_cfg(icl_cfg)
         assert isinstance(icl_cfg, DictConfig)
+        _validate_cfg(icl_cfg)
         for num_fewshot in list(icl_cfg.num_fewshot):
             if tokenizer.pad_token_id is None:
                 # Current workaround to support GPT2 tokenizer with `pad_token_id = None`

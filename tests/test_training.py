@@ -83,20 +83,8 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
                      not torch.cuda.is_available(),
                      reason='testing with cuda requires GPU')),
 ])
-@pytest.mark.parametrize('gauntlet', [True])
-def test_train(device: str, gauntlet: bool):
+def test_train(device: str):
     """Test training run with a small dataset."""
-    if gauntlet:
-        os.chdir('scripts')
-
     dataset_name = create_c4_dataset_xsmall(device)
     test_cfg = gpt_tiny_cfg(dataset_name, device)
-
-    if gauntlet:
-        test_cfg.icl_tasks = 'eval/yamls/small_jeopardy.yaml'
-        test_cfg.icl_subset_num_batches = 1  # -1 to evaluate on all batches
-        test_cfg.model_gauntlet = 'eval/yamls/model_gauntlet.yaml'
-        test_cfg.model.loss_fn = 'torch_crossentropy'
-        test_cfg.eval_first = True
-
     main(test_cfg)

@@ -208,7 +208,8 @@ def main(cfg: DictConfig):
                 for t in model_gauntlet.categories
             })
             row.update({
-                'average': composite_scores[f'icl/metrics/model_gauntlet/average']
+                'average':
+                    composite_scores[f'icl/metrics/model_gauntlet/average']
             })
             model_gauntlet_df = pd.concat(
                 [model_gauntlet_df, pd.DataFrame([row])], ignore_index=True)

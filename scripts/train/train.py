@@ -251,7 +251,7 @@ def main(cfg: DictConfig):
         icl_evaluators, metric_names = build_icl_evaluators(
             cfg.icl_tasks,
             tokenizer,
-            cfg.max_seq_len,
+            cfg.get('icl_seq_len', cfg.max_seq_len),
             cfg.device_eval_batch_size,
             icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
         evaluators.extend(icl_evaluators)
@@ -260,8 +260,12 @@ def main(cfg: DictConfig):
                 with open(cfg.model_gauntlet, 'r') as icl_f:
                     model_gauntlet_cfg = om.load(icl_f)
                 model_gauntlet = model_gauntlet_cfg.model_gauntlet
-            else:
+            elif isinstance(cfg.model_gauntlet, DictConfig):
                 model_gauntlet = cfg.model_gauntlet
+            else:
+                raise ValueError(
+                    f'Got invalid type for cfg.model_gauntlet: {type(cfg.model_gauntlet)}'
+                )
             model_gauntlet.metric_names = metric_names
             model_gauntlet.benchmark_sizes = {
                 e.label: e.dataloader.num_samples for e in evaluators

@@ -43,5 +43,5 @@ device_eval_batch_size: 4
 #   forward_prefetch: True
 #   limit_all_gathers: True
 
-icl_tasks: 'eval/yamls/small_jeopardy.yaml'
+icl_tasks: 'eval/yamls/tasks.yaml'
 model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

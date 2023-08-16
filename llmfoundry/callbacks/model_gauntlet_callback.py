@@ -9,7 +9,6 @@ from typing import Optional
 
 from composer.core import Callback, State
 from composer.loggers import Logger
-from composer.loggers.in_memory_logger import InMemoryLogger
 
 __all__ = ['ModelGauntlet']
 
@@ -158,9 +157,6 @@ class ModelGauntlet(Callback):
             composite_scores.values()) / len(composite_scores.values())
 
         if logger is not None:
-            print(
-                f'Logging metrics {composite_scores} to logger destinations: {logger.destinations}'
-            )
             logger.log_metrics(composite_scores)
 
         return composite_scores

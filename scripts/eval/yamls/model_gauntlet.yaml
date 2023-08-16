@@ -112,3 +112,48 @@ model_gauntlet:
     - name: boolq
       num_fewshot: 10
       random_baseline: 0.5
+  - name: world_knowledge_lm_task_subscore
+    benchmarks:
+    - name: jeopardy
+      num_fewshot: 10
+      random_baseline: 0
+    - name: bigbench_qa_wikidata
+      num_fewshot: 10
+      random_baseline: 0
+  - name: language_understanding_lm_task_subscore
+    benchmarks:
+    - name: lambada_openai
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: bigbench_conlang_translation
+      num_fewshot: 0
+      random_baseline: 0.0
+  - name: symbolic_problem_solving_lm_task_subscore
+    benchmarks:
+    - name: bigbench_dyck_languages
+      num_fewshot: 10
+      random_baseline: 0
+    - name: bigbench_cs_algorithms
+      num_fewshot: 10
+      random_baseline: 0
+    - name: bigbench_operators
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: bigbench_repeat_copy_logic
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: simple_arithmetic_withspaces
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: simple_arithmetic_nospaces
+      num_fewshot: 10
+      random_baseline: 0.0
+  - name: reading_comprehension_lm_task_subscore
+    benchmarks:
+    - name: pubmed_qa_labeled
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: squad
+      num_fewshot: 10
+      random_baseline: 0
+

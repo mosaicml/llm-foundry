@@ -1,0 +1,43 @@
+dist_timeout: 6000
+seed: 1
+max_seq_len: 1024
+device_eval_batch_size: 4
+precision: fp32 # we don't control OpenAI's precision, so this key is no-op for OpenAI models
+
+models:
+-
+  model_name: openai/davinci
+  model:
+    name: openai_causal_lm
+    version: davinci
+  tokenizer:
+    name: openai
+    kwargs:
+      name: davinci
+-
+  model_name: openai/gpt-4
+  model:
+    name: openai_chat
+    version: gpt-4
+  tokenizer:
+    name: openai
+    kwargs:
+      name: gpt-4
+-
+  model_name: openai/gpt-3.5-turbo
+  model:
+    name: openai_chat
+    version: openai/gpt-3.5-turbo
+  tokenizer:
+    name: openai
+    kwargs:
+      name: openai/gpt-3.5-turbo
+
+
+# FSDP config for model sharding
+# fsdp_config:
+#   sharding_strategy: FULL_SHARD
+#   mixed_precision: FULL
+
+icl_tasks: 'eval/yamls/lm_tasks.yaml'
+model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

@@ -1,0 +1,81 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  git_branch: add_openai_wrapper # use your branch
+  # git_commit: 29d65cc26853c09f6de7542978056ddb0b07e98c # OR use your commit hash
+  pip_install: -e ".[gpu]"
+  ssh_clone: false # Should be true if using a private repo
+- integration_type: wandb
+  project: model-gauntlet-v0
+  entity: mosaic-ml
+
+command: |
+  cd llm-foundry/scripts
+  pip install tiktoken
+  pip install einops
+  pip install sentencepiece
+  composer eval/eval.py /mnt/config/parameters.yaml
+
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
+run_name: openai-eval
+gpu_num: 8
+gpu_type: a100_80gb
+cluster: r1z1 # replace with your cluster here!
+
+image: mosaicml/llm-foundry:2.0.1_cu118-latest
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+parameters:
+  dist_timeout: 6000
+  seed: 1
+  max_seq_len: 1024
+  device_eval_batch_size: 4
+  precision: amp_fp16
+
+  models:
+  -
+    model_name: openai/davinci
+    model:
+      name: openai_causal_lm
+      version: davinci
+    tokenizer:
+      name: openai
+      kwargs:
+        name: davinci
+  -
+    model_name: openai/ada
+    model:
+      name: openai_causal_lm
+      version: ada
+    tokenizer:
+      name: openai
+      kwargs:
+        name: ada
+  -
+    model_name: openai/gpt-4
+    model:
+      name: openai_chat
+      version: gpt-4
+    tokenizer:
+      name: openai
+      kwargs:
+        name: gpt-4
+  -
+    model_name: openai/gpt-3.5-turbo
+    model:
+      name: openai_chat
+      version: openai/gpt-3.5-turbo
+    tokenizer:
+      name: openai
+      kwargs:
+        name: openai/gpt-3.5-turbo
+
+  
+
+  # FSDP config for model sharding
+  # fsdp_config:
+  #   sharding_strategy: FULL_SHARD
+  #   mixed_precision: FULL
+
+  icl_tasks: 'eval/yamls/lm_tasks.yaml'
+  model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

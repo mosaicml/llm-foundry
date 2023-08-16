@@ -1,0 +1,145 @@
+NAME                USER           CREATED_TIME   RESUMPTION  STATUS          START_TIME     END_TIME        CLUSTER  INSTANCE      NODES
+all-eval-yKXs1w     jeremy@mosai…  2023-08-16     0           Running         2023-08-16     -               r1z1     8x a100_80gb  1    
+                                   02:40 PM                                   02:41 PM                                                   
+test-1b-L7eOAq      jeremy@mosai…  2023-08-16     0           Running         2023-08-16     -               r1z1     8x a100_80gb  1    
+                                   02:18 PM                                   02:25 PM                                                   
+all-eval-Qwaa8H     jeremy@mosai…  2023-08-16     0           Failed (Exit    2023-08-16     2023-08-16      r1z1     8x a100_80gb  1    
+                                   02:18 PM                   code: 1.        02:19 PM       02:25 PM                                    
+                                                              Reason: Error)                                                             
+lm-eval-FU0kpt      jeremy@mosai…  2023-08-16     0           Pending         -              -               r7z2     8x a100_40gb  4    
+                                   01:17 PM                                                                                              
+all-eval-fVEKWv     jeremy@mosai…  2023-08-16     0           Stopped         2023-08-16     2023-08-16      r1z1     8x a100_80gb  1    
+                                   01:02 PM                                   01:02 PM       02:18 PM                                    
+test-1b-QN4sXA      jeremy@mosai…  2023-08-16     0           Stopped         2023-08-16     2023-08-16      r1z1     8x a100_80gb  1    
+                                   12:55 PM                                   12:56 PM       02:19 PM                                    
+test-1b-nn8ix4      jeremy@mosai…  2023-08-16     0           Stopped         2023-08-16     2023-08-16      r1z1     8x a100_80gb  1    
+                                   12:39 PM                                   12:39 PM       12:56 PM                                    
+test-1b-WqbVMp      jeremy@mosai…  2023-08-16     0           Failed (Exit    2023-08-16     2023-08-16      r1z1     8x a100_80gb  1    
+                                   12:38 PM                   code: 1.        12:38 PM       12:38 PM                                    
+                                                              Reason: Error)                                                             
+test-1b-sTos5G      jeremy@mosai…  2023-08-16     0           Stopped         2023-08-16     2023-08-16      r1z1     8x a100_80gb  1    
+                                   12:36 PM                                   12:36 PM       12:38 PM                                    
+test-1b-ldEXe2      jeremy@mosai…  2023-08-16     0           Failed (Exit    2023-08-16     2023-08-16      r1z1     8x a100_80gb  1    
+                                   12:31 PM                   code: 1.        12:31 PM       12:34 PM                                    
+                                                              Reason: Error)                                                             
+lm-eval-Z74OY8      jeremy@mosai…  2023-08-16     0           Stopped         -              -               r9z1     8x h100_80gb  4    
+                                   11:30 AM                   (Stopped by                                                                
+                                                              anna@mosaicml…                                                             
+test-1b-zaZuMj      jeremy@mosai…  2023-08-16     0           Stopped         2023-08-16     2023-08-16      r1z1     8x a100_80gb  1    
+                                   11:25 AM                                   11:25 AM       12:30 PM                                    
+lm-eval-5HGljb      jeremy@mosai…  2023-08-15     1           Failed          2023-08-15     2023-08-15      r9z1     8x h100_80gb  4    
+                                   12:54 PM                   (Stopped by     01:13 PM       02:03 PM                                    
+                                                              anna@mosaicml…                                                             
+                                                  0           Stopped         -              -               r9z1     8x h100_80gb  4    
+test-1b-3HfqJ1      jeremy@mosai…  2023-08-15     0           Stopped         2023-08-15     2023-08-15      r1z1     8x a100_80gb  1    
+                                   11:30 AM                                   11:30 AM       12:51 PM                                    
+lm-eval-hnrvui      jeremy@mosai…  2023-08-15     0           Failed (Exit    2023-08-15     2023-08-15      r9z1     8x h100_80gb  4    
+                                   11:27 AM                   code: 1.        11:28 AM       11:51 AM                                    
+                                                              Reason:                                                                    
+                                                              OOMKilled)                                                                 
+lm-eval-mtb2eb      jeremy@mosai…  2023-08-14     3           Failed (Exit    2023-08-15     2023-08-15      r1z1     8x a100_80gb  1    
+                                   08:51 PM                   code: 1.        02:29 AM       02:38 AM                                    
+                                                              Reason:                                                                    
+                                                              OOMKilled)                                                                 
+                                                  2           Stopped         2023-08-15     2023-08-15      r1z1     8x a100_80gb  1    
+                                                                              02:12 AM       02:22 AM                                    
+                                                  1           Stopped         2023-08-15     2023-08-15      r1z1     8x a100_80gb  1    
+                                                                              01:56 AM       02:02 AM                                    
+                                                  0           Stopped         2023-08-14     2023-08-15      r1z1     8x a100_80gb  1    
+                                                                              11:59 PM       12:00 AM                                    
+openai-eval-dj6Mxd  jeremy@mosai…  2023-08-14     3           Completed       2023-08-15     2023-08-15      r1z1     8x a100_80gb  1    
+                                   08:51 PM                                   02:23 AM       12:02 PM                                    
+                                                  2           Stopped         2023-08-15     2023-08-15      r1z1     8x a100_80gb  1    
+                                                                              02:09 AM       02:12 AM                                    
+                                                  1           Stopped         2023-08-15     2023-08-15      r1z1     8x a100_80gb  1    
+                                                                              12:00 AM       12:02 AM                                    
+                                                  0           Stopped         2023-08-14     2023-08-14      r1z1     8x a100_80gb  1    
+                                                                              09:37 PM       09:50 PM                                    
+lm-eval-AUMkdj      jeremy@mosai…  2023-08-14     0           Stopped         2023-08-14     2023-08-14      r1z1     8x a100_80gb  1    
+                                   05:52 PM                   (Stopped by     05:52 PM       06:02 PM                                    
+                                                              nancy@mosaicm…                                                             
+lm-eval-9mmwo5      jeremy@mosai…  2023-08-14     0           Failed (Exit    2023-08-14     2023-08-14      r1z1     8x a100_80gb  1    
+                                   05:23 PM                   code: 1.        05:23 PM       05:43 PM                                    
+                                                              Reason: Error)                                                             
+lm-eval-cosAjp      jeremy@mosai…  2023-08-14     2           Failed (Exit    2023-08-14     2023-08-14      r9z1     8x h100_80gb  4    
+                                   04:48 PM                   code: 1.        07:47 PM       08:05 PM                                    
+                                                              Reason: Error)                                                             
+                                                  1           Stopped         2023-08-14     2023-08-14      r9z1     8x h100_80gb  4    
+                                                                              05:28 PM       06:00 PM                                    
+                                                  0           Stopped         2023-08-14     2023-08-14      r9z1     8x h100_80gb  4    
+                                                                              04:48 PM       05:18 PM                                    
+openai-eval-OvlZL1  jeremy@mosai…  2023-08-14     0           Stopped         2023-08-14     2023-08-14      r1z1     8x a100_80gb  1    
+                                   04:41 PM                   (Stopped by     04:42 PM       06:02 PM                                    
+                                                              nancy@mosaicm…                                                             
+openai-eval-QiKcKG  jeremy@mosai…  2023-08-14     0           Stopped         2023-08-14     2023-08-14      r1z1     cpu           1    
+                                   01:55 PM                                   01:55 PM       04:42 PM                                    
+lm-eval-Nbq4mx      jeremy@mosai…  2023-08-14     0           Stopped         2023-08-14     2023-08-14      r9z1     8x h100_80gb  4    
+                                   01:43 PM                   (Stopped by     01:46 PM       02:33 PM                                    
+                                                              jonathan@mosa…                                                             
+all-eval-awJQam     jeremy@mosai…  2023-08-14     0           Completed       2023-08-14     2023-08-14      r1z1     8x a100_80gb  1    
+                                   01:30 PM                                   01:30 PM       03:23 PM                                    
+openai-eval-kb1rxT  jeremy@mosai…  2023-08-14     0           Stopped         2023-08-14     2023-08-14      r1z1     cpu           1    
+                                   12:47 PM                                   12:47 PM       01:55 PM                                    
+openai-eval-TrqK4a  jeremy@mosai…  2023-08-14     0           Stopped         -              -               r8z6     8x a100_80gb  1    
+                                   12:36 PM                                                                                              
+lm-eval-KfeAld      jeremy@mosai…  2023-08-14     0           Completed       2023-08-14     2023-08-14      r9z1     8x h100_80gb  4    
+                                   12:35 PM                                   01:18 PM       01:35 PM                                    
+lm-eval-S2DpE6      jeremy@mosai…  2023-08-14     0           Stopped         -              -               r9z1     8x h100_80gb  4    
+                                   12:35 PM                                                                                              
+lm-eval-HrSYQB      jeremy@mosai…  2023-08-14     0           Completed       2023-08-14     2023-08-14      r9z1     8x h100_80gb  4    
+                                   12:07 PM                                   12:17 PM       12:32 PM                                    
+openai-eval-V7MWVq  jeremy@mosai…  2023-08-14     0           Failed (Exit    2023-08-14     2023-08-14      r8z6     8x a100_80gb  1    
+                                   12:04 PM                   code: 1.        12:13 PM       12:18 PM                                    
+                                                              Reason: Error)                                                             
+lm-eval-usGo8T      jeremy@mosai…  2023-08-14     0           Failed (Exit    2023-08-14     2023-08-14      r9z1     8x h100_80gb  4    
+                                   11:51 AM                   code: 1.        11:51 AM       11:57 AM                                    
+                                                              Reason:                                                                    
+                                                              OOMKilled)                                                                 
+lm-eval-0J3Lhl      jeremy@mosai…  2023-08-14     0           Completed       2023-08-14     2023-08-14      r9z1     8x h100_80gb  4    
+                                   11:46 AM                                   11:47 AM       11:47 AM                                    
+openai-eval-ebw5XY  jeremy@mosai…  2023-08-13     0           Failed (Exit    2023-08-13     2023-08-13      r8z6     8x a100_80gb  1    
+                                   08:36 PM                   code: 1.        08:36 PM       11:08 PM                                    
+                                                              Reason: Error)                                                             
+lm-eval-3dkg9y      jeremy@mosai…  2023-08-13     0           Stopped         -              -               r1z2     8x a100_40gb  4    
+                                   08:35 PM                                                                                              
+openai-eval-hZtUos  jeremy@mosai…  2023-08-12     0           Completed       2023-08-12     2023-08-12      r8z6     8x a100_80gb  1    
+                                   12:28 AM                                   12:28 AM       04:25 PM                                    
+openai-eval-OIkLEu  jeremy@mosai…  2023-08-11     0           Failed (Exit    2023-08-11     2023-08-11      r8z6     8x a100_80gb  1    
+                                   12:32 PM                   code: 1.        12:32 PM       06:26 PM                                    
+                                                              Reason: Error)                                                             
+openai-eval-ubiRO6  jeremy@mosai…  2023-08-10     0           Failed (Exit    2023-08-10     2023-08-10      r8z6     8x a100_80gb  1    
+                                   11:27 AM                   code: 1.        11:27 AM       04:34 PM                                    
+                                                              Reason: Error)                                                             
+openai-eval-k7GB1D  jeremy@mosai…  2023-08-10     0           Failed (Exit    2023-08-10     2023-08-10      r8z6     8x a100_80gb  1    
+                                   11:19 AM                   code: 1.        11:19 AM       11:20 AM                                    
+                                                              Reason: Error)                                                             
+openai-eval-pq85n5  jeremy@mosai…  2023-08-09     0           Failed (Exit    2023-08-09     2023-08-10      r8z6     8x a100_80gb  1    
+                                   10:53 PM                   code: 1.        10:53 PM       01:39 AM                                    
+                                                              Reason: Error)                                                             
+openai-eval-zield0  jeremy@mosai…  2023-08-09     0           Failed (Exit    2023-08-09     2023-08-09      r8z6     8x a100_80gb  1    
+                                   04:36 PM                   code: 1.        06:15 PM       06:20 PM                                    
+                                                              Reason: Error)                                                             
+openai-eval-oA41bM  jeremy@mosai…  2023-08-09     0           Stopped         -              -               r8z6     8x a100_80gb  1    
+                                   04:35 PM                                                                                              
+openai-eval-AJOYK3  jeremy@mosai…  2023-08-09     0           Failed (Exit    2023-08-09     2023-08-09      r8z6     8x a100_80gb  1    
+                                   03:10 PM                   code: 1.        03:32 PM       03:37 PM                                    
+                                                              Reason: Error)                                                             
+test-1b-L1EJyy      jeremy@mosai…  2023-08-09     0           Stopped         2023-08-09     2023-08-09      r1z1     8x a100_80gb  1    
+                                   03:08 PM                                   03:09 PM       04:35 PM                                    
+openai-eval-RbzKDx  jeremy@mosai…  2023-08-09     0           Failed (Exit    2023-08-09     2023-08-09      r8z6     8x a100_80gb  1    
+                                   02:44 PM                   code: 1.        02:45 PM       02:49 PM                                    
+                                                              Reason: Error)                                                             
+openai-eval-Bh4Mvw  jeremy@mosai…  2023-08-02     0           Failed (Exit    2023-08-02     2023-08-03      r8z6     8x a100_80gb  1    
+                                   03:33 PM                   code: 1.        03:37 PM       12:09 AM                                    
+                                                              Reason: Error)                                                             
+test-1b-J8sje5      jeremy@mosai…  2023-08-01     0           Stopped         2023-08-01     2023-08-02      r1z1     8x a100_80gb  1    
+                                   04:28 PM                                   04:28 PM       12:36 PM                                    
+test-1b-FTaPxp      jeremy@mosai…  2023-08-01     0           Stopped         2023-08-01     2023-08-01      r1z1     8x a100_80gb  1    
+                                   04:26 PM                                   04:27 PM       04:28 PM                                    
+test-1b-rbnuPr      jeremy@mosai…  2023-08-01     0           Stopped         2023-08-01     2023-08-01      r1z1     8x a100_80gb  1    
+                                   04:17 PM                                   04:17 PM       04:28 PM                                    
+test-1b-3gBgSf      jeremy@mosai…  2023-08-01     0           Stopped         2023-08-01     2023-08-01      r1z1     8x a100_80gb  1    
+                                   04:15 PM                                   04:16 PM       04:17 PM                                    
+test-1b-g4bALl      jeremy@mosai…  2023-08-01     0           Failed (Exit    2023-08-01     2023-08-01      r1z1     8x a100_80gb  1    
+                                   01:29 PM                   code: 1.        01:30 PM       01:46 PM                                    
+                                                              Reason: Error)                                                             

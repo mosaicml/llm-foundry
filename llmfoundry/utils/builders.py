@@ -4,6 +4,8 @@
 import os
 from typing import Any, Dict, Optional, Union
 
+from llmfoundry.models.inference_api_wrapper.openai_causal_lm import OpenAITokenizerWrapper
+
 import torch
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
@@ -135,9 +137,12 @@ def build_scheduler(cfg: DictConfig):
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
 
 
-def build_tokenizer(om_tokenizer_config: DictConfig) -> PreTrainedTokenizerBase:
-    os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
-    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+def build_tokenizer(om_tokenizer_config: DictConfig,) -> PreTrainedTokenizerBase:
+    if om_tokenizer_config.name == 'openai':
+        return OpenAITokenizerWrapper(om_tokenizer_config.kwargs['name'])
+    else:
+        os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
+        os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
     resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
                                                    resolve=True)

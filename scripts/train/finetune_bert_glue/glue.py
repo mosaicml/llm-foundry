@@ -110,27 +110,6 @@ def build_scheduler(cfg):
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
 
 
-# def build_model(cfg: DictConfig, num_labels: int):
-#     if cfg.name == 'hf_bert':
-#         return hf_bert_module.create_hf_bert_classification(
-#             num_labels=num_labels,
-#             pretrained_model_name=cfg.pretrained_model_name,
-#             use_pretrained=cfg.get('use_pretrained', False),
-#             model_config=cfg.get('model_config', None),
-#             tokenizer_name=cfg.get('tokenizer_name', None),
-#             gradient_checkpointing=cfg.get('gradient_checkpointing', None))
-#     elif cfg.name == 'mosaic_bert':
-#         return mosaic_bert_module.create_mosaic_bert_classification(
-#             num_labels=num_labels,
-#             pretrained_model_name=cfg.pretrained_model_name,
-#             pretrained_checkpoint=cfg.get('pretrained_checkpoint', None),
-#             model_config=cfg.get('model_config', None),
-#             tokenizer_name=cfg.get('tokenizer_name', None),
-#             gradient_checkpointing=cfg.get('gradient_checkpointing', None))
-#     else:
-#         raise ValueError(f'Not sure how to build model with name={cfg.name}')
-
-
 def build_composer_model(model_cfg, tokenizer):
     warnings.filterwarnings(
         action='ignore',

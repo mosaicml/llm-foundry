@@ -7,7 +7,7 @@ try:
                                            build_optimizer, build_scheduler,
                                            build_tokenizer)
     from llmfoundry.utils.config_utils import (calculate_batch_size_info,
-                                               log_config,
+                                               log_config, pop_config,
                                                update_batch_size_info)
 except ImportError as e:
     raise ImportError(
@@ -25,4 +25,5 @@ __all__ = [
     'calculate_batch_size_info',
     'update_batch_size_info',
     'log_config',
+    'pop_config',
 ]

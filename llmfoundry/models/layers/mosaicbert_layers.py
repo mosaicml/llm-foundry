@@ -76,7 +76,7 @@ class BertEmbeddings(nn.Module):
     This module ignores the `position_ids` input to the `forward` method.
     """
 
-    def __init__(self, config: BertConfig):
+    def __init__(self, config):
         super().__init__()
         self.word_embeddings = nn.Embedding(config.vocab_size,
                                             config.hidden_size,
@@ -156,7 +156,7 @@ class BertUnpadSelfAttention(nn.Module):
     See `forward` method for additional detail.
     """
 
-    def __init__(self, config: BertConfig):
+    def __init__(self, config):
         super().__init__()
         if config.hidden_size % config.num_attention_heads != 0 and not hasattr(
                 config, 'embedding_size'):
@@ -253,7 +253,7 @@ class BertSelfOutput(nn.Module):
     BERT modules.
     """
 
-    def __init__(self, config: BertConfig):
+    def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size,
@@ -271,7 +271,7 @@ class BertSelfOutput(nn.Module):
 class BertUnpadAttention(nn.Module):
     """Chains attention, Dropout, and LayerNorm for MosaicBERT."""
 
-    def __init__(self, config: BertConfig):
+    def __init__(self, config):
         super().__init__()
         self.self = BertUnpadSelfAttention(config)
         self.output = BertSelfOutput(config)
@@ -322,7 +322,7 @@ class BertGatedLinearUnitMLP(nn.Module):
     parameter size, MosaicBERT typically offers a net higher throughput than a Hugging Face BERT built from the same `config`.
     """
 
-    def __init__(self, config: BertConfig):
+    def __init__(self, config):
         super().__init__()
         self.config = config
         self.gated_layers = nn.Linear(config.hidden_size,
@@ -358,7 +358,7 @@ class BertGatedLinearUnitMLP(nn.Module):
 class BertLayer(nn.Module):
     """Composes the MosaicBERT attention and FFN blocks into a single layer."""
 
-    def __init__(self, config: BertConfig):
+    def __init__(self, config):
         super(BertLayer, self).__init__()
         self.attention = BertUnpadAttention(config)
         self.mlp = BertGatedLinearUnitMLP(config)
@@ -401,7 +401,7 @@ class BertEncoder(nn.Module):
     at padded tokens, and pre-computes attention biases to implement ALiBi.
     """
 
-    def __init__(self, config: BertConfig):
+    def __init__(self, config):
         super().__init__()
         layer = BertLayer(config)
         self.layer = nn.ModuleList(
@@ -548,7 +548,7 @@ class BertEncoder(nn.Module):
 
 class BertPooler(nn.Module):
 
-    def __init__(self, config: BertConfig):
+    def __init__(self, config):
         super(BertPooler, self).__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.activation = nn.Tanh()
@@ -566,7 +566,7 @@ class BertPooler(nn.Module):
 
 class BertPredictionHeadTransform(nn.Module):
 
-    def __init__(self, config: BertConfig):
+    def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         if isinstance(config.hidden_act, str):
@@ -587,7 +587,7 @@ class BertPredictionHeadTransform(nn.Module):
 ###################
 class BertLMPredictionHead(nn.Module):
 
-    def __init__(self, config: BertConfig, bert_model_embedding_weights):
+    def __init__(self, config, bert_model_embedding_weights):
         super().__init__()
         self.transform = BertPredictionHeadTransform(config)
         # The output weights are the same as the input embeddings, but there is

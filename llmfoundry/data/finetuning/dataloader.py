@@ -236,7 +236,7 @@ def _validate_config(dataset_cfg: DictConfig):
         )
 
 
-def _build_hf_dataset_from_remote(cfg: DictConfig, tokenizer: Tokenizer):
+def _build_hf_dataset_from_remote(cfg: DictConfig, tokenizer):
     """Builds a dataset from a remote object store.
 
     This function supports 'jsonl', 'csv', and 'parquet' file formats for the dataset. It will attempt to download

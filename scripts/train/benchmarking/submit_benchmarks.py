@@ -157,7 +157,7 @@ def parse_args():
                         const=True,
                         default=True)
 
-    parser.add_argument('--priority', type=str, default='low')
+    parser.add_argument('--priority', type=str, default='lowest')
 
     parser.add_argument('--RUN',
                         type=str_to_bool,
@@ -350,34 +350,20 @@ def get_integrations(project: str,
 def run_config(config: Tuple[str, int, int, str, str, int, str],
                args: argparse.Namespace):
     model_yaml, max_seq_len, global_train_batch_size, cluster, gpu_type, gpu_num, precision = config
-
-    integrations = get_integrations(
-        args.project,
-        git_branch=args.git_branch,
-        git_commit=args.git_commit,
-        wandb=args.wandb)  # point to git repo and potentially wandb
-
-    # Define our command
-    if args.data_remote is not None:
-        command = """
+    integrations = [
+        {
+         'integration_type': 'git_repo',
+         'git_repo': 'mosaicml/llm-foundry',
+         'pip_install': '-e .[gpu]',
+        }, {
+            'integration_type': 'wandb',
+            'entity': 'mosaic-ml',
+            'project': 'intern'
+        }
+    ]
+    command = f"""
         cd llm-foundry/scripts
-        composer train/train.py train/yamls/pretrain/mpt-1b.yaml
-        """
-    else:
-        # command = f"""
-        # cd llm-foundry/scripts
-        # python ../../examples/examples/common/convert_dataset.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
-        # composer train/train.py /mnt/config/parameters.yaml
-        # """ TODO: Do I need to use this dataset or are we all good?
-        command = """
-        cd llm-foundry/scripts
-        composer train/train.py train/yamls/pretrain/mpt-1b.yaml \
-            train_loader.dataset.split=train \
-            eval_loader.dataset.split=val\
-            max_duration=100ba \
-            eval_interval=0 \
-            data_remote=oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/\
-            loggers.wandb="{}"\
+        composer train/train.py /mnt/config/parameters.yaml
         """
     path = os.path.join('../yamls/pretrain', "mpt-" + model_yaml)
     parameters = get_parameters(path)
@@ -396,15 +382,13 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         _name = name
         name = name[:name_len_lim]
         print(f'Shortening {_name} to {name} ({name_len_lim} chars)')
-
     microbatch_size = args.microbatch_size or 'auto'
     assert isinstance(microbatch_size, (int, str))
-    assert(args.data_remote is not None)
     parameters = mod_parameters(
         parameters,
         max_seq_len,
         global_train_batch_size,
-        precision,
+        parameters["precision"],
         fsdp_config_mixed_precision=args.fsdp_config_mixed_precision,
         fsdp_config_activation_checkpointing=args.fsdp_config_activation_checkpointing,
         run_name=name,
@@ -412,7 +396,6 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         microbatch_size=microbatch_size,
         wandb=args.wandb,
         pad_vocab_multiple=args.pad_vocab_multiple)
-
     # Create run config mcli sdk/api
     config = RunConfig(name=name,
                        gpu_type=gpu_type,
@@ -502,7 +485,6 @@ if __name__ == '__main__':
                                                       global_train_batch_size,
                                                       cluster, gpu_type,
                                                       gpu_num, precision)
-                                    print(config)
                                     run_config(config, args)
                                     n_jobs += 1
 

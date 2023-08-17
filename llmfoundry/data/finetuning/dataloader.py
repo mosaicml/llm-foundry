@@ -3,7 +3,6 @@
 
 import logging
 import os
-from typing import Union
 
 import torch
 from composer.utils import dist, get_file, parse_uri

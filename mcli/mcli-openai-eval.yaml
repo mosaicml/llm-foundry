@@ -11,10 +11,6 @@ integrations:
 
 command: |
   cd llm-foundry/scripts
-  pip install openai
-  pip install tiktoken
-  pip install einops
-  pip install sentencepiece
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME

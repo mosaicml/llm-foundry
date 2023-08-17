@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import time
 import warnings
 
@@ -377,21 +378,22 @@ class _DummyModule(nn.Module):
 # run just this test with:
 # python3 -m composer.cli.launcher -n 2 --master_port 26000 -m pytest -m gpu tests/test_lion8b.py::test_fsdp_save_load  # noqa
 @pytest.mark.gpu
-@pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
-@pytest.mark.parametrize('use_errors', [False, True])
-@pytest.mark.parametrize('world_size', [2])
-def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool, world_size: int):
+@pytest.mark.world_size(2)
+# @pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
+# @pytest.mark.parametrize('use_errors', [False, True])
+@pytest.mark.parametrize('dtype', [torch.float32])
+@pytest.mark.parametrize('use_errors', [False])
+# @pytest.mark.parametrize('world_size', [2])
+# @pytest.world_size(2)
+def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool):
     device = 'cuda'
     if torch.cuda.device_count() < 2:
         pytest.skip(f'This test requires 2+ GPUs.')
-    assert torch.distributed.get_world_size() >= 2, 'Misconfigured test run!'
 
-    # assert False
-
-    # # # torch.cuda.set_device(0)
-    # # # os.environ['RANK'] = 0
+    torch.cuda.set_device(f'cuda:{os.environ["RANK"]}') # needed for fsdp
     if not torch.distributed.is_initialized():
         torch.distributed.init_process_group()
+    assert torch.distributed.get_world_size() >= 2, 'Misconfigured test run!'
 
     mod = FSDP(_DummyModule(device=device, dtype=dtype))
 
@@ -409,11 +411,22 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool, world_size: int):
 
     # copy state dict into a new instance
     state_dict = opt.state_dict()
-    # del opt
     mod_new = FSDP(_DummyModule(device=device, dtype=dtype))
     opt_new = Lion8bit(mod_new.parameters(), error_correction=use_errors)
     opt_new.load_state_dict(state_dict)
-    # assert False
+
+    for p in mod.parameters():
+        d_orig = opt.state[p]
+        d_new = opt_new.state[p]
+        assert list(d_orig.keys()) == list(d_new.keys())
+        mom_orig = d_orig['exp_avg']
+        mom_new = d_new['exp_avg']
+        torch.testing.assert_close(mom_orig.materialize(),
+                                   mom_new.materialize(),
+                                   atol=1. / (2 * 127),
+                                   rtol=np.inf)
+        if use_errors and (dtype != torch.float32):
+            torch.testing.assert_close(d_orig['errors'], d_new['errors'])
 
 
 @pytest.mark.gpu

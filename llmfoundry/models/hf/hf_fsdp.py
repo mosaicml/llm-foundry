@@ -203,7 +203,7 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
     # while the rest of the modules have requires_grad=False
     if lora_model_type is not None:  # peft is installed
         if isinstance(model.base_model,
-                      lora_model_type):  # we have builR a LoraModel
+                      lora_model_type):  # we have built a LoraModel
             if model_block is not None:  # for pyright
                 for name, module in model_block.named_modules():
                     if 'lora' in name:  # peft adds modules named with lora

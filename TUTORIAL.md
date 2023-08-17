@@ -346,7 +346,7 @@ model:
       bias: none
       task_type: "CAUSAL_LM"
 ```
-You can train LoRA models either using FSDP for further memory savings. in your `.yaml`, specify:
+You can train LoRA models using FSDP for further memory savings. in your `.yaml`, specify:
 <!--pytest.mark.skip-->
 ```yaml
 fsdp_config:

@@ -12,27 +12,7 @@ from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           PreTrainedModel, PreTrainedTokenizerBase,
                           StoppingCriteria, StoppingCriteriaList, TextStreamer)
 
-
-class ChatFormatter:
-    """A class for formatting the chat history.
-
-    Args:
-        system: The system prompt. If None, a default ChatML-formatted prompt is used.
-        user: The user prompt. If None, a default ChatML value is used.
-        assistant: The assistant prompt. If None, a default ChatML value is used.
-
-    Attributes:
-        system: The system prompt.
-        user: The user prompt.
-        assistant: The assistant prompt.
-        response_prefix: The response prefix (anything before {} in the assistant format string)
-    """
-
-    def __init__(self, system: str, user: str, assistant: str) -> None:
-        self.system = system if system else '<|im_start|>system\nA conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.<|im_end|>\n'
-        self.user = user if user else '<|im_start|>user\n{}<|im_end|>\n'
-        self.assistant = assistant if assistant else '<|im_start|>assistant\n{}<|im_end|>\n'
-        self.response_prefix = self.assistant.split('{}')[0]
+from llmfoundry.data.finetuning.chat import ChatFormatter, ChatMLFormatter, Llama2ChatFormatter
 
 
 class Conversation:
@@ -102,20 +82,9 @@ class Conversation:
             "- Type 'quit' to end\n- Type 'system' to change the system prompt\n"
         )
 
-    def _history_as_formatted_str(self) -> str:
-        text = self.chat_format.system + ''.join([
-            '\n'.join([
-                self.chat_format.user.format(item[0]),
-                self.chat_format.assistant.format(item[1]),
-            ]) for item in self.history[:-1]
-        ])
-        text += self.chat_format.user.format(self.history[-1][0])
-        text += self.chat_format.response_prefix
-        return text
-
     def turn(self, user_inp: str) -> None:
         self.history.append([user_inp, ''])
-        conversation = self._history_as_formatted_str()
+        conversation = self.chat_format.as_string(self.history)
         input_ids = self.tokenizer(conversation, return_tensors='pt').input_ids
         input_ids = input_ids.to(self.model.device)
         # also stream to stdout
@@ -153,7 +122,7 @@ class Conversation:
                 print(f'history: {self.history}')
                 continue
             elif user_inp == 'history_fmt':
-                print(f'history: {self._history_as_formatted_str()}')
+                print(f'history: {self.chat_format.as_string(self.history)}')
                 continue
             elif user_inp == 'system':
                 print('Enter a new system prompt:')
@@ -363,9 +332,16 @@ def main(args: Namespace) -> None:
         autocast_context = nullcontext()
         print('NOT using autocast...')
 
-    chat_format = ChatFormatter(system=args.system_prompt,
-                                user=args.user_msg_fmt,
-                                assistant=args.assistant_msg_fmt)
+    # Chat format
+    model_name = model.config.model_type
+    if 'llama2' in model_name:
+        chat_format = Llama2ChatFormatter(system=args.system_prompt)
+    elif 'mpt' in model_name:
+        chat_format = ChatMLFormatter(system=args.system_prompt)
+    else:
+        chat_format = ChatFormatter(system=args.system_prompt,
+                                    user=args.user_msg_fmt,
+                                    assistant=args.assistant_msg_fmt)
 
     conversation = Conversation(model=model,
                                 tokenizer=tokenizer,

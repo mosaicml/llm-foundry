@@ -1,5 +1,5 @@
 data_local: ./my-copy-c4
-data_remote: oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/ # If blank, files must be present in data_local
+data_remote: # If blank, files must be present in data_local
 max_seq_len: 2048
 global_seed: 17
 
@@ -94,7 +94,7 @@ fsdp_config:
   verbose: false
 
 # Logging
-progress_bar: true
+progress_bar: false
 log_to_console: true
 console_log_interval: 1ba
 

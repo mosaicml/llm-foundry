@@ -363,6 +363,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
     ]
     command = f"""
         cd llm-foundry/scripts
+        python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
         composer train/train.py /mnt/config/parameters.yaml
         """
     path = os.path.join('../yamls/pretrain', "mpt-" + model_yaml)

@@ -101,19 +101,21 @@ CLUSTER_40GB=r8z3
 # A100 40GB
 
 # seqlen 2048
-python submit_benchmarks.py --project $PROJECT -m 125m.yaml -g 8 --microbatch_size  24 --accum  3 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/
-python submit_benchmarks.py --project $PROJECT -m 350m.yaml -g 8 --microbatch_size  16 --accum  4 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/
-python submit_benchmarks.py --project $PROJECT -m 760m.yaml -g 8 --microbatch_size  12 --accum  4 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/
-python submit_benchmarks.py --project $PROJECT -m   1b.yaml -g 8 --microbatch_size   8 --accum  8 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/
+python submit_benchmarks.py --project $PROJECT -m 125m.yaml -g 8 --microbatch_size  24 --accum  3 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN
+# python submit_benchmarks.py --project $PROJECT -m 350m.yaml -g 8 --microbatch_size  16 --accum  4 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/
+# python submit_benchmarks.py --project $PROJECT -m 760m.yaml -g 8 --microbatch_size  12 --accum  4 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/
+# python submit_benchmarks.py --project $PROJECT -m   1b.yaml -g 8 --microbatch_size   8 --accum  8 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/
 
-python submit_benchmarks.py --project $PROJECT -m 125m.yaml -g 8 --microbatch_size  12 --accum  3 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/ --fsdp_config_activation_checkpointing false
+# python submit_benchmarks.py --project $PROJECT -m 125m.yaml -g 8 --microbatch_size  12 --accum  3 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/ --fsdp_config_activation_checkpointing false
 
-# python submit_benchmarks.py --project $PROJECT -m   3b.yaml -g 8 --microbatch_size   5 --accum  8 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --fsdp_config_activation_checkpointing false
+# python submit_benchmarks.py --project $PROJECT -m   3b.yaml -g 8 --microbatch_size   5 --accum  8 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --fsdp_config_activation_checkpointing false --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/
 # python submit_benchmarks.py --project $PROJECT -m   3b.yaml -g 8 --microbatch_size   8 --accum  8 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --fsdp_config_activation_checkpointing false
 # python submit_benchmarks.py --project $PROJECT -m   3b.yaml -g 8 --microbatch_size   12 --accum  8 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --fsdp_config_activation_checkpointing false
 # python submit_benchmarks.py --project $PROJECT -m   3b.yaml -g 8 --microbatch_size   16 --accum  8 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --fsdp_config_activation_checkpointing false
 
-# python submit_benchmarks.py --project $PROJECT -m   7b.yaml -g 8 --microbatch_size  16 --accum  4 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN
+# python submit_benchmarks.py --project $PROJECT -m   7b.yaml -g 8 --microbatch_size  16 --accum  4 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/ --fsdp_config_activation_checkpointing false
+# python submit_benchmarks.py --project $PROJECT -m   7b.yaml -g 8 --microbatch_size  12 --accum  4 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN --data_remote oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/
+
 # python submit_benchmarks.py --project $PROJECT -m  13b.yaml -g 8 --microbatch_size   4 --accum 16 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_40gb --cluster $CLUSTER_40GB -s 11 11 --RUN
 
 # # INCREASE GPU COUNT

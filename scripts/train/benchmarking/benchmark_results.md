@@ -1,0 +1,12 @@
+|  Model | SeqLen (T) | # GPUs | GPU | MFU | HFU | MicroBatchSize | GradAccum | GlobalBatchSize | Throughput (S/s) | Throughput (T/s) | Throughput (T/s/GPU) | GlobalBatchSize (T) | Precision | MP Mode | Sharding Strategy | Activation Checkpointing | Activation CPUOffload | NumParams |
+|  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+|  1b | 2048 | 8 | a100_40gb | 56.21 | 56.21 | 8 | 8 | 512 | 75 | 154114 | 19264 | 1048576 | amp_bf16 | PURE | FULL_SHARD | False | False | 1315950592 |
+|  1b | 2048 | 8 | a100_40gb | 55.86 | 55.86 | 8 | 8 | 512 | 74 | 153151 | 19143 | 1048576 | amp_bf16 | PURE | FULL_SHARD | False | False | 1315950592 |
+|  760m | 2048 | 8 | a100_40gb | 51.5 | 51.5 | 12 | 4 | 384 | 114 | 235052 | 29381 | 786432 | amp_bf16 | PURE | FULL_SHARD | False | False | 760470528 |
+|  760m | 2048 | 8 | a100_40gb | 51.96 | 51.96 | 12 | 4 | 384 | 115 | 237143 | 29642 | 786432 | amp_bf16 | PURE | FULL_SHARD | False | False | 760470528 |
+|  350m | 2048 | 8 | a100_40gb | 36.26 | 36.26 | 16 | 4 | 512 | 161 | 330354 | 41294 | 1048576 | amp_bf16 | PURE | FULL_SHARD | False | False | 355985408 |
+|  350m | 2048 | 8 | a100_40gb | 39.45 | 39.45 | 16 | 4 | 512 | 175 | 359403 | 44925 | 1048576 | amp_bf16 | PURE | FULL_SHARD | False | False | 355985408 |
+|  125m | 2048 | 8 | a100_40gb | 42.12 | 42.12 | 24 | 3 | 576 | 524 | 1074518 | 134314 | 1179648 | amp_bf16 | PURE | FULL_SHARD | False | False | 125311488 |
+|  125m | 2048 | 8 | a100_40gb | 42.21 | 42.21 | 24 | 3 | 576 | 525 | 1076846 | 134605 | 1179648 | amp_bf16 | PURE | FULL_SHARD | False | False | 125311488 |
+|  125m | 2048 | 8 | a100_40gb | 11.95 | 11.95 | 12 | 3 | 288 | 148 | 304881 | 38110 | 589824 | amp_bf16 | PURE | FULL_SHARD | False | False | 125311488 |
+|  125m | 2048 | 8 | a100_40gb | 10.74 | 10.74 | 12 | 3 | 288 | 133 | 274018 | 34252 | 589824 | amp_bf16 | PURE | FULL_SHARD | False | False | 125311488 |

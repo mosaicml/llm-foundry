@@ -7,7 +7,7 @@ from argparse import Namespace
 
 import pytest
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 # Add repo root to path so we can import scripts and test it
@@ -87,4 +87,28 @@ def test_train(device: str):
     """Test training run with a small dataset."""
     dataset_name = create_c4_dataset_xsmall(device)
     test_cfg = gpt_tiny_cfg(dataset_name, device)
+    main(test_cfg)
+
+
+def test_train_gauntlet():
+    """Test training run with a small dataset."""
+    os.chdir('scripts')
+    dataset_name = create_c4_dataset_xsmall('cpu')
+    test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
+    test_cfg.icl_tasks = ListConfig([
+        DictConfig({
+            'label':
+                'lambada_openai',
+            'dataset_uri':
+                'eval/local_data/language_understanding/lambada_openai.jsonl',
+            'num_fewshot': [0],
+            'icl_task_type':
+                'language_modeling'
+        })
+    ])
+    test_cfg.icl_subset_num_batches = 1  # -1 to evaluate on all batches
+    test_cfg.model_gauntlet = 'eval/yamls/model_gauntlet.yaml'
+    test_cfg.icl_seq_len = 128
+    test_cfg.max_duration = '1ba'
+    test_cfg.eval_interval = '1ba'
     main(test_cfg)

@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from transformers import BertConfig as TransformersBertConfig
+from typing import Any
 
 
 class BertConfig(TransformersBertConfig):
@@ -14,7 +15,7 @@ class BertConfig(TransformersBertConfig):
         self,
         alibi_starting_size: int = 512,
         attention_probs_dropout_prob: float = 0.0,
-        **kwargs,
+        **kwargs: Any,
     ):
         """Configuration class for MosaicBert.
 

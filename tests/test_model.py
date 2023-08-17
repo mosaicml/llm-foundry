@@ -74,10 +74,8 @@ def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     test_cfg.device_eval_batch_size = 2
     test_cfg.device_train_microbatch_size = 2
 
-    tokenizer_kwargs: Dict[str,
-                           Any] = om.to_container(test_cfg.tokenizer.kwargs,
-                                                  resolve=True)  # type: ignore
-    tokenizer = build_tokenizer(test_cfg.tokenizer.name, tokenizer_kwargs)
+    tokenizer_cfg: Dict[str, Any] = om.to_container(test_cfg.tokenizer, resolve=True)  # type: ignore
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name, tokenizer_cfg.get('kwargs', {}))
 
     model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                          tokenizer)
@@ -224,10 +222,8 @@ def test_full_forward_and_backward_gpt2_small(prefixlm: bool,
     else:
         neo_cfg.model.name = 'hf_causal_lm'
 
-    tokenizer_kwargs: Dict[str,
-                           Any] = om.to_container(neo_cfg.tokenizer.kwargs,
-                                                  resolve=True)  # type: ignore
-    tokenizer = build_tokenizer(neo_cfg.tokenizer.name, tokenizer_kwargs)
+    tokenizer_cfg: Dict[str, Any] = om.to_container(neo_cfg.tokenizer, resolve=True)  # type: ignore
+    tokenizer = build_tokenizer(neo_cfg.tokenizer.name, tokenizer_cfg.get('kwargs', {}))
 
     model = COMPOSER_MODEL_REGISTRY[neo_cfg.model.name](neo_cfg.model,
                                                         tokenizer).to(device)
@@ -270,10 +266,8 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     t5_cfg.device = device
     t5_cfg.max_seq_len = 16
 
-    tokenizer_kwargs: Dict[str,
-                           Any] = om.to_container(t5_cfg.tokenizer.kwargs,
-                                                  resolve=True)  # type: ignore
-    tokenizer = build_tokenizer(t5_cfg.tokenizer.name, tokenizer_kwargs)
+    tokenizer_cfg: Dict[str, Any] = om.to_container(t5_cfg.tokenizer, resolve=True)  # type: ignore
+    tokenizer = build_tokenizer(t5_cfg.tokenizer.name, tokenizer_cfg.get('kwargs', {}))
 
     model = COMPOSER_MODEL_REGISTRY[t5_cfg.model.name](t5_cfg.model,
                                                        tokenizer).to(device)
@@ -325,10 +319,8 @@ def test_determinism(attn_impl: str, precision: torch.dtype):
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
-    tokenizer_kwargs: Dict[str,
-                           Any] = om.to_container(test_cfg.tokenizer.kwargs,
-                                                  resolve=True)  # type: ignore
-    tokenizer = build_tokenizer(test_cfg.tokenizer.name, tokenizer_kwargs)
+    tokenizer_cfg: Dict[str, Any] = om.to_container(test_cfg.tokenizer, resolve=True)  # type: ignore
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name, tokenizer_cfg.get('kwargs', {}))
 
     model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                            tokenizer)
@@ -393,10 +385,8 @@ def test_loss_fn():
 
     reproducibility.seed_all(test_cfg.get('global_seed', 42))
 
-    tokenizer_kwargs: Dict[str,
-                           Any] = om.to_container(test_cfg.tokenizer.kwargs,
-                                                  resolve=True)  # type: ignore
-    tokenizer = build_tokenizer(test_cfg.tokenizer.name, tokenizer_kwargs)
+    tokenizer_cfg: Dict[str, Any] = om.to_container(test_cfg.tokenizer, resolve=True)  # type: ignore
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name, tokenizer_cfg.get('kwargs', {}))
 
     model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                            tokenizer)
@@ -455,10 +445,8 @@ def test_opt_wrapping(prefixlm: bool):
     }
     config = DictConfig(conf)
 
-    tokenizer_kwargs: Dict[str,
-                           Any] = om.to_container(config.tokenizer.kwargs,
-                                                  resolve=True)  # type: ignore
-    tokenizer = build_tokenizer(config.tokenizer.name, tokenizer_kwargs)
+    tokenizer_cfg: Dict[str, Any] = om.to_container(config.tokenizer, resolve=True)  # type: ignore
+    tokenizer = build_tokenizer(config.tokenizer.name, tokenizer_cfg.get('kwargs', {}))
 
     if prefixlm:
         model = ComposerHFPrefixLM(config.model, tokenizer)
@@ -1406,10 +1394,8 @@ def test_hf_init(tmp_path: pathlib.Path,
         model = AutoModelForCausalLM.from_pretrained(save_path,
                                                      trust_remote_code=True)
 
-    tokenizer_kwargs: Dict[str,
-                           Any] = om.to_container(test_cfg.tokenizer.kwargs,
-                                                  resolve=True)  # type: ignore
-    tokenizer = build_tokenizer(test_cfg.tokenizer.name, tokenizer_kwargs)
+    tokenizer_cfg: Dict[str, Any] = om.to_container(test_cfg.tokenizer, resolve=True)  # type: ignore
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name, tokenizer_cfg.get('kwargs', {}))
 
     optimizer = DecoupledAdamW(model.parameters(),
                                lr=1e-5,
@@ -1457,10 +1443,8 @@ def test_head_dim_8_triton_mqa_attn(batch_size: int = 2):
     )
     test_cfg.device = torch.cuda.current_device()
 
-    tokenizer_kwargs: Dict[str,
-                           Any] = om.to_container(test_cfg.tokenizer.kwargs,
-                                                  resolve=True)  # type: ignore
-    tokenizer = build_tokenizer(test_cfg.tokenizer.name, tokenizer_kwargs)
+    tokenizer_cfg: Dict[str, Any] = om.to_container(test_cfg.tokenizer, resolve=True)  # type: ignore
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name, tokenizer_cfg.get('kwargs', {}))
 
     mpt = MPTForCausalLM(hf_config)
 

@@ -225,11 +225,11 @@ def main(cfg: DictConfig):
                                                  must_exist=True)
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_config: Optional[Dict] = pop_config(cfg,
-                                             'fsdp_config',
-                                             must_exist=False,
-                                             default_value=None,
-                                             convert=True)
+    fsdp_config: Optional[Dict[str, Any]] = pop_config(cfg,
+                                                       'fsdp_config',
+                                                       must_exist=False,
+                                                       default_value=None,
+                                                       convert=True)
     lora_config: Optional[Dict[str, Any]] = pop_config(cfg,
                                                        'lora',
                                                        must_exist=False,

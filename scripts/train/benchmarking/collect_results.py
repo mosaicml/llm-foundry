@@ -29,7 +29,7 @@ def parse_args():
         All FLOP calculations do not include norm, act, residual, etc.
         """)
 
-    parser.add_argument('--project', type=str, default='tput')
+    parser.add_argument('--project', type=str, default='intern')
     parser.add_argument('--filters', type=str, default=[], nargs='+')
     parser.add_argument('-s',
                         '--save-path',
@@ -46,13 +46,12 @@ def parse_args():
 
 
 def get_runs(args: argparse.Namespace):
-    runs = [r for r in msdk.get_runs() if args.project in r.name]
+    runs = [r for r in msdk.get_runs(include_details=True) if "intern" in r.name and r.status == msdk.RunStatus("COMPLETED")]
     for filter in args.filters:
         runs = [r for r in runs if filter in r.name]
-
     def sort_key(r: msdk.Run):
         model_name = r.name.split('-')[2]
-        num_gpu = r.config.gpu_num
+        num_gpu = r.gpus
         if model_name[-1] == 'm':
             model_name_size = 1e6
         elif model_name[-1] == 'b':
@@ -61,8 +60,8 @@ def get_runs(args: argparse.Namespace):
             print(model_name)
             raise ValueError
         model_size = int(model_name[:-1])
-        return (model_name_size, model_size, r.config.parameters['max_seq_len'],
-                num_gpu, r.config.parameters['global_train_batch_size'])
+        return (model_name_size, model_size, r.submitted_config.parameters['max_seq_len'],
+                num_gpu, r.submitted_config.parameters['global_train_batch_size'])
 
     runs.sort(reverse=True, key=sort_key)
 
@@ -83,17 +82,7 @@ def filter_runs(runs: List[msdk.Run]):
 
     pop_runs = []
     for run in runs:
-        if run.status in [
-                msdk.RunStatus('FAILED_PULL'),
-                msdk.RunStatus('PENDING'),
-                msdk.RunStatus('QUEUED'),
-                msdk.RunStatus('RUNNING'),
-                msdk.RunStatus('SCHEDULED'),
-                msdk.RunStatus('STARTING'),
-                msdk.RunStatus('STOPPED'),
-                msdk.RunStatus('STOPPING'),
-                msdk.RunStatus('TERMINATING'),
-        ]:
+        if run.status != msdk.RunStatus("COMPLETED"):
             print(f'run {run.name} has run status {run.status}')
             pop_runs.append(run)
     for run in pop_runs:
@@ -106,13 +95,12 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     n_params = micro_batchsize = throughput = -1
 
     model_name = run.name.split('-')[2]
-    gpu_num = run.config.gpu_num
-    gpu_type = run.config.gpu_type
+    gpus = run.gpus
+    gpu_type = run.gpu_type
+    fsdp_config = run.submitted_config.parameters['fsdp_config']
 
-    fsdp_config = run.config.parameters['fsdp_config']
-
-    seq_len = run.config.parameters['max_seq_len']
-    global_train_batch_size = run.config.parameters['global_train_batch_size']
+    seq_len = run.submitted_config.parameters['max_seq_len']
+    global_train_batch_size = run.submitted_config.parameters['global_train_batch_size']
     activation_checkpointing = fsdp_config['activation_checkpointing']
 
     logs = msdk.get_run_logs(run)
@@ -138,8 +126,8 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
             throughput = float(line.split(' ')[-1])
             break
 
-    d_model = run.config.parameters['model']['d_model']
-    n_layers = run.config.parameters['model']['n_layers']
+    d_model = run.submitted_config.parameters['model']['d_model']
+    n_layers = run.submitted_config.parameters['model']['n_layers']
 
     # mfu is approximated using thoughtput and param count
     # the number of paramters is approximately the number of multiply-accumulates (MAC) in the network
@@ -153,11 +141,11 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     attn_flops_per_seq = n_layers * 2 * 2 * (d_model * (seq_len**2))
     # there are 2 ops in bwd pass and 1 in fwd pass so we mult by 3
     mfu_w_attn = (3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / (
-        gpu_num * GPU_AVAILABLE_FLOPS)
+        gpus * GPU_AVAILABLE_FLOPS)
 
     if activation_checkpointing:
         hfu_w_attn = (4 * flops_per_seq + 4 * attn_flops_per_seq
-                     ) * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
+                     ) * throughput / (gpus * GPU_AVAILABLE_FLOPS)
     else:
         hfu_w_attn = mfu_w_attn
 
@@ -167,7 +155,7 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
         'SeqLen (T)':
             seq_len,
         '# GPUs':
-            gpu_num,
+            gpus,
         'GPU':
             gpu_type,
         'MFU':
@@ -177,7 +165,7 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
         'MicroBatchSize':
             micro_batchsize,
         'GradAccum':
-            math.ceil(global_train_batch_size / gpu_num / micro_batchsize),
+            math.ceil(global_train_batch_size / gpus / micro_batchsize),
         'GlobalBatchSize':
             global_train_batch_size,
         'Throughput (S/s)':
@@ -185,11 +173,11 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
         'Throughput (T/s)':
             int(throughput * seq_len),
         'Throughput (T/s/GPU)':
-            int(throughput * seq_len / gpu_num),
+            int(throughput * seq_len / gpus),
         'GlobalBatchSize (T)':
             global_train_batch_size * seq_len,
         'Precision':
-            run.config.parameters['precision'],
+            run.submitted_config.parameters['precision'],
         'MP Mode':
             fsdp_config['mixed_precision'],
         'Sharding Strategy':

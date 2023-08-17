@@ -90,13 +90,8 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
             raise MissingConditionalImportError(
                 extra_deps_group='nlp', conda_package='transformers') from e
 
-        # if not model_config:
-        #     model_config = {}
-        # add JP - check pretrained checkpoitn and gradient checkpointing use
         pretrained_model_name = resolved_om_model_config.get(
             'pretrained_model_name')
-        pretrained_checkpoint = resolved_om_model_config.get(
-            'pretrained_checkpoint')
 
         if not pretrained_model_name:
             pretrained_model_name = 'bert-base-uncased'
@@ -199,18 +194,8 @@ class ComposerHFBertForSequenceClassification(HuggingFaceModel):
             raise MissingConditionalImportError(
                 extra_deps_group='nlp', conda_package='transformers') from e
 
-        # if not model_config:
-        #     model_config = {}
-
-        # add JP - check pretrained checkpoitn and gradient checkpointing use
         pretrained_model_name = resolved_om_model_config.get(
             'pretrained_model_name')
-        pretrained_checkpoint = resolved_om_model_config.get(
-            'pretrained_checkpoint')
-        #gradient_checkpointing = resolved_om_model_config.get('gradient_checkpointing')
-
-        # need to resolve this for classification? TODO JP Hopefully this appears in resolved om config?
-        # model_config['num_labels'] = resolved_om_model_config.get('num_labels')
 
         if not pretrained_model_name:
             pretrained_model_name = 'bert-base-uncased'

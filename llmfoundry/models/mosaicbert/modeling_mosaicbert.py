@@ -92,7 +92,7 @@ class BertModel(BertPreTrainedModel):
     ```
     """
 
-    def __init__(self, config, add_pooling_layer=True):
+    def __init__(self, config: BertConfig, add_pooling_layer=True):
         super(BertModel, self).__init__(config)
         self.embeddings = BertEmbeddings(config)
         self.encoder = BertEncoder(config)

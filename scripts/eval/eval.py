@@ -141,6 +141,9 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
     loggers.append(in_memory_logger)
 
     load_path = model_cfg.get('load_path', None)
+    if model_cfg.model.name == 'mpt_causal_lm' and load_path is None:
+        raise ValueError('MPT causal LMs require a load_path to the checkpoint for model evaluation. \
+                         Please check your yaml and the model_cfg to ensure that load_path is set.')
 
     assert composer_model is not None
     trainer = Trainer(

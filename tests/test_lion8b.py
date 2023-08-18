@@ -376,17 +376,18 @@ class _DummyModule(nn.Module):
         return self.linear1(self.linear0(x))
 
 
+_FULL_STATE = fsdp.StateDictType.FULL_STATE_DICT
+_SHARDED_STATE = fsdp.StateDictType.SHARDED_STATE_DICT
+_LOCAL_STATE = fsdp.StateDictType.LOCAL_STATE_DICT
+
 # run just this test with:
 # python3 -m composer.cli.launcher -n 2 --master_port 26000 -m pytest -m gpu tests/test_lion8b.py::test_fsdp_save_load  # noqa
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
 @pytest.mark.parametrize('use_errors', [False, True])
-# @pytest.mark.parametrize('dtype', [torch.float32])
-# @pytest.mark.parametrize('use_errors', [False])
-# @pytest.mark.parametrize('world_size', [2])
-# @pytest.world_size(2)
-def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool):
+@pytest.mark.parametrize('state_sharding', [_FULL_STATE, _SHARDED_STATE, _LOCAL_STATE])
+def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool, state_sharding: fsdp.StateDictType):
     device = 'cuda'
     if torch.cuda.device_count() < 2:
         pytest.skip(f'This test requires 2+ GPUs.')
@@ -411,10 +412,19 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool):
     opt.zero_grad()
 
     def _set_state_dict_type(model: nn.Module):
-        FSDP.set_state_dict_type(model,
-                                 fsdp.StateDictType.FULL_STATE_DICT,
-                                 fsdp.FullStateDictConfig(rank0_only=False),
-                                 fsdp.api.FullOptimStateDictConfig(rank0_only=False))
+        # for mapping between state dict types and optim state dict types, see:
+        # https://github.com/pytorch/pytorch/blob/a815e719e85899d4229616617e7827d4de191c2d/torch/distributed/fsdp/fully_sharded_data_parallel.py#L664 # noqa
+        state_dict_cfg = {
+            _FULL_STATE: fsdp.FullStateDictConfig(rank0_only=False),
+            _SHARDED_STATE: fsdp.api.ShardedStateDictConfig(),
+            _LOCAL_STATE: fsdp.api.LocalStateDictConfig(),
+        }[state_sharding]
+        optim_cfg = {
+            _FULL_STATE: fsdp.api.FullOptimStateDictConfig(rank0_only=False),
+            _SHARDED_STATE: fsdp.api.ShardedOptimStateDictConfig(),
+            _LOCAL_STATE: fsdp.api.LocalOptimStateDictConfig(),
+        }[state_sharding]
+        FSDP.set_state_dict_type(model, state_sharding, state_dict_cfg, optim_cfg)
 
     # load FSDP state dict
     _set_state_dict_type(mod)
@@ -425,15 +435,12 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool):
     opt_new = Lion8bit(mod_new.parameters(), error_correction=use_errors)
     _set_state_dict_type(mod_new)
 
-    print("initial opt state dict: ", opt_state_dict)
-
     # load state dict into the new optimizer
     opt_state_dict_slice = FSDP.optim_state_dict_to_load(
         opt_state_dict, mod_new, opt_new)
     opt_new.load_state_dict(opt_state_dict_slice)
 
     new_opt_state_dict = FSDP.optim_state_dict(mod_new, opt_new)
-    print("new opt state dict: ", new_opt_state_dict)
 
     orig_state = opt_state_dict['state']
     orig_param_groups = opt_state_dict['param_groups']
@@ -448,6 +455,18 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool):
         assert list(d_orig.keys()) == list(d_new.keys())
         mom_orig = d_orig['exp_avg']
         mom_new = d_new['exp_avg']
+
+        assert mom_orig.shape == mom_new.shape
+        assert mom_orig.dtype == mom_new.dtype
+        if use_errors:
+            errs_orig = d_orig['errors']
+            errs_new = d_new['errors']
+            assert errs_orig.shape == errs_new.shape
+            assert errs_orig.dtype == errs_new.dtype
+
+        if state_sharding != _FULL_STATE:
+            continue  # more detailed checks lean on FSDP impl details
+
         # momentums may not be bit-for-bit identical because Optimizer upcasts
         # to f32 and we convert back to bf16, possibly with different rounding
         torch.testing.assert_close(mom_orig, mom_new)

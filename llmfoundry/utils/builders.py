@@ -88,52 +88,31 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]):
         raise ValueError(f'Not sure how to build algorithm: {name}')
 
 
-def build_optimizer(cfg: DictConfig, model: torch.nn.Module):
-    if cfg.name == 'decoupled_adamw':
-        return DecoupledAdamW(model.parameters(),
-                              lr=cfg.lr,
-                              betas=cfg.betas,
-                              eps=cfg.eps,
-                              weight_decay=cfg.weight_decay)
-    elif cfg.name == 'decoupled_lionw':
-        return DecoupledLionW(model.parameters(),
-                              lr=cfg.lr,
-                              betas=cfg.betas,
-                              weight_decay=cfg.weight_decay)
-    elif cfg.name == 'clip_lion':
-        return DecoupledClipLion(model.parameters(),
-                                 lr=cfg.lr,
-                                 betas=cfg.betas,
-                                 weight_decay=cfg.weight_decay,
-                                 outlier_threshold=cfg.outlier_threshold)
-    elif cfg.name == 'adalr_lion':
-        return DecoupledAdaLRLion(model.parameters(),
-                                  lr=cfg.lr,
-                                  betas=cfg.betas,
-                                  weight_decay=cfg.weight_decay,
-                                  outlier_threshold=cfg.outlier_threshold,
-                                  timeout=cfg.timeout,
-                                  lr_penalty=cfg.lr_penalty,
-                                  min_scale=cfg.min_scale)
+def build_optimizer(model: torch.nn.Module, name: str,
+                    optimizer_config: Dict[str, Any]):
+    if name == 'decoupled_adamw':
+        return DecoupledAdamW(model.parameters(), **optimizer_config)
+    elif name == 'decoupled_lionw':
+        return DecoupledLionW(model.parameters(), **optimizer_config)
+    elif name == 'clip_lion':
+        return DecoupledClipLion(model.parameters(), **optimizer_config)
+    elif name == 'adalr_lion':
+        return DecoupledAdaLRLion(model.parameters(), **optimizer_config)
     elif cfg.name.lower() == 'decoupled_lionw_8b':
-        # str() cast is just for pyright
-        kwargs = {str(k): v for k, v in cfg.items() if k != 'name'}
-        return DecoupledLionW_8bit(model.parameters(), **kwargs)
+        return DecoupledLionW_8bit(model.parameters(), **optimizer_config)
     else:
-        raise ValueError(f'Not sure how to build optimizer: {cfg.name}')
+        raise ValueError(f'Not sure how to build optimizer: {name}')
 
 
-def build_scheduler(cfg: DictConfig):
-    if cfg.name == 'constant_with_warmup':
-        return ConstantWithWarmupScheduler(t_warmup=cfg.t_warmup)
-    elif cfg.name == 'cosine_with_warmup':
-        return CosineAnnealingWithWarmupScheduler(t_warmup=cfg.t_warmup,
-                                                  alpha_f=cfg.alpha_f)
-    elif cfg.name == 'linear_decay_with_warmup':
-        return LinearWithWarmupScheduler(t_warmup=cfg.t_warmup,
-                                         alpha_f=cfg.alpha_f)
+def build_scheduler(name: str, scheduler_config: Dict[str, Any]):
+    if name == 'constant_with_warmup':
+        return ConstantWithWarmupScheduler(**scheduler_config)
+    elif name == 'cosine_with_warmup':
+        return CosineAnnealingWithWarmupScheduler(**scheduler_config)
+    elif name == 'linear_decay_with_warmup':
+        return LinearWithWarmupScheduler(**scheduler_config)
     else:
-        raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
+        raise ValueError(f'Not sure how to build scheduler: {name}')
 
 
 def build_tokenizer(om_tokenizer_config: DictConfig) -> PreTrainedTokenizerBase:

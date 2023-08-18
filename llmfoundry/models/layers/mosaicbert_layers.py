@@ -49,7 +49,6 @@ from transformers.activations import ACT2FN
 
 from llmfoundry.models.utils.bert_padding import (index_first_axis, pad_input,
                                                   unpad_input, unpad_input_only)
-from llmfoundry.models.mosaicbert.configuration_mosaicbert import BertConfig
 
 try:
     from llmfoundry.models.layers.flash_attn_triton import \

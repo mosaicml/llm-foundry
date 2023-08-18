@@ -40,7 +40,7 @@ import copy
 import logging
 import math
 import warnings
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any
 
 import torch
 import torch.nn as nn
@@ -73,9 +73,14 @@ class BertEmbeddings(nn.Module):
     between query and key tokens.
 
     This module ignores the `position_ids` input to the `forward` method.
+
+    Args:
+        config (BertConfig): This config is a slightly modified version of the
+        transformers BertConfig with the extra keys alibi_starting_size: int = 512,
+        and attention_probs_dropout_prob: float = 0.0
     """
 
-    def __init__(self, config):
+    def __init__(self, config: Any):
         super().__init__()
         self.word_embeddings = nn.Embedding(config.vocab_size,
                                             config.hidden_size,
@@ -155,7 +160,7 @@ class BertUnpadSelfAttention(nn.Module):
     See `forward` method for additional detail.
     """
 
-    def __init__(self, config):
+    def __init__(self, config: Any):
         super().__init__()
         if config.hidden_size % config.num_attention_heads != 0 and not hasattr(
                 config, 'embedding_size'):
@@ -230,13 +235,13 @@ class BertUnpadSelfAttention(nn.Module):
                 bias_dtype = bias.dtype
                 bias = bias.to(torch.float16)
                 attention = flash_attn_qkvpacked_func(qkv, bias)
-                attention = attention.to(orig_dtype)
+                attention = attention.to(orig_dtype) # pyright: ignore[reportOptionalMemberAccess]
                 bias = bias.to(bias_dtype)
             else:
                 attention = flash_attn_qkvpacked_func(qkv, bias)
 
         # attn_mask is 1 for attend and 0 for don't
-        attention = unpad_input_only(attention, torch.squeeze(attn_mask) == 1)
+        attention = unpad_input_only(attention, torch.squeeze(attn_mask) == 1) # pyright: ignore[reportGeneralTypeIssues]
         return rearrange(attention, 'nnz h d -> nnz (h d)')
 
 
@@ -252,7 +257,7 @@ class BertSelfOutput(nn.Module):
     BERT modules.
     """
 
-    def __init__(self, config):
+    def __init__(self, config: Any):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size,
@@ -270,7 +275,7 @@ class BertSelfOutput(nn.Module):
 class BertUnpadAttention(nn.Module):
     """Chains attention, Dropout, and LayerNorm for MosaicBERT."""
 
-    def __init__(self, config):
+    def __init__(self, config: Any):
         super().__init__()
         self.self = BertUnpadSelfAttention(config)
         self.output = BertSelfOutput(config)
@@ -321,7 +326,7 @@ class BertGatedLinearUnitMLP(nn.Module):
     parameter size, MosaicBERT typically offers a net higher throughput than a Hugging Face BERT built from the same `config`.
     """
 
-    def __init__(self, config):
+    def __init__(self, config: Any):
         super().__init__()
         self.config = config
         self.gated_layers = nn.Linear(config.hidden_size,
@@ -357,7 +362,7 @@ class BertGatedLinearUnitMLP(nn.Module):
 class BertLayer(nn.Module):
     """Composes the MosaicBERT attention and FFN blocks into a single layer."""
 
-    def __init__(self, config):
+    def __init__(self, config: Any):
         super(BertLayer, self).__init__()
         self.attention = BertUnpadAttention(config)
         self.mlp = BertGatedLinearUnitMLP(config)
@@ -400,7 +405,7 @@ class BertEncoder(nn.Module):
     at padded tokens, and pre-computes attention biases to implement ALiBi.
     """
 
-    def __init__(self, config):
+    def __init__(self, config: Any):
         super().__init__()
         layer = BertLayer(config)
         self.layer = nn.ModuleList(
@@ -547,7 +552,7 @@ class BertEncoder(nn.Module):
 
 class BertPooler(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config: Any):
         super(BertPooler, self).__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.activation = nn.Tanh()
@@ -565,7 +570,7 @@ class BertPooler(nn.Module):
 
 class BertPredictionHeadTransform(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config: Any):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         if isinstance(config.hidden_act, str):
@@ -586,7 +591,7 @@ class BertPredictionHeadTransform(nn.Module):
 ###################
 class BertLMPredictionHead(nn.Module):
 
-    def __init__(self, config, bert_model_embedding_weights):
+    def __init__(self, config: Any, bert_model_embedding_weights: torch.Tensor):
         super().__init__()
         self.transform = BertPredictionHeadTransform(config)
         # The output weights are the same as the input embeddings, but there is
@@ -603,7 +608,7 @@ class BertLMPredictionHead(nn.Module):
 
 class BertOnlyMLMHead(nn.Module):
 
-    def __init__(self, config, bert_model_embedding_weights):
+    def __init__(self, config: Any, bert_model_embedding_weights: torch.Tensor):
         super().__init__()
         self.predictions = BertLMPredictionHead(config,
                                                 bert_model_embedding_weights)
@@ -615,7 +620,7 @@ class BertOnlyMLMHead(nn.Module):
 
 class BertOnlyNSPHead(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config: Any):
         super().__init__()
         self.seq_relationship = nn.Linear(config.hidden_size, 2)
 

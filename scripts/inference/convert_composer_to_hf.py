@@ -1,21 +1,18 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Note: This script is specifically for converting MPT composer checkpoints to HuggingFace format
-# For composer checkpoints containing model that are in the transformers library, see
-# https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.models.write_huggingface_pretrained_from_composer_checkpoint.html
-
 import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Optional, Tuple, Union
 
 import torch
 import transformers
+from composer.models.huggingface import get_hf_config_from_composer_state_dict
 from composer.utils import (get_file, maybe_create_object_store_from_uri,
                             parse_uri, safe_torch_load)
-from transformers import AutoConfig, PretrainedConfig
+from transformers import AutoConfig, PretrainedConfig, PreTrainedTokenizerBase
 
 from llmfoundry import MPTConfig, MPTForCausalLM
 from llmfoundry.models.utils import get_hf_tokenizer_from_composer_state_dict
@@ -23,99 +20,12 @@ from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
 
-# TODO: maybe move this functionality to Composer
-def get_hf_config_from_composer_state_dict(
-        state_dict: Dict[str, Any]) -> PretrainedConfig:
-    if 'state' not in state_dict:
-        raise RuntimeError(
-            'Unexpected composer state dictionary. Did you pass in a full composer checkpoint?'
-        )
-    if 'integrations' not in state_dict[
-            'state'] or 'huggingface' not in state_dict['state']['integrations']:
-        raise RuntimeError(
-            'Did not find HuggingFace related state (e.g., tokenizer) in the provided composer checkpoint!'
-        )
-    hf_config_dict = state_dict['state']['integrations']['huggingface'][
-        'model']['config']['content']
-
-    # Always set init_device='cpu'
-    hf_config_dict['init_device'] = 'cpu'
-
-    AutoConfig.register('mpt', MPTConfig)
-
-    # backwards compatibility changes
-    if hf_config_dict['model_type'] == 'mosaic_gpt':
-        hf_config_dict['model_type'] = 'mpt'
-
-    if 'attn_config' not in hf_config_dict:
-        attn_config = {}
-        attn_config['attn_type'] = 'multihead_attention'
-        attn_config['attn_pdrop'] = hf_config_dict['attn_pdrop']
-        del hf_config_dict['attn_pdrop']
-        attn_config['attn_impl'] = hf_config_dict['attn_impl']
-        del hf_config_dict['attn_impl']
-        attn_config['qk_ln'] = hf_config_dict['attn_qk_ln']
-        del hf_config_dict['attn_qk_ln']
-        attn_config['clip_qkv'] = hf_config_dict['attn_clip_qkv']
-        del hf_config_dict['attn_clip_qkv']
-        attn_config['softmax_scale'] = hf_config_dict['softmax_scale']
-        del hf_config_dict['softmax_scale']
-        attn_config['prefix_lm'] = hf_config_dict['prefix_lm']
-        del hf_config_dict['prefix_lm']
-        attn_config['attn_uses_sequence_id'] = hf_config_dict[
-            'attn_uses_sequence_id']
-        del hf_config_dict['attn_uses_sequence_id']
-        attn_config['alibi'] = hf_config_dict['alibi']
-        del hf_config_dict['alibi']
-        attn_config['alibi_bias_max'] = hf_config_dict['alibi_bias_max']
-        del hf_config_dict['alibi_bias_max']
-
-        hf_config_dict['attn_config'] = attn_config
-
-    if 'init_config' not in hf_config_dict:
-        init_config = {}
-
-        init_config['name'] = hf_config_dict['param_init_fn']
-        del hf_config_dict['param_init_fn']
-        init_config['fan_mode'] = hf_config_dict['fan_mode']
-        del hf_config_dict['fan_mode']
-        init_config['init_nonlinearity'] = hf_config_dict['init_nonlinearity']
-        del hf_config_dict['init_nonlinearity']
-        init_config['init_gain'] = hf_config_dict['init_gain']
-        del hf_config_dict['init_gain']
-        init_config['init_std'] = hf_config_dict['init_std']
-        del hf_config_dict['init_std']
-        init_config['init_div_is_residual'] = hf_config_dict[
-            'init_div_is_residual']
-        del hf_config_dict['init_div_is_residual']
-        init_config['emb_init_std'] = hf_config_dict['emb_init_std']
-        del hf_config_dict['emb_init_std']
-        init_config['emb_init_uniform_lim'] = hf_config_dict[
-            'emb_init_uniform_lim']
-        del hf_config_dict['emb_init_uniform_lim']
-
-        hf_config_dict['init_config'] = init_config
-
-    if 'mlp_ratio' in hf_config_dict:
-        hf_config_dict['expansion_ratio'] = hf_config_dict['mlp_ratio']
-        del hf_config_dict['mlp_ratio']
-
-    if 'low_precision_layernorm' in hf_config_dict:
-        if hf_config_dict['low_precision_layernorm']:
-            hf_config_dict['norm_type'] = 'low_precision_layernorm'
-        else:
-            hf_config_dict['norm_type'] = 'layernorm'
-        del hf_config_dict['low_precision_layernorm']
-
-    return AutoConfig.for_model(**hf_config_dict)
-
-
 def write_huggingface_pretrained_from_composer_checkpoint(
-        checkpoint_path: Union[Path, str],
-        output_path: Union[Path, str],
-        output_precision: str = 'fp32',
-        local_checkpoint_save_location: Optional[Union[Path,
-                                                       str]] = None) -> None:
+    checkpoint_path: Union[Path, str],
+    output_path: Union[Path, str],
+    output_precision: str = 'fp32',
+    local_checkpoint_save_location: Optional[Union[Path, str]] = None
+) -> Tuple[PretrainedConfig, Optional[PreTrainedTokenizerBase]]:
     """Convert a Composer checkpoint to a pretrained HF checkpoint folder.
 
     Write a ``config.json`` and ``pytorch_model.bin``, like
@@ -230,12 +140,14 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     print('Done.')
     print('#' * 30)
 
+    return hf_config, hf_tokenizer
+
 
 def parse_args() -> Namespace:
     """Parse commandline arguments."""
     parser = ArgumentParser(
         description=
-        'Convert an MPT Composer checkpoint and Omegaconf model config into a standard HuggingFace checkpoint folder, and optionally upload to the hub.'
+        'Convert a HuggingFace causal LM in a Composer checkpoint into a standard HuggingFace checkpoint folder, and optionally upload to the hub.'
     )
     parser.add_argument('--composer_path', type=str, required=True)
     parser.add_argument('--hf_output_path', type=str, required=True)
@@ -253,9 +165,16 @@ def parse_args() -> Namespace:
 
 
 def convert_composer_to_hf(args: Namespace) -> None:
+    # Register MPT auto classes so that this script works with MPT
+    # This script will not work without modification for other custom models,
+    # but will work for other HuggingFace causal LMs
+    AutoConfig.register('mpt', MPTConfig)
+    MPTConfig.register_for_auto_class()
+    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
+
     _, _, local_folder_path = parse_uri(args.hf_output_path)
 
-    write_huggingface_pretrained_from_composer_checkpoint(
+    config, tokenizer = write_huggingface_pretrained_from_composer_checkpoint(
         checkpoint_path=args.composer_path,
         output_path=local_folder_path,
         output_precision=args.output_precision,
@@ -267,19 +186,18 @@ def convert_composer_to_hf(args: Namespace) -> None:
         'bf16': torch.bfloat16,
     }[args.output_precision]
 
-    # register config auto class
-    MPTConfig.register_for_auto_class()
-
-    # register model auto class
-    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
-
     print(f'Loading model from {local_folder_path}')
-    config = MPTConfig.from_pretrained(local_folder_path)
-    # You have to edit the config this way, because attn_config is a nested dictionary
-    config.attn_config['attn_impl'] = 'torch'
-    loaded_hf_model = MPTForCausalLM.from_pretrained(local_folder_path,
-                                                     config=config,
-                                                     torch_dtype=dtype)
+    if config.model_type == 'mpt':
+        config.attn_config['attn_impl'] = 'torch'
+
+    if config.model_type == 'mpt':
+        loaded_hf_model = MPTForCausalLM.from_pretrained(local_folder_path,
+                                                         config=config,
+                                                         torch_dtype=dtype)
+    else:
+        loaded_hf_model = transformers.AutoModelForCausalLM.from_pretrained(
+            local_folder_path, config=config, torch_dtype=dtype)
+
     delattr(loaded_hf_model.config, '_name_or_path')
 
     loaded_hf_model.save_pretrained(local_folder_path)
@@ -288,8 +206,10 @@ def convert_composer_to_hf(args: Namespace) -> None:
     tokenizer = transformers.AutoTokenizer.from_pretrained(local_folder_path)
     tokenizer.save_pretrained(local_folder_path)
 
-    print('Editing files for HF compatibility...')
-    edit_files_for_hf_compatibility(local_folder_path)
+    # Only need to edit files for MPT because it has custom code
+    if config.model_type == 'mpt':
+        print('Editing files for HF compatibility...')
+        edit_files_for_hf_compatibility(local_folder_path)
 
     object_store = maybe_create_object_store_from_uri(str(args.hf_output_path))
 

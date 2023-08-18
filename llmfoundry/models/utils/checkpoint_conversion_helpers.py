@@ -11,7 +11,8 @@ utility functions that are present in multiple scripts.
 
 import json
 import os
-import tempfile
+import random
+import string
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -29,8 +30,11 @@ def _get_weight_data_type(data_type: str):
         raise RuntimeError('Unsupported data type: {data_type} for conversion.')
 
 
+# TODO: move this functionality to composer once the bug fixes are upstreamed
 def get_hf_tokenizer_from_composer_state_dict(
-        state_dict: Dict[str, Any]) -> Optional[PreTrainedTokenizer]:
+        state_dict: Dict[str, Any],
+        tokenizer_save_dir: Optional[str] = None
+) -> Optional[PreTrainedTokenizer]:
     if 'state' not in state_dict:
         raise RuntimeError(
             'Unexpected composer state dictionary. Did you pass in a full composer checkpoint?'
@@ -44,28 +48,41 @@ def get_hf_tokenizer_from_composer_state_dict(
         'tokenizer']
     hf_tokenizer = None
     if hf_tokenizer_state != {}:
-        with tempfile.TemporaryDirectory() as _tmp_dir:
-            for filename, saved_content in hf_tokenizer_state.items():
-                tokenizer_file_path = Path(
-                    _tmp_dir) / f'{filename}{saved_content["file_extension"]}'
-                if saved_content['file_extension'] == '.json':
-                    with open(tokenizer_file_path, 'w') as _tmp_file:
-                        json.dump(saved_content['content'], _tmp_file)
-                elif saved_content['file_extension'] == '.txt':
-                    with open(tokenizer_file_path, 'w') as _tmp_file:
-                        for line in saved_content['content']:
-                            _tmp_file.write(line)
-                            _tmp_file.write('\n')
-                elif saved_content['file_extension'] == '.model':
-                    s = spm.SentencePieceProcessor()
-                    s.load_from_serialized_proto(saved_content['content'])
-                    with open(tokenizer_file_path, 'wb') as _tmp_file:
-                        _tmp_file.write(s.serialized_model_proto())
-            hf_tokenizer = AutoTokenizer.from_pretrained(_tmp_dir)
+        if tokenizer_save_dir is None:
+            unique_suffix = ''.join(
+                random.choices(string.ascii_letters + string.digits, k=6))
+            tokenizer_save_dir = os.path.join(
+                os.getcwd(), f'tokenizer-save-dir-{unique_suffix}')
+        os.makedirs(tokenizer_save_dir, exist_ok=True)
 
-            # remove 'name_or_path'
-            hf_tokenizer.name_or_path = ''
-            hf_tokenizer.init_kwargs['name_or_path'] = ''
+        for filename, saved_content in hf_tokenizer_state.items():
+            # This cannot be a temporary directory because huggingface relies on the slow tokenizer file
+            # being persistent on disk
+            tokenizer_file_path = Path(
+                tokenizer_save_dir
+            ) / f'{filename}{saved_content["file_extension"]}'
+            if saved_content['file_extension'] == '.json':
+                with open(tokenizer_file_path, 'w') as _tmp_file:
+                    json.dump(saved_content['content'], _tmp_file)
+            elif saved_content['file_extension'] == '.txt':
+                with open(tokenizer_file_path, 'w') as _tmp_file:
+                    for line in saved_content['content']:
+                        _tmp_file.write(line)
+                        _tmp_file.write('\n')
+            elif saved_content['file_extension'] == '.py':
+                with open(tokenizer_file_path, 'w') as _tmp_file:
+                    _tmp_file.write(saved_content['content'])
+            elif saved_content['file_extension'] == '.model':
+                s = spm.SentencePieceProcessor()
+                s.load_from_serialized_proto(saved_content['content'])
+                with open(tokenizer_file_path, 'wb') as _tmp_file:
+                    _tmp_file.write(s.serialized_model_proto())
+
+        hf_tokenizer = AutoTokenizer.from_pretrained(tokenizer_save_dir)
+
+        # remove 'name_or_path'
+        hf_tokenizer.name_or_path = ''
+        hf_tokenizer.init_kwargs['name_or_path'] = ''
 
     return hf_tokenizer
 

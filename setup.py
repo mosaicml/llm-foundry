@@ -47,8 +47,9 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,nlp,wandb,mlflow]>=0.15.0,<0.16',
+    'mosaicml[libcloud,wandb,mlflow]>=0.15.0,<0.16',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
+    'transformers>=4.31,<4.32',
     'mosaicml-streaming>=0.5.1,<0.6',
     'torch>=1.13.1,<=2.0.1',
     'datasets==2.10.1',
@@ -93,7 +94,7 @@ extra_deps['peft'] = [
     'scipy>=1.10.0,<=1.11.0',  # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
     # TODO: pin peft when it stabilizes.
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'peft@git+https://github.com/huggingface/peft.git',
+    'peft==0.4.0',
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)

@@ -31,6 +31,12 @@ model_gauntlet:
     - name: copa
       num_fewshot: 0
       random_baseline: 0.5
+    - name: siqa
+      num_fewshot: 0
+      random_baseline: 0.5
+    - name: commonsense_qa
+      num_fewshot: 0
+      random_baseline: 0.25
     - name: piqa
       num_fewshot: 10
       random_baseline: 0.5

@@ -12,6 +12,20 @@ icl_tasks:
   num_fewshot: [10]
   icl_task_type: question_answering
 -
+  label: gsm8k
+  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: question_answering
+  cot_delimiter: ' #### '
+  continuation_delimiter: "\nA: Let's think step by step. "
+-
+  label: svamp
+  dataset_uri: eval/local_data/symbolic_problem_solving/svamp.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: question_answering
+  cot_delimiter: "\nThe answer is"
+  continuation_delimiter: "\nUsing the formula below:\n"
+-
   label: bigbench_qa_wikidata
   dataset_uri: eval/local_data/world_knowledge/bigbench_qa_wikidata.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
@@ -44,6 +58,16 @@ icl_tasks:
   label: copa
   dataset_uri: eval/local_data/commonsense_reasoning/copa.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
+  icl_task_type: multiple_choice
+-
+  label: siqa
+  dataset_uri: eval/local_data/commonsense_reasoning/siqa.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: commonsense_qa
+  dataset_uri: eval/local_data/commonsense_reasoning/commonsense_qa.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
   icl_task_type: multiple_choice
 -
   label: piqa

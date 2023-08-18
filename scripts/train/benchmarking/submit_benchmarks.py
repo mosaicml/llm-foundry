@@ -159,6 +159,8 @@ def parse_args():
 
     parser.add_argument('--priority', type=str, default='lowest')
 
+    parser.add_argument('--torch_compile', type=bool, default=False)
+
     parser.add_argument('--RUN',
                         type=str_to_bool,
                         nargs='?',
@@ -258,21 +260,21 @@ def mod_parameters(parameters: Dict[str, Any],
             'data_remote']
 
         parameters['data_local'] = '/tmp/c4'
-        parameters['train_loader']['dataset']['local'] = parameters[
-            'data_local']
+        parameters['train_loader']['dataset']['local'] = parameters['data_local']
         parameters['eval_loader']['dataset']['local'] = parameters['data_local']
     else:
         parameters['train_loader']['dataset'][
             'split'] = 'train_small'  # for throughput testing purposes
         parameters['eval_loader']['dataset'][
             'split'] = 'val_small'  # for throughput testing purposes
+        print("local data")
     # set max_seq_len
     parameters['max_seq_len'] = max_seq_len
     parameters['model']['max_seq_len'] = max_seq_len
 
-    parameters['model']['attn_impl'] = args.attn_impl
+    parameters['model']['attn_config']['attn_impl'] = args.attn_impl
 
-    parameters['model']['low_precision_layernorm'] = True
+    parameters['model']['norm_type'] = "low_precision_layernorm"
 
     # Pad vocab size to multiple of N for A100 perf
     if pad_vocab_multiple:
@@ -358,14 +360,22 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         }, {
             'integration_type': 'wandb',
             'entity': 'mosaic-ml',
-            'project': 'intern'
+            'project': args.project
         }
     ]
-    command = f"""
-        cd llm-foundry/scripts
-        python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
-        composer train/train.py /mnt/config/parameters.yaml
-        """
+
+    if args.data_remote is None:
+        command = f"""
+            cd llm-foundry/scripts
+            python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
+            composer train/train.py /mnt/config/parameters.yaml
+            """
+    else:
+        command = f"""
+            cd llm-foundry/scripts
+            composer train/train.py /mnt/config/parameters.yaml
+            """
+
     path = os.path.join('../yamls/pretrain', "mpt-" + model_yaml)
     parameters = get_parameters(path)
 
@@ -406,8 +416,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
                        integrations=integrations,
                        command=command,
                        parameters=parameters,
-                       scheduling=SchedulingConfig(priority=args.priority))
-
+                       scheduling=SchedulingConfig(priority=args.priority, resumable=True))
     if args.RUN:
         # Create the run from a config
         run = create_run(config)

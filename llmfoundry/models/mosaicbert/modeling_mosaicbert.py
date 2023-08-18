@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import  Any, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -102,7 +102,7 @@ class BertModel(BertPreTrainedModel):
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
 
-    def set_input_embeddings(self, value: nn.Module):
+    def set_input_embeddings(self, value: nn.Embedding):
         self.embeddings.word_embeddings = value
 
     def forward(
@@ -113,7 +113,7 @@ class BertModel(BertPreTrainedModel):
         position_ids: Optional[torch.Tensor] = None,
         output_all_encoded_layers: Optional[bool] = False,
         masked_tokens_mask: Optional[torch.Tensor] = None,
-        **kwargs
+        **kwargs: Any
     ) -> Tuple[Union[List[torch.Tensor], torch.Tensor], Optional[torch.Tensor]]:
         if attention_mask is None:
             attention_mask = torch.ones_like(input_ids)
@@ -167,12 +167,12 @@ class BertModel(BertPreTrainedModel):
 
 class BertForMaskedLM(BertPreTrainedModel):
 
-    def __init__(self, config):
+    def __init__(self, config: BertConfig):
         super().__init__(config)
 
         if config.is_decoder:
             warnings.warn(
-                'If you want to use `BertForMaskedLM` make sure `config.is_decoder=False` for '
+                'If you want to use `BertForMaskedLM` make sure `config.is_decoder=False` for ' + 
                 'bi-directional self-attention.')
 
         self.bert = BertModel(config, add_pooling_layer=False)
@@ -188,9 +188,9 @@ class BertForMaskedLM(BertPreTrainedModel):
                       state_dict=None,
                       cache_dir=None,
                       from_tf=False,
-                      config=None,
-                      *inputs,
-                      **kwargs):
+                      config: BertConfig = None,
+                      *inputs: Any,
+                      **kwargs: Any):
         """Load from pre-trained."""
         model = cls(config, *inputs, **kwargs)
         if from_tf:

@@ -17,9 +17,10 @@ from multiprocessing.managers import DictProxy, SyncManager
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 from urllib.parse import urlparse
 
+from transformers import PreTrainedTokenizerBase
+
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import build_tokenizer
-from transformers import PreTrainedTokenizerBase
 
 # Add folder root to path to allow us to use relative imports regardless of what directory the script is run from
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
@@ -111,7 +112,8 @@ def build_scheduler(cfg: DictConfig):
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
 
 
-def build_composer_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
+def build_composer_model(model_cfg: DictConfig,
+                         tokenizer: PreTrainedTokenizerBase):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
@@ -377,8 +379,8 @@ def train(config: DictConfig) -> None:
     """
     start_time = time.time()
 
-    resolved_om_model_config = DictConfig(om_conf.create(
-        om_conf.to_container(config, resolve=True)))
+    resolved_om_model_config = DictConfig(
+        om_conf.create(om_conf.to_container(config, resolve=True)))
 
     # Initial default seed
     reproducibility.seed_all(resolved_om_model_config.default_seed)
@@ -396,7 +398,9 @@ def train(config: DictConfig) -> None:
 
     # Downloads the starting checkpoint ahead of time so that
     # the different tasks don't all try to download it at the same time
-    if resolved_om_model_config.get('starting_checkpoint_load_path', None): # pyright: ignore[reportGeneralTypeIssues]
+    if resolved_om_model_config.get(
+            'starting_checkpoint_load_path',
+            None):  # pyright: ignore[reportGeneralTypeIssues]
         local_pretrain_checkpoint_path = download_starting_checkpoint(
             resolved_om_model_config.starting_checkpoint_load_path,
             resolved_om_model_config.local_pretrain_checkpoint_folder)

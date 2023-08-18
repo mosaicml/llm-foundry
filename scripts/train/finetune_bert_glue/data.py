@@ -6,6 +6,7 @@
 
 import logging
 from typing import Any
+
 from composer.utils import MissingConditionalImportError, dist
 
 _task_column_names = {

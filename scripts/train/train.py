@@ -423,7 +423,7 @@ def main(cfg: DictConfig):
     ] if logger_configs else None
 
     # Callbacks
-    callbacks = [
+    callbacks: List[Callback] = [
         build_callback(str(name), callback_cfg)
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else None
@@ -481,6 +481,8 @@ def main(cfg: DictConfig):
             }
             model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
 
+    if model_gauntlet_callback is not None:
+        callbacks.append(model_gauntlet_callback)
 
     # Build the Trainer
     print('Building trainer...')

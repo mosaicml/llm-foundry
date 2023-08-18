@@ -90,7 +90,8 @@ def test_train(device: str):
     main(test_cfg)
 
 
-def test_train_gauntlet():
+def test_train_gauntlet(capfd):
+    # NEED TO FINISH THIS TEST
     """Test training run with a small dataset."""
     os.chdir('scripts')
     dataset_name = create_c4_dataset_xsmall('cpu')
@@ -112,3 +113,5 @@ def test_train_gauntlet():
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
     main(test_cfg)
+    out, err = capfd.readouterr()
+    breakpoint()

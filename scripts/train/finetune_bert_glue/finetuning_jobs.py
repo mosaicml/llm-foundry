@@ -27,7 +27,7 @@ from data import create_glue_dataset
 from torch.utils.data import DataLoader
 
 
-def _build_dataloader(dataset, **kwargs):
+def _build_dataloader(dataset: Any, **kwargs: Any):
     import transformers
     dataset = cast(Dataset, dataset)
 
@@ -92,7 +92,7 @@ class FineTuneJob:
         load_path: Optional[str] = None,
         save_folder: Optional[str] = None,
         seed: int = 42,
-        **kwargs,
+        **kwargs: Any,
     ):
         reproducibility.seed_all(seed)
         self._job_name = job_name
@@ -200,7 +200,7 @@ class GlueClassificationJob(FineTuneJob):
         loggers: Optional[List[LoggerDestination]] = None,
         callbacks: Optional[List[Callback]] = None,
         precision: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         if task_name is None:
             raise ValueError(
@@ -275,7 +275,7 @@ class MNLIJob(GlueClassificationJob):
         loggers: Optional[List[LoggerDestination]] = None,
         callbacks: Optional[List[Callback]] = None,
         precision: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(model=model,
                          tokenizer_name=tokenizer_name,
@@ -351,7 +351,7 @@ class RTEJob(GlueClassificationJob):
         loggers: Optional[List[LoggerDestination]] = None,
         callbacks: Optional[List[Callback]] = None,
         precision: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(model=model,
                          tokenizer_name=tokenizer_name,
@@ -420,7 +420,7 @@ class QQPJob(GlueClassificationJob):
         loggers: Optional[List[LoggerDestination]] = None,
         callbacks: Optional[List[Callback]] = None,
         precision: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(model=model,
                          tokenizer_name=tokenizer_name,
@@ -489,7 +489,7 @@ class COLAJob(GlueClassificationJob):
         loggers: Optional[List[LoggerDestination]] = None,
         callbacks: Optional[List[Callback]] = None,
         precision: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(model=model,
                          tokenizer_name=tokenizer_name,
@@ -558,7 +558,7 @@ class MRPCJob(GlueClassificationJob):
         loggers: Optional[List[LoggerDestination]] = None,
         callbacks: Optional[List[Callback]] = None,
         precision: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(model=model,
                          tokenizer_name=tokenizer_name,
@@ -628,7 +628,7 @@ class QNLIJob(GlueClassificationJob):
         loggers: Optional[List[LoggerDestination]] = None,
         callbacks: Optional[List[Callback]] = None,
         precision: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(model=model,
                          tokenizer_name=tokenizer_name,
@@ -697,7 +697,7 @@ class SST2Job(GlueClassificationJob):
         loggers: Optional[List[LoggerDestination]] = None,
         callbacks: Optional[List[Callback]] = None,
         precision: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(model=model,
                          tokenizer_name=tokenizer_name,
@@ -766,7 +766,7 @@ class STSBJob(GlueClassificationJob):
         loggers: Optional[List[LoggerDestination]] = None,
         callbacks: Optional[List[Callback]] = None,
         precision: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(model=model,
                          tokenizer_name=tokenizer_name,

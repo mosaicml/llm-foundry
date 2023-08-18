@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-
+from typing import Any
 from composer.utils import MissingConditionalImportError, dist
 
 _task_column_names = {
@@ -62,7 +62,7 @@ def create_glue_dataset(
         f'Starting tokenization by preprocessing over {num_workers} threads!')
     text_column_names = _task_column_names[task]
 
-    def tokenize_function(inp):
+    def tokenize_function(inp: Any):
         # truncates sentences to max_length or pads them to max_length
 
         first_half = inp[text_column_names[0]]

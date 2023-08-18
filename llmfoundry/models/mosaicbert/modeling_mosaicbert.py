@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import  Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -172,8 +172,8 @@ class BertForMaskedLM(BertPreTrainedModel):
 
         if config.is_decoder:
             warnings.warn(
-                'If you want to use `BertForMaskedLM` make sure `config.is_decoder=False` for ' + 
-                'bi-directional self-attention.')
+                'If you want to use `BertForMaskedLM` make sure `config.is_decoder=False` for '
+                + 'bi-directional self-attention.')
 
         self.bert = BertModel(config, add_pooling_layer=False)
         self.cls = BertOnlyMLMHead(config,

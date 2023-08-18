@@ -4,8 +4,9 @@
 # Copyright 2022 MosaicML Examples authors
 # SPDX-License-Identifier: Apache-2.0
 
-from transformers import BertConfig as TransformersBertConfig
 from typing import Any
+
+from transformers import BertConfig as TransformersBertConfig
 
 
 class BertConfig(TransformersBertConfig):

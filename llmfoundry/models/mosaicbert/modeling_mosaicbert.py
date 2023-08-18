@@ -102,12 +102,12 @@ class BertModel(BertPreTrainedModel):
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
 
-    def set_input_embeddings(self, value):
+    def set_input_embeddings(self, value: nn.Module):
         self.embeddings.word_embeddings = value
 
     def forward(
         self,
-        input_ids: torch.Tensor,=
+        input_ids: torch.Tensor,
         token_type_ids: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.Tensor] = None,

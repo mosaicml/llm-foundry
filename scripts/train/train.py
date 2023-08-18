@@ -446,22 +446,9 @@ def main(cfg: DictConfig):
 
     # Algorithms
     algorithms = [
-        build_algorithm(name, algorithm_cfg)
-        for name, algorithm_cfg in (cfg.get('algorithms') or {}).items()
-    ]
-
-    # Set autoresume default on if possible
-    save_folder = cfg.get('save_folder', None)
-    save_latest_filename = cfg.get('save_latest_filename',
-                                   'latest-rank{rank}.pt')
-    save_overwrite = cfg.get('save_overwrite', False)
-    save_weights_only = cfg.get('save_weights_only', False)
-    autoresume_default = False
-    if cfg.run_name is not None and save_folder is not None and save_latest_filename is not None and not save_overwrite and not save_weights_only:
-        print(
-            'As run_name, save_folder, and save_latest_filename are set, changing autoresume default to True...'
-        )
-        autoresume_default = True
+        build_algorithm(str(name), algorithm_cfg)
+        for name, algorithm_cfg in algorithm_configs.items()
+    ] if algorithm_configs else None
 
     # Build the Trainer
     print('Building trainer...')

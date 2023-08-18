@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import os
 import logging
 import warnings
 from typing import Any, List, Optional, Tuple, Union
@@ -184,11 +185,11 @@ class BertForMaskedLM(BertPreTrainedModel):
 
     @classmethod
     def from_composer(cls,
-                      pretrained_checkpoint,
-                      state_dict=None,
-                      cache_dir=None,
-                      from_tf=False,
-                      config: BertConfig = None,
+                      pretrained_checkpoint: Union[str, os.PathLike],
+                      config: BertConfig,
+                      state_dict: Any = None,
+                      cache_dir: Optional[Union[str, os.PathLike]] = None,
+                      from_tf: bool = False,
                       *inputs: Any,
                       **kwargs: Any):
         """Load from pre-trained."""
@@ -217,7 +218,7 @@ class BertForMaskedLM(BertPreTrainedModel):
     def get_output_embeddings(self):
         return self.cls.predictions.decoder
 
-    def set_output_embeddings(self, new_embeddings):
+    def set_output_embeddings(self, new_embeddings: nn.Linear):
         self.cls.predictions.decoder = new_embeddings
 
     def forward(
@@ -303,7 +304,7 @@ class BertForMaskedLM(BertPreTrainedModel):
 
     def prepare_inputs_for_generation(self, input_ids: torch.Tensor,
                                       attention_mask: torch.Tensor,
-                                      **model_kwargs):
+                                      **model_kwargs: Any):
         input_shape = input_ids.shape
         effective_batch_size = input_shape[0]
 
@@ -332,7 +333,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
     e.g., GLUE tasks.
     """
 
-    def __init__(self, config):
+    def __init__(self, config: BertConfig):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.config = config
@@ -349,13 +350,13 @@ class BertForSequenceClassification(BertPreTrainedModel):
 
     @classmethod
     def from_composer(cls,
-                      pretrained_checkpoint,
-                      state_dict=None,
-                      cache_dir=None,
-                      from_tf=False,
-                      config=None,
-                      *inputs,
-                      **kwargs):
+                      pretrained_checkpoint: Union[str, os.PathLike],
+                      config: BertConfig,
+                      state_dict: Any = None,
+                      cache_dir: Optional[Union[str, os.PathLike]] = None,
+                      from_tf: bool = False,
+                      *inputs: Any,
+                      **kwargs: Any):
         """Load from pre-trained."""
         model = cls(config, *inputs, **kwargs)
         if from_tf:

@@ -5,9 +5,6 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import torch
 
-_KEY_MOMENTUM = 'exp_avg'
-_KEY_ERRORS = 'errors'
-
 
 class DecoupledLionW_8bit(torch.optim.Optimizer):
     """LION optimizer with ~8 bits of state per parameter.
@@ -128,18 +125,18 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                 'to use DecoupledLionW_8bit without a CUDA device, try ' +
                 'creating this optimizer with quantize=False.')
         state = self.state[p]  # type:ignore using tensor as key
-        if _KEY_MOMENTUM not in state:
+        if 'exp_avg' not in state:
             mom = torch.zeros_like(p)
-            state[_KEY_MOMENTUM] = _MaybeQuantizedTensor(
+            state['exp_avg'] = _MaybeQuantizedTensor(
                 mom, try_quantize=self._quantize)
         need_errs = (p.dtype != torch.float32) and self._error_correction
-        if state.get(_KEY_ERRORS) is None and need_errs:
-            state[_KEY_ERRORS] = torch.zeros(p.shape,
-                                             dtype=torch.uint8,
-                                             device=p.device)
+        if state.get('errors') is None and need_errs:
+            state['errors'] = torch.zeros(p.shape,
+                                          dtype=torch.uint8,
+                                          device=p.device)
         decay_factor = hparams['weight_decay']
         decay_factor *= hparams['lr'] / hparams['initial_lr']
-        _lion8b_step(momentums=state[_KEY_MOMENTUM],
+        _lion8b_step(momentums=state['exp_avg'],
                      weights=p,
                      grads=p.grad,
                      beta1=hparams['betas'][0],
@@ -147,7 +144,7 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                      lr=hparams['lr'],
                      weight_decay=decay_factor,
                      fused=hparams['fused'],
-                     errors=state.get(_KEY_ERRORS))
+                     errors=state.get('errors'))
 
     def __setstate__(self, state: Dict[str, Dict[str, Any]]) -> None:
         # we override this function to quantize optimizer states when
@@ -156,21 +153,21 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
         for param_id in opt_state:
             param_state = opt_state[param_id]
             new_state = {}
-            if any(k.startswith(_KEY_MOMENTUM) for k in param_state):
+            if any(k.startswith('exp_avg') for k in param_state):
                 # the keys can either be just "exp_avg" or
                 # "exp_avg::quantized" and "exp_avg::scales", depending on
                 # whether we saved it as quantized or not. The former case
                 # gives us interop with regular LION.
                 qtensor = _MaybeQuantizedTensor(None,
                                                 try_quantize=self._quantize)
-                qtensor.load_state_dict(param_state, name=_KEY_MOMENTUM)
-                new_state[_KEY_MOMENTUM] = qtensor
-            if _KEY_ERRORS in param_state:
+                qtensor.load_state_dict(param_state, name='exp_avg')
+                new_state['exp_avg'] = qtensor
+            if 'errors' in param_state:
                 # we need to cast back to the correct dtype since optimizer
                 # load_state_dict casts to param dtype for fp params; see
                 # https://github.com/pytorch/pytorch/blob/a25eee1d77d93079614fab3ea4ac66e64fb2343b/torch/optim/optimizer.py#L626C7-L626C7 # noqa
-                errs = param_state[_KEY_ERRORS].to(dtype=torch.uint8)
-                new_state[_KEY_ERRORS] = errs
+                errs = param_state['errors'].to(dtype=torch.uint8)
+                new_state['errors'] = errs
             opt_state[param_id] = new_state
         super().__setstate__(state)
 
@@ -188,12 +185,12 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             # isn't the same as self.state, but its consituent dicts are
             # the same as those in self.state
             param_state = {k: v for k, v in opt_state[param_id].items()}
-            if _KEY_MOMENTUM in param_state:  # true if we've taken any steps
-                qtensor = param_state.pop(_KEY_MOMENTUM)
+            if 'exp_avg' in param_state:  # true if we've taken any steps
+                qtensor = param_state.pop('exp_avg')
                 assert isinstance(qtensor, _MaybeQuantizedTensor)  # pyright
                 param_state.update(
                     qtensor.state_dict(
-                        name=_KEY_MOMENTUM,
+                        name='exp_avg',
                         allow_quantized=self._compress_state_dict))
             opt_state[param_id] = param_state
         return d

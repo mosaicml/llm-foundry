@@ -46,6 +46,16 @@ icl_tasks:
   num_fewshot: [0]
   icl_task_type: multiple_choice
 -
+  label: siqa
+  dataset_uri: eval/local_data/commonsense_reasoning/siqa.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: commonsense_qa
+  dataset_uri: eval/local_data/commonsense_reasoning/commonsense_qa.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
   label: piqa
   dataset_uri: eval/local_data/commonsense_reasoning/piqa.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [10]

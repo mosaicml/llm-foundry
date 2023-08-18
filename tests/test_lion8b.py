@@ -10,6 +10,7 @@ import pytest
 import torch
 import torch.nn as nn
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+from torch.distributed import fsdp
 
 from llmfoundry.optim import DecoupledLionW_8bit as Lion8bit
 
@@ -379,10 +380,10 @@ class _DummyModule(nn.Module):
 # python3 -m composer.cli.launcher -n 2 --master_port 26000 -m pytest -m gpu tests/test_lion8b.py::test_fsdp_save_load  # noqa
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
-# @pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
-# @pytest.mark.parametrize('use_errors', [False, True])
-@pytest.mark.parametrize('dtype', [torch.float32])
-@pytest.mark.parametrize('use_errors', [False])
+@pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
+@pytest.mark.parametrize('use_errors', [False, True])
+# @pytest.mark.parametrize('dtype', [torch.float32])
+# @pytest.mark.parametrize('use_errors', [False])
 # @pytest.mark.parametrize('world_size', [2])
 # @pytest.world_size(2)
 def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool):
@@ -409,22 +410,48 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool):
     opt.step()
     opt.zero_grad()
 
-    # copy state dict into a new instance
-    state_dict = opt.state_dict()
+    def _set_state_dict_type(model: nn.Module):
+        FSDP.set_state_dict_type(model,
+                                 fsdp.StateDictType.FULL_STATE_DICT,
+                                 fsdp.FullStateDictConfig(rank0_only=False),
+                                 fsdp.api.FullOptimStateDictConfig(rank0_only=False))
+
+    # load FSDP state dict
+    _set_state_dict_type(mod)
+    opt_state_dict = FSDP.optim_state_dict(mod, opt)
+
+    # make a new model and optimizer
     mod_new = FSDP(_DummyModule(device=device, dtype=dtype))
     opt_new = Lion8bit(mod_new.parameters(), error_correction=use_errors)
-    opt_new.load_state_dict(state_dict)
+    _set_state_dict_type(mod_new)
 
-    for p in mod.parameters():
-        d_orig = opt.state[p]
-        d_new = opt_new.state[p]
+    print("initial opt state dict: ", opt_state_dict)
+
+    # load state dict into the new optimizer
+    opt_state_dict_slice = FSDP.optim_state_dict_to_load(
+        opt_state_dict, mod_new, opt_new)
+    opt_new.load_state_dict(opt_state_dict_slice)
+
+    new_opt_state_dict = FSDP.optim_state_dict(mod_new, opt_new)
+    print("new opt state dict: ", new_opt_state_dict)
+
+    orig_state = opt_state_dict['state']
+    orig_param_groups = opt_state_dict['param_groups']
+    new_state = new_opt_state_dict['state']
+    new_param_groups = new_opt_state_dict['param_groups']
+
+    all_keys = set(orig_state.keys()) | set(new_state.keys())
+    assert orig_param_groups == new_param_groups  # works since strs, not ptrs
+    for k in all_keys:  # keys are param paths in module as strings
+        d_orig = orig_state[k]
+        d_new = new_state[k]
         assert list(d_orig.keys()) == list(d_new.keys())
         mom_orig = d_orig['exp_avg']
         mom_new = d_new['exp_avg']
-        torch.testing.assert_close(mom_orig.materialize(),
-                                   mom_new.materialize(),
-                                   atol=1. / (2 * 127),
-                                   rtol=np.inf)
+        # momentums may not be bit-for-bit identical because Optimizer upcasts
+        # to f32 and we convert back to bf16, possibly with different rounding
+        torch.testing.assert_close(mom_orig, mom_new)
+        # errors not bit-for-bit identical because scales get upcast too
         if use_errors and (dtype != torch.float32):
             torch.testing.assert_close(d_orig['errors'], d_new['errors'])
 

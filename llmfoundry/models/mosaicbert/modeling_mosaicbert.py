@@ -286,7 +286,7 @@ class BertForMaskedLM(BertPreTrainedModel):
 
             assert input_ids is not None, 'Coding error; please open an issue'
             batch, seqlen = input_ids.shape[:2]
-            index_as_first_axis = torch.FloatTensor(
+            index_as_first_axis = torch.Tensor(
                 index_put_first_axis(prediction_scores, masked_token_idx,
                                      batch * seqlen))
             prediction_scores = rearrange(index_as_first_axis,

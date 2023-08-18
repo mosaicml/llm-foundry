@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import build_tokenizer
+from transformers import PreTrainedTokenizerBase
 
 # Add folder root to path to allow us to use relative imports regardless of what directory the script is run from
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
@@ -55,7 +56,7 @@ TASK_NAME_TO_CLASS = {
 }
 
 
-def build_algorithm(name, kwargs):
+def build_algorithm(name: str, kwargs: Any):
     if name == 'gradient_clipping':
         return algorithms.GradientClipping(**kwargs)
     elif name == 'alibi':
@@ -70,7 +71,7 @@ def build_algorithm(name, kwargs):
         raise ValueError(f'Not sure how to build algorithm: {name}')
 
 
-def build_callback(name, kwargs):
+def build_callback(name: str, kwargs: Any):
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
@@ -90,14 +91,14 @@ def build_callback(name, kwargs):
         raise ValueError(f'Not sure how to build callback: {name}')
 
 
-def build_logger(name, kwargs):
+def build_logger(name: str, kwargs: Any):
     if name == 'wandb':
         return WandBLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
 
-def build_scheduler(cfg):
+def build_scheduler(cfg: DictConfig):
     if cfg.name == 'constant_with_warmup':
         return ConstantWithWarmupScheduler(t_warmup=cfg.t_warmup)
     elif cfg.name == 'cosine_with_warmup':
@@ -110,7 +111,7 @@ def build_scheduler(cfg):
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
 
 
-def build_composer_model(model_cfg, tokenizer):
+def build_composer_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
@@ -176,7 +177,7 @@ def _setup_gpu_queue(num_gpus: int, manager: SyncManager):
     return gpu_queue
 
 
-def create_job_configs(main_config: om.DictConfig, tasks_to_run: Set[str],
+def create_job_configs(main_config: DictConfig, tasks_to_run: Set[str],
                        pretrained_checkpoint_path: Optional[str]):
     configs = []
     for task_name, task_config in main_config.tasks.items():
@@ -228,7 +229,7 @@ def create_job_configs(main_config: om.DictConfig, tasks_to_run: Set[str],
     return configs
 
 
-def run_job_worker(config: om.DictConfig,
+def run_job_worker(config: DictConfig,
                    gpu_queue: Optional[mp.Queue] = None,
                    process_to_gpu: Optional[DictProxy] = None) -> Any:
     """Instantiates the job object and runs it."""
@@ -269,7 +270,7 @@ def run_job_worker(config: om.DictConfig,
     return results
 
 
-def run_jobs_parallel(configs: Sequence[om.DictConfig]) -> Dict[str, Any]:
+def run_jobs_parallel(configs: Sequence[DictConfig]) -> Dict[str, Any]:
     """Runs a list of jobs (passed in as Hydra configs) across GPUs.
 
     Returns a dictionary mapping job name to the result and original config
@@ -309,7 +310,7 @@ def run_jobs_parallel(configs: Sequence[om.DictConfig]) -> Dict[str, Any]:
     return finished_results
 
 
-def run_jobs_serial(configs) -> Dict[str, Any]:
+def run_jobs_serial(configs: List[DictConfig]) -> Dict[str, Any]:
     """Runs the jobs serially, rather than in parallel.
 
     Useful for debugging
@@ -368,7 +369,7 @@ def _print_averaged_glue_results(glue_results: List[Tuple[str, float]]) -> None:
     print('\n')
 
 
-def train(config: om.DictConfig) -> None:
+def train(config: DictConfig) -> None:
     """Main training logic.
 
     Args:
@@ -376,8 +377,8 @@ def train(config: om.DictConfig) -> None:
     """
     start_time = time.time()
 
-    resolved_om_model_config = om_conf.create(
-        om_conf.to_container(config, resolve=True))
+    resolved_om_model_config = DictConfig(om_conf.create(
+        om_conf.to_container(config, resolve=True)))
 
     # Initial default seed
     reproducibility.seed_all(resolved_om_model_config.default_seed)
@@ -395,7 +396,7 @@ def train(config: om.DictConfig) -> None:
 
     # Downloads the starting checkpoint ahead of time so that
     # the different tasks don't all try to download it at the same time
-    if resolved_om_model_config.get('starting_checkpoint_load_path', None):
+    if resolved_om_model_config.get('starting_checkpoint_load_path', None): # pyright: ignore[reportGeneralTypeIssues]
         local_pretrain_checkpoint_path = download_starting_checkpoint(
             resolved_om_model_config.starting_checkpoint_load_path,
             resolved_om_model_config.local_pretrain_checkpoint_folder)
@@ -481,5 +482,5 @@ if __name__ == '__main__':
         yaml_cfg = om.OmegaConf.load(f)
     cli_cfg = om.OmegaConf.from_cli(args_list)
     cfg = om.OmegaConf.merge(yaml_cfg, cli_cfg)
-    assert isinstance(cfg, om.DictConfig)
+    assert isinstance(cfg, DictConfig)
     train(cfg)

@@ -92,7 +92,7 @@ class BertModel(BertPreTrainedModel):
     ```
     """
 
-    def __init__(self, config: BertConfig, add_pooling_layer=True):
+    def __init__(self, config: BertConfig, add_pooling_layer: bool = True):
         super(BertModel, self).__init__(config)
         self.embeddings = BertEmbeddings(config)
         self.encoder = BertEncoder(config)
@@ -107,7 +107,7 @@ class BertModel(BertPreTrainedModel):
 
     def forward(
         self,
-        input_ids: torch.Tensor,
+        input_ids: torch.Tensor,=
         token_type_ids: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.Tensor] = None,

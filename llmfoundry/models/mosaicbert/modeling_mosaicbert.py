@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import os
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -286,7 +286,9 @@ class BertForMaskedLM(BertPreTrainedModel):
 
             assert input_ids is not None, 'Coding error; please open an issue'
             batch, seqlen = input_ids.shape[:2]
-            index_as_first_axis = torch.FloatTensor(index_put_first_axis(prediction_scores, masked_token_idx, batch * seqlen))
+            index_as_first_axis = torch.FloatTensor(
+                index_put_first_axis(prediction_scores, masked_token_idx,
+                                     batch * seqlen))
             prediction_scores = rearrange(index_as_first_axis,
                                           '(b s) d -> b s d',
                                           b=batch)
@@ -523,7 +525,7 @@ class ComposerMosaicBertForMaskedLM(HuggingFaceModel):
         tokenizer: Optional[Tokenizer] = None,
     ):
         resolved_om_model_config: Any = om.to_container(om_model_config,
-                                                   resolve=True)
+                                                        resolve=True)
 
         pretrained_model_name = resolved_om_model_config.get(
             'pretrained_model_name')
@@ -535,7 +537,6 @@ class ComposerMosaicBertForMaskedLM(HuggingFaceModel):
         if not pretrained_model_name:
             pretrained_model_name = 'bert-base-uncased'
 
-                    
         config = BertConfig.from_pretrained(pretrained_model_name,
                                             **resolved_om_model_config)
 
@@ -660,7 +661,7 @@ class ComposerMosaicBertForSequenceClassification(HuggingFaceModel):
     ):
 
         resolved_om_model_config: Any = om.to_container(om_model_config,
-                                                   resolve=True)
+                                                        resolve=True)
 
         pretrained_model_name = resolved_om_model_config.get(
             'pretrained_model_name')

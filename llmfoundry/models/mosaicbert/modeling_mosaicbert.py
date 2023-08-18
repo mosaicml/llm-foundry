@@ -286,9 +286,8 @@ class BertForMaskedLM(BertPreTrainedModel):
 
             assert input_ids is not None, 'Coding error; please open an issue'
             batch, seqlen = input_ids.shape[:2]
-            index_as_first_axis = torch.Tensor(
-                index_put_first_axis(prediction_scores, masked_token_idx,
-                                     batch * seqlen))
+            index_as_first_axis = index_put_first_axis(prediction_scores, masked_token_idx,
+                                     batch * seqlen)
             prediction_scores = rearrange(index_as_first_axis,
                                           '(b s) d -> b s d',
                                           b=batch)
@@ -299,7 +298,7 @@ class BertForMaskedLM(BertPreTrainedModel):
 
         return MaskedLMOutput(
             loss=loss,
-            logits=prediction_scores,
+            logits=prediction_scores, # pyright: ignore[reportGeneralTypeIssues]
             hidden_states=None,
             attentions=None,
         )
@@ -546,9 +545,9 @@ class ComposerMosaicBertForMaskedLM(HuggingFaceModel):
 
         if pretrained_checkpoint is not None:
             model = BertForMaskedLM.from_composer(
-                pretrained_checkpoint=pretrained_checkpoint, config=config)
+                pretrained_checkpoint=pretrained_checkpoint, config=config) # pyright: ignore[reportGeneralTypeIssues]
         else:
-            model = BertForMaskedLM(config)
+            model = BertForMaskedLM(config) # pyright: ignore[reportGeneralTypeIssues]
 
         if gradient_checkpointing:
             model.gradient_checkpointing_enable()  # type: ignore

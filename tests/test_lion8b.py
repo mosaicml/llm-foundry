@@ -8,9 +8,13 @@ import warnings
 import numpy as np
 import pytest
 import torch
+import torch.distributed as dist
 import torch.nn as nn
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed import fsdp
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+from torch.distributed.fsdp.api import (  # type:ignore .api not in public API
+    FullOptimStateDictConfig, LocalOptimStateDictConfig,
+    ShardedOptimStateDictConfig)
 
 from llmfoundry.optim import DecoupledLionW_8bit as Lion8bit
 
@@ -68,7 +72,9 @@ def test_modifies_weights_and_momentums(N: int, D: int, dtype: torch.dtype,
 @pytest.mark.gpu
 @pytest.mark.parametrize('N,D', _MANY_PARAM_SHAPES)
 @pytest.mark.parametrize('device,dtype', [('cpu', torch.float32),
-    ('cuda', torch.bfloat16), ('cuda', torch.float16), ('cuda', torch.float32)])
+                                          ('cuda', torch.bfloat16),
+                                          ('cuda', torch.float16),
+                                          ('cuda', torch.float32)])
 @pytest.mark.parametrize('weight_decay', [0, .1])
 @pytest.mark.parametrize('fused,use_errors', [(False, False), (True, False),
                                               (True, True)])
@@ -109,7 +115,9 @@ def test_changes_with_zero_grads(N: int, D: int, device: str,
 @pytest.mark.gpu
 @pytest.mark.parametrize('N,D', [(1, 8), (17, 23), (32, 32)])
 @pytest.mark.parametrize('device,dtype', [('cpu', torch.float32),
-    ('cuda', torch.bfloat16), ('cuda', torch.float16), ('cuda', torch.float32)])
+                                          ('cuda', torch.bfloat16),
+                                          ('cuda', torch.float16),
+                                          ('cuda', torch.float32)])
 @pytest.mark.parametrize('fused,use_errors', [(False, False), (True, False),
                                               (True, True)])
 def test_descends(N: int, D: int, device: str, dtype: torch.dtype, fused: bool,
@@ -152,7 +160,7 @@ def test_descends(N: int, D: int, device: str, dtype: torch.dtype, fused: bool,
             momentum_abs_changes = (momentum - prev_momentum).abs()
             assert torch.all(momentum_abs_changes >= 0)
             assert momentum_abs_changes.max() > 0
-        prev_momentum = momentum.clone() # gpu, f32 on cpu write in place
+        prev_momentum = momentum.clone()  # {gpu, f32 on cpu} write in place
 
 
 def _nmse(vals_true: torch.Tensor,
@@ -367,12 +375,13 @@ def test_state_dict_save_load(device: str, quantized_state: bool,
 
 
 class _DummyModule(nn.Module):
+
     def __init__(self, device: str, dtype: torch.dtype):
         super().__init__()
         self.linear0 = nn.Linear(4, 3, device=device, dtype=dtype)
         self.linear1 = nn.Linear(3, 4, device=device, dtype=dtype)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor: # type:ignore
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type:ignore
         return self.linear1(self.linear0(x))
 
 
@@ -380,22 +389,25 @@ _FULL_STATE = fsdp.StateDictType.FULL_STATE_DICT
 _SHARDED_STATE = fsdp.StateDictType.SHARDED_STATE_DICT
 _LOCAL_STATE = fsdp.StateDictType.LOCAL_STATE_DICT
 
+
 # run just this test with:
 # python3 -m composer.cli.launcher -n 2 --master_port 26000 -m pytest -m gpu tests/test_lion8b.py::test_fsdp_save_load  # noqa
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
 @pytest.mark.parametrize('use_errors', [False, True])
-@pytest.mark.parametrize('state_sharding', [_FULL_STATE, _SHARDED_STATE, _LOCAL_STATE])
-def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool, state_sharding: fsdp.StateDictType):
+@pytest.mark.parametrize('state_sharding',
+                         [_FULL_STATE, _SHARDED_STATE, _LOCAL_STATE])
+def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
+                        state_sharding: fsdp.StateDictType):
     device = 'cuda'
     if torch.cuda.device_count() < 2:
         pytest.skip(f'This test requires 2+ GPUs.')
 
-    torch.cuda.set_device(f'cuda:{os.environ["RANK"]}') # needed for fsdp
-    if not torch.distributed.is_initialized():
-        torch.distributed.init_process_group()
-    assert torch.distributed.get_world_size() >= 2, 'Misconfigured test run!'
+    torch.cuda.set_device(f'cuda:{os.environ["RANK"]}')  # needed for fsdp
+    if not dist.is_initialized():
+        dist.init_process_group()
+    assert dist.get_world_size() >= 2, 'Misconfigured test run!'
 
     mod = FSDP(_DummyModule(device=device, dtype=dtype))
 
@@ -416,15 +428,16 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool, state_sharding: fs
         # https://github.com/pytorch/pytorch/blob/a815e719e85899d4229616617e7827d4de191c2d/torch/distributed/fsdp/fully_sharded_data_parallel.py#L664 # noqa
         state_dict_cfg = {
             _FULL_STATE: fsdp.FullStateDictConfig(rank0_only=False),
-            _SHARDED_STATE: fsdp.api.ShardedStateDictConfig(),
-            _LOCAL_STATE: fsdp.api.LocalStateDictConfig(),
+            _SHARDED_STATE: fsdp.ShardedStateDictConfig(),
+            _LOCAL_STATE: fsdp.LocalStateDictConfig(),
         }[state_sharding]
         optim_cfg = {
-            _FULL_STATE: fsdp.api.FullOptimStateDictConfig(rank0_only=False),
-            _SHARDED_STATE: fsdp.api.ShardedOptimStateDictConfig(),
-            _LOCAL_STATE: fsdp.api.LocalOptimStateDictConfig(),
+            _FULL_STATE: FullOptimStateDictConfig(rank0_only=False),
+            _SHARDED_STATE: ShardedOptimStateDictConfig(),
+            _LOCAL_STATE: LocalOptimStateDictConfig(),
         }[state_sharding]
-        FSDP.set_state_dict_type(model, state_sharding, state_dict_cfg, optim_cfg)
+        FSDP.set_state_dict_type(model, state_sharding, state_dict_cfg,
+                                 optim_cfg)
 
     # load FSDP state dict
     _set_state_dict_type(mod)

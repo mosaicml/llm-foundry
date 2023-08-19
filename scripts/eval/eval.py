@@ -122,8 +122,9 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
                                                 model_gauntlet)  # type: ignore
 
     if fsdp_config and model_cfg.model.load_in_8bit:
-        raise ValueError("The FSDP config block is not supported when loading " +
-                         "Hugging Face models in 8bit.")
+        raise ValueError(
+            'The FSDP config block is not supported when loading ' +
+            'Hugging Face models in 8bit.')
 
     if hasattr(model_cfg.model, 'pretrained_lora_id_or_path'):
         composer_model = load_peft_model(model_cfg.model, tokenizer,

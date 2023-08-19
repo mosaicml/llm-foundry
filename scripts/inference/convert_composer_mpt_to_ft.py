@@ -14,8 +14,8 @@ import torch
 from composer.utils import get_file, safe_torch_load
 from transformers import PreTrainedTokenizer
 
-from llmfoundry.models.utils import (convert_and_save_ft_weights,
-                                     get_hf_tokenizer_from_composer_state_dict)
+from llmfoundry.utils import (convert_and_save_ft_weights,
+                              get_hf_tokenizer_from_composer_state_dict)
 
 
 def save_ft_config(composer_config: dict,

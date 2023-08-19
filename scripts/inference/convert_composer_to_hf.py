@@ -15,7 +15,7 @@ from composer.utils import (get_file, maybe_create_object_store_from_uri,
 from transformers import AutoConfig, PretrainedConfig, PreTrainedTokenizerBase
 
 from llmfoundry import MPTConfig, MPTForCausalLM
-from llmfoundry.models.utils import get_hf_tokenizer_from_composer_state_dict
+from llmfoundry.utils import get_hf_tokenizer_from_composer_state_dict
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 

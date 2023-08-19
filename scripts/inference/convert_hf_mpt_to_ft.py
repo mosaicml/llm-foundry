@@ -27,7 +27,7 @@ import os
 
 import transformers
 
-from llmfoundry.models.utils import convert_and_save_ft_weights
+from llmfoundry.utils import convert_and_save_ft_weights
 
 
 def convert_mpt_to_ft(model_name_or_path: str,

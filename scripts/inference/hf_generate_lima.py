@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 import itertools
 import os
 import random
@@ -10,7 +9,8 @@ from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
 
 import torch
-from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer)
+from convert_model_outputs_json import convert_txt_to_eval_json
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 
 def get_dtype(dtype):
@@ -135,9 +135,9 @@ def load_prompt_string_from_file(prompt_path_str: str):
         raise FileNotFoundError(
             f'{prompt_file_path=} does not match any existing files.')
     with open(prompt_file_path, 'r') as f:
-        # prompt_string = ''.join(f.readlines())
         # every prompt ends with a ### Response:\n\n line
         prompt_string = f.read().split('### Response:\n\n')
+        # prompt_string = [p + '### Response:\n\n' for p in prompt_string[:-1]]
         prompt_string = [p + '### Response:\n\n' for p in prompt_string[:-1]]
     return prompt_string
 
@@ -368,6 +368,10 @@ def main(args: Namespace) -> None:
         # save this as a txt file
         with open(args.output_file, 'w') as f:
             f.write('\n\n'.join(all_generated_responses))
+        # also save this as a json, and upload to oci
+        file_name = args.output_file.split('.txt')[0]
+        convert_txt_to_eval_json(
+            file_name, store_path='oci://mosaicml-internal-checkpoints/')
 
 
 if __name__ == '__main__':

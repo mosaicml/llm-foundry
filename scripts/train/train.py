@@ -400,9 +400,9 @@ def main(cfg: DictConfig):
             print_trainable_parameters(model)  # should not be 100%
         else:  # standard model
             model = build_composer_model(model_config, tokenizer)
-        if cfg.model.get('master_weights_dtype') in ('bf16', 'bfloat16'):
+        if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
             model = model.to(dtype=torch.bfloat16)
-        elif cfg.model.get('master_weights_dtype') in ('f16', 'float16'):
+        elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
             model = model.to(dtype=torch.float16)
 
     # Log number of parameters

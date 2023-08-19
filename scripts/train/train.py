@@ -204,7 +204,10 @@ def main(cfg: DictConfig):
                                                  'dist_timeout',
                                                  must_exist=False,
                                                  default_value=600.0)
-    device = cfg.get('device', None)
+    device: bool = pop_config(cfg,
+                              'device',
+                              must_exist=False,
+                              default_value=None)
     dist.initialize_dist(get_device(device), timeout=dist_timeout)
 
     # Get global and device batch size information from distributed/single node setting
@@ -232,6 +235,11 @@ def main(cfg: DictConfig):
                                                        must_exist=False,
                                                        default_value=None,
                                                        convert=True)
+    deepspeed_config: Optional[Dict[str, Any]] = pop_config(cfg,
+                                                            'deepspeed_config',
+                                                            must_exist=False,
+                                                            default_value=None,
+                                                            convert=True)
     lora_config: Optional[Dict[str, Any]] = pop_config(cfg,
                                                        'lora',
                                                        must_exist=False,
@@ -389,11 +397,6 @@ def main(cfg: DictConfig):
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
 
-    # Read deep_speed config as dict
-    deepspeed_config = cfg.get('deepspeed_config', None)
-    deepspeed_config = om.to_container(
-        deepspeed_config, resolve=True) if deepspeed_config else None
-
     # build tokenizer
     tokenizer = build_tokenizer(tokenizer_config)
 
@@ -501,8 +504,7 @@ def main(cfg: DictConfig):
         python_log_level=python_log_level,
         dist_timeout=dist_timeout,
         deepspeed_config=deepspeed_config,
-        device=device
-    )
+        device=device)
 
     print('Logging config')
     log_config(logged_cfg)

@@ -65,6 +65,8 @@ We've been overwhelmed by all the amazing work the community has put into MPT! H
 * [ggml](https://github.com/ggerganov/ggml/tree/master): Optimized MPT version for efficient inference on consumer hardware
 * [GPT4All](https://gpt4all.io/index.html): locally running chat system, now with MPT support!
 * [Q8MPT-Chat](https://huggingface.co/spaces/Intel/Q8-Chat): 8-bit optimized MPT for CPU by our friends at Intel
+* [Mpt-Instruct-DotNet-S](https://github.com/NethermindEth/Mpt-Instruct-DotNet-S) GGML wrapper for calling MPT models from C#
+* [ggml mpt-library](https://github.com/OlegJakushkin/ggml-csharp-mpt-library/tree/master/examples/mpt-library) Example of creating [GGML](https://github.com/ggerganov/ggml) [SWIG](https://www.swig.org/) wrapper (for use of MPT from your favourite language on CPU)
 
 Tutorial videos from the community:
 * [Using MPT-7B with Langchain](https://www.youtube.com/watch?v=DXpk9K7DgMo&t=3s) by [@jamesbriggs](https://www.youtube.com/@jamesbriggs)

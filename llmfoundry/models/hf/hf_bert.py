@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 from composer.metrics.nlp import (BinaryF1Score, LanguageCrossEntropy,
                                   MaskedAccuracy)
@@ -81,7 +81,7 @@ class ComposerHFBertForMaskedLM(HuggingFaceModel):
         om_model_config: DictConfig,
         tokenizer: Optional[Tokenizer] = None,
     ):
-        resolved_om_model_config = om.to_container(om_model_config,
+        resolved_om_model_config: Any = om.to_container(om_model_config,
                                                    resolve=True)
 
         try:
@@ -186,7 +186,7 @@ class ComposerHFBertForSequenceClassification(HuggingFaceModel):
     def __init__(self,
                  om_model_config: DictConfig,
                  tokenizer: Optional[Tokenizer] = None):
-        resolved_om_model_config = om.to_container(om_model_config,
+        resolved_om_model_config: Any = om.to_container(om_model_config,
                                                    resolve=True)
         try:
             import transformers

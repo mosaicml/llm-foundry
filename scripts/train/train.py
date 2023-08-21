@@ -245,7 +245,18 @@ def main(cfg: DictConfig):
                                                         'icl_tasks',
                                                         must_exist=False,
                                                         default_value=None)
-
+    model_gauntlet_config: Optional[ListConfig] = pop_config(cfg,
+                                                        'model_gauntlet',
+                                                        must_exist=False,
+                                                        default_value=None)
+    icl_subset_num_batches: Optional[ListConfig] = pop_config(cfg,
+                                                        'icl_subset_num_batches',
+                                                        must_exist=False,
+                                                        default_value=None)
+    icl_seq_len: Optional[ListConfig] = pop_config(cfg,
+                                                        'icl_seq_len',
+                                                        must_exist=False,
+                                                        default_value=None)
     # Optional logging, evaluation and callback configs
     logger_configs: Optional[DictConfig] = pop_config(cfg,
                                                       'loggers',
@@ -454,7 +465,6 @@ def main(cfg: DictConfig):
                                 dataloader=eval_dataloader,
                                 metric_names=eval_metric_names)
         evaluators.append(eval_loader)
-
     model_gauntlet_callback = None
     if icl_tasks_config is not None:
         icl_evaluators, metric_names = build_icl_evaluators(
@@ -464,13 +474,13 @@ def main(cfg: DictConfig):
             device_eval_batch_size,
             icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
         evaluators.extend(icl_evaluators)
-        if 'model_gauntlet' in cfg:
-            if isinstance(cfg.model_gauntlet, str):
-                with open(cfg.model_gauntlet, 'r') as icl_f:
+        if model_gauntlet_config is not None:
+            if isinstance(model_gauntlet_config, str):
+                with open(model_gauntlet_config, 'r') as icl_f:
                     model_gauntlet_cfg = om.load(icl_f)
                 model_gauntlet = model_gauntlet_cfg.model_gauntlet
             elif isinstance(cfg.model_gauntlet, DictConfig):
-                model_gauntlet = cfg.model_gauntlet
+                model_gauntlet = model_gauntlet_config
             else:
                 raise ValueError(
                     f'Got invalid type for cfg.model_gauntlet: {type(cfg.model_gauntlet)}'

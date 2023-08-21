@@ -155,7 +155,6 @@ class ModelGauntlet(Callback):
 
         composite_scores['icl/metrics/model_gauntlet/average'] = sum(
             composite_scores.values()) / len(composite_scores.values())
-
         if logger is not None:
             logger.log_metrics(composite_scores)
 

@@ -40,7 +40,7 @@ import copy
 import logging
 import math
 import warnings
-from typing import List, Optional, Union, Any
+from typing import Any, List, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -235,13 +235,17 @@ class BertUnpadSelfAttention(nn.Module):
                 bias_dtype = bias.dtype
                 bias = bias.to(torch.float16)
                 attention = flash_attn_qkvpacked_func(qkv, bias)
-                attention = attention.to(orig_dtype) # pyright: ignore[reportOptionalMemberAccess]
+                attention = attention.to(
+                    orig_dtype)  # pyright: ignore[reportOptionalMemberAccess]
                 bias = bias.to(bias_dtype)
             else:
                 attention = flash_attn_qkvpacked_func(qkv, bias)
 
         # attn_mask is 1 for attend and 0 for don't
-        attention = unpad_input_only(attention, torch.squeeze(attn_mask) == 1) # pyright: ignore[reportGeneralTypeIssues]
+        attention = unpad_input_only(
+            attention,
+            torch.squeeze(
+                attn_mask) == 1)  # pyright: ignore[reportGeneralTypeIssues]
         return rearrange(attention, 'nnz h d -> nnz (h d)')
 
 

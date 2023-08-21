@@ -112,6 +112,8 @@ def test_train_gauntlet(capfd):
     test_cfg.icl_seq_len = 128
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
+    test_cfg.log_to_console = True
+    
     main(test_cfg)
     out, err = capfd.readouterr()
     breakpoint()

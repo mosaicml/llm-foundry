@@ -26,7 +26,7 @@ class ModelGauntlet(Callback):
     specification provided in the constructor.
 
     Args:
-        metric_names (dict): These are the exact keys that the individual benchmark metrics will be
+        logger_keys (dict): These are the exact keys that the individual benchmark metrics will be
                             logged under in the logger after eval
         tasks (dict): This contains the list of categories, as well as the subtasks within them, the
                       random baseline accuracy of each subtask, and the number of fewshot examples
@@ -43,7 +43,7 @@ class ModelGauntlet(Callback):
     """
 
     def __init__(self,
-                 metric_names: dict,
+                 logger_keys: dict,
                  categories: dict,
                  weighting: str = 'EQUAL',
                  subtract_random_baseline: bool = True,
@@ -63,7 +63,7 @@ class ModelGauntlet(Callback):
         self.weighting = Weighting[weighting]
         self.subtract_random_baseline = subtract_random_baseline
         self.rescale_accuracy = rescale_accuracy
-        self.metric_names = metric_names
+        self.logger_keys = logger_keys
 
         for category in self.categories:
 
@@ -92,7 +92,7 @@ class ModelGauntlet(Callback):
     def compute_averages(self, state: State):
         results = {}
 
-        for key in self.metric_names:
+        for key in self.logger_keys:
 
             # starting at index 1 skips the "metric" part of they key which is superfluous
             dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]

@@ -103,7 +103,7 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
     # Build tokenizer and model
     tokenizer = build_tokenizer(model_cfg.tokenizer)
 
-    evaluators, metric_names = build_icl_evaluators(
+    evaluators, logger_keys = build_icl_evaluators(
         icl_tasks,
         tokenizer,
         max_seq_len,
@@ -127,7 +127,7 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
             model_gauntlet = model_gauntlet_config
 
         assert model_gauntlet is not None
-        model_gauntlet.metric_names = metric_names
+        model_gauntlet.logger_keys = logger_keys
         model_gauntlet.benchmark_sizes = {
             e.label: e.dataloader.num_samples for e in evaluators
         }

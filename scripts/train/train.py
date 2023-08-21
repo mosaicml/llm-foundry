@@ -467,7 +467,7 @@ def main(cfg: DictConfig):
         evaluators.append(eval_loader)
     model_gauntlet_callback = None
     if icl_tasks_config is not None:
-        icl_evaluators, metric_names = build_icl_evaluators(
+        icl_evaluators, logger_keys = build_icl_evaluators(
             icl_tasks_config,
             tokenizer,
             cfg.get('icl_seq_len', max_seq_len),
@@ -485,7 +485,7 @@ def main(cfg: DictConfig):
                 raise ValueError(
                     f'Got invalid type for cfg.model_gauntlet: {type(cfg.model_gauntlet)}'
                 )
-            model_gauntlet.metric_names = metric_names
+            model_gauntlet.logger_keys = logger_keys
             model_gauntlet.benchmark_sizes = {
                 e.label: e.dataloader.num_samples for e in evaluators
             }

@@ -26,7 +26,7 @@ class ModelGauntlet(Callback):
     specification provided in the constructor.
 
     Args:
-        logger_keys (dict): These are the exact keys that the individual benchmark metrics will be
+        logger_keys (list): These are the exact keys that the individual benchmark metrics will be
                             logged under in the logger after eval
         tasks (dict): This contains the list of categories, as well as the subtasks within them, the
                       random baseline accuracy of each subtask, and the number of fewshot examples
@@ -43,7 +43,7 @@ class ModelGauntlet(Callback):
     """
 
     def __init__(self,
-                 logger_keys: dict,
+                 logger_keys: list,
                  categories: dict,
                  weighting: str = 'EQUAL',
                  subtract_random_baseline: bool = True,
@@ -142,6 +142,13 @@ class ModelGauntlet(Callback):
                         'score': score,
                         'weighting': benchmark['weighting']
                     })
+
+            if len(composite_scores[category['name']]) == 0:
+                print(
+                    f"Removing category `{category['name']}` from gauntlet scores because no benchmarks were available."
+                )
+                del composite_scores[category['name']]
+                continue
             total_weight = sum(
                 k['weighting'] for k in composite_scores[category['name']])
             composite_scores[category['name']] = sum(

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from composer import algorithms
@@ -23,10 +23,45 @@ from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (FDiffMetrics, Generate, GlobalLRScaling,
-                                  LayerFreezing, MonolithicCheckpointSaver,
+                                  LayerFreezing, ModelGauntlet,
+                                  MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW)
+
+
+def build_icl_data_and_gauntlet(
+    icl_tasks_config: Union[str, ListConfig],
+    model_gauntlet_config: Optional[Union[str, DictConfig]],
+    tokenizer: AutoTokenizer,
+    device_eval_batch_size: int,
+    icl_seq_len: int,
+    icl_subset_num_batches: Optional[int] = None
+) -> Tuple[List[Evaluator], List[str], Optional[ModelGauntlet]]:
+    icl_evaluators, logger_keys = build_icl_evaluators(
+        icl_tasks_config,
+        tokenizer,
+        icl_seq_len,
+        device_eval_batch_size,
+        icl_subset_num_batches=icl_subset_num_batches)
+    model_gauntlet_cb = None
+    if model_gauntlet_config is not None:
+        if isinstance(model_gauntlet_config, str):
+            with open(model_gauntlet_config, 'r') as icl_f:
+                model_gauntlet_cfg = om.load(icl_f)
+            model_gauntlet = model_gauntlet_cfg.model_gauntlet
+        elif isinstance(model_gauntlet_config, DictConfig):
+            model_gauntlet = model_gauntlet_config
+        else:
+            raise ValueError(
+                f'Got invalid type for model_gauntlet_config: {type(model_gauntlet_config)}'
+            )
+        model_gauntlet.logger_keys = logger_keys
+        model_gauntlet.benchmark_sizes = {
+            e.label: e.dataloader.num_samples for e in icl_evaluators
+        }
+        model_gauntlet_cb = ModelGauntlet(**model_gauntlet)
+    return icl_evaluators, logger_keys, model_gauntlet_cb
 
 
 def build_callback(name: str, kwargs: Dict[str, Any]):

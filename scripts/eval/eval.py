@@ -18,11 +18,10 @@ from omegaconf import OmegaConf as om
 from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
 
-from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
-                                       build_tokenizer)
+from llmfoundry.utils.builders import (build_icl_data_and_gauntlet,
+                                       build_logger, build_tokenizer)
 from llmfoundry.utils.config_utils import pop_config, process_init_device
 
 
@@ -103,36 +102,18 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
     # Build tokenizer and model
     tokenizer = build_tokenizer(model_cfg.tokenizer)
 
-    evaluators, logger_keys = build_icl_evaluators(
-        icl_tasks,
-        tokenizer,
-        max_seq_len,
-        device_eval_batch_size,
-        icl_subset_num_batches=icl_subset_num_batches)
+    evaluators, logger_keys, model_gauntlet_callback = build_icl_data_and_gauntlet(
+        icl_tasks, model_gauntlet_config, tokenizer, device_eval_batch_size,
+        max_seq_len, icl_subset_num_batches)
+
+    callbacks = []
+    if model_gauntlet_callback is not None:
+        callbacks.append(model_gauntlet_callback)
 
     loggers: List[LoggerDestination] = [
         build_logger(name, logger_cfg)
         for name, logger_cfg in loggers_cfg.items()
     ]
-
-    callbacks = []
-    model_gauntlet: Optional[DictConfig] = None
-    model_gauntlet_callback: Optional[ModelGauntlet] = None
-    if model_gauntlet_config is not None:
-        if isinstance(model_gauntlet_config, str):
-            with open(model_gauntlet_config, 'r', encoding='utf-8') as icl_f:
-                model_gauntlet_cfg = om.load(icl_f)
-            model_gauntlet = model_gauntlet_cfg.model_gauntlet
-        else:
-            model_gauntlet = model_gauntlet_config
-
-        assert model_gauntlet is not None
-        model_gauntlet.logger_keys = logger_keys
-        model_gauntlet.benchmark_sizes = {
-            e.label: e.dataloader.num_samples for e in evaluators
-        }
-        model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
-        callbacks.append(model_gauntlet_callback)
 
     if hasattr(model_cfg.model, 'pretrained_lora_id_or_path'):
         composer_model = load_peft_model(model_cfg.model, tokenizer,
@@ -141,10 +122,10 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
         composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
                                     num_retries)
 
-    if model_gauntlet_df is None and model_gauntlet is not None:
+    if model_gauntlet_df is None and model_gauntlet_callback is not None:
         model_gauntlet_df = pd.DataFrame(
             columns=['model_name', 'average'] +
-            [t.name for t in model_gauntlet.categories])
+            [t.name for t in model_gauntlet_callback.categories])
 
     load_path = model_cfg.get('load_path', None)
 
@@ -172,8 +153,7 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
         torch.cuda.synchronize()
     b = time.time()
     print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
-    return (trainer, metric_names, model_gauntlet_callback, model_gauntlet,
-            model_gauntlet_df)
+    return (trainer, logger_keys, model_gauntlet_callback, model_gauntlet_df)
 
 
 def main(cfg: DictConfig):
@@ -239,7 +219,7 @@ def main(cfg: DictConfig):
     models_df = None
     composite_scores = None
     for model_cfg in model_configs:
-        (trainer, metric_names, model_gauntlet_callback, model_gauntlet,
+        (trainer, logger_keys, model_gauntlet_callback,
          model_gauntlet_df) = evaluate_model(
              model_cfg=model_cfg,
              dist_timeout=dist_timeout,
@@ -260,12 +240,12 @@ def main(cfg: DictConfig):
                 trainer.state, trainer.logger)
 
         benchmark_to_taxonomy = {}
-        if model_gauntlet is not None:
-            for t in model_gauntlet.categories:
+        if model_gauntlet_callback is not None:
+            for t in model_gauntlet_callback.categories:
                 for b in t.benchmarks:
                     benchmark_to_taxonomy[b.name] = t.name
 
-        model_results = calculate_markdown_results(metric_names, trainer,
+        model_results = calculate_markdown_results(logger_keys, trainer,
                                                    benchmark_to_taxonomy,
                                                    model_cfg.model_name)
 
@@ -274,12 +254,14 @@ def main(cfg: DictConfig):
         else:
             models_df = pd.concat([models_df, model_results], ignore_index=True)
 
-        if model_gauntlet_df is not None and model_gauntlet is not None:
+        if model_gauntlet_df is not None and model_gauntlet_callback is not None:
             assert composite_scores is not None
             row = {'model_name': model_cfg['model_name']}
             row.update({
-                t.name: composite_scores[f'icl/metrics/model_gauntlet/{t.name}']
-                for t in model_gauntlet.categories
+                t.name:
+                composite_scores.get(f'icl/metrics/model_gauntlet/{t.name}',
+                                     None)
+                for t in model_gauntlet_callback.categories
             })
             row.update({
                 'average':
@@ -297,12 +279,12 @@ def main(cfg: DictConfig):
         print(models_df.to_markdown(index=False))
 
 
-def calculate_markdown_results(metric_keys: List[str], trainer: Trainer,
+def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                                benchmark_to_taxonomy: Dict[str, str],
                                model_name: str):
     results = {}
 
-    for key in metric_keys:
+    for key in logger_keys:
         # dl_name consists is either 2-tuple (benchmark_name, num_fewshot)
         # or 3-tuple (benchmark_name, num_fewshot, subcategory)
         dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]

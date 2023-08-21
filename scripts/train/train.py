@@ -18,12 +18,11 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
-from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
-                                       build_icl_evaluators, build_logger,
-                                       build_optimizer, build_scheduler,
-                                       build_tokenizer)
+                                       build_icl_data_and_gauntlet,
+                                       build_logger, build_optimizer,
+                                       build_scheduler, build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
@@ -241,22 +240,24 @@ def main(cfg: DictConfig):
                                                           'eval_loader',
                                                           must_exist=False,
                                                           default_value=None)
-    icl_tasks_config: Optional[ListConfig] = pop_config(cfg,
+    icl_tasks_config: Optional[Union[ListConfig,
+                                     str]] = pop_config(cfg,
                                                         'icl_tasks',
                                                         must_exist=False,
                                                         default_value=None)
-    model_gauntlet_config: Optional[ListConfig] = pop_config(cfg,
-                                                        'model_gauntlet',
-                                                        must_exist=False,
-                                                        default_value=None)
-    icl_subset_num_batches: Optional[ListConfig] = pop_config(cfg,
-                                                        'icl_subset_num_batches',
-                                                        must_exist=False,
-                                                        default_value=None)
-    icl_seq_len: Optional[ListConfig] = pop_config(cfg,
-                                                        'icl_seq_len',
-                                                        must_exist=False,
-                                                        default_value=None)
+    model_gauntlet_config: Optional[Union[DictConfig,
+                                          str]] = pop_config(cfg,
+                                                             'model_gauntlet',
+                                                             must_exist=False,
+                                                             default_value=None)
+    icl_subset_num_batches: Optional[int] = pop_config(cfg,
+                                                       'icl_subset_num_batches',
+                                                       must_exist=False,
+                                                       default_value=None)
+    icl_seq_len: Optional[int] = pop_config(cfg,
+                                            'icl_seq_len',
+                                            must_exist=False,
+                                            default_value=None)
     # Optional logging, evaluation and callback configs
     logger_configs: Optional[DictConfig] = pop_config(cfg,
                                                       'loggers',
@@ -437,7 +438,7 @@ def main(cfg: DictConfig):
     callbacks: List[Callback] = [
         build_callback(str(name), callback_cfg)
         for name, callback_cfg in callback_configs.items()
-    ] if callback_configs else None
+    ] if callback_configs else []
 
     # Algorithms
     algorithms = [
@@ -466,30 +467,13 @@ def main(cfg: DictConfig):
                                 metric_names=eval_metric_names)
         evaluators.append(eval_loader)
     model_gauntlet_callback = None
+
     if icl_tasks_config is not None:
-        icl_evaluators, logger_keys = build_icl_evaluators(
-            icl_tasks_config,
-            tokenizer,
-            cfg.get('icl_seq_len', max_seq_len),
-            device_eval_batch_size,
-            icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
+        icl_evaluators, _, model_gauntlet_callback = build_icl_data_and_gauntlet(
+            icl_tasks_config, model_gauntlet_config, tokenizer,
+            device_eval_batch_size, icl_seq_len if icl_seq_len else max_seq_len,
+            icl_subset_num_batches)
         evaluators.extend(icl_evaluators)
-        if model_gauntlet_config is not None:
-            if isinstance(model_gauntlet_config, str):
-                with open(model_gauntlet_config, 'r') as icl_f:
-                    model_gauntlet_cfg = om.load(icl_f)
-                model_gauntlet = model_gauntlet_cfg.model_gauntlet
-            elif isinstance(cfg.model_gauntlet, DictConfig):
-                model_gauntlet = model_gauntlet_config
-            else:
-                raise ValueError(
-                    f'Got invalid type for cfg.model_gauntlet: {type(cfg.model_gauntlet)}'
-                )
-            model_gauntlet.logger_keys = logger_keys
-            model_gauntlet.benchmark_sizes = {
-                e.label: e.dataloader.num_samples for e in evaluators
-            }
-            model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
 
     if model_gauntlet_callback is not None:
         callbacks.append(model_gauntlet_callback)

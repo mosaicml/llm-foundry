@@ -4,6 +4,7 @@ import os
 import shutil
 import sys
 from argparse import Namespace
+from typing import Any
 
 import pytest
 import torch
@@ -90,10 +91,19 @@ def test_train(device: str):
     main(test_cfg)
 
 
-def test_train_gauntlet(capfd):
-    # NEED TO FINISH THIS TEST
+@pytest.fixture(autouse=False)
+def set_correct_cwd():
+    if not os.getcwd().endswith('llm-foundry/scripts'):
+        os.chdir('scripts')
+
+    yield
+
+    if os.getcwd().endswith('llm-foundry/scripts'):
+        os.chdir('..')
+
+
+def test_train_gauntlet(set_correct_cwd: Any):
     """Test training run with a small dataset."""
-    os.chdir('scripts')
     dataset_name = create_c4_dataset_xsmall('cpu')
     test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
     test_cfg.icl_tasks = ListConfig([
@@ -110,9 +120,7 @@ def test_train_gauntlet(capfd):
     test_cfg.icl_subset_num_batches = 1  # -1 to evaluate on all batches
     test_cfg.model_gauntlet = 'eval/yamls/model_gauntlet.yaml'
     test_cfg.icl_seq_len = 128
-    test_cfg.max_duration = '3ba'
+    test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
-    test_cfg.log_to_console = True
-    
+
     main(test_cfg)
-    out, err = capfd.readouterr()

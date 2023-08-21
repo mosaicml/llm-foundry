@@ -13,7 +13,7 @@ These functions are used extensively throughout the Mosaic BERT implementation
 in `bert_layers.py`.
 """
 
-from typing import Tuple, cast, Any
+from typing import Any, Tuple, cast
 
 import torch
 import torch.nn.functional as F
@@ -47,7 +47,8 @@ class IndexFirstAxis(torch.autograd.Function):
         ).reshape(-1, *other_shape)  # (num_idx, ...)
 
     @staticmethod
-    def backward(ctx: Any, grad_output: torch.Tensor) -> Tuple[torch.Tensor, None]:
+    def backward(ctx: Any,
+                 grad_output: torch.Tensor) -> Tuple[torch.Tensor, None]:
         indices, = ctx.saved_tensors
         assert grad_output.ndim >= 2
         other_shape = grad_output.shape[1:]
@@ -142,7 +143,7 @@ def unpad_input_only(
     """
     indices = torch.nonzero(attention_mask.flatten(), as_tuple=False).flatten()
     return index_first_axis(rearrange(hidden_states, 'b s ... -> (b s) ...'),
-                            indices) #pyright: ignore[reportGeneralTypeIssues]
+                            indices)  #pyright: ignore[reportGeneralTypeIssues]
 
 
 def pad_input(hidden_states: torch.Tensor, indices: torch.Tensor, batch: int,
@@ -159,4 +160,5 @@ def pad_input(hidden_states: torch.Tensor, indices: torch.Tensor, batch: int,
         hidden_states: (batch, seqlen, ...)
     """
     output = index_put_first_axis(hidden_states, indices, batch * seqlen)
-    return rearrange(output, '(b s) ... -> b s ...', b=batch) #pyright: ignore[reportGeneralTypeIssues]
+    return rearrange(output, '(b s) ... -> b s ...',
+                     b=batch)  #pyright: ignore[reportGeneralTypeIssues]

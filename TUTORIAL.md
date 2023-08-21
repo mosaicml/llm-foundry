@@ -336,6 +336,7 @@ The majority of our training setups use `triton`. -->
 model:
   name: hf_causal_lm
   pretrained: true
+  init_device: mixed # mixed | cpu, not meta. mixed -> fsdp_config.use_orig_params = false
   ...
   lora:
     args:
@@ -350,7 +351,7 @@ You can train LoRA models using FSDP for further memory savings. in your `.yaml`
 <!--pytest.mark.skip-->
 ```yaml
 fsdp_config:
-  use_orig_params: true
+  use_orig_params: false
   sharding_strategy: FULL_SHARD
   mixed_precision: PURE
   activation_checkpointing: true
@@ -358,6 +359,7 @@ fsdp_config:
   activation_cpu_offload: false
   limit_all_gathers: true
 ```
+if `model.init_device
 or default to DDP by leaving out the `fsdp_config` section entirely.
 
 - In the current release, these features have Beta support.

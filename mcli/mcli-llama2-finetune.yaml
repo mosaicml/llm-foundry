@@ -33,6 +33,7 @@ parameters:
   # Model
   model:
     name: hf_causal_lm
+    init_device: mixed
     pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
     pretrained: true
     # Note: you must have set the HUGGING_FACE_HUB_TOKEN environment variable and have access to the llama2 models

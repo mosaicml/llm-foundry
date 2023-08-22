@@ -87,3 +87,31 @@ class TestTrainingYAMLInputs:
                            str(warning.message) for warning in warning_list)
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
+
+    def test_extra_params_in_optimizer_cfg_errors(self,
+                                                  cfg: DictConfig) -> None:
+        cfg.optimizer.beta2 = 'extra-parameter'
+        with pytest.raises(TypeError):
+            main(cfg)
+
+    def test_invalid_name_in_optimizer_cfg_errors(self,
+                                                  cfg: DictConfig) -> None:
+        cfg.optimizer.name = 'invalid-optimizer'
+        with pytest.raises(ValueError) as exception_info:
+            main(cfg)
+        assert str(exception_info.value
+                  ) == 'Not sure how to build optimizer: invalid-optimizer'
+
+    def test_extra_params_in_scheduler_cfg_errors(self,
+                                                  cfg: DictConfig) -> None:
+        cfg.scheduler.t_warmup_extra = 'extra-parameter'
+        with pytest.raises(TypeError):
+            main(cfg)
+
+    def test_invalid_name_in_scheduler_cfg_errors(self,
+                                                  cfg: DictConfig) -> None:
+        cfg.scheduler.name = 'invalid-scheduler'
+        with pytest.raises(ValueError) as exception_info:
+            main(cfg)
+        assert str(exception_info.value
+                  ) == 'Not sure how to build scheduler: invalid-scheduler'

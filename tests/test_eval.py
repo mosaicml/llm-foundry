@@ -1,9 +1,13 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
-from typing import Any
-import omegaconf as om
 import os
 import sys
+from typing import Any
+
+import omegaconf as om
 import pytest
+
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
@@ -23,8 +27,7 @@ def set_correct_cwd():
 
 
 def test_icl_eval(capfd: Any):
-    test_cfg = om.OmegaConf.create(
-        """
+    test_cfg = om.OmegaConf.create("""
         max_seq_len: 1024
         seed: 1
         precision: fp32
@@ -54,17 +57,16 @@ def test_icl_eval(capfd: Any):
 
         device_eval_batch_size: 4
         icl_subset_num_batches: 1
-        icl_tasks: 
+        icl_tasks:
         -
             label: lambada_openai
             dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
             num_fewshot: [0]
             icl_task_type: language_modeling
         model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
-        """
-    )
+        """)
     assert isinstance(test_cfg, om.DictConfig)
     main(test_cfg)
     out, _ = capfd.readouterr()
-    expected_results = "| Category               | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:-----------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| language_understanding | lambada_openai |           |          0 | 0-shot            | tiny_mpt |\n"
+    expected_results = '| Category               | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:-----------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| language_understanding | lambada_openai |           |          0 | 0-shot            | tiny_mpt |\n'
     assert expected_results in out

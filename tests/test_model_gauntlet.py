@@ -1,13 +1,19 @@
-from typing import Dict, List
-from composer.loggers import Logger, InMemoryLogger
-import pytest
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import os
+from typing import Dict, List
+
 import omegaconf as om
-from transformers import AutoTokenizer
-from llmfoundry.utils.builders import build_icl_data_and_gauntlet
-from composer.metrics import InContextLearningLMAccuracy
+import pytest
 import torch
 from composer.core import State
+from composer.loggers import InMemoryLogger, Logger
+from composer.metrics import InContextLearningLMAccuracy
+from transformers import AutoTokenizer
+
+from llmfoundry.utils.builders import build_icl_data_and_gauntlet
+
 
 @pytest.fixture(autouse=True)
 def set_correct_cwd():
@@ -19,38 +25,47 @@ def set_correct_cwd():
     if os.getcwd().endswith('llm-foundry/scripts'):
         os.chdir('..')
 
+
 class MockState(State):
-    def __init__(self, logger_keys: List[str], accuracy: float=0.25) -> None:
+
+    def __init__(self, logger_keys: List[str], accuracy: float = 0.25) -> None:
         self.eval_metrics = {}
         self.timestamp = 0
         for key in logger_keys:
             dl_name = '/'.join(key.split('/')[1:-1])
             self.eval_metrics[dl_name] = {}
-            self.eval_metrics[dl_name]['InContextLearningLMAccuracy'] = InContextLearningLMAccuracy()
-            self.eval_metrics[dl_name]['InContextLearningLMAccuracy'].correct = torch.tensor(accuracy * 100)
-            self.eval_metrics[dl_name]['InContextLearningLMAccuracy'].total = torch.tensor(100)
+            self.eval_metrics[dl_name][
+                'InContextLearningLMAccuracy'] = InContextLearningLMAccuracy()
+            self.eval_metrics[dl_name][
+                'InContextLearningLMAccuracy'].correct = torch.tensor(accuracy *
+                                                                      100)
+            self.eval_metrics[dl_name][
+                'InContextLearningLMAccuracy'].total = torch.tensor(100)
+
 
 class MockLogger(Logger):
+
     def __init__(self, state: MockState):
         self.inmemorylogger = InMemoryLogger()
         self.inmemorylogger.state = state
 
-    def log_metrics(self, metrics: Dict[str, float]) -> None: 
-       self.inmemorylogger.log_metrics(metrics)
+    def log_metrics(self, metrics: Dict[str, float]) -> None:
+        self.inmemorylogger.log_metrics(metrics)
+
 
 @pytest.mark.parametrize(
-    'tasks_from_path', [True, False],
+    'tasks_from_path',
+    [True, False],
 )
 @pytest.mark.parametrize(
-    'gauntlet_from_path', [True, False],
+    'gauntlet_from_path',
+    [True, False],
 )
 def test_gauntlet_callback(tasks_from_path: bool, gauntlet_from_path: bool):
-
     if tasks_from_path:
         icl_task_config = 'eval/yamls/lm_tasks.yaml'
     else:
-        icl_task_config = om.OmegaConf.create(
-            """
+        icl_task_config = om.OmegaConf.create("""
             - label: jeopardy
               dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
               num_fewshot: [10]
@@ -101,15 +116,14 @@ def test_gauntlet_callback(tasks_from_path: bool, gauntlet_from_path: bool):
               dataset_uri: eval/local_data/reading_comprehension/squad.jsonl # ADD YOUR OWN DATASET URI
               num_fewshot: [10]
               icl_task_type: language_modeling
-            """
-        )
-    assert isinstance(icl_task_config, om.ListConfig) or isinstance(icl_task_config, str)
+            """)
+    assert isinstance(icl_task_config, om.ListConfig) or isinstance(
+        icl_task_config, str)
 
     if gauntlet_from_path:
         model_gauntlet_config = 'eval/yamls/model_gauntlet.yaml'
     else:
-        model_gauntlet_config = om.OmegaConf.create(
-          """
+        model_gauntlet_config = om.OmegaConf.create("""
                 weighting: EQUAL
                 subtract_random_baseline: true
                 rescale_accuracy: true
@@ -223,20 +237,14 @@ def test_gauntlet_callback(tasks_from_path: bool, gauntlet_from_path: bool):
                     - name: boolq
                       num_fewshot: 10
                       random_baseline: 0.5
-          """
-        )
-    assert isinstance(model_gauntlet_config, om.DictConfig) or isinstance(model_gauntlet_config, str)
-    tokenizer =  AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
+          """)
+    assert isinstance(model_gauntlet_config, om.DictConfig) or isinstance(
+        model_gauntlet_config, str)
+    tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
 
     # test loading functionality
     _, _, model_gauntlet_callback = build_icl_data_and_gauntlet(
-            icl_task_config,
-            model_gauntlet_config,
-            tokenizer,
-            4,
-            1024,
-            1
-    )
+        icl_task_config, model_gauntlet_config, tokenizer, 4, 1024, 1)
     assert model_gauntlet_callback is not None
     state = MockState(model_gauntlet_callback.logger_keys)
     logger = MockLogger(state)
@@ -245,9 +253,10 @@ def test_gauntlet_callback(tasks_from_path: bool, gauntlet_from_path: bool):
     result = model_gauntlet_callback.eval_after_all(state, logger)
 
     for category in [
-        'world_knowledge', 'language_understanding', 'reading_comprehension', 'symbolic_problem_solving'
+            'world_knowledge', 'language_understanding',
+            'reading_comprehension', 'symbolic_problem_solving'
     ]:
-        name = f"icl/metrics/model_gauntlet/{category}"
+        name = f'icl/metrics/model_gauntlet/{category}'
         assert result[name] == pytest.approx(0.25)
-    
+
     assert result['icl/metrics/model_gauntlet/average'] == pytest.approx(0.25)

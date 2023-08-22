@@ -29,7 +29,6 @@ class TestHuggingFaceEvalYAMLInputs:
             test_cfg = om.load(config)
         assert isinstance(test_cfg, DictConfig)
         return test_cfg
-    
 
     def test_mispelled_mandatory_params_fail(self, cfg: DictConfig) -> None:
         """Check that mandatory mispelled inputs fail to train."""
@@ -74,8 +73,9 @@ class TestHuggingFaceEvalYAMLInputs:
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
 
-        
+
 class TestMCLIEvalYAMLInputs:
+
     @pytest.fixture
     def cfg(self) -> DictConfig:
         """Create YAML cfg fixture for testing purposes."""
@@ -83,9 +83,10 @@ class TestMCLIEvalYAMLInputs:
                                       'scripts/eval/yamls/mpt_eval.yaml')
         with open(conf_path, 'r', encoding='utf-8') as config:
             test_cfg = om.load(config)
-        
-        test_cfg.icl_tasks[0].dataset_uri = os.path.join(repo_dir, 'scripts', test_cfg.icl_tasks[0].dataset_uri)
-        
+
+        test_cfg.icl_tasks[0].dataset_uri = os.path.join(
+            repo_dir, 'scripts', test_cfg.icl_tasks[0].dataset_uri)
+
         # make tests use cpu initialized transformer models only
         test_cfg.models[0].model.init_device = 'cpu'
         test_cfg.models[0].model.attn_config.attn_impl = 'torch'
@@ -93,10 +94,11 @@ class TestMCLIEvalYAMLInputs:
         test_cfg.precision = 'fp32'
         assert isinstance(test_cfg, DictConfig)
         return test_cfg
-    
+
     def test_empty_load_path_raises_error(self, cfg: DictConfig) -> None:
         """Check that empty load paths for mpt models raise an error."""
         error_string = 'MPT causal LMs require a load_path to the checkpoint for model evaluation. \
                          Please check your yaml and the model_cfg to ensure that load_path is set.'
-        with pytest.raises(ValueError, match=error_string):     
+
+        with pytest.raises(ValueError, match=error_string):
             main(cfg)

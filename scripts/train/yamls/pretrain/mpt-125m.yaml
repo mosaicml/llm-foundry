@@ -29,7 +29,7 @@ tokenizer:
 train_loader:
   name: text
   dataset:
-    # local: ${data_local}
+    local: ${data_local}
     remote: ${data_remote}
     split: train
     shuffle: true
@@ -41,7 +41,7 @@ train_loader:
 eval_loader:
   name: text
   dataset:
-    # local: ${data_local}
+    local: ${data_local}
     remote: ${data_remote}
     split: val
     shuffle: false
@@ -105,12 +105,8 @@ callbacks:
   memory_monitor: {}
   runtime_estimator: {}
 
-scheduling:
-  resumable: true # Makes job preemptible.
-  priority: low # Allows higher priority jobs to preempt you
-
-loggers:
-  wandb: {}
+# loggers:
+#   wandb: {}
 
 # Checkpoint to local filesystem or remote object store
 # save_interval: 500ba

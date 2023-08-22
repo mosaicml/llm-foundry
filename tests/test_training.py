@@ -129,6 +129,4 @@ def test_train_gauntlet(set_correct_cwd: Any):
     assert 'icl/metrics/model_gauntlet/average' in trainer.logger.destinations[
         0].data.keys()
     assert trainer.logger.destinations[0].data[
-        'icl/metrics/model_gauntlet/average']
-    assert trainer.logger.destinations[0].data[
         'icl/metrics/model_gauntlet/average'][-1][-1] == 0

@@ -9,7 +9,7 @@ import requests
 import yaml
 from mcli.models.run_config import SchedulingConfig
 from mcli.sdk import RunConfig, create_run, get_clusters, follow_run_logs
-from torch.distributed.fsdp import BackwardPrefetch, ShardingStrategy
+
 def _get_cluster_info():
     clusters = get_clusters()
     cluster_info = {}
@@ -89,8 +89,12 @@ def parse_args():
                         type=str,
                         nargs='?',
                         const=True,
+                        default="BACKWARD_PRE")
+    parser.add_argument('--activation_cpu_offload',
+                        type=str_to_bool,
+                        nargs='?',
+                        const=True,
                         default=True)
-    
     parser.add_argument(
         '-s',
         '--seq_len_exp',
@@ -180,6 +184,10 @@ def parse_args():
 
     parser.add_argument('--priority', type=str, default='lowest')
 
+    parser.add_argument('--torch_compile_fullgraph', type=str_to_bool, default=False)
+    parser.add_argument('--torch_compile_dynamic', type=str_to_bool, default=False)
+    parser.add_argument('--torch_compile_mode', type=str, default=None)
+
     parser.add_argument('--RUN',
                         type=str_to_bool,
                         nargs='?',
@@ -265,13 +273,18 @@ def mod_parameters(parameters: Dict[str, Any],
                    fsdp_config_forward_prefetch: bool = False,
                    fsdp_config_backward_prefetch: str = "BACKWARD_PRE",
                    fsdp_config_limit_all_gathers: bool = False,
+                   activation_cpu_offload: bool = False,
                    run_name: str = '',
                    data_remote: Optional[str] = None,
                    max_duration: str = '30ba',
                    eval_interval: int = 0,
                    microbatch_size: Optional[Union[int, str]] = None,
                    wandb: bool = True,
-                   pad_vocab_multiple: Optional[int] = None):
+                   pad_vocab_multiple: Optional[int] = None,
+                   torch_compile_fullgraph:bool = False,
+                   torch_compile_dynamic: bool = False,
+                   torch_compile_mode: str = None
+                   ):
     if run_name:
         parameters['run_name'] = run_name
     if data_remote is not None:
@@ -330,8 +343,11 @@ def mod_parameters(parameters: Dict[str, Any],
     parameters['fsdp_config']['sharding_strategy'] = fsdp_config_shard_strategy
     parameters['fsdp_config']['limit_all_gathers'] = fsdp_config_limit_all_gathers
     parameters['fsdp_config']['forward_prefetch'] = fsdp_config_forward_prefetch
-    parameters['fsdp_config']['backward_prefetch'] = fsdp_config_forward_prefetch
+    parameters['fsdp_config']['backward_prefetch'] = fsdp_config_backward_prefetch
+    parameters['fsdp_config']['activation_cpu_offload'] = activation_cpu_offload
     parameters['fsdp_config']['verbose'] = True
+
+    parameters['compile_config'] = {'fullgraph':torch_compile_fullgraph, 'dynamic':torch_compile_dynamic, 'mode':torch_compile_mode}
     if wandb:
         # add wandb
         parameters['loggers'] = {'wandb': {}}
@@ -387,17 +403,13 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         }
     ]
 
-    if args.data_remote is None:
-        command = f"""
-            cd llm-foundry/scripts
-            python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
-            composer train/train.py /mnt/config/parameters.yaml
-            """
-
+    command = ""
     if gpu_type == 'h100_80gb' and precision == 'fp8':
-        command = f"""
-            pip install flash-attn==1.0.7 --no-build-isolation 
-            pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
+        command += """pip install flash-attn==1.0.7 --no-build-isolation 
+            pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10"""
+
+    if args.data_remote is None:
+        command += f"""
             cd llm-foundry/scripts
             python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
             composer train/train.py /mnt/config/parameters.yaml

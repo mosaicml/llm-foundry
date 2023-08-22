@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 import torch
+from composer.loggers import InMemoryLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
@@ -104,7 +105,7 @@ def set_correct_cwd():
 
 def test_train_gauntlet(set_correct_cwd: Any):
     """Test training run with a small dataset."""
-    dataset_name = create_c4_dataset_xsmall('cpu')
+    dataset_name = create_c4_dataset_xsmall('cpu-gauntlet')
     test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
     test_cfg.icl_tasks = ListConfig([
         DictConfig({
@@ -122,4 +123,12 @@ def test_train_gauntlet(set_correct_cwd: Any):
     test_cfg.icl_seq_len = 128
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
-    main(test_cfg)
+    test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
+    trainer = main(test_cfg)
+    assert isinstance(trainer.logger.destinations[0], InMemoryLogger)
+    assert 'icl/metrics/model_gauntlet/average' in trainer.logger.destinations[
+        0].data.keys()
+    assert trainer.logger.destinations[0].data[
+        'icl/metrics/model_gauntlet/average']
+    assert trainer.logger.destinations[0].data[
+        'icl/metrics/model_gauntlet/average'][-1][-1] == 0

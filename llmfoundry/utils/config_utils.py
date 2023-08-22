@@ -505,8 +505,8 @@ def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
     # Also 'meta' is only valid when using FSDP
     init_context = contextlib.nullcontext()
     if 'init_device' in model_cfg:
-        assert model_cfg['init_device'] in ['meta', 'cpu', 'mixed']
-        if fsdp_config is None and model_cfg['init_device'] == 'meta':
+        assert model_cfg.init_device in ['meta', 'cpu', 'mixed', 'hpu']
+        if fsdp_config is None and model_cfg.init_device == 'meta':
             warnings.warn(
                 "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
                 "Reverting to `cfg.model.init_device='cpu'`.")

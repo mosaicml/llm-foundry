@@ -174,14 +174,14 @@ def _log_num_params(model: ComposerModel, logged_cfg: Dict[str, Any]):
     })
 
 
-def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
+def _initialize_dist_with_barrier(dist_timeout: Union[int, float], device):
     """Initialize distributed and test setup with a barrier.
 
     Args:
         dist_timeout (Union[int, float]): Timeout for initializing the process group
     """
     log.debug('Initializing dist with device...')
-    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    dist.initialize_dist(get_device(device), timeout=dist_timeout)
     log.debug('Testing barrier with device...')
     dist.barrier()
     log.debug('Barrier test passed with device.')
@@ -215,7 +215,21 @@ def main(cfg: DictConfig) -> Trainer:
             train_cfg.python_log_level.upper(),
         )  # Train script
 
-    _initialize_dist_with_barrier(dist_timeout=train_cfg.dist_timeout)
+    device: bool = pop_config(
+        cfg,
+        'device',
+        must_exist=False,
+        default_value=None
+    )
+
+    deepspeed_config: Optional[Dict[str, Any]] = pop_config(
+        cfg,
+        'deepspeed_config',
+        must_exist=False,
+        default_value=None,
+        convert=True
+    )
+    _initialize_dist_with_barrier(dist_timeout=train_cfg.dist_timeout, device=device)
 
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
@@ -513,7 +527,8 @@ def main(cfg: DictConfig) -> Trainer:
         dist_timeout=train_cfg.dist_timeout,
         profiler=profiler,
         compile_config=compile_config,
-    )
+        deepspeed_config=deepspeed_config,
+        device=device)
 
     if train_cfg.log_config:
         log.info('Logging config')

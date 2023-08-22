@@ -461,7 +461,7 @@ def main(cfg: DictConfig):
                                                  max_seq_len,
                                                  device_eval_batch_size)
         evaluators.extend(icl_evaluators)
-
+    print(compile_config)
     # Build the Trainer
     print('Building trainer...')
     trainer = Trainer(

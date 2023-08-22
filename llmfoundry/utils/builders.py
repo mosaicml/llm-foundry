@@ -50,7 +50,7 @@ def build_icl_data_and_gauntlet(
             with open(model_gauntlet_config, 'r') as icl_f:
                 model_gauntlet_cfg = om.load(icl_f)
             model_gauntlet = model_gauntlet_cfg.model_gauntlet
-        elif isinstance(model_gauntlet_config, DictConfig):
+        elif isinstance(model_gauntlet_config, DictConfig):  # pyright: ignore
             model_gauntlet = model_gauntlet_config
         else:
             raise ValueError(

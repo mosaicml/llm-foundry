@@ -9,7 +9,7 @@ import requests
 import yaml
 from mcli.models.run_config import SchedulingConfig
 from mcli.sdk import RunConfig, create_run, get_clusters, follow_run_logs
-
+from torch.distributed.fsdp import BackwardPrefetch, ShardingStrategy
 def _get_cluster_info():
     clusters = get_clusters()
     cluster_info = {}
@@ -61,7 +61,7 @@ def parse_args():
                         type=str,
                         default=['bf16'],
                         nargs='+',
-                        choices=['bf16', 'fp16'])
+                        choices=['bf16', 'fp16', 'fp8'])
     parser.add_argument('--fsdp_config_mixed_precision',
                         type=str,
                         default='PURE')
@@ -70,6 +70,27 @@ def parse_args():
                         nargs='?',
                         const=True,
                         default=None)
+    parser.add_argument('--fsdp_config_shard_strategy',
+                        type=str,
+                        nargs='?',
+                        const=True,
+                        default='FULL_SHARD')
+    parser.add_argument('--fsdp_config_limit_all_gathers',
+                        type=str_to_bool,
+                        nargs='?',
+                        const=True,
+                        default=True)
+    parser.add_argument('--fsdp_config_forward_prefetch',
+                        type=str_to_bool,
+                        nargs='?',
+                        const=True,
+                        default=True)
+    parser.add_argument('--fsdp_config_backward_prefetch',
+                        type=str,
+                        nargs='?',
+                        const=True,
+                        default=True)
+    
     parser.add_argument(
         '-s',
         '--seq_len_exp',
@@ -120,7 +141,7 @@ def parse_args():
     parser.add_argument('-c',
                         '--clusters',
                         type=str,
-                        default=['r7z2'],
+                        default=['r1z1'],
                         nargs='+',
                         choices=CLUSTER_INFO.keys())
     known_args = parser.parse_known_args()[0]
@@ -135,7 +156,7 @@ def parse_args():
     parser.add_argument('-g',
                         '--gpu_nums',
                         type=int,
-                        default=[16],
+                        default=[8],
                         nargs='+',
                         choices=_gpu_nums)
 
@@ -159,14 +180,11 @@ def parse_args():
 
     parser.add_argument('--priority', type=str, default='lowest')
 
-    parser.add_argument('--torch_compile', type=bool, default=False)
-
     parser.add_argument('--RUN',
                         type=str_to_bool,
                         nargs='?',
                         const=True,
                         default=False)
-
     return parser.parse_args()
 
 
@@ -243,6 +261,10 @@ def mod_parameters(parameters: Dict[str, Any],
                    precision: str,
                    fsdp_config_mixed_precision: str = 'DEFAULT',
                    fsdp_config_activation_checkpointing: Optional[bool] = None,
+                   fsdp_config_shard_strategy: str = "FULL_SHARD",
+                   fsdp_config_forward_prefetch: bool = False,
+                   fsdp_config_backward_prefetch: str = "BACKWARD_PRE",
+                   fsdp_config_limit_all_gathers: bool = False,
                    run_name: str = '',
                    data_remote: Optional[str] = None,
                    max_duration: str = '30ba',
@@ -267,7 +289,6 @@ def mod_parameters(parameters: Dict[str, Any],
             'split'] = 'train_small'  # for throughput testing purposes
         parameters['eval_loader']['dataset'][
             'split'] = 'val_small'  # for throughput testing purposes
-        print("local data")
     # set max_seq_len
     parameters['max_seq_len'] = max_seq_len
     parameters['model']['max_seq_len'] = max_seq_len
@@ -306,10 +327,11 @@ def mod_parameters(parameters: Dict[str, Any],
     if fsdp_config_activation_checkpointing is not None:
         parameters['fsdp_config'][
             'activation_checkpointing'] = fsdp_config_activation_checkpointing
-
-    parameters['fsdp_config']['activation_checkpointing_reentrant'] = False
-    parameters['fsdp_config']['limit_all_gathers'] = True
-
+    parameters['fsdp_config']['sharding_strategy'] = fsdp_config_shard_strategy
+    parameters['fsdp_config']['limit_all_gathers'] = fsdp_config_limit_all_gathers
+    parameters['fsdp_config']['forward_prefetch'] = fsdp_config_forward_prefetch
+    parameters['fsdp_config']['backward_prefetch'] = fsdp_config_forward_prefetch
+    parameters['fsdp_config']['verbose'] = True
     if wandb:
         # add wandb
         parameters['loggers'] = {'wandb': {}}
@@ -356,6 +378,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         {
          'integration_type': 'git_repo',
          'git_repo': 'mosaicml/llm-foundry',
+         'git_branch': 'main',
          'pip_install': '-e .[gpu]',
         }, {
             'integration_type': 'wandb',
@@ -370,12 +393,20 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
             python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
             composer train/train.py /mnt/config/parameters.yaml
             """
+
+    if gpu_type == 'h100_80gb' and precision == 'fp8':
+        command = f"""
+            pip install flash-attn==1.0.7 --no-build-isolation 
+            pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
+            cd llm-foundry/scripts
+            python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
+            composer train/train.py /mnt/config/parameters.yaml
+            """
     else:
         command = f"""
             cd llm-foundry/scripts
             composer train/train.py /mnt/config/parameters.yaml
             """
-
     path = os.path.join('../yamls/pretrain', "mpt-" + model_yaml)
     parameters = get_parameters(path)
 
@@ -399,9 +430,12 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         parameters,
         max_seq_len,
         global_train_batch_size,
-        parameters["precision"],
-        fsdp_config_mixed_precision=args.fsdp_config_mixed_precision,
+        "amp_" + precision,
         fsdp_config_activation_checkpointing=args.fsdp_config_activation_checkpointing,
+        fsdp_config_limit_all_gathers=args.fsdp_config_limit_all_gathers,
+        fsdp_config_shard_strategy=args.fsdp_config_shard_strategy,
+        fsdp_config_forward_prefetch=args.fsdp_config_forward_prefetch,
+        fsdp_config_backward_prefetch=args.fsdp_config_backward_prefetch,
         run_name=name,
         data_remote=args.data_remote,
         microbatch_size=microbatch_size,
@@ -459,7 +493,6 @@ def run_check_dtms(num_gpus: int, dtms: int, batch_size: int):
 
 if __name__ == '__main__':
     args = parse_args()
-
     n_jobs = 0
     for max_seq_len in get_max_seq_lens(args.seq_len_exp):
         for cluster in args.clusters:

@@ -406,7 +406,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         {
          'integration_type': 'git_repo',
          'git_repo': 'crinard/llm-foundry',
-         'git_branch': 'main',
+         'git_branch': 'run_initial',
          'pip_install': '-e .[gpu]',
         }, {
             'integration_type': 'wandb',

@@ -26,7 +26,7 @@ def parse_args():
         All FLOP calculations do not include norm, act, residual, etc.
         """)
 
-    parser.add_argument('--project', type=str, default='intern')
+    parser.add_argument('--project', type=str, default='tput')
     parser.add_argument('--filters', type=str, default=[], nargs='+')
     parser.add_argument('-s',
                         '--save-path',
@@ -59,7 +59,6 @@ def get_runs(args: argparse.Namespace):
         model_size = int(model_name[:-1])
         return (r.image, model_name_size, model_size, r.submitted_config.parameters['max_seq_len'],
                 num_gpu, r.submitted_config.parameters['global_train_batch_size'])
-    print(runs[0].submitted_config)
     runs.sort(reverse=True, key=sort_key)
 
     return runs

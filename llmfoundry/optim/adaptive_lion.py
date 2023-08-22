@@ -3,7 +3,7 @@
 
 import logging
 import math
-from typing import Callable, Optional, Tuple
+from typing import Callable, Dict, Iterable, Optional, Tuple, Union
 
 import torch
 from composer.utils import dist
@@ -48,18 +48,10 @@ class DecoupledAdaLRLion(Optimizer):
         'l2_norm/grad':
             lambda param, optim_state, step_tensor: torch.linalg.vector_norm(
                 param.grad),
-        'cosine/update_grad':
-            lambda param, optim_state, step_tensor: torch.nn.functional.
-            cosine_similarity(
-                param.grad.flatten(), step_tensor.flatten(), dim=0),
-        'cosine/moment_grad':
-            lambda param, optim_state, step_tensor: torch.nn.functional.
-            cosine_similarity(
-                param.grad.flatten(), optim_state['exp_avg'].flatten(), dim=0),
     }
 
     def __init__(self,
-                 params,
+                 params: Union[Iterable[torch.Tensor], Iterable[dict]],
                  lr: float = 1e-4,
                  betas: Tuple[float, float] = (0.9, 0.99),
                  weight_decay: float = 0.0,
@@ -76,6 +68,7 @@ class DecoupledAdaLRLion(Optimizer):
         if weight_decay >= 1e-3:
             log.warning(
                 f'You are using a high value of `weight_decay={weight_decay}` for the `DecoupledLionW` optimizer. Are you sure you want to do this? '
+                +
                 f'Your model\'s weights will be multiplied by {1.0 - weight_decay} on every step!'
             )
 
@@ -91,7 +84,9 @@ class DecoupledAdaLRLion(Optimizer):
         self.min_scale = min_scale
 
     @staticmethod
-    def lionw(p, grad, exp_avg, lr, initial_lr, wd, beta1, beta2) -> None:
+    def lionw(p: torch.Tensor, grad: torch.Tensor, exp_avg: torch.Tensor,
+              lr: float, initial_lr: float, wd: float, beta1: float,
+              beta2: float) -> None:
         # stepweight decay
         if wd != 0:
             decay_factor = (lr / initial_lr) if initial_lr else 1.0
@@ -178,14 +173,14 @@ class DecoupledAdaLRLion(Optimizer):
 
         return loss
 
-    def dist_reduce_metrics(self, optimizer_metrics):
+    def dist_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
         for metric in optimizer_metrics:
             if metric.startswith('l2_norm'):
                 reduced = optimizer_metrics[metric]
                 if dist.get_world_size() > 1:
                     dist.all_reduce(reduced, reduce_operation='SUM')
 
-                optimizer_metrics[metric] = math.sqrt(reduced)
+                optimizer_metrics[metric] = torch.tensor(math.sqrt(reduced))
             elif metric.startswith('cosine'):
                 reduced = optimizer_metrics[metric]
                 if dist.get_world_size() > 1:
@@ -209,7 +204,7 @@ class DecoupledAdaLRLion(Optimizer):
 
         return optimizer_metrics
 
-    def pre_reduce_metrics(self, optimizer_metrics):
+    def pre_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
         """Preprocess metrics to reduce across ranks correctly."""
         # Sort L2 norms first so they are squared before other metrics, which depend on squared values
         metrics = optimizer_metrics.keys()
@@ -303,11 +298,11 @@ class DecoupledClipLion(Optimizer):
     }
 
     def __init__(self,
-                 params,
+                 params: Union[Iterable[torch.Tensor], Iterable[dict]],
                  lr: float = 1e-4,
                  betas: Tuple[float, float] = (0.9, 0.99),
                  weight_decay: float = 0.0,
-                 outlier_threshold=5.0):
+                 outlier_threshold: float = 5.0):
         if lr <= 0.:
             raise Exception(f'Invalid LR: {lr}. LR must be > 0')
         if not all([0. <= beta <= 1. for beta in betas]):
@@ -317,6 +312,7 @@ class DecoupledClipLion(Optimizer):
         if weight_decay >= 1e-3:
             log.warning(
                 f'You are using a high value of `weight_decay={weight_decay}` for the `DecoupledLionW` optimizer. Are you sure you want to do this? '
+                +
                 f'Your model\'s weights will be multiplied by {1.0 - weight_decay} on every step!'
             )
 
@@ -329,7 +325,9 @@ class DecoupledClipLion(Optimizer):
         self.outlier_threshold = outlier_threshold
 
     @staticmethod
-    def lionw(p, grad, exp_avg, lr, initial_lr, wd, beta1, beta2) -> None:
+    def lionw(p: torch.Tensor, grad: torch.Tensor, exp_avg: torch.Tensor,
+              lr: float, initial_lr: float, wd: float, beta1: float,
+              beta2: float) -> None:
         # stepweight decay
         if wd != 0:
             decay_factor = (lr / initial_lr) if initial_lr else 1.0
@@ -385,14 +383,14 @@ class DecoupledClipLion(Optimizer):
 
         return loss
 
-    def dist_reduce_metrics(self, optimizer_metrics):
+    def dist_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
         for metric in optimizer_metrics:
             if metric.startswith('l2_norm'):
                 reduced = optimizer_metrics[metric]
                 if dist.get_world_size() > 1:
                     dist.all_reduce(reduced, reduce_operation='SUM')
 
-                optimizer_metrics[metric] = math.sqrt(reduced)
+                optimizer_metrics[metric] = torch.tensor(math.sqrt(reduced))
             elif metric.startswith('cosine'):
                 reduced = optimizer_metrics[metric]
                 if dist.get_world_size() > 1:
@@ -416,7 +414,7 @@ class DecoupledClipLion(Optimizer):
 
         return optimizer_metrics
 
-    def pre_reduce_metrics(self, optimizer_metrics):
+    def pre_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
         """Preprocess metrics to reduce across ranks correctly."""
         # Sort L2 norms first so they are squared before other metrics, which depend on squared values
         metrics = optimizer_metrics.keys()

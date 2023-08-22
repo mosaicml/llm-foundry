@@ -30,7 +30,7 @@ import argparse
 import os
 from argparse import ArgumentTypeError
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from composer.utils import (maybe_create_object_store_from_uri, parse_uri,
@@ -38,7 +38,7 @@ from composer.utils import (maybe_create_object_store_from_uri, parse_uri,
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 
-def str2bool(v):
+def str2bool(v: Union[str, bool]):
     if isinstance(v, bool):
         return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -49,7 +49,7 @@ def str2bool(v):
         raise ArgumentTypeError('Boolean value expected.')
 
 
-def str_or_bool(v):
+def str_or_bool(v: Union[str, bool]):
     if isinstance(v, bool):
         return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):

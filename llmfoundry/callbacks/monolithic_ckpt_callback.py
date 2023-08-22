@@ -72,7 +72,9 @@ class MonolithicCheckpointSaver(Callback):
         ) if self.upload_to_object_store else contextlib.nullcontext(
             enter_result=save_dir)
         with dir_context_mgr as temp_save_dir:
-            save_path = str(Path(temp_save_dir) / Path(filename))
+            save_path = str(
+                Path(temp_save_dir) /  # type: ignore
+                Path(filename))
             dirname = os.path.dirname(save_path)
             if dirname:
                 os.makedirs(dirname, exist_ok=True)

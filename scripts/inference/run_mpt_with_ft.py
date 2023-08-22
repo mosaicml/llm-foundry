@@ -34,7 +34,6 @@ from transformers import AutoTokenizer
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(dir_path, '../../..'))
-import examples.pytorch.gpt.utils.gpt_token_encoder as encoder
 from examples.pytorch.gpt.utils import comm, gpt_decoder
 from examples.pytorch.gpt.utils.parallel_gpt import ParallelGPT
 
@@ -134,7 +133,7 @@ def main():
         type=float,
         default=0.,
         help=
-        'presence penalty. Similar to repetition, but addive rather than multiplicative.'
+        'presence penalty. Similar to repetition, but additive rather than multiplicative.'
     )
     parser.add_argument('--min_length',
                         type=int,
@@ -182,8 +181,8 @@ def main():
         type=int,
         default=0,
         choices=[0, 1],
-        help='The level of quantization to perform.'
-        ' 0: No quantization. All computation in data_type'
+        help='The level of quantization to perform.' +
+        ' 0: No quantization. All computation in data_type' +
         ' 1: Quantize weights to int8, all compute occurs in fp16/bf16. Not supported when data_type is fp32'
     )
     parser.add_argument(
@@ -198,15 +197,15 @@ def main():
         type=int,
         default=0,
         choices=[0, 1, 2],
-        help='Whether to compute the cumulative log probsbility of sentences.'
-        ' 0: do not return the cumulative log probs '
-        ' 1: return the cumulative log probs of generated sequences'
+        help='Whether to compute the cumulative log probsbility of sentences.' +
+        ' 0: do not return the cumulative log probs' +
+        ' 1: return the cumulative log probs of generated sequences' +
         ' 2: return the cumulative log probs of sequences')
     parser.add_argument('--shared_contexts_ratio',
                         type=float,
                         default=0.0,
-                        help='Triggers the shared context optimization when'
-                        'compact_size <= shared_contexts_ratio * batch_size'
+                        help='Triggers the shared context optimization when ' +
+                        'compact_size <= shared_contexts_ratio * batch_size ' +
                         'A value of 0.0 deactivate the optimization')
     parser.add_argument(
         '--use_gpt_decoder_ops',

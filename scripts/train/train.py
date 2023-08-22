@@ -90,9 +90,10 @@ def validate_config(cfg: DictConfig):
     if (cfg.model.get('fc_type', 'torch') == 'te' or
             'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp')):
         fsdp_config = cfg.get('fsdp_config', None)
-        act_ckpt = fsdp_config.get('activation_checkpointing', False)
-        act_ckpt_reentrant = fsdp_config.get(
-            'activation_checkpointing_reentrant', True)
+        if fsdp_config is not None:
+            act_ckpt = fsdp_config.get('activation_checkpointing', False)
+            act_ckpt_reentrant = fsdp_config.get(
+                'activation_checkpointing_reentrant', True)
         if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == False:
             warnings.warn(
                 '`te.Linear` layers do not support activation_checkpointing with '
@@ -207,7 +208,11 @@ def main(cfg: DictConfig) -> Trainer:
                                                  'dist_timeout',
                                                  must_exist=False,
                                                  default_value=600.0)
-    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    device: bool = pop_config(cfg,
+                              'device',
+                              must_exist=False,
+                              default_value=None)
+    dist.initialize_dist(get_device(device), timeout=dist_timeout)
 
     # Get global and device batch size information from distributed/single node setting
     cfg = update_batch_size_info(cfg)
@@ -237,6 +242,11 @@ def main(cfg: DictConfig) -> Trainer:
                                                        must_exist=False,
                                                        default_value=None,
                                                        convert=True)
+    deepspeed_config: Optional[Dict[str, Any]] = pop_config(cfg,
+                                                            'deepspeed_config',
+                                                            must_exist=False,
+                                                            default_value=None,
+                                                            convert=True)
     lora_config: Optional[Dict[str, Any]] = pop_config(cfg,
                                                        'lora',
                                                        must_exist=False,
@@ -625,7 +635,8 @@ def main(cfg: DictConfig) -> Trainer:
         dist_timeout=dist_timeout,
         profiler=profiler,
         compile_config=compile_config,
-    )
+        deepspeed_config=deepspeed_config,
+        device=device)
 
     print('Logging config')
     log_config(logged_cfg)

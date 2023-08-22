@@ -74,27 +74,27 @@ def parse_args():
                         type=str,
                         nargs='?',
                         const=True,
-                        default='FULL_SHARD')
+                        default=None)
     parser.add_argument('--fsdp_config_limit_all_gathers',
                         type=str_to_bool,
                         nargs='?',
                         const=True,
-                        default=True)
+                        default=None)
     parser.add_argument('--fsdp_config_forward_prefetch',
                         type=str_to_bool,
                         nargs='?',
                         const=True,
-                        default=True)
+                        default=None)
     parser.add_argument('--fsdp_config_backward_prefetch',
                         type=str,
                         nargs='?',
                         const=True,
-                        default="BACKWARD_PRE")
+                        default=None)
     parser.add_argument('--activation_cpu_offload',
                         type=str_to_bool,
                         nargs='?',
                         const=True,
-                        default=True)
+                        default=None)
     parser.add_argument(
         '-s',
         '--seq_len_exp',
@@ -184,8 +184,8 @@ def parse_args():
 
     parser.add_argument('--priority', type=str, default='lowest')
 
-    parser.add_argument('--torch_compile_fullgraph', type=str_to_bool, default=False)
-    parser.add_argument('--torch_compile_dynamic', type=str_to_bool, default=False)
+    parser.add_argument('--torch_compile_fullgraph', type=str_to_bool, default=None)
+    parser.add_argument('--torch_compile_dynamic', type=str_to_bool, default=None)
     parser.add_argument('--torch_compile_mode', type=str, default=None)
 
     parser.add_argument('--RUN',
@@ -269,11 +269,11 @@ def mod_parameters(parameters: Dict[str, Any],
                    precision: str,
                    fsdp_config_mixed_precision: str = 'DEFAULT',
                    fsdp_config_activation_checkpointing: Optional[bool] = None,
-                   fsdp_config_shard_strategy: str = "FULL_SHARD",
-                   fsdp_config_forward_prefetch: bool = False,
-                   fsdp_config_backward_prefetch: str = "BACKWARD_PRE",
-                   fsdp_config_limit_all_gathers: bool = False,
-                   activation_cpu_offload: bool = False,
+                   fsdp_config_shard_strategy: Optional[str] = None,
+                   fsdp_config_forward_prefetch: Optional[bool] = None,
+                   fsdp_config_backward_prefetch: Optional[str] = None,
+                   fsdp_config_limit_all_gathers: Optional[bool] = None,
+                   activation_cpu_offload: Optional[bool] = None,
                    run_name: str = '',
                    data_remote: Optional[str] = None,
                    max_duration: str = '30ba',
@@ -281,9 +281,9 @@ def mod_parameters(parameters: Dict[str, Any],
                    microbatch_size: Optional[Union[int, str]] = None,
                    wandb: bool = True,
                    pad_vocab_multiple: Optional[int] = None,
-                   torch_compile_fullgraph:bool = False,
-                   torch_compile_dynamic: bool = False,
-                   torch_compile_mode: str = None
+                   torch_compile_fullgraph: Optional[bool] = None,
+                   torch_compile_dynamic: Optional[bool] = None,
+                   torch_compile_mode: Optional[str] = None
                    ):
     if run_name:
         parameters['run_name'] = run_name
@@ -338,16 +338,28 @@ def mod_parameters(parameters: Dict[str, Any],
     parameters['precision'] = precision
     parameters['fsdp_config']['mixed_precision'] = fsdp_config_mixed_precision
     if fsdp_config_activation_checkpointing is not None:
-        parameters['fsdp_config'][
-            'activation_checkpointing'] = fsdp_config_activation_checkpointing
-    parameters['fsdp_config']['sharding_strategy'] = fsdp_config_shard_strategy
-    parameters['fsdp_config']['limit_all_gathers'] = fsdp_config_limit_all_gathers
-    parameters['fsdp_config']['forward_prefetch'] = fsdp_config_forward_prefetch
-    parameters['fsdp_config']['backward_prefetch'] = fsdp_config_backward_prefetch
-    parameters['fsdp_config']['activation_cpu_offload'] = activation_cpu_offload
+        parameters['fsdp_config']['activation_checkpointing'] = fsdp_config_activation_checkpointing
+    if fsdp_config_shard_strategy is not None:
+        parameters['fsdp_config']['sharding_strategy'] = fsdp_config_shard_strategy
+    if fsdp_config_limit_all_gathers is not None:
+        parameters['fsdp_config']['limit_all_gathers'] = fsdp_config_limit_all_gathers
+    if fsdp_config_forward_prefetch is not None:
+        parameters['fsdp_config']['forward_prefetch'] = fsdp_config_forward_prefetch
+    if fsdp_config_backward_prefetch is not None:
+        parameters['fsdp_config']['backward_prefetch'] = fsdp_config_backward_prefetch
+    if activation_cpu_offload is not None:
+        parameters['fsdp_config']['activation_cpu_offload'] = activation_cpu_offload
     parameters['fsdp_config']['verbose'] = True
 
-    parameters['compile_config'] = {'fullgraph':torch_compile_fullgraph, 'dynamic':torch_compile_dynamic, 'mode':torch_compile_mode}
+
+    parameters['compile_config'] = {}
+    if torch_compile_fullgraph is not None:
+        parameters['compile_config']['fullgraph'] = torch_compile_fullgraph
+    if torch_compile_dynamic is not None:
+       parameters['compile_config']['dynamic'] = torch_compile_dynamic
+    if torch_compile_mode is not None:
+        parameters['compile_config']['mode'] = torch_compile_mode
+
     if wandb:
         # add wandb
         parameters['loggers'] = {'wandb': {}}
@@ -371,7 +383,7 @@ def get_integrations(project: str,
     }
     git_integration.update({
         'integration_type': 'git_repo',
-        'git_repo': 'mosaicml/llm-foundry',
+        'git_repo': 'crinard/llm-foundry',
         'pip_install': '-e .[gpu]'
     })
 
@@ -393,7 +405,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
     integrations = [
         {
          'integration_type': 'git_repo',
-         'git_repo': 'mosaicml/llm-foundry',
+         'git_repo': 'crinard/llm-foundry',
          'git_branch': 'main',
          'pip_install': '-e .[gpu]',
         }, {
@@ -405,8 +417,11 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
 
     command = ""
     if gpu_type == 'h100_80gb' and precision == 'fp8':
-        command += """pip install flash-attn==1.0.7 --no-build-isolation 
-            pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10"""
+        command += """
+        pip uninstall install pydantic
+        pip install pydantic==1.9.0
+        pip install flash-attn==1.0.7 --no-build-isolation 
+        pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10"""
 
     if args.data_remote is None:
         command += f"""
@@ -448,11 +463,18 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         fsdp_config_shard_strategy=args.fsdp_config_shard_strategy,
         fsdp_config_forward_prefetch=args.fsdp_config_forward_prefetch,
         fsdp_config_backward_prefetch=args.fsdp_config_backward_prefetch,
+        activation_cpu_offload=args.activation_cpu_offload,
         run_name=name,
         data_remote=args.data_remote,
         microbatch_size=microbatch_size,
         wandb=args.wandb,
-        pad_vocab_multiple=args.pad_vocab_multiple)
+        pad_vocab_multiple=args.pad_vocab_multiple,
+        torch_compile_fullgraph = args.torch_compile_fullgraph,
+        torch_compile_dynamic = args.torch_compile_dynamic,
+        torch_compile_mode = args.torch_compile_mode
+        )
+    if gpu_type == 'h100_80gb' and precision == 'fp8':
+        parameters['model']['fc_type'] = 'te'
     # Create run config mcli sdk/api
     config = RunConfig(name=name,
                        gpu_type=gpu_type,

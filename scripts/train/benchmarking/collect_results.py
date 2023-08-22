@@ -43,7 +43,7 @@ def parse_args():
 
 
 def get_runs(args: argparse.Namespace):
-    runs = [r for r in msdk.get_runs(include_details=True) if args.project in r.name and r.status == msdk.RunStatus("COMPLETED")]
+    runs = [r for r in msdk.get_runs(include_details=True) if args.project in r.name.split('-')[0] and r.status == msdk.RunStatus("COMPLETED")]
     for filter in args.filters:
         runs = [r for r in runs if filter in r.name]
     def sort_key(r: msdk.Run):
@@ -146,7 +146,11 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     else:
         hfu_w_attn = mfu_w_attn
 
+    # New things that we're testing for
     image = run.image
+    # compile_fullg = run.submitted_config.parameters['compile_config']['fullgraph']
+    # compile_dynamic = run.submitted_config.parameters['compile_config']['dynamic']
+    # compile_mode = run.submitted_config.parameters['compile_config']['mode']
     return {
         'Model':
             model_name,
@@ -188,6 +192,12 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
             n_params,
         'Image':
             image,
+        # 'Compile Mode':
+        #     compile_mode,
+        # 'Compile Fullgraph':
+        #     compile_fullg,
+        # 'Compile Dynamic':
+        #     compile_dynamic,
     }
 
 

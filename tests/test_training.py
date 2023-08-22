@@ -122,5 +122,4 @@ def test_train_gauntlet(set_correct_cwd: Any):
     test_cfg.icl_seq_len = 128
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
-
     main(test_cfg)

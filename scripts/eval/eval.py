@@ -97,9 +97,8 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
                    max_seq_len: int, device_eval_batch_size: int,
                    model_gauntlet_config: Optional[Union[str, DictConfig]],
                    fsdp_config: Optional[Dict], num_retries: int,
-                   loggers_cfg: Dict[str, Any], python_log_level: str, 
-                   precision: str, 
-                   model_gauntlet_df: Optional[pd.DataFrame]):
+                   loggers_cfg: Dict[str, Any], python_log_level: str,
+                   precision: str, model_gauntlet_df: Optional[pd.DataFrame]):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
     tokenizer = build_tokenizer(model_cfg.tokenizer)
@@ -248,8 +247,8 @@ def main(cfg: DictConfig):
              loggers_cfg=loggers_cfg,
              python_log_level=python_log_level,
              precision=precision,
-             model_gauntlet_df=model_gauntlet_df, 
-        )
+             model_gauntlet_df=model_gauntlet_df,
+         )
 
         if model_gauntlet_callback is not None:
             # TODO(bmosaicml) This needs to be refactored to fix the typing issue

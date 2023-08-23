@@ -187,7 +187,7 @@ def parse_args():
     parser.add_argument('--torch_compile_fullgraph', type=str_to_bool, default=None)
     parser.add_argument('--torch_compile_dynamic', type=str_to_bool, default=None)
     parser.add_argument('--torch_compile_mode', type=str, default=None)
-
+    parser.add_argument('--torch_compile', type=str_to_bool, default=False)
     parser.add_argument('--RUN',
                         type=str_to_bool,
                         nargs='?',
@@ -283,7 +283,8 @@ def mod_parameters(parameters: Dict[str, Any],
                    pad_vocab_multiple: Optional[int] = None,
                    torch_compile_fullgraph: Optional[bool] = None,
                    torch_compile_dynamic: Optional[bool] = None,
-                   torch_compile_mode: Optional[str] = None
+                   torch_compile_mode: Optional[str] = None,
+                   torch_compile: bool = False
                    ):
     if run_name:
         parameters['run_name'] = run_name
@@ -349,16 +350,14 @@ def mod_parameters(parameters: Dict[str, Any],
         parameters['fsdp_config']['backward_prefetch'] = fsdp_config_backward_prefetch
     if activation_cpu_offload is not None:
         parameters['fsdp_config']['activation_cpu_offload'] = activation_cpu_offload
-    parameters['fsdp_config']['verbose'] = True
-
-
-    parameters['compile_config'] = {}
-    if torch_compile_fullgraph is not None:
-        parameters['compile_config']['fullgraph'] = torch_compile_fullgraph
-    if torch_compile_dynamic is not None:
-       parameters['compile_config']['dynamic'] = torch_compile_dynamic
-    if torch_compile_mode is not None:
-        parameters['compile_config']['mode'] = torch_compile_mode
+    # parameters['fsdp_config']['verbose'] = True
+    parameters['compile_config'] = {} if torch_compile else None
+    # if torch_compile_fullgraph is not None:
+    #     parameters['compile_config']['fullgraph'] = torch_compile_fullgraph
+    # if torch_compile_dynamic is not None:
+    #    parameters['compile_config']['dynamic'] = torch_compile_dynamic
+    # if torch_compile_mode is not None:
+    #     parameters['compile_config']['mode'] = torch_compile_mode
 
     if wandb:
         # add wandb
@@ -471,8 +470,11 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         pad_vocab_multiple=args.pad_vocab_multiple,
         torch_compile_fullgraph = args.torch_compile_fullgraph,
         torch_compile_dynamic = args.torch_compile_dynamic,
-        torch_compile_mode = args.torch_compile_mode
+        torch_compile_mode = args.torch_compile_mode,
+        torch_compile = args.torch_compile
         )
+    if args.torch_compile: 
+        assert(parameters['model']['attn_config']['attn_impl'] != 'triton')
     if gpu_type == 'h100_80gb' and precision == 'fp8':
         parameters['model']['fc_type'] = 'te'
     # Create run config mcli sdk/api

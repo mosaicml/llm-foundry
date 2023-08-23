@@ -95,8 +95,8 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
                    max_seq_len: int, device_eval_batch_size: int,
                    model_gauntlet_config: Optional[Union[str, DictConfig]],
                    fsdp_config: Optional[Dict], num_retries: int,
-                   loggers_cfg: Dict[str, Any], precision: str,
-                   model_gauntlet_df: Optional[pd.DataFrame],
+                   loggers_cfg: Dict[str, Any], python_log_level: str,
+                   precision: str, model_gauntlet_df: Optional[pd.DataFrame],
                    icl_subset_num_batches: Optional[int]):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
@@ -143,6 +143,7 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
         progress_bar=False,
         log_to_console=True,
         dist_timeout=dist_timeout,
+        python_log_level=python_log_level,
     )
 
     if torch.cuda.is_available():
@@ -179,6 +180,10 @@ def main(cfg: DictConfig):
                                              'device_eval_batch_size',
                                              must_exist=True)
     precision: str = pop_config(cfg, 'precision', must_exist=True)
+    python_log_level: str = pop_config(cfg,
+                                       'python_log_level',
+                                       must_exist=False,
+                                       default_value='debug')
 
     # Optional Evaluation Parameters with default values
     seed: int = pop_config(cfg, 'seed', must_exist=False, default_value=17)
@@ -231,6 +236,7 @@ def main(cfg: DictConfig):
              fsdp_config=fsdp_config,
              num_retries=num_retries,
              loggers_cfg=loggers_cfg,
+             python_log_level=python_log_level,
              precision=precision,
              model_gauntlet_df=model_gauntlet_df,
              icl_subset_num_batches=icl_subset_num_batches)

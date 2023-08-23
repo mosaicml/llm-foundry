@@ -129,7 +129,8 @@ def test_train_gauntlet(set_correct_cwd: Any):
     assert isinstance(trainer.logger.destinations, tuple)
 
     assert len(trainer.logger.destinations) > 0
-    inmemorylogger = trainer.logger.destinations[0]
+    inmemorylogger = trainer.logger.destinations[
+        0]  # pyright: ignore [reportGeneralTypeIssues]
     assert isinstance(inmemorylogger, InMemoryLogger)
     assert 'icl/metrics/model_gauntlet/average' in inmemorylogger.data.keys()
     assert isinstance(inmemorylogger.data['icl/metrics/model_gauntlet/average'],

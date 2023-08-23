@@ -123,17 +123,21 @@ class TestTrainingYAMLInputs:
 
     def test_extra_params_in_optimizer_cfg_errors(self,
                                                   cfg: DictConfig) -> None:
-        make_fake_index_file('./my-copy-c4/train/index.json')
-        make_fake_index_file('./my-copy-c4/val/index.json')
+        data_local = './my-copy-c4-opt1'
+        make_fake_index_file(f'{data_local}/train/index.json')
+        make_fake_index_file(f'{data_local}/val/index.json')
+        cfg.train_loader.dataset.local = data_local
         cfg.optimizer.beta2 = 'extra-parameter'
         with pytest.raises(TypeError):
             main(cfg)
 
     def test_invalid_name_in_optimizer_cfg_errors(self,
                                                   cfg: DictConfig) -> None:
-        make_fake_index_file('./my-copy-c4/train/index.json')
-        make_fake_index_file('./my-copy-c4/val/index.json')
+        data_local = './my-copy-c4-opt2'
+        make_fake_index_file(f'{data_local}/train/index.json')
+        make_fake_index_file(f'{data_local}/val/index.json')
         cfg.optimizer.name = 'invalid-optimizer'
+        cfg.train_loader.dataset.local = data_local
         with pytest.raises(ValueError) as exception_info:
             main(cfg)
         assert str(exception_info.value

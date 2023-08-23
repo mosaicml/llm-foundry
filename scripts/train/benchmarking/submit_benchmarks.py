@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import requests
 import yaml
 from mcli.models.run_config import SchedulingConfig
-from mcli.sdk import RunConfig, create_run, get_clusters, follow_run_logs
+from mcli.sdk import RunConfig, create_run, get_clusters, follow_run_logs, get_runs
 
 def _get_cluster_info():
     clusters = get_clusters()

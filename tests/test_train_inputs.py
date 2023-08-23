@@ -127,6 +127,7 @@ class TestTrainingYAMLInputs:
         make_fake_index_file(f'{data_local}/train/index.json')
         make_fake_index_file(f'{data_local}/val/index.json')
         cfg.train_loader.dataset.local = data_local
+        cfg.eval_loader.dataset.local = data_local
         cfg.optimizer.beta2 = 'extra-parameter'
         with pytest.raises(TypeError):
             main(cfg)
@@ -138,6 +139,7 @@ class TestTrainingYAMLInputs:
         make_fake_index_file(f'{data_local}/val/index.json')
         cfg.optimizer.name = 'invalid-optimizer'
         cfg.train_loader.dataset.local = data_local
+        cfg.eval_loader.dataset.local = data_local
         with pytest.raises(ValueError) as exception_info:
             main(cfg)
         assert str(exception_info.value

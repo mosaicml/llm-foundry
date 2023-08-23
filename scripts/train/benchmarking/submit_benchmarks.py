@@ -438,8 +438,6 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
             cd llm-foundry/scripts
             composer train/train.py /mnt/config/parameters.yaml
             """
-    if args.LOCAL:
-        command = ""
 
     path = os.path.join('../yamls/pretrain', "mpt-" + model_yaml)
     parameters = get_parameters(path)

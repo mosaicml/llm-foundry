@@ -438,6 +438,9 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
             cd llm-foundry/scripts
             composer train/train.py /mnt/config/parameters.yaml
             """
+    if args.LOCAL:
+        command = ""
+
     path = os.path.join('../yamls/pretrain', "mpt-" + model_yaml)
     parameters = get_parameters(path)
 
@@ -496,7 +499,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         # Create the run from a config
         run = create_run(config)
         print(f'Launching run {run.name}')
-    is args.LOCAL:
+    if args.LOCAL:
         saved = get_runs(run.name)[0].submitted_config
         stop_run(run.name)
         from dataclassses import asdict

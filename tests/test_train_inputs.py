@@ -17,38 +17,38 @@ sys.path.append(repo_dir)
 
 from scripts.train.train import main  # noqa: E402
 
+
 def make_fake_index_file(path: str) -> None:
     """Create a fake index file in the path."""
     fake_index = {
-        "shards": [
-            {
-                "column_encodings": ["bytes"],
-                "column_names": ["tokens"],
-                "column_sizes": [None],
-                "compression": "zstd",
-                "format": "mds",
-                "hashes": [],
-                "raw_data": {
-                    "basename": "shard.00000.mds",
-                    "bytes": 5376759,
-                    "hashes": {},
-                },
-                "samples": 328,
-                "size_limit": 67108864,
-                "version": 2,
-                "zip_data": {
-                    "basename": "shard.00000.mds.zstd",
-                    "bytes": 564224,
-                    "hashes": {},
-                }
+        'shards': [{
+            'column_encodings': ['bytes'],
+            'column_names': ['tokens'],
+            'column_sizes': [None],
+            'compression': 'zstd',
+            'format': 'mds',
+            'hashes': [],
+            'raw_data': {
+                'basename': 'shard.00000.mds',
+                'bytes': 5376759,
+                'hashes': {},
+            },
+            'samples': 328,
+            'size_limit': 67108864,
+            'version': 2,
+            'zip_data': {
+                'basename': 'shard.00000.mds.zstd',
+                'bytes': 564224,
+                'hashes': {},
             }
-        ],
-        "version": 2
+        }],
+        'version': 2
     }
     if not os.path.exists(path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w') as f:
             json.dump(fake_index, f)
+
 
 class TestTrainingYAMLInputs:
     """Validate and tests error handling for the input YAML file."""

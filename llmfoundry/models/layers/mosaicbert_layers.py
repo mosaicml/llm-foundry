@@ -236,7 +236,7 @@ class BertUnpadSelfAttention(nn.Module):
                 bias = bias.to(torch.float16)
                 attention = flash_attn_qkvpacked_func(qkv, bias)
                 attention = attention.to(
-                    orig_dtype)  # pyright: ignore[reportOptionalMemberAccess]
+                    orig_dtype)  # pyright: ignore[reportGeneralTypeIssues]
                 bias = bias.to(bias_dtype)
             else:
                 attention = flash_attn_qkvpacked_func(qkv, bias)

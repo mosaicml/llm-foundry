@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PROJECT="interntorch2"
+PROJECT="ree"
 GIT_COMMIT="v0.0.4"
 IMAGE="mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04"
 

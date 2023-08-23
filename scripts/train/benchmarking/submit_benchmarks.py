@@ -193,6 +193,11 @@ def parse_args():
                         nargs='?',
                         const=True,
                         default=False)
+    parser.add_argument('--LOCAL',
+                        type=str_to_bool,
+                        nargs='?',
+                        const=True,
+                        default=False)
     return parser.parse_args()
 
 
@@ -491,6 +496,15 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         # Create the run from a config
         run = create_run(config)
         print(f'Launching run {run.name}')
+    is args.LOCAL:
+        saved = get_runs(run.name)[0].submitted_config
+        stop_run(run.name)
+        from dataclassses import asdict
+        d = asdict(saved)
+        import yaml
+        f = open('/mnt/workdisk/chris/llmf/conf.yaml', 'w+')
+        yaml.dump(d, f, allow_unicode=True)
+        RunConfig.to_file()
     else:
         print(f'run = {name}')
 

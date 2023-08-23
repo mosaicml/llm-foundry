@@ -161,6 +161,6 @@ def pad_input(hidden_states: torch.Tensor, indices: torch.Tensor, batch: int,
     """
     output = index_put_first_axis(hidden_states, indices, batch * seqlen)
     return rearrange(
-        output,
+        output, #pyright: ignore[reportGeneralTypeIssues]
         '(b s) ... -> b s ...',  #pyright: ignore[reportGeneralTypeIssues]
         b=batch)

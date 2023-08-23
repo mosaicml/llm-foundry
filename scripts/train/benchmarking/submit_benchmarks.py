@@ -498,6 +498,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         run = create_run(config)
         print(f'Launching run {run.name}')
     if args.LOCAL:
+        print(get_runs(run.name))
         saved = get_runs(run.name)[0].submitted_config
         stop_run(run.name)
         from dataclassses import asdict

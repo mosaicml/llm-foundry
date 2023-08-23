@@ -112,7 +112,7 @@ def test_train_gauntlet(set_correct_cwd: Any):
             'label':
                 'lambada_openai',
             'dataset_uri':
-                'eval/local_data/language_understanding/lambada_openai.jsonl',
+                'eval/local_data/language_understanding/lambada_openai_small.jsonl',
             'num_fewshot': [0],
             'icl_task_type':
                 'language_modeling'
@@ -125,8 +125,15 @@ def test_train_gauntlet(set_correct_cwd: Any):
     test_cfg.eval_interval = '1ba'
     test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
     trainer = main(test_cfg)
+
+    assert isinstance(trainer.logger.destinations, tuple)
     assert isinstance(trainer.logger.destinations[0], InMemoryLogger)
     assert 'icl/metrics/model_gauntlet/average' in trainer.logger.destinations[
         0].data.keys()
+    assert isinstance(trainer.logger.destinations[0].data[
+        'icl/metrics/model_gauntlet/average'], list)
+    assert isinstance(trainer.logger.destinations[0].data[
+        'icl/metrics/model_gauntlet/average'][-1], tuple)
+
     assert trainer.logger.destinations[0].data[
         'icl/metrics/model_gauntlet/average'][-1][-1] == 0

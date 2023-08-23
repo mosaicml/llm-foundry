@@ -127,13 +127,18 @@ def test_train_gauntlet(set_correct_cwd: Any):
     trainer = main(test_cfg)
 
     assert isinstance(trainer.logger.destinations, tuple)
+    assert len(trainer.logger.destinations) > 0
     assert isinstance(trainer.logger.destinations[0], InMemoryLogger)
     assert 'icl/metrics/model_gauntlet/average' in trainer.logger.destinations[
         0].data.keys()
-    assert isinstance(trainer.logger.destinations[0].data[
-        'icl/metrics/model_gauntlet/average'], list)
-    assert isinstance(trainer.logger.destinations[0].data[
-        'icl/metrics/model_gauntlet/average'][-1], tuple)
+    assert isinstance(
+        trainer.logger.destinations[0].
+        data['icl/metrics/model_gauntlet/average'], list)
+    assert len(trainer.logger.destinations[0].
+               data['icl/metrics/model_gauntlet/average'][-1]) > 0
+    assert isinstance(
+        trainer.logger.destinations[0].
+        data['icl/metrics/model_gauntlet/average'][-1], tuple)
 
     assert trainer.logger.destinations[0].data[
         'icl/metrics/model_gauntlet/average'][-1][-1] == 0

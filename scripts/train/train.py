@@ -390,25 +390,6 @@ def main(cfg: DictConfig):
     # Build tokenizer
     tokenizer = build_tokenizer(tokenizer_config)
 
-    # Build Model
-    print('Initializing model...')
-    with init_context:
-        if lora_config is not None:  # frozen model + trainable lora modules
-            model: ComposerHFCausalLM = build_composer_peft_model(
-                model_config.pretrained_model_name_or_path, lora_config['args'],
-                tokenizer)
-            print_trainable_parameters(model)  # should not be 100%
-        else:  # standard model
-            model = build_composer_model(model_config, tokenizer)
-
-    # Log number of parameters
-    n_params = sum(p.numel() for p in model.parameters())
-    logged_cfg.update({'n_params': n_params})
-
-    # Optimizer
-    optimizer_name: str = optimizer_config.pop('name')
-    optimizer = build_optimizer(model, optimizer_name, optimizer_config)
-
     # Scheduler
     scheduler_name: str = scheduler_config.pop('name')
     scheduler = build_scheduler(scheduler_name, scheduler_config)
@@ -443,20 +424,44 @@ def main(cfg: DictConfig):
     print('Building eval loader...')
     evaluators = []
     if eval_loader_config is not None:
-        assert model.train_metrics is not None
         eval_dataloader = build_dataloader(eval_loader_config, tokenizer,
                                            device_eval_batch_size)
-        eval_metric_names = list(model.train_metrics.keys())
         eval_loader = Evaluator(label='eval',
                                 dataloader=eval_dataloader,
-                                metric_names=eval_metric_names)
-        evaluators.append(eval_loader)
+                                metric_names=[], # we will add these after model is created
+                        )
 
     if icl_tasks_config is not None:
         icl_evaluators, _ = build_icl_evaluators(icl_tasks_config, tokenizer,
                                                  max_seq_len,
                                                  device_eval_batch_size)
         evaluators.extend(icl_evaluators)
+
+    # Build Model
+    print('Initializing model...')
+    with init_context:
+        if lora_config is not None:  # frozen model + trainable lora modules
+            model: ComposerHFCausalLM = build_composer_peft_model(
+                model_config.pretrained_model_name_or_path, lora_config['args'],
+                tokenizer)
+            print_trainable_parameters(model)  # should not be 100%
+        else:  # standard model
+            model = build_composer_model(model_config, tokenizer)
+
+    # Log number of parameters
+    n_params = sum(p.numel() for p in model.parameters())
+    logged_cfg.update({'n_params': n_params})
+
+    # Optimizer
+    optimizer_name: str = optimizer_config.pop('name')
+    optimizer = build_optimizer(model, optimizer_name, optimizer_config)
+
+    # Now add the eval metrics
+    if eval_loader_config is not None:
+        assert model.train_metrics is not None
+        eval_metric_names = list(model.train_metrics.keys())
+        eval_loader.metric_names = eval_metric_names
+        evaluators = [eval_loader] + evaluators # Put the base eval_loader first
 
     # Build the Trainer
     print('Building trainer...')

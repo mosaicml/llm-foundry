@@ -400,6 +400,10 @@ def main(cfg: DictConfig):
             print_trainable_parameters(model)  # should not be 100%
         else:  # standard model
             model = build_composer_model(model_config, tokenizer)
+        if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
+            model = model.to(dtype=torch.bfloat16)
+        elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
+            model = model.to(dtype=torch.float16)
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())
@@ -515,5 +519,6 @@ if __name__ == '__main__':
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
+    om.resolve(cfg)
     assert isinstance(cfg, DictConfig)
     main(cfg)

@@ -170,7 +170,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             minimum_dataset_size = world_size * dataloader_batch_size
             try:
                 # try to get the dataset length
-                full_dataset_size = len(dataset)
+                full_dataset_size = len(dataset) # type: ignore
                 if full_dataset_size < minimum_dataset_size:
                     raise ValueError(
                         f'Your dataset (name={cfg.dataset.hf_name}, split={cfg.dataset.split}) '

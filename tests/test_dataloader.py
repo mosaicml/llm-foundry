@@ -1,5 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+import contextlib
+import json
 import os
 import shutil
 import sys
@@ -282,3 +284,66 @@ def test_finetuning_dataloader(decoder_only_format: bool,
         batch_ix += 1
         if batch_ix >= 3:
             break
+
+
+def make_tiny_ft_dataset(path: str, size: int = 4):
+    sample = {'prompt': 'hello', 'reponse': 'goodbye'}
+    with open(path, 'w') as _f:
+        for _ in range(size):
+            _f.write(json.dumps(sample))
+            _f.write('\n')
+
+
+@pytest.mark.parametrize('world_size', [1, 2])
+@pytest.mark.parametrize('dataset_size', [4, 8])
+@pytest.mark.parametrize('device_batch_size', [2, 4])
+def test_finetuning_dataloader_small_data(world_size: int, dataset_size: int,
+                                          device_batch_size: int):
+    # Use the datasets just built in the last test
+    tokenizer_name = 'gpt2'
+    max_seq_len = 2048
+    tiny_dataset_path = './test-ift-data-small'
+    make_tiny_ft_dataset(path=tiny_dataset_path, size=4)
+
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': 'tatsu-lab/alpaca',
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 4,
+        'pin_memory': False,
+        'prefetch_factor': 2,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    tokenizer = build_tokenizer(
+        om.create({
+            'name': tokenizer_name,
+            'kwargs': {
+                'model_max_length': max_seq_len
+            }
+        }))
+
+    device_batch_size = 2
+
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+    expected_keys += ['bidirectional_mask']
+
+    error_context = contextlib.nullcontext()
+    if world_size * device_batch_size > dataset_size:
+        error_context = pytest.raises(ValueError, match='Your dataset')
+
+    with error_context:
+        _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+
+    os.remove(tiny_dataset_path)

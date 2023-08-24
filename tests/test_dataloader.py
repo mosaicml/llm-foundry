@@ -13,6 +13,8 @@ import pytest
 import torch
 from omegaconf import OmegaConf as om
 
+from composer.utils import dist
+
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
@@ -287,28 +289,31 @@ def test_finetuning_dataloader(decoder_only_format: bool,
 
 
 def make_tiny_ft_dataset(path: str, size: int = 4):
-    sample = {'prompt': 'hello', 'reponse': 'goodbye'}
+    sample = {'prompt': 'hello', 'response': 'goodbye'}
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as _f:
         for _ in range(size):
             _f.write(json.dumps(sample))
             _f.write('\n')
 
 
-@pytest.mark.parametrize('world_size', [1, 2])
+@pytest.mark.world_size(2)
 @pytest.mark.parametrize('dataset_size', [4, 8])
 @pytest.mark.parametrize('device_batch_size', [2, 4])
-def test_finetuning_dataloader_small_data(world_size: int, dataset_size: int,
-                                          device_batch_size: int):
-    # Use the datasets just built in the last test
+@pytest.mark.parametrize('drop_last', [True, False])
+def test_finetuning_dataloader_small_data(dataset_size: int,
+                                          device_batch_size: int, drop_last: bool):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
-    tiny_dataset_path = './test-ift-data-small'
-    make_tiny_ft_dataset(path=tiny_dataset_path, size=4)
+    tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
+    tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
+    if dist.get_global_rank() == 0:
+        make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size)
 
     cfg = {
         'name': 'finetuning',
         'dataset': {
-            'hf_name': 'tatsu-lab/alpaca',
+            'hf_name': tiny_dataset_folder_path,
             'split': 'train',
             'max_seq_len': max_seq_len,
             'decoder_only_format': True,
@@ -316,7 +321,7 @@ def test_finetuning_dataloader_small_data(world_size: int, dataset_size: int,
             'packing_ratio': None,
             'shuffle': True,
         },
-        'drop_last': False,
+        'drop_last': drop_last,
         'num_workers': 4,
         'pin_memory': False,
         'prefetch_factor': 2,
@@ -334,16 +339,15 @@ def test_finetuning_dataloader_small_data(world_size: int, dataset_size: int,
             }
         }))
 
-    device_batch_size = 2
-
     expected_keys = ['input_ids', 'attention_mask', 'labels']
     expected_keys += ['bidirectional_mask']
 
     error_context = contextlib.nullcontext()
-    if world_size * device_batch_size > dataset_size:
+    if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
         error_context = pytest.raises(ValueError, match='Your dataset')
 
     with error_context:
         _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
 
-    os.remove(tiny_dataset_path)
+    if dist.get_global_rank() == 0:
+        shutil.rmtree(tiny_dataset_folder_path)

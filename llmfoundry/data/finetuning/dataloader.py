@@ -168,9 +168,8 @@ def build_finetuning_dataloader(cfg: DictConfig,
         if cfg.drop_last:
             world_size = dist.get_world_size()
             minimum_dataset_size = world_size * dataloader_batch_size
-            try:
-                # try to get the dataset length
-                full_dataset_size = len(dataset)  # type: ignore
+            if hasattr(dataset, '__len__'):
+                full_dataset_size = len(dataset)
                 if full_dataset_size < minimum_dataset_size:
                     raise ValueError(
                         f'Your dataset (name={cfg.dataset.hf_name}, split={cfg.dataset.split}) '
@@ -183,8 +182,6 @@ def build_finetuning_dataloader(cfg: DictConfig,
                         +
                         f'of samples in your dataset to at least {minimum_dataset_size}.'
                     )
-            except:
-                pass
 
         assert dataset is not None
         return DataLoader(

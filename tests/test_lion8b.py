@@ -541,9 +541,8 @@ def test_fused_as_fast_as_unfused(N: int,
     assert times[True] < times['NA'] + atol
     assert times['ecc'] < times['NA'] + atol
 
-    if False:  # change to True to check on thruput
-        print('')
-        print('time fused (ms):       ', times[True] * 1e3)
-        print('time fused+ecc (ms):   ', times['ecc'] * 1e3)
-        print('time unfused (ms):     ', times[False] * 1e3)
-        print('time unquantized (ms): ', times['NA'] * 1e3)
+    print('')
+    print('time fused (ms):       ', times[True] * 1e3)
+    print('time fused+ecc (ms):   ', times['ecc'] * 1e3)
+    print('time unfused (ms):     ', times[False] * 1e3)
+    print('time unquantized (ms): ', times['NA'] * 1e3)

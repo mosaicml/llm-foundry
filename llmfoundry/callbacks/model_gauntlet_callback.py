@@ -49,6 +49,9 @@ class ModelGauntlet(Callback):
                  subtract_random_baseline: bool = True,
                  rescale_accuracy: bool = True,
                  benchmark_sizes: Optional[dict] = None):
+        if isinstance(logger_keys, dict):
+            raise ValueError(
+                'logger_keys now requires a list type as input, not a dict')
         if weighting != Weighting.EQUAL and benchmark_sizes is None:
             raise Exception(
                 'When not using equal weighting, you must provide the benchmark sizes.'

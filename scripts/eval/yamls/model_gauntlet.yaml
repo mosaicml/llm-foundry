@@ -123,6 +123,3 @@ model_gauntlet:
     - name: human_eval_js
       num_fewshot: 0
       random_baseline: 0.0
-    - name: human_eval_c
-      num_fewshot: 0
-      random_baseline: 0.0

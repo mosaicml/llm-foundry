@@ -13,8 +13,7 @@ from typing import Any, List, Mapping, MutableMapping, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.metrics import (InContextLearningCodeEvalAccuracy,
-                              InContextLearningLMAccuracy,
+from composer.metrics import (InContextLearningLMAccuracy,
                               InContextLearningLMExpectedCalibrationError,
                               InContextLearningMCExpectedCalibrationError,
                               InContextLearningMultipleChoiceAccuracy,
@@ -699,7 +698,6 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
-            InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError(),
         ]

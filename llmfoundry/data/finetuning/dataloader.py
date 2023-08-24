@@ -1,15 +1,15 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Union
 import logging
 import os
+from typing import Union
 
+import datasets as hf_datasets
 import torch
 from composer.utils import dist, get_file, parse_uri
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
-import datasets as hf_datasets
 
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.tasks import dataset_constructor
@@ -255,8 +255,10 @@ def _validate_config(dataset_cfg: DictConfig):
         )
 
 
-def _build_hf_dataset_from_remote(cfg: DictConfig,
-                                  tokenizer: PreTrainedTokenizerBase) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset, hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
+def _build_hf_dataset_from_remote(
+    cfg: DictConfig, tokenizer: PreTrainedTokenizerBase
+) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
+           hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
     """Builds a dataset from a remote object store.
 
     This function supports 'jsonl', 'csv', and 'parquet' file formats for the dataset. It will attempt to download

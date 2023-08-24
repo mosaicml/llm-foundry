@@ -24,7 +24,7 @@ model_gauntlet:
       num_fewshot: 10
       random_baseline: 0.5
     - name: triviaqa_sm_sub
-      num_fewshot: 10
+      num_fewshot: 3
       random_baselin: 0.0
   - name: commonsense_reasoning
     benchmarks:
@@ -52,6 +52,9 @@ model_gauntlet:
     - name: bigbench_strategy_qa
       num_fewshot: 10
       random_baseline: 0.5
+    - name: bigbench_strategy_qa_cot
+      num_fewshot: 5
+      random_baseline: 0.0
   - name: language_understanding
     benchmarks:
     - name: lambada_openai
@@ -107,6 +110,15 @@ model_gauntlet:
     - name: logi_qa
       num_fewshot: 10
       random_baseline: 0.25
+    - name: aqua
+      num_fewshot: 3
+      random_baseline: 0
+    - name: gsm8k
+      num_fewshot: 3
+      random_baseline: 0
+    - name: svamp
+      num_fewshot: 3
+      random_baseline: 0
   - name: reading_comprehension
     benchmarks:
     - name: pubmed_qa_labeled

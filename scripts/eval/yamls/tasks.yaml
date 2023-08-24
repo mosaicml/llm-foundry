@@ -9,21 +9,28 @@ icl_tasks:
 -
   label: triviaqa_sm_sub
   dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [10]
+  num_fewshot: [3]
   icl_task_type: question_answering
 -
   label: gsm8k
   dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [10]
+  num_fewshot: [3]
+  icl_task_type: question_answering
+  cot_delimiter: ' #### '
+  continuation_delimiter: "\nA: Let's think step by step. "
+-
+  label: aqua
+  dataset_uri: eval/local_data/symbolic_problem_solving/aqua.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [3]
   icl_task_type: question_answering
   cot_delimiter: ' #### '
   continuation_delimiter: "\nA: Let's think step by step. "
 -
   label: svamp
   dataset_uri: eval/local_data/symbolic_problem_solving/svamp.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [10]
+  num_fewshot: [3]
   icl_task_type: question_answering
-  cot_delimiter: "\nThe answer is"
+  cot_delimiter: "\nThe answer is "
   continuation_delimiter: "\nUsing the formula below:\n"
 -
   label: bigbench_qa_wikidata
@@ -95,6 +102,13 @@ icl_tasks:
   dataset_uri: eval/local_data/commonsense_reasoning/bigbench_strategy_qa.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: multiple_choice
+-
+  label: bigbench_strategy_qa_cot
+  dataset_uri: eval/local_data/commonsense_reasoning/bigbench_strategy_qa_cot.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [5]
+  icl_task_type: question_answering
+  cot_delimiter: " So the answer is "
+  continuation_delimiter: "Let's think step by step. "
 -
   label: lambada_openai
   dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl

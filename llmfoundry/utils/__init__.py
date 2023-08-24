@@ -6,6 +6,8 @@ try:
                                            build_icl_evaluators, build_logger,
                                            build_optimizer, build_scheduler,
                                            build_tokenizer)
+    from llmfoundry.utils.checkpoint_conversion_helpers import (
+        convert_and_save_ft_weights, get_hf_tokenizer_from_composer_state_dict)
     from llmfoundry.utils.config_utils import (calculate_batch_size_info,
                                                log_config, pop_config,
                                                update_batch_size_info)
@@ -23,6 +25,8 @@ __all__ = [
     'build_icl_evaluators',
     'build_tokenizer',
     'calculate_batch_size_info',
+    'convert_and_save_ft_weights',
+    'get_hf_tokenizer_from_composer_state_dict',
     'update_batch_size_info',
     'log_config',
     'pop_config',

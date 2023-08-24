@@ -11,9 +11,8 @@ from typing import Optional
 
 import pytest
 import torch
-from omegaconf import OmegaConf as om
-
 from composer.utils import dist
+from omegaconf import OmegaConf as om
 
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
@@ -302,7 +301,8 @@ def make_tiny_ft_dataset(path: str, size: int = 4):
 @pytest.mark.parametrize('device_batch_size', [2, 4])
 @pytest.mark.parametrize('drop_last', [True, False])
 def test_finetuning_dataloader_small_data(dataset_size: int,
-                                          device_batch_size: int, drop_last: bool):
+                                          device_batch_size: int,
+                                          drop_last: bool):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')

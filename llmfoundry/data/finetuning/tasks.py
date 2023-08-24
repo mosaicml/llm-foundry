@@ -255,7 +255,7 @@ class DatasetConstructor:
         return preprocessing_fn
 
     def build_from_hf(self, cfg: DictConfig, max_seq_len: int,
-                      tokenizer: PreTrainedTokenizerBase):
+                      tokenizer: PreTrainedTokenizerBase) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset, hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
 
         Note: This function will drop examples where the prompt is longer than the max_seq_len

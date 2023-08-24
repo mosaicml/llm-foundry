@@ -249,7 +249,7 @@ def convert_composer_to_hf(args: Namespace) -> None:
 
     print(f'Loading model from {local_folder_path}')
     if config.model_type == 'mpt':
-        config.attn_config['attn_impl'] = 'torch'
+        config.attn_config.attn_impl = 'torch'
 
     if config.model_type == 'mpt':
         loaded_hf_model = MPTForCausalLM.from_pretrained(local_folder_path,

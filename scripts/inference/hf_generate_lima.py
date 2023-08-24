@@ -138,7 +138,7 @@ def load_prompt_string_from_file(prompt_path_str: str):
         # every prompt ends with a ### Response:\n\n line
         prompt_string = f.read().split('### Response:\n\n')
         # prompt_string = [p + '### Response:\n\n' for p in prompt_string[:-1]]
-        prompt_string = [p + '### Response:\n\n' for p in prompt_string[:-1]]
+        prompt_string = [p + '### Response:\n\n' for p in prompt_string]
     return prompt_string
 
 

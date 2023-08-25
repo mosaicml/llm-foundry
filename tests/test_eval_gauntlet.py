@@ -210,7 +210,8 @@ def test_gauntlet_callback(gauntlet_from_path: bool):
     result = eval_gauntlet_callback.eval_after_all(state, logger)
 
     for category in [
-            'world_knowledge', 'language_understanding',
+            'world_knowledge',
+            'language_understanding',
             'reading_comprehension',
     ]:
         name = f'icl/metrics/eval_gauntlet/{category}'

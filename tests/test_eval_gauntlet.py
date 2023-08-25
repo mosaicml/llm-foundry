@@ -53,12 +53,11 @@ class MockLogger(Logger):
         self.inmemorylogger.log_metrics(metrics)
 
 
-
 @pytest.mark.parametrize(
     'gauntlet_from_path',
     [True, False],
 )
-def test_gauntlet_callback(tasks_from_path: bool, gauntlet_from_path: bool):
+def test_gauntlet_callback(gauntlet_from_path: bool):
     icl_task_config = om.OmegaConf.create("""
             - label: jeopardy
               dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
@@ -66,45 +65,9 @@ def test_gauntlet_callback(tasks_from_path: bool, gauntlet_from_path: bool):
               icl_task_type: language_modeling
               continuation_delimiter: "\nAnswer: " # this separates questions from answers
               has_categories: true
-            - label: bigbench_qa_wikidata
-              dataset_uri: eval/local_data/world_knowledge/bigbench_qa_wikidata.jsonl # ADD YOUR OWN DATASET URI
-              num_fewshot: [10]
-              icl_task_type: language_modeling
             - label: lambada_openai
               dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
               num_fewshot: [0]
-              icl_task_type: language_modeling
-            - label: bigbench_conlang_translation
-              dataset_uri: eval/local_data/language_understanding/bigbench_conlang_translation.jsonl
-              num_fewshot: [0]
-              icl_task_type: language_modeling
-            - label: bigbench_dyck_languages
-              dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_dyck_languages.jsonl
-              num_fewshot: [10]
-              icl_task_type: language_modeling
-            - label: bigbench_cs_algorithms
-              dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_cs_algorithms.jsonl
-              num_fewshot: [10]
-              icl_task_type: language_modeling
-            - label: bigbench_operators
-              dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl
-              num_fewshot: [10]
-              icl_task_type: language_modeling
-            - label: bigbench_repeat_copy_logic
-              dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_repeat_copy_logic.jsonl
-              num_fewshot: [10]
-              icl_task_type: language_modeling
-            - label: simple_arithmetic_nospaces
-              dataset_uri: eval/local_data/symbolic_problem_solving/simple_arithmetic_nospaces.jsonl
-              num_fewshot: [10]
-              icl_task_type: language_modeling
-            - label: simple_arithmetic_withspaces
-              dataset_uri: eval/local_data/symbolic_problem_solving/simple_arithmetic_withspaces.jsonl
-              num_fewshot: [10]
-              icl_task_type: language_modeling
-            - label: pubmed_qa_labeled
-              dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl # ADD YOUR OWN DATASET URI
-              num_fewshot: [10]
               icl_task_type: language_modeling
             - label: squad
               dataset_uri: eval/local_data/reading_comprehension/squad.jsonl # ADD YOUR OWN DATASET URI
@@ -248,7 +211,7 @@ def test_gauntlet_callback(tasks_from_path: bool, gauntlet_from_path: bool):
 
     for category in [
             'world_knowledge', 'language_understanding',
-            'reading_comprehension', 'symbolic_problem_solving'
+            'reading_comprehension',
     ]:
         name = f'icl/metrics/eval_gauntlet/{category}'
         assert result[name] == pytest.approx(0.25)

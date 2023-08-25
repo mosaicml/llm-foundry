@@ -1,4 +1,4 @@
-model_gauntlet:
+eval_gauntlet:
   weighting: EQUAL
   subtract_random_baseline: true
   rescale_accuracy: true

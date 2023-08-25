@@ -245,11 +245,11 @@ def main(cfg: DictConfig) -> Trainer:
                                                         'icl_tasks',
                                                         must_exist=False,
                                                         default_value=None)
-    model_gauntlet_config: Optional[Union[DictConfig,
-                                          str]] = pop_config(cfg,
-                                                             'model_gauntlet',
-                                                             must_exist=False,
-                                                             default_value=None)
+    eval_gauntlet_config: Optional[Union[DictConfig,
+                                         str]] = pop_config(cfg,
+                                                            'eval_gauntlet',
+                                                            must_exist=False,
+                                                            default_value=None)
     icl_subset_num_batches: Optional[int] = pop_config(cfg,
                                                        'icl_subset_num_batches',
                                                        must_exist=False,
@@ -466,17 +466,17 @@ def main(cfg: DictConfig) -> Trainer:
                                 dataloader=eval_dataloader,
                                 metric_names=eval_metric_names)
         evaluators.append(eval_loader)
-    model_gauntlet_callback = None
+    eval_gauntlet_callback = None
 
     if icl_tasks_config is not None:
-        icl_evaluators, _, model_gauntlet_callback = build_icl_data_and_gauntlet(
-            icl_tasks_config, model_gauntlet_config, tokenizer,
+        icl_evaluators, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
+            icl_tasks_config, eval_gauntlet_config, tokenizer,
             device_eval_batch_size, icl_seq_len if icl_seq_len else max_seq_len,
             icl_subset_num_batches)
         evaluators.extend(icl_evaluators)
 
-    if model_gauntlet_callback is not None:
-        callbacks.append(model_gauntlet_callback)
+    if eval_gauntlet_callback is not None:
+        callbacks.append(eval_gauntlet_callback)
 
     # Build the Trainer
     print('Building trainer...')

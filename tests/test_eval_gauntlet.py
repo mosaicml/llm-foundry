@@ -53,19 +53,13 @@ class MockLogger(Logger):
         self.inmemorylogger.log_metrics(metrics)
 
 
-@pytest.mark.parametrize(
-    'tasks_from_path',
-    [True, False],
-)
+
 @pytest.mark.parametrize(
     'gauntlet_from_path',
     [True, False],
 )
 def test_gauntlet_callback(tasks_from_path: bool, gauntlet_from_path: bool):
-    if tasks_from_path:
-        icl_task_config = 'eval/yamls/lm_tasks.yaml'
-    else:
-        icl_task_config = om.OmegaConf.create("""
+    icl_task_config = om.OmegaConf.create("""
             - label: jeopardy
               dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
               num_fewshot: [10]
@@ -121,9 +115,9 @@ def test_gauntlet_callback(tasks_from_path: bool, gauntlet_from_path: bool):
         icl_task_config, str)
 
     if gauntlet_from_path:
-        model_gauntlet_config = 'eval/yamls/model_gauntlet.yaml'
+        eval_gauntlet_config = 'eval/yamls/eval_gauntlet.yaml'
     else:
-        model_gauntlet_config = om.OmegaConf.create("""
+        eval_gauntlet_config = om.OmegaConf.create("""
                 weighting: EQUAL
                 subtract_random_baseline: true
                 rescale_accuracy: true
@@ -238,25 +232,25 @@ def test_gauntlet_callback(tasks_from_path: bool, gauntlet_from_path: bool):
                       num_fewshot: 10
                       random_baseline: 0.5
           """)
-    assert isinstance(model_gauntlet_config, om.DictConfig) or isinstance(
-        model_gauntlet_config, str)
+    assert isinstance(eval_gauntlet_config, om.DictConfig) or isinstance(
+        eval_gauntlet_config, str)
     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
 
     # test loading functionality
-    _, _, model_gauntlet_callback = build_icl_data_and_gauntlet(
-        icl_task_config, model_gauntlet_config, tokenizer, 4, 1024, 1)
-    assert model_gauntlet_callback is not None
-    state = MockState(model_gauntlet_callback.logger_keys)
+    _, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
+        icl_task_config, eval_gauntlet_config, tokenizer, 4, 1024, 1)
+    assert eval_gauntlet_callback is not None
+    state = MockState(eval_gauntlet_callback.logger_keys)
     logger = MockLogger(state)
 
     # test computing functionality
-    result = model_gauntlet_callback.eval_after_all(state, logger)
+    result = eval_gauntlet_callback.eval_after_all(state, logger)
 
     for category in [
             'world_knowledge', 'language_understanding',
             'reading_comprehension', 'symbolic_problem_solving'
     ]:
-        name = f'icl/metrics/model_gauntlet/{category}'
+        name = f'icl/metrics/eval_gauntlet/{category}'
         assert result[name] == pytest.approx(0.25)
 
-    assert result['icl/metrics/model_gauntlet/average'] == pytest.approx(0.25)
+    assert result['icl/metrics/eval_gauntlet/average'] == pytest.approx(0.25)

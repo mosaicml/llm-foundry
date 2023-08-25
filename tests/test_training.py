@@ -119,7 +119,7 @@ def test_train_gauntlet(set_correct_cwd: Any):
         })
     ])
     test_cfg.icl_subset_num_batches = 1  # -1 to evaluate on all batches
-    test_cfg.model_gauntlet = 'eval/yamls/model_gauntlet.yaml'
+    test_cfg.eval_gauntlet = 'eval/yamls/eval_gauntlet.yaml'
     test_cfg.icl_seq_len = 128
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
@@ -132,13 +132,11 @@ def test_train_gauntlet(set_correct_cwd: Any):
     inmemorylogger = trainer.logger.destinations[
         0]  # pyright: ignore [reportGeneralTypeIssues]
     assert isinstance(inmemorylogger, InMemoryLogger)
-    assert 'icl/metrics/model_gauntlet/average' in inmemorylogger.data.keys()
-    assert isinstance(inmemorylogger.data['icl/metrics/model_gauntlet/average'],
+    assert 'icl/metrics/eval_gauntlet/average' in inmemorylogger.data.keys()
+    assert isinstance(inmemorylogger.data['icl/metrics/eval_gauntlet/average'],
                       list)
-    assert len(
-        inmemorylogger.data['icl/metrics/model_gauntlet/average'][-1]) > 0
+    assert len(inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1]) > 0
     assert isinstance(
-        inmemorylogger.data['icl/metrics/model_gauntlet/average'][-1], tuple)
+        inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1], tuple)
 
-    assert inmemorylogger.data['icl/metrics/model_gauntlet/average'][-1][
-        -1] == 0
+    assert inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1][-1] == 0

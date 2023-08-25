@@ -44,4 +44,4 @@ device_eval_batch_size: 4
 #   limit_all_gathers: True
 
 icl_tasks: 'eval/yamls/tasks.yaml'
-model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
+eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'

@@ -10,7 +10,7 @@ from typing import Optional
 from composer.core import Callback, State
 from composer.loggers import Logger
 
-__all__ = ['ModelGauntlet']
+__all__ = ['EvalGauntlet']
 
 
 class Weighting(Enum):
@@ -19,8 +19,8 @@ class Weighting(Enum):
     LOG_SAMPLE_SZ = 3
 
 
-class ModelGauntlet(Callback):
-    """The ModelGauntlet aggregates ICL eval results.
+class EvalGauntlet(Callback):
+    """The EvalGauntlet aggregates ICL eval results.
 
     After `eval_end`, this callback inspects the logger for different ICL metrics and aggregates the scores according to the aggregation
     specification provided in the constructor.
@@ -30,7 +30,7 @@ class ModelGauntlet(Callback):
                             logged under in the logger after eval
         tasks (dict): This contains the list of categories, as well as the subtasks within them, the
                       random baseline accuracy of each subtask, and the number of fewshot examples
-                      used for the task. See `llmfoundry/scripts/eval/yamls/model_gauntlet.yaml` to see the structure.
+                      used for the task. See `llmfoundry/scripts/eval/yamls/eval_gauntlet.yaml` to see the structure.
         weighting (Weighting): The weighting scheme used to balance different tasks within each category.
                                Either assign them all equal weight, assign them weight proportional
                                to the dataset size, or assign them weight proportional to the log2 of the dataset size.
@@ -97,7 +97,7 @@ class ModelGauntlet(Callback):
 
         for key in self.logger_keys:
 
-            # starting at index 1 skips the "metric" part of they key which is superfluous
+            # starting at index 1 skips the "metric" part of the key which is superfluous
             dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
             if 'Accuracy' not in metric_name:
                 continue
@@ -159,11 +159,11 @@ class ModelGauntlet(Callback):
                 for k in composite_scores[category['name']])
 
         composite_scores = {
-            f'icl/metrics/model_gauntlet/{k}': v
+            f'icl/metrics/eval_gauntlet/{k}': v
             for k, v in composite_scores.items()
         }
 
-        composite_scores['icl/metrics/model_gauntlet/average'] = sum(
+        composite_scores['icl/metrics/eval_gauntlet/average'] = sum(
             composite_scores.values()) / len(composite_scores.values())
         if logger is not None:
             logger.log_metrics(composite_scores)

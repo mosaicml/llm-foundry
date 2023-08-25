@@ -63,7 +63,7 @@ def test_icl_eval(capfd: Any):
             dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
             num_fewshot: [0]
             icl_task_type: language_modeling
-        model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
+        eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
         """)
     assert isinstance(test_cfg, om.DictConfig)
     main(test_cfg)

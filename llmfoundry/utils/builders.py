@@ -23,8 +23,8 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (FDiffMetrics, Generate, GlobalLRScaling,
-                                  LayerFreezing, ModelGauntlet,
+from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
+                                  GlobalLRScaling, LayerFreezing,
                                   MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
@@ -33,36 +33,36 @@ from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
 
 def build_icl_data_and_gauntlet(
     icl_tasks_config: Union[str, ListConfig],
-    model_gauntlet_config: Optional[Union[str, DictConfig]],
+    eval_gauntlet_config: Optional[Union[str, DictConfig]],
     tokenizer: AutoTokenizer,
     device_eval_batch_size: int,
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int] = None
-) -> Tuple[List[Evaluator], List[str], Optional[ModelGauntlet]]:
+) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
     icl_evaluators, logger_keys = build_icl_evaluators(
         icl_tasks_config,
         tokenizer,
         icl_seq_len,
         device_eval_batch_size,
         icl_subset_num_batches=icl_subset_num_batches)
-    model_gauntlet_cb = None
-    if model_gauntlet_config is not None:
-        if isinstance(model_gauntlet_config, str):
-            with open(model_gauntlet_config, 'r') as icl_f:
-                model_gauntlet_cfg = om.load(icl_f)
-            model_gauntlet = model_gauntlet_cfg.model_gauntlet
-        elif isinstance(model_gauntlet_config, DictConfig):  # pyright: ignore
-            model_gauntlet = model_gauntlet_config
+    eval_gauntlet_cb = None
+    if eval_gauntlet_config is not None:
+        if isinstance(eval_gauntlet_config, str):
+            with open(eval_gauntlet_config, 'r') as icl_f:
+                eval_gauntlet_cfg = om.load(icl_f)
+            eval_gauntlet = eval_gauntlet_cfg.eval_gauntlet
+        elif isinstance(eval_gauntlet_config, DictConfig):  # pyright: ignore
+            eval_gauntlet = eval_gauntlet_config
         else:
             raise ValueError(
-                f'Got invalid type for model_gauntlet_config: {type(model_gauntlet_config)}'
+                f'Got invalid type for eval_gauntlet_config: {type(eval_gauntlet_config)}'
             )
-        model_gauntlet.logger_keys = logger_keys
-        model_gauntlet.benchmark_sizes = {
+        eval_gauntlet.logger_keys = logger_keys
+        eval_gauntlet.benchmark_sizes = {
             e.label: e.dataloader.num_samples for e in icl_evaluators
         }
-        model_gauntlet_cb = ModelGauntlet(**model_gauntlet)
-    return icl_evaluators, logger_keys, model_gauntlet_cb
+        eval_gauntlet_cb = EvalGauntlet(**eval_gauntlet)
+    return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
 def build_callback(name: str, kwargs: Dict[str, Any]):

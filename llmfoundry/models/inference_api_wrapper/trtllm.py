@@ -6,18 +6,30 @@
 
 import json
 from pathlib import Path
-from typing import Any, Optional, Dict
+from typing import Any, Optional
 
-import tensorrt_llm
 import torch
 from omegaconf import DictConfig
-from tensorrt_llm.runtime import ModelConfig, SamplingConfig
 from transformers import PreTrainedTokenizer
 
 from llmfoundry.models.inference_api_wrapper.interface import \
     InferenceAPIEvalWrapper
 
 __all__ = ['TRTLLMEvalWrapper']
+
+try:
+    import tensorrt_llm
+    from tensorrt_llm.runtime import ModelConfig, SamplingConfig
+    TRT_LLM_INSTALLED = True
+except ImportError:
+    TRT_LLM_INSTALLED = False
+
+
+def check_if_trt_llm_installed():
+    if not TRT_LLM_INSTALLED:
+        raise ImportError(
+            'TRT-LLM is not installed. It must be installed to use the TRTLLMEValWrapper.'
+        )
 
 
 # From tensorrt_llm/examples/{model_name}/build.py
@@ -32,6 +44,7 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
         model_cfg: DictConfig,
         tokenizer: PreTrainedTokenizer,
     ):
+        check_if_trt_llm_installed()
 
         super().__init__(model_cfg, tokenizer)
 
@@ -113,7 +126,7 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
         self.decoder = tensorrt_llm.runtime.GenerationSession(
             trt_model_config, engine_buffer, runtime_mapping)
 
-    def eval_forward(self, batch: Dict, outputs: Optional[Any] = None):
+    def eval_forward(self, batch, outputs: Optional[Any] = None):
         # If the batch mode is generate, we will generate a requested number of tokens using the underlying
         # model's generate function. Strings will be returned from eval_forward
         output_logits_batch = []
@@ -131,14 +144,19 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
             input_lengths = torch.tensor([input_ids.size(1)],
                                          dtype=torch.int,
                                          device='cuda')
-
+            #print("prompt:", self.tokenizer.decode(prompt))
+            #print("Input ids data:", input_ids, len(input_ids), input_ids[0].shape)
+            #print("Input lengths:", input_lengths)
+            #print(cont_idxs[0])
+            #print("Expected continuation tokens:", len(expected_cont_tokens))
             self.decoder.setup(input_lengths.size(0),
                                torch.max(input_lengths).item(),
                                len(expected_cont_tokens))
 
-            _, output_logits_list = self.decoder.decode(input_ids,
-                                                        input_lengths,
-                                                        self.sampling_config)
+            output_ids, output_logits_list = self.decoder.decode(
+                input_ids, input_lengths, self.sampling_config)
+
+            #print("Decoded output:", self.tokenizer.decode(output_ids[0][0][cont_idxs[0]:].tolist()))
 
             output_logits = torch.nn.functional.one_hot(
                 torch.tensor(tokens[1:cont_idxs[0]], device='cuda'),
@@ -149,12 +167,15 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
 
             next_logit_tensor = torch.stack(output_logits_list)
             output_logits = torch.cat([output_logits, next_logit_tensor])
+            #print(output_logits.shape)
+            #print(output_ids[0][0][cont_idxs[0]:].tolist())
             padding = torch.nn.functional.one_hot(torch.full(
                 (seqlen - output_logits.shape[0],),
                 self.PAD_ID,
                 device=output_logits.device),
                                                   num_classes=self.vocab_size)
             output_logits = torch.cat([output_logits, padding])
+            #print("Output logits shape:", output_logits.shape)
             output_logits_batch.append(output_logits)
 
         return torch.stack(output_logits_batch).to(batch['input_ids'].device)

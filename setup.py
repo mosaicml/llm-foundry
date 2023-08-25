@@ -79,7 +79,7 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.15.0,<0.16',
+    'mosaicml[tensorboard]>=0.16.1,<0.17',
 ]
 
 extra_deps['gpu'] = [

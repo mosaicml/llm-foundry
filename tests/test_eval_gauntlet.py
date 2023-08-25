@@ -53,7 +53,6 @@ class MockLogger(Logger):
         self.inmemorylogger.log_metrics(metrics)
 
 
-
 @pytest.mark.parametrize(
     'gauntlet_from_path',
     [True, False],

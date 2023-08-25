@@ -462,19 +462,19 @@ def main(cfg: DictConfig) -> Trainer:
         tokenizer,
         device_train_batch_size,
     )
-
-    ## Evaluation
+     ## Evaluation
     print('Building eval loader...')
     evaluators = []
     eval_loader = None
     if eval_loader_config is not None:
         eval_dataloader = build_dataloader(eval_loader_config, tokenizer,
                                            device_eval_batch_size)
-        eval_metric_names = list(model.train_metrics.keys())
-        eval_loader = Evaluator(label='eval',
-                                dataloader=eval_dataloader,
-                                metric_names=eval_metric_names)
-        evaluators.append(eval_loader)
+        eval_loader = Evaluator(
+            label='eval',
+            dataloader=eval_dataloader,
+            metric_names=[],  # we will add these after model is created
+        )
+
     eval_gauntlet_callback = None
 
     if icl_tasks_config is not None:
@@ -486,7 +486,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
-    
+
 
     # Now add the eval metrics
     if eval_loader_config is not None:
@@ -494,8 +494,8 @@ def main(cfg: DictConfig) -> Trainer:
         assert model.train_metrics is not None
         eval_metric_names = list(model.train_metrics.keys())
         eval_loader.metric_names = eval_metric_names
-        evaluators.insert(0, eval_loader)  # Put the base eval_loader first
-
+    
+    
     # Build the Trainer
     print('Building trainer...')
     trainer = Trainer(

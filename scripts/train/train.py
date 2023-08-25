@@ -475,6 +475,14 @@ def main(cfg: DictConfig) -> Trainer:
             metric_names=[],  # we will add these after model is created
         )
 
+    # Now add the eval metrics
+    if eval_loader_config is not None:
+        assert eval_loader is not None
+        assert model.train_metrics is not None
+        eval_metric_names = list(model.train_metrics.keys())
+        eval_loader.metric_names = eval_metric_names
+        evaluators.append(eval_loader)
+
     eval_gauntlet_callback = None
 
     if icl_tasks_config is not None:
@@ -487,12 +495,6 @@ def main(cfg: DictConfig) -> Trainer:
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
 
-    # Now add the eval metrics
-    if eval_loader_config is not None:
-        assert eval_loader is not None
-        assert model.train_metrics is not None
-        eval_metric_names = list(model.train_metrics.keys())
-        eval_loader.metric_names = eval_metric_names
     # Build the Trainer
     print('Building trainer...')
     trainer = Trainer(

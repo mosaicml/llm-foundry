@@ -92,6 +92,11 @@ def validate_config(cfg: DictConfig):
         )
         torch._dynamo.config.suppress_errors = True  # type: ignore
 
+    if cfg.model.get('load_in_8bit', False):
+        raise ValueError(
+            '`load_in_8bit` is only supported for evaluation rather than training.'
+        )
+
 
 def build_composer_model(model_cfg: DictConfig,
                          tokenizer: PreTrainedTokenizerBase):
@@ -413,8 +418,12 @@ def main(cfg: DictConfig) -> Trainer:
                 tokenizer)
             print_trainable_parameters(model)  # should not be 100%
         else:  # standard model
-
             model = build_composer_model(model_config, tokenizer)
+
+        if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
+            model = model.to(dtype=torch.bfloat16)
+        elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
+            model = model.to(dtype=torch.float16)
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())
@@ -457,8 +466,8 @@ def main(cfg: DictConfig) -> Trainer:
     ## Evaluation
     print('Building eval loader...')
     evaluators = []
+    eval_loader = None
     if eval_loader_config is not None:
-        assert model.train_metrics is not None
         eval_dataloader = build_dataloader(eval_loader_config, tokenizer,
                                            device_eval_batch_size)
         eval_metric_names = list(model.train_metrics.keys())
@@ -477,6 +486,15 @@ def main(cfg: DictConfig) -> Trainer:
 
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
+    
+
+    # Now add the eval metrics
+    if eval_loader_config is not None:
+        assert eval_loader is not None
+        assert model.train_metrics is not None
+        eval_metric_names = list(model.train_metrics.keys())
+        eval_loader.metric_names = eval_metric_names
+        evaluators.insert(0, eval_loader)  # Put the base eval_loader first
 
     # Build the Trainer
     print('Building trainer...')
@@ -536,5 +554,6 @@ if __name__ == '__main__':
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
+    om.resolve(cfg)
     assert isinstance(cfg, DictConfig)
     main(cfg)

@@ -28,7 +28,7 @@ from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
                                   MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                              DecoupledLionW)
+                              DecoupledLionW, DecoupledLionW_8bit)
 
 
 def build_icl_data_and_gauntlet(
@@ -136,6 +136,8 @@ def build_optimizer(model: torch.nn.Module, name: str,
         return DecoupledClipLion(model.parameters(), **optimizer_config)
     elif name == 'adalr_lion':
         return DecoupledAdaLRLion(model.parameters(), **optimizer_config)
+    elif name == 'decoupled_lionw_8b':
+        return DecoupledLionW_8bit(model.parameters(), **optimizer_config)
     else:
         raise ValueError(f'Not sure how to build optimizer: {name}')
 

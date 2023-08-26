@@ -803,7 +803,8 @@ def test_generate_with_device_map(tmp_path: pathlib.Path, world_size: int,
     mpt = MPTForCausalLM(hf_config)
     mpt.save_pretrained(save_path)
 
-    AutoConfig.register('mpt', MPTConfig)
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
 
@@ -1376,7 +1377,8 @@ def test_hf_init(tmp_path: pathlib.Path,
     mpt = MPTForCausalLM(hf_config)
     mpt.save_pretrained(save_path)
 
-    AutoConfig.register('mpt', MPTConfig)
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
 
     context = contextlib.nullcontext()

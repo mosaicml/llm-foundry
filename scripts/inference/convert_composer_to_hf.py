@@ -168,7 +168,8 @@ def convert_composer_to_hf(args: Namespace) -> None:
     # Register MPT auto classes so that this script works with MPT
     # This script will not work without modification for other custom models,
     # but will work for other HuggingFace causal LMs
-    AutoConfig.register('mpt', MPTConfig)
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     MPTConfig.register_for_auto_class()
     MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
 

@@ -28,7 +28,8 @@ def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):
 
 def test_onnx_export(tmp_path: pathlib.Path):
     reproducibility.seed_all(42)
-    AutoConfig.register('mpt', MPTConfig)
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
 
     batch_size, vocab_size, max_seq_len = 1, 50368, 128

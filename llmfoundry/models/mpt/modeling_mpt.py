@@ -326,8 +326,7 @@ class MPTModel(MPTPreTrainedModel):
                     'output_attentions is not implemented for MPT when using attn_impl `flash` or `triton`.'
                 )
 
-        if (self.training and
-                attention_mask is not None and
+        if (self.training and attention_mask is not None and
                 attention_mask[:, 0].sum() != attention_mask.shape[0]):
             raise NotImplementedError(
                 'MPT does not support training with left padding.')

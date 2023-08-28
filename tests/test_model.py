@@ -19,9 +19,9 @@ from composer.trainer.dist_strategy import prepare_fsdp_module
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
-from transformers import (AutoModelForCausalLM, AutoTokenizer,
-                          PreTrainedModel, PreTrainedTokenizer,
-                          PreTrainedTokenizerFast, pipeline)
+from transformers import (AutoModelForCausalLM, AutoTokenizer, PreTrainedModel,
+                          PreTrainedTokenizer, PreTrainedTokenizerFast,
+                          pipeline)
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 

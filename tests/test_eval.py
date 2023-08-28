@@ -66,13 +66,15 @@ def test_icl_eval(capfd: Any):
             rescale_accuracy: true
             categories:
             - name: language_understanding_lite
-                benchmarks:
+              benchmarks:
                 - name: lambada_openai
-                num_fewshot: 0
-                random_baseline: 0.0
+                  num_fewshot: 0
+                  random_baseline: 0.0
         """)
     assert isinstance(test_cfg, om.DictConfig)
     main(test_cfg)
     out, _ = capfd.readouterr()
     expected_results = '| Category                    | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           |          0 | 0-shot            | tiny_mpt '
+    assert expected_results in out
+    expected_results = '| model_name   |   average |   language_understanding_lite |\n|:-------------|----------:|------------------------------:|\n| tiny_mpt     |         0 |                             0 |'
     assert expected_results in out

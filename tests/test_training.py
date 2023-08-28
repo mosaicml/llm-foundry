@@ -7,7 +7,6 @@ from argparse import Namespace
 from typing import Any
 
 import pytest
-import torch
 from composer.loggers import InMemoryLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -78,20 +77,6 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
     return test_cfg
 
 
-# @pytest.mark.parametrize('device', [
-#     'cpu',
-#     pytest.param('cuda',
-#                  marks=pytest.mark.skipif(
-#                      not torch.cuda.is_available(),
-#                      reason='testing with cuda requires GPU')),
-# ])
-# def test_train(device: str):
-#     """Test training run with a small dataset."""
-#     dataset_name = create_c4_dataset_xsmall(device)
-#     test_cfg = gpt_tiny_cfg(dataset_name, device)
-#     main(test_cfg)
-
-
 @pytest.fixture(autouse=False)
 def set_correct_cwd():
     if not os.getcwd().endswith('llm-foundry/scripts'):
@@ -121,7 +106,7 @@ def test_train_gauntlet(set_correct_cwd: Any):
     test_cfg.icl_subset_num_batches = 1  # -1 to evaluate on all batches
     test_cfg.eval_gauntlet = 'eval/yamls/eval_gauntlet.yaml'
     test_cfg.icl_seq_len = 128
-    test_cfg.max_duration = '1ba'
+    test_cfg.max_duration = '2ba'
     test_cfg.eval_interval = '1ba'
     test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
     trainer = main(test_cfg)

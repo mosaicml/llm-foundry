@@ -68,5 +68,5 @@ def test_icl_eval(capfd: Any):
     assert isinstance(test_cfg, om.DictConfig)
     main(test_cfg)
     out, _ = capfd.readouterr()
-    expected_results = '| Category               | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:-----------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| language_understanding | lambada_openai |           |          0 | 0-shot            | tiny_mpt |\n'
+    expected_results = '| Category                    | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           |          0 | 0-shot            | tiny_mpt '
     assert expected_results in out

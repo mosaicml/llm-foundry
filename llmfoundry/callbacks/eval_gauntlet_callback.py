@@ -122,7 +122,9 @@ class EvalGauntlet(Callback):
         if len(new_metrics) == 0:
             return {}
         composite_scores = {}
+
         for category in self.categories:
+            missing_metrics = []
             composite_scores[category['name']] = []
             for benchmark in category['benchmarks']:
                 key = f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
@@ -131,6 +133,7 @@ class EvalGauntlet(Callback):
                     print(
                         f"Warning: couldn't find results for benchmark: {benchmark}"
                     )
+                    missing_metrics.append(key)
                 else:
                     score = new_metrics[key]
 
@@ -146,9 +149,9 @@ class EvalGauntlet(Callback):
                         'weighting': benchmark['weighting']
                     })
 
-            if len(composite_scores[category['name']]) == 0:
+            if len(missing_metrics) > 0:
                 print(
-                    f"Removing category `{category['name']}` from gauntlet scores because no benchmarks were available."
+                    f"Removing category `{category['name']}` from gauntlet scores because benchmarks were missing: {missing_metrics}"
                 )
                 del composite_scores[category['name']]
                 continue

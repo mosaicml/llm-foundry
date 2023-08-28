@@ -11,7 +11,7 @@ import torch
 from composer.utils import reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import AutoConfig, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM

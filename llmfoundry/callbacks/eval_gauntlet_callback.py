@@ -167,7 +167,8 @@ class EvalGauntlet(Callback):
         }
 
         composite_scores['icl/metrics/eval_gauntlet/average'] = sum(
-            composite_scores.values()) / len(composite_scores.values())
+            composite_scores.values()) / len(composite_scores.values()) if len(
+                composite_scores.values()) > 0 else 0
         if logger is not None:
             logger.log_metrics(composite_scores)
 

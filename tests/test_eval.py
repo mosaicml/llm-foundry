@@ -31,8 +31,6 @@ def test_icl_eval(capfd: Any):
         max_seq_len: 1024
         seed: 1
         precision: fp32
-
-
         models:
         -
             model_name: tiny_mpt
@@ -48,7 +46,6 @@ def test_icl_eval(capfd: Any):
                 attn_config:
                     attn_impl: torch
                 loss_fn: torch_crossentropy
-
             # Tokenizer
             tokenizer:
                 name: EleutherAI/gpt-neox-20b
@@ -63,7 +60,16 @@ def test_icl_eval(capfd: Any):
             dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
             num_fewshot: [0]
             icl_task_type: language_modeling
-        eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+        eval_gauntlet:
+            weighting: EQUAL
+            subtract_random_baseline: true
+            rescale_accuracy: true
+            categories:
+            - name: language_understanding_lite
+                benchmarks:
+                - name: lambada_openai
+                num_fewshot: 0
+                random_baseline: 0.0
         """)
     assert isinstance(test_cfg, om.DictConfig)
     main(test_cfg)

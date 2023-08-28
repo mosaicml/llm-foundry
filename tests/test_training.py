@@ -104,7 +104,31 @@ def test_train_gauntlet(set_correct_cwd: Any):
         })
     ])
     test_cfg.icl_subset_num_batches = 1  # -1 to evaluate on all batches
-    test_cfg.eval_gauntlet = 'eval/yamls/eval_gauntlet.yaml'
+
+    test_cfg.eval_gauntlet = DictConfig({
+        'weighting':
+            'EQUAL',
+        'subtract_random_baseline':
+            True,
+        'rescale_accuracy':
+            True,
+        'categories':
+            ListConfig([
+                DictConfig({
+                    'name':
+                        'language_understanding_lite',
+                    'benchmarks':
+                        ListConfig([
+                            DictConfig({
+                                'name': 'lambada_openai',
+                                'num_fewshot': 0,
+                                'random_baseline': 0.0
+                            })
+                        ])
+                })
+            ])
+    })
+
     test_cfg.icl_seq_len = 128
     test_cfg.max_duration = '2ba'
     test_cfg.eval_interval = '1ba'

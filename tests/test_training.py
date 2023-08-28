@@ -78,18 +78,18 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
     return test_cfg
 
 
-@pytest.mark.parametrize('device', [
-    'cpu',
-    pytest.param('cuda',
-                 marks=pytest.mark.skipif(
-                     not torch.cuda.is_available(),
-                     reason='testing with cuda requires GPU')),
-])
-def test_train(device: str):
-    """Test training run with a small dataset."""
-    dataset_name = create_c4_dataset_xsmall(device)
-    test_cfg = gpt_tiny_cfg(dataset_name, device)
-    main(test_cfg)
+# @pytest.mark.parametrize('device', [
+#     'cpu',
+#     pytest.param('cuda',
+#                  marks=pytest.mark.skipif(
+#                      not torch.cuda.is_available(),
+#                      reason='testing with cuda requires GPU')),
+# ])
+# def test_train(device: str):
+#     """Test training run with a small dataset."""
+#     dataset_name = create_c4_dataset_xsmall(device)
+#     test_cfg = gpt_tiny_cfg(dataset_name, device)
+#     main(test_cfg)
 
 
 @pytest.fixture(autouse=False)

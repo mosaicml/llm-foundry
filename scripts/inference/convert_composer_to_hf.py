@@ -1,84 +1,23 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import json
 import os
-import random
-import string
 import tempfile
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
-import sentencepiece as spm
 import torch
 import transformers
 from composer.models.huggingface import get_hf_config_from_composer_state_dict
 from composer.utils import (get_file, maybe_create_object_store_from_uri,
                             parse_uri, safe_torch_load)
-from transformers import (AutoConfig, AutoTokenizer, PretrainedConfig,
-                          PreTrainedTokenizer, PreTrainedTokenizerBase)
+from transformers import AutoConfig, PretrainedConfig, PreTrainedTokenizerBase
 
 from llmfoundry import MPTConfig, MPTForCausalLM
+from llmfoundry.utils import get_hf_tokenizer_from_composer_state_dict
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
-
-
-# TODO: move this functionality to composer once the bug fixes are upstreamed
-def get_hf_tokenizer_from_composer_state_dict(
-        state_dict: Dict[str, Any],
-        tokenizer_save_dir: Optional[str] = None
-) -> Optional[PreTrainedTokenizer]:
-    if 'state' not in state_dict:
-        raise RuntimeError(
-            'Unexpected composer state dictionary. Did you pass in a full composer checkpoint?'
-        )
-    if 'integrations' not in state_dict[
-            'state'] or 'huggingface' not in state_dict['state']['integrations']:
-        raise RuntimeError(
-            'Did not find HuggingFace related state (e.g., tokenizer) in the provided composer checkpoint!'
-        )
-    hf_tokenizer_state = state_dict['state']['integrations']['huggingface'][
-        'tokenizer']
-    hf_tokenizer = None
-    if hf_tokenizer_state != {}:
-        if tokenizer_save_dir is None:
-            unique_suffix = ''.join(
-                random.choices(string.ascii_letters + string.digits, k=6))
-            tokenizer_save_dir = os.path.join(
-                os.getcwd(), f'tokenizer-save-dir-{unique_suffix}')
-        os.makedirs(tokenizer_save_dir, exist_ok=True)
-
-        for filename, saved_content in hf_tokenizer_state.items():
-            # This cannot be a temporary directory because huggingface relies on the slow tokenizer file
-            # being persistent on disk
-            tokenizer_file_path = Path(
-                tokenizer_save_dir
-            ) / f'{filename}{saved_content["file_extension"]}'
-            if saved_content['file_extension'] == '.json':
-                with open(tokenizer_file_path, 'w') as _tmp_file:
-                    json.dump(saved_content['content'], _tmp_file)
-            elif saved_content['file_extension'] == '.txt':
-                with open(tokenizer_file_path, 'w') as _tmp_file:
-                    for line in saved_content['content']:
-                        _tmp_file.write(line)
-                        _tmp_file.write('\n')
-            elif saved_content['file_extension'] == '.py':
-                with open(tokenizer_file_path, 'w') as _tmp_file:
-                    _tmp_file.write(saved_content['content'])
-            elif saved_content['file_extension'] == '.model':
-                s = spm.SentencePieceProcessor()
-                s.load_from_serialized_proto(saved_content['content'])
-                with open(tokenizer_file_path, 'wb') as _tmp_file:
-                    _tmp_file.write(s.serialized_model_proto())
-
-        hf_tokenizer = AutoTokenizer.from_pretrained(tokenizer_save_dir)
-
-        # remove 'name_or_path'
-        hf_tokenizer.name_or_path = ''
-        hf_tokenizer.init_kwargs['name_or_path'] = ''
-
-    return hf_tokenizer
 
 
 def write_huggingface_pretrained_from_composer_checkpoint(
@@ -250,6 +189,7 @@ def convert_composer_to_hf(args: Namespace) -> None:
     print(f'Loading model from {local_folder_path}')
     if config.model_type == 'mpt':
         config.attn_config['attn_impl'] = 'torch'
+        config.init_device = 'cpu'
 
     if config.model_type == 'mpt':
         loaded_hf_model = MPTForCausalLM.from_pretrained(local_folder_path,

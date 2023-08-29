@@ -28,16 +28,17 @@ trt_mpt_config = {
     }
 }
 
-base = 'mpt-7b'
+assert len(sys.argv) == 2, "please provide a base name"
+base = sys.argv[1]
 variants = [
     'fp16',
     'kvquant',
     'int8',
     'int8_kvquant',
-    # 'int4',
-    # 'int4_kvquant',
-    # 'smoothquant',
-    # 'smoothquant_kvquant'
+    'int4',
+    'int4_kvquant',
+    'smoothquant',
+    'smoothquant_kvquant'
 ]
 
 for variant in variants:

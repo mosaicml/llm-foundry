@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import requests
 import yaml
 from mcli.models.run_config import SchedulingConfig
-from mcli.sdk import RunConfig, create_run, get_clusters, follow_run_logs, get_runs
+from mcli.sdk import RunConfig, create_run, get_clusters, follow_run_logs
 
 def _get_cluster_info():
     clusters = get_clusters()
@@ -189,11 +189,6 @@ def parse_args():
     parser.add_argument('--torch_compile_mode', type=str, default=None)
     parser.add_argument('--torch_compile', type=str_to_bool, default=False)
     parser.add_argument('--RUN',
-                        type=str_to_bool,
-                        nargs='?',
-                        const=True,
-                        default=False)
-    parser.add_argument('--LOCAL',
                         type=str_to_bool,
                         nargs='?',
                         const=True,
@@ -420,12 +415,21 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
     ]
 
     command = ""
-    if gpu_type == 'h100_80gb' and precision == 'fp8':
-        command += """
-        pip uninstall install pydantic
-        pip install pydantic==1.9.0
-        pip install flash-attn==1.0.7 --no-build-isolation 
-        pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10"""
+    # if gpu_type == 'h100_80gb':
+    #     command += f"""
+    #     cd llm-foundry
+    #     pip install .[gpu]
+    #     pip uninstall mosaicml --yes
+    #     pip install -U git+https://github.com/mvpatel2000/composer.git@784f50be7fa8617ed562704c0207316ca2284e71
+    #     pip install flash-attn==1.0.7 --no-build-isolation
+    #     pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
+    #     pip uninstall torch==2.0.1 --yes
+    #     pip install --no-cache-dir --pre --index-url https://download.pytorch.org/whl/nightly/cu121 torch==2.1.0.dev20230821+cu121
+    #     pip uninstall install pydantic --yes
+    #     pip install pydantic==1.9.0
+    #     cd scripts
+    #     python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
+    #     composer train/train.py /mnt/config/parameters.yaml"""
 
     if args.data_remote is None:
         command += f"""
@@ -497,16 +501,6 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         # Create the run from a config
         run = create_run(config)
         print(f'Launching run {run.name}')
-    if args.LOCAL:
-        print(get_runs(run.name))
-        saved = get_runs(run.name)[0].submitted_config
-        stop_run(run.name)
-        from dataclassses import asdict
-        d = asdict(saved)
-        import yaml
-        f = open('/mnt/workdisk/chris/llmf/conf.yaml', 'w+')
-        yaml.dump(d, f, allow_unicode=True)
-        RunConfig.to_file()
     else:
         print(f'run = {name}')
 

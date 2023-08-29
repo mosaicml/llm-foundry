@@ -413,31 +413,11 @@ def xformers_attn_fn(query: torch.Tensor,
                                                                 torch.Tensor]]]:
     
     try:
-        from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
+        from xformers.ops import memory_efficient_attention
     except:
-        _installed = False
-        if version.parse(torch.__version__) < version.parse('2.0.0'):
-            _installed = True
-            # if torch1.13.1 revert to using triton flash attn from HazyResearch
-            # with flash-attn==1.0.3.post0 and triton==2.0.0.dev20221202
-            try:
-                from flash_attn.flash_attn_triton import flash_attn_func
-            except:
-                _installed = False
-        if not _installed:
-            # installing triton-pre-mlir works for both torch1.13.1 and torch2.0+
-            # default recommendation is to install this variant
-            raise RuntimeError(
-                'Requirements for `attn_impl: triton` not installed. Either (1) have a CUDA-compatible GPU '
-                +
-                'and `pip install .[gpu]` if installing from llm-foundry source or '
-                +
-                '`pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python` '
-                +
-                'if installing from pypi, or (2) use torch attn model.attn_config.attn_impl=torch (torch attn_impl will be slow). '
-                +
-                'Note: (1) requires you have CMake and PyTorch already installed.'
-            )
+        raise RuntimeError(
+            'REEEEEEE'
+        )
 
     check_valid_inputs(query, key, value)
 
@@ -512,8 +492,8 @@ def xformers_attn_fn(query: torch.Tensor,
         value = value.repeat_interleave(n_heads // kv_n_heads, dim=2)
 
     reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
-    attn_output = flash_attn_func(  # type: ignore
-        query, key, value, attn_bias, reset_is_causal, softmax_scale)
+    attn_output = memory_efficient_attention(  # type: ignore
+        query, key, value, attn_bias, p: dropout_p)
 
     output = attn_output.view(*attn_output.shape[:2], -1)  # type: ignore
 
@@ -753,7 +733,7 @@ def attn_bias_shape(attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
                     prefix_lm: bool, causal: bool, use_sequence_id: bool):
     if attn_impl == 'flash':
         return None
-    elif attn_impl in ['torch', 'triton','xformers']:
+    elif attn_impl in ['torch', 'triton', 'xformers']:
         if alibi:
             if (prefix_lm or not causal) or use_sequence_id:
                 return (1, n_heads, seq_len, seq_len)

@@ -756,7 +756,7 @@ def build_attn_bias(
 ):
     if attn_impl == 'flash':
         return None
-    elif attn_impl in ['torch', 'triton']:
+    elif attn_impl in ['torch', 'triton', 'xformers']:
         if alibi:
             # in place add alibi to attn bias
             device, dtype = attn_bias.device, attn_bias.dtype

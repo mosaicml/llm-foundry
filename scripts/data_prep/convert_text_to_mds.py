@@ -1,5 +1,5 @@
-
-from typing import Dict, Iterable, Optional, cast, List
+from argparse import Namespace
+from typing import Dict, Iterable, Optional, cast, List, Tuple
 import os
 
 from streaming import MDSWriter
@@ -15,6 +15,7 @@ from multiprocessing import Pool
 from glob import glob
 import json
 import tempfile
+import hashlib
 
 # check last args and input folder modification
 # if last args are the same as current args and the last modified date is the same,
@@ -74,8 +75,8 @@ class DownloadingIterable:
         self.output_folder = output_folder
 
     def __iter__(self):
-        for object_name in object_names:
-            output_filename = os.path.join(self.output_folder, object_name.removeprefix(self.input_folder_prefix).strip('/'))
+        for object_name in self.object_names:
+            output_filename = os.path.join(self.output_folder, os.path.relpath(object_name, start=self.input_folder_prefix))
             self.object_store.download_object(
                 object_name=object_name,
                 filename = output_filename,
@@ -87,32 +88,28 @@ class DownloadingIterable:
             yield {'text': txt}
 
 
-def get_text_filenames(object_store: ObjectStore, folder_prefix: str):
+def get_object_names_and_hash(object_store: ObjectStore, folder_prefix: str) -> Tuple[List[str], str]:
+    # TODO: Support other object store backends
     object_store = cast(S3ObjectStore , object_store)
-    objects = object_store.client.list_objects_v2(Bucket=object_store.bucket, Prefix=folder_prefix)
+    paginator = object_store.client.get_paginator('list_objects_v2')
+    pages = paginator.paginate(Bucket=object_store.bucket, Prefix=folder_prefix)
+
     object_names = []
-
-    # last_modified = 0
-    for obj in objects['Contents'][:20]:
-        name: str = obj['Key']
-        if name.endswith('.txt'):
-            # last_modified = max(last_modified, obj['LastModified'].timestamp())
-            object_names.append(name)
-    return object_names
-
-
+    objects_hash = hashlib.sha1()
+    for page in pages:
+        for obj in page['Contents']:
+            name, etag = obj['Key'], obj['ETag']
+            if name.endswith('.txt'):
+                object_names.append(name)
+                objects_hash.update(str.encode(etag)) # Update the hash with the byte-encoded etag
+    print(f'Found {len(object_names)} text files')
+    return object_names, objects_hash.hexdigest()
 
 def get_task_args(object_names: List[str], output_root: str, input_folder: str, n_groups: int) -> Iterable[tuple[List[str], str]]:
     objs_per_group = math.ceil(len(object_names) / n_groups)
     for group, i in enumerate(range(0, len(object_names), objs_per_group)):
         output_folder = os.path.join(output_root, str(group))
         yield (object_names[i:i + objs_per_group], output_folder, input_folder)
-
-# Initialize the worker process
-def init_worker():
-    # Get the pid for the current worker process
-    pid = os.getpid()
-    print(f'\nInitialize Worker PID: {pid}', flush=True, end='')
 
 def download_and_convert(inputs: tuple[List[str], str]):
     file_names, output_folder, input_folder = inputs
@@ -171,7 +168,6 @@ def merge_shard_groups(root: str) -> None:
     subdirs = sorted(glob(pattern))
     shard_id = 0
     infos = []
-    basenames = []
     for subdir in subdirs:
         index_filename = os.path.join(subdir, 'index.json')
         obj = json.load(open(index_filename))
@@ -191,7 +187,6 @@ def merge_shard_groups(root: str) -> None:
 
             shard_id += 1
             infos.append(info)
-            basenames.append(new_basename)
 
         assert not os.remove(index_filename)
         assert not os.rmdir(subdir)
@@ -204,46 +199,90 @@ def merge_shard_groups(root: str) -> None:
     text = json.dumps(obj, sort_keys=True)
     with open(index_filename, 'w') as out:
         out.write(text)
-    return basenames
 
-def _is_local_path(path: str):
+def is_local_path(path: str) -> bool:
     backend, bucket, _ = parse_uri(path)
     return backend == '' and bucket == ''
 
-if __name__ == '__main__':
-    n_processes = 4
-    n_groups = 4
+def is_already_processed(output_root: str, done_file_name: str, args: Namespace, objects_hash: str, is_remote_output: bool) -> bool:
+    done_file_contents = None 
+    if is_remote_output:
+        output_object_store = maybe_create_object_store_from_uri(output_root)
+        _, _, output_folder_prefix = parse_uri(output_root)
+        try:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                done_file = os.path.join(tmp_dir, done_file_name)
+                obj = output_object_store.download_object(os.path.join(output_folder_prefix, done_file_name), done_file)
+                done_file_contents = open(done_file).readlines()
+        except FileNotFoundError:
+            return False
+    else:
+        done_file = os.path.join(output_root, done_file_name)
+        if not os.path.isfile(done_file):
+            return False
+        done_file_contents = open(done_file).readlines()
+    try:
+        prev_objects_hash = done_file_contents[0]
+        if objects_hash == prev_objects_hash:
+            return True # TODO: Compare arg namespace
+    except ValueError:
+        pass
+    return False
+
+# Initialize the worker process
+def init_worker():
+    # Get the pid for the current worker process
+    pid = os.getpid()
+    print(f'\nInitialize Worker PID: {pid}', flush=True, end='')
+
+
+# def main(args: Namespace):
+def main():
+    n_processes = 8
+    n_groups = 8
     output_root = 's3://mosaicml-internal-checkpoints-shared/irene/test-output'
     input_folder = 's3://mosaicml-internal-checkpoints-shared/irene/sec-filings-large-train'
+    done_file_name = 'done'
 
-    is_remote_output = not _is_local_path(output_root)
+    is_remote_output = not is_local_path(output_root)
+    local_output_root = tempfile.TemporaryDirectory().name if is_remote_output else output_root
 
     input_object_store = maybe_create_object_store_from_uri(input_folder)
     _, _, folder_prefix = parse_uri(input_folder)
-    object_names = get_text_filenames(input_object_store, folder_prefix)
+    
+    object_names, objects_hash = get_object_names_and_hash(input_object_store, folder_prefix)
 
-    local_output_root = tempfile.TemporaryDirectory().name if is_remote_output else output_root
-    print('local output root!', local_output_root)
+    if is_already_processed(output_root, done_file_name, Namespace(), objects_hash, is_remote_output):
+        print(f'Input folder {input_folder} is already processed at {output_root}.')
+        # TODO: Add flag to automatically reprocess
+        return
 
     tasks = get_task_args(object_names, local_output_root, input_folder, n_groups)
 
-
     with Pool(initializer=init_worker, processes=n_processes) as pool:
-        for task in pool.imap(download_and_convert, tasks):
-            pass
+        pool.map(download_and_convert, tasks)
 
-    shard_basenames = merge_shard_groups(local_output_root)
+    merge_shard_groups(local_output_root)
 
-    # Write a done file
-    with open(os.path.join(local_output_root, 'done'), 'w') as done_file:
-        done_file.write('hello world')
+    # Write a done file with the args and the hash
+    with open(os.path.join(local_output_root, done_file_name), 'w') as done_file:
+        done_file.write(str(objects_hash))
+        # done_file.write('\n')
+        # done_file.write(str(args))
+        # TODO: write arguments to file
+        # TODO: write 
 
     if is_remote_output:
+        # Upload the local output to the remote location
+        output_object_store = maybe_create_object_store_from_uri(output_root)
+        _, _, output_folder_prefix = parse_uri(output_root)
         pattern = os.path.join(local_output_root, '*')
         files_to_upload = sorted(glob(pattern))
-        output_object_store = object_store = maybe_create_object_store_from_uri(output_root)
-        _, _, folder_prefix = parse_uri(output_root)
         for local_path in files_to_upload:
             assert not os.path.isdir(local_path)
-            remote_path = os.path.join(folder_prefix, os.path.basename(local_path))
+            remote_path = os.path.join(output_folder_prefix, os.path.basename(local_path))
             output_object_store.upload_object(remote_path, local_path)
+
+
+if __name__ == '__main__':
+    main()

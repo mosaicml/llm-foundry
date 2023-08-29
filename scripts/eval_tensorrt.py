@@ -26,7 +26,7 @@ trt_gpt_config = {
             {
                 'name': 'trtllm',
                 'version': 'gpt',
-                'engine_dir': f'{os.environ['TENSORRT_LLM_PATH']}/examples/gpt/gpt2-xl',
+                'engine_dir': f'{os.environ["TENSORRT_LLM_PATH"]}/examples/gpt/gpt2-xl',
                 'log_level': 'error'
             },
             'tokenizer': 

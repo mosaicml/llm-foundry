@@ -1,7 +1,10 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 from composer.core import Callback
 
 __all__ = ['ModelGauntlet']
+
 
 class ModelGauntlet(Callback):
     """The ModelGauntlet callback has been renamed to EvalGauntlet.

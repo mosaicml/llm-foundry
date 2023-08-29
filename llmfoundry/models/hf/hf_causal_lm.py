@@ -112,6 +112,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 else:
                     setattr(config, k, v)
 
+            load_in_8bit = om_model_config.get('load_in_8bit', False)
+
             # below we set up the device to initialize the model on
             init_device = om_model_config.get('init_device', 'cpu')
 
@@ -131,6 +133,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                         om_model_config.pretrained_model_name_or_path,
                         trust_remote_code=trust_remote_code,
                         use_auth_token=use_auth_token,
+                        load_in_8bit=load_in_8bit,
                         config=config)
                 else:
                     model = AutoModelForCausalLM.from_config(

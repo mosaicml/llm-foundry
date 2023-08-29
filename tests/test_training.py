@@ -4,10 +4,11 @@ import os
 import shutil
 import sys
 from argparse import Namespace
+from typing import Any
 
 import pytest
-import torch
-from omegaconf import DictConfig
+from composer.loggers import InMemoryLogger
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 # Add repo root to path so we can import scripts and test it
@@ -76,15 +77,75 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
     return test_cfg
 
 
-@pytest.mark.parametrize('device', [
-    'cpu',
-    pytest.param('cuda',
-                 marks=pytest.mark.skipif(
-                     not torch.cuda.is_available(),
-                     reason='testing with cuda requires GPU')),
-])
-def test_train(device: str):
+@pytest.fixture(autouse=False)
+def set_correct_cwd():
+    if not os.getcwd().endswith('llm-foundry/scripts'):
+        os.chdir('scripts')
+
+    yield
+
+    if os.getcwd().endswith('llm-foundry/scripts'):
+        os.chdir('..')
+
+
+def test_train_gauntlet(set_correct_cwd: Any):
     """Test training run with a small dataset."""
-    dataset_name = create_c4_dataset_xsmall(device)
-    test_cfg = gpt_tiny_cfg(dataset_name, device)
-    main(test_cfg)
+    dataset_name = create_c4_dataset_xsmall('cpu-gauntlet')
+    test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
+    test_cfg.icl_tasks = ListConfig([
+        DictConfig({
+            'label':
+                'lambada_openai',
+            'dataset_uri':
+                'eval/local_data/language_understanding/lambada_openai_small.jsonl',
+            'num_fewshot': [0],
+            'icl_task_type':
+                'language_modeling'
+        })
+    ])
+    test_cfg.icl_subset_num_batches = 1  # -1 to evaluate on all batches
+
+    test_cfg.eval_gauntlet = DictConfig({
+        'weighting':
+            'EQUAL',
+        'subtract_random_baseline':
+            True,
+        'rescale_accuracy':
+            True,
+        'categories':
+            ListConfig([
+                DictConfig({
+                    'name':
+                        'language_understanding_lite',
+                    'benchmarks':
+                        ListConfig([
+                            DictConfig({
+                                'name': 'lambada_openai',
+                                'num_fewshot': 0,
+                                'random_baseline': 0.0
+                            })
+                        ])
+                })
+            ])
+    })
+
+    test_cfg.icl_seq_len = 128
+    test_cfg.max_duration = '1ba'
+    test_cfg.eval_interval = '1ba'
+    test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
+    trainer = main(test_cfg)
+
+    assert isinstance(trainer.logger.destinations, tuple)
+
+    assert len(trainer.logger.destinations) > 0
+    inmemorylogger = trainer.logger.destinations[
+        0]  # pyright: ignore [reportGeneralTypeIssues]
+    assert isinstance(inmemorylogger, InMemoryLogger)
+    assert 'icl/metrics/eval_gauntlet/average' in inmemorylogger.data.keys()
+    assert isinstance(inmemorylogger.data['icl/metrics/eval_gauntlet/average'],
+                      list)
+    assert len(inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1]) > 0
+    assert isinstance(
+        inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1], tuple)
+
+    assert inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1][-1] == 0

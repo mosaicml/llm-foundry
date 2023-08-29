@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer import Trainer
 from composer.core import Evaluator
+from composer.core.callback import Callback
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -19,9 +20,9 @@ from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         build_text_denoising_dataloader)
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
-                                       build_icl_evaluators, build_logger,
-                                       build_optimizer, build_scheduler,
-                                       build_tokenizer)
+                                       build_icl_data_and_gauntlet,
+                                       build_logger, build_optimizer,
+                                       build_scheduler, build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
@@ -175,7 +176,7 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
-def main(cfg: DictConfig):
+def main(cfg: DictConfig) -> Trainer:
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
         action='ignore',
@@ -244,11 +245,33 @@ def main(cfg: DictConfig):
                                                           'eval_loader',
                                                           must_exist=False,
                                                           default_value=None)
-    icl_tasks_config: Optional[ListConfig] = pop_config(cfg,
+    icl_tasks_config: Optional[Union[ListConfig,
+                                     str]] = pop_config(cfg,
                                                         'icl_tasks',
                                                         must_exist=False,
                                                         default_value=None)
-
+    eval_gauntlet_config: Optional[Union[DictConfig,
+                                         str]] = pop_config(cfg,
+                                                            'eval_gauntlet',
+                                                            must_exist=False,
+                                                            default_value=None)
+    if eval_gauntlet_config is None:
+        eval_gauntlet_config = pop_config(cfg,
+                                          'model_gauntlet',
+                                          must_exist=False,
+                                          default_value=None)
+        if eval_gauntlet_config is not None:
+            print(
+                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`'
+            )
+    icl_subset_num_batches: Optional[int] = pop_config(cfg,
+                                                       'icl_subset_num_batches',
+                                                       must_exist=False,
+                                                       default_value=None)
+    icl_seq_len: Optional[int] = pop_config(cfg,
+                                            'icl_seq_len',
+                                            must_exist=False,
+                                            default_value=None)
     # Optional logging, evaluation and callback configs
     logger_configs: Optional[DictConfig] = pop_config(cfg,
                                                       'loggers',
@@ -406,10 +429,10 @@ def main(cfg: DictConfig):
     ] if logger_configs else None
 
     # Callbacks
-    callbacks = [
+    callbacks: List[Callback] = [
         build_callback(str(name), callback_cfg)
         for name, callback_cfg in callback_configs.items()
-    ] if callback_configs else None
+    ] if callback_configs else []
 
     # Algorithms
     algorithms = [
@@ -424,7 +447,6 @@ def main(cfg: DictConfig):
         tokenizer,
         device_train_batch_size,
     )
-
     ## Evaluation
     print('Building eval loader...')
     evaluators = []
@@ -438,11 +460,17 @@ def main(cfg: DictConfig):
             metric_names=[],  # we will add these after model is created
         )
 
+    eval_gauntlet_callback = None
+
     if icl_tasks_config is not None:
-        icl_evaluators, _ = build_icl_evaluators(icl_tasks_config, tokenizer,
-                                                 max_seq_len,
-                                                 device_eval_batch_size)
+        icl_evaluators, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
+            icl_tasks_config, eval_gauntlet_config, tokenizer,
+            device_eval_batch_size, icl_seq_len if icl_seq_len else max_seq_len,
+            icl_subset_num_batches)
         evaluators.extend(icl_evaluators)
+
+    if eval_gauntlet_callback is not None:
+        callbacks.append(eval_gauntlet_callback)
 
     # Build Model
     print('Initializing model...')
@@ -525,6 +553,7 @@ def main(cfg: DictConfig):
     trainer.fit()
 
     print('Done.')
+    return trainer
 
 
 if __name__ == '__main__':

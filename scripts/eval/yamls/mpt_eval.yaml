@@ -1,4 +1,4 @@
-max_seq_len: 2048
+max_seq_len: 1024
 tokenizer_name: EleutherAI/gpt-neox-20b
 seed: 1
 precision: amp_fp16
@@ -24,7 +24,7 @@ models:
     attn_config:
       attn_impl: triton
 
-load_path: # Add your (optional) Composer checkpoint path here!
+  load_path: # Add your (optional) Composer checkpoint path here!
 
 device_eval_batch_size: 16
 
@@ -32,6 +32,8 @@ device_eval_batch_size: 16
 fsdp_config:
   sharding_strategy: FULL_SHARD
   mixed_precision: FULL
+  forward_prefetch: True
+  limit_all_gathers: True
 
 icl_tasks:
 -

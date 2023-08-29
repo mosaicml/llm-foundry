@@ -753,7 +753,7 @@ def attn_bias_shape(attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
                     prefix_lm: bool, causal: bool, use_sequence_id: bool):
     if attn_impl == 'flash':
         return None
-    elif attn_impl in ['torch', 'triton']:
+    elif attn_impl in ['torch', 'triton','xformers']:
         if alibi:
             if (prefix_lm or not causal) or use_sequence_id:
                 return (1, n_heads, seq_len, seq_len)

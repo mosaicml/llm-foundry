@@ -19,21 +19,6 @@ class Weighting(Enum):
     LOG_SAMPLE_SZ = 3
 
 
-class ModelGauntlet(Callback):
-    """The ModelGauntlet callback has been renamed to EvalGauntlet.
-
-    We've created this dummy class, in order to alert anyone who may have been
-    importing ModelGauntlet.
-    """
-
-    def __init__(
-        self,
-        *args,  # pyright: ignore [reportMissingParameterType]
-        **kwargs):  # pyright: ignore [reportMissingParameterType]
-        raise ImportError(
-            'ModelGauntlet class is deprecated, please use EvalGauntlet')
-
-
 class EvalGauntlet(Callback):
     """The EvalGauntlet aggregates ICL eval results.
 

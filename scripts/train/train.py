@@ -502,7 +502,7 @@ def main(cfg: DictConfig) -> Trainer:
         assert model.train_metrics is not None
         eval_metric_names = list(model.train_metrics.keys())
         eval_loader.metric_names = eval_metric_names
-        evaluators.insert(0, eval_loader)
+        evaluators.insert(0, eval_loader)  # Put the base eval_loader first
 
     # Build the Trainer
     print('Building trainer...')

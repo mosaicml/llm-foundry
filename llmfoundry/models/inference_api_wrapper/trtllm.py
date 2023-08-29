@@ -94,6 +94,7 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
         if self.PAD_ID == None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+            self.PAD_ID = self.tokenizer.eos_token_id
 
         print('EOS TOKEN:', self.END_ID)
         print('Pad token:', self.PAD_ID)

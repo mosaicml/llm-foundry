@@ -227,7 +227,7 @@ def main(cfg: DictConfig):
         )
 
     reproducibility.seed_all(seed)
-    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    dist.initialize_dist('gpu', timeout=dist_timeout)
 
     model_gauntlet_df = None
     models_df = None

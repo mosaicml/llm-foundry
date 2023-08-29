@@ -63,6 +63,18 @@ prompt_string: ''
 
 You can also add ICL evaluation to your training runs by adding an `icl_tasks` config to your training config at the same depth as the `model` subconfig.
 
+You can use the eval gauntlet benchmark aggregation during training by adding the following configs to your yaml:
+```
+  icl_tasks: eval/yamls/tasks.yaml # or use tasks_light.yaml
+  icl_subset_num_batches: 100 # -1, or omit this key entirely, to evaluate on all batches
+  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+  icl_seq_len: 1024
+```
+
+For training, we recommend you do not run the full eval gauntlet. Instead either use the `tasks_light.yaml` which is a subset of the full gauntlet benchmarks, or set `icl_subset_num_batches` to a small number such as 50 or 100 which will only run each benchmark on a random sample of `icl_subset_num_batches` batches.
+
+You can also define your own custome list of tasks and point to it via the `icl_tasks` key and custom aggregation via the `eval_gauntlet` key.
+
 ----
 
 ## ICL Tasks

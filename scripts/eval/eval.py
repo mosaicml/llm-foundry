@@ -46,14 +46,14 @@ def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         try:
             trust_remote_code = model_cfg.get('trust_remote_code', True)
             use_auth_token = model_cfg.get('use_auth_token', False)
-            underlying_model = model_registry[model_cfg.name].from_pretrained(
+            model = model_registry[model_cfg.name].from_pretrained(
                 model_cfg.pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
             )
 
             peft_model = PeftModel.from_pretrained(
-                underlying_model, model_cfg.pretrained_lora_id_or_path)
+                model, model_cfg.pretrained_lora_id_or_path)
 
             composer_model_wrapper = COMPOSER_MODEL_REGISTRY[model_cfg.name](
                 peft_model, tokenizer)
@@ -167,6 +167,16 @@ def main(cfg: DictConfig):
     model_configs: ListConfig = pop_config(cfg, 'models', must_exist=True)
     eval_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(
         cfg, 'eval_gauntlet', must_exist=False, default_value=None)
+    if eval_gauntlet_config is None:
+        eval_gauntlet_config = pop_config(cfg,
+                                          'model_gauntlet',
+                                          must_exist=False,
+                                          default_value=None)
+        if eval_gauntlet_config:
+            print(
+                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`'
+            )
+
     fsdp_dict_cfg: Optional[DictConfig] = pop_config(cfg,
                                                      'fsdp_config',
                                                      must_exist=False,
@@ -296,7 +306,7 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
     results = {}
 
     for key in logger_keys:
-        # dl_name consists is either 2-tuple (benchmark_name, num_fewshot)
+        # dl_name is either 2-tuple (benchmark_name, num_fewshot)
         # or 3-tuple (benchmark_name, num_fewshot, subcategory)
         dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
         if 'Accuracy' not in metric_name:

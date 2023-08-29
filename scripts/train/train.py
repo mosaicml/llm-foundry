@@ -255,6 +255,15 @@ def main(cfg: DictConfig) -> Trainer:
                                                             'eval_gauntlet',
                                                             must_exist=False,
                                                             default_value=None)
+    if eval_gauntlet_config is None:
+        eval_gauntlet_config = pop_config(cfg,
+                                          'model_gauntlet',
+                                          must_exist=False,
+                                          default_value=None)
+        if eval_gauntlet_config is not None:
+            print(
+                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`'
+            )
     icl_subset_num_batches: Optional[int] = pop_config(cfg,
                                                        'icl_subset_num_batches',
                                                        must_exist=False,
@@ -409,30 +418,6 @@ def main(cfg: DictConfig) -> Trainer:
     # Build tokenizer
     tokenizer = build_tokenizer(tokenizer_config)
 
-    # Build Model
-    print('Initializing model...')
-    with init_context:
-        if lora_config is not None:  # frozen model + trainable lora modules
-            model: ComposerHFCausalLM = build_composer_peft_model(
-                model_config.pretrained_model_name_or_path, lora_config['args'],
-                tokenizer)
-            print_trainable_parameters(model)  # should not be 100%
-        else:  # standard model
-            model = build_composer_model(model_config, tokenizer)
-
-        if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
-            model = model.to(dtype=torch.bfloat16)
-        elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
-            model = model.to(dtype=torch.float16)
-
-    # Log number of parameters
-    n_params = sum(p.numel() for p in model.parameters())
-    logged_cfg.update({'n_params': n_params})
-
-    # Optimizer
-    optimizer_name: str = optimizer_config.pop('name')
-    optimizer = build_optimizer(model, optimizer_name, optimizer_config)
-
     # Scheduler
     scheduler_name: str = scheduler_config.pop('name')
     scheduler = build_scheduler(scheduler_name, scheduler_config)
@@ -475,14 +460,6 @@ def main(cfg: DictConfig) -> Trainer:
             metric_names=[],  # we will add these after model is created
         )
 
-    # Now add the eval metrics
-    if eval_loader_config is not None:
-        assert eval_loader is not None
-        assert model.train_metrics is not None
-        eval_metric_names = list(model.train_metrics.keys())
-        eval_loader.metric_names = eval_metric_names
-        evaluators.append(eval_loader)
-
     eval_gauntlet_callback = None
 
     if icl_tasks_config is not None:
@@ -494,6 +471,38 @@ def main(cfg: DictConfig) -> Trainer:
 
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
+
+    # Build Model
+    print('Initializing model...')
+    with init_context:
+        if lora_config is not None:  # frozen model + trainable lora modules
+            model: ComposerHFCausalLM = build_composer_peft_model(
+                model_config.pretrained_model_name_or_path, lora_config['args'],
+                tokenizer)
+            print_trainable_parameters(model)  # should not be 100%
+        else:  # standard model
+            model = build_composer_model(model_config, tokenizer)
+
+        if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
+            model = model.to(dtype=torch.bfloat16)
+        elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
+            model = model.to(dtype=torch.float16)
+
+    # Log number of parameters
+    n_params = sum(p.numel() for p in model.parameters())
+    logged_cfg.update({'n_params': n_params})
+
+    # Optimizer
+    optimizer_name: str = optimizer_config.pop('name')
+    optimizer = build_optimizer(model, optimizer_name, optimizer_config)
+
+    # Now add the eval metrics
+    if eval_loader_config is not None:
+        assert eval_loader is not None
+        assert model.train_metrics is not None
+        eval_metric_names = list(model.train_metrics.keys())
+        eval_loader.metric_names = eval_metric_names
+        evaluators.insert(0, eval_loader)
 
     # Build the Trainer
     print('Building trainer...')

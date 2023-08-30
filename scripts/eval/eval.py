@@ -18,18 +18,10 @@ from omegaconf import OmegaConf as om
 from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
 
-<<<<<<< HEAD
-from llmfoundry.callbacks import ModelGauntlet
-from llmfoundry.models import MPTForCausalLM
-from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
-                                       build_tokenizer)
-=======
 from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (build_icl_data_and_gauntlet,
                                        build_logger, build_tokenizer)
->>>>>>> main
 from llmfoundry.utils.config_utils import pop_config, process_init_device
 
 

@@ -55,7 +55,7 @@ class TestEvalYAMLInputs:
             'run_name',
             'num_retries',
             'loggers',
-            'model_gauntlet',
+            'eval_gauntlet',
             'fsdp_config',
         ]
         old_cfg = copy.deepcopy(cfg)

@@ -1,9 +1,10 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 import logging
 import os
+from typing import Union
 
+import datasets as hf_datasets
 import torch
 from composer.utils import dist, get_file, parse_uri
 from omegaconf import DictConfig
@@ -165,11 +166,30 @@ def build_finetuning_dataloader(cfg: DictConfig,
         collate_fn, dataloader_batch_size = _build_collate_fn(
             cfg.dataset, tokenizer, device_batch_size)
 
+        if cfg.drop_last:
+            world_size = dist.get_world_size()
+            minimum_dataset_size = world_size * dataloader_batch_size
+            if hasattr(dataset, '__len__'):
+                full_dataset_size = len(dataset)
+                if full_dataset_size < minimum_dataset_size:
+                    raise ValueError(
+                        f'Your dataset (name={cfg.dataset.hf_name}, split={cfg.dataset.split}) '
+                        +
+                        f'has {full_dataset_size} samples, but your minimum batch size '
+                        +
+                        f'is {minimum_dataset_size} because you are running on {world_size} gpus and '
+                        +
+                        f'your per device batch size is {dataloader_batch_size}. Please increase the number '
+                        +
+                        f'of samples in your dataset to at least {minimum_dataset_size}.'
+                    )
+
         assert dataset is not None
         return DataLoader(
             dataset,
             collate_fn=collate_fn,
             batch_size=dataloader_batch_size,
+            drop_last=cfg.drop_last,
             sampler=dist.get_sampler(dataset,
                                      drop_last=cfg.drop_last,
                                      shuffle=cfg.dataset.shuffle),
@@ -235,8 +255,10 @@ def _validate_config(dataset_cfg: DictConfig):
         )
 
 
-def _build_hf_dataset_from_remote(cfg: DictConfig,
-                                  tokenizer: PreTrainedTokenizerBase):
+def _build_hf_dataset_from_remote(
+    cfg: DictConfig, tokenizer: PreTrainedTokenizerBase
+) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
+           hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
     """Builds a dataset from a remote object store.
 
     This function supports 'jsonl', 'csv', and 'parquet' file formats for the dataset. It will attempt to download

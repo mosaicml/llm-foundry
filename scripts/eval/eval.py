@@ -115,7 +115,7 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
         for name, logger_cfg in loggers_cfg.items()
     ]
 
-    if fsdp_config and model_cfg.model.load_in_8bit:
+    if fsdp_config and model_cfg.model.get('load_in_8bit', False):
         raise ValueError(
             'The FSDP config block is not supported when loading ' +
             'Hugging Face models in 8bit.')

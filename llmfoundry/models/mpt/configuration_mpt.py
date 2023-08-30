@@ -192,7 +192,7 @@ class MPTConfig(PretrainedConfig):
             raise NotImplementedError(
                 'prefix_lm only implemented with torch and triton attention.')
         if self.attn_config['alibi'] and self.attn_config['attn_impl'] not in [
-                'torch', 'triton'
+                'torch', 'triton', 'xformers'
         ]:
             raise NotImplementedError(
                 'alibi only implemented with torch and triton attention.')

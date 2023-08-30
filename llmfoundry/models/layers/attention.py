@@ -493,7 +493,7 @@ def xformers_attn_fn(query: torch.Tensor,
 
     reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
     attn_output = memory_efficient_attention(  # type: ignore
-        query, key, value, attn_bias, p: dropout_p)
+        query, key, value, attn_bias, p=dropout_p)
 
     output = attn_output.view(*attn_output.shape[:2], -1)  # type: ignore
 

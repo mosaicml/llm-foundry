@@ -101,7 +101,7 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
     tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(cfg.tokenizer,
+                        Any] = om.to_container(model_cfg.tokenizer,
                                                resolve=True)  # type: ignore
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})

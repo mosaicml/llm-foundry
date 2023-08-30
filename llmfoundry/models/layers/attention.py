@@ -416,7 +416,7 @@ def xformers_attn_fn(query: torch.Tensor,
         from xformers.ops import memory_efficient_attention
     except:
         raise RuntimeError(
-            'REEEEEEE'
+            'Please install xformers.'
         )
 
     check_valid_inputs(query, key, value)

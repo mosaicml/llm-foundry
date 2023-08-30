@@ -28,40 +28,19 @@ parameters:
 
   models:
   -
-    model_name: tiiuae/falcon-40b-instruct
+    model_name: mosaicml/mpt-7b-instruct
     # Tokenizer
     tokenizer:
-      name: tiiuae/falcon-40b-instruct
+      name: mosaicml/mpt-7b-instruct
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-<<<<<<< HEAD
-      pretrained_model_name_or_path: tiiuae/falcon-40b-instruct
-      init_device: cpu
-      pretrained: true
-      use_auth_token: true
-  -
-    model_name: tiiuae/falcon-40b
-    # Tokenizer
-    tokenizer:
-      name: tiiuae/falcon-40b
-      kwargs:
-        model_max_length: ${max_seq_len}
-
-    model:
-      name: hf_causal_lm
-      pretrained_model_name_or_path: tiiuae/falcon-40b
-      init_device: cpu
-      pretrained: true
-      use_auth_token: true
-=======
       pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
       init_device: mixed
       pretrained: true
       use_auth_token: false
->>>>>>> main
 
   # FSDP config for model sharding
   fsdp_config:

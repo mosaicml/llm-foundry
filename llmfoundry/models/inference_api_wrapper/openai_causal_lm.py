@@ -44,7 +44,8 @@ class OpenAITokenizerWrapper:
                 'input_ids':
                     self.tokenizer.encode(x, allowed_special={'<|endoftext|>'})
             }
-        elif isinstance(x, list):
+        elif isinstance(x,
+                        list):  # pyright: ignore [reportUnnecessaryIsInstance]
             return {
                 'input_ids':
                     self.tokenizer.encode_batch(

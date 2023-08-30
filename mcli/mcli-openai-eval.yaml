@@ -67,11 +67,5 @@ parameters:
       kwargs:
         name: gpt-3.5-turbo
 
-
-  # FSDP config for model sharding
-  # fsdp_config:
-  #   sharding_strategy: FULL_SHARD
-  #   mixed_precision: FULL
-
   icl_tasks: 'eval/yamls/lm_tasks.yaml'
-  model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
+  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'

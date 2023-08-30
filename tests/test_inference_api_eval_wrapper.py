@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from omegaconf import OmegaConf as om
+from omegaconf import DictConfig, ListConfig
 
 from llmfoundry.models.inference_api_wrapper import (OpenAICausalLMEvalWrapper,
                                                      OpenAIChatAPIEvalWrapper,
@@ -15,10 +15,25 @@ from llmfoundry.models.inference_api_wrapper import (OpenAICausalLMEvalWrapper,
 from llmfoundry.utils.builders import build_icl_evaluators
 
 
-def load_icl_config(conf_path: str = 'tests/test_tasks.yaml'):
-    with open(conf_path) as f:
-        test_cfg = om.load(f)
-    return test_cfg
+def load_icl_config():
+    return DictConfig({
+        'icl_tasks':
+            ListConfig([
+                DictConfig({
+                    'label':
+                        'jeopardy',
+                    'dataset_uri':
+                        'scripts/eval/local_data/world_knowledge/jeopardy_all.jsonl',
+                    'num_fewshot': [0, 1],
+                    'icl_task_type':
+                        'language_modeling',
+                    'continuation_delimiter':
+                        '\nAnswer: ',
+                    'has_categories':
+                        True
+                })
+            ])
+    })
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -34,6 +49,9 @@ def tmp_dir():
         shutil.rmtree(dirpath)
 
 
+@pytest.mark.skipif(
+    os.getenv('OPENAI_API_KEY') is None,
+    reason='Unit test requires OPENAI_API_KEY environment variable.')
 def test_openai_api_eval_wrapper(tmp_dir: str):
     model_name = 'davinci'
     tokenizer = OpenAITokenizerWrapper(model_name)
@@ -59,6 +77,9 @@ def test_openai_api_eval_wrapper(tmp_dir: str):
     assert acc > 0.0
 
 
+@pytest.mark.skipif(
+    os.getenv('OPENAI_API_KEY') is None,
+    reason='Unit test requires OPENAI_API_KEY environment variable.')
 def test_chat_api_eval_wrapper(tmp_dir: str):
     model_name = 'gpt-3.5-turbo'
     tokenizer = OpenAITokenizerWrapper(model_name)

@@ -18,7 +18,6 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
-from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_data_and_gauntlet,
@@ -419,74 +418,6 @@ def main(cfg: DictConfig) -> Trainer:
     # Build tokenizer
     tokenizer = build_tokenizer(tokenizer_config)
 
-<<<<<<< HEAD
-    # Build Model
-    print('Initializing model...')
-    with init_context:
-        if lora_config is not None:  # frozen model + trainable lora modules
-            model: ComposerHFCausalLM = build_composer_peft_model(
-                model_config, lora_config, tokenizer)
-            print_trainable_parameters(model)  # should not be 100%
-        else:  # standard model
-
-            model = build_composer_model(model_config, tokenizer)
-
-    # Log number of parameters
-    n_params = sum(p.numel() for p in model.parameters())
-    logged_cfg.update({'n_params': n_params})
-
-    # Dataloaders
-    print('Building train loader...')
-    train_loader = build_dataloader(
-        train_loader_config,
-        tokenizer,
-        device_train_batch_size,
-    )
-
-    ## Evaluation
-    print('Building eval loader...')
-    evaluators = []
-    if eval_loader_config is not None:
-        assert model.train_metrics is not None
-        eval_dataloader = build_dataloader(eval_loader_config, tokenizer,
-                                           device_eval_batch_size)
-        eval_metric_names = list(model.train_metrics.keys())
-        eval_loader = Evaluator(label='eval',
-                                dataloader=eval_dataloader,
-                                metric_names=eval_metric_names)
-        evaluators.append(eval_loader)
-
-    model_gauntlet_callback = None
-    if icl_tasks_config is not None:
-        icl_evaluators, metric_names = build_icl_evaluators(
-            icl_tasks_config,
-            tokenizer,
-            cfg.get('icl_seq_len', max_seq_len),
-            device_eval_batch_size,
-            icl_subset_num_batches=cfg.get('icl_subset_num_batches', None))
-        evaluators.extend(icl_evaluators)
-        if 'model_gauntlet' in cfg:
-            if isinstance(cfg.model_gauntlet, str):
-                with open(cfg.model_gauntlet, 'r') as icl_f:
-                    model_gauntlet_cfg = om.load(icl_f)
-                model_gauntlet = model_gauntlet_cfg.model_gauntlet
-            elif isinstance(cfg.model_gauntlet, DictConfig):
-                model_gauntlet = cfg.model_gauntlet
-            else:
-                raise ValueError(
-                    f'Got invalid type for cfg.model_gauntlet: {type(cfg.model_gauntlet)}'
-                )
-            model_gauntlet.metric_names = metric_names
-            model_gauntlet.benchmark_sizes = {
-                e.label: e.dataloader.num_samples for e in evaluators
-            }
-            model_gauntlet_callback = ModelGauntlet(**model_gauntlet)
-
-    # Optimizer
-    optimizer = build_optimizer(optimizer_config, model)
-
-=======
->>>>>>> main
     # Scheduler
     scheduler_name: str = scheduler_config.pop('name')
     scheduler = build_scheduler(scheduler_name, scheduler_config)
@@ -498,20 +429,10 @@ def main(cfg: DictConfig) -> Trainer:
     ] if logger_configs else None
 
     # Callbacks
-<<<<<<< HEAD
-
-=======
->>>>>>> main
     callbacks: List[Callback] = [
         build_callback(str(name), callback_cfg)
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
-<<<<<<< HEAD
-
-    if model_gauntlet_callback is not None:
-        callbacks.append(model_gauntlet_callback)
-=======
->>>>>>> main
 
     # Algorithms
     algorithms = [

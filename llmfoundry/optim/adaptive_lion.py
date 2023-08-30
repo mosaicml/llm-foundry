@@ -23,7 +23,7 @@ class DecoupledAdaLRLion(Optimizer):
     simple windowed moving average (MVA) of moment norms taken from steps T-1000
     to T-500. If an outlier is detected, the LR is lowered by `lr_penalty` for
     `timeout` steps. If N outliers are detected within `timeout` steps, the LR
-    is scaled down by min(`lr_penalty` ** N, `min_scale`).
+    is scaled down by max(`lr_penalty` ** N, `min_scale`).
 
     Args:
         params (Iterable[torch.Parameter]): Model parameters to optimize

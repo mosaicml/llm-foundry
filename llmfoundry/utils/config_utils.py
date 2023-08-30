@@ -4,10 +4,10 @@
 import contextlib
 import math
 import warnings
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Mapping, Optional, Union
 
 from composer.utils import dist
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.utils import init_empty_weights
@@ -16,14 +16,24 @@ from llmfoundry.models.utils import init_empty_weights
 def pop_config(cfg: DictConfig,
                key: str,
                must_exist: bool = True,
-               default_value: Any = None) -> Any:
+               default_value: Any = None,
+               convert: bool = False) -> Any:
     """Pop a value from the main config file and return it.
 
     If the key does not exist, return the default_value or raise a RuntimeError
-    depending on the must_exist flag.
+    depending on the must_exist flag. If the convert flag is set to True, then
+    we will convert the value to a python object using OmegaConf.to_container.
     """
     value = cfg.pop(key, None)
-    if value is not None:
+    if value is not None and convert:
+        if not isinstance(value, DictConfig) and not isinstance(
+                value, ListConfig):
+            raise ValueError(
+                f'The key: {key} has a value: {value} that cannot be \
+                            converted to a dict or list. Please check your yaml.'
+            )
+        return om.to_container(value)
+    elif value is not None:
         return value
     elif must_exist:
         raise NameError(
@@ -106,6 +116,25 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
             # Set defaults for mixed initialization
             fsdp_config.setdefault('use_orig_params', False)
             fsdp_config.setdefault('load_monolith_rank0_only', True)
+
+    # no mixed precision needed for weights when they're already 16 bits
+    master_dtype = model_cfg.get('master_weights_dtype')
+    small_dtypes = ('bf16', 'f16', 'float16', 'bfloat16', 'amp_fp16',
+                    'amp_bf16')
+    if fsdp_config and master_dtype in small_dtypes:
+        reduce_dtype = None
+        buffer_dtype = None
+        mixed_precision = fsdp_config.get('mixed_precision')
+        if isinstance(mixed_precision, Mapping):
+            reduce_dtype = mixed_precision.get('reduce_dtype')
+            buffer_dtype = mixed_precision.get('buffer_dtype')
+        fsdp_config['mixed_precision'] = {
+            'param_dtype': None,
+            'reduce_dtype': reduce_dtype,
+            'buffer_dtype': buffer_dtype,
+            'keep_low_precision_grads': True,
+        }
+
     return init_context
 
 

@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import copy
+import json
 import os
 import sys
 import warnings
@@ -15,6 +16,38 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 
 from scripts.train.train import main  # noqa: E402
+
+
+def make_fake_index_file(path: str) -> None:
+    """Create a fake index file in the path."""
+    fake_index = {
+        'shards': [{
+            'column_encodings': ['bytes'],
+            'column_names': ['tokens'],
+            'column_sizes': [None],
+            'compression': 'zstd',
+            'format': 'mds',
+            'hashes': [],
+            'raw_data': {
+                'basename': 'shard.00000.mds',
+                'bytes': 5376759,
+                'hashes': {},
+            },
+            'samples': 328,
+            'size_limit': 67108864,
+            'version': 2,
+            'zip_data': {
+                'basename': 'shard.00000.mds.zstd',
+                'bytes': 564224,
+                'hashes': {},
+            }
+        }],
+        'version': 2
+    }
+    if not os.path.exists(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w') as f:
+            json.dump(fake_index, f)
 
 
 class TestTrainingYAMLInputs:
@@ -87,3 +120,41 @@ class TestTrainingYAMLInputs:
                            str(warning.message) for warning in warning_list)
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
+
+    def test_extra_params_in_optimizer_cfg_errors(self,
+                                                  cfg: DictConfig) -> None:
+        data_local = './my-copy-c4-opt1'
+        make_fake_index_file(f'{data_local}/train/index.json')
+        make_fake_index_file(f'{data_local}/val/index.json')
+        cfg.train_loader.dataset.local = data_local
+        cfg.eval_loader.dataset.local = data_local
+        cfg.optimizer.beta2 = 'extra-parameter'
+        with pytest.raises(TypeError):
+            main(cfg)
+
+    def test_invalid_name_in_optimizer_cfg_errors(self,
+                                                  cfg: DictConfig) -> None:
+        data_local = './my-copy-c4-opt2'
+        make_fake_index_file(f'{data_local}/train/index.json')
+        make_fake_index_file(f'{data_local}/val/index.json')
+        cfg.optimizer.name = 'invalid-optimizer'
+        cfg.train_loader.dataset.local = data_local
+        cfg.eval_loader.dataset.local = data_local
+        with pytest.raises(ValueError) as exception_info:
+            main(cfg)
+        assert str(exception_info.value
+                  ) == 'Not sure how to build optimizer: invalid-optimizer'
+
+    def test_extra_params_in_scheduler_cfg_errors(self,
+                                                  cfg: DictConfig) -> None:
+        cfg.scheduler.t_warmup_extra = 'extra-parameter'
+        with pytest.raises(TypeError):
+            main(cfg)
+
+    def test_invalid_name_in_scheduler_cfg_errors(self,
+                                                  cfg: DictConfig) -> None:
+        cfg.scheduler.name = 'invalid-scheduler'
+        with pytest.raises(ValueError) as exception_info:
+            main(cfg)
+        assert str(exception_info.value
+                  ) == 'Not sure how to build scheduler: invalid-scheduler'

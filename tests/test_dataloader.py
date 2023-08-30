@@ -1,5 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+import contextlib
+import json
 import os
 import shutil
 import sys
@@ -9,6 +11,7 @@ from typing import Optional
 
 import pytest
 import torch
+from composer.utils import dist
 from omegaconf import OmegaConf as om
 
 from llmfoundry import (build_finetuning_dataloader,
@@ -282,3 +285,69 @@ def test_finetuning_dataloader(decoder_only_format: bool,
         batch_ix += 1
         if batch_ix >= 3:
             break
+
+
+def make_tiny_ft_dataset(path: str, size: int = 4):
+    sample = {'prompt': 'hello', 'response': 'goodbye'}
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as _f:
+        for _ in range(size):
+            _f.write(json.dumps(sample))
+            _f.write('\n')
+
+
+@pytest.mark.world_size(2)
+@pytest.mark.parametrize('dataset_size', [4, 8])
+@pytest.mark.parametrize('device_batch_size', [2, 4])
+@pytest.mark.parametrize('drop_last', [True, False])
+def test_finetuning_dataloader_small_data(dataset_size: int,
+                                          device_batch_size: int,
+                                          drop_last: bool):
+    tokenizer_name = 'gpt2'
+    max_seq_len = 2048
+    tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
+    tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
+    if dist.get_global_rank() == 0:
+        make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size)
+
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': tiny_dataset_folder_path,
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': drop_last,
+        'num_workers': 4,
+        'pin_memory': False,
+        'prefetch_factor': 2,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    tokenizer = build_tokenizer(
+        om.create({
+            'name': tokenizer_name,
+            'kwargs': {
+                'model_max_length': max_seq_len
+            }
+        }))
+
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+    expected_keys += ['bidirectional_mask']
+
+    error_context = contextlib.nullcontext()
+    if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
+        error_context = pytest.raises(ValueError, match='Your dataset')
+
+    with error_context:
+        _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+
+    if dist.get_global_rank() == 0:
+        shutil.rmtree(tiny_dataset_folder_path)

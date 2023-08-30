@@ -12,9 +12,9 @@ command: |
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: all-eval
-gpu_num: 32
-gpu_type: a100_40gb
-cluster: r7z2 # replace with your cluster here!
+gpu_num: 8
+# gpu_type:
+# cluster:  # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
@@ -37,6 +37,7 @@ parameters:
 
     model:
       name: hf_causal_lm
+<<<<<<< HEAD
       pretrained_model_name_or_path: tiiuae/falcon-40b-instruct
       init_device: cpu
       pretrained: true
@@ -55,6 +56,12 @@ parameters:
       init_device: cpu
       pretrained: true
       use_auth_token: true
+=======
+      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      init_device: mixed
+      pretrained: true
+      use_auth_token: false
+>>>>>>> main
 
   # FSDP config for model sharding
   fsdp_config:
@@ -65,4 +72,4 @@ parameters:
 
 
   icl_tasks: 'eval/yamls/tasks.yaml'
-  model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
+  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'

@@ -4,7 +4,7 @@ import copy
 import os
 import sys
 import warnings
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from composer import Trainer
@@ -21,9 +21,9 @@ from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
 from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
-                                       build_icl_evaluators, build_logger,
-                                       build_optimizer, build_scheduler,
-                                       build_tokenizer)
+                                       build_icl_data_and_gauntlet,
+                                       build_logger, build_optimizer,
+                                       build_scheduler, build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
@@ -93,6 +93,11 @@ def validate_config(cfg: DictConfig):
         )
         torch._dynamo.config.suppress_errors = True  # type: ignore
 
+    if cfg.model.get('load_in_8bit', False):
+        raise ValueError(
+            '`load_in_8bit` is only supported for evaluation rather than training.'
+        )
+
 
 def build_composer_model(model_cfg: DictConfig,
                          tokenizer: PreTrainedTokenizerBase):
@@ -106,7 +111,7 @@ def build_composer_model(model_cfg: DictConfig,
 
 
 def build_composer_peft_model(
-        model_cfg: DictConfig, lora_cfg: DictConfig,
+        pretrained_model_name_or_path: str, lora_args: Dict[str, Any],
         tokenizer: PreTrainedTokenizerBase) -> ComposerHFCausalLM:
     try:
         from peft import LoraConfig, get_peft_model
@@ -119,11 +124,11 @@ def build_composer_peft_model(
 
     # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
     print('Building Lora config...')
-    lora_cfg = LoraConfig(**lora_cfg.args)
+    lora_cfg = LoraConfig(**lora_args)
 
     print('Building model from HuggingFace checkpoint...')
-    model = MPTForCausalLM.from_pretrained(
-        model_cfg.pretrained_model_name_or_path, trust_remote_code=True)
+    model = MPTForCausalLM.from_pretrained(pretrained_model_name_or_path,
+                                           trust_remote_code=True)
     print('Model built!')
 
     print('Adding Lora modules...')
@@ -172,7 +177,7 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
-def main(cfg: DictConfig):
+def main(cfg: DictConfig) -> Trainer:
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
         action='ignore',
@@ -214,33 +219,60 @@ def main(cfg: DictConfig):
     # Mandatory model training configs
     model_config: DictConfig = pop_config(cfg, 'model', must_exist=True)
     tokenizer_config: DictConfig = pop_config(cfg, 'tokenizer', must_exist=True)
-    optimizer_config: DictConfig = pop_config(cfg, 'optimizer', must_exist=True)
-    scheduler_config: DictConfig = pop_config(cfg, 'scheduler', must_exist=True)
+    optimizer_config: Dict[str, Any] = pop_config(cfg,
+                                                  'optimizer',
+                                                  must_exist=True,
+                                                  convert=True)
+    scheduler_config: Dict[str, Any] = pop_config(cfg,
+                                                  'scheduler',
+                                                  must_exist=True,
+                                                  convert=True)
     train_loader_config: DictConfig = pop_config(cfg,
                                                  'train_loader',
                                                  must_exist=True)
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_dict_config: Optional[DictConfig] = pop_config(cfg,
-                                                        'fsdp_config',
-                                                        must_exist=False,
-                                                        default_value=None)
-    fsdp_config: Optional[Dict] = om.to_container(
-        fsdp_dict_config
-    ) if fsdp_dict_config is not None else None  # type: ignore
-    lora_config: Optional[DictConfig] = pop_config(cfg,
-                                                   'lora',
-                                                   must_exist=False,
-                                                   default_value=None)
+    fsdp_config: Optional[Dict[str, Any]] = pop_config(cfg,
+                                                       'fsdp_config',
+                                                       must_exist=False,
+                                                       default_value=None,
+                                                       convert=True)
+    lora_config: Optional[Dict[str, Any]] = pop_config(cfg,
+                                                       'lora',
+                                                       must_exist=False,
+                                                       default_value=None,
+                                                       convert=True)
     eval_loader_config: Optional[DictConfig] = pop_config(cfg,
                                                           'eval_loader',
                                                           must_exist=False,
                                                           default_value=None)
-    icl_tasks_config: Optional[ListConfig] = pop_config(cfg,
+    icl_tasks_config: Optional[Union[ListConfig,
+                                     str]] = pop_config(cfg,
                                                         'icl_tasks',
                                                         must_exist=False,
                                                         default_value=None)
-
+    eval_gauntlet_config: Optional[Union[DictConfig,
+                                         str]] = pop_config(cfg,
+                                                            'eval_gauntlet',
+                                                            must_exist=False,
+                                                            default_value=None)
+    if eval_gauntlet_config is None:
+        eval_gauntlet_config = pop_config(cfg,
+                                          'model_gauntlet',
+                                          must_exist=False,
+                                          default_value=None)
+        if eval_gauntlet_config is not None:
+            print(
+                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`'
+            )
+    icl_subset_num_batches: Optional[int] = pop_config(cfg,
+                                                       'icl_subset_num_batches',
+                                                       must_exist=False,
+                                                       default_value=None)
+    icl_seq_len: Optional[int] = pop_config(cfg,
+                                            'icl_seq_len',
+                                            must_exist=False,
+                                            default_value=None)
     # Optional logging, evaluation and callback configs
     logger_configs: Optional[DictConfig] = pop_config(cfg,
                                                       'loggers',
@@ -387,6 +419,7 @@ def main(cfg: DictConfig):
     # Build tokenizer
     tokenizer = build_tokenizer(tokenizer_config)
 
+<<<<<<< HEAD
     # Build Model
     print('Initializing model...')
     with init_context:
@@ -452,8 +485,11 @@ def main(cfg: DictConfig):
     # Optimizer
     optimizer = build_optimizer(optimizer_config, model)
 
+=======
+>>>>>>> main
     # Scheduler
-    scheduler = build_scheduler(scheduler_config)
+    scheduler_name: str = scheduler_config.pop('name')
+    scheduler = build_scheduler(scheduler_name, scheduler_config)
 
     # Loggers
     loggers = [
@@ -462,20 +498,90 @@ def main(cfg: DictConfig):
     ] if logger_configs else None
 
     # Callbacks
+<<<<<<< HEAD
 
+=======
+>>>>>>> main
     callbacks: List[Callback] = [
         build_callback(str(name), callback_cfg)
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
+<<<<<<< HEAD
 
     if model_gauntlet_callback is not None:
         callbacks.append(model_gauntlet_callback)
+=======
+>>>>>>> main
 
     # Algorithms
     algorithms = [
         build_algorithm(str(name), algorithm_cfg)
         for name, algorithm_cfg in algorithm_configs.items()
     ] if algorithm_configs else None
+
+    # Dataloaders
+    print('Building train loader...')
+    train_loader = build_dataloader(
+        train_loader_config,
+        tokenizer,
+        device_train_batch_size,
+    )
+    ## Evaluation
+    print('Building eval loader...')
+    evaluators = []
+    eval_loader = None
+    if eval_loader_config is not None:
+        eval_dataloader = build_dataloader(eval_loader_config, tokenizer,
+                                           device_eval_batch_size)
+        eval_loader = Evaluator(
+            label='eval',
+            dataloader=eval_dataloader,
+            metric_names=[],  # we will add these after model is created
+        )
+
+    eval_gauntlet_callback = None
+
+    if icl_tasks_config is not None:
+        icl_evaluators, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
+            icl_tasks_config, eval_gauntlet_config, tokenizer,
+            device_eval_batch_size, icl_seq_len if icl_seq_len else max_seq_len,
+            icl_subset_num_batches)
+        evaluators.extend(icl_evaluators)
+
+    if eval_gauntlet_callback is not None:
+        callbacks.append(eval_gauntlet_callback)
+
+    # Build Model
+    print('Initializing model...')
+    with init_context:
+        if lora_config is not None:  # frozen model + trainable lora modules
+            model: ComposerHFCausalLM = build_composer_peft_model(
+                model_config.pretrained_model_name_or_path, lora_config['args'],
+                tokenizer)
+            print_trainable_parameters(model)  # should not be 100%
+        else:  # standard model
+            model = build_composer_model(model_config, tokenizer)
+
+        if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
+            model = model.to(dtype=torch.bfloat16)
+        elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
+            model = model.to(dtype=torch.float16)
+
+    # Log number of parameters
+    n_params = sum(p.numel() for p in model.parameters())
+    logged_cfg.update({'n_params': n_params})
+
+    # Optimizer
+    optimizer_name: str = optimizer_config.pop('name')
+    optimizer = build_optimizer(model, optimizer_name, optimizer_config)
+
+    # Now add the eval metrics
+    if eval_loader_config is not None:
+        assert eval_loader is not None
+        assert model.train_metrics is not None
+        eval_metric_names = list(model.train_metrics.keys())
+        eval_loader.metric_names = eval_metric_names
+        evaluators.insert(0, eval_loader)  # Put the base eval_loader first
 
     # Build the Trainer
     print('Building trainer...')
@@ -526,6 +632,7 @@ def main(cfg: DictConfig):
     trainer.fit()
 
     print('Done.')
+    return trainer
 
 
 if __name__ == '__main__':
@@ -534,5 +641,6 @@ if __name__ == '__main__':
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
+    om.resolve(cfg)
     assert isinstance(cfg, DictConfig)
     main(cfg)

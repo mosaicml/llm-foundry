@@ -739,7 +739,7 @@ def attn_bias_shape(attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
         return None
     elif attn_impl in ['torch', 'triton', 'xformers']:
         if alibi:
-            if (prefix_lm or not causal) or use_sequence_id:
+            if (prefix_lm or not causal) or use_sequence_id or attn_impl == 'xformers':
                 return (1, n_heads, seq_len, seq_len)
             return (1, n_heads, 1, seq_len)
         elif prefix_lm or use_sequence_id:
@@ -768,7 +768,7 @@ def build_attn_bias(
                 build_alibi_bias(
                     n_heads,
                     seq_len,
-                    full=not causal,
+                    full=not causal or attn_impl == 'xformers',
                     alibi_bias_max=alibi_bias_max,
                     device=device,
                     dtype=dtype,

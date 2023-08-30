@@ -441,13 +441,11 @@ def xformers_attn_fn(query: torch.Tensor,
 
         past_key_value = (key, value)
 
-    print(f"FIRST ATTN_BIAS SHAPE{attn_bias.shape}")
     if attn_bias is not None:
         # clamp to 0 necessary for torch 2.0 compile()
         _s_q = max(0, attn_bias.size(2) - query.size(1))
         _s_k = max(0, attn_bias.size(3) - key.size(1))
         attn_bias = attn_bias[:, :, _s_q:, _s_k:]
-    print(f"SECOND ATTN_BIAS SHAPE{attn_bias.shape}")
 
     if dropout_p:
         raise NotImplementedError(
@@ -478,9 +476,9 @@ def xformers_attn_fn(query: torch.Tensor,
     query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
     key = rearrange(key, 'b s (h d) -> b s h d', h=kv_n_heads)
     value = rearrange(value, 'b s (h d) -> b s h d', h=kv_n_heads)
-    print(query.shape())
-    print(key.shape())
-    print(value.shape())
+
+    attn_bias = attn_bias.expand(query.size(0),-1,-1,-1)
+    attn_bias = attn_bias.type_as(query)
     # multi-query case
     if kv_n_heads == 1:
         # necessary to repeat instead of expand tensor because
@@ -500,7 +498,6 @@ def xformers_attn_fn(query: torch.Tensor,
         query, key, value, attn_bias, p=dropout_p)
 
     output = attn_output.view(*attn_output.shape[:2], -1)  # type: ignore
-
     return output, None, past_key_value
 
 class GroupedQueryAttention(nn.Module):

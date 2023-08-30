@@ -90,6 +90,39 @@ def validate_config(cfg: DictConfig):
         )
         torch._dynamo.config.suppress_errors = True  # type: ignore
 
+    # Validate lora config within the same function
+    lora_config = cfg.model.get('lora', None)
+    if lora_config is not None and isinstance(lora_config, (dict, DictConfig)):
+        args = lora_config.get('args', None)
+        if args is not None and isinstance(args, (dict, DictConfig)):
+            r = args.get('r', None)
+            if r is None or not isinstance(r, int):
+                raise ValueError('lora r must be an integer')
+
+            lora_alpha = args.get('lora_alpha', None)
+            if lora_alpha is None or not isinstance(lora_alpha, (float, int)):
+                raise ValueError('lora_alpha must be a float/int')
+
+            target_modules = args.get('target_modules', None)
+            if target_modules is None or not isinstance(target_modules,
+                                                        (list, ListConfig)):
+                raise ValueError('target_modules must be a list')
+            elif len(target_modules) == 0:
+                raise ValueError('target_modules is an empty list')
+            else:
+                for module in target_modules:
+                    if not isinstance(module, str):
+                        raise ValueError(
+                            'target_modules must be a list of strings')
+            lora_dropout = args.get('lora_dropout', None)
+            if lora_dropout is None or not isinstance(lora_dropout, float):
+                raise ValueError('lora_dropout must be a float')
+
+            task_type = args.get('task_type', None)
+            if task_type is None or not isinstance(task_type, str):
+                raise ValueError('task_type must be a string')
+            print('=' * 20 + 'LoRa is enabled!' + '=' * 20)
+
 
 def build_composer_model(model_cfg: DictConfig,
                          tokenizer: PreTrainedTokenizerBase):
@@ -183,13 +216,6 @@ def main(cfg: DictConfig):
     fsdp_config: Optional[Dict] = om.to_container(
         fsdp_dict_config
     ) if fsdp_dict_config is not None else None  # type: ignore
-    lora_config: Optional[DictConfig] = pop_config(model_config,
-                                                   'lora',
-                                                   must_exist=False,
-                                                   default_value=None)
-    if lora_config is not None:
-        if lora_config.get('rank', None) is not None:
-            print(f'LoRa is enabled. \n {lora_config}')
 
     eval_loader_config: Optional[DictConfig] = pop_config(cfg,
                                                           'eval_loader',

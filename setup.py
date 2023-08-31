@@ -63,6 +63,7 @@ install_requires = [
     'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
+    'xformers>0.0.21',
 ]
 
 extra_deps = {}
@@ -87,7 +88,6 @@ extra_deps['gpu'] = [
     'mosaicml-turbo>=0.0.2,<0.1',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy',
-    'xformers',
 ]
 
 extra_deps['peft'] = [

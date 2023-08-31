@@ -476,8 +476,11 @@ def xformers_attn_fn(query: torch.Tensor,
     query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
     key = rearrange(key, 'b s (h d) -> b s h d', h=kv_n_heads)
     value = rearrange(value, 'b s (h d) -> b s h d', h=kv_n_heads)
-
-    attn_bias = attn_bias.expand(query.size(0),-1,-1,-1)
+    print(query.shape)
+    print(key.shape)
+    print(value.shape)
+    attn_bias = attn_bias.expand(query.size(0),query.size(2),query.size(1),-1)
+    print(attn_bias.shape)
     attn_bias = attn_bias.type_as(query)
     # multi-query case
     if kv_n_heads == 1:

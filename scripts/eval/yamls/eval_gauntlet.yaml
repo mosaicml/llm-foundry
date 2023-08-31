@@ -1,4 +1,4 @@
-model_gauntlet:
+eval_gauntlet:
   weighting: EQUAL
   subtract_random_baseline: true
   rescale_accuracy: true
@@ -112,3 +112,58 @@ model_gauntlet:
     - name: boolq
       num_fewshot: 10
       random_baseline: 0.5
+  - name: world_knowledge_lite
+    benchmarks:
+    - name: jeopardy
+      num_fewshot: 10
+      random_baseline: 0
+    - name: arc_challenge
+      num_fewshot: 10
+      random_baseline: 0.25
+  - name: commonsense_reasoning_lite
+    benchmarks:
+    - name: copa
+      num_fewshot: 0
+      random_baseline: 0.5
+    - name: piqa
+      num_fewshot: 10
+      random_baseline: 0.5
+  - name: language_understanding_lite
+    benchmarks:
+    - name: lambada_openai
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: hellaswag
+      num_fewshot: 10
+      random_baseline: 0.25
+    - name: winograd
+      num_fewshot: 0
+      random_baseline: 0.5
+  - name: symbolic_problem_solving_lite
+    benchmarks:
+    - name: bigbench_elementary_math_qa
+      num_fewshot: 10
+      random_baseline: 0.25
+    - name: bigbench_dyck_languages
+      num_fewshot: 10
+      random_baseline: 0
+    - name: bigbench_operators
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: bigbench_repeat_copy_logic
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: simple_arithmetic_withspaces
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: simple_arithmetic_nospaces
+      num_fewshot: 10
+      random_baseline: 0.0
+  - name: reading_comprehension_lite
+    benchmarks:
+    - name: pubmed_qa_labeled
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: squad
+      num_fewshot: 10
+      random_baseline: 0

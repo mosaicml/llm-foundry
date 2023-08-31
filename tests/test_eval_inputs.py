@@ -74,7 +74,7 @@ class TestHuggingFaceEvalYAMLInputs:
             cfg = copy.deepcopy(old_cfg)
 
 
-class TestMCLIEvalYAMLInputs:
+class TestMPTEvalYAMLInputs:
 
     @pytest.fixture
     def cfg(self) -> DictConfig:

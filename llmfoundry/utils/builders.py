@@ -34,7 +34,7 @@ from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
 def build_icl_data_and_gauntlet(
     icl_tasks_config: Union[str, ListConfig],
     eval_gauntlet_config: Optional[Union[str, DictConfig]],
-    tokenizer: AutoTokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int] = None
@@ -175,7 +175,7 @@ def build_tokenizer(
 
 def build_icl_evaluators(
     icl_tasks: Union[str, ListConfig],
-    tokenizer: AutoTokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     default_max_seq_len: int,
     default_batch_size: int,
     destination_dir: Optional[str] = None,

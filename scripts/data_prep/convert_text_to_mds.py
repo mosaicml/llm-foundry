@@ -218,7 +218,6 @@ def download_and_convert(
         columns = {'tokens': 'bytes'}
 
         print(f'Converting to MDS format...')
-        print('mds writer', output_folder)
         with MDSWriter(out=output_folder,
                         columns=columns,
                         max_workers=max_workers,
@@ -291,7 +290,6 @@ def is_remote_path(path: str) -> bool:
     return backend != '' or bucket != ''
 
 def is_already_processed(output_root: str, done_file_name: str, args_str: str, object_names: List[str]) -> bool:
-    print('is_already_processed????')
     # Retrieve the done file contents
     output_object_store = maybe_create_object_store_from_uri(output_root)
     if output_object_store is not None:
@@ -302,7 +300,6 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str, o
                 done_file = os.path.join(tmp_dir, done_file_name)
                 output_object_store.download_object(os.path.join(output_folder_prefix, done_file_name), done_file)
                 done_file_contents = open(done_file).read().splitlines()
-                print('done_file_contents', done_file_contents)
         except FileNotFoundError:
             return False
     else:
@@ -316,8 +313,11 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str, o
     if prev_args_str != args_str:
         return False
     
-    # Compare file names and sizes
-    for idx, prev_name in enumerate(done_file_contents[1:]):
+    # Compare file names
+    prev_names = done_file_contents[1:]
+    if len(prev_names) != len(object_names):
+        return False
+    for idx, prev_name in enumerate(prev_names):
         if object_names[idx] != prev_name:
             return False
     return True

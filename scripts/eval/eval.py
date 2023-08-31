@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import re
 import sys
 import time
 import warnings
@@ -10,7 +9,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import torch
-from composer.loggers import InMemoryLogger, LoggerDestination
+from composer.loggers.logger_destination import LoggerDestination
 from composer.models.base import ComposerModel
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
@@ -19,11 +18,10 @@ from omegaconf import OmegaConf as om
 from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
 
-from llmfoundry.callbacks import ModelGauntlet
+from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.models.mpt import MPTForCausalLM
-from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
-                                       build_tokenizer)
+from llmfoundry.utils.builders import (build_icl_data_and_gauntlet,
+                                       build_logger, build_tokenizer)
 from llmfoundry.utils.config_utils import pop_config, process_init_device
 
 
@@ -57,9 +55,9 @@ def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
             peft_model = PeftModel.from_pretrained(
                 model, model_cfg.pretrained_lora_id_or_path)
 
-            composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](peft_model,
-                                                                     tokenizer)
-            return composer_model
+            composer_model_wrapper = COMPOSER_MODEL_REGISTRY[model_cfg.name](
+                peft_model, tokenizer)
+            return composer_model_wrapper
         except Exception as e:
             retries += 1
             if retries >= num_retries:
@@ -95,33 +93,29 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
 def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
                    run_name: str, icl_tasks: Union[str, ListConfig],
                    max_seq_len: int, device_eval_batch_size: int,
-                   model_gauntlet_config: Optional[Union[str, DictConfig]],
+                   eval_gauntlet_config: Optional[Union[str, DictConfig]],
                    fsdp_config: Optional[Dict], num_retries: int,
                    loggers_cfg: Dict[str, Any], python_log_level: str,
-                   precision: str, model_gauntlet_df: Optional[pd.DataFrame]):
+                   precision: str, eval_gauntlet_df: Optional[pd.DataFrame],
+                   icl_subset_num_batches: Optional[int]):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
     tokenizer = build_tokenizer(model_cfg.tokenizer)
-    evaluators, logger_keys = build_icl_evaluators(icl_tasks, tokenizer,
-                                                   max_seq_len,
-                                                   device_eval_batch_size)
-    model_gauntlet: Optional[DictConfig] = None
-    model_gauntlet_callback: Optional[ModelGauntlet] = None
-    if model_gauntlet_config is not None:
-        if isinstance(model_gauntlet_config, str):
-            with open(model_gauntlet_config, 'r', encoding='utf-8') as icl_f:
-                loaded_model_gauntlet_config = om.load(icl_f)
-            model_gauntlet = loaded_model_gauntlet_config.model_gauntlet
-        else:
-            model_gauntlet = model_gauntlet_config
-        model_gauntlet.logger_keys = logger_keys  # type: ignore
-        model_gauntlet.benchmark_sizes = {  # type: ignore
-            e.label: e.dataloader.num_samples for e in evaluators
-        }
-        model_gauntlet_callback = ModelGauntlet(**
-                                                model_gauntlet)  # type: ignore
 
-    if fsdp_config and model_cfg.model.load_in_8bit:
+    evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
+        icl_tasks, eval_gauntlet_config, tokenizer, device_eval_batch_size,
+        max_seq_len, icl_subset_num_batches)
+
+    callbacks = []
+    if eval_gauntlet_callback is not None:
+        callbacks.append(eval_gauntlet_callback)
+
+    loggers: List[LoggerDestination] = [
+        build_logger(name, logger_cfg)
+        for name, logger_cfg in loggers_cfg.items()
+    ]
+
+    if fsdp_config and model_cfg.model.get('load_in_8bit', False):
         raise ValueError(
             'The FSDP config block is not supported when loading ' +
             'Hugging Face models in 8bit.')
@@ -133,24 +127,19 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
         composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
                                     num_retries)
 
-    if model_gauntlet_df is None and model_gauntlet is not None:
-        model_gauntlet_df = pd.DataFrame(
+    if eval_gauntlet_df is None and eval_gauntlet_callback is not None:
+        eval_gauntlet_df = pd.DataFrame(
             columns=['model_name', 'average'] +
-            [t.name for t in model_gauntlet.categories])
-
-    in_memory_logger = InMemoryLogger()  # track metrics in the in_memory_logger
-    loggers: List[LoggerDestination] = [
-        build_logger(name, logger_cfg)
-        for name, logger_cfg in loggers_cfg.items()
-    ]
-    loggers.append(in_memory_logger)
+            [t.name for t in eval_gauntlet_callback.categories])
 
     load_path = model_cfg.get('load_path', None)
 
     assert composer_model is not None
+
     trainer = Trainer(
         run_name=run_name,
         model=composer_model,
+        callbacks=callbacks,
         loggers=loggers,
         precision=precision,
         fsdp_config=fsdp_config,  # type: ignore
@@ -170,15 +159,24 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
         torch.cuda.synchronize()
     b = time.time()
     print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
-    return (in_memory_logger, logger_keys, model_gauntlet_callback,
-            model_gauntlet, model_gauntlet_df)
+    return (trainer, logger_keys, eval_gauntlet_callback, eval_gauntlet_df)
 
 
 def main(cfg: DictConfig):
     om.resolve(cfg)
     model_configs: ListConfig = pop_config(cfg, 'models', must_exist=True)
-    model_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(
-        cfg, 'model_gauntlet', must_exist=False, default_value=None)
+    eval_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(
+        cfg, 'eval_gauntlet', must_exist=False, default_value=None)
+    if eval_gauntlet_config is None:
+        eval_gauntlet_config = pop_config(cfg,
+                                          'model_gauntlet',
+                                          must_exist=False,
+                                          default_value=None)
+        if eval_gauntlet_config:
+            print(
+                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`'
+            )
+
     fsdp_dict_cfg: Optional[DictConfig] = pop_config(cfg,
                                                      'fsdp_config',
                                                      must_exist=False,
@@ -221,7 +219,10 @@ def main(cfg: DictConfig):
                                              'loggers',
                                              must_exist=False,
                                              default_value={})
-
+    icl_subset_num_batches: int = pop_config(cfg,
+                                             'icl_subset_num_batches',
+                                             must_exist=False,
+                                             default_value=None)
     # Pop out interpolation variables.
     pop_config(cfg, 'model_name_or_path', must_exist=False, default_value=None)
 
@@ -234,40 +235,38 @@ def main(cfg: DictConfig):
     reproducibility.seed_all(seed)
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
-    model_gauntlet_df = None
+    eval_gauntlet_df = None
     models_df = None
     composite_scores = None
     for model_cfg in model_configs:
-        (in_memory_logger, logger_keys, model_gauntlet_callback, model_gauntlet,
-         model_gauntlet_df) = evaluate_model(
+        (trainer, logger_keys, eval_gauntlet_callback,
+         eval_gauntlet_df) = evaluate_model(
              model_cfg=model_cfg,
              dist_timeout=dist_timeout,
              run_name=run_name,
              icl_tasks=icl_tasks,
              max_seq_len=max_seq_len,
              device_eval_batch_size=device_eval_batch_size,
-             model_gauntlet_config=model_gauntlet_config,
+             eval_gauntlet_config=eval_gauntlet_config,
              fsdp_config=fsdp_config,
              num_retries=num_retries,
              loggers_cfg=loggers_cfg,
              python_log_level=python_log_level,
              precision=precision,
-             model_gauntlet_df=model_gauntlet_df,
-         )
+             eval_gauntlet_df=eval_gauntlet_df,
+             icl_subset_num_batches=icl_subset_num_batches)
 
-        if model_gauntlet_callback is not None:
-            # TODO(bmosaicml) This needs to be refactored to fix the typing issue
-            composite_scores = model_gauntlet_callback.eval_end(
-                None, in_memory_logger)  # type: ignore
+        if eval_gauntlet_callback is not None:
+            composite_scores = eval_gauntlet_callback.eval_after_all(
+                trainer.state, trainer.logger)
 
         benchmark_to_taxonomy = {}
-        if model_gauntlet is not None:
-            for t in model_gauntlet.categories:
+        if eval_gauntlet_callback is not None:
+            for t in eval_gauntlet_callback.categories:
                 for b in t.benchmarks:
                     benchmark_to_taxonomy[b.name] = t.name
 
-        model_results = calculate_markdown_results(logger_keys,
-                                                   in_memory_logger.data,
+        model_results = calculate_markdown_results(logger_keys, trainer,
                                                    benchmark_to_taxonomy,
                                                    model_cfg.model_name)
 
@@ -276,60 +275,67 @@ def main(cfg: DictConfig):
         else:
             models_df = pd.concat([models_df, model_results], ignore_index=True)
 
-        if model_gauntlet_df is not None and model_gauntlet is not None:
+        if eval_gauntlet_df is not None and eval_gauntlet_callback is not None:
             assert composite_scores is not None
             row = {'model_name': model_cfg['model_name']}
             row.update({
-                t.name: composite_scores[f'metrics/model_gauntlet/{t.name}']
-                for t in model_gauntlet.categories
+                t.name:
+                composite_scores.get(f'icl/metrics/eval_gauntlet/{t.name}',
+                                     None)
+                for t in eval_gauntlet_callback.categories
             })
             row.update({
-                'average': composite_scores[f'metrics/model_gauntlet/average']
+                'average':
+                    composite_scores[f'icl/metrics/eval_gauntlet/average']
             })
-            model_gauntlet_df = pd.concat(
-                [model_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
+            eval_gauntlet_df = pd.concat(
+                [eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
 
             print(f'Printing gauntlet results for all models')
             print(
-                model_gauntlet_df.sort_values(
+                eval_gauntlet_df.sort_values(
                     'average', ascending=False).to_markdown(index=False))
         print(f'Printing complete results for all models')
+        assert models_df is not None
         print(models_df.to_markdown(index=False))
 
 
-def calculate_markdown_results(logger_keys: List[str], logger_data: Dict,
+def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                                benchmark_to_taxonomy: Dict[str, str],
                                model_name: str):
     results = {}
-    pat = re.compile(
-        'metrics/(.*?)/(\d+)-shot(/.*?)?/InContextLearning(.*)')  # type: ignore
-    for key in logger_keys:
-        match = pat.match(key)
-        val = logger_data[key][0][1].item()
-        if match:
-            eval_name = match.group(1)
-            num_shot = match.group(2)
-            subcat = match.group(3)
-            if subcat is not None:
-                subcat = subcat[1:]
-            else:
-                subcat = 'no_subcat'
-            metric = match.group(4)
-            if num_shot not in results:
-                results[num_shot] = {}
-            if eval_name not in results[num_shot]:
-                results[num_shot][eval_name] = {}
-            if metric not in results[num_shot][eval_name]:
-                results[num_shot][eval_name][metric] = []
 
-            results[num_shot][eval_name][metric].append({
-                'val': val,
-                'subcat': subcat
-            })
+    for key in logger_keys:
+        # dl_name is either 2-tuple (benchmark_name, num_fewshot)
+        # or 3-tuple (benchmark_name, num_fewshot, subcategory)
+        dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
+        if 'Accuracy' not in metric_name:
+            continue
+
+        metric = trainer.state.eval_metrics.get('/'.join(dl_name),
+                                                {}).get(metric_name, None)
+
+        if metric is None:
+            continue
+        if dl_name[1] not in results:
+            results[dl_name[1]] = {}
+
+        if dl_name[0] not in results[dl_name[1]]:
+            results[dl_name[1]][dl_name[0]] = {}
+
+        if metric_name not in results[dl_name[1]][dl_name[0]]:
+            results[dl_name[1]][dl_name[0]][metric_name] = []
+
+        results[dl_name[1]][dl_name[0]][metric_name].append({
+            'val': metric.compute(),
+            'subcat': dl_name[-1] if len(dl_name) == 3 else 'no_subcat'
+        })
+
     df = pd.DataFrame(columns=[
         'Category', 'Benchmark', 'Subtask', 'Accuracy', 'Number few shot',
         'Model'
     ])
+
     for num_shot in results:
         for benchmark in results[num_shot]:
             for metric in results[num_shot][benchmark]:

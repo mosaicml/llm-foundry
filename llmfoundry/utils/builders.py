@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from composer import algorithms
@@ -12,7 +12,8 @@ from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
 from composer.core import Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from composer.loggers import MLFlowLogger, TensorboardLogger, WandBLogger
+from composer.loggers import (InMemoryLogger, MLFlowLogger, TensorboardLogger,
+                              WandBLogger)
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
@@ -22,11 +23,46 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (FDiffMetrics, Generate, GlobalLRScaling,
-                                  LayerFreezing, MonolithicCheckpointSaver,
+from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
+                                  GlobalLRScaling, LayerFreezing,
+                                  MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
+
+
+def build_icl_data_and_gauntlet(
+    icl_tasks_config: Union[str, ListConfig],
+    eval_gauntlet_config: Optional[Union[str, DictConfig]],
+    tokenizer: AutoTokenizer,
+    device_eval_batch_size: int,
+    icl_seq_len: int,
+    icl_subset_num_batches: Optional[int] = None
+) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
+    icl_evaluators, logger_keys = build_icl_evaluators(
+        icl_tasks_config,
+        tokenizer,
+        icl_seq_len,
+        device_eval_batch_size,
+        icl_subset_num_batches=icl_subset_num_batches)
+    eval_gauntlet_cb = None
+    if eval_gauntlet_config is not None:
+        if isinstance(eval_gauntlet_config, str):
+            with open(eval_gauntlet_config, 'r') as icl_f:
+                eval_gauntlet_cfg = om.load(icl_f)
+            eval_gauntlet = eval_gauntlet_cfg.eval_gauntlet
+        elif isinstance(eval_gauntlet_config, DictConfig):  # pyright: ignore
+            eval_gauntlet = eval_gauntlet_config
+        else:
+            raise ValueError(
+                f'Got invalid type for eval_gauntlet_config: {type(eval_gauntlet_config)}'
+            )
+        eval_gauntlet.logger_keys = logger_keys
+        eval_gauntlet.benchmark_sizes = {
+            e.label: e.dataloader.num_samples for e in icl_evaluators
+        }
+        eval_gauntlet_cb = EvalGauntlet(**eval_gauntlet)
+    return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
 def build_callback(name: str, kwargs: Dict[str, Any]):
@@ -69,6 +105,8 @@ def build_logger(name: str, kwargs: Dict[str, Any]):
         return TensorboardLogger(**kwargs)
     elif name == 'mlflow':
         return MLFlowLogger(**kwargs)
+    elif name == 'inmemory':
+        return InMemoryLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
@@ -138,13 +176,17 @@ def build_tokenizer(om_tokenizer_config: DictConfig) -> PreTrainedTokenizerBase:
     return tokenizer
 
 
-def build_icl_evaluators(icl_tasks: Union[str, ListConfig],
-                         tokenizer: PreTrainedTokenizerBase,
-                         default_max_seq_len: int,
-                         default_batch_size: int,
-                         destination_dir: Optional[str] = None):
+def build_icl_evaluators(
+    icl_tasks: Union[str, ListConfig],
+    tokenizer: AutoTokenizer,
+    default_max_seq_len: int,
+    default_batch_size: int,
+    destination_dir: Optional[str] = None,
+    icl_subset_num_batches: Optional[int] = None,
+):
     if destination_dir is None:
         destination_dir = os.getcwd()
+
     evaluators = []
     logger_keys = []
 
@@ -193,6 +235,7 @@ def build_icl_evaluators(icl_tasks: Union[str, ListConfig],
             icl_cfg.batch_size = default_batch_size
 
     for icl_cfg in icl_tasks_list:
+        assert isinstance(icl_cfg, DictConfig)
         _validate_cfg(icl_cfg)
         for num_fewshot in list(icl_cfg.num_fewshot):
             if tokenizer.pad_token_id is None:
@@ -240,6 +283,7 @@ def build_icl_evaluators(icl_tasks: Union[str, ListConfig],
                 evaluators.append(
                     Evaluator(label=label,
                               dataloader=dataloaders,
-                              metric_names=metric_names),)
+                              metric_names=metric_names,
+                              subset_num_batches=icl_subset_num_batches))
 
     return evaluators, logger_keys

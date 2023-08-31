@@ -61,7 +61,7 @@ install_requires = [
     'mosaicml-cli>=0.3,<1',
     'onnx==1.14.0',
     'onnxruntime==1.15.1',
-    'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
+#    'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
     'boto3>=1.21.45,<2',

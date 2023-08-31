@@ -1,12 +1,13 @@
 from typing import Dict, Iterable, Optional
-from torch.utils.data import DataLoader, Dataset, IterableDataset
+from torch.utils.data import DataLoader, Dataset
 import platform
+import psutil
 
 def build_dataloader(dataset: Dataset, batch_size: int,
                      num_workers: Optional[int]=None) -> DataLoader:
     if num_workers is None:
         # Multiple workers is only supported on linux machines
-        if 'linux' or 'macos' in platform.platform().lower():
+        if 'linux' in platform.platform().lower():
             num_workers = max(1, psutil.cpu_count())  # type: ignore
         else:
             num_workers = 0
@@ -15,8 +16,12 @@ def build_dataloader(dataset: Dataset, batch_size: int,
     # the aggregate device batch size
     # If not using workers, the torch DataLoader expects the default value for prefetch_factor,
     # which non-intuitively must be 2.
-    prefetch_factor = max(1, 2 * batch_size //
-                          num_workers) if num_workers > 0 else 2
+    # If on macOS, PyTorch requires prefetch_factor set to None since num_workers is always zero
+    if 'macos' in platform.platform().lower() and num_workers == 0:
+        prefetch_factor = None
+    else:
+        prefetch_factor = max(1, 2 * batch_size //
+                              num_workers) if num_workers > 0 else 2
 
     return DataLoader(
         dataset=dataset,

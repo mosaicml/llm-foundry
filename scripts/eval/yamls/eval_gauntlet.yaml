@@ -2,6 +2,21 @@ model_gauntlet:
   weighting: EQUAL
   subtract_random_baseline: true
   rescale_accuracy: true
+  average_groupings:
+    - name: full_average
+      categories:
+        - world_knowledge
+        - commonsense_reasoning
+        - language_understanding
+        - symbolic_problem_solving
+        - reading_comprehension
+    - name: lm_subscore_average  
+      categories:
+        - world_knowledge_lm_task_subscore
+        - commonsense_reasoning_lm_task_subscore
+        - language_understanding_lm_task_subscore
+        - symbolic_problem_solving_lm_task_subscore
+        - reading_comprehension_lm_task_subscore
   categories:
   - name: world_knowledge
     benchmarks:
@@ -116,6 +131,9 @@ model_gauntlet:
     - name: gsm8k
       num_fewshot: 3
       random_baseline: 0
+    - name: agi_eval_math
+      num_fewshot: 3
+      random_baseline: 0
     - name: svamp
       num_fewshot: 3
       random_baseline: 0
@@ -136,6 +154,12 @@ model_gauntlet:
     - name: coqa
       num_fewshot: 0
       random_baseline: 0.0
+    - name: agi_eval_lsat_rc
+      num_fewshot: 3
+      random_baseline: 0.0
+    - name: agi_eval_lsat_lr
+      num_fewshot: 3
+      random_baseline: 0
   - name: world_knowledge_lm_task_subscore
       benchmarks:
       - name: jeopardy

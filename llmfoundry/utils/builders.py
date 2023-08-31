@@ -418,6 +418,8 @@ def build_optimizer(
     optimizer_config: Dict[str, Any],
 ) -> Optimizer:
 
+    if name == 'decoupled_lionw':
+        optimizer_config = {k: optimizer_config[k] for k in ['lr', 'betas', 'weight_decay']}
     params = _extract_param_groups(model, optimizer_config)
     kwargs = {**optimizer_config}
 

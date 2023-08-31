@@ -137,9 +137,6 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     print('#' * 30)
     print(f'HF checkpoint folder successfully created at {output_path}.')
 
-    print('Done.')
-    print('#' * 30)
-
     return hf_config, hf_tokenizer
 
 
@@ -165,6 +162,10 @@ def parse_args() -> Namespace:
 
 
 def convert_composer_to_hf(args: Namespace) -> None:
+    print()
+    print('#' * 30)
+    print('Converting Composer checkpoint to HuggingFace checkpoint format...')
+
     # Register MPT auto classes so that this script works with MPT
     # This script will not work without modification for other custom models,
     # but will work for other HuggingFace causal LMs
@@ -278,6 +279,10 @@ def convert_composer_to_hf(args: Namespace) -> None:
                     hub_model.generate(hub_tokenizer(
                         'MosaicML is', return_tensors='pt').input_ids,
                                        max_new_tokens=10)))
+
+    print(
+        'Composer checkpoint successfully converted to HuggingFace checkpoint format.'
+    )
 
 
 if __name__ == '__main__':

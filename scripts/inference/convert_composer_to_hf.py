@@ -279,8 +279,10 @@ def convert_composer_to_hf(args: Namespace) -> None:
                     hub_model.generate(hub_tokenizer(
                         'MosaicML is', return_tensors='pt').input_ids,
                                        max_new_tokens=10)))
-            
-    print('Composer checkpoint successfully converted to HuggingFace checkpoint format.')
+
+    print(
+        'Composer checkpoint successfully converted to HuggingFace checkpoint format.'
+    )
 
 
 if __name__ == '__main__':

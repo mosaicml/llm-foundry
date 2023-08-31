@@ -26,6 +26,7 @@ from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
 
+from streaming.base.util import clean_stale_shared_memory
 
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""
@@ -397,6 +398,9 @@ def main(cfg: DictConfig):
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
 
+    # clean streaming stale memory
+    clean_stale_shared_memory()
+
     # build tokenizer
     tokenizer = build_tokenizer(tokenizer_config)
 
@@ -527,4 +531,5 @@ if __name__ == '__main__':
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
     assert isinstance(cfg, DictConfig)
+    print (cfg)
     main(cfg)

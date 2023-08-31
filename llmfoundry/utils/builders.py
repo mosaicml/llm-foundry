@@ -93,6 +93,7 @@ def build_optimizer(model: torch.nn.Module, name: str,
     if name == 'decoupled_adamw':
         return DecoupledAdamW(model.parameters(), **optimizer_config)
     elif name == 'decoupled_lionw':
+        optimizer_config = {k: optimizer_config[k] for k in ['lr', 'betas', 'weight_decay']}
         return DecoupledLionW(model.parameters(), **optimizer_config)
     elif name == 'clip_lion':
         return DecoupledClipLion(model.parameters(), **optimizer_config)

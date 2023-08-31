@@ -16,6 +16,7 @@ from torch import nn
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
+from composer.utils import is_hpu_installed
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
                      original_is_causal: bool):
@@ -30,6 +31,41 @@ def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
             return False
     return original_is_causal
 
+def habana_fused_sdpa_fn(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    n_heads: int,
+    kv_n_heads: Optional[int] = None,
+    past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+    softmax_scale: Optional[float] = None,
+    attn_bias: Optional[torch.Tensor] = None,
+    key_padding_mask: Optional[torch.Tensor] = None,
+    is_causal: bool = False,
+    dropout_p: float = 0.0,
+    training: bool = False,
+    needs_weights: bool = False,
+    multiquery: bool = False,
+) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
+                                                                torch.Tensor]]]:
+    if is_hpu_installed():
+        from habana_frameworks.torch.hpex.kernels import FusedSDPA
+    else:
+        raise RuntimeError("Must install habana_frameworks!")
+
+    dtms, seqlen, d_model = query.shape[0], query.shape[1], query.shape[2]
+    d_head = d_model // n_heads
+    q = query.view(dtms, seqlen, n_heads, d_head).transpose(1, 2)
+    k = key.view(dtms, seqlen, n_heads, d_head).transpose(1, 2)
+    v = value.view(dtms, seqlen, n_heads, d_head).transpose(1, 2)
+
+    if softmax_scale is None:
+        softmax_scale = 1 / math.sqrt(d)
+
+    out = FusedSDPA.apply(q, k, v, None, dropout_p, is_causal, softmax_scale)
+    out = out.transpose(1, 2).reshape(dtms, seqlen, d_model)
+
+    return out, None, past_key_value
 
 def scaled_multihead_dot_product_attention(
     query: torch.Tensor,
@@ -491,6 +527,8 @@ class GroupedQueryAttention(nn.Module):
                     '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' +\
                     'we recommend using `attn_impl: triton`.'
                 )
+        elif self.attn_impl == 'habana_fused_sdpa':
+            self.attn_fn = habana_fused_sdpa_fn
         else:
             raise ValueError(f'{attn_impl=} is an invalid setting.')
 
@@ -627,7 +665,7 @@ def attn_bias_shape(attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
                     prefix_lm: bool, causal: bool, use_sequence_id: bool):
     if attn_impl == 'flash':
         return None
-    elif attn_impl in ['torch', 'triton']:
+    elif attn_impl in ['torch', 'triton', 'habana_fused_sdpa']:
         if alibi:
             if (prefix_lm or not causal) or use_sequence_id:
                 return (1, n_heads, seq_len, seq_len)

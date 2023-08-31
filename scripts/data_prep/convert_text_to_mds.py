@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from argparse import ArgumentParser, Namespace
-from typing import Iterable, List, Tuple
+from typing import Iterable, List
 import os
 
 from streaming import MDSWriter
@@ -135,7 +135,6 @@ class DownloadingIterable:
                 filename = output_filename,
                 overwrite=True
             )
-
             with open(output_filename) as _txt_file:
                 txt = _txt_file.read()
             yield {'text': txt}
@@ -148,7 +147,7 @@ def get_object_names(input_folder: str) -> List[str]:
         names = [name for name in object_store.list_objects(folder_prefix) if name.endswith('.txt')]
     else:
         # input_folder is a local folder
-        names = [text_fie for dirpath, _, _ in os.walk(input_folder) for text_fie in glob(os.path.join(dirpath, '*.txt'))]
+        names = [text_file for dirpath, _, _ in os.walk(input_folder) for text_file in glob(os.path.join(dirpath, '*.txt'))]
     # return names, sizes
     print(f'Found {len(names)} text files')
 
@@ -219,6 +218,7 @@ def download_and_convert(
         columns = {'tokens': 'bytes'}
 
         print(f'Converting to MDS format...')
+        print('mds writer', output_folder)
         with MDSWriter(out=output_folder,
                         columns=columns,
                         max_workers=max_workers,
@@ -291,6 +291,7 @@ def is_remote_path(path: str) -> bool:
     return backend != '' or bucket != ''
 
 def is_already_processed(output_root: str, done_file_name: str, args_str: str, object_names: List[str]) -> bool:
+    print('is_already_processed????')
     # Retrieve the done file contents
     output_object_store = maybe_create_object_store_from_uri(output_root)
     if output_object_store is not None:
@@ -301,6 +302,7 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str, o
                 done_file = os.path.join(tmp_dir, done_file_name)
                 output_object_store.download_object(os.path.join(output_folder_prefix, done_file_name), done_file)
                 done_file_contents = open(done_file).read().splitlines()
+                print('done_file_contents', done_file_contents)
         except FileNotFoundError:
             return False
     else:
@@ -317,7 +319,6 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str, o
     # Compare file names and sizes
     for idx, prev_name in enumerate(done_file_contents[1:]):
         if object_names[idx] != prev_name:
-            print('hey3', idx)
             return False
     return True
 
@@ -346,7 +347,6 @@ def main(
     is_remote_output = is_remote_path(output_folder)
 
     object_names = get_object_names(input_folder)
-    object_names = object_names[:10]
 
     # Check if the text files in the bucket have already been processed.
     if not reprocess and is_already_processed(output_folder, done_file_name, args_str, object_names):
@@ -355,6 +355,7 @@ def main(
 
     # Use a temporary local directory if the output is remote and there are more than 1 processes
     local_output_folder = tempfile.TemporaryDirectory().name if is_remote_output else output_folder
+    print('local_output_folder!', local_output_folder)
 
     if processes > 1:
         # Download and convert the text files in parallel

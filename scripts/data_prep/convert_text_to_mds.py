@@ -1,10 +1,13 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from argparse import ArgumentParser, Namespace
-from typing import Iterable, cast, List, Tuple
+from typing import Iterable, List, Tuple
 import os
 
 from streaming import MDSWriter
 from tqdm import tqdm
-from composer.utils import (ObjectStore, S3ObjectStore, maybe_create_object_store_from_uri,
+from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
                         parse_uri)
 from llmfoundry.data import ConcatTokensDataset
 from transformers import AutoTokenizer
@@ -14,7 +17,6 @@ from multiprocessing import Pool
 from glob import glob
 import json
 import tempfile
-import hashlib
 
 from scripts.data_prep.utils import build_dataloader, generate_samples
 
@@ -78,6 +80,14 @@ def parse_args() -> Namespace:
         default=1,
         help='The number of processes to use to download and convert the dataset'
     )
+    parser.add_argument(
+        '--reprocess',
+        type=bool,
+        required=False,
+        default=False,
+        help='If true, reprocess the input_folder to mds format. Otherwise, only reprocess upon changes to the input folder.'
+    )
+
 
     parsed = parser.parse_args()
 
@@ -131,24 +141,19 @@ class DownloadingIterable:
             yield {'text': txt}
 
 
-def get_object_names_and_hash(input_folder: str) -> Tuple[List[str], str]:
-    # TODO: Support other object store backends
-    object_store = cast(S3ObjectStore , maybe_create_object_store_from_uri(input_folder))
-    _, _, folder_prefix = parse_uri(input_folder)
+def get_object_names(input_folder: str) -> List[str]:
+    object_store = maybe_create_object_store_from_uri(input_folder)
+    if object_store is not None:
+        _, _, folder_prefix = parse_uri(input_folder)
+        names = [name for name in object_store.list_objects(folder_prefix) if name.endswith('.txt')]
+    else:
+        # input_folder is a local folder
+        names = [text_fie for dirpath, _, _ in os.walk(input_folder) for text_fie in glob(os.path.join(dirpath, '*.txt'))]
+    # return names, sizes
+    print(f'Found {len(names)} text files')
 
-    paginator = object_store.client.get_paginator('list_objects_v2')
-    pages = paginator.paginate(Bucket=object_store.bucket, Prefix=folder_prefix)
-
-    object_names = []
-    objects_hash = hashlib.sha1()
-    for page in pages:
-        for obj in page['Contents']:
-            name, etag = obj['Key'], obj['ETag']
-            if name.endswith('.txt'):
-                object_names.append(name)
-                objects_hash.update(str.encode(etag)) # Update the hash with the byte-encoded etag
-    print(f'Found {len(object_names)} text files')
-    return object_names, objects_hash.hexdigest()
+    return names
+        
 
 def get_task_args(
         object_names: List[str], 
@@ -198,7 +203,6 @@ def download_and_convert(
     with tempfile.TemporaryDirectory() as tmp_dir:  
         downloading_iter = DownloadingIterable(file_names, folder_prefix, tmp_dir, object_store)
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-        tokenizer.model_max_length = concat_tokens # Hack to remove hugging face warning 
 
         # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up to the maximum sequence length
         dataset = ConcatTokensDataset(
@@ -215,7 +219,6 @@ def download_and_convert(
         columns = {'tokens': 'bytes'}
 
         print(f'Converting to MDS format...')
-        print(compression)
         with MDSWriter(out=output_folder,
                         columns=columns,
                         max_workers=max_workers,
@@ -287,17 +290,17 @@ def is_remote_path(path: str) -> bool:
     backend, bucket, _ = parse_uri(path)
     return backend != '' or bucket != ''
 
-def is_already_processed(output_root: str, done_file_name: str, args_str: str, objects_hash: str, is_remote_output: bool) -> bool:
+def is_already_processed(output_root: str, done_file_name: str, args_str: str, object_names: List[str]) -> bool:
     # Retrieve the done file contents
-    if is_remote_output:
+    output_object_store = maybe_create_object_store_from_uri(output_root)
+    if output_object_store is not None:
         # Download and read the done file from the remote object store
-        output_object_store = maybe_create_object_store_from_uri(output_root)
         _, _, output_folder_prefix = parse_uri(output_root)
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 done_file = os.path.join(tmp_dir, done_file_name)
                 output_object_store.download_object(os.path.join(output_folder_prefix, done_file_name), done_file)
-                done_file_contents = open(done_file).readlines()
+                done_file_contents = open(done_file).read().splitlines()
         except FileNotFoundError:
             return False
     else:
@@ -305,19 +308,24 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str, o
         done_file = os.path.join(output_root, done_file_name)
         if not os.path.isfile(done_file):
             return False
-        done_file_contents = open(done_file).readlines()
-
-    # Compare the hash and the arguments
-    prev_objects_hash = done_file_contents[0]
-    prev_args_str = done_file_contents[1]
-    return objects_hash == prev_objects_hash and prev_args_str == args_str 
+        done_file_contents = open(done_file).read().splitlines()
+    # Compare the arguments
+    prev_args_str = done_file_contents[0]
+    if prev_args_str != args_str:
+        return False
+    
+    # Compare file names and sizes
+    for idx, prev_name in enumerate(done_file_contents[1:]):
+        if object_names[idx] != prev_name:
+            print('hey3', idx)
+            return False
+    return True
 
 # Initialize the worker process
 def init_worker():
     # Get the pid for the current worker process
     pid = os.getpid()
     print(f'\nInitialize Worker PID: {pid}', flush=True, end='')
-
 
 # def main(args: Namespace):
 def main(
@@ -332,17 +340,17 @@ def main(
     compression: str,
     processes: int,
     args_str: str,
+    reprocess: bool,
 ):
     done_file_name = 'done'
     is_remote_output = is_remote_path(output_folder)
 
-    object_names, objects_hash = get_object_names_and_hash(input_folder)
+    object_names = get_object_names(input_folder)
     object_names = object_names[:10]
 
     # Check if the text files in the bucket have already been processed.
-    if is_already_processed(output_folder, done_file_name, args_str, objects_hash, is_remote_output):
+    if not reprocess and is_already_processed(output_folder, done_file_name, args_str, object_names):
         print(f'Input folder {input_folder} is already processed at {output_folder}.')
-        # TODO: Add flag to automatically reprocess
         return
 
     # Use a temporary local directory if the output is remote and there are more than 1 processes
@@ -361,12 +369,9 @@ def main(
         download_and_convert(object_names, local_output_folder, input_folder, 
                              tokenizer_name, concat_tokens, eos_text, bos_text, no_wrap, compression, max_workers)
 
-    # Write a done file with the args and the hash
+    # Write a done file with the args and object names and sizes
     with open(os.path.join(local_output_folder, done_file_name), 'w') as done_file:
-        done_file.writelines([
-            str(objects_hash),
-            args_str, 
-        ])
+        done_file.write('\n'.join([args_str] + object_names) + '\n')
 
     if is_remote_output:
         # Upload the local output to the remote location
@@ -393,6 +398,7 @@ if __name__ == '__main__':
         no_wrap=args.no_wrap,
         max_workers=args.max_workers,
         compression=args.compression,
-        processes=args.processes
+        processes=args.processes,
+        reprocess=args.reprocess,
         args_str=str(args)
     )

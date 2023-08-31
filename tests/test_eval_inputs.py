@@ -100,5 +100,6 @@ class TestMPTEvalYAMLInputs:
         error_string = 'MPT causal LMs require a load_path to the checkpoint for model evaluation. \
                          Please check your yaml and the model_cfg to ensure that load_path is set.'
 
+        cfg.models[0].load_path = ''
         with pytest.raises(ValueError, match=error_string):
             main(cfg)

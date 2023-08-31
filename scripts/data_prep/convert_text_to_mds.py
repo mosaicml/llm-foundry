@@ -1,5 +1,5 @@
-from argparse import Namespace
-from typing import Dict, Iterable, Optional, cast, List, Tuple
+from argparse import ArgumentParser, Namespace
+from typing import Iterable, cast, List, Tuple
 import os
 
 from streaming import MDSWriter
@@ -7,7 +7,6 @@ from tqdm import tqdm
 from composer.utils import (ObjectStore, S3ObjectStore, maybe_create_object_store_from_uri,
                         parse_uri)
 from llmfoundry.data import ConcatTokensDataset
-from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer
 
 import math
@@ -17,39 +16,96 @@ import json
 import tempfile
 import hashlib
 
-# check last args and input folder modification
-# if last args are the same as current args and the last modified date is the same,
+from llmfoundry.data.packing import build_dataloader
 
-def build_dataloader(dataset: Dataset, batch_size: int) -> DataLoader:
-    return DataLoader(
-        dataset=dataset,
-        sampler=None,
-        batch_size=batch_size
+from scripts.data_prep.utils import generate_samples
+
+def parse_args() -> Namespace:
+    """Parse commandline arguments."""
+    parser = ArgumentParser(
+        description=
+        'Convert text files into MDS format, optionally concatenating and tokenizing'
+    )
+    parser.add_argument(
+        '--max_workers',
+        type=int,
+        default=64,
+        help='The maximum number of workers to use for MDS writing')
+    parser.add_argument('--output_folder',
+                        type=str,
+                        required=True,
+                        help='The folder to write output to')
+    parser.add_argument('--train_index_path',
+                        type=str,
+                        required=True,
+                        help='The file that lists all the data paths to read from for training')
+    parser.add_argument('--eval_index_path',
+                        type=str,
+                        required=True,
+                        help='The file that lists all the data paths to read from for evaluation')
+    parser.add_argument('--compression',
+                        type=str,
+                        default='zstd',
+                        help='The compression algorithm to use for MDS writing')
+
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument(
+        '--concat_tokens',
+        type=int,
+        help='Convert text to tokens and concatenate up to this many tokens')
+
+    parser.add_argument('--tokenizer',
+                        type=str,
+                        help='The name of the tokenizer to use')
+    parser.add_argument(
+        '--bos_text',
+        type=str,
+        required=False,
+        default=None,
+        help=
+        'The text to prepend to each example to separate concatenated examples')
+    parser.add_argument(
+        '--eos_text',
+        type=str,
+        required=False,
+        default=None,
+        help=
+        'The text to append to each example to separate concatenated examples')
+    parser.add_argument(
+        '--no_wrap',
+        default=False,
+        action='store_true',
+        help=
+        'Whether to let text examples wrap across multiple training examples')
+    parser.add_argument(
+        '--processes',
+        type=int,
+        required=False,
+        default=1,
+        help='The number of processes to use to download and convert the dataset'
     )
 
-def generate_samples(
-        loader: DataLoader,
-        truncate_num_samples: Optional[int] = None
-) -> Iterable[Dict[str, bytes]]:
-    """Generator over samples of a dataloader.
+    parsed = parser.parse_args()
 
-    Args:
-       loader (DataLoader): A dataloader emitting batches like {key: [sample0_bytes, sample1_bytes, sample2_bytes, ...]}
-       truncate_num_samples (Optional[int]): An optional # of samples to stop at.
+    if os.path.isdir(parsed.out_root) and len(
+            set(os.listdir(parsed.out_root)).intersection(set(
+                parsed.splits))) > 0:
+        raise ValueError(
+            f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.'
+        )
 
-    Yields:
-        Sample dicts.
-    """
-    n_samples = 0
-    for batch in loader:
-        keys = list(batch.keys())
-        current_bs = len(batch[keys[0]])
-        for idx in range(current_bs):
-            if truncate_num_samples is not None and n_samples == truncate_num_samples:
-                return
-            n_samples += 1
-            yield {k: v[idx] for k, v in batch.items()}
+    # Make sure we have needed concat options
+    if (parsed.concat_tokens is not None and
+            isinstance(parsed.concat_tokens, int) and parsed.tokenizer is None):
+        parser.error(
+            'When setting --concat_tokens, you must specify a --tokenizer')
 
+    # now that we have validated them, change BOS/EOS to strings
+    if parsed.bos_text is None:
+        parsed.bos_text = ''
+    if parsed.eos_text is None:
+        parsed.eos_text = ''
+    return parsed
 
 class DownloadingIterable:
     def __init__(
@@ -105,29 +161,54 @@ def get_object_names_and_hash(object_store: ObjectStore, folder_prefix: str) -> 
     print(f'Found {len(object_names)} text files')
     return object_names, objects_hash.hexdigest()
 
-def get_task_args(object_names: List[str], output_root: str, input_folder: str, n_groups: int) -> Iterable[tuple[List[str], str]]:
+def get_task_args(
+        object_names: List[str], 
+        output_root: str, 
+        input_folder: str, 
+        n_groups: int,
+        tokenizer_name: str, 
+        concat_tokens: int,
+        eos_text: str,
+        bos_text: str,
+        no_wrap: bool,
+        max_workers: int,
+        compression: str,
+        ) -> Iterable:
     objs_per_group = math.ceil(len(object_names) / n_groups)
     for group, i in enumerate(range(0, len(object_names), objs_per_group)):
         output_folder = os.path.join(output_root, str(group))
-        yield (object_names[i:i + objs_per_group], output_folder, input_folder)
+        yield (
+            object_names[i:i + objs_per_group], output_folder, input_folder, tokenizer_name, concat_tokens, eos_text, bos_text, no_wrap, max_workers, compression)
 
-def download_and_convert(inputs: tuple[List[str], str]):
-    file_names, output_folder, input_folder = inputs
+def download_and_convert(
+        file_names: List[str], 
+        output_folder: str, 
+        input_folder: str,    
+        tokenizer_name: str, 
+        concat_tokens: int,
+        eos_text: str,
+        bos_text: str,
+        no_wrap: bool,
+        max_workers: int,
+        compression: str,
+    ):
     object_store = maybe_create_object_store_from_uri(input_folder)
     _, _, folder_prefix = parse_uri(input_folder)
+
     # Download file_names
     with tempfile.TemporaryDirectory() as tmp_dir:  
         downloading_iter = DownloadingIterable(file_names, folder_prefix, tmp_dir, object_store)
-        tokenizer = AutoTokenizer.from_pretrained('mosaicml/mpt-7b', max_length=2048)
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        tokenizer.model_max_length = concat_tokens # Hack to remove hugging face warning 
 
         # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up to the maximum sequence length
         dataset = ConcatTokensDataset(
             hf_dataset=downloading_iter,
-            max_length=2048,
+            max_length=concat_tokens,
             tokenizer=tokenizer,
-            eos_text='<|endoftext|>',
-            bos_text='',
-            no_wrap=None,
+            eos_text=eos_text,
+            bos_text=bos_text,
+            no_wrap=no_wrap,
         )
 
         loader = build_dataloader(dataset=dataset, batch_size=512)
@@ -138,13 +219,15 @@ def download_and_convert(inputs: tuple[List[str], str]):
         with MDSWriter(out=output_folder,
                         columns=columns,
                         compression=False,
+                        max_workers=max_workers,
+                        compression=compression
                         ) as out:
             for sample in tqdm(samples):
-                # print(tokenizer.decode(np.frombuffer(sample['tokens'], dtype=int)))
                 out.write(sample)
 
 def with_id(basename: str, shard_id: int) -> str:
-    """Get a new basename with the given shard_id.
+    """Get a new basename with the given shard_id. 
+    From https://github.com/mosaicml/streaming/blob/main/examples/multiprocess_dataset_conversion.ipynb
 
     Args:
         basename (str): Old basename of file.
@@ -159,7 +242,8 @@ def with_id(basename: str, shard_id: int) -> str:
 
 
 def merge_shard_groups(root: str) -> None:
-    """Merge ephemeral sub-datasets created in parallel into one dataset.
+    """Merge ephemeral sub-datasets created in parallel into one dataset. 
+    From https://github.com/mosaicml/streaming/blob/main/examples/multiprocess_dataset_conversion.ipynb
 
     Args:
         root (str): Root directory.
@@ -200,34 +284,33 @@ def merge_shard_groups(root: str) -> None:
     with open(index_filename, 'w') as out:
         out.write(text)
 
-def is_local_path(path: str) -> bool:
+def is_remote_path(path: str) -> bool:
     backend, bucket, _ = parse_uri(path)
-    return backend == '' and bucket == ''
+    return backend != '' or bucket != ''
 
 def is_already_processed(output_root: str, done_file_name: str, args: Namespace, objects_hash: str, is_remote_output: bool) -> bool:
-    done_file_contents = None 
+    # Retrieve the done file contents
     if is_remote_output:
+        # Download and read the done file from the remote object store
         output_object_store = maybe_create_object_store_from_uri(output_root)
         _, _, output_folder_prefix = parse_uri(output_root)
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 done_file = os.path.join(tmp_dir, done_file_name)
-                obj = output_object_store.download_object(os.path.join(output_folder_prefix, done_file_name), done_file)
+                output_object_store.download_object(os.path.join(output_folder_prefix, done_file_name), done_file)
                 done_file_contents = open(done_file).readlines()
         except FileNotFoundError:
             return False
     else:
+        # Read the local done file
         done_file = os.path.join(output_root, done_file_name)
         if not os.path.isfile(done_file):
             return False
         done_file_contents = open(done_file).readlines()
-    try:
-        prev_objects_hash = done_file_contents[0]
-        if objects_hash == prev_objects_hash:
-            return True # TODO: Compare arg namespace
-    except ValueError:
-        pass
-    return False
+
+    # Compare the hash and the arguments
+    prev_objects_hash = done_file_contents[0]
+    return objects_hash == prev_objects_hash # TODO: Compare arg namespace
 
 # Initialize the worker process
 def init_worker():
@@ -237,52 +320,83 @@ def init_worker():
 
 
 # def main(args: Namespace):
-def main():
-    n_processes = 8
-    n_groups = 8
-    output_root = 's3://mosaicml-internal-checkpoints-shared/irene/test-output'
-    input_folder = 's3://mosaicml-internal-checkpoints-shared/irene/sec-filings-large-train'
+def main(
+    tokenizer_name: str,
+    output_folder: str,
+    input_folder: str,
+    concat_tokens: int,
+    eos_text: str,
+    bos_text: str,
+    no_wrap: bool,
+    max_workers: int,
+    compression: str,
+    processes: int,
+):
     done_file_name = 'done'
 
-    is_remote_output = not is_local_path(output_root)
-    local_output_root = tempfile.TemporaryDirectory().name if is_remote_output else output_root
+    is_remote_output = is_remote_path(output_folder)
+
+    # Use a temporary local directory if the output is remote and there are more than 1 processes
+    local_output_folder = tempfile.TemporaryDirectory().name if is_remote_output and processes > 1 else output_folder
 
     input_object_store = maybe_create_object_store_from_uri(input_folder)
     _, _, folder_prefix = parse_uri(input_folder)
     
     object_names, objects_hash = get_object_names_and_hash(input_object_store, folder_prefix)
 
-    if is_already_processed(output_root, done_file_name, Namespace(), objects_hash, is_remote_output):
-        print(f'Input folder {input_folder} is already processed at {output_root}.')
+    # Check if the text files in the bucket have already been processed.
+    if is_already_processed(output_folder, done_file_name, Namespace(), objects_hash, is_remote_output):
+        print(f'Input folder {input_folder} is already processed at {output_folder}.')
         # TODO: Add flag to automatically reprocess
         return
 
-    tasks = get_task_args(object_names, local_output_root, input_folder, n_groups)
-
-    with Pool(initializer=init_worker, processes=n_processes) as pool:
-        pool.map(download_and_convert, tasks)
-
-    merge_shard_groups(local_output_root)
+    if processes > 1:
+        # Download and convert the text files in parallel
+        args = get_task_args(object_names, local_output_folder, input_folder, processes,
+                             tokenizer_name, concat_tokens, eos_text, bos_text, no_wrap, compression, max_workers)
+        with Pool(initializer=init_worker, processes=processes) as pool:
+            pool.starmap(download_and_convert, args)
+        
+        # Merge the mds shards from each of the processes into a single folder
+        merge_shard_groups(local_output_folder)
+    else:
+        download_and_convert(object_names, local_output_folder, input_folder, 
+                             tokenizer_name, concat_tokens, eos_text, bos_text, no_wrap, compression, max_workers)
 
     # Write a done file with the args and the hash
-    with open(os.path.join(local_output_root, done_file_name), 'w') as done_file:
+    with open(os.path.join(local_output_folder, done_file_name), 'w') as done_file:
         done_file.write(str(objects_hash))
         # done_file.write('\n')
         # done_file.write(str(args))
         # TODO: write arguments to file
         # TODO: write 
 
-    if is_remote_output:
+    if is_remote_output and processes > 1:
         # Upload the local output to the remote location
-        output_object_store = maybe_create_object_store_from_uri(output_root)
-        _, _, output_folder_prefix = parse_uri(output_root)
-        pattern = os.path.join(local_output_root, '*')
+        output_object_store = maybe_create_object_store_from_uri(output_folder)
+        _, _, output_folder_prefix = parse_uri(output_folder)
+        pattern = os.path.join(local_output_folder, '*')
         files_to_upload = sorted(glob(pattern))
+
+        # TODO: Use multi threading to upload files?
         for local_path in files_to_upload:
             assert not os.path.isdir(local_path)
             remote_path = os.path.join(output_folder_prefix, os.path.basename(local_path))
             output_object_store.upload_object(remote_path, local_path)
 
-
 if __name__ == '__main__':
-    main()
+    args = parse_args()
+    main(
+        tokenizer_name=args.tokenizer,
+        output_folder=args.out_root,
+        input_folder=args.in_root,
+        dataset_subset=args.dataset_subset,
+        concat_tokens=args.concat_tokens,
+        eos_text=args.eos_text,
+        bos_text=args.bos_text,
+        no_wrap=args.no_wrap,
+        max_workers=args.max_workers,
+        compression=args.compression,
+        processes=args.processes
+    )
+    

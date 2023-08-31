@@ -4,13 +4,13 @@
 import os
 import sys
 from typing import Any
-from composer import Trainer
 
 import omegaconf as om
 import pytest
+from composer import Trainer
 
-from llmfoundry.utils import build_tokenizer
 from llmfoundry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.utils import build_tokenizer
 
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -29,6 +29,7 @@ def set_correct_cwd():
     if os.getcwd().endswith('llm-foundry/scripts'):
         os.chdir('..')
 
+
 @pytest.fixture()
 def mock_saved_model_path():
     # load the eval and model config
@@ -37,12 +38,12 @@ def mock_saved_model_path():
     model_cfg = eval_cfg.models[0]
     # set device to cpu
     device = 'cpu'
-    model_cfg.model.init_device = device 
+    model_cfg.model.init_device = device
     # build tokenizer
     tokenizer = build_tokenizer(model_cfg.tokenizer)
     # build model
     model = COMPOSER_MODEL_REGISTRY[model_cfg.model.name](model_cfg.model,
-                                                         tokenizer)
+                                                          tokenizer)
     # create mocked save checkpoint
     trainer = Trainer(model=model, device=device)
     saved_model_path = os.path.join(os.getcwd(), 'test_model.pt')

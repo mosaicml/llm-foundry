@@ -324,9 +324,7 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
 
     tokenizer = build_tokenizer(
         tokenizer_name=tokenizer_name,
-        tokenizer_kwargs= {
-            'model_max_length': max_seq_len
-        },
+        tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
     expected_keys = ['input_ids', 'attention_mask', 'labels']

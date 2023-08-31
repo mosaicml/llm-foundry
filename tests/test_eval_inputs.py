@@ -97,9 +97,8 @@ class TestMPTEvalYAMLInputs:
 
     def test_empty_load_path_raises_error(self, cfg: DictConfig) -> None:
         """Check that empty load paths for mpt models raise an error."""
-        error_string = 'MPT causal LMs require a load_path to the checkpoint for model evaluation. \
-                         Please check your yaml and the model_cfg to ensure that load_path is set.'
-
-        cfg.models[0].load_path = ''
+        error_string = 'MPT causal LMs require a load_path to the checkpoint for model evaluation.' \
+            + ' Please check your yaml and the model_cfg to ensure that load_path is set.'
+        cfg.models[0].load_path = None
         with pytest.raises(ValueError, match=error_string):
             main(cfg)

@@ -15,8 +15,8 @@ from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
-from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
-                          T5ForConditionalGeneration, AutoTokenizer)
+from transformers import (AutoModelForCausalLM, AutoTokenizer,
+                          PreTrainedTokenizerBase, T5ForConditionalGeneration)
 
 from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
@@ -105,7 +105,8 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
                                                resolve=True)  # type: ignore
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
-    tokenizer: AutoTokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs) # type: ignore
+    tokenizer: AutoTokenizer = build_tokenizer(tokenizer_name,
+                                               tokenizer_kwargs)  # type: ignore
 
     evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
         icl_tasks, eval_gauntlet_config, tokenizer, device_eval_batch_size,

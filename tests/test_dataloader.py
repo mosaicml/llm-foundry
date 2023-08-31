@@ -323,12 +323,11 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     cfg = om.create(cfg)
 
     tokenizer = build_tokenizer(
-        om.create({
-            'name': tokenizer_name,
-            'kwargs': {
-                'model_max_length': max_seq_len
-            }
-        }))
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs= {
+            'model_max_length': max_seq_len
+        },
+    )
 
     expected_keys = ['input_ids', 'attention_mask', 'labels']
     expected_keys += ['bidirectional_mask']

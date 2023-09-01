@@ -212,6 +212,7 @@ def download_and_convert(
         downloading_iter = DownloadingIterable(file_names, folder_prefix,
                                                tmp_dir, object_store)
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        tokenizer.model_max_length = 5000000000
 
         # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up to the maximum sequence length
         dataset = ConcatTokensDataset(
@@ -338,14 +339,6 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str,
             return False
     return True
 
-
-# Initialize the worker process
-def init_worker():
-    # Get the pid for the current worker process
-    pid = os.getpid()
-    print(f'\nInitialize Worker PID: {pid}', flush=True, end='')
-
-
 # def main(args: Namespace):
 def main(
     tokenizer_name: str,
@@ -383,7 +376,7 @@ def main(
         args = get_task_args(object_names, local_output_folder, input_folder,
                              processes, tokenizer_name, concat_tokens, eos_text,
                              bos_text, no_wrap, compression, max_workers)
-        with Pool(initializer=init_worker, processes=processes) as pool:
+        with Pool(processes=processes) as pool:
             pool.starmap(download_and_convert, args)
 
         # Merge the mds shards from each of the processes into a single folder

@@ -4,6 +4,8 @@
 import os
 import sys
 
+import pytest
+
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
@@ -18,8 +20,10 @@ from streaming import StreamingDataset
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer
 
-from scripts.data_prep.convert_text_to_mds import (download_and_convert, main,
-                                                   merge_shard_groups)
+from scripts.data_prep.convert_text_to_mds import (download_and_convert,
+                                                   is_already_processed, main,
+                                                   merge_shard_groups,
+                                                   write_done_file)
 from scripts.data_prep.utils import build_dataloader
 
 
@@ -88,6 +92,7 @@ def _assert_files_exist(prefix: str, files: List[str]):
         assert os.path.exists(os.path.join(prefix, file))
 
 
+@pytest.mark.parametrize('processes', [1, 2, 3])
 @patch('scripts.data_prep.convert_text_to_mds.build_dataloader',
        new=Mock(wraps=_mock_build_dataloader))
 @patch.object(Pool, 'starmap', new=Mock(wraps=_mock_starmap))
@@ -98,15 +103,14 @@ def _assert_files_exist(prefix: str, files: List[str]):
        wraps=download_and_convert)
 @patch('scripts.data_prep.convert_text_to_mds.merge_shard_groups',
        wraps=merge_shard_groups)
-def test_multi_process(merge_shard_groups: Mock, download_and_convert: Mock,
-                       parse_uri: Mock,
-                       maybe_create_object_store_from_uri: Mock,
-                       tmp_path: pathlib.Path):
+def test_single_and_multi_process(merge_shard_groups: Mock,
+                                  download_and_convert: Mock, parse_uri: Mock,
+                                  maybe_create_object_store_from_uri: Mock,
+                                  tmp_path: pathlib.Path, processes: int):
     remote_folder = os.path.join(tmp_path, 'remote')
-    n_text_files = 6
     text_content = 'HELLO WORLD'
     tokenizer_name = 'mosaicml/mpt-7b'
-    processes = 2
+    n_text_files = processes * 3
 
     mock_object_store = Mock(
         wraps=MockObjectStore(remote_folder, n_text_files, text_content))
@@ -116,83 +120,35 @@ def test_multi_process(merge_shard_groups: Mock, download_and_convert: Mock,
     _call_convert_text_to_mds(processes=processes,
                               tokenizer_name=tokenizer_name)
 
+    # Check call counts
     assert download_and_convert.call_count == processes  # called once per process
     assert mock_object_store.download_object.call_count == n_text_files + 1  # text files + done file
     assert mock_object_store.upload_object.call_count == processes + 2  # shard per process + done file + index.json
-    merge_shard_groups.assert_called_once()
 
-    object_names_0 = download_and_convert.call_args_list[0][0][0]
-    object_names_1 = download_and_convert.call_args_list[1][0][0]
+    if processes > 1:
+        merge_shard_groups.assert_called_once()
 
-    assert len(
-        object_names_0
-    ) == n_text_files / 2  # Half of the text files should be called with process 0
-    assert len(
-        object_names_1
-    ) == n_text_files / 2  # Half of the text files should be called with process 1
-    assert len(
-        set(object_names_0 + object_names_1)
-    ) == n_text_files  # There should be n_text_files unique object names
+    total_object_names = 0
+    for call_args in download_and_convert.call_args_list:
+        object_names = call_args[0][0]
+        assert (len(object_names) == n_text_files / processes
+               )  # Each process should get an even portion of the files
+        total_object_names += len(object_names)
+
+    assert total_object_names == n_text_files  # We should have processed all the text files
 
     # Check that correct output files exist
+    shards = [f'shard.0000{i}.mds.zstd' for i in range(processes)]
     _assert_files_exist(prefix=remote_folder,
-                        files=[
-                            'index.json',
-                            'done',
-                            'shard.00000.mds.zstd',
-                            'shard.00001.mds.zstd',
-                        ])
+                        files=['index.json', 'done'] + shards)
 
-    # Check that the dataset can be used and produces samples with the original text_content
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-    dataset = StreamingDataset(local=remote_folder)
-    sample = dataset.__iter__().__next__()
-    assert tokenizer.decode(np.frombuffer(sample['tokens'],
-                                          dtype=int)).startswith(text_content)
-
-
-@patch('scripts.data_prep.convert_text_to_mds.build_dataloader',
-       new=Mock(wraps=_mock_build_dataloader))
-@patch(
-    'scripts.data_prep.convert_text_to_mds.maybe_create_object_store_from_uri')
-@patch('scripts.data_prep.convert_text_to_mds.parse_uri')
-@patch('scripts.data_prep.convert_text_to_mds.download_and_convert',
-       wraps=download_and_convert)
-def test_single_process(download_and_convert: Mock, parse_uri: Mock,
-                        maybe_create_object_store_from_uri: Mock,
-                        tmp_path: pathlib.Path):
-    remote_folder = os.path.join(tmp_path, 'remote')
-    n_text_files = 3
-    text_content = 'HELLO WORLD'
-    tokenizer_name = 'mosaicml/mpt-7b'
-
-    mock_object_store = Mock(
-        wraps=MockObjectStore(remote_folder, n_text_files, text_content))
-    maybe_create_object_store_from_uri.return_value = mock_object_store
-    parse_uri.return_value = ('s3', 'fake-test-bucket', str(remote_folder))
-
-    _call_convert_text_to_mds(processes=1, tokenizer_name=tokenizer_name)
+    _call_convert_text_to_mds(processes=processes,
+                              tokenizer_name=tokenizer_name)
 
     # Check call counts
-    download_and_convert.assert_called_once()
-    assert mock_object_store.download_object.call_count == n_text_files + 1  # Downloaded n_text_files files + done file
-    assert mock_object_store.upload_object.call_count == 3  # Uploaded done file, index.json, and shard
-
-    # Check that correct output files exist
-    _assert_files_exist(prefix=remote_folder,
-                        files=[
-                            'index.json',
-                            'done',
-                            'shard.00000.mds.zstd',
-                        ])
-
-    _call_convert_text_to_mds(processes=1, tokenizer_name=tokenizer_name)
-
-    # Check call counts
-    download_and_convert.assert_called_once(
-    )  # No changes because the input files and args are unchanged.
-    assert mock_object_store.download_object.call_count == n_text_files + 2  # Downloaded the done file an extra time
-    assert mock_object_store.upload_object.call_count == 3  # No changes
+    assert download_and_convert.call_count == processes  # No changes because we shoudn't reprocess
+    assert mock_object_store.download_object.call_count == n_text_files + 2  # One more done file is downloaded
+    assert mock_object_store.upload_object.call_count == processes + 2  # No changes
 
     # Create an extra text file and call again.
     n_text_files += 1
@@ -200,12 +156,13 @@ def test_single_process(download_and_convert: Mock, parse_uri: Mock,
         wraps=MockObjectStore(remote_folder, n_text_files, text_content))
     maybe_create_object_store_from_uri.return_value = mock_object_store
 
-    _call_convert_text_to_mds(processes=1, tokenizer_name=tokenizer_name)
+    _call_convert_text_to_mds(processes=processes,
+                              tokenizer_name=tokenizer_name)
 
     # Check call counts
-    assert download_and_convert.call_count == 2  # download_and_convert should have been called once more.
-    assert mock_object_store.download_object.call_count == n_text_files + 1  # Downloaded n_text_files + done file
-    assert mock_object_store.upload_object.call_count == 3  # Uploaded done file, index.json, and shard
+    assert download_and_convert.call_count == processes * 2  # called once per process
+    assert mock_object_store.download_object.call_count == n_text_files + 1  # text files + done file
+    assert mock_object_store.upload_object.call_count == processes + 2  # shard per process + done file + index.json
 
     # Check that the dataset can be used and produces samples with the original text_content
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
@@ -213,3 +170,25 @@ def test_single_process(download_and_convert: Mock, parse_uri: Mock,
     sample = dataset.__iter__().__next__()
     assert tokenizer.decode(np.frombuffer(sample['tokens'],
                                           dtype=int)).startswith(text_content)
+
+
+def test_is_already_processed(tmp_path: pathlib.Path):
+    tmp_path_str = str(tmp_path)
+    fname = 'done'
+    args_str = 'Namespace(x = 5)'
+    object_names = ['test0.txt', 'test1.txt']
+
+    assert not is_already_processed(tmp_path_str, fname, args_str,
+                                    object_names)  # Done file doesn't exist
+
+    write_done_file(tmp_path_str, fname, args_str, object_names)
+    assert is_already_processed(tmp_path_str, fname, args_str,
+                                object_names)  # Args and names match
+
+    write_done_file(tmp_path_str, fname, args_str, object_names + ['test2.txt'])
+    assert not is_already_processed(tmp_path_str, fname, args_str,
+                                    object_names)  # Object names differ
+
+    write_done_file(tmp_path_str, fname, 'Namespace()', object_names)
+    assert not is_already_processed(tmp_path_str, fname, args_str,
+                                    object_names)  # Argument strings differ

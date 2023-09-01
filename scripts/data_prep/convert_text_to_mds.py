@@ -1,14 +1,13 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import json
 import math
 import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from glob import glob
 from multiprocessing import Pool
-from typing import Iterable, List, Optional, cast
+from typing import Iterable, List, cast
 
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
                             parse_uri)
@@ -17,7 +16,8 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 
 from llmfoundry.data import ConcatTokensDataset
-from scripts.data_prep.utils import build_dataloader, generate_samples
+from scripts.data_prep.utils import (DownloadingIterable, build_dataloader,
+                                     generate_samples, merge_shard_groups)
 
 
 def parse_args() -> Namespace:
@@ -105,51 +105,6 @@ def parse_args() -> Namespace:
     return parsed
 
 
-class DownloadingIterable:
-
-    def __init__(
-        self,
-        object_names: List[str],
-        input_folder_prefix: str,
-        output_folder: str,
-        object_store: Optional[ObjectStore],
-    ):
-        """Iterable that downloads files from an object store before yielding.
-
-        If object_store is None, input_folder_prefix is treated as a local path.
-
-        text samples.
-
-        Args:
-            object_names (List[str]): Names of objects to to download
-            input_folder_prefix (str): Object store prefix to download from
-            output_folder (str): Local folder to write downloaded files to
-            object_store (Optiona[ObjectStore]): Object store to download from
-        """
-        self.object_names = object_names
-        self.object_store = object_store
-        self.input_folder_prefix = input_folder_prefix
-        self.output_folder = output_folder
-
-    def __iter__(self):
-        for object_name in self.object_names:
-            output_filename = os.path.join(
-                self.output_folder,
-                os.path.relpath(object_name, start=self.input_folder_prefix))
-            if self.object_store is not None:
-                self.object_store.download_object(object_name=object_name,
-                                                  filename=output_filename,
-                                                  overwrite=True)
-            else:
-                # Inputs are local so we do not need to download them.
-                output_filename = os.path.join(self.input_folder_prefix,
-                                               object_name)
-
-            with open(output_filename) as _txt_file:
-                txt = _txt_file.read()
-            yield {'text': txt}
-
-
 def get_object_names(input_folder: str) -> List[str]:
     object_store = maybe_create_object_store_from_uri(input_folder)
     if object_store is not None:
@@ -165,7 +120,7 @@ def get_object_names(input_folder: str) -> List[str]:
             for text_file in glob(os.path.join(dirpath, '*.txt'))
         ]
     # return names, sizes
-    print(f'Found {len(names)} text files')
+    print(f'Found {len(names)} text files at {input_folder}')
 
     return names
 
@@ -245,69 +200,6 @@ def download_and_convert(
                 out.write(sample)
 
 
-def with_id(basename: str, shard_id: int) -> str:
-    """Get a new basename with the given shard_id.
-
-    From https://github.com/mosaicml/streaming/blob/main/examples/multiprocess_dataset_conversion.ipynb.
-
-    Args:
-        basename (str): Old basename of file.
-        shard_id (int): New shard ID.
-
-    Returns:
-        str: New basename of file.
-    """
-    parts = basename.split('.')
-    parts[1] = f'{shard_id:05}'
-    return '.'.join(parts)
-
-
-def merge_shard_groups(root: str) -> None:
-    """Merge ephemeral sub-datasets created in parallel into one dataset.
-
-    From https://github.com/mosaicml/streaming/blob/main/examples/multiprocess_dataset
-    _conversion.ipynb.
-
-    Args:
-        root (str): Root directory.
-    """
-    pattern = os.path.join(root, '*')
-    subdirs = sorted(glob(pattern))
-    shard_id = 0
-    infos = []
-    for subdir in subdirs:
-        index_filename = os.path.join(subdir, 'index.json')
-        obj = json.load(open(index_filename))
-        for info in obj['shards']:
-            old_basename = info['raw_data']['basename']
-            new_basename = with_id(old_basename, shard_id)
-            info['raw_data']['basename'] = new_basename
-
-            if info['zip_data'] is not None:
-                old_basename = info['zip_data']['basename']
-                new_basename = with_id(old_basename, shard_id)
-                info['zip_data']['basename'] = new_basename
-
-            old_filename = os.path.join(subdir, old_basename)
-            new_filename = os.path.join(root, new_basename)
-            assert not os.rename(old_filename, new_filename)
-
-            shard_id += 1
-            infos.append(info)
-
-        assert not os.remove(index_filename)
-        assert not os.rmdir(subdir)
-
-    index_filename = os.path.join(root, 'index.json')
-    obj = {
-        'version': 2,
-        'shards': infos,
-    }
-    text = json.dumps(obj, sort_keys=True)
-    with open(index_filename, 'w') as out:
-        out.write(text)
-
-
 def is_remote_path(path: str) -> bool:
     backend, bucket, _ = parse_uri(path)
     return backend != '' or bucket != ''
@@ -348,6 +240,12 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str,
         if object_names[idx] != prev_name:
             return False
     return True
+
+
+def write_done_file(folder: str, file_name: str, args_str: str,
+                    object_names: List[str]):
+    with open(os.path.join(folder, file_name), 'w') as done_file:
+        done_file.write('\n'.join([args_str] + object_names) + '\n')
 
 
 def main(
@@ -396,10 +294,8 @@ def main(
                              tokenizer_name, concat_tokens, eos_text, bos_text,
                              no_wrap, compression, max_workers)
 
-    # Write a done file with the args and object names and sizes
-    with open(os.path.join(local_output_folder, done_file_name),
-              'w') as done_file:
-        done_file.write('\n'.join([args_str] + object_names) + '\n')
+    # Write a done file with the args and object names
+    write_done_file(local_output_folder, done_file_name, args_str, object_names)
 
     if is_remote_output:
         # Upload the local output to the remote location

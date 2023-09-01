@@ -327,10 +327,9 @@ if __name__ == '__main__':
     cfg = om.create(cfg)
     device_batch_size = 2
 
-    tokenizer_cfg = {'name': args.tokenizer, 'kwargs': {}}
-    tokenizer_cfg['kwargs'] = {'model_max_length': args.max_seq_len}
-    tokenizer_cfg = om.create(tokenizer_cfg)
-    tokenizer = build_tokenizer(tokenizer_cfg)
+    tokenizer_name = args.tokenizer
+    tokenizer_kwargs = {'model_max_length': args.max_seq_len}
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     loader = build_text_dataloader(cfg, tokenizer, device_batch_size)
     tokenizer = loader.dataset.tokenizer  # type: ignore

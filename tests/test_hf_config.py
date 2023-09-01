@@ -71,7 +71,12 @@ def test_hf_config_override(
     test_cfg.precision = 'fp16'
     test_cfg.model.attn_config = {'attn_impl': 'torch', 'alibi': True}
 
-    tokenizer = build_tokenizer(test_cfg.tokenizer)
+    tokenizer_cfg: Dict[str,
+                        Any] = om.to_container(test_cfg.tokenizer,
+                                               resolve=True)  # type: ignore
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
     model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                          tokenizer)
 

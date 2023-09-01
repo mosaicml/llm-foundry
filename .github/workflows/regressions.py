@@ -1,17 +1,67 @@
-def get_configs():
-    # regression tests
-    # mpt-125m to chinchilla, 8 gpus
-    # eval mpt-7b from huggingface hub, 8 gpus
-    # eval mpt-7b from composer checkpoint, 8 gpus
-    # mpt-125m and convert to huggingface format, 8 gpus
-    # finetune llama2-7b for a few steps, 8 gpus
-    # mpt-125m sharded with resumption, 16 gpus
-    # mpt-125m sharded with resumption, 8 gpus
-    run_configs = []
+import argparse
+import datetime
+import os
+import subprocess
+dir_path = os.path.dirname(os.path.abspath(__file__))
+regressions_dir = os.path.join(dir_path, "regression_yamls")
 
-    return run_configs, []
+from mcli import RunConfig, create_run
+
+def get_configs(
+    cluster: str,
+    mpt_7b_ckpt_path: str,
+    wandb_entity: str,
+    wandb_project: str
+):
+    eval_7b_hf = RunConfig.from_file(os.path.join(regressions_dir, "eval-7b-hf.yaml"))
+    eval_7b_composer = RunConfig.from_file(os.path.join(regressions_dir, "eval-7b-composer.yaml"))
+    llama2_finetune = RunConfig.from_file(os.path.join(regressions_dir, "llama2-finetune.yaml"))
+    mpt_125m_chinchilla = RunConfig.from_file(os.path.join(regressions_dir, "mpt-125m-chinchilla.yaml"))
+    mpt_125m_sharded_resumption = RunConfig.from_file(os.path.join(regressions_dir, "mpt-125m-sharded-resumption.yaml"))
+
+    # make specific changes
+    eval_7b_composer.parameters['models'][0]['load_path'] = mpt_7b_ckpt_path
+
+    all_configs = [
+        eval_7b_hf,
+        eval_7b_composer,
+        llama2_finetune,
+        mpt_125m_chinchilla,
+        mpt_125m_sharded_resumption
+    ]
+
+    commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode("utf-8")
+    timestamp = datetime.datetime.now().strftime("%m-%d-%Y::%H:%M:%S")
+    wandb_group = f"{timestamp}::{commit_hash}"
+
+    # make general changes
+    loggers = {
+        "wandb": {
+            "entity": wandb_entity,
+            "project": wandb_project,
+            "group": wandb_group
+        }
+    }
+    for config in all_configs:
+        config.cluster = cluster
+        config.parameters['loggers'] = loggers
+
+    return all_configs, []
 
 if __name__ == "__main__":
-    run_configs, _ = get_configs()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cluster", type=str)
+    parser.add_argument("--mpt-7b-ckpt-path", type=str)
+    parser.add_argument("--wandb-entity", type=str)
+    parser.add_argument("--wandb-project", type=str)
+
+    args = parser.parse_args()
+
+    run_configs, _ = get_configs(
+        args.cluster,
+        args.mpt_7b_ckpt_path,
+        args.wandb_entity,
+        args.wandb_project
+    )
     for run_config in run_configs:
-        run_config.run()
+        run = create_run(run_config)

@@ -420,6 +420,108 @@ def triton_flash_attn_fn(
 
     return output, None, past_key_value
 
+def xformers_attn_fn(query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    n_heads: int,
+    kv_n_heads: Optional[int] = None,
+    past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+    softmax_scale: Optional[float] = None,
+    attn_bias: Optional[torch.Tensor] = None,
+    key_padding_mask: Optional[torch.Tensor] = None,
+    is_causal: bool = False,
+    dropout_p: float = 0.0,
+    training: bool = False,
+    needs_weights: bool = False,
+    multiquery: bool = False,
+) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
+                                                                torch.Tensor]]]:
+    
+    try:
+        from xformers.ops import memory_efficient_attention
+    except:
+        raise RuntimeError(
+            'Please install xformers.'
+        )
+
+    check_valid_inputs(query, key, value)
+
+    if multiquery:
+        warnings.warn(
+            DeprecationWarning(
+                'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.'
+            ))
+        kv_n_heads = 1
+    elif kv_n_heads is None:
+        warnings.warn(
+            DeprecationWarning(
+                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.'
+            ))
+        kv_n_heads = n_heads
+
+    if past_key_value is not None:
+        if len(past_key_value) != 0:
+            key = torch.cat([past_key_value[0], key], dim=1)
+            value = torch.cat([past_key_value[1], value], dim=1)
+
+        past_key_value = (key, value)
+
+    if attn_bias is not None:
+        # clamp to 0 necessary for torch 2.0 compile()
+        _s_q = max(0, attn_bias.size(2) - query.size(1))
+        _s_k = max(0, attn_bias.size(3) - key.size(1))
+        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
+    attn_bias.expand(axis=0, query.shape.0)
+    if dropout_p:
+        raise NotImplementedError(
+            f'Dropout not implemented for attn_impl: triton.')
+    dropout_p = dropout_p if training else 0.0
+
+    if needs_weights:
+        raise NotImplementedError(
+            f'attn_impl: triton cannot return attn weights.')
+
+    if key_padding_mask is not None:
+        warnings.warn(
+            'Propagating key_padding_mask to the attention module ' +\
+            'and applying it within the attention module can cause ' +\
+            'unnecessary computation/memory usage. Consider integrating ' +\
+            'into attn_bias once and passing that to each attention ' +\
+            'module instead.'
+        )
+        b_size, s_k = key_padding_mask.shape[:2]
+
+        if attn_bias is None:
+            attn_bias = query.new_zeros(b_size, 1, 1, s_k)
+
+        attn_bias = attn_bias.masked_fill(
+            ~key_padding_mask.view((b_size, 1, 1, s_k)),
+            torch.finfo(query.dtype).min)
+
+    query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
+    key = rearrange(key, 'b s (h d) -> b s h d', h=kv_n_heads)
+    value = rearrange(value, 'b s (h d) -> b s h d', h=kv_n_heads)
+    # multi-query case
+    if kv_n_heads == 1:
+        # necessary to repeat instead of expand tensor because
+        # output contains NaN in edge cases such as with head dimension = 8
+        key = key.repeat(1, 1, n_heads, 1)
+        value = value.repeat(1, 1, n_heads, 1)
+    # grouped query case
+    elif kv_n_heads < n_heads:
+        # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
+        # We repeat each kv head by the group size number to use the underlying MHA kernels
+        # done along dim = 2, unlike the implementation for flash and torch attn
+        key = key.repeat_interleave(n_heads // kv_n_heads, dim=2)
+        value = value.repeat_interleave(n_heads // kv_n_heads, dim=2)
+
+    reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
+    attn_output = memory_efficient_attention(  # type: ignore
+        query, key, value, attn_bias, p=dropout_p)
+
+    output = attn_output.view(*attn_output.shape[:2], -1)  # type: ignore
+
+    return output, None, past_key_value
 
 class GroupedQueryAttention(nn.Module):
     """Grouped Query Attention (GQA) is a generalization of Multi-head (MHA).

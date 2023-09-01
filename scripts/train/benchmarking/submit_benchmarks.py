@@ -35,6 +35,8 @@ def str_to_bool(value: Union[bool, str]):
         return True
     raise ValueError(f'{value} is not a valid boolean value')
 
+def str_to_list_int(value: Union[List[int], str]):
+    print(value)
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -246,6 +248,7 @@ def get_gpu_nums(clusters: List[str], gpu_types: List[str]):
     max_gpus_per_run = 1
     for c in clusters:
         for gpu_info in CLUSTER_INFO[c]:
+            print(gpu_info) #TODO: remove
             if gpu_info[0] in gpu_types:
                 max_gpus_per_run = max(max_gpus_per_run, gpu_info[1])
 
@@ -405,7 +408,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         {
          'integration_type': 'git_repo',
          'git_repo': 'crinard/llm-foundry',
-         'git_branch': 'run_initial',
+         'git_branch': 'add_attns',
          'pip_install': '-e .[gpu]',
         }, {
             'integration_type': 'wandb',
@@ -415,21 +418,19 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
     ]
 
     command = ""
-    # if gpu_type == 'h100_80gb':
-    #     command += f"""
-    #     cd llm-foundry
-    #     pip install .[gpu]
-    #     pip uninstall mosaicml --yes
-    #     pip install -U git+https://github.com/mvpatel2000/composer.git@784f50be7fa8617ed562704c0207316ca2284e71
-    #     pip install flash-attn==1.0.7 --no-build-isolation
-    #     pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
-    #     pip uninstall torch==2.0.1 --yes
-    #     pip install --no-cache-dir --pre --index-url https://download.pytorch.org/whl/nightly/cu121 torch==2.1.0.dev20230821+cu121
-    #     pip uninstall install pydantic --yes
-    #     pip install pydantic==1.9.0
-    #     cd scripts
-    #     python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
-    #     composer train/train.py /mnt/config/parameters.yaml"""
+    if 'nightly' in args.image: # Fix older composer deps. TODO: this should be removed once mvpatel2000/composer.git@784f50be7fa8617ed562704c0207316ca2284e71 is merged
+        command += """pip install -U git+https://github.com/mvpatel2000/composer.git@784f50be7fa8617ed562704c0207316ca2284e71
+        pip uninstall torch==2.0.1 --yes
+        pip install --no-cache-dir --pre --index-url https://download.pytorch.org/whl/nightly/cu121 torch==2.1.0.dev20230821+cu121"""
+    if gpu_type == 'h100_80gb': # Required for flash-attn and FP8 training
+        command += f"""
+        pip install flash-attn==1.0.7 --no-build-isolation
+        pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
+        pip uninstall install pydantic --yes
+        pip install pydantic==1.9.0
+        cd llm-foundry/scripts
+        python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
+        composer train/train.py /mnt/config/parameters.yaml"""
 
     if args.data_remote is None:
         command += f"""

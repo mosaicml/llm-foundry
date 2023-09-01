@@ -708,9 +708,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         eval_lang_pp = LanguagePerplexity()
         if loss_fn_config == 'fused_crossentropy':
             eval_lang_ce.loss_fn = FusedCrossEntropyLoss(ignore_index=-100,
-                                                         reduction='mean')
+                                                         reduction='sum')
             eval_lang_pp.loss_fn = FusedCrossEntropyLoss(ignore_index=-100,
-                                                         reduction='mean')
+                                                         reduction='sum')
 
         eval_metrics = [
             eval_lang_ce,
@@ -736,9 +736,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
-            self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
+            self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100, reduction='mean')
         elif loss_fn_config == 'torch_crossentropy':
-            self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
+            self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100, reduction='mean')
         else:
             raise ValueError(
                 f'Specified loss_fn={self.loss_fn} not recognized. `loss_fn` must be one of [`fused_crossentropy`, `torch_crossentropy`].'

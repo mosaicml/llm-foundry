@@ -65,6 +65,7 @@ class StreamingTextDataset(StreamingDataset):
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``. Defaults to ``balanced``.
     """
 
     def __init__(self,
@@ -88,6 +89,7 @@ class StreamingTextDataset(StreamingDataset):
                  shuffle_algo: str = 'py1b',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
+                 sampling_method: str = 'balanced',
                  **kwargs: Any):
 
         group_method = kwargs.pop('group_method', None)
@@ -130,6 +132,7 @@ class StreamingTextDataset(StreamingDataset):
             shuffle_algo=shuffle_algo,
             shuffle_seed=shuffle_seed,
             shuffle_block_size=shuffle_block_size,
+            sampling_method=sampling_method,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len

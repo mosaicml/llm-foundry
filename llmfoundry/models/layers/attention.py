@@ -476,8 +476,9 @@ def xformers_attn_fn(query: torch.Tensor,
     query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
     key = rearrange(key, 'b s (h d) -> b s h d', h=kv_n_heads)
     value = rearrange(value, 'b s (h d) -> b s h d', h=kv_n_heads)
-    attn_bias = attn_bias.expand(query.size(0),query.size(2),query.size(1),-1)
-    attn_bias = attn_bias.type_as(query)
+    if attn_bias is not None:
+        attn_bias = attn_bias.expand(query.size(0),query.size(2),query.size(1),-1)
+        attn_bias = attn_bias.type_as(query)
     # multi-query case
     if kv_n_heads == 1:
         # necessary to repeat instead of expand tensor because

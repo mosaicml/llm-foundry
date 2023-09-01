@@ -9,14 +9,12 @@ from enum import Enum
 from typing import Dict, Iterable, Optional, Union
 
 import datasets as hf_datasets
-import psutil
 from streaming import MDSWriter
-from torch.utils.data import DataLoader, Dataset, IterableDataset
+from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
-
 from scripts.data_prep.utils import build_dataloader
 
 

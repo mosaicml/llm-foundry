@@ -1,10 +1,16 @@
-from typing import Dict, Iterable, Optional
-from torch.utils.data import DataLoader, Dataset
-import platform
-import psutil
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
-def build_dataloader(dataset: Dataset, batch_size: int,
-                     num_workers: Optional[int]=None) -> DataLoader:
+import platform
+from typing import Dict, Iterable, Optional
+
+import psutil
+from torch.utils.data import DataLoader, Dataset
+
+
+def build_dataloader(dataset: Dataset,
+                     batch_size: int,
+                     num_workers: Optional[int] = None) -> DataLoader:
     if num_workers is None:
         # Multiple workers is only supported on linux machines
         if 'linux' in platform.platform().lower():
@@ -30,6 +36,7 @@ def build_dataloader(dataset: Dataset, batch_size: int,
         num_workers=num_workers,
         prefetch_factor=prefetch_factor,
     )
+
 
 def generate_samples(
         loader: DataLoader,

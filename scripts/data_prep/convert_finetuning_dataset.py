@@ -2,18 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import platform
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable, List, Optional, Union
 
 import datasets as hf_datasets
-import psutil
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 
 from llmfoundry.data.finetuning.tasks import dataset_constructor
-
 from scripts.data_prep.utils import build_dataloader
 
 
@@ -96,6 +93,7 @@ class SimpleDataset(IterableDataset):
         for sample in self.hf_dataset:
             # convert to bytes to store in MDS binary format
             yield {key: sample[key].encode('utf-8') for key in self.columns}
+
 
 def generate_samples(
         loader: DataLoader,

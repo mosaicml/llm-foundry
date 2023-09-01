@@ -1,24 +1,24 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from argparse import ArgumentParser, Namespace
-from typing import Iterable, List
+import json
+import math
 import os
+import tempfile
+from argparse import ArgumentParser, Namespace
+from glob import glob
+from multiprocessing import Pool
+from typing import Iterable, List, cast
 
+from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
+                            parse_uri)
 from streaming import MDSWriter
 from tqdm import tqdm
-from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
-                        parse_uri)
-from llmfoundry.data import ConcatTokensDataset
 from transformers import AutoTokenizer
 
-import math
-from multiprocessing import Pool
-from glob import glob
-import json
-import tempfile
-
+from llmfoundry.data import ConcatTokensDataset
 from scripts.data_prep.utils import build_dataloader, generate_samples
+
 
 def parse_args() -> Namespace:
     """Parse commandline arguments."""
@@ -36,9 +36,9 @@ def parse_args() -> Namespace:
                         required=True,
                         help='The folder to write output to')
     parser.add_argument('--input_folder',
-                    type=str,
-                    required=True,
-                    help='The folder with text files to convert to mds')
+                        type=str,
+                        required=True,
+                        help='The folder with text files to convert to mds')
     parser.add_argument('--compression',
                         type=str,
                         default='zstd',
@@ -85,9 +85,9 @@ def parse_args() -> Namespace:
         type=bool,
         required=False,
         default=False,
-        help='If true, reprocess the input_folder to mds format. Otherwise, only reprocess upon changes to the input folder.'
+        help=
+        'If true, reprocess the input_folder to mds format. Otherwise, only reprocess upon changes to the input folder.'
     )
-
 
     parsed = parser.parse_args()
 
@@ -104,7 +104,9 @@ def parse_args() -> Namespace:
         parsed.eos_text = ''
     return parsed
 
+
 class DownloadingIterable:
+
     def __init__(
         self,
         object_names: List[str],
@@ -129,12 +131,12 @@ class DownloadingIterable:
 
     def __iter__(self):
         for object_name in self.object_names:
-            output_filename = os.path.join(self.output_folder, os.path.relpath(object_name, start=self.input_folder_prefix))
-            self.object_store.download_object(
-                object_name=object_name,
-                filename = output_filename,
-                overwrite=True
-            )
+            output_filename = os.path.join(
+                self.output_folder,
+                os.path.relpath(object_name, start=self.input_folder_prefix))
+            self.object_store.download_object(object_name=object_name,
+                                              filename=output_filename,
+                                              overwrite=True)
             with open(output_filename) as _txt_file:
                 txt = _txt_file.read()
             yield {'text': txt}
@@ -144,63 +146,71 @@ def get_object_names(input_folder: str) -> List[str]:
     object_store = maybe_create_object_store_from_uri(input_folder)
     if object_store is not None:
         _, _, folder_prefix = parse_uri(input_folder)
-        names = [name for name in object_store.list_objects(folder_prefix) if name.endswith('.txt')]
+        names = [
+            name for name in object_store.list_objects(folder_prefix)
+            if name.endswith('.txt')
+        ]
     else:
         # input_folder is a local folder
-        names = [text_file for dirpath, _, _ in os.walk(input_folder) for text_file in glob(os.path.join(dirpath, '*.txt'))]
+        names = [
+            text_file for dirpath, _, _ in os.walk(input_folder)
+            for text_file in glob(os.path.join(dirpath, '*.txt'))
+        ]
     # return names, sizes
     print(f'Found {len(names)} text files')
 
     return names
-        
+
 
 def get_task_args(
-        object_names: List[str], 
-        output_root: str, 
-        input_folder: str, 
-        n_groups: int,
-        tokenizer_name: str, 
-        concat_tokens: int,
-        eos_text: str,
-        bos_text: str,
-        no_wrap: bool,
-        compression: str,
-        max_workers: int,
-        ) -> Iterable:
+    object_names: List[str],
+    output_root: str,
+    input_folder: str,
+    n_groups: int,
+    tokenizer_name: str,
+    concat_tokens: int,
+    eos_text: str,
+    bos_text: str,
+    no_wrap: bool,
+    compression: str,
+    max_workers: int,
+) -> Iterable:
     objs_per_group = math.ceil(len(object_names) / n_groups)
     for group, i in enumerate(range(0, len(object_names), objs_per_group)):
         output_subdir = os.path.join(output_root, str(group))
         yield (
-            object_names[i:i + objs_per_group], 
-            output_subdir, 
-            input_folder, 
-            tokenizer_name, 
-            concat_tokens, 
-            eos_text, 
-            bos_text, 
-            no_wrap, 
-            max_workers, 
+            object_names[i:i + objs_per_group],
+            output_subdir,
+            input_folder,
+            tokenizer_name,
+            concat_tokens,
+            eos_text,
+            bos_text,
+            no_wrap,
             compression,
+            max_workers,
         )
 
+
 def download_and_convert(
-        file_names: List[str], 
-        output_folder: str, 
-        input_folder: str,    
-        tokenizer_name: str, 
-        concat_tokens: int,
-        eos_text: str,
-        bos_text: str,
-        no_wrap: bool,
-        compression: str,
-        max_workers: int,
-    ):
+    file_names: List[str],
+    output_folder: str,
+    input_folder: str,
+    tokenizer_name: str,
+    concat_tokens: int,
+    eos_text: str,
+    bos_text: str,
+    no_wrap: bool,
+    compression: str,
+    max_workers: int,
+):
     object_store = maybe_create_object_store_from_uri(input_folder)
     _, _, folder_prefix = parse_uri(input_folder)
 
     # Download file_names
-    with tempfile.TemporaryDirectory() as tmp_dir:  
-        downloading_iter = DownloadingIterable(file_names, folder_prefix, tmp_dir, object_store)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        downloading_iter = DownloadingIterable(file_names, folder_prefix,
+                                               tmp_dir, object_store)
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
         # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up to the maximum sequence length
@@ -219,16 +229,16 @@ def download_and_convert(
 
         print(f'Converting to MDS format...')
         with MDSWriter(out=output_folder,
-                        columns=columns,
-                        max_workers=max_workers,
-                        compression=compression
-                        ) as out:
+                       columns=columns,
+                       max_workers=max_workers,
+                       compression=compression) as out:
             for sample in tqdm(samples):
                 out.write(sample)
 
+
 def with_id(basename: str, shard_id: int) -> str:
-    """Get a new basename with the given shard_id. 
-    From https://github.com/mosaicml/streaming/blob/main/examples/multiprocess_dataset_conversion.ipynb
+    """Get a new basename with the given shard_id. From https://github.com/mosai
+    cml/streaming/blob/main/examples/multiprocess_dataset_conversion.ipynb.
 
     Args:
         basename (str): Old basename of file.
@@ -243,8 +253,9 @@ def with_id(basename: str, shard_id: int) -> str:
 
 
 def merge_shard_groups(root: str) -> None:
-    """Merge ephemeral sub-datasets created in parallel into one dataset. 
-    From https://github.com/mosaicml/streaming/blob/main/examples/multiprocess_dataset_conversion.ipynb
+    """Merge ephemeral sub-datasets created in parallel into one dataset. From h
+    ttps://github.com/mosaicml/streaming/blob/main/examples/multiprocess_dataset
+    _conversion.ipynb.
 
     Args:
         root (str): Root directory.
@@ -285,11 +296,14 @@ def merge_shard_groups(root: str) -> None:
     with open(index_filename, 'w') as out:
         out.write(text)
 
+
 def is_remote_path(path: str) -> bool:
     backend, bucket, _ = parse_uri(path)
     return backend != '' or bucket != ''
 
-def is_already_processed(output_root: str, done_file_name: str, args_str: str, object_names: List[str]) -> bool:
+
+def is_already_processed(output_root: str, done_file_name: str, args_str: str,
+                         object_names: List[str]) -> bool:
     # Retrieve the done file contents
     output_object_store = maybe_create_object_store_from_uri(output_root)
     if output_object_store is not None:
@@ -298,7 +312,9 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str, o
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 done_file = os.path.join(tmp_dir, done_file_name)
-                output_object_store.download_object(os.path.join(output_folder_prefix, done_file_name), done_file)
+                output_object_store.download_object(
+                    os.path.join(output_folder_prefix, done_file_name),
+                    done_file)
                 done_file_contents = open(done_file).read().splitlines()
         except FileNotFoundError:
             return False
@@ -312,7 +328,7 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str, o
     prev_args_str = done_file_contents[0]
     if prev_args_str != args_str:
         return False
-    
+
     # Compare file names
     prev_names = done_file_contents[1:]
     if len(prev_names) != len(object_names):
@@ -322,11 +338,13 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str, o
             return False
     return True
 
+
 # Initialize the worker process
 def init_worker():
     # Get the pid for the current worker process
     pid = os.getpid()
     print(f'\nInitialize Worker PID: {pid}', flush=True, end='')
+
 
 # def main(args: Namespace):
 def main(
@@ -349,34 +367,41 @@ def main(
     object_names = get_object_names(input_folder)
 
     # Check if the text files in the bucket have already been processed.
-    if not reprocess and is_already_processed(output_folder, done_file_name, args_str, object_names):
-        print(f'Input folder {input_folder} is already processed at {output_folder}.')
+    if not reprocess and is_already_processed(output_folder, done_file_name,
+                                              args_str, object_names):
+        print(
+            f'Input folder {input_folder} is already processed at {output_folder}.'
+        )
         return
 
     # Use a temporary local directory if the output is remote and there are more than 1 processes
-    local_output_folder = tempfile.TemporaryDirectory().name if is_remote_output else output_folder
+    local_output_folder = tempfile.TemporaryDirectory(
+    ).name if is_remote_output else output_folder
     print('local_output_folder!', local_output_folder)
 
     if processes > 1:
         # Download and convert the text files in parallel
-        args = get_task_args(object_names, local_output_folder, input_folder, processes,
-                             tokenizer_name, concat_tokens, eos_text, bos_text, no_wrap, compression, max_workers)
+        args = get_task_args(object_names, local_output_folder, input_folder,
+                             processes, tokenizer_name, concat_tokens, eos_text,
+                             bos_text, no_wrap, compression, max_workers)
         with Pool(initializer=init_worker, processes=processes) as pool:
             pool.starmap(download_and_convert, args)
-        
+
         # Merge the mds shards from each of the processes into a single folder
         merge_shard_groups(local_output_folder)
     else:
-        download_and_convert(object_names, local_output_folder, input_folder, 
-                             tokenizer_name, concat_tokens, eos_text, bos_text, no_wrap, compression, max_workers)
+        download_and_convert(object_names, local_output_folder, input_folder,
+                             tokenizer_name, concat_tokens, eos_text, bos_text,
+                             no_wrap, compression, max_workers)
 
     # Write a done file with the args and object names and sizes
-    with open(os.path.join(local_output_folder, done_file_name), 'w') as done_file:
+    with open(os.path.join(local_output_folder, done_file_name),
+              'w') as done_file:
         done_file.write('\n'.join([args_str] + object_names) + '\n')
 
     if is_remote_output:
         # Upload the local output to the remote location
-        output_object_store = maybe_create_object_store_from_uri(output_folder)
+        output_object_store = cast(ObjectStore, maybe_create_object_store_from_uri(output_folder))
         _, _, output_folder_prefix = parse_uri(output_folder)
         pattern = os.path.join(local_output_folder, '*')
         files_to_upload = sorted(glob(pattern))
@@ -384,22 +409,22 @@ def main(
         # TODO: Use multi threading to upload files?
         for local_path in files_to_upload:
             assert not os.path.isdir(local_path)
-            remote_path = os.path.join(output_folder_prefix, os.path.basename(local_path))
+            remote_path = os.path.join(output_folder_prefix,
+                                       os.path.basename(local_path))
             output_object_store.upload_object(remote_path, local_path)
+
 
 if __name__ == '__main__':
     args = parse_args()
-    main(
-        tokenizer_name=args.tokenizer,
-        output_folder=args.output_folder,
-        input_folder=args.input_folder,
-        concat_tokens=args.concat_tokens,
-        eos_text=args.eos_text,
-        bos_text=args.bos_text,
-        no_wrap=args.no_wrap,
-        max_workers=args.max_workers,
-        compression=args.compression,
-        processes=args.processes,
-        reprocess=args.reprocess,
-        args_str=str(args)
-    )
+    main(tokenizer_name=args.tokenizer,
+         output_folder=args.output_folder,
+         input_folder=args.input_folder,
+         concat_tokens=args.concat_tokens,
+         eos_text=args.eos_text,
+         bos_text=args.bos_text,
+         no_wrap=args.no_wrap,
+         max_workers=args.max_workers,
+         compression=args.compression,
+         processes=args.processes,
+         reprocess=args.reprocess,
+         args_str=str(args))

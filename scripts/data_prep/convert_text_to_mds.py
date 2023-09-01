@@ -8,7 +8,7 @@ import tempfile
 from argparse import ArgumentParser, Namespace
 from glob import glob
 from multiprocessing import Pool
-from typing import Iterable, List, cast
+from typing import Iterable, List, Optional, cast
 
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
                             parse_uri)
@@ -112,9 +112,11 @@ class DownloadingIterable:
         object_names: List[str],
         input_folder_prefix: str,
         output_folder: str,
-        object_store: ObjectStore,
+        object_store: Optional[ObjectStore],
     ):
         """Iterable that downloads files from an object store before yielding.
+
+        If object_store is None, input_folder_prefix is treated as a local path.
 
         text samples.
 
@@ -122,7 +124,7 @@ class DownloadingIterable:
             object_names (List[str]): Names of objects to to download
             input_folder_prefix (str): Object store prefix to download from
             output_folder (str): Local folder to write downloaded files to
-            object_store (ObjectStore): Object store to download from
+            object_store (Optiona[ObjectStore]): Object store to download from
         """
         self.object_names = object_names
         self.object_store = object_store
@@ -134,9 +136,15 @@ class DownloadingIterable:
             output_filename = os.path.join(
                 self.output_folder,
                 os.path.relpath(object_name, start=self.input_folder_prefix))
-            self.object_store.download_object(object_name=object_name,
-                                              filename=output_filename,
-                                              overwrite=True)
+            if self.object_store is not None:
+                self.object_store.download_object(object_name=object_name,
+                                                  filename=output_filename,
+                                                  overwrite=True)
+            else:
+                # Inputs are local so we do not need to download them.
+                output_filename = os.path.join(self.input_folder_prefix,
+                                               object_name)
+
             with open(output_filename) as _txt_file:
                 txt = _txt_file.read()
             yield {'text': txt}
@@ -238,8 +246,9 @@ def download_and_convert(
 
 
 def with_id(basename: str, shard_id: int) -> str:
-    """Get a new basename with the given shard_id. From https://github.com/mosai
-    cml/streaming/blob/main/examples/multiprocess_dataset_conversion.ipynb.
+    """Get a new basename with the given shard_id.
+
+    From https://github.com/mosaicml/streaming/blob/main/examples/multiprocess_dataset_conversion.ipynb.
 
     Args:
         basename (str): Old basename of file.
@@ -254,8 +263,9 @@ def with_id(basename: str, shard_id: int) -> str:
 
 
 def merge_shard_groups(root: str) -> None:
-    """Merge ephemeral sub-datasets created in parallel into one dataset. From h
-    ttps://github.com/mosaicml/streaming/blob/main/examples/multiprocess_dataset
+    """Merge ephemeral sub-datasets created in parallel into one dataset.
+
+    From https://github.com/mosaicml/streaming/blob/main/examples/multiprocess_dataset
     _conversion.ipynb.
 
     Args:
@@ -339,7 +349,7 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str,
             return False
     return True
 
-# def main(args: Namespace):
+
 def main(
     tokenizer_name: str,
     output_folder: str,

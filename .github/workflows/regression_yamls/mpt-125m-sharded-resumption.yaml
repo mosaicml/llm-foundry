@@ -10,8 +10,15 @@ command: |
     --dataset c4 --data_subset en \
     --out_root ./my-copy-c4 --splits train_small val_small \
     --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
-  composer train/train.py /mnt/config/parameters.yaml max_duration=10ba train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
-  composer train/train.py /mnt/config/parameters.yaml max_duration=20ba autoresume=true train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
+  composer train/train.py /mnt/config/parameters.yaml \
+    max_duration=10ba \
+    train_loader.dataset.split=train_small \
+    eval_loader.dataset.split=val_small
+  composer train/train.py /mnt/config/parameters.yaml \
+    max_duration=20ba \
+    autoresume=true \
+    train_loader.dataset.split=train_small \
+    eval_loader.dataset.split=val_small
 
 image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
 name: mpt-125m-sharded-regression

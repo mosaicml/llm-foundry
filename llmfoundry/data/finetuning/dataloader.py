@@ -413,10 +413,9 @@ if __name__ == '__main__':
         'timeout': 0
     })
 
-    tokenizer_cfg = {'name': 'EleutherAI/gpt-neox-20b', 'kwargs': {}}
-    tokenizer_cfg['kwargs'] = {'model_max_length': cfg.dataset.max_seq_len}
-    tokenizer_cfg = om.create(tokenizer_cfg)
-    tokenizer = build_tokenizer(tokenizer_cfg)
+    tokenizer_name = 'EleutherAI/gpt-neox-20b'
+    tokenizer_kwargs = {'model_max_length': cfg.dataset.max_seq_len}
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     device_batch_size = 2
     dataloader = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)

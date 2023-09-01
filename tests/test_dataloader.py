@@ -105,10 +105,9 @@ def test_correct_padding(tokenizer_name: str,
     })
 
     tokenizer = build_tokenizer(
-        om.create({
-            'name': tokenizer_name,
-            'kwargs': {}
-        }))
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={},
+    )
 
     # Dataloaders
     eval_loader = build_text_dataloader(
@@ -202,12 +201,8 @@ def test_denoising_dataloader(decoder_only_format: bool, pretokenize: bool,
             expected_keys += ['sequence_id']
 
         tokenizer = build_tokenizer(
-            om.create({
-                'name': tokenizer_name,
-                'kwargs': {
-                    'model_max_length': max_seq_len
-                }
-            }))
+            tokenizer_name=tokenizer_name,
+            tokenizer_kwargs={'model_max_length': max_seq_len})
 
         loader = build_text_denoising_dataloader(cfg, tokenizer,
                                                  device_batch_size)
@@ -258,12 +253,8 @@ def test_finetuning_dataloader(decoder_only_format: bool,
     cfg = om.create(cfg)
 
     tokenizer = build_tokenizer(
-        om.create({
-            'name': tokenizer_name,
-            'kwargs': {
-                'model_max_length': max_seq_len
-            }
-        }))
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={'model_max_length': max_seq_len})
 
     device_batch_size = 2
 
@@ -332,12 +323,9 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     cfg = om.create(cfg)
 
     tokenizer = build_tokenizer(
-        om.create({
-            'name': tokenizer_name,
-            'kwargs': {
-                'model_max_length': max_seq_len
-            }
-        }))
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
 
     expected_keys = ['input_ids', 'attention_mask', 'labels']
     expected_keys += ['bidirectional_mask']

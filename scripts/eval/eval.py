@@ -100,7 +100,12 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
                    icl_subset_num_batches: Optional[int]):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
-    tokenizer = build_tokenizer(model_cfg.tokenizer)
+    tokenizer_cfg: Dict[str,
+                        Any] = om.to_container(model_cfg.tokenizer,
+                                               resolve=True)  # type: ignore
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
         icl_tasks, eval_gauntlet_config, tokenizer, device_eval_batch_size,

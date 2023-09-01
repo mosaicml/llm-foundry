@@ -2,13 +2,13 @@ integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
   # git_branch: # Specify your git branch
-  # git_commit: # OR use your commit hash
+  git_commit: 186dd19888a8c8874584f9e78619f3fb0348309f # TODO: repin after next release
   pip_install: -e .[gpu]
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  cd llm-foundry/llmfoundry/icl_eval
-  composer eval.py /mnt/config/parameters.yaml
+  cd llm-foundry/scripts/
+  composer eval/eval.py /mnt/config/parameters.yaml
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 name: mpt-1b-eval
 
@@ -35,7 +35,7 @@ parameters:
       name: mpt_causal_lm
       init_device: meta
       d_model: 2048
-      n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
+      n_heads: 16 # Modified 24->16 so that d_head == 128 to satisfy FlashAttention
       n_layers: 24
       expansion_ratio: 4
       max_seq_len: ${max_seq_len}

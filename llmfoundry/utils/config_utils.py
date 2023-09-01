@@ -29,7 +29,7 @@ def pop_config(cfg: DictConfig,
         if not isinstance(value, DictConfig) and not isinstance(
                 value, ListConfig):
             raise ValueError(
-                f'The key: {key} has a value: {value} that cannot be \
+                f'The key {key} has a value of type {type(value)} that cannot be \
                             converted to a dict or list. Please check your yaml.'
             )
         return om.to_container(value)

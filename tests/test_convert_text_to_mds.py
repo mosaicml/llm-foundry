@@ -24,7 +24,6 @@ from scripts.data_prep.convert_text_to_mds import (download_and_convert,
                                                    is_already_processed, main,
                                                    merge_shard_groups,
                                                    write_done_file)
-from scripts.data_prep.utils import build_dataloader
 
 
 class MockObjectStore():
@@ -84,7 +83,12 @@ def _mock_starmap(func: Callable, args: Iterable):
 def _mock_build_dataloader(dataset: Dataset,
                            batch_size: int,
                            num_workers: Optional[int] = None) -> DataLoader:
-    return build_dataloader(dataset, batch_size, num_workers=0)
+    return DataLoader(
+        dataset=dataset,
+        sampler=None,
+        batch_size=batch_size,
+        num_workers=0,
+    )
 
 
 def _assert_files_exist(prefix: str, files: List[str]):

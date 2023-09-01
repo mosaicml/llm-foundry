@@ -411,7 +411,7 @@ def xformers_attn_fn(query: torch.Tensor,
     multiquery: bool = False,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-    
+    torch.use_deterministic_algorithms(True)
     try:
         from xformers.ops import memory_efficient_attention
     except:

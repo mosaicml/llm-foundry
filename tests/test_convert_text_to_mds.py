@@ -1,23 +1,19 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Mock get object names and hash, object store object (upload- mock, no functionality; download - write to given location), remote path s3://fake-test-path-input
-
-# Test single process (download and convert is called once with all argumnets), multi process (download and convert and mds writer is called n times and with the correct arguments, test to make sure json is correct),
-# Test 1 process and remote directory
-
-import json
 import os
 import pathlib
 from glob import glob
-from typing import List
+from multiprocessing.pool import Pool
+from typing import Callable, Iterable, List
 from unittest.mock import Mock, patch
 
 import numpy as np
-from streaming import MDSWriter, StreamingDataset
+from streaming import StreamingDataset
 from transformers import AutoTokenizer
 
-from scripts.data_prep.convert_text_to_mds import download_and_convert, main
+from scripts.data_prep.convert_text_to_mds import (download_and_convert, main,
+                                                   merge_shard_groups)
 
 
 class MockObjectStore():
@@ -44,7 +40,6 @@ class MockObjectStore():
         return glob(os.path.join(self.remote_folder, '*.txt'))
 
     def upload_object(self, object_name: str, filename: str):
-        print('upload!!', object_name, filename)
         with open(
                 os.path.join(self.remote_folder, os.path.basename(object_name)),
                 'wb') as remote_file, open(filename, 'rb') as local_file:
@@ -52,38 +47,91 @@ class MockObjectStore():
 
 
 def _call_convert_text_to_mds(processes: int, tokenizer_name: str) -> None:
-    main(tokenizer_name,
-         f's3://fake-test-output-path',
-         f's3://fake-test-input-path',
-         2048,
-         '',
-         '',
-         False,
-         1,
-         'zstd',
-         processes,
-         args_str='Namespace()',
-         reprocess=False)
+    main(
+        tokenizer_name=tokenizer_name,
+        output_folder=f's3://fake-test-output-path',
+        input_folder=f's3://fake-test-input-path',
+        concat_tokens=2048,
+        eos_text='',
+        bos_text='',
+        no_wrap=False,
+        max_workers=1,
+        compression='zstd',
+        processes=processes,
+        args_str='Namespace()',
+        reprocess=False,
+    )
+
+
+# Mock starmap with no multiprocessing
+def _mock_starmap(func: Callable, args: Iterable):
+    for arg in args:
+        func(*arg)
+
+
+def _assert_files_exist(prefix: str, files: List[str]):
+    for file in files:
+        assert os.path.exists(os.path.join(prefix, file))
 
 
 @patch(
     'scripts.data_prep.convert_text_to_mds.maybe_create_object_store_from_uri')
 @patch('scripts.data_prep.convert_text_to_mds.parse_uri')
-@patch('scripts.data_prep.convert_text_to_mds.MDSWriter', wraps=MDSWriter)
-def test_multi_process(mds_writer: Mock, parse_uri: Mock,
+@patch('scripts.data_prep.convert_text_to_mds.download_and_convert',
+       wraps=download_and_convert)
+@patch('scripts.data_prep.convert_text_to_mds.merge_shard_groups',
+       wraps=merge_shard_groups)
+@patch.object(Pool, 'starmap', wraps=_mock_starmap)
+def test_multi_process(_: Mock, merge_shard_groups: Mock,
+                       download_and_convert: Mock, parse_uri: Mock,
                        maybe_create_object_store_from_uri: Mock,
                        tmp_path: pathlib.Path):
     remote_folder = os.path.join(tmp_path, 'remote')
-    n_text_files = 3
+    n_text_files = 6
     text_content = 'HELLO WORLD'
     tokenizer_name = 'mosaicml/mpt-7b'
 
-    maybe_create_object_store_from_uri.return_value = Mock(
-        name='ObjectStore mock',
-        wraps=MockObjectStore(remote_folder, n_text_files, text_content))
+    mock_object_store = Mock(name='ObjectStore mock',
+                             wraps=MockObjectStore(remote_folder, n_text_files,
+                                                   text_content))
+    maybe_create_object_store_from_uri.return_value = mock_object_store
     parse_uri.return_value = ('s3', 'fake-test-bucket', str(remote_folder))
 
     _call_convert_text_to_mds(processes=2, tokenizer_name=tokenizer_name)
+
+    assert download_and_convert.call_count == 2
+    assert mock_object_store.download_object.call_count == n_text_files + 1
+    assert mock_object_store.upload_object.call_count == 4  # 2 shards + done file + index.json
+    merge_shard_groups.assert_called_once()
+
+    object_names_0 = download_and_convert.call_args_list[0][0][0]
+    object_names_1 = download_and_convert.call_args_list[1][0][0]
+
+    assert len(
+        object_names_0
+    ) == n_text_files / 2  # Half of the text files should be called with process 0
+    assert len(
+        object_names_1
+    ) == n_text_files / 2  # Half of the text files should be called with process 1
+    assert len(
+        set(object_names_0 + object_names_1)
+    ) == n_text_files  # There should be n_text_files unique object names
+
+    # Check that correct output files exist
+    _assert_files_exist(prefix=remote_folder,
+                        files=[
+                            'index.json',
+                            'done',
+                            'shard.00000.mds.zstd',
+                            'shard.00001.mds.zstd',
+                        ])
+
+    # Check that the dataset can be used and produces samples with the original text_content
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    dataset = StreamingDataset(local=remote_folder)
+    sample = dataset.__iter__().__next__()
+    assert tokenizer.decode(np.frombuffer(sample['tokens'],
+                                          dtype=int)).startswith(text_content)
 
 
 @patch(
@@ -111,17 +159,13 @@ def test_single_process(download_and_convert: Mock, parse_uri: Mock,
     assert mock_object_store.download_object.call_count == n_text_files + 1  # Downloaded n_text_files files + done file
     assert mock_object_store.upload_object.call_count == 3  # Uploaded done file, index.json, and shard
 
-    # There should be one shard with the correct compression extension.
-    assert os.path.exists(os.path.join(remote_folder, 'shard.00000.mds.zstd'))
-
-    # Check the index.json file
-    index_json = os.path.join(remote_folder, 'index.json')
-    assert os.path.exists(index_json)
-    with open(index_json, 'r') as f:
-        shards = json.load(f)['shards']
-        assert len(shards) == 1
-        shard = shards[0]
-        assert shard['raw_data']['basename'] == 'shard.00000.mds'
+    # Check that correct output files exist
+    _assert_files_exist(prefix=remote_folder,
+                        files=[
+                            'index.json',
+                            'done',
+                            'shard.00000.mds.zstd',
+                        ])
 
     _call_convert_text_to_mds(processes=1, tokenizer_name=tokenizer_name)
 

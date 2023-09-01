@@ -377,7 +377,6 @@ def main(
     # Use a temporary local directory if the output is remote and there are more than 1 processes
     local_output_folder = tempfile.TemporaryDirectory(
     ).name if is_remote_output else output_folder
-    print('local_output_folder!', local_output_folder)
 
     if processes > 1:
         # Download and convert the text files in parallel
@@ -401,7 +400,8 @@ def main(
 
     if is_remote_output:
         # Upload the local output to the remote location
-        output_object_store = cast(ObjectStore, maybe_create_object_store_from_uri(output_folder))
+        output_object_store = cast(
+            ObjectStore, maybe_create_object_store_from_uri(output_folder))
         _, _, output_folder_prefix = parse_uri(output_folder)
         pattern = os.path.join(local_output_folder, '*')
         files_to_upload = sorted(glob(pattern))

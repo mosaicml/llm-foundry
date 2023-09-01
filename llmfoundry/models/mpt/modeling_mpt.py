@@ -29,6 +29,7 @@ from transformers.modeling_outputs import (BaseModelOutputWithPast,
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
+from llmfoundry.models.layers.cross_entropy import FusedCrossEntropyLoss
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY as FC_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import \
@@ -691,10 +692,29 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         hf_config = MPTConfig.from_dict(resolved_om_model_config)
         model = MPTForCausalLM(hf_config)
 
-        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
+        loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
+
+        train_lang_ce = LanguageCrossEntropy()
+        train_lang_pp = LanguagePerplexity()
+        if loss_fn_config == 'fused_crossentropy':
+            train_lang_ce.loss_fn = FusedCrossEntropyLoss(ignore_index=-100,
+                                                          reduction='sum')
+            train_lang_pp.loss_fn = FusedCrossEntropyLoss(ignore_index=-100,
+                                                          reduction='sum')
+
+        train_metrics = [train_lang_ce, train_lang_pp]
+
+        eval_lang_ce = LanguageCrossEntropy()
+        eval_lang_pp = LanguagePerplexity()
+        if loss_fn_config == 'fused_crossentropy':
+            eval_lang_ce.loss_fn = FusedCrossEntropyLoss(ignore_index=-100,
+                                                         reduction='mean')
+            eval_lang_pp.loss_fn = FusedCrossEntropyLoss(ignore_index=-100,
+                                                         reduction='mean')
+
         eval_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
+            eval_lang_ce,
+            eval_lang_pp,
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
@@ -716,20 +736,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
-            try:
-                from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
-
-                if hf_config.verbose > 1:
-                    warnings.warn('Using Fused Cross Entropy Loss.')
-                self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
-            except:
-                raise ValueError(
-                    'Fused Cross Entropy is not installed. Either (1) have a CUDA-compatible GPU '
-                    +
-                    'and `pip install .[gpu]` if installing from source or `pip install xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy` '
-                    +
-                    'if installing from pypi, or (2) set your config model.loss_fn=torch_crossentropy.'
-                )
+            self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
         elif loss_fn_config == 'torch_crossentropy':
             self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
         else:

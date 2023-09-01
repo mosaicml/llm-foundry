@@ -40,6 +40,7 @@ def test_attn_impl(attn_impl_0: str,
         pytest.xfail('flash attn does not support alibi')
 
     reproducibility.seed_all(7)
+    torch.use_deterministic_algorithms(True) # Added for xformers
 
     cfg = om.create({
         'attn_impl': 'flash',
@@ -136,6 +137,7 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
     from llmfoundry.models.layers import attention
 
     reproducibility.seed_all(17)
+    torch.use_deterministic_algorithms(True) # Added for xformers
 
     cfg = om.create({
         'attn_impl': attn_impl,
@@ -235,6 +237,7 @@ def test_grouped_attention_heads(attn_impl: str,
     from llmfoundry.models.layers import attention
 
     reproducibility.seed_all(17)
+    torch.use_deterministic_algorithms(True) # Added for xformers
 
     cfg = om.create({
         'attn_impl': attn_impl,
@@ -274,6 +277,7 @@ def test_grouped_query_invalid_heads(attn_impl: str, device: str = 'cuda'):
     from llmfoundry.models.layers import attention
 
     reproducibility.seed_all(17)
+    torch.use_deterministic_algorithms(True) # Added for xformers
 
     cfg = om.create({
         'attn_impl': attn_impl,

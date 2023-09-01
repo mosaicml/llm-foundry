@@ -8,6 +8,9 @@ from typing import Any, Dict, List, Union
 
 from mcli import sdk as msdk
 
+GPU_AVAILABLE_FLOPS = 312_000_000_000_000
+
+
 def str_to_bool(value: Union[bool, str]):
     # helper fn
     if isinstance(value, bool):
@@ -43,12 +46,13 @@ def parse_args():
 
 
 def get_runs(args: argparse.Namespace):
-    runs = [r for r in msdk.get_runs(include_details=True) if args.project in r.name.split('-')[0] and r.status == msdk.RunStatus("COMPLETED")]
+    runs = [r for r in msdk.get_runs() if args.project in r.name]
     for filter in args.filters:
         runs = [r for r in runs if filter in r.name]
+
     def sort_key(r: msdk.Run):
         model_name = r.name.split('-')[2]
-        num_gpu = r.gpus
+        num_gpu = r.config.gpu_num
         if model_name[-1] == 'm':
             model_name_size = 1e6
         elif model_name[-1] == 'b':
@@ -57,8 +61,9 @@ def get_runs(args: argparse.Namespace):
             print(model_name)
             raise ValueError
         model_size = int(model_name[:-1])
-        return (r.image, model_name_size, model_size, r.submitted_config.parameters['max_seq_len'],
-                num_gpu, r.submitted_config.parameters['global_train_batch_size'])
+        return (model_name_size, model_size, r.config.parameters['max_seq_len'],
+                num_gpu, r.config.parameters['global_train_batch_size'])
+
     runs.sort(reverse=True, key=sort_key)
 
     return runs
@@ -78,7 +83,17 @@ def filter_runs(runs: List[msdk.Run]):
 
     pop_runs = []
     for run in runs:
-        if run.status != msdk.RunStatus("COMPLETED"):
+        if run.status in [
+                msdk.RunStatus('FAILED_PULL'),
+                msdk.RunStatus('PENDING'),
+                msdk.RunStatus('QUEUED'),
+                msdk.RunStatus('RUNNING'),
+                msdk.RunStatus('SCHEDULED'),
+                msdk.RunStatus('STARTING'),
+                msdk.RunStatus('STOPPED'),
+                msdk.RunStatus('STOPPING'),
+                msdk.RunStatus('TERMINATING'),
+        ]:
             print(f'run {run.name} has run status {run.status}')
             pop_runs.append(run)
     for run in pop_runs:
@@ -91,13 +106,13 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     n_params = micro_batchsize = throughput = -1
 
     model_name = run.name.split('-')[2]
-    gpus = run.gpus
-    gpu_type = run.gpu_type
-    GPU_AVAILABLE_FLOPS = 312_000_000_000_000 if (gpu_type != "h100_80gb") else (1_979_000_000_000_000/2 if run.submitted_config.parameters['precision'] == 'bf16' else 1_979_000_000_000_000)# NOTE: This is accurate for BF16 or FP8 only
-    fsdp_config = run.submitted_config.parameters['fsdp_config']
+    gpu_num = run.config.gpu_num
+    gpu_type = run.config.gpu_type
 
-    seq_len = run.submitted_config.parameters['max_seq_len']
-    global_train_batch_size = run.submitted_config.parameters['global_train_batch_size']
+    fsdp_config = run.config.parameters['fsdp_config']
+
+    seq_len = run.config.parameters['max_seq_len']
+    global_train_batch_size = run.config.parameters['global_train_batch_size']
     activation_checkpointing = fsdp_config['activation_checkpointing']
 
     logs = msdk.get_run_logs(run)
@@ -123,8 +138,8 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
             throughput = float(line.split(' ')[-1])
             break
 
-    d_model = run.submitted_config.parameters['model']['d_model']
-    n_layers = run.submitted_config.parameters['model']['n_layers']
+    d_model = run.config.parameters['model']['d_model']
+    n_layers = run.config.parameters['model']['n_layers']
 
     # mfu is approximated using thoughtput and param count
     # the number of paramters is approximately the number of multiply-accumulates (MAC) in the network
@@ -138,26 +153,21 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     attn_flops_per_seq = n_layers * 2 * 2 * (d_model * (seq_len**2))
     # there are 2 ops in bwd pass and 1 in fwd pass so we mult by 3
     mfu_w_attn = (3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / (
-        gpus * GPU_AVAILABLE_FLOPS)
+        gpu_num * GPU_AVAILABLE_FLOPS)
 
     if activation_checkpointing:
         hfu_w_attn = (4 * flops_per_seq + 4 * attn_flops_per_seq
-                     ) * throughput / (gpus * GPU_AVAILABLE_FLOPS)
+                     ) * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
     else:
         hfu_w_attn = mfu_w_attn
 
-    # New things that we're testing for
-    image = run.image
-    # compile_fullg = run.submitted_config.parameters['compile_config']['fullgraph']
-    # compile_dynamic = run.submitted_config.parameters['compile_config']['dynamic']
-    # compile_mode = run.submitted_config.parameters['compile_config']['mode']
     return {
         'Model':
             model_name,
         'SeqLen (T)':
             seq_len,
         '# GPUs':
-            gpus,
+            gpu_num,
         'GPU':
             gpu_type,
         'MFU':
@@ -167,7 +177,7 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
         'MicroBatchSize':
             micro_batchsize,
         'GradAccum':
-            math.ceil(global_train_batch_size / gpus / micro_batchsize),
+            math.ceil(global_train_batch_size / gpu_num / micro_batchsize),
         'GlobalBatchSize':
             global_train_batch_size,
         'Throughput (S/s)':
@@ -175,11 +185,11 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
         'Throughput (T/s)':
             int(throughput * seq_len),
         'Throughput (T/s/GPU)':
-            int(throughput * seq_len / gpus),
+            int(throughput * seq_len / gpu_num),
         'GlobalBatchSize (T)':
             global_train_batch_size * seq_len,
         'Precision':
-            run.submitted_config.parameters['precision'],
+            run.config.parameters['precision'],
         'MP Mode':
             fsdp_config['mixed_precision'],
         'Sharding Strategy':
@@ -190,14 +200,6 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
             str(fsdp_config['activation_cpu_offload']),
         'NumParams':
             n_params,
-        'Image':
-            image,
-        # 'Compile Mode':
-        #     compile_mode,
-        # 'Compile Fullgraph':
-        #     compile_fullg,
-        # 'Compile Dynamic':
-        #     compile_dynamic,
     }
 
 

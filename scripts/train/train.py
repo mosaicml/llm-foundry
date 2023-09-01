@@ -376,10 +376,6 @@ def main(cfg: DictConfig) -> Trainer:
                                                        'load_ignore_keys',
                                                        must_exist=False,
                                                        default_value=None)
-    compile_config: Optional[Dict[str, Any]] = pop_config(cfg,
-                                                          'compile_config',
-                                                          must_exist=False,
-                                                          default_value=None)
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
     if logged_cfg.get('run_name', None) is not None \
@@ -543,7 +539,6 @@ def main(cfg: DictConfig) -> Trainer:
         autoresume=autoresume,
         python_log_level=python_log_level,
         dist_timeout=dist_timeout,
-        compile_config=compile_config,
     )
 
     print('Logging config')

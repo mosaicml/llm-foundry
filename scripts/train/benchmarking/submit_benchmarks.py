@@ -8,7 +8,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import requests
 import yaml
 from mcli.models.run_config import SchedulingConfig
-from mcli.sdk import RunConfig, create_run, get_clusters, follow_run_logs
+from mcli.sdk import RunConfig, create_run, get_clusters
+
 
 def _get_cluster_info():
     clusters = get_clusters()
@@ -61,36 +62,11 @@ def parse_args():
                         type=str,
                         default=['bf16'],
                         nargs='+',
-                        choices=['bf16', 'fp16', 'fp8'])
+                        choices=['bf16', 'fp16'])
     parser.add_argument('--fsdp_config_mixed_precision',
                         type=str,
                         default='PURE')
     parser.add_argument('--fsdp_config_activation_checkpointing',
-                        type=str_to_bool,
-                        nargs='?',
-                        const=True,
-                        default=None)
-    parser.add_argument('--fsdp_config_shard_strategy',
-                        type=str,
-                        nargs='?',
-                        const=True,
-                        default=None)
-    parser.add_argument('--fsdp_config_limit_all_gathers',
-                        type=str_to_bool,
-                        nargs='?',
-                        const=True,
-                        default=None)
-    parser.add_argument('--fsdp_config_forward_prefetch',
-                        type=str_to_bool,
-                        nargs='?',
-                        const=True,
-                        default=None)
-    parser.add_argument('--fsdp_config_backward_prefetch',
-                        type=str,
-                        nargs='?',
-                        const=True,
-                        default=None)
-    parser.add_argument('--activation_cpu_offload',
                         type=str_to_bool,
                         nargs='?',
                         const=True,
@@ -145,7 +121,7 @@ def parse_args():
     parser.add_argument('-c',
                         '--clusters',
                         type=str,
-                        default=['r1z1'],
+                        default=['r7z2'],
                         nargs='+',
                         choices=CLUSTER_INFO.keys())
     known_args = parser.parse_known_args()[0]
@@ -160,7 +136,7 @@ def parse_args():
     parser.add_argument('-g',
                         '--gpu_nums',
                         type=int,
-                        default=[8],
+                        default=[16],
                         nargs='+',
                         choices=_gpu_nums)
 
@@ -182,17 +158,14 @@ def parse_args():
                         const=True,
                         default=True)
 
-    parser.add_argument('--priority', type=str, default='lowest')
+    parser.add_argument('--priority', type=str, default='low')
 
-    parser.add_argument('--torch_compile_fullgraph', type=str_to_bool, default=None)
-    parser.add_argument('--torch_compile_dynamic', type=str_to_bool, default=None)
-    parser.add_argument('--torch_compile_mode', type=str, default=None)
-    parser.add_argument('--torch_compile', type=str_to_bool, default=False)
     parser.add_argument('--RUN',
                         type=str_to_bool,
                         nargs='?',
                         const=True,
                         default=False)
+
     return parser.parse_args()
 
 
@@ -269,23 +242,13 @@ def mod_parameters(parameters: Dict[str, Any],
                    precision: str,
                    fsdp_config_mixed_precision: str = 'DEFAULT',
                    fsdp_config_activation_checkpointing: Optional[bool] = None,
-                   fsdp_config_shard_strategy: Optional[str] = None,
-                   fsdp_config_forward_prefetch: Optional[bool] = None,
-                   fsdp_config_backward_prefetch: Optional[str] = None,
-                   fsdp_config_limit_all_gathers: Optional[bool] = None,
-                   activation_cpu_offload: Optional[bool] = None,
                    run_name: str = '',
                    data_remote: Optional[str] = None,
                    max_duration: str = '30ba',
                    eval_interval: int = 0,
                    microbatch_size: Optional[Union[int, str]] = None,
                    wandb: bool = True,
-                   pad_vocab_multiple: Optional[int] = None,
-                   torch_compile_fullgraph: Optional[bool] = None,
-                   torch_compile_dynamic: Optional[bool] = None,
-                   torch_compile_mode: Optional[str] = None,
-                   torch_compile: bool = False
-                   ):
+                   pad_vocab_multiple: Optional[int] = None):
     if run_name:
         parameters['run_name'] = run_name
     if data_remote is not None:
@@ -296,7 +259,8 @@ def mod_parameters(parameters: Dict[str, Any],
             'data_remote']
 
         parameters['data_local'] = '/tmp/c4'
-        parameters['train_loader']['dataset']['local'] = parameters['data_local']
+        parameters['train_loader']['dataset']['local'] = parameters[
+            'data_local']
         parameters['eval_loader']['dataset']['local'] = parameters['data_local']
     else:
         parameters['train_loader']['dataset'][
@@ -307,9 +271,9 @@ def mod_parameters(parameters: Dict[str, Any],
     parameters['max_seq_len'] = max_seq_len
     parameters['model']['max_seq_len'] = max_seq_len
 
-    parameters['model']['attn_config']['attn_impl'] = args.attn_impl
+    parameters['model']['attn_impl'] = args.attn_impl
 
-    parameters['model']['norm_type'] = "low_precision_layernorm"
+    parameters['model']['low_precision_layernorm'] = True
 
     # Pad vocab size to multiple of N for A100 perf
     if pad_vocab_multiple:
@@ -339,25 +303,11 @@ def mod_parameters(parameters: Dict[str, Any],
     parameters['precision'] = precision
     parameters['fsdp_config']['mixed_precision'] = fsdp_config_mixed_precision
     if fsdp_config_activation_checkpointing is not None:
-        parameters['fsdp_config']['activation_checkpointing'] = fsdp_config_activation_checkpointing
-    if fsdp_config_shard_strategy is not None:
-        parameters['fsdp_config']['sharding_strategy'] = fsdp_config_shard_strategy
-    if fsdp_config_limit_all_gathers is not None:
-        parameters['fsdp_config']['limit_all_gathers'] = fsdp_config_limit_all_gathers
-    if fsdp_config_forward_prefetch is not None:
-        parameters['fsdp_config']['forward_prefetch'] = fsdp_config_forward_prefetch
-    if fsdp_config_backward_prefetch is not None:
-        parameters['fsdp_config']['backward_prefetch'] = fsdp_config_backward_prefetch
-    if activation_cpu_offload is not None:
-        parameters['fsdp_config']['activation_cpu_offload'] = activation_cpu_offload
-    # parameters['fsdp_config']['verbose'] = True
-    parameters['compile_config'] = {} if torch_compile else None
-    # if torch_compile_fullgraph is not None:
-    #     parameters['compile_config']['fullgraph'] = torch_compile_fullgraph
-    # if torch_compile_dynamic is not None:
-    #    parameters['compile_config']['dynamic'] = torch_compile_dynamic
-    # if torch_compile_mode is not None:
-    #     parameters['compile_config']['mode'] = torch_compile_mode
+        parameters['fsdp_config'][
+            'activation_checkpointing'] = fsdp_config_activation_checkpointing
+
+    parameters['fsdp_config']['activation_checkpointing_reentrant'] = False
+    parameters['fsdp_config']['limit_all_gathers'] = True
 
     if wandb:
         # add wandb
@@ -382,7 +332,7 @@ def get_integrations(project: str,
     }
     git_integration.update({
         'integration_type': 'git_repo',
-        'git_repo': 'crinard/llm-foundry',
+        'git_repo': 'mosaicml/examples',
         'pip_install': '-e .[gpu]'
     })
 
@@ -401,49 +351,30 @@ def get_integrations(project: str,
 def run_config(config: Tuple[str, int, int, str, str, int, str],
                args: argparse.Namespace):
     model_yaml, max_seq_len, global_train_batch_size, cluster, gpu_type, gpu_num, precision = config
-    integrations = [
-        {
-         'integration_type': 'git_repo',
-         'git_repo': 'crinard/llm-foundry',
-         'git_branch': 'run_initial',
-         'pip_install': '-e .[gpu]',
-        }, {
-            'integration_type': 'wandb',
-            'entity': 'mosaic-ml',
-            'project': args.project
-        }
-    ]
 
-    command = ""
-    # if gpu_type == 'h100_80gb':
-    #     command += f"""
-    #     cd llm-foundry
-    #     pip install .[gpu]
-    #     pip uninstall mosaicml --yes
-    #     pip install -U git+https://github.com/mvpatel2000/composer.git@784f50be7fa8617ed562704c0207316ca2284e71
-    #     pip install flash-attn==1.0.7 --no-build-isolation
-    #     pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
-    #     pip uninstall torch==2.0.1 --yes
-    #     pip install --no-cache-dir --pre --index-url https://download.pytorch.org/whl/nightly/cu121 torch==2.1.0.dev20230821+cu121
-    #     pip uninstall install pydantic --yes
-    #     pip install pydantic==1.9.0
-    #     cd scripts
-    #     python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer gpt2 --eos_text '<|endoftext|>'
-    #     composer train/train.py /mnt/config/parameters.yaml"""
+    integrations = get_integrations(
+        args.project,
+        git_branch=args.git_branch,
+        git_commit=args.git_commit,
+        wandb=args.wandb)  # point to git repo and potentially wandb
 
-    if args.data_remote is None:
-        command += f"""
-            cd llm-foundry/scripts
-            python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
-            composer train/train.py /mnt/config/parameters.yaml
-            """
+    # Define our command
+    if args.data_remote is not None:
+        command = """
+        cd examples/scripts
+
+        composer train/train.py /mnt/config/parameters.yaml
+        """
     else:
         command = f"""
-            cd llm-foundry/scripts
-            composer train/train.py /mnt/config/parameters.yaml
-            """
+        cd examples/scripts
 
-    path = os.path.join('../yamls/pretrain', "mpt-" + model_yaml)
+        python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
+
+        composer train/train.py /mnt/config/parameters.yaml
+        """
+
+    path = os.path.join('../yamls/mpt', model_yaml)
     parameters = get_parameters(path)
 
     model_name = '-'.join(model_yaml.split('.')[-2].split('/')[-2:]).replace(
@@ -460,33 +391,23 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         _name = name
         name = name[:name_len_lim]
         print(f'Shortening {_name} to {name} ({name_len_lim} chars)')
+
     microbatch_size = args.microbatch_size or 'auto'
     assert isinstance(microbatch_size, (int, str))
     parameters = mod_parameters(
         parameters,
         max_seq_len,
         global_train_batch_size,
-        "amp_" + precision,
-        fsdp_config_activation_checkpointing=args.fsdp_config_activation_checkpointing,
-        fsdp_config_limit_all_gathers=args.fsdp_config_limit_all_gathers,
-        fsdp_config_shard_strategy=args.fsdp_config_shard_strategy,
-        fsdp_config_forward_prefetch=args.fsdp_config_forward_prefetch,
-        fsdp_config_backward_prefetch=args.fsdp_config_backward_prefetch,
-        activation_cpu_offload=args.activation_cpu_offload,
+        precision,
+        fsdp_config_mixed_precision=args.fsdp_config_mixed_precision,
+        fsdp_config_activation_checkpointing=args.
+        fsdp_config_activation_checkpointing,
         run_name=name,
         data_remote=args.data_remote,
         microbatch_size=microbatch_size,
         wandb=args.wandb,
-        pad_vocab_multiple=args.pad_vocab_multiple,
-        torch_compile_fullgraph = args.torch_compile_fullgraph,
-        torch_compile_dynamic = args.torch_compile_dynamic,
-        torch_compile_mode = args.torch_compile_mode,
-        torch_compile = args.torch_compile
-        )
-    if args.torch_compile: 
-        assert(parameters['model']['attn_config']['attn_impl'] != 'triton')
-    if gpu_type == 'h100_80gb' and precision == 'fp8':
-        parameters['model']['fc_type'] = 'te'
+        pad_vocab_multiple=args.pad_vocab_multiple)
+
     # Create run config mcli sdk/api
     config = RunConfig(name=name,
                        gpu_type=gpu_type,
@@ -496,7 +417,8 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
                        integrations=integrations,
                        command=command,
                        parameters=parameters,
-                       scheduling=SchedulingConfig(priority=args.priority, resumable=True))
+                       scheduling=SchedulingConfig(priority=args.priority))
+
     if args.RUN:
         # Create the run from a config
         run = create_run(config)
@@ -539,6 +461,7 @@ def run_check_dtms(num_gpus: int, dtms: int, batch_size: int):
 
 if __name__ == '__main__':
     args = parse_args()
+
     n_jobs = 0
     for max_seq_len in get_max_seq_lens(args.seq_len_exp):
         for cluster in args.clusters:
@@ -574,6 +497,7 @@ if __name__ == '__main__':
                                                       global_train_batch_size,
                                                       cluster, gpu_type,
                                                       gpu_num, precision)
+                                    print(config)
                                     run_config(config, args)
                                     n_jobs += 1
 

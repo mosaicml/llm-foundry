@@ -505,7 +505,8 @@ def test_mpt_creation(norm_type: str, no_bias: bool):
 @pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),
                                                    ('flash', 'gpu'),
                                                    ('triton', 'gpu'),
-                                                   ('torch', 'gpu')])
+                                                   ('torch', 'gpu'),
+                                                   ('xformers', 'gpu')])
 @pytest.mark.parametrize('alibi', [True, False])
 def test_forward_with_padding(attention_impl: str, device: str, alibi: bool):
     # Test that different placement of padding does not affect the output.
@@ -625,7 +626,7 @@ def test_forward_with_padding(attention_impl: str, device: str, alibi: bool):
                 atol=1e-6 if attention_impl == 'torch' else 1e-8)
 
 
-@pytest.mark.parametrize('attention_impl', ['torch', 'triton'])
+@pytest.mark.parametrize('attention_impl', ['torch', 'triton', 'xformers'])
 def test_advanced_mask_building(attention_impl: str):
     # Test that the correct attention mask is created when both
     # prefix_mask and sequence_id are used
@@ -683,6 +684,7 @@ def test_advanced_mask_building(attention_impl: str):
 @pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),
                                                    ('flash', 'gpu'),
                                                    ('triton', 'gpu'),
+                                                   ('xformers', 'gpu'),
                                                    ('torch', 'gpu')])
 @pytest.mark.parametrize('alibi', [True, False])
 def test_generate(attention_impl: str, device: str, alibi: bool):
@@ -1153,7 +1155,7 @@ def test_generation_kwargs_dont_crash(generation_kwargs: Dict[str, Any],
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attention_impl', ['torch', 'flash', 'triton'])
+@pytest.mark.parametrize('attention_impl', ['torch', 'flash', 'triton', 'xformers'])
 @pytest.mark.parametrize('alibi', [True, False])
 def test_model_to(attention_impl: str, alibi: bool):
     # test that moving the model to diff devices and dtypes in diff ways does not break the model

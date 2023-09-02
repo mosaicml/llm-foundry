@@ -17,6 +17,34 @@ from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 
+def test_remote_code_false_mpt(conf_path: str = 'scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml'):
+    with open(conf_path) as f:
+        test_cfg = om.load(f)
+    
+    test_cfg.model.pretrained = False
+    test_cfg.model.config_overrides = {'n_layers': 2}
+    test_cfg.model.trust_remote_code = False
+
+    # Build Model
+    # For fast initialization, use `meta` device
+    print('Initializing model...')
+    device = 'cpu'
+    test_cfg.model.init_device = device
+    test_cfg.device = device
+    test_cfg.precision = 'fp16'
+
+    tokenizer_cfg: Dict[str,
+                        Any] = om.to_container(test_cfg.tokenizer,
+                                               resolve=True)  # type: ignore
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+
+    with pytest.raises(ValueError, match='trust_remote_code must be set to True for MPT models.'):
+        _ = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
+                                                         tokenizer)
+
+
 
 @pytest.mark.parametrize('model_cfg_overrides', [
     {

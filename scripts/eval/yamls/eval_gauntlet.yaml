@@ -2,21 +2,28 @@ model_gauntlet:
   weighting: EQUAL
   subtract_random_baseline: true
   rescale_accuracy: true
-  average_groupings:
-    - name: full_average
-      categories:
-        - world_knowledge
-        - commonsense_reasoning
-        - language_understanding
-        - symbolic_problem_solving
-        - reading_comprehension
-    - name: lm_subscore_average  
-      categories:
-        - world_knowledge_lm_task_subscore
-        - commonsense_reasoning_lm_task_subscore
-        - language_understanding_lm_task_subscore
-        - symbolic_problem_solving_lm_task_subscore
-        - reading_comprehension_lm_task_subscore
+  # average_groupings:
+  #   - name: gauntlet_average
+  #     categories:
+  #       - world_knowledge
+  #       - commonsense_reasoning
+  #       - language_understanding
+  #       - symbolic_problem_solving
+  #       - reading_comprehension
+  #   - name: lm_subscore_average  
+  #     categories:
+  #       - world_knowledge_lm_task_subscore
+  #       - commonsense_reasoning_lm_task_subscore
+  #       - language_understanding_lm_task_subscore
+  #       - symbolic_problem_solving_lm_task_subscore
+  #       - reading_comprehension_lm_task_subscore
+  #   - name: lite_subscore_average  
+  #     categories:
+  #       - world_knowledge_lite
+  #       - commonsense_reasoning_lite
+  #       - language_understanding_lite
+  #       - symbolic_problem_solving_lite
+  #       - reading_comprehension_lite
   categories:
   - name: world_knowledge
     benchmarks:
@@ -68,7 +75,7 @@ model_gauntlet:
       num_fewshot: 10
       random_baseline: 0.5
     - name: bigbench_strategy_qa_cot
-      num_fewshot: 5
+      num_fewshot: 3
       random_baseline: 0.0
   - name: language_understanding
     benchmarks:
@@ -161,7 +168,7 @@ model_gauntlet:
       num_fewshot: 3
       random_baseline: 0
   - name: world_knowledge_lm_task_subscore
-      benchmarks:
+    benchmarks:
       - name: jeopardy
         num_fewshot: 10
         random_baseline: 0
@@ -169,7 +176,7 @@ model_gauntlet:
         num_fewshot: 10
         random_baseline: 0
   - name: language_understanding_lm_task_subscore
-      benchmarks:
+    benchmarks:
       - name: lambada_openai
         num_fewshot: 0
         random_baseline: 0.0
@@ -177,7 +184,7 @@ model_gauntlet:
         num_fewshot: 0
         random_baseline: 0.0
   - name: symbolic_problem_solving_lm_task_subscore
-      benchmarks:
+    benchmarks:
       - name: bigbench_dyck_languages
         num_fewshot: 10
         random_baseline: 0
@@ -197,7 +204,7 @@ model_gauntlet:
         num_fewshot: 10
         random_baseline: 0.0
   - name: reading_comprehension_lm_task_subscore
-      benchmarks:
+    benchmarks:
       - name: pubmed_qa_labeled
         num_fewshot: 10
         random_baseline: 0.0
@@ -207,3 +214,58 @@ model_gauntlet:
       - name: coqa
         num_fewshot: 10
         random_baseline: 0
+  - name: world_knowledge_lite
+    benchmarks:
+    - name: jeopardy
+      num_fewshot: 10
+      random_baseline: 0
+    - name: arc_challenge
+      num_fewshot: 10
+      random_baseline: 0.25
+  - name: commonsense_reasoning_lite
+    benchmarks:
+    - name: copa
+      num_fewshot: 0
+      random_baseline: 0.5
+    - name: piqa
+      num_fewshot: 10
+      random_baseline: 0.5
+  - name: language_understanding_lite
+    benchmarks:
+    - name: lambada_openai
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: hellaswag
+      num_fewshot: 10
+      random_baseline: 0.25
+    - name: winograd
+      num_fewshot: 0
+      random_baseline: 0.5
+  - name: symbolic_problem_solving_lite
+    benchmarks:
+    - name: bigbench_elementary_math_qa
+      num_fewshot: 10
+      random_baseline: 0.25
+    - name: bigbench_dyck_languages
+      num_fewshot: 10
+      random_baseline: 0
+    - name: bigbench_operators
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: bigbench_repeat_copy_logic
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: simple_arithmetic_withspaces
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: simple_arithmetic_nospaces
+      num_fewshot: 10
+      random_baseline: 0.0
+  - name: reading_comprehension_lite
+    benchmarks:
+    - name: pubmed_qa_labeled
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: squad
+      num_fewshot: 10
+      random_baseline: 0

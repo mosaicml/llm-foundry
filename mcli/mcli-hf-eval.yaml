@@ -14,7 +14,7 @@ command: |
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: all-eval
 gpu_num: 8
-# gpu_type:
+gpu_type:
 # cluster: # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
@@ -29,16 +29,16 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: mosaicml/mpt-30b-instruct
     # Tokenizer
     tokenizer:
-      name: EleutherAI/gpt-neox-20b
+      name: mosaicml/mpt-30b-instruct
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path: mosaicml/mpt-30b-instruct
       init_device: cpu
       pretrained: true
       use_auth_token: false
@@ -51,4 +51,4 @@ parameters:
     limit_all_gathers: True
 
   icl_tasks: 'eval/yamls/tasks.yaml'
-  model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
+  model_gauntlet: 'eval/yamls/eval_gauntlet.yaml'

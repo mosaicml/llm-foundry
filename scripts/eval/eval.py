@@ -106,7 +106,6 @@ def evaluate_model(model_cfg: DictConfig, cfg: DictConfig, run_name: str,
         log_to_console=True,
         dist_timeout=cfg.dist_timeout,
     )
-
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     a = time.time()

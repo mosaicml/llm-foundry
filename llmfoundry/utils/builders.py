@@ -236,8 +236,10 @@ def build_icl_evaluators(icl_tasks: Union[str, ListConfig],
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
+                question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
                 has_categories=icl_cfg.get('has_categories', False),
+                cot_delimiter=icl_cfg.get('cot_delimiter', '')
             )
             if hasattr(
                     icl_cfg,

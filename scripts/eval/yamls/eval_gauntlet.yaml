@@ -47,7 +47,7 @@ model_gauntlet:
       random_baseline: 0.5
     - name: triviaqa_sm_sub
       num_fewshot: 3
-      random_baselin: 0.0
+      random_baseline: 0.0
   - name: commonsense_reasoning
     benchmarks:
     - name: copa
@@ -134,13 +134,13 @@ model_gauntlet:
       random_baseline: 0.25
     - name: aqua
       num_fewshot: 3
-      random_baseline: 0
+      random_baseline: 0.25
     - name: gsm8k
       num_fewshot: 3
-      random_baseline: 0
+      random_baseline: 0.0
     - name: agi_eval_math
       num_fewshot: 3
-      random_baseline: 0
+      random_baseline: 0.25
     - name: svamp
       num_fewshot: 3
       random_baseline: 0
@@ -166,7 +166,10 @@ model_gauntlet:
       random_baseline: 0.0
     - name: agi_eval_lsat_lr
       num_fewshot: 3
-      random_baseline: 0
+      random_baseline: 0.0
+    - name: agi_eval_sat_en
+      num_fewshot: 3
+      random_baseline: 0.25
   - name: world_knowledge_lm_task_subscore
     benchmarks:
       - name: jeopardy

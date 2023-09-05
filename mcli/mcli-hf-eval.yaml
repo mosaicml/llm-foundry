@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.2.0
+  git_branch:  model_gauntlet_v0.1 # v0.2.0
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
@@ -12,10 +12,10 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: all-eval
-gpu_num: 8
-gpu_type:
-# cluster: # replace with your cluster here!
+run_name: cot_eval
+gpu_num: 32
+cluster: r12z3
+gpu_type: a100_40gb # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
@@ -46,7 +46,7 @@ parameters:
   # FSDP config for model sharding
   fsdp_config:
     sharding_strategy: FULL_SHARD
-    mixed_precision: FULL
+    mixed_precision: PURE
     forward_prefetch: True
     limit_all_gathers: True
 

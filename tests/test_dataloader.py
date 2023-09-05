@@ -11,7 +11,7 @@ from typing import Optional
 
 import pytest
 import torch
-from composer.utils import dist
+from composer.utils import dist, using_torch_2
 from omegaconf import OmegaConf as om
 
 from llmfoundry import (build_finetuning_dataloader,
@@ -441,6 +441,8 @@ def test_malformed_data(
         },
         'drop_last': False,
         'num_workers': 0,
+        # set prefetch to 2 if < torch 2, else set it to None
+        'prefetch_factor': None if using_torch_2() else 2,
         'pin_memory': False,
         'persistent_workers': False,
         'timeout': 0

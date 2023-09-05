@@ -6,8 +6,8 @@ import datetime
 import os
 import subprocess
 
-dir_path = os.path.dirname(os.path.abspath(__file__))
-regressions_dir = os.path.join(dir_path, 'regression_yamls')
+DIR_PATH = os.path.dirname(os.path.abspath(__file__))
+REGRESSIONS_DIR = os.path.join(DIR_PATH, 'regression_yamls')
 
 from mcli import RunConfig, create_run
 
@@ -15,15 +15,15 @@ from mcli import RunConfig, create_run
 def get_configs(cluster: str, mpt_7b_ckpt_path: str, wandb_entity: str,
                 wandb_project: str):
     eval_7b_hf = RunConfig.from_file(
-        os.path.join(regressions_dir, 'eval-7b-hf.yaml'))
+        os.path.join(REGRESSIONS_DIR, 'eval-7b-hf.yaml'))
     eval_7b_composer = RunConfig.from_file(
-        os.path.join(regressions_dir, 'eval-7b-composer.yaml'))
+        os.path.join(REGRESSIONS_DIR, 'eval-7b-composer.yaml'))
     llama2_finetune = RunConfig.from_file(
-        os.path.join(regressions_dir, 'llama2-finetune.yaml'))
+        os.path.join(REGRESSIONS_DIR, 'llama2-finetune.yaml'))
     mpt_125m_chinchilla = RunConfig.from_file(
-        os.path.join(regressions_dir, 'mpt-125m-chinchilla.yaml'))
+        os.path.join(REGRESSIONS_DIR, 'mpt-125m-chinchilla.yaml'))
     mpt_125m_sharded_resumption = RunConfig.from_file(
-        os.path.join(regressions_dir, 'mpt-125m-sharded-resumption.yaml'))
+        os.path.join(REGRESSIONS_DIR, 'mpt-125m-sharded-resumption.yaml'))
 
     # make specific changes
     eval_7b_composer.parameters['models'][0]['load_path'] = mpt_7b_ckpt_path
@@ -39,16 +39,15 @@ def get_configs(cluster: str, mpt_7b_ckpt_path: str, wandb_entity: str,
     wandb_group = f'{timestamp}::{commit_hash}'
 
     # make general changes
-    loggers = {
-        'wandb': {
+    wandb_config = {
             'entity': wandb_entity,
             'project': wandb_project,
             'group': wandb_group
         }
-    }
     for config in all_configs:
         config.cluster = cluster
-        config.parameters['loggers'] = loggers
+        config.parameters['loggers'] = config.parameters.get('loggers', {})
+        config.parameters['loggers']['wandb'] = wandb_config
 
     return all_configs, []
 

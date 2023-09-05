@@ -303,12 +303,12 @@ def make_tiny_ft_dataset(
         samples.append({'prompt': 'hello', 'response': pad_token})
         # response just pad multiple times
         samples.append({'prompt': 'hello', 'response': pad_token * 3})
-    
+
     if add_bad_data_error:
         # prompt just None
-        samples.append({'prompt': None, 'response': 'goodbye'})
+        samples.append({'prompt': None, 'response': 'goodbye'}) # type: ignore (intentional test)
         # response just None
-        samples.append({'prompt': 'hello', 'response': None})
+        samples.append({'prompt': 'hello', 'response': None}) # type: ignore (intentional test)
 
     if add_just_bos_eos_pad:
         if pad_token is None or start_token is None or end_token is None:
@@ -386,6 +386,7 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
 
+
 @pytest.mark.parametrize('add_bad_data_dropped', [True, False])
 @pytest.mark.parametrize('add_bad_data_error', [True, False])
 def test_malformed_data(
@@ -447,8 +448,9 @@ def test_malformed_data(
 
     error_context = contextlib.nullcontext()
     if add_bad_data_error:
-        error_context = pytest.raises(TypeError, match='Unable to tokenize example')
-    
+        error_context = pytest.raises(TypeError,
+                                      match='Unable to tokenize example')
+
     with error_context:
         dl = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
 

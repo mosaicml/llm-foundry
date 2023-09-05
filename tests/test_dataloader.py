@@ -442,7 +442,6 @@ def test_malformed_data(
         'drop_last': False,
         'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0
     }

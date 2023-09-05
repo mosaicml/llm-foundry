@@ -52,6 +52,14 @@ def _tokenize_formatted_example(example: Dict[str, Any],
             '"prompt" and "response" are required keys but at least one was missing ' +\
             f'from {example=}.'
         )
+    if not isinstance(example['prompt'], str):
+        raise TypeError(
+            f'Unable to tokenize example because "prompt" was not a string. {example=}'
+        )
+    if not isinstance(example['response'], str):
+        raise TypeError(
+            f'Unable to tokenize example because "response" was not a string. {example=}'
+        )
     return tokenizer(text=example['prompt'], text_target=example['response'])
 
 

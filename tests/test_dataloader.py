@@ -281,7 +281,8 @@ def test_finetuning_dataloader(decoder_only_format: bool,
 def make_tiny_ft_dataset(
     path: str,
     size: int = 4,
-    add_bad_data: bool = False,
+    add_bad_data_dropped: bool = False,
+    add_bad_data_error: bool = False,
     add_just_bos_eos_pad: bool = False,
     pad_token: Optional[str] = None,
     start_token: Optional[str] = None,
@@ -289,7 +290,7 @@ def make_tiny_ft_dataset(
 ):
     good_sample = {'prompt': 'hello', 'response': 'goodbye'}
     samples = [good_sample] * size
-    if add_bad_data:
+    if add_bad_data_dropped:
         if pad_token is None:
             raise ValueError(
                 'pad_token, start_token, and end_token must be specified if add_bad_data is True'
@@ -302,6 +303,12 @@ def make_tiny_ft_dataset(
         samples.append({'prompt': 'hello', 'response': pad_token})
         # response just pad multiple times
         samples.append({'prompt': 'hello', 'response': pad_token * 3})
+    
+    if add_bad_data_error:
+        # prompt just None
+        samples.append({'prompt': None, 'response': 'goodbye'})
+        # response just None
+        samples.append({'prompt': 'hello', 'response': None})
 
     if add_just_bos_eos_pad:
         if pad_token is None or start_token is None or end_token is None:
@@ -379,8 +386,12 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
 
-
-def test_malformed_data():
+@pytest.mark.parametrize('add_bad_data_dropped', [True, False])
+@pytest.mark.parametrize('add_bad_data_error', [True, False])
+def test_malformed_data(
+    add_bad_data_dropped: bool,
+    add_bad_data_error: bool,
+):
     tokenizer_name = 'mosaicml/mpt-7b'
     max_seq_len = 2048
     dataset_size = 5
@@ -402,7 +413,8 @@ def test_malformed_data():
         make_tiny_ft_dataset(
             path=tiny_dataset_path,
             size=dataset_size,
-            add_bad_data=True,
+            add_bad_data_dropped=add_bad_data_dropped,
+            add_bad_data_error=add_bad_data_error,
             add_just_bos_eos_pad=True,
             pad_token=tokenizer.pad_token,
             start_token=tokenizer.bos_token,
@@ -433,16 +445,22 @@ def test_malformed_data():
     expected_keys = ['input_ids', 'attention_mask', 'labels']
     expected_keys += ['bidirectional_mask']
 
-    dl = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+    error_context = contextlib.nullcontext()
+    if add_bad_data_error:
+        error_context = pytest.raises(TypeError, match='Unable to tokenize example')
+    
+    with error_context:
+        dl = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
 
-    # +4 because we added samples with just bos/eos in each of prompt/response
-    expected_num_batches = (dataset_size + 5) // device_batch_size
+    if not add_bad_data_error:
+        # +5 because we added samples with just bos/eos in each of prompt/response
+        expected_num_batches = (dataset_size + 5) // device_batch_size
 
-    actual_num_batches = 0
-    for _ in dl:
-        actual_num_batches += 1
+        actual_num_batches = 0
+        for _ in dl:
+            actual_num_batches += 1
 
-    assert actual_num_batches == expected_num_batches
+        assert actual_num_batches == expected_num_batches
 
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)

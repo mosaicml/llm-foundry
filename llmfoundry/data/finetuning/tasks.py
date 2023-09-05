@@ -316,7 +316,7 @@ class DatasetConstructor:
 
         empty_examples_dropped_dataset = prompt_length_filtered_dataset.filter(
             lambda example: len(example['input_ids']) > 0 and len(example[
-                'labels']) > 0 and not all(token_id == tokenizer.pad_token_id
+                'labels']) > 0 and any(token_id != tokenizer.pad_token_id
                                            for token_id in example['labels']))
         empty_examples_removed = len(prompt_length_filtered_dataset) - len(
             empty_examples_dropped_dataset)

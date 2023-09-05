@@ -7,6 +7,10 @@ from typing import Any
 
 import omegaconf as om
 import pytest
+from composer import Trainer
+
+from llmfoundry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.utils import build_tokenizer
 
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -26,51 +30,34 @@ def set_correct_cwd():
         os.chdir('..')
 
 
-def test_icl_eval(capfd: Any):
-    test_cfg = om.OmegaConf.create("""
-        max_seq_len: 1024
-        seed: 1
-        precision: fp32
-        models:
-        -
-            model_name: tiny_mpt
-            model:
-                name: mpt_causal_lm
-                init_device: meta
-                d_model: 128
-                n_heads: 2
-                n_layers: 2
-                expansion_ratio: 4
-                max_seq_len: ${max_seq_len}
-                vocab_size: 50368
-                attn_config:
-                    attn_impl: torch
-                loss_fn: torch_crossentropy
-            # Tokenizer
-            tokenizer:
-                name: EleutherAI/gpt-neox-20b
-                kwargs:
-                    model_max_length: ${max_seq_len}
+@pytest.fixture()
+def mock_saved_model_path():
+    # load the eval and model config
+    with open('eval/yamls/test_eval.yaml', 'r', encoding='utf-8') as f:
+        eval_cfg = om.OmegaConf.load(f)
+    model_cfg = eval_cfg.models[0]
+    # set device to cpu
+    device = 'cpu'
+    model_cfg.model.init_device = device
+    # build tokenizer
+    tokenizer = build_tokenizer(model_cfg.tokenizer)
+    # build model
+    model = COMPOSER_MODEL_REGISTRY[model_cfg.model.name](model_cfg.model,
+                                                          tokenizer)
+    # create mocked save checkpoint
+    trainer = Trainer(model=model, device=device)
+    saved_model_path = os.path.join(os.getcwd(), 'test_model.pt')
+    trainer.save_checkpoint(saved_model_path)
+    yield saved_model_path
 
-        device_eval_batch_size: 4
-        icl_subset_num_batches: 1
-        icl_tasks:
-        -
-            label: lambada_openai
-            dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
-            num_fewshot: [0]
-            icl_task_type: language_modeling
-        eval_gauntlet:
-            weighting: EQUAL
-            subtract_random_baseline: true
-            rescale_accuracy: true
-            categories:
-            - name: language_understanding_lite
-              benchmarks:
-                - name: lambada_openai
-                  num_fewshot: 0
-                  random_baseline: 0.0
-        """)
+    # clean up the mocked save checkpoint
+    os.remove(saved_model_path)
+
+
+def test_icl_eval(capfd: Any, mock_saved_model_path: Any):
+    with open('eval/yamls/test_eval.yaml', 'r', encoding='utf-8') as f:
+        test_cfg = om.OmegaConf.load(f)
+    test_cfg.models[0].load_path = mock_saved_model_path
     assert isinstance(test_cfg, om.DictConfig)
     main(test_cfg)
     out, _ = capfd.readouterr()

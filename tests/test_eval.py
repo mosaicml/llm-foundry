@@ -40,7 +40,7 @@ def mock_saved_model_path():
     device = 'cpu'
     model_cfg.model.init_device = device
     # build tokenizer
-    tokenizer = build_tokenizer(model_cfg.tokenizer,
+    tokenizer = build_tokenizer(model_cfg.tokenizer.name,
                                 model_cfg.tokenizer.get('kwargs', {}))
     # build model
     model = COMPOSER_MODEL_REGISTRY[model_cfg.model.name](model_cfg.model,

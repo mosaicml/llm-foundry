@@ -3,6 +3,7 @@
 import contextlib
 import json
 import os
+import pathlib
 import shutil
 import sys
 import tempfile
@@ -398,13 +399,14 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
 def test_malformed_data(
     add_bad_data_dropped: bool,
     add_bad_data_error: bool,
+    tmp_path: pathlib.Path,
 ):
     tokenizer_name = 'mosaicml/mpt-7b'
     max_seq_len = 2048
     dataset_size = 5
     device_batch_size = 5
-    tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
-    tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
+    tiny_dataset_folder_path = tmp_path
+    tiny_dataset_path = str(tiny_dataset_folder_path / 'train.jsonl')
 
     tokenizer = build_tokenizer(
         tokenizer_name=tokenizer_name,
@@ -431,7 +433,7 @@ def test_malformed_data(
     cfg = {
         'name': 'finetuning',
         'dataset': {
-            'hf_name': tiny_dataset_folder_path,
+            'hf_name': str(tiny_dataset_folder_path),
             'split': 'train',
             'max_seq_len': max_seq_len,
             'decoder_only_format': True,
@@ -470,6 +472,3 @@ def test_malformed_data(
             actual_num_batches += 1
 
         assert actual_num_batches == expected_num_batches
-
-    if dist.get_global_rank() == 0:
-        shutil.rmtree(tiny_dataset_folder_path)

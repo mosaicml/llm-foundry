@@ -306,9 +306,15 @@ def make_tiny_ft_dataset(
 
     if add_bad_data_error:
         # prompt just None
-        samples.append({'prompt': None, 'response': 'goodbye'}) # type: ignore (intentional test)
+        samples.append({
+            'prompt': None,
+            'response': 'goodbye'
+        })  # type: ignore (intentional test)
         # response just None
-        samples.append({'prompt': 'hello', 'response': None}) # type: ignore (intentional test)
+        samples.append({
+            'prompt': 'hello',
+            'response': None
+        })  # type: ignore (intentional test)
 
     if add_just_bos_eos_pad:
         if pad_token is None or start_token is None or end_token is None:
@@ -434,9 +440,9 @@ def test_malformed_data(
             'shuffle': True,
         },
         'drop_last': False,
-        'num_workers': 4,
+        'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': 2,
+        'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0
     }

@@ -278,11 +278,45 @@ def test_finetuning_dataloader(decoder_only_format: bool,
             break
 
 
-def make_tiny_ft_dataset(path: str, size: int = 4):
-    sample = {'prompt': 'hello', 'response': 'goodbye'}
+def make_tiny_ft_dataset(
+    path: str,
+    size: int = 4,
+    add_bad_data: bool = False,
+    add_just_bos_eos_pad: bool = False,
+    pad_token: Optional[str] = None,
+    start_token: Optional[str] = None,
+    end_token: Optional[str] = None,):
+    good_sample = {'prompt': 'hello', 'response': 'goodbye'}
+    samples = [good_sample] * size
+    if add_bad_data:
+        if pad_token is None:
+            raise ValueError('pad_token, start_token, and end_token must be specified if add_bad_data is True')
+        # empty prompt
+        samples.append({'prompt': '', 'response': 'goodbye'})
+        # empty response
+        samples.append({'prompt': 'hello', 'response': ''})
+        # response just pad
+        samples.append({'prompt': 'hello', 'response': pad_token})
+        # response just pad multiple times
+        samples.append({'prompt': 'hello', 'response': pad_token * 3})
+
+    if add_just_bos_eos_pad:
+        if start_token is None or end_token is None:
+            raise ValueError('pad_token, start_token, and end_token must be specified if add_just_bos_eos is True')
+        # prompt just start
+        samples.append({'prompt': start_token, 'response': 'goodbye'})
+        # response just start
+        samples.append({'prompt': 'hello', 'response': start_token})
+        # prompt just end
+        samples.append({'prompt': end_token, 'response': 'goodbye'})
+        # response just end
+        samples.append({'prompt': 'hello', 'response': end_token})
+        # prompt just pad
+        samples.append({'prompt': pad_token, 'response': 'goodbye'})
+
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as _f:
-        for _ in range(size):
+        for sample in samples:
             _f.write(json.dumps(sample))
             _f.write('\n')
 
@@ -336,6 +370,75 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
 
     with error_context:
         _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+
+    if dist.get_global_rank() == 0:
+        shutil.rmtree(tiny_dataset_folder_path)
+
+def test_malformed_data():
+    tokenizer_name = 'mosaicml/mpt-7b'
+    max_seq_len = 2048
+    dataset_size = 5
+    device_batch_size = 5
+    tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
+    tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
+
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
+    tokenizer.add_special_tokens(
+        {
+            'pad_token': '<pad>',
+            'bos_token': '<bos>',
+            'eos_token': '<eos>',
+        }
+    )
+
+    if dist.get_global_rank() == 0:
+        make_tiny_ft_dataset(
+            path=tiny_dataset_path,
+            size=dataset_size,
+            add_bad_data=True,
+            add_just_bos_eos_pad=True,
+            pad_token=tokenizer.pad_token,
+            start_token=tokenizer.bos_token,
+            end_token=tokenizer.eos_token,
+        )
+
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': tiny_dataset_folder_path,
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 4,
+        'pin_memory': False,
+        'prefetch_factor': 2,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+    expected_keys += ['bidirectional_mask']
+
+    dl = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+
+    # +4 because we added samples with just bos/eos in each of prompt/response
+    expected_num_batches = (dataset_size + 5) // device_batch_size
+
+    actual_num_batches = 0
+    for _ in dl:
+        actual_num_batches += 1
+    
+    assert actual_num_batches == expected_num_batches
 
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)

@@ -306,7 +306,20 @@ class DatasetConstructor:
                 f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
             )
 
-        return prompt_length_filtered_dataset
+        empty_examples_dropped_dataset = prompt_length_filtered_dataset.filter(
+            lambda example: len(example['input_ids']) > 0 and len(
+                example['labels']) > 0 and not all(
+                    token_id == tokenizer.pad_token_id
+                    for token_id in example['labels']))
+        empty_examples_removed = len(prompt_length_filtered_dataset) - len(
+            empty_examples_dropped_dataset)
+        if empty_examples_removed > 0:
+            warnings.warn(
+                f'Dropped {empty_examples_removed} examples where the prompt or response was empty, ' +
+                'or the response was only padding tokens.'
+            )
+
+        return empty_examples_dropped_dataset
 
     def build_from_streaming(self, *args: Any, **kwargs: Any):
         return StreamingFinetuningDataset(*args, **kwargs)

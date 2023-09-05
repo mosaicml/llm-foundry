@@ -285,12 +285,15 @@ def make_tiny_ft_dataset(
     add_just_bos_eos_pad: bool = False,
     pad_token: Optional[str] = None,
     start_token: Optional[str] = None,
-    end_token: Optional[str] = None,):
+    end_token: Optional[str] = None,
+):
     good_sample = {'prompt': 'hello', 'response': 'goodbye'}
     samples = [good_sample] * size
     if add_bad_data:
         if pad_token is None:
-            raise ValueError('pad_token, start_token, and end_token must be specified if add_bad_data is True')
+            raise ValueError(
+                'pad_token, start_token, and end_token must be specified if add_bad_data is True'
+            )
         # empty prompt
         samples.append({'prompt': '', 'response': 'goodbye'})
         # empty response
@@ -301,8 +304,10 @@ def make_tiny_ft_dataset(
         samples.append({'prompt': 'hello', 'response': pad_token * 3})
 
     if add_just_bos_eos_pad:
-        if start_token is None or end_token is None:
-            raise ValueError('pad_token, start_token, and end_token must be specified if add_just_bos_eos is True')
+        if pad_token is None or start_token is None or end_token is None:
+            raise ValueError(
+                'pad_token, start_token, and end_token must be specified if add_just_bos_eos is True'
+            )
         # prompt just start
         samples.append({'prompt': start_token, 'response': 'goodbye'})
         # response just start
@@ -374,6 +379,7 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
 
+
 def test_malformed_data():
     tokenizer_name = 'mosaicml/mpt-7b'
     max_seq_len = 2048
@@ -386,13 +392,11 @@ def test_malformed_data():
         tokenizer_name=tokenizer_name,
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
-    tokenizer.add_special_tokens(
-        {
-            'pad_token': '<pad>',
-            'bos_token': '<bos>',
-            'eos_token': '<eos>',
-        }
-    )
+    tokenizer.add_special_tokens({
+        'pad_token': '<pad>',
+        'bos_token': '<bos>',
+        'eos_token': '<eos>',
+    })
 
     if dist.get_global_rank() == 0:
         make_tiny_ft_dataset(
@@ -437,7 +441,7 @@ def test_malformed_data():
     actual_num_batches = 0
     for _ in dl:
         actual_num_batches += 1
-    
+
     assert actual_num_batches == expected_num_batches
 
     if dist.get_global_rank() == 0:

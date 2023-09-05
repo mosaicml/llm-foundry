@@ -40,10 +40,10 @@ def get_configs(cluster: str, mpt_7b_ckpt_path: str, wandb_entity: str,
 
     # make general changes
     wandb_config = {
-            'entity': wandb_entity,
-            'project': wandb_project,
-            'group': wandb_group
-        }
+        'entity': wandb_entity,
+        'project': wandb_project,
+        'group': wandb_group
+    }
     for config in all_configs:
         config.cluster = cluster
         config.parameters['loggers'] = config.parameters.get('loggers', {})

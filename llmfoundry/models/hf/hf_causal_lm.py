@@ -70,7 +70,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             raise ValueError(
                 'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
                 +
-                'which is not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
+                'which is not significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
             )
 
         # set up training and eval metrics

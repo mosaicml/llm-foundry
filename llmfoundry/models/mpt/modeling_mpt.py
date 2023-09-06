@@ -63,6 +63,7 @@ except:
     pass
 # isort: on
 
+from deepspeed.runtime.activation_checkpointing.checkpointing import checkpoint as ds_checkpoint
 
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
@@ -81,6 +82,7 @@ class MPTModel(MPTPreTrainedModel):
         self.attn_uses_sequence_id = config.attn_config['attn_uses_sequence_id']
         self.alibi = config.attn_config['alibi']
         self.alibi_bias_max = config.attn_config['alibi_bias_max']
+        self.ds_activation_checkpointing = config.ds_activation_checkpointing
 
         self.learned_pos_emb = config.learned_pos_emb
 
@@ -265,6 +267,13 @@ class MPTModel(MPTPreTrainedModel):
 
         return attn_bias
 
+    def custom(self, module, a, b, c):
+        def custom_forward(*inputs):
+            d = inputs[0]
+            x, y, z = module(d, a, b, c, self.is_causal)
+            return x, y, z
+        return custom_forward
+
     def _apply_sequence_id(self, attn_bias: torch.Tensor,
                            sequence_id: torch.LongTensor):
         seq_len = sequence_id.shape[-1]
@@ -434,13 +443,16 @@ class MPTModel(MPTPreTrainedModel):
                 all_hidden_states = all_hidden_states + (x,)
             past_key_value = (past_key_values[b_idx]
                               if past_key_values is not None else None)
-            x, attn_weights, past_key_value = block(
-                x,
-                past_key_value=past_key_value,
-                attn_bias=attn_bias,
-                attention_mask=attention_mask,
-                is_causal=self.is_causal,
-            )
+            if self.ds_activation_checkpointing:
+                x, attn_weights, past_key_value = ds_checkpoint(self.custom(block, past_key_values, attn_bias, attention_mask), x)
+            else:
+                x, attn_weights, past_key_value = block(
+                    x,
+                    past_key_value=past_key_value,
+                    attn_bias=attn_bias,
+                    attention_mask=attention_mask,
+                    is_causal=self.is_causal,
+                )
             if past_key_values is not None:
                 past_key_values[b_idx] = past_key_value
 

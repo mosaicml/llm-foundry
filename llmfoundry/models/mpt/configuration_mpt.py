@@ -62,6 +62,7 @@ class MPTConfig(PretrainedConfig):
         use_cache: bool = False,
         init_config: Dict = init_config_defaults,
         fc_type: str = 'torch',
+        ds_activation_checkpointing: bool = False,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -141,6 +142,7 @@ class MPTConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.init_config = init_config
         self.fc_type = fc_type
+        self.ds_activation_checkpointing = ds_activation_checkpointing
         if 'name' in kwargs:
             del kwargs['name']
         if 'loss_fn' in kwargs:

@@ -1,0 +1,46 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  git_branch: main
+  pip_install: -e .[gpu]
+
+command: |
+  cd llm-foundry/scripts/
+  composer eval/eval.py /mnt/config/parameters.yaml
+image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
+name: mpt-7b-composer-eval-regression
+
+compute:
+  gpus: 8
+
+parameters:
+  run_name: mpt-7b-composer-eval-regression
+  seed: 1
+  max_seq_len: 1024
+
+  models:
+  -
+    model_name: mosaicml/mpt-7b
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: mosaicml/mpt-7b
+      init_device: cpu
+      pretrained: true
+    tokenizer:
+      name: mosaicml/mpt-7b
+      kwargs:
+        model_max_length: ${max_seq_len}
+    load_path: 'FILL IN'
+
+  device_eval_batch_size: 4
+  precision: amp_fp16
+
+  fsdp_config:
+    sharding_strategy: FULL_SHARD
+    mixed_precision: FULL
+    forward_prefetch: True
+    limit_all_gathers: True
+
+  icl_subset_num_batches: 20
+  icl_tasks: 'eval/yamls/tasks.yaml'
+  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'

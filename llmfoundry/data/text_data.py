@@ -247,6 +247,7 @@ def build_text_dataloader(
     dataset = StreamingTextDataset(
         tokenizer=tokenizer,
         streams=streams,
+        batch_size=device_batch_size,
         **cfg.dataset,
     )
 

@@ -61,6 +61,7 @@ class MPTConfig(PretrainedConfig):
         fc_type: str = 'torch',
         tie_word_embeddings: bool = True,
         verbose: Optional[int] = None,
+        ds_activation_checkpointing: bool = False,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -150,6 +151,7 @@ class MPTConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.init_config = init_config
         self.fc_type = fc_type
+        self.ds_activation_checkpointing = ds_activation_checkpointing
         if verbose is not None:
             warnings.warn(
                 DeprecationWarning(

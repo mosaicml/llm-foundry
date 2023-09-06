@@ -271,7 +271,7 @@ def main(
     if not reprocess and is_already_processed(output_folder, done_file_name,
                                               args_str, object_names):
         print(
-            f'Input folder {input_folder} is already processed at {output_folder}.'
+            f'Input folder {input_folder} is already processed at {output_folder} and reprocess is set to False. Set reprocess to True if you would like to force reprocessing.'
         )
         return
 

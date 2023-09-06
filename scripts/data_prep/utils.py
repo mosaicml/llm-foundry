@@ -145,7 +145,7 @@ class DownloadingIterable:
         text samples.
 
         Args:
-            object_names (List[str]): Names of objects to to download
+            object_names (List[str]): Names of objects to download
             input_folder_prefix (str): Object store prefix to download from
             output_folder (str): Local folder to write downloaded files to
             object_store (Optiona[ObjectStore]): Object store to download from

@@ -112,6 +112,10 @@ class StreamingTextDataset(StreamingDataset):
                         f'local directory {local} does not contain split {split}'
                     )
 
+        # TODO: discover where yamls are being converted incorrect, but temporary workaround
+        if isinstance(shuffle_block_size, float):
+            shuffle_block_size = int(shuffle_block_size)
+
         # Build Dataset
         super().__init__(
             streams=streams,

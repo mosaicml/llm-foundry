@@ -1,14 +1,14 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.2.0
-  # git_commit: # OR use your commit hash
+  # git_branch: # Specify your git branch
+  git_commit: 186dd19888a8c8874584f9e78619f3fb0348309f # TODO: repin after next release
   pip_install: -e .[gpu]
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  cd llm-foundry/llmfoundry/icl_eval
-  composer eval.py /mnt/config/parameters.yaml
+  cd llm-foundry/scripts/
+  composer eval/eval.py /mnt/config/parameters.yaml
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
 name: mpt-1b-eval
 
@@ -21,46 +21,39 @@ compute:
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   run_name: # If left blank, will be read from top YAML name for W&B logging and checkpointing
-
   seed: 1
-  max_seq_len: 2048
+  max_seq_len: 1024
 
-  tokenizer:
-    name: EleutherAI/gpt-neox-20b
-    kwargs:
-      model_max_length: ${max_seq_len}
+  models:
+  -
+    model_name: mpt1b
+    tokenizer:
+      name: EleutherAI/gpt-neox-20b
+      kwargs:
+        model_max_length: ${max_seq_len}
+    model:
+      name: mpt_causal_lm
+      init_device: meta
+      d_model: 2048
+      n_heads: 16 # Modified 24->16 so that d_head == 128 to satisfy FlashAttention
+      n_layers: 24
+      expansion_ratio: 4
+      max_seq_len: ${max_seq_len}
+      vocab_size: 50368
+      attn_config:
+        attn_impl: triton
 
-  model:
-    name: mpt_causal_lm
-    init_device: meta
-    d_model: 2048
-    n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
-    n_layers: 24
-    expansion_ratio: 4
-    max_seq_len: ${max_seq_len}
-    vocab_size: 50368
-    attn_config:
-      attn_impl: triton
+    load_path: # Add your (non-optional) Composer checkpoint path here!
 
-  load_path: # Add your (optional) Composer checkpoint path here!
-
-  device_eval_batch_size: 16
-  precision: fp32
+  device_eval_batch_size: 4
+  precision: amp_fp16
 
   # FSDP config for model sharding
-  # fsdp_config:
-  #   sharding_strategy: FULL_SHARD
-  #   mixed_precision: FULL
+  fsdp_config:
+    sharding_strategy: FULL_SHARD
+    mixed_precision: FULL
+    forward_prefetch: True
+    limit_all_gathers: True
 
-  icl_tasks:
-  -
-    label: piqa
-    dataset_uri: # ADD YOUR OWN DATASET URI
-    num_fewshot: [5]
-    icl_task_type: multiple_choice
-    continuation_delimiter: 'Answer: '
-  -
-    label: lambada
-    dataset_uri: # ADD YOUR OWN DATASET URI
-    num_fewshot: [0]
-    icl_task_type: language_modeling
+  icl_tasks: 'eval/yamls/tasks.yaml'
+  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'

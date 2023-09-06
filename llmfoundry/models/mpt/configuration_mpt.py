@@ -50,6 +50,7 @@ class MPTConfig(PretrainedConfig):
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
         block_overrides: Optional[Dict[str, Any]] = None,
+        ds_activation_checkpointing: bool = False,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -185,6 +186,7 @@ class MPTConfig(PretrainedConfig):
         self.fc_type = fc_type
 
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
+        self.ds_activation_checkpointing = ds_activation_checkpointing
 
         if 'name' in kwargs:
             del kwargs['name']

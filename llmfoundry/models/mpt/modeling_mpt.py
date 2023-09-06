@@ -84,6 +84,7 @@ from llmfoundry.models.layers.fc import fcs  #  type: ignore
 from llmfoundry.models.utils.param_init_fns import generic_param_init_fn_  # type: ignore
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore
 # isort: on
+from deepspeed.runtime.activation_checkpointing.checkpointing import checkpoint as ds_checkpoint
 
 log = logging.getLogger(__name__)
 
@@ -332,6 +333,7 @@ class MPTModel(MPTPreTrainedModel):
         self.attn_uses_sequence_id = config.attn_config['attn_uses_sequence_id']
         self.alibi = config.attn_config['alibi']
         self.alibi_bias_max = config.attn_config['alibi_bias_max']
+        self.ds_activation_checkpointing = config.ds_activation_checkpointing
 
         self.learned_pos_emb = config.learned_pos_emb
 
@@ -705,6 +707,13 @@ class MPTModel(MPTPreTrainedModel):
 
         return attn_bias, attention_mask
 
+    def custom(self, module, a, b, c, d, e, f):
+        def custom_forward(*inputs):
+            g = inputs[0]
+            x, y, z = module(g, a, b, c, self.is_causal, d, e, f)
+            return x, y, z
+        return custom_forward
+
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
@@ -916,20 +925,34 @@ class MPTModel(MPTPreTrainedModel):
             extra_kwargs = {}
             if prev_layer_key_value is not None:
                 extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
-            x, attn_weights, present = block(
-                x,
-                past_key_value=past_key_value,
-                attn_bias=attn_bias,
-                rotary_emb_w_meta_info=rotary_emb_w_meta_info,
-                attention_mask=attention_mask,
-                is_causal=self.is_causal,
-                output_attentions=bool(output_attentions),
-                alibi_slopes=alibi_slopes,
-                flash_attn_padding_info=flash_attn_padding_info,
-                **extra_kwargs,
-            )
-            if presents is not None:
-                presents += (present,)
+            if self.ds_activation_checkpointing:
+                 x, attn_weights, past_key_value = ds_checkpoint(
+                    self.custom(
+                         block,
+                         past_key_values,
+                         attn_bias,
+                         attention_mask,
+                         bool(output_attentions),
+                         alibi_slopes,
+                         flash_attn_padding_info
+                    ),
+                    x
+                )
+            else:
+                x, attn_weights, present = block(
+                    x,
+                    past_key_value=past_key_value,
+                    attn_bias=attn_bias,
+                    rotary_emb_w_meta_info=rotary_emb_w_meta_info,
+                    attention_mask=attention_mask,
+                    is_causal=self.is_causal,
+                    output_attentions=bool(output_attentions),
+                    alibi_slopes=alibi_slopes,
+                    flash_attn_padding_info=flash_attn_padding_info,
+                    **extra_kwargs,
+                )
+                if presents is not None:
+                    presents += (present,)
             if b_idx in self.kv_cache_layers:
                 layer_kv_cache_dict[b_idx] = [
                     present[0][:, past_position:],

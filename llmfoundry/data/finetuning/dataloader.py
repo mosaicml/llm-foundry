@@ -307,10 +307,14 @@ def _build_hf_dataset_from_remote(
                 get_file(name, destination, overwrite=True)
             except FileNotFoundError as e:
                 if extension == supported_extensions[-1]:
+                    files_searched = [
+                        f'{cfg.dataset.hf_name}/{cfg.dataset.split}.{ext}'
+                        for ext in supported_extensions
+                    ]
                     raise FileNotFoundError(
-                        f'Could not find a {cfg.dataset.split} file with any of ' + \
+                        f'Could not find a file with any of ' + \
                         f'the supported extensions: {supported_extensions}\n' + \
-                        f'at {cfg.dataset.hf_name}/{cfg.dataset.split}'
+                        f'at {files_searched}'
                     ) from e
                 else:
                     print(

@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_commit: 148c0793907a6afa48a892620e637ef5f90cdaf1 # TODO: repin this after next release
+  git_commit: 5ec4016b40652557d57a1d4949ad13a65251184b # TODO: repin this after next release
   pip_install: -e .[gpu]
   ssh_clone: false # Should be true if using a private repo
 
@@ -27,8 +27,7 @@ parameters:
   # Run Name
   run_name: # If left blank, will be read from env var $RUN_NAME
 
-  # IMPORTANT: Uncomment if using the 70b model
-  # max_split_size_mb: 512
+  max_split_size_mb: 512
 
   # Model
   model:

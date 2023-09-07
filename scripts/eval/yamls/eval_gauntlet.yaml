@@ -134,16 +134,19 @@ model_gauntlet:
       random_baseline: 0.25
     - name: aqua
       num_fewshot: 3
-      random_baseline: 0.25
+      random_baseline: 0.20
     - name: gsm8k
       num_fewshot: 3
       random_baseline: 0.0
-    - name: agi_eval_math
-      num_fewshot: 3
-      random_baseline: 0.25
     - name: svamp
       num_fewshot: 3
       random_baseline: 0
+    - name: agi_eval_sat_math
+      num_fewshot: 3
+      random_baseline: 0.25
+    - name: agi_eval_lsat_ar
+      num_fewshot: 3
+      random_baseline: 0.2
   - name: reading_comprehension
     benchmarks:
     - name: pubmed_qa_labeled
@@ -163,13 +166,21 @@ model_gauntlet:
       random_baseline: 0.0
     - name: agi_eval_lsat_rc
       num_fewshot: 3
-      random_baseline: 0.0
+      random_baseline: 0.20
     - name: agi_eval_lsat_lr
       num_fewshot: 3
-      random_baseline: 0.0
+      random_baseline: 0.20
     - name: agi_eval_sat_en
       num_fewshot: 3
       random_baseline: 0.25
+  - name: safety
+    benchmarks:
+    - name: winogender_mc_female
+      num_fewshot: 10
+      random_baseline: 0.5
+    - name: winogender_mc_male
+      num_fewshot: 10
+      random_baseline: 0.5
   - name: world_knowledge_lm_task_subscore
     benchmarks:
       - name: jeopardy

@@ -6,11 +6,11 @@ icl_tasks:
 #   icl_task_type: language_modeling
 #   continuation_delimiter: "\nAnswer: " # this separates questions from answers
 #   has_categories: true
--
-  label: triviaqa_sm_sub
-  dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [3]
-  icl_task_type: question_answering
+# -
+#   label: triviaqa_sm_sub
+#   dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl # ADD YOUR OWN DATASET URI
+#   num_fewshot: [3]
+#   icl_task_type: question_answering
 -
   label: gsm8k
   dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k.jsonl # ADD YOUR OWN DATASET URI
@@ -19,35 +19,28 @@ icl_tasks:
   cot_delimiter: ' #### '
   continuation_delimiter: "\nA: Let's think step by step. "
   question_prelimiter: "Q: "
--
-  label: agi_eval_math
-  dataset_uri: eval/local_data/symbolic_problem_solving/agi_eval_math.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [3]
-  icl_task_type: question_answering
-  cot_delimiter: ' #### '
-  continuation_delimiter: "\nA: Let's think step by step. "
--
-  label: agi_eval_sat_math
-  dataset_uri: eval/local_data/symbolic_problem_solving/agi_eval_sat_math.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [3]
-  icl_task_type: question_answering
-  cot_delimiter: ' #### '
-  continuation_delimiter: "\nA: Let's think step by step. "
--
-  label: aqua
-  dataset_uri: eval/local_data/symbolic_problem_solving/aqua.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [3]
-  icl_task_type: question_answering
-  cot_delimiter: ' #### '
-  continuation_delimiter: "\nA: Let's think step by step. "
--
-  label: svamp
-  dataset_uri: eval/local_data/symbolic_problem_solving/svamp.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [3]
-  icl_task_type: question_answering
-  continuation_delimiter: "\nUsing the formula below:\n"
-  cot_delimiter: ' #### '
-  question_prelimiter: "Q: "
+# -
+#   label: agi_eval_sat_math
+#   dataset_uri: eval/local_data/symbolic_problem_solving/agi_eval_sat_math.jsonl # ADD YOUR OWN DATASET URI
+#   num_fewshot: [3]
+#   icl_task_type: question_answering
+#   cot_delimiter: ' #### '
+#   continuation_delimiter: "\nA: Let's think step by step. "
+# -
+#   label: aqua
+#   dataset_uri: eval/local_data/symbolic_problem_solving/aqua.jsonl # ADD YOUR OWN DATASET URI
+#   num_fewshot: [3]
+#   icl_task_type: question_answering
+#   cot_delimiter: ' #### '
+#   continuation_delimiter: "\nA: Let's think step by step. "
+# -
+  # label: svamp
+  # dataset_uri: eval/local_data/symbolic_problem_solving/svamp.jsonl # ADD YOUR OWN DATASET URI
+  # num_fewshot: [3]
+  # icl_task_type: question_answering
+  # continuation_delimiter: "\nUsing the formula below:\n"
+  # cot_delimiter: ' #### '
+  # question_prelimiter: "Q: "
 # -
 #   label: bigbench_qa_wikidata
 #   dataset_uri: eval/local_data/world_knowledge/bigbench_qa_wikidata.jsonl # ADD YOUR OWN DATASET URI
@@ -255,10 +248,20 @@ icl_tasks:
 #   num_fewshot: [10]
 #   icl_task_type: multiple_choice
 #   continuation_delimiter: "\nAnswer: " # this separates questions from answers
--
-  label: agi_eval_sat_en
-  dataset_uri: eval/local_data/reading_comprehension/agi_eval_sat_en.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [3]
-  icl_task_type: question_answering
-  cot_delimiter: ' #### '
-  continuation_delimiter: "\nA: Let's think step by step. "
+# -
+#   label: agi_eval_sat_en
+#   dataset_uri: eval/local_data/reading_comprehension/agi_eval_sat_en.jsonl # ADD YOUR OWN DATASET URI
+#   num_fewshot: [3]
+#   icl_task_type: question_answering
+#   cot_delimiter: ' #### '
+#   continuation_delimiter: "\nA: Let's think step by step. "
+# -
+#   label: winogender_mc_female
+#   dataset_uri: eval/local_data/safety/winogender_mc_female.jsonl # ADD YOUR OWN DATASET URI
+#   num_fewshot: [10]
+#   icl_task_type: multiple_choice
+# -
+#   label: winogender_mc_male
+#   dataset_uri: eval/local_data/safety/winogender_mc_female.jsonl # ADD YOUR OWN DATASET URI
+#   num_fewshot: [10]
+#   icl_task_type: multiple_choice

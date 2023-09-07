@@ -711,5 +711,5 @@ def build_alibi_bias(
 ATTN_CLASS_REGISTRY = {
     'multihead_attention': MultiheadAttention,
     'multiquery_attention': MultiQueryAttention,
-    'grouped_query_attention': GroupedQueryAttention
+    'groupedquery_attention': GroupedQueryAttention
 }

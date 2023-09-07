@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import copy
 import math
 import os
 import tempfile
@@ -27,7 +28,7 @@ def parse_args() -> Namespace:
         'Convert text files into MDS format, optionally concatenating and tokenizing'
     )
     parser.add_argument(
-        '--max_workers',
+        '--max_mds_writer_workers',
         type=int,
         default=64,
         help='The maximum number of workers to use for MDS writing')
@@ -136,13 +137,14 @@ def get_task_args(
     bos_text: str,
     no_wrap: bool,
     compression: str,
-    max_workers: int,
+    max_mds_writer_workers: int,
 ) -> Iterable:
-    objs_per_group = math.ceil(len(object_names) / n_groups)
-    for group, i in enumerate(range(0, len(object_names), objs_per_group)):
+    num_objects = len(object_names)
+    objs_per_group = math.ceil(num_objects / n_groups)
+    for group, i in enumerate(range(0, num_objects, objs_per_group)):
         output_subdir = os.path.join(output_root, str(group))
         yield (
-            object_names[i:i + objs_per_group],
+            object_names[i:min(i + objs_per_group, num_objects)],
             output_subdir,
             input_folder,
             tokenizer_name,
@@ -151,7 +153,7 @@ def get_task_args(
             bos_text,
             no_wrap,
             compression,
-            max_workers,
+            max_mds_writer_workers,
         )
 
 
@@ -165,17 +167,17 @@ def download_and_convert(
     bos_text: str,
     no_wrap: bool,
     compression: str,
-    max_workers: int,
+    max_mds_writer_workers: int,
 ):
     object_store = maybe_create_object_store_from_uri(input_folder)
-    _, _, folder_prefix = parse_uri(input_folder)
 
     # Download file_names
     with tempfile.TemporaryDirectory() as tmp_dir:
-        downloading_iter = DownloadingIterable(file_names, folder_prefix,
-                                               tmp_dir, object_store)
+        downloading_iter = DownloadingIterable(object_names=file_names,
+                                               output_folder=tmp_dir,
+                                               object_store=object_store)
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-        tokenizer.model_max_length = 5000000000
+        tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
 
         # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up to the maximum sequence length
         dataset = ConcatTokensDataset(
@@ -194,7 +196,7 @@ def download_and_convert(
         print(f'Converting to MDS format...')
         with MDSWriter(out=output_folder,
                        columns=columns,
-                       max_workers=max_workers,
+                       max_mds_writer_workers=max_mds_writer_workers,
                        compression=compression) as out:
             for sample in tqdm(samples):
                 out.write(sample)
@@ -202,7 +204,7 @@ def download_and_convert(
 
 def is_remote_path(path: str) -> bool:
     backend, bucket, _ = parse_uri(path)
-    return backend != '' or bucket != ''
+    return backend != '' and bucket != ''
 
 
 def is_already_processed(output_root: str, done_file_name: str, args_str: str,
@@ -218,7 +220,8 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str,
                 output_object_store.download_object(
                     os.path.join(output_folder_prefix, done_file_name),
                     done_file)
-                done_file_contents = open(done_file).read().splitlines()
+                with open(done_file) as df:
+                    done_file_contents = df.read().splitlines()
         except FileNotFoundError:
             return False
     else:
@@ -226,7 +229,8 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str,
         done_file = os.path.join(output_root, done_file_name)
         if not os.path.isfile(done_file):
             return False
-        done_file_contents = open(done_file).read().splitlines()
+        with open(done_file) as df:
+            done_file_contents = df.read().splitlines()
     # Compare the arguments
     prev_args_str = done_file_contents[0]
     if prev_args_str != args_str:
@@ -248,6 +252,10 @@ def write_done_file(folder: str, file_name: str, args_str: str,
         done_file.write('\n'.join([args_str] + object_names) + '\n')
 
 
+def get_done_file_name() -> str:
+    return '.text_to_mds_conversion_done'
+
+
 def main(
     tokenizer_name: str,
     output_folder: str,
@@ -256,13 +264,13 @@ def main(
     eos_text: str,
     bos_text: str,
     no_wrap: bool,
-    max_workers: int,
+    max_mds_writer_workers: int,
     compression: str,
     processes: int,
     args_str: str,
     reprocess: bool,
 ):
-    done_file_name = 'done'
+    done_file_name = get_done_file_name()
     is_remote_output = is_remote_path(output_folder)
 
     object_names = get_object_names(input_folder)
@@ -283,7 +291,8 @@ def main(
         # Download and convert the text files in parallel
         args = get_task_args(object_names, local_output_folder, input_folder,
                              processes, tokenizer_name, concat_tokens, eos_text,
-                             bos_text, no_wrap, compression, max_workers)
+                             bos_text, no_wrap, compression,
+                             max_mds_writer_workers)
         with Pool(processes=processes) as pool:
             pool.starmap(download_and_convert, args)
 
@@ -292,7 +301,7 @@ def main(
     else:
         download_and_convert(object_names, local_output_folder, input_folder,
                              tokenizer_name, concat_tokens, eos_text, bos_text,
-                             no_wrap, compression, max_workers)
+                             no_wrap, compression, max_mds_writer_workers)
 
     # Write a done file with the args and object names
     write_done_file(local_output_folder, done_file_name, args_str, object_names)
@@ -303,7 +312,7 @@ def main(
             ObjectStore, maybe_create_object_store_from_uri(output_folder))
         _, _, output_folder_prefix = parse_uri(output_folder)
         pattern = os.path.join(local_output_folder, '*')
-        files_to_upload = sorted(glob(pattern))
+        files_to_upload = sorted(glob(pattern, include_hidden=True))
 
         # TODO: Use multi threading to upload files?
         for local_path in files_to_upload:
@@ -311,6 +320,20 @@ def main(
             remote_path = os.path.join(output_folder_prefix,
                                        os.path.basename(local_path))
             output_object_store.upload_object(remote_path, local_path)
+
+
+def _args_str(original_args: Namespace) -> str:
+    """Create a string from the args to determine whether to reprocess.
+
+    Args:
+        original_args (Namespace): args to transform
+    """
+    args = copy.deepcopy(original_args)
+
+    # Remove args that do not affect the final result.
+    delattr(args, 'max_mds_writer_workers')
+    delattr(args, 'reprocess')
+    return str(args)
 
 
 if __name__ == '__main__':
@@ -322,8 +345,8 @@ if __name__ == '__main__':
          eos_text=args.eos_text,
          bos_text=args.bos_text,
          no_wrap=args.no_wrap,
-         max_workers=args.max_workers,
+         max_mds_writer_workers=args.max_mds_writer_workers,
          compression=args.compression,
          processes=args.processes,
          reprocess=args.reprocess,
-         args_str=str(args))
+         args_str=_args_str(args))

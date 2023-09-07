@@ -21,6 +21,7 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer
 
 from scripts.data_prep.convert_text_to_mds import (download_and_convert,
+                                                   get_done_file_name,
                                                    is_already_processed, main,
                                                    merge_shard_groups,
                                                    write_done_file)
@@ -41,6 +42,9 @@ class MockObjectStore():
                         object_name: str,
                         filename: str,
                         overwrite: bool = False):
+        dirname = os.path.dirname(filename)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         with open(
                 os.path.join(self.remote_folder, os.path.basename(object_name)),
                 'rb') as remote_file, open(filename, 'wb') as local_file:
@@ -65,7 +69,7 @@ def _call_convert_text_to_mds(processes: int, tokenizer_name: str) -> None:
         eos_text='',
         bos_text='',
         no_wrap=False,
-        max_workers=1,
+        max_mds_writer_workers=1,
         compression='zstd',
         processes=processes,
         args_str='Namespace()',
@@ -144,7 +148,7 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
     # Check that correct output files exist
     shards = [f'shard.0000{i}.mds.zstd' for i in range(processes)]
     _assert_files_exist(prefix=remote_folder,
-                        files=['index.json', 'done'] + shards)
+                        files=['index.json', get_done_file_name()] + shards)
 
     _call_convert_text_to_mds(processes=processes,
                               tokenizer_name=tokenizer_name)
@@ -178,7 +182,7 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
 
 def test_is_already_processed(tmp_path: pathlib.Path):
     tmp_path_str = str(tmp_path)
-    fname = 'done'
+    fname = get_done_file_name()
     args_str = 'Namespace(x = 5)'
     object_names = ['test0.txt', 'test1.txt']
 

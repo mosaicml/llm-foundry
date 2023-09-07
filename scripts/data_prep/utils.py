@@ -98,7 +98,8 @@ def merge_shard_groups(root: str) -> None:
     infos = []
     for subdir in subdirs:
         index_filename = os.path.join(subdir, 'index.json')
-        obj = json.load(open(index_filename))
+        with open(index_filename) as index_file:
+            obj = json.load(index_file)
         for info in obj['shards']:
             old_basename = info['raw_data']['basename']
             new_basename = with_id(old_basename, shard_id)
@@ -111,13 +112,13 @@ def merge_shard_groups(root: str) -> None:
 
             old_filename = os.path.join(subdir, old_basename)
             new_filename = os.path.join(root, new_basename)
-            assert not os.rename(old_filename, new_filename)
+            os.rename(old_filename, new_filename)
 
             shard_id += 1
             infos.append(info)
 
-        assert not os.remove(index_filename)
-        assert not os.rmdir(subdir)
+        os.remove(index_filename)
+        os.rmdir(subdir)
 
     index_filename = os.path.join(root, 'index.json')
     obj = {
@@ -134,7 +135,6 @@ class DownloadingIterable:
     def __init__(
         self,
         object_names: List[str],
-        input_folder_prefix: str,
         output_folder: str,
         object_store: Optional[ObjectStore],
     ):
@@ -142,32 +142,26 @@ class DownloadingIterable:
 
         If object_store is None, input_folder_prefix is treated as a local path.
 
-        text samples.
-
         Args:
             object_names (List[str]): Names of objects to download
-            input_folder_prefix (str): Object store prefix to download from
             output_folder (str): Local folder to write downloaded files to
             object_store (Optiona[ObjectStore]): Object store to download from
         """
         self.object_names = object_names
         self.object_store = object_store
-        self.input_folder_prefix = input_folder_prefix
         self.output_folder = output_folder
 
     def __iter__(self):
         for object_name in self.object_names:
-            output_filename = os.path.join(
-                self.output_folder,
-                os.path.relpath(object_name, start=self.input_folder_prefix))
+            object_name = object_name.strip('/')
+            output_filename = os.path.join(self.output_folder, object_name)
             if self.object_store is not None:
                 self.object_store.download_object(object_name=object_name,
                                                   filename=output_filename,
                                                   overwrite=True)
             else:
                 # Inputs are local so we do not need to download them.
-                output_filename = os.path.join(self.input_folder_prefix,
-                                               object_name)
+                output_filename = object_name
 
             with open(output_filename) as _txt_file:
                 txt = _txt_file.read()

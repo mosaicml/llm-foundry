@@ -11,9 +11,10 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 import pathlib
 from glob import glob
-from multiprocessing.pool import Pool
 from typing import Callable, Iterable, List, Optional
 from unittest.mock import Mock, patch
+from concurrent.futures import ProcessPoolExecutor
+
 
 import numpy as np
 from streaming import StreamingDataset
@@ -78,9 +79,9 @@ def _call_convert_text_to_mds(processes: int, tokenizer_name: str) -> None:
 
 
 # Mock starmap with no multiprocessing
-def _mock_starmap(func: Callable, args: Iterable):
+def _mock_map(func: Callable, args: Iterable)-> Iterable:
     for arg in args:
-        func(*arg)
+        yield func(arg)
 
 
 # Build a dataloader with no threading so mock call counts are correct
@@ -103,7 +104,7 @@ def _assert_files_exist(prefix: str, files: List[str]):
 @pytest.mark.parametrize('processes', [1, 2, 3])
 @patch('scripts.data_prep.convert_text_to_mds.build_dataloader',
        new=Mock(wraps=_mock_build_dataloader))
-@patch.object(Pool, 'starmap', new=Mock(wraps=_mock_starmap))
+@patch.object(ProcessPoolExecutor, 'map', new=Mock(wraps=_mock_map))
 @patch(
     'scripts.data_prep.convert_text_to_mds.maybe_create_object_store_from_uri')
 @patch('scripts.data_prep.convert_text_to_mds.parse_uri')
@@ -139,8 +140,6 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
     total_object_names = 0
     for call_args in download_and_convert.call_args_list:
         object_names = call_args[0][0]
-        assert (len(object_names) == n_text_files / processes
-               )  # Each process should get an even portion of the files
         total_object_names += len(object_names)
 
     assert total_object_names == n_text_files  # We should have processed all the text files

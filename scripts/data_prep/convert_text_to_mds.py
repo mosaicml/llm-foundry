@@ -7,8 +7,8 @@ import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from glob import glob
-from multiprocessing import Pool
-from typing import Iterable, List, cast
+from concurrent.futures import ProcessPoolExecutor
+from typing import Iterable, List, Tuple, cast
 
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
                             parse_uri)
@@ -158,6 +158,8 @@ def get_task_args(
             max_mds_writer_workers,
         )
 
+def download_and_convert_starargs(args: Tuple):
+    return download_and_convert(*args)
 
 def download_and_convert(
     file_names: List[str],
@@ -276,6 +278,7 @@ def main(
     is_remote_output = is_remote_path(output_folder)
 
     object_names = get_object_names(input_folder)
+    object_names = object_names[:10]
 
     # Check if the text files in the bucket have already been processed.
     if not reprocess and is_already_processed(output_folder, done_file_name,
@@ -295,8 +298,8 @@ def main(
                              processes, tokenizer_name, concat_tokens, eos_text,
                              bos_text, no_wrap, compression,
                              max_mds_writer_workers)
-        with Pool(processes=processes) as pool:
-            pool.starmap(download_and_convert, args)
+        with ProcessPoolExecutor(max_workers=processes) as executor:
+            list(executor.map(download_and_convert_starargs, args))
 
         # Merge the mds shards from each of the processes into a single folder
         merge_shard_groups(local_output_folder)

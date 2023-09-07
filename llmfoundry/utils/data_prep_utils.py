@@ -27,7 +27,7 @@ def build_dataloader(dataset: Dataset,
     # If not using workers, the torch DataLoader expects the default value for prefetch_factor,
     # which non-intuitively must be 2.
     # If on macOS, PyTorch requires prefetch_factor set to None since num_workers is always zero
-    if 'macos' in platform.platform().lower() and num_workers == 0:
+    if 'macos' in platform.platform().lower() or num_workers == 0:
         prefetch_factor = None
     else:
         prefetch_factor = max(1, 2 * batch_size //

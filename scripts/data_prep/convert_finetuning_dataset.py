@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 
 from llmfoundry.data.finetuning.tasks import dataset_constructor
-from scripts.data_prep.utils import build_dataloader
+from llmfoundry.utils.data_prep_utils import build_dataloader
 
 
 def parse_args() -> Namespace:

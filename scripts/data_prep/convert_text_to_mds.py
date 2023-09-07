@@ -17,8 +17,10 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 
 from llmfoundry.data import ConcatTokensDataset
-from scripts.data_prep.utils import (DownloadingIterable, build_dataloader,
-                                     generate_samples, merge_shard_groups)
+from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
+                                              build_dataloader,
+                                              generate_samples,
+                                              merge_shard_groups)
 
 
 def parse_args() -> Namespace:

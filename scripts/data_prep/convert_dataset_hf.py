@@ -15,7 +15,7 @@ from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
-from scripts.data_prep.utils import build_dataloader
+from llmfoundry.utils.data_prep_utils import build_dataloader
 
 
 class ConcatMode(Enum):

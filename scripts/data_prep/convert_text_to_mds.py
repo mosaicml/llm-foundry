@@ -313,15 +313,13 @@ def main(
         output_object_store = cast(
             ObjectStore, maybe_create_object_store_from_uri(output_folder))
         _, _, output_folder_prefix = parse_uri(output_folder)
-        pattern = os.path.join(local_output_folder, '*')
-        files_to_upload = sorted(glob(pattern, include_hidden=True))
+        files_to_upload = os.listdir(local_output_folder)
 
-        # TODO: Use multi threading to upload files?
-        for local_path in files_to_upload:
-            assert not os.path.isdir(local_path)
-            remote_path = os.path.join(output_folder_prefix,
-                                       os.path.basename(local_path))
-            output_object_store.upload_object(remote_path, local_path)
+        for file in files_to_upload:
+            assert not os.path.isdir(file)
+            remote_path = os.path.join(output_folder_prefix, file)
+            output_object_store.upload_object(
+                remote_path, os.path.join(local_output_folder, file))
 
 
 def _args_str(original_args: Namespace) -> str:

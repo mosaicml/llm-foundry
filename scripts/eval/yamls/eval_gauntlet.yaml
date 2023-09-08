@@ -112,6 +112,17 @@ eval_gauntlet:
     - name: boolq
       num_fewshot: 10
       random_baseline: 0.5
+  - name: programming
+    benchmarks:
+    - name: human_eval
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: human_eval_cpp
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: human_eval_js
+      num_fewshot: 0
+      random_baseline: 0.0
   - name: world_knowledge_lite
     benchmarks:
     - name: jeopardy

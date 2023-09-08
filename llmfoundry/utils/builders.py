@@ -215,6 +215,8 @@ def build_icl_evaluators(
                 ]
             elif icl_cfg.icl_task_type == 'question_answering':
                 icl_cfg.metric_names = ['InContextLearningQAAccuracy']
+            elif icl_cfg.icl_task_type == 'code_evaluation':
+                icl_cfg.metric_names = ['InContextLearningCodeEvalAccuracy']
             else:
                 raise ValueError(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg.icl_task_type}.'
@@ -230,6 +232,8 @@ def build_icl_evaluators(
             icl_cfg.max_seq_len = default_max_seq_len
         if 'batch_size' not in icl_cfg:
             icl_cfg.batch_size = default_batch_size
+        if 'num_beams' not in icl_cfg:
+            icl_cfg.num_beams = 1
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
@@ -260,6 +264,7 @@ def build_icl_evaluators(
                 example_delimiter=icl_cfg.example_delimiter,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 destination_path=destination_path,
+                generations_per_sample=icl_cfg.num_beams,
                 has_categories=icl_cfg.get('has_categories', False),
             )
             if hasattr(

@@ -393,11 +393,11 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
 
-def test_finetuning_dataloader_custom_split():
+def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
-    tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
-    tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'custom.jsonl')
+    tiny_dataset_folder_path = str(tmp_path)
+    tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'data', 'custom-00000-of-00001.jsonl')
     if dist.get_global_rank() == 0:
         make_tiny_ft_dataset(path=tiny_dataset_path, size=16)
 

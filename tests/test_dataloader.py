@@ -393,6 +393,48 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
 
+def test_finetuning_dataloader_custom_split():
+    tokenizer_name = 'gpt2'
+    max_seq_len = 2048
+    tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
+    tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'custom.jsonl')
+    if dist.get_global_rank() == 0:
+        make_tiny_ft_dataset(path=tiny_dataset_path, size=16)
+
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': tiny_dataset_folder_path,
+            'split': 'custom',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 4,
+        'pin_memory': False,
+        'prefetch_factor': 2,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
+
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+    expected_keys += ['bidirectional_mask']
+
+    _ = build_finetuning_dataloader(cfg, tokenizer, 4)
+
+    if dist.get_global_rank() == 0:
+        shutil.rmtree(tiny_dataset_folder_path)
+
 
 @pytest.mark.parametrize('add_bad_data_dropped', [True, False])
 @pytest.mark.parametrize('add_bad_data_error', [True, False])

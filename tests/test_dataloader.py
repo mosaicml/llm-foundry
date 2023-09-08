@@ -393,13 +393,13 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
 
-
-def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path):
+@pytest.mark.parametrize('split', ['train', 'custom', 'data'])
+def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
     tiny_dataset_folder_path = str(tmp_path)
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'data',
-                                     'custom-00000-of-00001.jsonl')
+                                     f'{split}-00000-of-00001.jsonl')
     if dist.get_global_rank() == 0:
         make_tiny_ft_dataset(path=tiny_dataset_path, size=16)
 
@@ -407,7 +407,7 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path):
         'name': 'finetuning',
         'dataset': {
             'hf_name': tiny_dataset_folder_path,
-            'split': 'custom',
+            'split': split,
             'max_seq_len': max_seq_len,
             'decoder_only_format': True,
             'allow_pad_trimming': False,

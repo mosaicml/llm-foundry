@@ -294,7 +294,9 @@ def _build_hf_dataset_from_remote(
     finetune_dir = os.path.join(
         os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
-        'downloaded_finetuning', cfg.dataset.split if cfg.dataset.split != 'data' else 'data_not',)
+        'downloaded_finetuning',
+        cfg.dataset.split if cfg.dataset.split != 'data' else 'data_not',
+    )
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in supported_extensions:
         name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'

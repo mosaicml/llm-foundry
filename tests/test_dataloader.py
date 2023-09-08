@@ -26,6 +26,7 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 
+
 class MockObjectStore():
 
     def __init__(self, remote_folder: str):
@@ -43,6 +44,7 @@ class MockObjectStore():
                 os.path.join(self.remote_folder, os.path.basename(object_name)),
                 'rb') as remote_file, open(filename, 'wb') as local_file:
             local_file.write(remote_file.read())
+
 
 def get_config(conf_path: str = 'yamls/mpt/125m.yaml'):
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
@@ -449,11 +451,14 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
 
     _ = build_finetuning_dataloader(cfg, tokenizer, 4)
 
+
 def mock_get_file(path: str, destination: str, overwrite: bool = False):
     make_tiny_ft_dataset(path=destination, size=16)
 
+
 @pytest.mark.parametrize('split', ['train', 'custom', 'data'])
-def test_finetuning_dataloader_custom_split_remote(tmp_path: pathlib.Path, split: str, monkeypatch):
+def test_finetuning_dataloader_custom_split_remote(tmp_path: pathlib.Path,
+                                                   split: str, monkeypatch: pytest.MonkeyPatch):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
 
@@ -482,9 +487,10 @@ def test_finetuning_dataloader_custom_split_remote(tmp_path: pathlib.Path, split
         tokenizer_name=tokenizer_name,
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
-    
+
     with monkeypatch.context() as m:
-        m.setattr('llmfoundry.data.finetuning.dataloader.get_file', mock_get_file)
+        m.setattr('llmfoundry.data.finetuning.dataloader.get_file',
+                  mock_get_file)
         _ = build_finetuning_dataloader(cfg, tokenizer, 4)
 
 

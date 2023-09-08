@@ -438,8 +438,8 @@ def mock_get_file(path: str, destination: str, overwrite: bool = False):
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'data'])
-def test_finetuning_dataloader_custom_split_remote(tmp_path: pathlib.Path,
-                                                   split: str, monkeypatch: pytest.MonkeyPatch):
+def test_finetuning_dataloader_custom_split_remote(
+        tmp_path: pathlib.Path, split: str, monkeypatch: pytest.MonkeyPatch):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
 

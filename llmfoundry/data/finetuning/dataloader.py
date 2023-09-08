@@ -300,7 +300,9 @@ def _build_hf_dataset_from_remote(
         name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
         destination = str(
             os.path.abspath(
-                os.path.join(finetune_dir, 'data', f'{cfg.dataset.split}-00000-of-00001.{extension}')))
+                os.path.join(
+                    finetune_dir, 'data',
+                    f'{cfg.dataset.split}-00000-of-00001.{extension}')))
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file
         signal_file_path = os.path.join(finetune_dir, '.the_eagle_has_landed')

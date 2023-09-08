@@ -26,6 +26,23 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 
+class MockObjectStore():
+
+    def __init__(self, remote_folder: str):
+        os.makedirs(remote_folder, exist_ok=True)
+        self.remote_folder = remote_folder
+
+    def download_object(self,
+                        object_name: str,
+                        filename: str,
+                        overwrite: bool = False):
+        dirname = os.path.dirname(filename)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
+        with open(
+                os.path.join(self.remote_folder, os.path.basename(object_name)),
+                'rb') as remote_file, open(filename, 'wb') as local_file:
+            local_file.write(remote_file.read())
 
 def get_config(conf_path: str = 'yamls/mpt/125m.yaml'):
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
@@ -430,13 +447,45 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
-    expected_keys = ['input_ids', 'attention_mask', 'labels']
-    expected_keys += ['bidirectional_mask']
-
     _ = build_finetuning_dataloader(cfg, tokenizer, 4)
 
-    if dist.get_global_rank() == 0:
-        shutil.rmtree(tiny_dataset_folder_path)
+def mock_get_file(path: str, destination: str, overwrite: bool = False):
+    make_tiny_ft_dataset(path=destination, size=16)
+
+@pytest.mark.parametrize('split', ['train', 'custom', 'data'])
+def test_finetuning_dataloader_custom_split_remote(tmp_path: pathlib.Path, split: str, monkeypatch):
+    tokenizer_name = 'gpt2'
+    max_seq_len = 2048
+
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': 's3://test-bucket/path/to/data',
+            'split': split,
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 4,
+        'pin_memory': False,
+        'prefetch_factor': 2,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
+    
+    with monkeypatch.context() as m:
+        m.setattr('llmfoundry.data.finetuning.dataloader.get_file', mock_get_file)
+        _ = build_finetuning_dataloader(cfg, tokenizer, 4)
 
 
 @pytest.mark.parametrize('add_bad_data_dropped', [True, False])

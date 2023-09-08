@@ -294,7 +294,7 @@ def _build_hf_dataset_from_remote(
     finetune_dir = os.path.join(
         os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
-        'downloaded_finetuning', cfg.dataset.split)
+        'downloaded_finetuning', cfg.dataset.split if cfg.dataset.split != 'data' else 'data_not',)
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in supported_extensions:
         name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
@@ -308,7 +308,7 @@ def _build_hf_dataset_from_remote(
         signal_file_path = os.path.join(finetune_dir, '.the_eagle_has_landed')
         if dist.get_local_rank() == 0:
             try:
-                get_file(name, destination, overwrite=True)
+                get_file(path=name, destination=destination, overwrite=True)
             except FileNotFoundError as e:
                 if extension == supported_extensions[-1]:
                     files_searched = [

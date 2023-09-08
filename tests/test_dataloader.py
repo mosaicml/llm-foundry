@@ -393,6 +393,7 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
 
+
 @pytest.mark.parametrize('split', ['train', 'custom', 'data'])
 def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
     tokenizer_name = 'gpt2'

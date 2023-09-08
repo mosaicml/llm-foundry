@@ -29,6 +29,7 @@ from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
+from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 
 
 def build_icl_data_and_gauntlet(
@@ -147,6 +148,8 @@ def build_scheduler(name: str, scheduler_config: Dict[str, Any]):
         return ConstantWithWarmupScheduler(**scheduler_config)
     elif name == 'cosine_with_warmup':
         return CosineAnnealingWithWarmupScheduler(**scheduler_config)
+    elif name == 'inv_sqrt_with_warmup':
+        return InverseSquareRootWithWarmupScheduler(**scheduler_config)
     elif name == 'linear_decay_with_warmup':
         return LinearWithWarmupScheduler(**scheduler_config)
     else:

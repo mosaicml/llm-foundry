@@ -27,25 +27,6 @@ sys.path.append(repo_dir)
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 
 
-class MockObjectStore():
-
-    def __init__(self, remote_folder: str):
-        os.makedirs(remote_folder, exist_ok=True)
-        self.remote_folder = remote_folder
-
-    def download_object(self,
-                        object_name: str,
-                        filename: str,
-                        overwrite: bool = False):
-        dirname = os.path.dirname(filename)
-        if dirname:
-            os.makedirs(dirname, exist_ok=True)
-        with open(
-                os.path.join(self.remote_folder, os.path.basename(object_name)),
-                'rb') as remote_file, open(filename, 'wb') as local_file:
-            local_file.write(remote_file.read())
-
-
 def get_config(conf_path: str = 'yamls/mpt/125m.yaml'):
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     with open(conf_path) as f:

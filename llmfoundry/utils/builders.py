@@ -34,7 +34,7 @@ from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
 def build_icl_data_and_gauntlet(
     icl_tasks_config: Union[str, ListConfig],
     eval_gauntlet_config: Optional[Union[str, DictConfig]],
-    tokenizer: AutoTokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int] = None
@@ -153,15 +153,12 @@ def build_scheduler(name: str, scheduler_config: Dict[str, Any]):
         raise ValueError(f'Not sure how to build scheduler: {name}')
 
 
-def build_tokenizer(om_tokenizer_config: DictConfig) -> PreTrainedTokenizerBase:
+def build_tokenizer(
+        tokenizer_name: str,
+        tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
-                                                   resolve=True)
-    tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
-        'kwargs', {})
-    tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
                                               **tokenizer_kwargs)
 
@@ -178,7 +175,7 @@ def build_tokenizer(om_tokenizer_config: DictConfig) -> PreTrainedTokenizerBase:
 
 def build_icl_evaluators(
     icl_tasks: Union[str, ListConfig],
-    tokenizer: AutoTokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     default_max_seq_len: int,
     default_batch_size: int,
     destination_dir: Optional[str] = None,

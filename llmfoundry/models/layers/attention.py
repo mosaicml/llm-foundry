@@ -421,7 +421,6 @@ class GroupedQueryAttention(nn.Module):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
-        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__()
@@ -559,7 +558,6 @@ class MultiheadAttention(GroupedQueryAttention):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
-        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__(
@@ -573,7 +571,6 @@ class MultiheadAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
-            verbose=verbose,
             device=device)
 
 
@@ -595,7 +592,6 @@ class MultiQueryAttention(GroupedQueryAttention):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
-        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__(
@@ -609,7 +605,6 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
-            verbose=verbose,
             device=device)
 
 

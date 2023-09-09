@@ -284,7 +284,7 @@ class DatasetConstructor:
                 proto_preprocessing_fn)
         else:
             preprocessing_fn = self.get_preprocessing_fn_from_str(
-                proto_preprocessing_fn, dataset_name, verbose=True)
+                proto_preprocessing_fn, dataset_name)
 
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 

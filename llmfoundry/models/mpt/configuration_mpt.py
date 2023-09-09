@@ -61,6 +61,7 @@ class MPTConfig(PretrainedConfig):
         use_cache: bool = False,
         init_config: Dict = init_config_defaults,
         fc_type: str = 'torch',
+        verbose: int = 0,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -134,7 +135,6 @@ class MPTConfig(PretrainedConfig):
         self.init_device = init_device
         self.logit_scale = logit_scale
         self.no_bias = no_bias
-        self.verbose = verbose
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
         self.use_cache = use_cache

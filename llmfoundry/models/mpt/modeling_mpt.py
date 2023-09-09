@@ -149,14 +149,9 @@ class MPTModel(MPTPreTrainedModel):
                     log.info(f'Removing bias ({module.bias}) from {module}.')
                     module.register_parameter('bias', None)
 
-        # Print verbose info
-        if config.verbose and config.verbose > 2:
-            print(self)
-        if 'verbose' not in self.config.init_config:
-            self.config.init_config['verbose'] = self.config.verbose
-        if self.config.init_config['verbose'] > 1:
-            init_fn_name = self.config.init_config['name']
-            warnings.warn(f'Using {init_fn_name} initialization.')
+        logging.debug(self)
+        logging.debug(f'Using {self.config.init_config['name']} initialization.')
+
 
     def get_input_embeddings(self):
         return self.wte
@@ -720,8 +715,6 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             try:
                 from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
 
-                if hf_config.verbose > 1:
-                    warnings.warn('Using Fused Cross Entropy Loss.')
                 self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
             except:
                 raise ValueError(

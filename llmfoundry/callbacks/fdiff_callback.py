@@ -10,13 +10,15 @@ from composer.loggers import Logger
 
 
 class FDiffMetrics(Callback):
-    """Rate of chage of metrics.
+    """Rate of change of metrics.
 
     tracks and plots the rate of change of metrics effectively taking the
     numerical derivative of the metrics
     """
 
-    def __init__(self, diff_train_metrics=False, diff_eval_metrics=True):
+    def __init__(self,
+                 diff_train_metrics: bool = False,
+                 diff_eval_metrics: bool = True):
         self.diff_train_metrics = diff_train_metrics
         self.diff_eval_metrics = diff_eval_metrics
 
@@ -47,10 +49,12 @@ class FDiffMetrics(Callback):
     def eval_end(self, state: State, logger: Logger):
         if self.diff_eval_metrics:
             evaluator = state.dataloader_label
-            metrics = list(state.eval_metrics[evaluator].keys())  # type: ignore
+            assert evaluator is not None, 'dataloader should have been set'
+
+            metrics = list(state.eval_metrics[evaluator].keys())
 
             for k in metrics:
-                mkey = '/'.join(['metrics', evaluator, k])  # type: ignore
+                mkey = '/'.join(['metrics', evaluator, k])
                 if mkey in self.eval_prev_metric.keys():
                     logger.log_metrics({
                         f'{mkey}_fdiff':
@@ -59,5 +63,5 @@ class FDiffMetrics(Callback):
                     })
 
             for k in metrics:
-                mkey = '/'.join(['metrics', evaluator, k])  # type: ignore
+                mkey = '/'.join(['metrics', evaluator, k])
                 self.eval_prev_metric[mkey] = state.eval_metric_values[k]

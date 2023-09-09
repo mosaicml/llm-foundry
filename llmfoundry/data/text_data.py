@@ -5,7 +5,7 @@
 
 import os
 from itertools import islice
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -14,9 +14,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
-
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
+from transformers import PreTrainedTokenizerBase
 
 
 class StreamingTextDataset(StreamingDataset):
@@ -45,13 +43,17 @@ class StreamingTextDataset(StreamingDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             `False``.
-        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
-            remote is local or no remote and no compression. Defaults to ``True``.
-        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
-            proportionally. Defaults to ``None``.
+        epoch_size (int, optional): Number of samples to draw per epoch balanced across all
+            streams. If ``None``, takes its value from the total number of underlying samples.
+            Provide this field if you are weighting streams relatively to target a larger or
+            smaller epoch size. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
+        cache_limit (Union[int, str], optional) - Maximum size in bytes of this StreamingDataset's
+            shard cache. Before downloading a shard, the least recently used resident shard(s) may
+            be evicted (deleted from the local cache) in order to stay under the limit. Set to None
+            to disable shard eviction. Supports integer bytes as well as string human-readable
+            bytes (e.g., 100b, 64kb, 77mb, and so on). Defaults to None.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
@@ -63,10 +65,11 @@ class StreamingTextDataset(StreamingDataset):
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``. Defaults to ``balanced``.
     """
 
     def __init__(self,
-                 tokenizer: Tokenizer,
+                 tokenizer: PreTrainedTokenizerBase,
                  max_seq_len: int,
                  streams: Optional[Sequence[Stream]] = None,
                  remote: Optional[str] = None,
@@ -76,9 +79,9 @@ class StreamingTextDataset(StreamingDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 keep_raw: bool = True,
-                 samples_per_epoch: Optional[int] = None,
+                 epoch_size: Optional[int] = None,
                  predownload: int = 100_000,
+                 cache_limit: Optional[Union[int, str]] = None,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
@@ -86,7 +89,8 @@ class StreamingTextDataset(StreamingDataset):
                  shuffle_algo: str = 'py1b',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
-                 **kwargs: Dict[str, Any]):
+                 sampling_method: str = 'balanced',
+                 **kwargs: Any):
 
         group_method = kwargs.pop('group_method', None)
         if group_method is not None:
@@ -95,7 +99,7 @@ class StreamingTextDataset(StreamingDataset):
                 'concatenate, use the --concat_tokens ' +
                 'argument when creating your MDS dataset with concat_c4.py')
 
-        if kwargs is not None and len(kwargs) > 0:
+        if len(kwargs) > 0:
             raise ValueError(
                 f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}'
             )
@@ -108,6 +112,10 @@ class StreamingTextDataset(StreamingDataset):
                         f'local directory {local} does not contain split {split}'
                     )
 
+        # TODO: discover where yamls are being converted incorrect, but temporary workaround
+        if isinstance(shuffle_block_size, float):
+            shuffle_block_size = int(shuffle_block_size)
+
         # Build Dataset
         super().__init__(
             streams=streams,
@@ -118,21 +126,23 @@ class StreamingTextDataset(StreamingDataset):
             download_timeout=download_timeout,
             validate_hash=validate_hash,
             keep_zip=keep_zip,
-            keep_raw=keep_raw,
-            samples_per_epoch=samples_per_epoch,
+            epoch_size=epoch_size,
             predownload=predownload,
+            cache_limit=cache_limit,
             partition_algo=partition_algo,
             num_canonical_nodes=num_canonical_nodes,
             batch_size=batch_size,
             shuffle=shuffle,
             shuffle_algo=shuffle_algo,
             shuffle_seed=shuffle_seed,
+            shuffle_block_size=shuffle_block_size,
+            sampling_method=sampling_method,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
 
     # How to tokenize a text sample to a token sample
-    def _tokenize(self, text_sample):
+    def _tokenize(self, text_sample: Mapping):
         if self.tokenizer._pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             raise RuntimeError(
@@ -143,7 +153,7 @@ class StreamingTextDataset(StreamingDataset):
                               padding='max_length',
                               max_length=self.max_seq_len)
 
-    def _read_binary_tokenized_sample(self, sample):
+    def _read_binary_tokenized_sample(self, sample: Dict[str, Any]):
         return torch.from_numpy(
             np.frombuffer(sample['tokens'],
                           dtype=np.int64)[:self.max_seq_len].copy())
@@ -168,8 +178,8 @@ class ConcatenatedSequenceCollatorWrapper:
     def __init__(
         self,
         base_collator: Callable,
-        eos_token_id=None,
-        bos_token_id=None,
+        eos_token_id: Optional[int] = None,
+        bos_token_id: Optional[int] = None,
     ):
         self.base_collator = base_collator
         if (eos_token_id is None) and (bos_token_id is None):
@@ -211,7 +221,7 @@ class ConcatenatedSequenceCollatorWrapper:
 
 def build_text_dataloader(
     cfg: DictConfig,
-    tokenizer: Tokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
 ):
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
@@ -222,67 +232,34 @@ def build_text_dataloader(
             'argument when creating your MDS dataset with convert_dataset_hf.py'
         )
 
+    # get kwargs
+    streams_dict = cfg.dataset.pop('streams', None)
+    mlm_probability = cfg.dataset.pop('mlm_probability', None)
+    eos_token_id = cfg.dataset.pop('eos_token_id', None)
+    bos_token_id = cfg.dataset.pop('bos_token_id', None)
+
     # build streams
-    streams_dict = cfg.dataset.get('streams', None)
     streams = None
     if streams_dict is not None:
         streams = []
         for _, stream in streams_dict.items():
-            streams.append(
-                Stream(
-                    remote=stream.get('remote', None) or
-                    cfg.dataset.get('remote', None),
-                    local=stream.get('local', None) or
-                    cfg.dataset.get('local', None),
-                    split=stream.get('split', None) or
-                    cfg.dataset.get('split', None),
-                    proportion=stream.get('proportion', None),
-                    repeat=stream.get('repeat', None),
-                    samples=stream.get('samples', None),
-                    download_retry=stream.get('download_retry', None) or
-                    cfg.dataset.get('download_retry', 2),
-                    download_timeout=stream.get('download_timeout', None) or
-                    cfg.dataset.get('download_timeout', 60),
-                    validate_hash=stream.get('validate_hash', None) or
-                    cfg.dataset.get('validate_hash', None),
-                    keep_zip=stream.get('keep_zip', None) or
-                    cfg.dataset.get('keep_zip', False),
-                    keep_raw=stream.get('keep_raw', None) or
-                    cfg.dataset.get('keep_raw', True),
-                ))
+            # stream is the streams kwargs
+            # fwd all kwargs with **stream allows streaming to check args
+            streams.append(Stream(**stream))
 
     # build dataset potentially with streams
     dataset = StreamingTextDataset(
         tokenizer=tokenizer,
-        max_seq_len=cfg.dataset.max_seq_len,
         streams=streams,
-        remote=cfg.dataset.get('remote', None),
-        local=cfg.dataset.get('local', None),
-        split=cfg.dataset.get('split', None),
-        download_retry=cfg.dataset.get('download_retry', 2),
-        download_timeout=cfg.dataset.get('download_timeout', 60),
-        validate_hash=cfg.dataset.get('validate_hash', None),
-        keep_zip=cfg.dataset.get('keep_zip', False),
-        keep_raw=cfg.dataset.get('keep_raw', True),
-        samples_per_epoch=cfg.dataset.get('samples_per_epoch', None),
-        predownload=cfg.dataset.get('predownload', 100_000),
-        partition_algo=cfg.dataset.get('partition_algo', 'orig'),
-        num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', 128),
         batch_size=device_batch_size,
-        shuffle=cfg.dataset.get('shuffle', False),
-        shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1b'),
-        shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
-        shuffle_block_size=cfg.dataset.get('shuffle_block_size', 1 << 18),
+        **cfg.dataset,
     )
 
-    mlm_probability = cfg.dataset.get('mlm_probability', None)
     collate_fn = transformers.DataCollatorForLanguageModeling(
         tokenizer=dataset.tokenizer,
         mlm=mlm_probability is not None,
         mlm_probability=mlm_probability)
 
-    eos_token_id = cfg.dataset.get('eos_token_id')
-    bos_token_id = cfg.dataset.get('bos_token_id')
     if (eos_token_id is not None) or (bos_token_id is not None):
         # Note: Will raise an error if both are non-None
         collate_fn = ConcatenatedSequenceCollatorWrapper(
@@ -358,10 +335,9 @@ if __name__ == '__main__':
     cfg = om.create(cfg)
     device_batch_size = 2
 
-    tokenizer_cfg = {'name': args.tokenizer, 'kwargs': {}}
-    tokenizer_cfg['kwargs'] = {'model_max_length': args.max_seq_len}
-    tokenizer_cfg = om.create(tokenizer_cfg)
-    tokenizer = build_tokenizer(tokenizer_cfg)
+    tokenizer_name = args.tokenizer
+    tokenizer_kwargs = {'model_max_length': args.max_seq_len}
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     loader = build_text_dataloader(cfg, tokenizer, device_batch_size)
     tokenizer = loader.dataset.tokenizer  # type: ignore

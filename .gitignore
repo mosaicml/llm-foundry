@@ -1,5 +1,6 @@
-# Data
+# Data (created in readme examples)
 my-copy-c4*/
+my-copy-arxiv*/
 *.jsonl*
 
 # WandB
@@ -120,6 +121,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# python venv installed in the dir, llmfoundry-venv
+*-venv
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -143,3 +147,6 @@ dmypy.json
 
 # macOS
 .DS_Store
+
+# notebooks
+notebooks/

@@ -1,143 +1,31 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import ast
-import importlib
-import json
 import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Optional, Tuple, Union
 
-import sentencepiece as spm
 import torch
 import transformers
+from composer.models.huggingface import get_hf_config_from_composer_state_dict
 from composer.utils import (get_file, maybe_create_object_store_from_uri,
                             parse_uri, safe_torch_load)
-from transformers import (AutoConfig, AutoTokenizer, PretrainedConfig,
-                          PreTrainedTokenizer)
+from transformers import PretrainedConfig, PreTrainedTokenizerBase
 
 from llmfoundry import MPTConfig, MPTForCausalLM
-
-
-# TODO: maybe move this functionality to Composer
-def get_hf_config_from_composer_state_dict(
-        state_dict: Dict[str, Any]) -> PretrainedConfig:
-    hf_config_dict = state_dict['state']['integrations']['huggingface'][
-        'model']['config']['content']
-
-    # Always set init_device='cpu'
-    hf_config_dict['init_device'] = 'cpu'
-
-    AutoConfig.register('mpt', MPTConfig)
-
-    # backwards compatibility changes
-    if hf_config_dict['model_type'] == 'mosaic_gpt':
-        hf_config_dict['model_type'] = 'mpt'
-
-    if 'attn_config' not in hf_config_dict:
-        attn_config = {}
-        attn_config['attn_type'] = 'multihead_attention'
-        attn_config['attn_pdrop'] = hf_config_dict['attn_pdrop']
-        del hf_config_dict['attn_pdrop']
-        attn_config['attn_impl'] = hf_config_dict['attn_impl']
-        del hf_config_dict['attn_impl']
-        attn_config['qk_ln'] = hf_config_dict['attn_qk_ln']
-        del hf_config_dict['attn_qk_ln']
-        attn_config['clip_qkv'] = hf_config_dict['attn_clip_qkv']
-        del hf_config_dict['attn_clip_qkv']
-        attn_config['softmax_scale'] = hf_config_dict['softmax_scale']
-        del hf_config_dict['softmax_scale']
-        attn_config['prefix_lm'] = hf_config_dict['prefix_lm']
-        del hf_config_dict['prefix_lm']
-        attn_config['attn_uses_sequence_id'] = hf_config_dict[
-            'attn_uses_sequence_id']
-        del hf_config_dict['attn_uses_sequence_id']
-        attn_config['alibi'] = hf_config_dict['alibi']
-        del hf_config_dict['alibi']
-        attn_config['alibi_bias_max'] = hf_config_dict['alibi_bias_max']
-        del hf_config_dict['alibi_bias_max']
-
-        hf_config_dict['attn_config'] = attn_config
-
-    if 'init_config' not in hf_config_dict:
-        init_config = {}
-
-        init_config['name'] = hf_config_dict['param_init_fn']
-        del hf_config_dict['param_init_fn']
-        init_config['fan_mode'] = hf_config_dict['fan_mode']
-        del hf_config_dict['fan_mode']
-        init_config['init_nonlinearity'] = hf_config_dict['init_nonlinearity']
-        del hf_config_dict['init_nonlinearity']
-        init_config['init_gain'] = hf_config_dict['init_gain']
-        del hf_config_dict['init_gain']
-        init_config['init_std'] = hf_config_dict['init_std']
-        del hf_config_dict['init_std']
-        init_config['init_div_is_residual'] = hf_config_dict[
-            'init_div_is_residual']
-        del hf_config_dict['init_div_is_residual']
-        init_config['emb_init_std'] = hf_config_dict['emb_init_std']
-        del hf_config_dict['emb_init_std']
-        init_config['emb_init_uniform_lim'] = hf_config_dict[
-            'emb_init_uniform_lim']
-        del hf_config_dict['emb_init_uniform_lim']
-
-        hf_config_dict['init_config'] = init_config
-
-    if 'mlp_ratio' in hf_config_dict:
-        hf_config_dict['expansion_ratio'] = hf_config_dict['mlp_ratio']
-        del hf_config_dict['mlp_ratio']
-
-    if 'low_precision_layernorm' in hf_config_dict:
-        if hf_config_dict['low_precision_layernorm']:
-            hf_config_dict['norm_type'] = 'low_precision_layernorm'
-        else:
-            hf_config_dict['norm_type'] = 'layernorm'
-        del hf_config_dict['low_precision_layernorm']
-
-    return AutoConfig.for_model(**hf_config_dict)
-
-
-# TODO: maybe move this functionality to Composer
-def get_hf_tokenizer_from_composer_state_dict(
-        state_dict: Dict[str, Any]) -> Optional[PreTrainedTokenizer]:
-    hf_tokenizer_state = state_dict['state']['integrations']['huggingface'][
-        'tokenizer']
-    hf_tokenizer = None
-    if hf_tokenizer_state != {}:
-        with tempfile.TemporaryDirectory() as _tmp_dir:
-            for filename, saved_content in hf_tokenizer_state.items():
-                tokenizer_file_path = Path(
-                    _tmp_dir) / f'{filename}{saved_content["file_extension"]}'
-                if saved_content['file_extension'] == '.json':
-                    with open(tokenizer_file_path, 'w') as _tmp_file:
-                        json.dump(saved_content['content'], _tmp_file)
-                elif saved_content['file_extension'] == '.txt':
-                    with open(tokenizer_file_path, 'w') as _tmp_file:
-                        for line in saved_content['content']:
-                            _tmp_file.write(line)
-                            _tmp_file.write('\n')
-                elif saved_content['file_extension'] == '.model':
-                    s = spm.SentencePieceProcessor()
-                    s.load_from_serialized_proto(saved_content['content'])
-                    with open(tokenizer_file_path, 'wb') as _tmp_file:
-                        _tmp_file.write(s.serialized_model_proto())
-            hf_tokenizer = AutoTokenizer.from_pretrained(_tmp_dir)
-
-            # remove 'name_or_path'
-            hf_tokenizer.name_or_path = ''
-            hf_tokenizer.init_kwargs['name_or_path'] = ''
-
-    return hf_tokenizer
+from llmfoundry.utils import get_hf_tokenizer_from_composer_state_dict
+from llmfoundry.utils.huggingface_hub_utils import \
+    edit_files_for_hf_compatibility
 
 
 def write_huggingface_pretrained_from_composer_checkpoint(
-        checkpoint_path: Union[Path, str],
-        output_path: Union[Path, str],
-        output_precision: str = 'fp32',
-        local_checkpoint_save_location: Optional[Union[Path,
-                                                       str]] = None) -> None:
+    checkpoint_path: Union[Path, str],
+    output_path: Union[Path, str],
+    output_precision: str = 'fp32',
+    local_checkpoint_save_location: Optional[Union[Path, str]] = None
+) -> Tuple[PretrainedConfig, Optional[PreTrainedTokenizerBase]]:
     """Convert a Composer checkpoint to a pretrained HF checkpoint folder.
 
     Write a ``config.json`` and ``pytorch_model.bin``, like
@@ -205,6 +93,11 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     print('Loading checkpoint into CPU RAM...')
     composer_state_dict = safe_torch_load(local_checkpoint_save_location)
 
+    if 'state' not in composer_state_dict:
+        raise RuntimeError(
+            f'"state" is not an available key in the provided composer checkpoint. Is {local_checkpoint_save_location} ill-formed?'
+        )
+
     # Build and save HF Config
     print('#' * 30)
     print('Saving HF Model Config...')
@@ -244,110 +137,14 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     print('#' * 30)
     print(f'HF checkpoint folder successfully created at {output_path}.')
 
-    print('Done.')
-    print('#' * 30)
-
-
-class DeleteSpecificNodes(ast.NodeTransformer):
-
-    def __init__(self, nodes_to_remove: List[ast.AST]):
-        self.nodes_to_remove = nodes_to_remove
-
-    def visit(self, node: ast.AST):
-        if node in self.nodes_to_remove:
-            return None
-
-        return super().visit(node)
-
-
-def convert_to_relative_import(
-        module_name: str, original_parent_module_name: Optional[str]) -> str:
-    parts = module_name.split('.')
-    if parts[-1] == original_parent_module_name:
-        return '.'
-    return '.' + parts[-1]
-
-
-def find_module_file(module_name: str) -> str:
-    module = importlib.import_module(module_name)
-    module_file = module.__file__
-    return module_file
-
-
-def process_file(file_path: str, folder_path: str) -> List[str]:
-    with open(file_path, 'r') as f:
-        source = f.read()
-
-    parent_module_name = None
-    if os.path.basename(file_path) == '__init__.py':
-        parent_module_name = os.path.basename(os.path.dirname(file_path))
-
-    tree = ast.parse(source)
-    new_files_to_process = []
-    nodes_to_remove = []
-    for node in ast.walk(tree):
-        # convert any llmfoundry imports into relative imports
-        if isinstance(node,
-                      ast.ImportFrom) and node.module.startswith('llmfoundry'):
-            module_path = find_module_file(node.module)
-            node.module = convert_to_relative_import(node.module,
-                                                     parent_module_name)
-            # recursively process any llmfoundry files
-            new_files_to_process.append(module_path)
-        # remove any imports from composer or omegaconf
-        elif isinstance(
-                node, ast.ImportFrom) and (node.module.startswith('composer') or
-                                           node.module.startswith('omegaconf')):
-            nodes_to_remove.append(node)
-        # remove the Composer* class
-        elif isinstance(node,
-                        ast.ClassDef) and node.name.startswith('Composer'):
-            nodes_to_remove.append(node)
-        # remove the __all__ declaration in any __init__.py files, whose enclosing module
-        # will be converted to a single file of the same name
-        elif isinstance(node,
-                        ast.Assign) and len(node.targets) == 1 and isinstance(
-                            node.targets[0],
-                            ast.Name) and node.targets[0].id == '__all__':
-            nodes_to_remove.append(node)
-
-    transformer = DeleteSpecificNodes(nodes_to_remove)
-    new_tree = transformer.visit(tree)
-
-    new_filename = os.path.basename(file_path)
-    # special case for __init__.py to mimic the original submodule
-    if new_filename == '__init__.py':
-        new_filename = file_path.split('/')[-2] + '.py'
-    new_file_path = os.path.join(folder_path, new_filename)
-    with open(new_file_path, 'w') as f:
-        f.write(ast.unparse(new_tree))
-
-    return new_files_to_process
-
-
-def edit_files_for_hf_compatibility(folder: str):
-    files_to_process = [
-        os.path.join(folder, filename)
-        for filename in os.listdir(folder)
-        if filename.endswith('.py')
-    ]
-    files_processed_and_queued = set(files_to_process)
-
-    while len(files_to_process) > 0:
-        to_process = files_to_process.pop()
-        if os.path.isfile(to_process) and to_process.endswith('.py'):
-            to_add = process_file(to_process, folder)
-            for file in to_add:
-                if file not in files_processed_and_queued:
-                    files_to_process.append(file)
-                    files_processed_and_queued.add(file)
+    return hf_config, hf_tokenizer
 
 
 def parse_args() -> Namespace:
     """Parse commandline arguments."""
     parser = ArgumentParser(
         description=
-        'Convert Composer checkpoint and Omegaconf model config into a standard HuggingFace checkpoint folder, and optionally upload to the hub.'
+        'Convert a HuggingFace causal LM in a Composer checkpoint into a standard HuggingFace checkpoint folder, and optionally upload to the hub.'
     )
     parser.add_argument('--composer_path', type=str, required=True)
     parser.add_argument('--hf_output_path', type=str, required=True)
@@ -364,10 +161,22 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def main(args: Namespace) -> None:
+def convert_composer_to_hf(args: Namespace) -> None:
+    print()
+    print('#' * 30)
+    print('Converting Composer checkpoint to HuggingFace checkpoint format...')
+
+    # Register MPT auto classes so that this script works with MPT
+    # This script will not work without modification for other custom models,
+    # but will work for other HuggingFace causal LMs
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
+    MPTConfig.register_for_auto_class()
+    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
+
     _, _, local_folder_path = parse_uri(args.hf_output_path)
 
-    write_huggingface_pretrained_from_composer_checkpoint(
+    config, tokenizer = write_huggingface_pretrained_from_composer_checkpoint(
         checkpoint_path=args.composer_path,
         output_path=local_folder_path,
         output_precision=args.output_precision,
@@ -379,19 +188,19 @@ def main(args: Namespace) -> None:
         'bf16': torch.bfloat16,
     }[args.output_precision]
 
-    # register config auto class
-    MPTConfig.register_for_auto_class()
-
-    # register model auto class
-    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
-
     print(f'Loading model from {local_folder_path}')
-    config = MPTConfig.from_pretrained(local_folder_path)
-    # You have to edit the config this way, because attn_config is a nested dictionary
-    config.attn_config['attn_impl'] = 'torch'
-    loaded_hf_model = MPTForCausalLM.from_pretrained(local_folder_path,
-                                                     config=config,
-                                                     torch_dtype=dtype)
+    if config.model_type == 'mpt':
+        config.attn_config['attn_impl'] = 'torch'
+        config.init_device = 'cpu'
+
+    if config.model_type == 'mpt':
+        loaded_hf_model = MPTForCausalLM.from_pretrained(local_folder_path,
+                                                         config=config,
+                                                         torch_dtype=dtype)
+    else:
+        loaded_hf_model = transformers.AutoModelForCausalLM.from_pretrained(
+            local_folder_path, config=config, torch_dtype=dtype)
+
     delattr(loaded_hf_model.config, '_name_or_path')
 
     loaded_hf_model.save_pretrained(local_folder_path)
@@ -400,8 +209,10 @@ def main(args: Namespace) -> None:
     tokenizer = transformers.AutoTokenizer.from_pretrained(local_folder_path)
     tokenizer.save_pretrained(local_folder_path)
 
-    print('Editing files for HF compatibility...')
-    edit_files_for_hf_compatibility(local_folder_path)
+    # Only need to edit files for MPT because it has custom code
+    if config.model_type == 'mpt':
+        print('Editing files for HF compatibility...')
+        edit_files_for_hf_compatibility(local_folder_path)
 
     object_store = maybe_create_object_store_from_uri(str(args.hf_output_path))
 
@@ -470,6 +281,10 @@ def main(args: Namespace) -> None:
                         'MosaicML is', return_tensors='pt').input_ids,
                                        max_new_tokens=10)))
 
+    print(
+        'Composer checkpoint successfully converted to HuggingFace checkpoint format.'
+    )
+
 
 if __name__ == '__main__':
-    main(parse_args())
+    convert_composer_to_hf(parse_args())

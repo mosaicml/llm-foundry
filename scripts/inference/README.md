@@ -8,6 +8,7 @@ Table of Contents:
 - [Interactive Chat with HF models](#interactive-chat-with-hf-models)
 - [Converting an HF model to ONNX](#converting-an-hf-model-to-onnx)
 - [Converting an HF MPT to FasterTransformer](#converting-an-hf-mpt-to-fastertransformer)
+- [Running MPT with FasterTransformer](#running-mpt-with-fastertransformer)
 
 ## Converting a Composer checkpoint to an HF checkpoint folder
 
@@ -100,14 +101,54 @@ output_tok_per_sec=292.03tok/sec
 
 The argument for `--name_or_path` can be either the name of a model that exists on the HF Hub, such as `gpt2`, `facebook/opt-350m`, etc. or the path to a HF checkpoint folder, such as `my_hf_model/` like we exported above.
 
+The script will use HuggingFace's `device_map=auto` feature to automatically load the model on any available GPUs, or fallback to CPU. [See the docs here!](https://huggingface.co/docs/accelerate/usage_guides/big_modeling)
+You can also directly specify `--device_map auto` or `--device_map balanced`, etc.
+You can also target a specific **single** device using `--device cuda:0` or `--device cpu`, etc.
+
+For MPT models specifically, you can pass args like `--attn_impl triton`, and `--max_seq_len 4096` to speed up generation time or alter the max generation length at inference time (thanks to ALiBi).
+
 ## Interactive Chat with HF models
 
-Chat models need to pass conversation history back to the model for multi-turn conversations. To make that easier, we include `hf_chat.py`. Chat models usually require an introductory/system prompt, as well as a wrapper around user and model messages, to fit the training format. Default values work with our ChatML-trained models, but you can specify these values with CLI args:
+Chat models need to pass conversation history back to the model for multi-turn conversations. To make that easier, we include `hf_chat.py`. Chat models usually require an introductory/system prompt, as well as a wrapper around user and model messages, to fit the training format. Default values work with our ChatML-trained models, but you can set other important values like generation kwargs:
 
 <!--pytest.mark.skip-->
 ```bash
-python hf_chat.py -n my_hf_model/ --system_prompt="You are a helpful assistant\n" --user_msg_fmt="user: {}\n" --assistant_msg_fmt="assistant: {}\n" --max_new_tokens=512
+# using an MPT/ChatML style model
+python hf_chat.py -n mosaicml/mpt-7b-chat-v2 \
+  --max_new_tokens=2048 \
+  --temperature 0.3 \
+  --top_k 0 \
+  --model_dtype bf16 \
+  --trust_remote_code
 ```
+
+<!--pytest.mark.skip-->
+```bash
+# using an MPT/ChatML style model on  > 1 GPU
+python hf_chat.py -n mosaicml/mpt-7b-chat-v2 \
+  --max_new_tokens=1024 \
+  --temperature 0.3 \
+  --top_k 0 \
+  --model_dtype bf16 \
+  --trust_remote_code \
+  --device_map auto
+```
+
+The script also works with other style models. Here is an example of using it with a Vicuna-style model:
+
+<!--pytest.mark.skip-->
+```bash
+python hf_chat.py -n eachadea/vicuna-7b-1.1 --system_prompt="A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions." --user_msg_fmt="USER: {}\n" --assistant_msg_fmt="ASSISTANT: {}\n" --max_new_tokens=512
+```
+
+The `system_prompt` is the message that gives the bot context for the conversation, and can be used to make the bot take on different personalities.
+
+In the REPL you see while using `hf_chat.py` you can enter text to interact with the model (hit return TWICE to send, this allows you to input text with single newlines), you can also enter the following commands:
+
+- `clear` — clear the conversation history, and start a new conversation (does not change system prompt)
+- `system` — change the system prompt
+- `history` — see the conversation history
+- `quit` — exit
 
 ## Converting an HF model to ONNX
 
@@ -157,3 +198,41 @@ git clone https://huggingface.co/mosaicml/mpt-7b
 python convert_hf_mpt_to_ft.py -i mpt-7b -o mpt-ft-7b --infer_gpu_num 1
 ```
 You can change `infer_gpu_num` to > 1 to prepare a FT checkpoint for multi-gpu inference. Please open a Github issue if you discover any problems!
+
+## Converting a Composer MPT to FasterTransformer
+We include a script `convert_composer_mpt_to_ft.py` that directly converts a Composer MPT checkpoint to the FasterTransformer format. You can either provide a path to a local Composer checkpoint or a URI to a file stored in a cloud supported by Composer (e.g. `s3://`). Simply run:
+```
+python convert_composer_mpt_to_ft.py -i <path_to_composer_checkpoint.pt> -o mpt-ft-7b --infer_gpu_num 1
+```
+
+## Running MPT with FasterTransformer
+This step assumes that you already have converted an MPT checkpoint to FT format by following the instructions in
+[Converting an HF MPT to FasterTransformer](#converting-an-hf-mpt-to-fastertransformer). It also assumes that you have
+1. Built FasterTransformer for PyTorch by following the instructions
+[here](https://github.com/NVIDIA/FasterTransformer/blob/main/docs/gpt_guide.md#build-the-project)
+2. A PyTorch install that supports [MPI as distributed communication
+backend](https://pytorch.org/docs/stable/distributed.html#backends-that-come-with-pytorch). You need to build and
+install PyTorch
+from source to include MPI as a backend.
+
+Once above steps are complete, you can run MPT using the following commands:
+```
+# For running on a single gpu and benchmarking
+PYTHONPATH=/mnt/work/FasterTransformer python scripts/inference/run_mpt_with_ft.py --ckpt_path mpt-ft-7b/1-gpu \
+    --lib_path /mnt/work/FasterTransformer/build/lib/libth_transformer.so --time
+
+# Run with -h to see various generation arguments
+PYTHONPATH=/mnt/work/FasterTransformer python scripts/inference/run_mpt_with_ft.py -h
+
+# Run on 2 gpus. You need to create an FT checkpoint for 2-gpus first.
+# allow-run-as-root is only needed if you are running as root
+PYTHONPATH=/mnt/work/FasterTransformer mpirun -n 2 --allow-run-as-root \
+    python scripts/inference/run_mpt_with_ft.py \
+    --ckpt_path mpt-ft-7b/2-gpu --lib_path /mnt/work/FasterTransformer/build/lib/libth_transformer.so --time
+
+# Add prompts in a text file and generate text
+echo "Write 3 reasons why you should train an AI model on domain specific data set." > prompts.txt
+PYTHONPATH=/mnt/work/FasterTransformer python scripts/inference/run_mpt_with_ft.py \
+    --ckpt_path mpt-ft-7b/1-gpu --lib_path /mnt/work/FasterTransformer/build/lib/libth_transformer.so \
+    --sample_input_file prompts.txt --sample_output_file output.txt
+```

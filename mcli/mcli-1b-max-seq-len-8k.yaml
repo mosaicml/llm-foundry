@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  # git_branch: # use your branch
+  git_branch: v0.2.0
   # git_commit: # OR use your commit hash
   pip_install: -e .[gpu]
   ssh_clone: false # Should be true if using a private repo
@@ -18,17 +18,21 @@ command: |
     --concat_tokens 8192 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
   composer train/train.py /mnt/config/parameters.yaml
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
-# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: mosaic-gpt-1b-ctx-8k-gpus-8
+name: mpt-1b-ctx-8k-gpus-8
 
-gpu_num: 8
-gpu_type: a100_40gb
-cluster: r0z0 # replace with your cluster here!
+compute:
+  gpus: 8  # Number of GPUs to use
+
+  ## These configurations are optional
+  # cluster: TODO # Name of the cluster to use for this run
+  # gpu_type: a100_80gb # Type of GPU to use. We use a100_80gb in our experiments
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 # and referenced in our `command` above
 # We use this to customize hparams like `max_seq_len=8192` at runtime
 parameters:
+  run_name: # If left blank, will be read from top YAML name for W&B logging and checkpointing
+
   data_local: ./my-copy-c4
   data_remote: # If blank, files must be present in data_local
   max_seq_len: 8192

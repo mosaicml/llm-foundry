@@ -7,20 +7,19 @@ from __future__ import annotations
 
 import inspect
 from collections import UserDict
-from typing import List, Optional, Union
+from typing import List, Mapping, Optional
 
 import torch
 import transformers
 from composer.models.huggingface import HuggingFaceModel
 from torchmetrics import Metric
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizerBase
+from transformers.utils.generic import ModelOutput
 
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
 
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
-
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
 class HuggingFaceModelWithZLoss(HuggingFaceModel):
@@ -41,31 +40,38 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
 
     def __init__(self,
                  model: transformers.PreTrainedModel,
-                 tokenizer: Optional[Tokenizer] = None,
+                 tokenizer: Optional[PreTrainedTokenizerBase] = None,
                  metrics: Optional[List[Metric]] = None,
                  eval_metrics: Optional[List[Metric]] = None,
-                 z_loss: float = 0.0):
+                 z_loss: float = 0.0,
+                 shift_labels: bool = False,
+                 init_device: Optional[str] = None):
         super().__init__(model,
                          tokenizer,
                          use_logits=True,
                          metrics=metrics,
-                         eval_metrics=eval_metrics)
+                         eval_metrics=eval_metrics,
+                         shift_labels=shift_labels)
         self.z_loss = float(z_loss)
         if self.z_loss < 0.0:
             raise ValueError(f'z_loss(={z_loss}) cannot be negative.')
 
         self.model_forward_args = inspect.getfullargspec(
             self.model.forward).args
+        # inspect.getfullargspec HuggingFace quantized model could not return args correctly
+        if not self.model_forward_args:
+            self.model_forward_args = inspect.signature(
+                self.model.forward).parameters.keys()
 
         # Note: We need to add the FSDP related attributes to the model AFTER the super init,
         # so that the (possible) embedding resizing doesn't destroy them
-        prepare_hf_model_for_fsdp(self.model)
+        prepare_hf_model_for_fsdp(self.model, init_device)
 
         # This provides support for meta initialization when using FSDP
         self.model.param_init_fn = lambda module: self.model._init_weights(
             module)
 
-    def forward(self, batch):
+    def forward(self, batch: Mapping):
         if isinstance(batch, dict) or isinstance(batch, UserDict):
             # Further input validation is left to the huggingface forward call
             batch = {
@@ -78,7 +84,7 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
             )
         return output
 
-    def loss(self, outputs, batch):
+    def loss(self, outputs: ModelOutput, batch: Mapping):
         if self.config.use_return_dict:
             loss, logits = outputs['loss'], outputs['logits']
         else:
@@ -100,18 +106,3 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
         else:
             outputs[0] += z_loss
             return outputs[0]
-
-    # def eval_forward(self, batch, outputs: Optional[Any] = None):
-    #     if 'generate_output' in batch:
-    #         self.labels = batch.pop('labels')
-    #         return self.model.generate(
-    #             batch['input_ids'],
-    #             attention_mask=batch['attention_mask'],
-    #             max_new_tokens=512,
-    #             do_sample=True,
-    #             top_p=0.90,
-    #             top_k=0,
-    #             no_repeat_ngram_size=3,
-    #         )
-
-    #     return super().eval_forward(batch, outputs)

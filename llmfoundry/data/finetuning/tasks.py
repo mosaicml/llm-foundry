@@ -34,26 +34,34 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
+import warnings
 from typing import Any, Callable, Dict, Optional, Union
 
 import datasets as hf_datasets
 from omegaconf import DictConfig
 from streaming import StreamingDataset
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizerBase
 
 log = logging.getLogger(__name__)
 
 __all__ = ['dataset_constructor']
 
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
-
-def _tokenize_formatted_example(example: Dict[str, Any], tokenizer: Tokenizer):
+def _tokenize_formatted_example(example: Dict[str, Any],
+                                tokenizer: PreTrainedTokenizerBase):
     if ('prompt' not in example) or ('response' not in example):
         raise KeyError(
             'Unable to tokenize example because it has not been properly formatted. ' +\
             '"prompt" and "response" are required keys but at least one was missing ' +\
             f'from {example=}.'
+        )
+    if not isinstance(example['prompt'], str):
+        raise TypeError(
+            f'Unable to tokenize example because "prompt" was not a string. {example=}'
+        )
+    if not isinstance(example['response'], str):
+        raise TypeError(
+            f'Unable to tokenize example because "response" was not a string. {example=}'
         )
     return tokenizer(text=example['prompt'], text_target=example['response'])
 
@@ -88,7 +96,7 @@ class StreamingFinetuningDataset(StreamingDataset):
 
     def __init__(self,
                  local: str,
-                 tokenizer: Tokenizer,
+                 tokenizer: PreTrainedTokenizerBase,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
                  shuffle: bool = False,
@@ -104,7 +112,7 @@ class StreamingFinetuningDataset(StreamingDataset):
 
         if len(kwargs) > 0:
             raise ValueError(
-                f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}'
+                f'StreamingFinetuningDataset() got an unexpected keyword argument: {kwargs}'
             )
 
         if remote is None or (local == remote):
@@ -164,6 +172,40 @@ class DatasetConstructor:
         tasks = sorted(self._task_preprocessing_registry.keys())
         print('\n'.join(tasks))
 
+    def get_preprocessing_fn_from_dict(self, mapping: Union[Dict, DictConfig]):
+        """Get a preprocessing function from a dictionary.
+
+        The dictionary maps column names in the dataset to "prompt" and "response".
+        For example,
+            ```yaml
+            preprocessing_fn:
+                prompt: text
+                response: summary
+            ```
+        would map the `text` column as to prompt and the `summary` column as the response.
+
+        Args:
+            mapping (dict): A dictionary mapping column names to "prompt" and "response".
+
+        Returns:
+            Callable: The preprocessing function.
+
+        Raises:
+            ValueError: If the mapping does not have keys "prompt" and "response".
+        """
+
+        def _preprocessor(example: Dict[str, Any]) -> Dict[str, str]:
+            if list(mapping.keys()) != ['prompt', 'response']:
+                raise ValueError(
+                    f'Expected {mapping=} to have keys "prompt" and "response".'
+                )
+            return {
+                'prompt': example[mapping['prompt']],
+                'response': example[mapping['response']]
+            }
+
+        return _preprocessor
+
     def get_preprocessing_fn_from_str(self,
                                       preprocessor: Optional[str],
                                       dataset_name: Optional[str] = None):
@@ -215,11 +257,18 @@ class DatasetConstructor:
 
         return preprocessing_fn
 
-    def build_from_hf(self, cfg: DictConfig, tokenizer: Tokenizer):
+    def build_from_hf(
+        self, cfg: DictConfig, max_seq_len: int,
+        tokenizer: PreTrainedTokenizerBase
+    ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
+               hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
+
+        Note: This function will drop examples where the prompt is longer than the max_seq_len
 
         Args:
             cfg (DictConfig): The dataset configuration.
+            max_seq_len (int): The maximum sequence length. Examples with prompts longer than this will be dropped.
             tokenizer (Tokenizer): The tokenizer to be used for tokenizing the dataset.
 
         Returns:
@@ -228,8 +277,14 @@ class DatasetConstructor:
         dataset_name = cfg.hf_name
         split = cfg.split
         kwargs = cfg.get('hf_kwargs', {})
-        preprocessing_fn = self.get_preprocessing_fn_from_str(
-            cfg.get('preprocessing_fn'), dataset_name)
+        proto_preprocessing_fn = cfg.get('preprocessing_fn')
+        if isinstance(proto_preprocessing_fn, dict) or isinstance(
+                proto_preprocessing_fn, DictConfig):
+            preprocessing_fn = self.get_preprocessing_fn_from_dict(
+                proto_preprocessing_fn)
+        else:
+            preprocessing_fn = self.get_preprocessing_fn_from_str(
+                proto_preprocessing_fn, dataset_name, verbose=True)
 
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 
@@ -244,8 +299,28 @@ class DatasetConstructor:
             batched=False,
             remove_columns=columns_to_remove,
         )
+        prompt_length_filtered_dataset = tokenized_dataset.filter(
+            lambda example: len(example['input_ids']) < max_seq_len)
 
-        return tokenized_dataset
+        examples_removed = len(tokenized_dataset) - len(
+            prompt_length_filtered_dataset)
+        if examples_removed > 0:
+            warnings.warn(
+                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
+            )
+
+        empty_examples_dropped_dataset = prompt_length_filtered_dataset.filter(
+            lambda example: len(example['input_ids']) > 0 and len(example[
+                'labels']) > 0 and any(token_id != tokenizer.pad_token_id
+                                       for token_id in example['labels']))
+        empty_examples_removed = len(prompt_length_filtered_dataset) - len(
+            empty_examples_dropped_dataset)
+        if empty_examples_removed > 0:
+            warnings.warn(
+                f'Dropped {empty_examples_removed} examples where the prompt or response was empty, '
+                + 'or the response was only padding tokens.')
+
+        return empty_examples_dropped_dataset
 
     def build_from_streaming(self, *args: Any, **kwargs: Any):
         return StreamingFinetuningDataset(*args, **kwargs)

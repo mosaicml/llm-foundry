@@ -1,0 +1,121 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  git_branch: main
+  pip_install: -e .[gpu]
+
+command: |
+  cd llm-foundry/scripts
+  composer train/train.py /mnt/config/parameters.yaml
+  python inference/convert_composer_to_hf.py \
+    --composer_path ./llama2-finetune-regression/checkpoints/latest-rank0.pt \
+    --hf_output_path ./hf-checkpoints/
+image: mosaicml/llm-foundry:1.13.1_cu117-latest
+name: llama2-finetune-regression
+
+compute:
+  gpus: 8
+
+parameters:
+  tokenizer_name: meta-llama/Llama-2-13b-hf
+  max_seq_len: 4096
+  global_seed: 17
+
+  run_name: llama2-finetune-regression
+  max_split_size_mb: 512
+
+  model:
+    name: hf_causal_lm
+    init_device: mixed
+    pretrained_model_name_or_path: meta-llama/Llama-2-13b-hf
+    pretrained: true
+    use_auth_token: true
+    attention_patch_type: triton
+
+  tokenizer:
+    name: ${tokenizer_name}
+    kwargs:
+      model_max_length: ${max_seq_len}
+
+  train_loader:
+    name: finetuning
+    dataset:
+      hf_name: mosaicml/dolly_hhrlhf
+      split: train
+      max_seq_len: ${max_seq_len}
+      allow_pad_trimming: false
+      decoder_only_format: true
+      shuffle: true
+    drop_last: true
+    num_workers: 8
+    pin_memory: false
+    prefetch_factor: 2
+    persistent_workers: true
+    timeout: 0
+
+  eval_loader:
+    name: finetuning
+    dataset:
+      hf_name: mosaicml/dolly_hhrlhf
+      split: test
+      max_seq_len: ${max_seq_len}
+      allow_pad_trimming: false
+      decoder_only_format: true
+      shuffle: false
+    drop_last: true
+    num_workers: 8
+    pin_memory: false
+    prefetch_factor: 2
+    persistent_workers: true
+    timeout: 0
+
+  scheduler:
+    name: cosine_with_warmup
+    t_warmup: 100ba
+    alpha_f: 0.1
+
+  optimizer:
+    name: decoupled_lionw
+    lr: 5.0e-7
+    betas:
+    - 0.9
+    - 0.95
+    weight_decay: 0.0
+
+  algorithms:
+    gradient_clipping:
+      clipping_type: norm
+      clipping_threshold: 1.0
+
+  max_duration: 50ba
+  eval_first: false
+  eval_interval: 1ep
+  eval_subset_num_batches: -1
+  global_train_batch_size: 64
+
+  seed: ${global_seed}
+  device_eval_batch_size: 8
+  device_train_microbatch_size: 8
+  precision: amp_bf16
+
+  fsdp_config:
+    sharding_strategy: FULL_SHARD
+    mixed_precision: PURE
+    activation_checkpointing: true
+    activation_checkpointing_reentrant: false
+    activation_cpu_offload: false
+    limit_all_gathers: true
+    verbose: false
+
+  progress_bar: false
+  log_to_console: true
+  console_log_interval: 1ba
+
+  callbacks:
+    speed_monitor:
+      window_size: 10
+    lr_monitor: {}
+    memory_monitor: {}
+    runtime_estimator: {}
+
+  save_folder: ./{run_name}/checkpoints

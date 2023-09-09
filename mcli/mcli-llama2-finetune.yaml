@@ -1,0 +1,151 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  git_commit: 5ec4016b40652557d57a1d4949ad13a65251184b # TODO: repin this after next release
+  pip_install: -e .[gpu]
+  ssh_clone: false # Should be true if using a private repo
+
+command: |
+  cd llm-foundry/scripts
+  composer train/train.py /mnt/config/parameters.yaml
+image: mosaicml/llm-foundry:1.13.1_cu117-latest
+name: llama2-finetune
+
+compute:
+  # Note: Finetuning the 70b model requires at least 16x80GB GPUs
+  gpus: 8  # Number of GPUs to use
+  ## These configurations are optional
+  # cluster: TODO # Name of the cluster to use for this run
+  # gpu_type: a100_80gb # Type of GPU to use. We use a100_80gb in our experiments
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+parameters:
+  tokenizer_name: meta-llama/Llama-2-7b-hf
+  max_seq_len: 4096
+  global_seed: 17
+
+  # Run Name
+  run_name: # If left blank, will be read from env var $RUN_NAME
+
+  max_split_size_mb: 512
+
+  # Model
+  model:
+    name: hf_causal_lm
+    init_device: mixed
+    pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
+    pretrained: true
+    # Note: you must have set the HUGGING_FACE_HUB_TOKEN environment variable and have access to the llama2 models
+    use_auth_token: true
+    attention_patch_type: triton
+
+  # Tokenizer
+  tokenizer:
+    name: ${tokenizer_name}
+    kwargs:
+      model_max_length: ${max_seq_len}
+
+  # Dataloaders
+  train_loader:
+    name: finetuning
+    dataset:
+      hf_name: mosaicml/dolly_hhrlhf
+      split: train
+      max_seq_len: ${max_seq_len}
+      allow_pad_trimming: false
+      decoder_only_format: true
+      shuffle: true
+      # # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
+      # # to profile this run's optimal packing_ratio as it depends on GPU count,
+      # # batch size, sequence length
+      # packing_ratio:
+    drop_last: true
+    num_workers: 8
+    pin_memory: false
+    prefetch_factor: 2
+    persistent_workers: true
+    timeout: 0
+
+  eval_loader:
+    name: finetuning
+    dataset:
+      hf_name: mosaicml/dolly_hhrlhf
+      split: test
+      max_seq_len: ${max_seq_len}
+      allow_pad_trimming: false
+      decoder_only_format: true
+      # packing_ratio:
+      shuffle: false
+    drop_last: true
+    num_workers: 8
+    pin_memory: false
+    prefetch_factor: 2
+    persistent_workers: true
+    timeout: 0
+
+  # Optimization
+  scheduler:
+    name: cosine_with_warmup
+    t_warmup: 100ba
+    alpha_f: 0.1
+
+  # Note: You may want to change learning rate, betas, weight decay
+  optimizer:
+    name: decoupled_lionw
+    lr: 5.0e-7
+    betas:
+    - 0.9
+    - 0.95
+    weight_decay: 0.0
+
+  algorithms:
+    gradient_clipping:
+      clipping_type: norm
+      clipping_threshold: 1.0
+
+  max_duration: 1ep
+  eval_first: false
+  eval_interval: 1ep
+  eval_subset_num_batches: -1
+  global_train_batch_size: 64
+
+  # System
+  seed: ${global_seed}
+  device_eval_batch_size: 8
+  device_train_microbatch_size: auto
+  precision: amp_bf16
+
+  # FSDP
+  fsdp_config:
+    sharding_strategy: FULL_SHARD
+    mixed_precision: PURE
+    activation_checkpointing: true
+    activation_checkpointing_reentrant: false
+    activation_cpu_offload: false
+    limit_all_gathers: true
+    verbose: false
+
+  # Logging
+  progress_bar: false
+  log_to_console: true
+  console_log_interval: 1ba
+
+  callbacks:
+    speed_monitor:
+      window_size: 10
+    lr_monitor: {}
+    memory_monitor: {}
+    runtime_estimator: {}
+
+#   loggers:
+#     wandb: {}
+
+#   Checkpoint to local filesystem or remote object store
+#   save_interval: 2000ba
+#   save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+#   save_folder: ./{run_name}/checkpoints
+#   save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
+
+#   Load from local filesystem or remote object store
+#   load_path: ./gpt-1b/checkpoints/latest-rank{rank}.pt
+#   load_path: s3://my-bucket/my-folder/gpt-1b/checkpoints/latest-rank{rank}.pt

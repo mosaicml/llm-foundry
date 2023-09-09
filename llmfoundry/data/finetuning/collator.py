@@ -336,7 +336,7 @@ class Seq2SeqFinetuningCollator:
         return batch
 
 
-def ensure_list(x: Union[List, torch.Tensor]):
+def ensure_list(x: Union[List, torch.Tensor]) -> List:
     if isinstance(x, torch.Tensor):
         x = list(x.flatten())
     assert isinstance(x, list)

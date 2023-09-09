@@ -4,18 +4,49 @@
 import tempfile
 from copy import deepcopy
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Dict, Mapping
 
 import pytest
 import torch
 from composer.utils import reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import AutoConfig, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
+
+
+def test_remote_code_false_mpt(
+        conf_path: str = 'scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml'):
+    with open(conf_path) as f:
+        test_cfg = om.load(f)
+
+    test_cfg.model.pretrained = False
+    test_cfg.model.config_overrides = {'n_layers': 2}
+    test_cfg.model.trust_remote_code = False
+
+    # Build Model
+    # For fast initialization, use `meta` device
+    print('Initializing model...')
+    device = 'cpu'
+    test_cfg.model.init_device = device
+    test_cfg.device = device
+    test_cfg.precision = 'fp16'
+
+    tokenizer_cfg: Dict[str,
+                        Any] = om.to_container(test_cfg.tokenizer,
+                                               resolve=True)  # type: ignore
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+
+    with pytest.raises(
+            ValueError,
+            match='trust_remote_code must be set to True for MPT models.'):
+        _ = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
+                                                         tokenizer)
 
 
 @pytest.mark.parametrize('model_cfg_overrides', [
@@ -51,10 +82,11 @@ from llmfoundry.utils import build_tokenizer
                                          strict=True)),
 ])
 def test_hf_config_override(
-    model_cfg_overrides,
-    conf_path='scripts/train/yamls/pretrain/testing.yaml',
+    model_cfg_overrides: Dict[str, Any],
+    conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
 ):
-    AutoConfig.register('mpt', MPTConfig)
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
 
     with open(conf_path) as f:
@@ -71,7 +103,12 @@ def test_hf_config_override(
     test_cfg.precision = 'fp16'
     test_cfg.model.attn_config = {'attn_impl': 'torch', 'alibi': True}
 
-    tokenizer = build_tokenizer(test_cfg.tokenizer)
+    tokenizer_cfg: Dict[str,
+                        Any] = om.to_container(test_cfg.tokenizer,
+                                               resolve=True)  # type: ignore
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
     model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                          tokenizer)
 
@@ -85,12 +122,12 @@ def test_hf_config_override(
 
     # load hf causal lm model with config_overrides
     hf_model_config = deepcopy(test_cfg)
-    model_cfg = {
+    model_cfg = DictConfig({
         'name': 'hf_causal_lm',
         'pretrained_model_name_or_path': save_path,
         'pretrained': False,
         'config_overrides': model_cfg_overrides,
-    }
+    })
     hf_model_config.model = model_cfg
 
     hf_model = COMPOSER_MODEL_REGISTRY[hf_model_config.model.name](

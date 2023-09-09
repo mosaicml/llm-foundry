@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Periodically log generations to wandb from a set of prompts."""
-from typing import List, Union, cast
+from typing import Any, List, Union, cast
 
 import torch
 import wandb
-from composer.core import Callback, State
+from composer.core import Callback, State, get_precision_context
 from composer.loggers import Logger, WandBLogger
 from composer.utils import dist, ensure_tuple
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
@@ -16,7 +16,8 @@ Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 class Generate(Callback):
 
-    def __init__(self, prompts: List[str], batch_log_interval: int, **kwargs):
+    def __init__(self, prompts: List[str], batch_log_interval: int,
+                 **kwargs: Any):
         """Periodically log generations to wandb from a set of prompts.
 
         In the main view for a run, there will be a table that will show the _last_ logged generations.
@@ -57,6 +58,11 @@ class Generate(Callback):
         tokenizer = cast(Tokenizer, state.model.tokenizer)
         device = state.device
 
+        if not hasattr(model.model, 'generate'):
+            raise ValueError(
+                f'Cannot generate from model {model.model.__class__.__name__} because it does not have a `generate` method'
+            )
+
         # stash the original original value of padding_side because generation requires left padding
         original_padding_side = tokenizer.padding_side
         tokenizer.padding_side = 'left'
@@ -72,21 +78,25 @@ class Generate(Callback):
         # dummy forward call needed for FSDP to work consistently
         dummy_input = torch.tensor([[0]], dtype=torch.long)
         dummy_input = device.tensor_to_device(dummy_input)
-        with torch.no_grad():
-            _ = model.model(input_ids=dummy_input)  # type: ignore
+        with get_precision_context(state.precision):
+            with torch.no_grad():
+                assert isinstance(model.model, torch.nn.Module)
+                _ = model.model(input_ids=dummy_input)
 
-        output_token_ids = model.model.generate(  # type: ignore
-            input_ids=tokenized_input['input_ids'],
-            attention_mask=tokenized_input['attention_mask'],
-            synced_gpus=True,
-            **self.generate_kwargs,
-        )
+            output_token_ids = model.model.generate(  # type: ignore
+                input_ids=tokenized_input['input_ids'],
+                attention_mask=tokenized_input['attention_mask'],
+                synced_gpus=True,
+                **self.generate_kwargs,
+            )
 
         if dist.get_global_rank() == 0:
             if self.wandb_logger is not None:
-                artifact = wandb.Artifact(
-                    'generate_samples_' + str(wandb.run.id),  # type: ignore
-                    type='predictions')
+                assert wandb.run is not None, 'wandb should have started run'
+
+                artifact = wandb.Artifact('generate_samples_' +
+                                          str(wandb.run.id),
+                                          type='predictions')
 
                 rows = []
                 for i in range(len(self.prompts)):

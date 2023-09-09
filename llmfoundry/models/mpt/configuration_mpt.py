@@ -3,7 +3,8 @@
 
 """A HuggingFace-style model configuration."""
 
-from typing import Dict, Optional, Union
+import warnings
+from typing import Any, Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
@@ -18,6 +19,10 @@ attn_config_defaults: Dict = {
     'attn_uses_sequence_id': False,
     'alibi': False,
     'alibi_bias_max': 8,
+}
+
+ffn_config_defaults: Dict = {
+    'ffn_type': 'mptmlp',
 }
 
 init_config_defaults: Dict = {
@@ -47,6 +52,7 @@ class MPTConfig(PretrainedConfig):
         emb_pdrop: float = 0.0,
         learned_pos_emb: bool = True,
         attn_config: Dict = attn_config_defaults,
+        ffn_config: Dict = ffn_config_defaults,
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
@@ -54,7 +60,8 @@ class MPTConfig(PretrainedConfig):
         norm_type: str = 'low_precision_layernorm',
         use_cache: bool = False,
         init_config: Dict = init_config_defaults,
-        **kwargs,
+        fc_type: str = 'torch',
+        **kwargs: Any,
     ):
         """The MPT configuration class.
 
@@ -62,14 +69,14 @@ class MPTConfig(PretrainedConfig):
             d_model (int): The size of the embedding dimension of the model.
             n_heads (int): The number of attention heads.
             n_layers (int): The number of layers in the model.
-            expansion_ratio (int): The ratio of the up/down scale in the MLP.
+            expansion_ratio (int): The ratio of the up/down scale in the ffn.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
             resid_pdrop (float): The dropout probability applied to the attention output before combining with residual.
             emb_pdrop (float): The dropout probability for the embedding layer.
             learned_pos_emb (bool): Whether to use learned positional embeddings
-            attn_config (Dict):  A dictionary used to configure the model's attention module:
-                attn_type (str): type of attention to use. Options: multihead_attention, multiquery_attention
+            attn_config (Dict): A dictionary used to configure the model's attention module:
+                attn_type (str): type of attention to use. Options: multihead_attention, multiquery_attention, grouped_query_attention
                 attn_pdrop (float): The dropout probability for the attention layers.
                 attn_impl (str): The attention implementation to use. One of 'torch', 'flash', or 'triton'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
@@ -86,13 +93,15 @@ class MPTConfig(PretrainedConfig):
                     Defaults to ``False`` meaning any provided `sequence_id` will be ignored.
                 alibi (bool): Whether to use the alibi bias instead of position embeddings.
                 alibi_bias_max (int): The maximum value of the alibi bias.
+                kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
+            ffn_config (Dict): A dictionary used to configure the model's ffn module:
+                ffn_type (str): type of ffn to use. Options: mptmlp, te_ln_mlp
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
             verbose (int): The verbosity level. 0 is silent.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
-            multiquery_attention (bool): Whether to use multiquery attention implementation.
             use_cache (bool): Whether or not the model should return the last key/values attentions
             init_config (Dict): A dictionary used to configure the model initialization:
                 init_config.name: The parameter initialization scheme to use. Options: 'default_', 'baseline_',
@@ -109,6 +118,7 @@ class MPTConfig(PretrainedConfig):
                 init_nonlinearity (str): The nonlinearity to use for parameter initialization with kaiming initialization schemes.
                 ---
                 See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
+            fc_type (str): choose fc layer implementation. Options: torch and te. te layers support fp8 when using H100 GPUs.
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -120,6 +130,7 @@ class MPTConfig(PretrainedConfig):
         self.emb_pdrop = emb_pdrop
         self.learned_pos_emb = learned_pos_emb
         self.attn_config = attn_config
+        self.ffn_config = ffn_config
         self.init_device = init_device
         self.logit_scale = logit_scale
         self.no_bias = no_bias
@@ -128,15 +139,21 @@ class MPTConfig(PretrainedConfig):
         self.norm_type = norm_type
         self.use_cache = use_cache
         self.init_config = init_config
+        self.fc_type = fc_type
         if 'name' in kwargs:
             del kwargs['name']
         if 'loss_fn' in kwargs:
             del kwargs['loss_fn']
+        if self.attn_config.get('alibi', False):
+            self.learned_pos_emb = False
+            warnings.warn(
+                f'alibi is turned on, setting `learned_pos_emb` to `False.`')
         super().__init__(**kwargs)
 
         self._validate_config()
 
-    def _set_config_defaults(self, config, config_defaults):
+    def _set_config_defaults(self, config: Dict[str, Any],
+                             config_defaults: Dict[str, Any]):
         # set config defaults
         for k, v in config_defaults.items():
             if k not in config:
@@ -148,6 +165,10 @@ class MPTConfig(PretrainedConfig):
         self.attn_config = self._set_config_defaults(
             self.attn_config,
             attn_config_defaults,
+        )
+        self.ffn_config = self._set_config_defaults(
+            self.ffn_config,
+            ffn_config_defaults,
         )
         self.init_config = self._set_config_defaults(
             self.init_config,
@@ -191,6 +212,22 @@ class MPTConfig(PretrainedConfig):
         if self.init_config.get('name', None) is None:
             raise ValueError(f"{self.init_config=} 'name' needs to be set.")
         if not self.learned_pos_emb and not self.attn_config['alibi']:
-            raise ValueError(
-                f'Positional information must be provided to the model using either learned_pos_emb or alibi.'
+            warnings.warn(
+                f'Positional information not being provided to the model using either learned_pos_emb or alibi.'
             )
+        if self.fc_type == 'te' or self.ffn_config['ffn_type'] == 'te_ln_mlp':
+            try:
+                import transformer_engine.pytorch as te
+                del te  # unused
+            except:
+                raise ImportError(
+                    'TransformerEngine import fail. `fc_type: te` requires TransformerEngine be installed. '
+                    +
+                    'The required version of transformer_engine also requires FlashAttention v1.0.6 is installed:\n'
+                    + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
+                    'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
+                )
+        if self.ffn_config['ffn_type'] == 'mptmlp':
+            self.ffn_config['fc_type'] = self.fc_type
+        elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
+            self.ffn_config['bias'] = not self.no_bias

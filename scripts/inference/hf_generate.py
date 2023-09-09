@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 import itertools
 import os
 import random
@@ -8,12 +7,14 @@ import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
+from typing import Dict, Union
 
+import numpy as np
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 
-def get_dtype(dtype):
+def get_dtype(dtype: str):
     if dtype == 'fp32':
         return torch.float32
     elif dtype == 'fp16':
@@ -26,7 +27,7 @@ def get_dtype(dtype):
             f'We only support fp32, fp16, and bf16 currently')
 
 
-def str2bool(v):
+def str2bool(v: Union[str, bool]):
     if isinstance(v, bool):
         return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -37,7 +38,7 @@ def str2bool(v):
         raise ArgumentTypeError('Boolean value expected.')
 
 
-def str_or_bool(v):
+def str_or_bool(v: Union[str, bool]):
     if isinstance(v, bool):
         return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -119,13 +120,8 @@ def parse_args() -> Namespace:
                         default=None)
     parser.add_argument('--revision', type=str, default=None)
     parser.add_argument('--device', type=str, default=None)
+    parser.add_argument('--device_map', type=str, default=None)
     parser.add_argument('--attn_impl', type=str, default=None)
-    # TODO
-    # parser.add_argument('--fsdp',
-    #                     type=str2bool,
-    #                     nargs='?',
-    #                     const=True,
-    #                     default=False)
     return parser.parse_args()
 
 
@@ -148,11 +144,25 @@ def maybe_synchronize():
 
 
 def main(args: Namespace) -> None:
-    # TODO
-    # if args.fsdp and (not torch.cuda.is_available()):
-    #     raise ValueError(
-    #         'Cannot use FSDP because no cuda devices are available.')
+    # Set device or device_map
+    if args.device and args.device_map:
+        raise ValueError('You can only set one of `device` and `device_map`.')
+    if args.device is not None:
+        device = args.device
+        device_map = None
+    else:
+        device = None
+        device_map = args.device_map or 'auto'
+    print(f'Using {device=} and {device_map=}')
 
+    # Set model_dtype
+    if args.model_dtype is not None:
+        model_dtype = get_dtype(args.model_dtype)
+    else:
+        model_dtype = torch.float32
+    print(f'Using {model_dtype=}')
+
+    # Load prompts
     prompt_strings = []
     for prompt in args.prompts:
         if prompt.startswith('file::'):
@@ -169,6 +179,8 @@ def main(args: Namespace) -> None:
     try:
         config = AutoConfig.from_pretrained(args.name_or_path,
                                             **from_pretrained_kwargs)
+        if hasattr(config, 'init_device') and device is not None:
+            config.init_device = device
         if args.attn_impl is not None and hasattr(config, 'attn_config'):
             config.attn_config['attn_impl'] = args.attn_impl
         if args.max_seq_len is not None and hasattr(config, 'max_seq_len'):
@@ -181,40 +193,7 @@ def main(args: Namespace) -> None:
             'using your access token from https://huggingface.co/settings/tokens.'
         ) from e
 
-    # Set model_dtype
-    if args.model_dtype is not None:
-        model_dtype = get_dtype(args.model_dtype)
-    else:
-        model_dtype = config.torch_dtype or torch.float32
-
-    # Load HF Model
-    print(f'Loading HF model with dtype={model_dtype}...')
-    try:
-        model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
-                                                     config=config,
-                                                     torch_dtype=model_dtype,
-                                                     **from_pretrained_kwargs)
-    except Exception as e:
-        raise RuntimeError(
-            'If you are having auth problems, try logging in via `huggingface-cli login` ' +\
-            'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... ' +\
-            'using your access token from https://huggingface.co/settings/tokens.'
-        ) from e
-    model.eval()
-    print(f'n_params={sum(p.numel() for p in model.parameters())}')
-
-    # TODO
-    # if args.fsdp:
-    #     ...
-    # else:
-    # Set device
-    if args.device is not None:
-        device = args.device
-    else:
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    print(f'Placing model on {device=}...')
-    model.to(device)
-
+    # Build tokenizer
     print('\nLoading HF tokenizer...')
     tokenizer = AutoTokenizer.from_pretrained(args.name_or_path,
                                               **from_pretrained_kwargs)
@@ -225,10 +204,33 @@ def main(args: Namespace) -> None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = 'left'
 
+    # Load HF Model
+    print(f'Loading HF model with dtype={model_dtype}...')
+    try:
+        model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
+                                                     config=config,
+                                                     torch_dtype=model_dtype,
+                                                     device_map=device_map,
+                                                     **from_pretrained_kwargs)
+        model.eval()
+        print(f'n_params={sum(p.numel() for p in model.parameters())}')
+        if device is not None:
+            print(f'Placing model on {device=}...')
+            model.to(device)
+    except Exception as e:
+        raise RuntimeError(
+            'Unable to load HF model. ' +
+            'If you are having auth problems, try logging in via `huggingface-cli login` '
+            +
+            'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
+            +
+            'using your access token from https://huggingface.co/settings/tokens.'
+        ) from e
+
     # Autocast
     if args.autocast_dtype is not None:
         autocast_dtype = get_dtype(args.autocast_dtype)
-        autocast_context = torch.autocast(device, autocast_dtype)
+        autocast_context = torch.autocast(model.device.type, autocast_dtype)
         print(f'Using autocast with dtype={autocast_dtype}...')
     else:
         autocast_context = nullcontext()
@@ -256,13 +258,11 @@ def main(args: Namespace) -> None:
             'do_sample': False if temp == 0 else args.do_sample,
             'eos_token_id': args.eos_token_id or tokenizer.eos_token_id,
             'pad_token_id': args.pad_token_id or tokenizer.pad_token_id,
-            # TODO
-            # 'synced_gpus': args.fsdp,
         }
         print(f'\nGenerate kwargs:\n{generate_kwargs}')
 
         # Generate function with correct context managers
-        def _generate(encoded_inp):
+        def _generate(encoded_inp: Dict[str, torch.Tensor]):
             with torch.no_grad():
                 with autocast_context:
                     return model.generate(
@@ -289,7 +289,7 @@ def main(args: Namespace) -> None:
             encode_start = time.time()
             encoded_inp = tokenizer(batch, return_tensors='pt', padding=True)
             for key, value in encoded_inp.items():
-                encoded_inp[key] = value.to(device)
+                encoded_inp[key] = value.to(model.device)
             maybe_synchronize()
             encode_end = time.time()
             input_tokens = torch.sum(
@@ -320,17 +320,37 @@ def main(args: Namespace) -> None:
 
             # Print generations
             delimiter = '#' * 100
-            for prompt, gen in zip(batch, decoded_gen):
-                continuation = gen[len(prompt):]
+            # decode the encoded prompt to handle the case when the tokenizer
+            # trims extra spaces or does other pre-tokenization things
+            effective_prompts = tokenizer.batch_decode(encoded_inp['input_ids'],
+                                                       skip_special_tokens=True)
+            for idx, (effective_prompt, prompt, gen) in enumerate(
+                    zip(effective_prompts, batch, decoded_gen)):
+                continuation = gen[len(effective_prompt):]
                 print(delimiter)
-                print('\033[92m' + prompt + '\033[0m' + continuation)
+                if len(continuation) > 0:
+                    print('\033[92m' + prompt + '\033[0m' + continuation)
+                else:
+                    print('Warning. No non-special output tokens generated.')
+                    print(
+                        'This can happen if the generation only contains padding/eos tokens.'
+                    )
+                    print('Debug:')
+                    full_generation = tokenizer.batch_decode(
+                        encoded_gen, skip_special_tokens=False)[idx]
+                    print('\033[92m' + 'Prompt:\n' + prompt + '\033[0m')
+                    print('Full generation:\n' + full_generation)
+
             print(delimiter)
 
             # Print timing info
             bs = len(batch)
+            # ensure that gen_tokens >= 1 in case model only generated padding tokens
+            gen_tokens = np.maximum(gen_tokens, np.ones_like(gen_tokens))
             output_tokens = gen_tokens - input_tokens
             total_input_tokens = input_tokens.sum()
             total_output_tokens = output_tokens.sum()
+
             encode_latency = 1000 * (encode_end - encode_start)
             gen_latency = 1000 * (gen_end - gen_start)
             decode_latency = 1000 * (decode_end - decode_start)

@@ -1,9 +1,9 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-try:
-    import torch
+import torch
 
+try:
     from llmfoundry import optim, utils
     from llmfoundry.data import (ConcatTokensDataset,
                                  MixtureOfDenoisersCollator, NoConcatDataset,
@@ -16,7 +16,9 @@ try:
         MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
         flash_attn_fn, scaled_multihead_dot_product_attention,
         triton_flash_attn_fn)
-    from llmfoundry.models.layers.blocks import MPTMLP, MPTBlock
+    from llmfoundry.models.layers.blocks import MPTBlock
+    from llmfoundry.models.layers.ffn import (FFN_CLASS_REGISTRY, MPTMLP,
+                                              build_ffn)
     from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
     from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
                                        MPTForCausalLM, MPTModel,
@@ -24,7 +26,7 @@ try:
 
 except ImportError as e:
     try:
-        is_cuda_available = torch.cuda.is_available()  # type: ignore
+        is_cuda_available = torch.cuda.is_available()
     except:
         is_cuda_available = False
 
@@ -38,8 +40,10 @@ __all__ = [
     'build_finetuning_dataloader',
     'MixtureOfDenoisersCollator',
     'Seq2SeqFinetuningCollator',
-    'MPTMLP',
     'MPTBlock',
+    'FFN_CLASS_REGISTRY',
+    'MPTMLP',
+    'build_ffn',
     'MPTConfig',
     'MPTPreTrainedModel',
     'MPTModel',
@@ -62,4 +66,4 @@ __all__ = [
     'utils',
 ]
 
-__version__ = '0.1.0'
+__version__ = '0.2.0'

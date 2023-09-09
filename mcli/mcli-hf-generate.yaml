@@ -1,13 +1,13 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  # git_branch: # use your branch
+  git_branch: v0.2.0
   # git_commit: # OR use your commit hash
   pip_install: -e .[gpu]
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  cd llm-foundry/llmfoundry/inference
+  cd llm-foundry/scripts/inference
 
   # s3 commands
   pip install awscli
@@ -36,10 +36,11 @@ command: |
       "The best 5 cities to visit in Europe are"
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
-optimization_level: 0
+name: hf-generate
 
-# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: hf-generate
+compute:
+  gpus: 8  # Number of GPUs to use
 
-gpu_num: 8
-cluster: r0z0 # replace with your cluster here!
+  ## These configurations are optional
+  # cluster: TODO # Name of the cluster to use for this run
+  # gpu_type: a100_80gb # Type of GPU to use. We use a100_80gb in our experiments

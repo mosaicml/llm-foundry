@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Callable, Dict, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
+from omegaconf import DictConfig
+from transformers import PreTrainedTokenizerBase
 
 
 class BinPackWrapper:
@@ -312,7 +314,8 @@ if __name__ == '__main__':
             raise ValueError('`num_packing_ratios` must be a positive integer.')
         return args
 
-    def build_dataloader(cfg, tokenizer, device_batch_size):
+    def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+                         device_batch_size: int):
         if cfg.name == 'text':
             return build_text_dataloader(cfg, tokenizer, device_batch_size)
         elif cfg.name == 'text_denoising':
@@ -357,7 +360,12 @@ if __name__ == '__main__':
     # build tokenizer
     if 'tokenizer' not in cfg:
         raise ValueError('config must define tokenizer')
-    tokenizer = build_tokenizer(cfg.tokenizer)
+    tokenizer_cfg: Dict[str,
+                        Any] = om.to_container(cfg.tokenizer,
+                                               resolve=True)  # type: ignore
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     # Turn off packing for the dataloader (we want raw, pre-packed examples)
     dataloader_cfg.dataset.packing_ratio = None

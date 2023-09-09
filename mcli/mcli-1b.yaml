@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  # git_branch: # use your branch
+  git_branch: v0.2.0
   # git_commit: # OR use your commit hash
   pip_install: -e .[gpu]
   ssh_clone: false # Should be true if using a private repo
@@ -22,12 +22,15 @@ command: |
     max_duration=100ba \
     eval_interval=0
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
-# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: mosaic-gpt-1b-gpus-8
+name: mpt-1b-gpus-8
 
-gpu_num: 8
-gpu_type: a100_40gb
-cluster: r0z0 # replace with your cluster here!
+compute:
+  gpus: 8  # Number of GPUs to use
+
+  ## These configurations are optional
+  # cluster: # TODO # Name of the cluster to use for this run
+  # gpu_type: a100_80gb # Type of GPU to use. We use a100_80gb in our experiments
+
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 # but is not used in this example.

@@ -41,25 +41,25 @@ The attention mechanism forward pass FLOPS are: `attn_flops_per_seq = n_layers *
 ```
 flops_per_token = 2 * n_params
 flops_per_seq = flops_per_token * seq_len
-mfu* = 3 * flops_per_seq * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
+mfu* = 3 * flops_per_seq * seq_per_sec / (gpu_num * GPU_AVAILABLE_FLOPS)
 
 attn_flops_per_seq = n_layers * 2 * 2 * (d_model * (seq_len**2))
-mfu = (3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
+mfu = (3 * flops_per_seq + 3 * attn_flops_per_seq) * seq_per_sec / (gpu_num * GPU_AVAILABLE_FLOPS)
 ```
 
 ### HFU
 
 The HFU numbers shown below account for the fact that the networks use checkpointing and recomputes activations. This effectively requires an extra forward pass through the network.
 ```
-hfu* = 4 * flops_per_seq * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
-hfu = (4 * flops_per_seq + 4 * attn_flops_per_seq) * throughput / (gpu_num * GPU_AVAILABLE_FLOPS)
+hfu* = 4 * flops_per_seq * seq_per_sec / (gpu_num * GPU_AVAILABLE_FLOPS)
+hfu = (4 * flops_per_seq + 4 * attn_flops_per_seq) * seq_per_sec / (gpu_num * GPU_AVAILABLE_FLOPS)
 ```
 
 Note that these are approximations. Actual HFU would be higher since it includes the floating point operations for normalization, activation, and residual lyaers, as well as **all** recomputation. For example, our models use Flash Attention, which requires including an extra recompute factor for its recomputation in the forward pass. Therefore, the attention multipler would be 5 instead of 4.
 
 ## Results
 
-Below we include several configurations across different hardware platforms, sequence lengths and batch sizes. It is easy to benchmark configurations for your own use case. For example, using Mosaic Cloud, to test MPT {13B, 30B} using fp16 with a batch size of 2M tokens and seq len {2k, 4k, 8k, 16k} run:
+Below we include several configurations across different hardware platforms, sequence lengths and batch sizes. It is easy to benchmark configurations for your own use case. For example, using the Mosaic platform, to test MPT {13B, 30B} using fp16 with a batch size of 2M tokens and seq len {2k, 4k, 8k, 16k} run:
 ```
 python submit_benchmarks.py -m 13b.yaml 30b.yaml -t fp16 -b 21 21 -s 11 14 --RUN
 ```
@@ -67,9 +67,9 @@ This will run 8 configs for 12 steps to get throughput numbers. `python collect_
 
 Our microbatching engine enables microbatch sizes that do not divde Global Batchsize while being mathematically faithful to the global batch size. For example, a total batch size of 48, and a micro batch of 11, means we will accumulate gradients across microbatches of 11, 11, 11, 11, 4.
 
-#### TODO: Update tables with torch 2.0 after next Composer release
+[comment]: # (TODO: Update tables with torch 2.0 after next Composer release)
 
-## A100 80GB
+## A100 80GB with 1600 Gbps node-node interconnect (RoCE)
 
 |  Model | SeqLen (T) | # GPUs | GPU | MFU | HFU | MicroBatchSize | GradAccum | GlobalBatchSize | Throughput (S/s) | Throughput (T/s) | Throughput (T/s/GPU) | GlobalBatchSize (T) | Precision | MP Mode | Sharding Strategy | Activation Checkpointing | Activation CPUOffload | NumParams |
 |  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -160,7 +160,7 @@ Our microbatching engine enables microbatch sizes that do not divde Global Batch
 |  125m | 1024 | 8 | a100_80gb | 43.25 | 43.25 | 64 | 2 | 1024 | 1225 | 1254561 | 156820 | 1048576 | bf16 | PURE | FULL_SHARD | False | False | 124525056 |
 |  125m | 512 | 8 | a100_80gb | 42.54 | 42.54 | 128 | 2 | 2048 | 2587 | 1325030 | 165628 | 1048576 | bf16 | PURE | FULL_SHARD | False | False | 124131840 |
 
-## A100 40GB
+## A100 40GB with 1600 Gbps node-node interconnect (RoCE)
 
 |  Model | SeqLen (T) | # GPUs | GPU | MFU | HFU | MicroBatchSize | GradAccum | GlobalBatchSize | Throughput (S/s) | Throughput (T/s) | Throughput (T/s/GPU) | GlobalBatchSize (T) | Precision | MP Mode | Sharding Strategy | Activation Checkpointing | Activation CPUOffload | NumParams |
 |  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

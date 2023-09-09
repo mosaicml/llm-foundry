@@ -1,10 +1,17 @@
-run_name: deepspeed-inference
-gpu_num: 8
-cluster: r0z0 # Update with your cluster here!
+name: deepspeed-inference
+compute:
+  gpus: 8  # Number of GPUs to use
+
+  ## These configurations are optional
+  # cluster: TODO # Name of the cluster to use for this run
+  # gpu_type: a100_80gb # Type of GPU to use. We use a100_80gb in our experiments
+
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
+  git_branch: v0.2.0
   pip_install: '.[gpu]'
 
 command: |

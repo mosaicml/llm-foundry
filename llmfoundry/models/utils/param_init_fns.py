@@ -64,10 +64,8 @@ def generic_param_init_fn_(
     **kwargs: Any,
 ):
     del kwargs  # unused, just to capture any extra args from the config
-    if hasattr(module, 'bias'):
-        log.info(f'Module\'s bias parameters will be initialized to 0.')
-
     # enable user to divide _is_residual weights by
+
     # a value which defaults to math.sqrt(2 * cfg.n_layers)
     init_div_is_residual = init_div_is_residual
 
@@ -93,9 +91,9 @@ def generic_param_init_fn_(
 
     if init_div_is_residual is not False:
         log.info(
-                f'Initializing _is_residual layers then dividing them by {div_is_residual:.3f}. ' +\
-                f'Set `init_div_is_residual: false` in init config to disable this.'
-            )
+            f'Initializing _is_residual layers then dividing them by {div_is_residual:.3f}. ' +\
+            f'Set `init_div_is_residual: false` in init config to disable this.'
+        )
 
     if isinstance(module, tuple(set(FC_CLASS_REGISTRY.values()))):
         # Linear

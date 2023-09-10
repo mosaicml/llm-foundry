@@ -5,7 +5,8 @@
 
 import os
 from itertools import islice
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
+from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
+                    Union, cast)
 
 import numpy as np
 import torch
@@ -193,11 +194,12 @@ class ConcatenatedSequenceCollatorWrapper:
                 '`bos_token_id` if sequences start with a BOS token.'
             )
 
-        self.split_token_id = eos_token_id
-        self.bos_mode = False
         if eos_token_id is None:
-            self.split_token_id = bos_token_id
+            self.split_token_id = cast(int, bos_token_id)
             self.bos_mode = True
+        else:
+            self.split_token_id = eos_token_id
+            self.bos_mode = False
 
     def __call__(self, examples: List[Any]) -> Dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
@@ -206,8 +208,7 @@ class ConcatenatedSequenceCollatorWrapper:
 
     def get_sequence_id_from_batch(
             self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
-        is_separator = torch.eq(batch['input_ids'],
-                                self.split_token_id)  # type: ignore
+        is_separator = torch.eq(batch['input_ids'], self.split_token_id)
         cumulative_sep = torch.cumsum(is_separator,
                                       dim=1).to(batch['input_ids'].dtype)
         # If separator token is bos, we're already done

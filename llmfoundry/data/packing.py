@@ -360,9 +360,13 @@ if __name__ == '__main__':
     # build tokenizer
     if 'tokenizer' not in cfg:
         raise ValueError('config must define tokenizer')
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(cfg.tokenizer,
-                                               resolve=True)  # type: ignore
+
+    resolved_tokenizer_cfg = om.to_container(cfg.tokenizer, resolve=True)
+    if not isinstance(resolved_tokenizer_cfg, Dict):
+        raise ValueError(
+            'tokenizer config needs to be resolved by omegaconf into a Dict.')
+    tokenizer_cfg: Dict[Any, Any] = resolved_tokenizer_cfg
+
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)

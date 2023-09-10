@@ -29,8 +29,9 @@ def torch_default_param_init_fn_(
         warnings.warn(
             f"Initializing network using module's reset_parameters attribute")
 
-    if hasattr(module, 'reset_parameters'):
-        module.reset_parameters()  # type: ignore
+    if hasattr(module, 'reset_parameters') and isinstance(
+            module.reset_parameters, Callable):
+        module.reset_parameters()
 
 
 def fused_init_helper_(module: nn.Module, init_fn_: Callable):

@@ -44,6 +44,12 @@ def get_config(
     return cast(DictConfig, test_cfg)
 
 
+def _load_tokenizer_cfg(cfg: DictConfig) -> Dict:
+    config = om.to_container(cfg, resolve=True)
+    assert isinstance(config, Dict)
+    return config
+
+
 def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     warnings.filterwarnings(
         action='ignore',
@@ -74,9 +80,7 @@ def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     test_cfg.device_eval_batch_size = 2
     test_cfg.device_train_microbatch_size = 2
 
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(test_cfg.tokenizer,
-                                               resolve=True)  # type: ignore
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
@@ -225,9 +229,7 @@ def test_full_forward_and_backward_gpt2_small(prefixlm: bool,
     else:
         neo_cfg.model.name = 'hf_causal_lm'
 
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(neo_cfg.tokenizer,
-                                               resolve=True)  # type: ignore
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(neo_cfg.tokenizer)
     tokenizer = build_tokenizer(neo_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
@@ -272,9 +274,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     t5_cfg.device = device
     t5_cfg.max_seq_len = 16
 
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(t5_cfg.tokenizer,
-                                               resolve=True)  # type: ignore
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(t5_cfg.tokenizer)
     tokenizer = build_tokenizer(t5_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
@@ -328,9 +328,7 @@ def test_determinism(attn_impl: str, precision: torch.dtype):
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(test_cfg.tokenizer,
-                                               resolve=True)  # type: ignore
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
@@ -379,8 +377,9 @@ def test_loss_fn():
         pytest.skip('Fused cross entropy was not installed')
 
     # run numerical test in pure fp32
-    torch.backends.cuda.matmul.allow_tf32 = False  # type: ignore (third-party)
-    torch.backends.cudnn.allow_tf32 = False  # type: ignore (third-party)
+    from torch.backends import cuda, cudnn
+    cuda.matmul.allow_tf32 = False
+    cudnn.allow_tf32 = False
 
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
@@ -397,9 +396,7 @@ def test_loss_fn():
 
     reproducibility.seed_all(test_cfg.get('global_seed', 42))
 
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(test_cfg.tokenizer,
-                                               resolve=True)  # type: ignore
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
@@ -460,9 +457,7 @@ def test_opt_wrapping(prefixlm: bool):
     }
     config = DictConfig(conf)
 
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(config.tokenizer,
-                                               resolve=True)  # type: ignore
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
     tokenizer = build_tokenizer(config.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
@@ -1414,9 +1409,7 @@ def test_hf_init(tmp_path: pathlib.Path,
         model = AutoModelForCausalLM.from_pretrained(save_path,
                                                      trust_remote_code=True)
 
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(test_cfg.tokenizer,
-                                               resolve=True)  # type: ignore
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
@@ -1466,9 +1459,7 @@ def test_head_dim_8_triton_mqa_attn(batch_size: int = 2):
     )
     test_cfg.device = torch.cuda.current_device()
 
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(test_cfg.tokenizer,
-                                               resolve=True)  # type: ignore
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 

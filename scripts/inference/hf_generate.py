@@ -293,8 +293,9 @@ def main(args: Namespace) -> None:
             maybe_synchronize()
             encode_end = time.time()
             input_tokens = torch.sum(
-                encoded_inp['input_ids'] != tokenizer.pad_token_id,
-                axis=1).numpy(force=True)  # type: ignore
+                encoded_inp['input_ids'] !=
+                tokenizer.pad_token_id,  # type: ignore
+                axis=1).numpy(force=True)
 
             # Warmup
             if args.warmup and (not done_warmup):

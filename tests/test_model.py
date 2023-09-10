@@ -176,7 +176,7 @@ def test_attention_mechanism(batch_size: int = 2):
     # and with 0 everywhere else
     expected_zerod_weights = nn.Transformer.generate_square_subsequent_mask(test_cfg.max_seq_len)\
         .reshape(1, test_cfg.max_seq_len, test_cfg.max_seq_len)
-    expected_zerod_weights = torch.isneginf(  # type: ignore
+    expected_zerod_weights = torch.isneginf(
         torch.cat(batch_size * [expected_zerod_weights]))
     torch_key_padding = torch.cat(  # type: ignore
         test_cfg.max_seq_len *

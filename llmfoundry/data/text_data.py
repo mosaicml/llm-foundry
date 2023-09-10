@@ -341,7 +341,9 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     loader = build_text_dataloader(cfg, tokenizer, device_batch_size)
-    tokenizer = loader.dataset.tokenizer  # type: ignore
+    assert isinstance(loader.dataset, StreamingTextDataset)
+    tokenizer = loader.dataset.tokenizer
+
     for batch_ix, batch in enumerate(islice(loader, 5)):
         print('\n')
         print('#' * 20, f'Batch {batch_ix}', '#' * 20)

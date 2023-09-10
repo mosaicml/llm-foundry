@@ -90,7 +90,7 @@ def validate_config(cfg: DictConfig):
             '`te.LayerNormMLP` requires has issues with torch._dynamo. ' +
             'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.'
         )
-        torch._dynamo.config.suppress_errors = True  # type: ignore
+        torch._dynamo.config.suppress_errors = True  # type: ignore (third-party)
 
     if cfg.model.get('load_in_8bit', False):
         raise ValueError(
@@ -530,7 +530,7 @@ def main(cfg: DictConfig) -> Trainer:
         precision=precision,
         algorithms=algorithms,
         device_train_microbatch_size=device_train_microbatch_size,
-        fsdp_config=fsdp_config,  # type: ignore
+        fsdp_config=fsdp_config,
         save_folder=save_folder,
         save_filename=save_filename,
         save_latest_filename=save_latest_filename,

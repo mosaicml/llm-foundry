@@ -3,6 +3,7 @@
 
 """A HuggingFace-style model configuration."""
 
+import logging
 import warnings
 from typing import Any, Dict, Optional, Union
 
@@ -61,7 +62,7 @@ class MPTConfig(PretrainedConfig):
         use_cache: bool = False,
         init_config: Dict = init_config_defaults,
         fc_type: str = 'torch',
-        verbose: int = 0,
+        verbose: Optional[int] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -140,6 +141,15 @@ class MPTConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.init_config = init_config
         self.fc_type = fc_type
+        if verbose is not None:
+            warnings.warn(
+                DeprecationWarning(
+                    'verbose argument for MPTConfig will be deprecated in a future release. Use python_log_level instead.'
+                ))
+            logging.getLogger('llmfoundry').setLevel(
+                30 -
+                verbose * 10)  # verbose=0 means WARNING, verbose=2 means DEBUG
+
         if 'name' in kwargs:
             del kwargs['name']
         if 'loss_fn' in kwargs:

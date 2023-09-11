@@ -278,7 +278,6 @@ def main(
     is_remote_output = is_remote_path(output_folder)
 
     object_names = get_object_names(input_folder)
-    object_names = object_names[:10]
 
     # Check if the text files in the bucket have already been processed.
     if not reprocess and is_already_processed(output_folder, done_file_name,

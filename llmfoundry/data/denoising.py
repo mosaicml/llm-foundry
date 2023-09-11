@@ -864,13 +864,10 @@ if __name__ == '__main__':
     cfg = om.create(cfg)
     device_batch_size = 2
 
-    tokenizer_cfg = {
-        'name': 'EleutherAI/gpt-neox-20b' if decoder_only else 't5-base',
-        'kwargs': {}
-    }
-    tokenizer_cfg['kwargs'] = {'model_max_length': cfg.dataset.max_seq_len}
-    tokenizer_cfg = om.create(tokenizer_cfg)
-    tokenizer = build_tokenizer(tokenizer_cfg)
+    tokenizer_name = 'EleutherAI/gpt-neox-20b' if decoder_only else 't5-base'
+    tokenizer_kwargs = {'model_max_length': cfg.dataset.max_seq_len}
+    tokenizer = build_tokenizer(tokenizer_name=tokenizer_name,
+                                tokenizer_kwargs=tokenizer_kwargs)
 
     loader = build_text_denoising_dataloader(cfg, tokenizer, device_batch_size)
     assert isinstance(loader.dataset, StreamingTextDataset)

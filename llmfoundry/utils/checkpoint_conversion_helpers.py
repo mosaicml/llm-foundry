@@ -56,11 +56,15 @@ def get_hf_tokenizer_from_composer_state_dict(
         os.makedirs(tokenizer_save_dir, exist_ok=True)
 
         for filename, saved_content in hf_tokenizer_state.items():
+            # For backwards compatibility, check if the filename already has the file extension
+            if filename.endswith(saved_content['file_extension']):
+                tokenizer_file_name = filename
+            else:
+                tokenizer_file_name = filename + saved_content['file_extension']
+
             # This cannot be a temporary directory because huggingface relies on the slow tokenizer file
             # being persistent on disk
-            tokenizer_file_path = Path(
-                tokenizer_save_dir
-            ) / f'{filename}{saved_content["file_extension"]}'
+            tokenizer_file_path = Path(tokenizer_save_dir) / tokenizer_file_name
             if saved_content['file_extension'] == '.json':
                 with open(tokenizer_file_path, 'w') as _tmp_file:
                     json.dump(saved_content['content'], _tmp_file)

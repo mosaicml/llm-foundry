@@ -1,81 +1,151 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import os
+import shutil
 import sys
-import warnings
-from typing import Optional, Union
+from argparse import Namespace
+from typing import Any
 
 import pytest
-import torch
-from omegaconf import DictConfig
+from composer.loggers import InMemoryLogger
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
-from scripts.train.train import main
+
+from scripts.data_prep.convert_dataset_hf import main as main_hf  # noqa: E402
+from scripts.train.train import main  # noqa: E402
 
 
-def gpt_tiny_cfg(conf_path: str = 'scripts/train/yamls/pretrain/mpt-125m.yaml'):
+def create_c4_dataset_xsmall(prefix: str) -> str:
+    """Creates a small mocked version of the C4 dataset."""
+    c4_dir = os.path.join(os.getcwd(), f'my-copy-c4-{prefix}')
+    shutil.rmtree(c4_dir, ignore_errors=True)
+    downloaded_split = 'val_xsmall'  # very fast to convert
+
+    # Hyperparameters from https://github.com/mosaicml/llm-foundry/blob/340a56658560ebceb2a3aa69d6e37813e415acd0/README.md#L188
+    main_hf(
+        Namespace(
+            **{
+                'dataset': 'c4',
+                'data_subset': 'en',
+                'splits': [downloaded_split],
+                'out_root': c4_dir,
+                'compression': None,
+                'concat_tokens': 2048,
+                'tokenizer': 'EleutherAI/gpt-neox-20b',
+                'bos_text': '',
+                'eos_text': '<|endoftext|>',
+                'no_wrap': False,
+                'num_workers': 8
+            }))
+
+    # copy the small downloaded_split to other c4 splits for mocking purposes
+    mocked_splits = ['train', 'val']
+    for mocked_split in mocked_splits:
+        shutil.copytree(os.path.join(c4_dir, 'val_xsmall'),
+                        os.path.join(c4_dir, mocked_split))
+    assert os.path.exists(c4_dir)
+    return c4_dir
+
+
+def gpt_tiny_cfg(dataset_name: str, device: str):
     """Create gpt tiny cfg."""
+    conf_path: str = os.path.join(repo_dir,
+                                  'scripts/train/yamls/pretrain/testing.yaml')
     with open(conf_path) as f:
         test_cfg = om.load(f)
     assert isinstance(test_cfg, DictConfig)
-    # removes requirement to download / process train set
-    test_cfg.train_loader.dataset = test_cfg.eval_loader.dataset
 
+    test_cfg.data_local = dataset_name
     test_cfg.global_train_batch_size = 8
     test_cfg.device_eval_batch_size = 4
     test_cfg.device_train_microbatch_size = 4
-
     test_cfg.max_duration = '4ba'
     test_cfg.eval_interval = '4ba'
-    test_cfg.eval_loader.eval_subset_num_batches = 2
-    test_cfg.save_interval = '4ba'
     test_cfg.run_name = 'gpt-mini-integration-test'
-    test_cfg.model.d_model = 32
-    test_cfg.model.n_heads = 2
-    test_cfg.model.n_layers = 2
-    test_cfg.max_seq_len = 256
-    test_cfg.model.max_seq_len = test_cfg.max_seq_len
-    test_cfg.tokenizer.kwargs.model_max_length = test_cfg.max_seq_len
-    test_cfg.train_loader.dataset.max_seq_len = test_cfg.max_seq_len
-    test_cfg.eval_loader.dataset.max_seq_len = test_cfg.max_seq_len
+
+    if device == 'cpu':
+        test_cfg.model.init_device = 'cpu'
+        test_cfg.fsdp_config = None
+        test_cfg.model.attn_config.attn_impl = 'torch'
+        test_cfg.model.loss_fn = 'torch_crossentropy'
+        test_cfg.precision = 'fp32'
 
     return test_cfg
 
 
-@pytest.mark.parametrize('device', [
-    'cpu',
-    pytest.param('cuda',
-                 marks=pytest.mark.skipif(
-                     not torch.cuda.is_available(),
-                     reason='testing with cuda requires GPU')),
-])
-@pytest.mark.parametrize('logit_scale', [None, 0.036, 'inv_sqrt_d_model'])
-def test_train(device: str, logit_scale: Optional[Union[float, str]]):
-    if not os.path.isdir('./my-copy-c4/val'):
-        pytest.xfail('c4 dataset not set up as expected')
+@pytest.fixture(autouse=False)
+def set_correct_cwd():
+    if not os.getcwd().endswith('llm-foundry/scripts'):
+        os.chdir('scripts')
 
-    warnings.filterwarnings(
-        action='ignore',
-        category=DeprecationWarning,
-        message=
-        "Using the 'grad_clip_norm' field in Trainer is deprecated. Please usethe GradientClipping Algorithm in composer.algorithms.gradient_clipping."
-    )
+    yield
 
-    test_cfg = gpt_tiny_cfg(
-        conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml')
-    test_cfg.eval_subset_num_batches = 2
-    if logit_scale:
-        test_cfg.model.logit_scale = logit_scale
+    if os.getcwd().endswith('llm-foundry/scripts'):
+        os.chdir('..')
 
-    if device == 'cpu':
-        pytest.xfail(
-            'FSDP in PyTorch 1.13 does not support precision `Precision.FP32` with sharding_strategy `FULL_SHARD.`'
-        )
-        test_cfg.model.init_device = 'cpu'
-        test_cfg.model.attn_impl = 'torch'
-        test_cfg.precision = 'fp32'
 
-    main(test_cfg)
+def test_train_gauntlet(set_correct_cwd: Any):
+    """Test training run with a small dataset."""
+    dataset_name = create_c4_dataset_xsmall('cpu-gauntlet')
+    test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
+    test_cfg.icl_tasks = ListConfig([
+        DictConfig({
+            'label':
+                'lambada_openai',
+            'dataset_uri':
+                'eval/local_data/language_understanding/lambada_openai_small.jsonl',
+            'num_fewshot': [0],
+            'icl_task_type':
+                'language_modeling'
+        })
+    ])
+    test_cfg.icl_subset_num_batches = 1  # -1 to evaluate on all batches
+
+    test_cfg.eval_gauntlet = DictConfig({
+        'weighting':
+            'EQUAL',
+        'subtract_random_baseline':
+            True,
+        'rescale_accuracy':
+            True,
+        'categories':
+            ListConfig([
+                DictConfig({
+                    'name':
+                        'language_understanding_lite',
+                    'benchmarks':
+                        ListConfig([
+                            DictConfig({
+                                'name': 'lambada_openai',
+                                'num_fewshot': 0,
+                                'random_baseline': 0.0
+                            })
+                        ])
+                })
+            ])
+    })
+
+    test_cfg.icl_seq_len = 128
+    test_cfg.max_duration = '1ba'
+    test_cfg.eval_interval = '1ba'
+    test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
+    trainer = main(test_cfg)
+
+    assert isinstance(trainer.logger.destinations, tuple)
+
+    assert len(trainer.logger.destinations) > 0
+    inmemorylogger = trainer.logger.destinations[
+        0]  # pyright: ignore [reportGeneralTypeIssues]
+    assert isinstance(inmemorylogger, InMemoryLogger)
+    assert 'icl/metrics/eval_gauntlet/average' in inmemorylogger.data.keys()
+    assert isinstance(inmemorylogger.data['icl/metrics/eval_gauntlet/average'],
+                      list)
+    assert len(inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1]) > 0
+    assert isinstance(
+        inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1], tuple)
+
+    assert inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1][-1] == 0

@@ -47,11 +47,13 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,nlp,wandb,mlflow]>=0.15.0,<0.16',
+    'mosaicml[libcloud,wandb,mlflow]>=0.16.1,<0.17',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
+    'transformers>=4.32,<4.33',
     'mosaicml-streaming>=0.5.1,<0.6',
-    'torch>=1.13.1,<=2.0.1',
+    'torch>=1.13.1,<2.1.1',
     'datasets==2.10.1',
+    'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
     'einops==0.5.0',
     'omegaconf>=2.2.3,<3',
@@ -74,14 +76,16 @@ extra_deps['dev'] = [
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
     'packaging>=21,<23',
+    'hf_transfer==0.1.3',
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.15.0,<0.16',
+    'mosaicml[tensorboard]>=0.16.1,<0.17',
 ]
 
 extra_deps['gpu'] = [
     'flash-attn==v1.0.3.post0',
+    'mosaicml-turbo==0.0.3',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy',
 ]
@@ -92,7 +96,7 @@ extra_deps['peft'] = [
     'scipy>=1.10.0,<=1.11.0',  # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
     # TODO: pin peft when it stabilizes.
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'peft@git+https://github.com/huggingface/peft.git',
+    'peft==0.4.0',
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)

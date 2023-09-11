@@ -52,6 +52,14 @@ def _tokenize_formatted_example(example: Dict[str, Any],
             '"prompt" and "response" are required keys but at least one was missing ' +\
             f'from {example=}.'
         )
+    if not isinstance(example['prompt'], str):
+        raise TypeError(
+            f'Unable to tokenize example because "prompt" was not a string. {example=}'
+        )
+    if not isinstance(example['response'], str):
+        raise TypeError(
+            f'Unable to tokenize example because "response" was not a string. {example=}'
+        )
     return tokenizer(text=example['prompt'], text_target=example['response'])
 
 
@@ -254,8 +262,11 @@ class DatasetConstructor:
 
         return preprocessing_fn
 
-    def build_from_hf(self, cfg: DictConfig, max_seq_len: int,
-                      tokenizer: PreTrainedTokenizerBase):
+    def build_from_hf(
+        self, cfg: DictConfig, max_seq_len: int,
+        tokenizer: PreTrainedTokenizerBase
+    ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
+               hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
 
         Note: This function will drop examples where the prompt is longer than the max_seq_len
@@ -303,7 +314,18 @@ class DatasetConstructor:
                 f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
             )
 
-        return prompt_length_filtered_dataset
+        empty_examples_dropped_dataset = prompt_length_filtered_dataset.filter(
+            lambda example: len(example['input_ids']) > 0 and len(example[
+                'labels']) > 0 and any(token_id != tokenizer.pad_token_id
+                                       for token_id in example['labels']))
+        empty_examples_removed = len(prompt_length_filtered_dataset) - len(
+            empty_examples_dropped_dataset)
+        if empty_examples_removed > 0:
+            warnings.warn(
+                f'Dropped {empty_examples_removed} examples where the prompt or response was empty, '
+                + 'or the response was only padding tokens.')
+
+        return empty_examples_dropped_dataset
 
     def build_from_streaming(self, *args: Any, **kwargs: Any):
         return StreamingFinetuningDataset(*args, **kwargs)

@@ -21,6 +21,8 @@ from transformers import (AutoConfig, AutoModelForCausalLM,
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
+from llmfoundry.models.layers.llama_attention_monkeypatch import \
+    get_llama_attention_patch_fn
 from llmfoundry.models.utils import init_empty_weights
 
 try:
@@ -60,6 +62,16 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             self,
             om_model_config: _om_model_config_type,  # type: ignore
             tokenizer: PreTrainedTokenizerBase):
+
+        if not om_model_config.get('trust_remote_code',
+                                   True) and om_model_config.get(
+                                       'pretrained_model_name_or_path',
+                                       None).startswith('mosaicml/mpt'):
+            raise ValueError(
+                'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
+                +
+                'which is not significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
+            )
 
         # set up training and eval metrics
         train_metrics = [
@@ -110,6 +122,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 else:
                     setattr(config, k, v)
 
+            load_in_8bit = om_model_config.get('load_in_8bit', False)
+
             # below we set up the device to initialize the model on
             init_device = om_model_config.get('init_device', 'cpu')
 
@@ -129,6 +143,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                         om_model_config.pretrained_model_name_or_path,
                         trust_remote_code=trust_remote_code,
                         use_auth_token=use_auth_token,
+                        load_in_8bit=load_in_8bit,
                         config=config)
                 else:
                     model = AutoModelForCausalLM.from_config(
@@ -177,6 +192,21 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             raise ValueError(
                 f'om_model_config must be either a DictConfig, PeftModel, or PreTrainedModel, but got {type(om_model_config)}'
             )
+
+        attention_patch_type = om_model_config.get('attention_patch_type', None)
+        if attention_patch_type is not None:
+            if model.config.model_type != 'llama':
+                raise ValueError(
+                    f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
+                )
+
+            print(
+                f'Patching llama attention with {attention_patch_type} attention'
+            )
+            from transformers.models.llama.modeling_llama import LlamaAttention
+            LlamaAttention.forward = get_llama_attention_patch_fn(
+                attention_patch_type)
+            model.config.use_cache = False
 
         composer_model = super().__init__(model=model,
                                           shift_labels=True,

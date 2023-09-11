@@ -1,6 +1,9 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+import contextlib
+import json
 import os
+import pathlib
 import shutil
 import sys
 import tempfile
@@ -9,6 +12,7 @@ from typing import Optional
 
 import pytest
 import torch
+from composer.utils import dist, using_torch_2
 from omegaconf import OmegaConf as om
 
 from llmfoundry import (build_finetuning_dataloader,
@@ -102,10 +106,9 @@ def test_correct_padding(tokenizer_name: str,
     })
 
     tokenizer = build_tokenizer(
-        om.create({
-            'name': tokenizer_name,
-            'kwargs': {}
-        }))
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={},
+    )
 
     # Dataloaders
     eval_loader = build_text_dataloader(
@@ -199,12 +202,8 @@ def test_denoising_dataloader(decoder_only_format: bool, pretokenize: bool,
             expected_keys += ['sequence_id']
 
         tokenizer = build_tokenizer(
-            om.create({
-                'name': tokenizer_name,
-                'kwargs': {
-                    'model_max_length': max_seq_len
-                }
-            }))
+            tokenizer_name=tokenizer_name,
+            tokenizer_kwargs={'model_max_length': max_seq_len})
 
         loader = build_text_denoising_dataloader(cfg, tokenizer,
                                                  device_batch_size)
@@ -255,12 +254,8 @@ def test_finetuning_dataloader(decoder_only_format: bool,
     cfg = om.create(cfg)
 
     tokenizer = build_tokenizer(
-        om.create({
-            'name': tokenizer_name,
-            'kwargs': {
-                'model_max_length': max_seq_len
-            }
-        }))
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={'model_max_length': max_seq_len})
 
     device_batch_size = 2
 
@@ -282,3 +277,198 @@ def test_finetuning_dataloader(decoder_only_format: bool,
         batch_ix += 1
         if batch_ix >= 3:
             break
+
+
+def make_tiny_ft_dataset(
+    path: str,
+    size: int = 4,
+    add_bad_data_dropped: bool = False,
+    add_bad_data_error: bool = False,
+    add_just_bos_eos_pad: bool = False,
+    pad_token: Optional[str] = None,
+    start_token: Optional[str] = None,
+    end_token: Optional[str] = None,
+):
+    good_sample = {'prompt': 'hello', 'response': 'goodbye'}
+    samples = [good_sample] * size
+    if add_bad_data_dropped:
+        if pad_token is None:
+            raise ValueError(
+                'pad_token, start_token, and end_token must be specified if add_bad_data is True'
+            )
+        # empty prompt
+        samples.append({'prompt': '', 'response': 'goodbye'})
+        # empty response
+        samples.append({'prompt': 'hello', 'response': ''})
+        # response just pad
+        samples.append({'prompt': 'hello', 'response': pad_token})
+        # response just pad multiple times
+        samples.append({'prompt': 'hello', 'response': pad_token * 3})
+
+    if add_bad_data_error:
+        # prompt just None
+        samples.append({
+            'prompt': None,
+            'response': 'goodbye'
+        })  # type: ignore (intentional test)
+        # response just None
+        samples.append({
+            'prompt': 'hello',
+            'response': None
+        })  # type: ignore (intentional test)
+
+    if add_just_bos_eos_pad:
+        if pad_token is None or start_token is None or end_token is None:
+            raise ValueError(
+                'pad_token, start_token, and end_token must be specified if add_just_bos_eos is True'
+            )
+        # prompt just start
+        samples.append({'prompt': start_token, 'response': 'goodbye'})
+        # response just start
+        samples.append({'prompt': 'hello', 'response': start_token})
+        # prompt just end
+        samples.append({'prompt': end_token, 'response': 'goodbye'})
+        # response just end
+        samples.append({'prompt': 'hello', 'response': end_token})
+        # prompt just pad
+        samples.append({'prompt': pad_token, 'response': 'goodbye'})
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as _f:
+        for sample in samples:
+            _f.write(json.dumps(sample))
+            _f.write('\n')
+
+
+@pytest.mark.world_size(2)
+@pytest.mark.parametrize('dataset_size', [4, 8])
+@pytest.mark.parametrize('device_batch_size', [2, 4])
+@pytest.mark.parametrize('drop_last', [True, False])
+def test_finetuning_dataloader_small_data(dataset_size: int,
+                                          device_batch_size: int,
+                                          drop_last: bool):
+    tokenizer_name = 'gpt2'
+    max_seq_len = 2048
+    tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
+    tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
+    if dist.get_global_rank() == 0:
+        make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size)
+
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': tiny_dataset_folder_path,
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': drop_last,
+        'num_workers': 4,
+        'pin_memory': False,
+        'prefetch_factor': 2,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
+
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+    expected_keys += ['bidirectional_mask']
+
+    error_context = contextlib.nullcontext()
+    if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
+        error_context = pytest.raises(ValueError, match='Your dataset')
+
+    with error_context:
+        _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+
+    if dist.get_global_rank() == 0:
+        shutil.rmtree(tiny_dataset_folder_path)
+
+
+@pytest.mark.parametrize('add_bad_data_dropped', [True, False])
+@pytest.mark.parametrize('add_bad_data_error', [True, False])
+def test_malformed_data(
+    add_bad_data_dropped: bool,
+    add_bad_data_error: bool,
+    tmp_path: pathlib.Path,
+):
+    tokenizer_name = 'mosaicml/mpt-7b'
+    max_seq_len = 2048
+    dataset_size = 5
+    device_batch_size = 5
+    tiny_dataset_folder_path = tmp_path
+    tiny_dataset_path = str(tiny_dataset_folder_path / 'train.jsonl')
+
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
+    tokenizer.add_special_tokens({
+        'pad_token': '<pad>',
+        'bos_token': '<bos>',
+        'eos_token': '<eos>',
+    })
+
+    if dist.get_global_rank() == 0:
+        make_tiny_ft_dataset(
+            path=tiny_dataset_path,
+            size=dataset_size,
+            add_bad_data_dropped=add_bad_data_dropped,
+            add_bad_data_error=add_bad_data_error,
+            add_just_bos_eos_pad=True,
+            pad_token=tokenizer.pad_token,
+            start_token=tokenizer.bos_token,
+            end_token=tokenizer.eos_token,
+        )
+
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': str(tiny_dataset_folder_path),
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        # set prefetch to 2 if < torch 2, else set it to None
+        'prefetch_factor': None if using_torch_2() else 2,
+        'pin_memory': False,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+    expected_keys += ['bidirectional_mask']
+
+    error_context = contextlib.nullcontext()
+    if add_bad_data_error:
+        error_context = pytest.raises(TypeError,
+                                      match='Unable to tokenize example')
+
+    with error_context:
+        dl = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+
+    if not add_bad_data_error:
+        # +5 because we added samples with just bos/eos in each of prompt/response
+        expected_num_batches = (dataset_size + 5) // device_batch_size
+
+        actual_num_batches = 0
+        for _ in dl:
+            actual_num_batches += 1
+
+        assert actual_num_batches == expected_num_batches

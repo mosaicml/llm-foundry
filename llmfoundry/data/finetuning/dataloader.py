@@ -292,19 +292,25 @@ def _build_hf_dataset_from_remote(
     """
     supported_extensions = ['jsonl', 'csv', 'parquet']
     finetune_dir = os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        f'downloaded_finetuning_data/{cfg.dataset.split}')
+        os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
+        'downloaded_finetuning',
+        cfg.dataset.split if cfg.dataset.split != 'data' else 'data_not',
+    )
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in supported_extensions:
         name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
         destination = str(
-            os.path.abspath(f'{finetune_dir}/{cfg.dataset.split}.{extension}'))
+            os.path.abspath(
+                os.path.join(
+                    finetune_dir, 'data',
+                    f'{cfg.dataset.split}-00000-of-00001.{extension}')))
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file
         signal_file_path = os.path.join(finetune_dir, '.the_eagle_has_landed')
         if dist.get_local_rank() == 0:
             try:
-                get_file(name, destination, overwrite=True)
+                get_file(path=name, destination=destination, overwrite=True)
             except FileNotFoundError as e:
                 if extension == supported_extensions[-1]:
                     files_searched = [

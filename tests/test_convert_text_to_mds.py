@@ -10,11 +10,10 @@ import pytest
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 import pathlib
+from concurrent.futures import ProcessPoolExecutor
 from glob import glob
 from typing import Callable, Iterable, List, Optional
 from unittest.mock import Mock, patch
-from concurrent.futures import ProcessPoolExecutor
-
 
 import numpy as np
 from streaming import StreamingDataset
@@ -79,7 +78,7 @@ def _call_convert_text_to_mds(processes: int, tokenizer_name: str) -> None:
 
 
 # Mock starmap with no multiprocessing
-def _mock_map(func: Callable, args: Iterable)-> Iterable:
+def _mock_map(func: Callable, args: Iterable) -> Iterable:
     for arg in args:
         yield func(arg)
 

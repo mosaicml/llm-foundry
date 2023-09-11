@@ -6,8 +6,8 @@ import math
 import os
 import tempfile
 from argparse import ArgumentParser, Namespace
-from glob import glob
 from concurrent.futures import ProcessPoolExecutor
+from glob import glob
 from typing import Iterable, List, Tuple, cast
 
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
@@ -158,8 +158,10 @@ def get_task_args(
             max_mds_writer_workers,
         )
 
+
 def download_and_convert_starargs(args: Tuple):
     return download_and_convert(*args)
+
 
 def download_and_convert(
     file_names: List[str],

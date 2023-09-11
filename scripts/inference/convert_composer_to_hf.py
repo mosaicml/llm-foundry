@@ -12,7 +12,7 @@ import transformers
 from composer.models.huggingface import get_hf_config_from_composer_state_dict
 from composer.utils import (get_file, maybe_create_object_store_from_uri,
                             parse_uri, safe_torch_load)
-from transformers import AutoConfig, PretrainedConfig, PreTrainedTokenizerBase
+from transformers import PretrainedConfig, PreTrainedTokenizerBase
 
 from llmfoundry import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import get_hf_tokenizer_from_composer_state_dict
@@ -169,7 +169,8 @@ def convert_composer_to_hf(args: Namespace) -> None:
     # Register MPT auto classes so that this script works with MPT
     # This script will not work without modification for other custom models,
     # but will work for other HuggingFace causal LMs
-    AutoConfig.register('mpt', MPTConfig)
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     MPTConfig.register_for_auto_class()
     MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
 

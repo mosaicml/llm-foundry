@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: main
+  git_branch: v0.2.0
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
@@ -11,10 +11,10 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: falcon-eval
-gpu_num: 128
-gpu_type: a100_40gb
-cluster: r12z3  # replace with your cluster here!
+run_name: all-eval
+gpu_num: 8
+# gpu_type:
+# cluster:  # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
@@ -27,19 +27,20 @@ parameters:
   precision: amp_fp16
 
   models:
-  - model:
-      config_overrides:
-        tie_word_embeddings: false
-      init_device: mixed
-      name: hf_causal_lm
-      pretrained: true
-      pretrained_model_name_or_path: tiiuae/falcon-180B
-      use_auth_token: true
-    model_name: tiiuae/falcon-180B
+  -
+    model_name: mosaicml/mpt-7b-instruct
+    # Tokenizer
     tokenizer:
+      name: EleutherAI/gpt-neox-20b
       kwargs:
         model_max_length: ${max_seq_len}
-      name: tiiuae/falcon-180B
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      init_device: mixed
+      pretrained: true
+      use_auth_token: false
 
   # FSDP config for model sharding
   fsdp_config:

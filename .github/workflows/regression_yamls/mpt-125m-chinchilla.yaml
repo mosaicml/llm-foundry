@@ -1,5 +1,7 @@
 integrations:
 - integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  git_branch: main
   pip_install: -e .[gpu]
 
 command: |

@@ -1,7 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
 import math
 import warnings
 from collections.abc import Sequence
@@ -14,7 +13,6 @@ from torch import nn
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
-log = logging.getLogger(__name__)
 try:
     import transformer_engine.pytorch as te
 except:
@@ -26,7 +24,6 @@ def torch_default_param_init_fn_(
     **kwargs: Any,
 ):
     del kwargs  # unused, just to capture any extra args from the config
-    log.info(f"Initializing network using module's reset_parameters attribute")
 
     if hasattr(module, 'reset_parameters'):
         module.reset_parameters()  # type: ignore
@@ -89,12 +86,6 @@ def generic_param_init_fn_(
             f'Expected init_div_is_residual to be boolean or numeric, got {init_div_is_residual}'
         )
 
-    if init_div_is_residual is not False:
-        log.info(
-            f'Initializing _is_residual layers then dividing them by {div_is_residual:.3f}. ' +\
-            f'Set `init_div_is_residual: false` in init config to disable this.'
-        )
-
     if isinstance(module, tuple(set(FC_CLASS_REGISTRY.values()))):
         # Linear
         if hasattr(module, '_fused'):
@@ -117,9 +108,6 @@ def generic_param_init_fn_(
             if std == 0:
                 warnings.warn(f'Embedding layer initialized to 0.')
             emb_init_fn_ = partial(torch.nn.init.normal_, mean=0.0, std=std)
-            log.info(
-                f'Embedding layer initialized using normal distribution with mean=0 and {std=}.'
-            )
         elif emb_init_uniform_lim is not None:
             lim = emb_init_uniform_lim
             if isinstance(lim, Sequence):
@@ -135,9 +123,6 @@ def generic_param_init_fn_(
                 lim = [-lim, lim]
             a, b = lim
             emb_init_fn_ = partial(torch.nn.init.uniform_, a=a, b=b)
-            log.info(
-                f'Embedding layer initialized using uniform distribution in range {lim}.'
-            )
         else:
             emb_init_fn_ = init_fn_
 
@@ -146,9 +131,6 @@ def generic_param_init_fn_(
     elif isinstance(module,
                     tuple(set(NORM_CLASS_REGISTRY.values()))):  # type: ignore
         # Norm
-        log.info(
-            f'Norm weights are set to 1. If norm layer has a bias it is initialized to 0.'
-        )
         if hasattr(module, 'weight') and module.weight is not None:
             torch.nn.init.ones_(module.weight)  # type: ignore
         if hasattr(module, 'bias') and module.bias is not None:
@@ -232,8 +214,6 @@ def _normal_param_init_fn_(
     del kwargs  # unused, just to capture any extra args from the config
     init_fn_ = _normal_init_(std=std)
 
-    log.info(f'Using torch.nn.init.normal_ init fn mean=0.0, std={std}')
-
     generic_param_init_fn_(
         module=module,
         init_fn_=init_fn_,
@@ -312,8 +292,6 @@ def neox_param_init_fn_(
     del kwargs  # unused, just to capture any extra args from the config
     residual_div = n_layers / math.sqrt(10)  # small std / wang std
 
-    log.info(f'setting init_div_is_residual to {residual_div}')
-
     small_param_init_fn_(
         module=module,
         d_model=d_model,
@@ -337,11 +315,6 @@ def kaiming_uniform_param_init_fn_(
     **kwargs: Any,
 ):
     del kwargs  # unused, just to capture any extra args from the config
-
-    log.info(
-            f'Using nn.init.kaiming_uniform_ init fn with parameters: ' +\
-            f'a={init_gain}, mode={fan_mode}, nonlinearity={init_nonlinearity}'
-        )
 
     kaiming_uniform_ = partial(nn.init.kaiming_uniform_,
                                a=init_gain,
@@ -373,11 +346,6 @@ def kaiming_normal_param_init_fn_(
 ):
     del kwargs  # unused, just to capture any extra args from the config
 
-    log.info(
-            f'Using nn.init.kaiming_normal_ init fn with parameters: ' +\
-            f'a={init_gain}, mode={fan_mode}, nonlinearity={init_nonlinearity}'
-        )
-
     kaiming_normal_ = partial(torch.nn.init.kaiming_normal_,
                               a=init_gain,
                               mode=fan_mode,
@@ -407,11 +375,6 @@ def xavier_uniform_param_init_fn_(
     del kwargs  # unused, just to capture any extra args from the config
     xavier_uniform_ = partial(torch.nn.init.xavier_uniform_, gain=init_gain)
 
-    log.info(
-            f'Using torch.nn.init.xavier_uniform_ init fn with parameters: ' +\
-            f'gain={init_gain}'
-        )
-
     generic_param_init_fn_(
         module=module,
         init_fn_=xavier_uniform_,
@@ -435,11 +398,6 @@ def xavier_normal_param_init_fn_(
 ):
     del kwargs  # unused, just to capture any extra args from the config
     xavier_normal_ = partial(torch.nn.init.xavier_normal_, gain=init_gain)
-
-    log.info(
-            f'Using torch.nn.init.xavier_normal_ init fn with parameters: ' +\
-            f'gain={init_gain}'
-    )
 
     generic_param_init_fn_(
         module=module,

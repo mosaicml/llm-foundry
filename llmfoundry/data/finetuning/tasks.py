@@ -245,9 +245,6 @@ class DatasetConstructor:
 
         try:
             import_path, function_name = preprocessor.split(':', maxsplit=1)
-            log.info(
-                f'Importing preprocessing function via: `from {import_path} import {function_name}`'
-            )
             module = importlib.import_module(import_path)
             preprocessing_fn = getattr(module, function_name)
         except Exception as e:

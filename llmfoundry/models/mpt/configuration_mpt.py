@@ -3,7 +3,6 @@
 
 """A HuggingFace-style model configuration."""
 
-import logging
 import warnings
 from typing import Any, Dict, Optional, Union
 
@@ -144,11 +143,8 @@ class MPTConfig(PretrainedConfig):
         if verbose is not None:
             warnings.warn(
                 DeprecationWarning(
-                    'verbose argument for MPTConfig will be deprecated in a future release. Use python_log_level instead.'
+                    'verbose argument for MPTConfig is now ignored and will be removed. Use python_log_level instead.'
                 ))
-            logging.getLogger('llmfoundry').setLevel(
-                30 -
-                verbose * 10)  # verbose=0 means WARNING, verbose=2 means DEBUG
 
         if 'name' in kwargs:
             del kwargs['name']

@@ -36,7 +36,7 @@ class HuggingFaceCheckpointer(Callback):
         self,
         save_folder: str,
         save_interval: Union[str, int, Time],
-        huggingface_folder_name: str = 'ep{epoch}-ba{batch}',
+        huggingface_folder_name: str = 'ba{batch}',
     ):
         self.backend, self.bucket_name, self.save_dir_format_str = parse_uri(
             save_folder)

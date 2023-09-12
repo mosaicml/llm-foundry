@@ -18,7 +18,7 @@ cd llm-foundry/scripts
 composer eval/eval.py eval/yamls/hf_eval.yaml
 ```
 
-This will run `EleutherAI/gpt-neo-125m` through the MosaicML Eval Gauntlet, a diverse evaluation suite consisting of over 30 benchmarks. You can update configuring directly in the `hf_eval.yaml` YAML file, or override the values in the YAML with CLI args, such as:
+This will run `EleutherAI/gpt-neo-125m` through the MosaicML Eval Gauntlet, a diverse evaluation suite consisting of over 30 benchmarks. You can update the configuration directly in the `hf_eval.yaml` YAML file, or override the values in the YAML with CLI args, such as:
 
 <!--pytest.mark.skip-->
 ```bash

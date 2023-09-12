@@ -3,7 +3,7 @@
 
 data_local: ./my-copy-c4
 data_remote: # If blank, files must be present in data_local
-tokenizer_name: gpt2
+tokenizer_name: EleutherAI/gpt-neo-125M
 max_seq_len: 2048
 global_seed: 17
 

@@ -18,6 +18,7 @@ from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
+
 class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
 
@@ -65,7 +66,8 @@ class HuggingFaceCheckpointer(Callback):
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
 
-        print('Saving HuggingFace formatted checkpoint') #TODO change to log after other pr
+        print('Saving HuggingFace formatted checkpoint'
+             )  #TODO change to log after other pr
 
         from transformers.models.auto.configuration_auto import CONFIG_MAPPING
         CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
@@ -82,9 +84,11 @@ class HuggingFaceCheckpointer(Callback):
             enter_result=save_dir)
 
         with dir_context_mgr as temp_save_dir:
-            with fsdp_state_dict_type_context(state.model,
+            assert isinstance(temp_save_dir,
+                              str)  # pyright doesn't know about enter_result
+            with fsdp_state_dict_type_context(state.model.model,
                                               state_dict_type='full'):
-                state_dict = state.model.state_dict()
+                state_dict = state.model.model.state_dict()
 
             if dist.get_global_rank() == 0:
                 state.model.model.save_pretrained(temp_save_dir,
@@ -96,7 +100,9 @@ class HuggingFaceCheckpointer(Callback):
 
                 if self.upload_to_object_store and self.remote_ud is not None:
                     # TODO change to log after other pr
-                    print(f'Uploading HuggingFace formatted checkpoint to {self.backend}://{self.bucket_name}/{save_dir}')
+                    print(
+                        f'Uploading HuggingFace formatted checkpoint to {self.backend}://{self.bucket_name}/{save_dir}'
+                    )
                     for filename in os.listdir(temp_save_dir):
                         self.remote_ud.upload_file(
                             state=state,

@@ -24,6 +24,7 @@ from llmfoundry.utils.builders import build_tokenizer
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 from scripts.data_prep.convert_dataset_hf import main as main_hf
+from tests.utils import make_tiny_ft_dataset
 
 
 def get_config(conf_path: str = 'yamls/mpt/125m.yaml'):

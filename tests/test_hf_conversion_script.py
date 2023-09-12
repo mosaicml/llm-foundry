@@ -7,8 +7,7 @@ import pathlib
 import sys
 
 from composer import Trainer
-from composer.core.state import fsdp_state_dict_type_context
-from composer.utils import dist
+from composer.utils import dist, get_device
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
@@ -25,6 +24,7 @@ import torch
 import transformers
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from transformers import PretrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.data.finetuning import build_finetuning_dataloader
@@ -33,9 +33,10 @@ from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
 
-def check_hf_tokenizer_equivalence(tokenizer1, tokenizer2):
-    """
-    WARNING: Parameters are updated within the check so don't call check_hf_tokenizer_equivalence on the same
+def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
+                                   tokenizer2: PreTrainedTokenizerBase):
+    """WARNING: Parameters are updated within the check so don't call check_hf_tokenizer_equivalence on the same
+
     params more than once
 
     This is a best effort attempt to compare two tokenizers for equivalence
@@ -116,6 +117,8 @@ def check_hf_tokenizer_equivalence(tokenizer1, tokenizer2):
 
     tokenizer1.__dict__['init_kwargs'].pop('tokenizer_file', None)
     tokenizer2.__dict__['init_kwargs'].pop('tokenizer_file', None)
+    tokenizer1.__dict__['init_kwargs'].pop('vocab_file', None)
+    tokenizer2.__dict__['init_kwargs'].pop('vocab_file', None)
 
     # vocab_file will be the path that the tokenizer was loaded from, which will just be a temporary directory for
     # the reloaded tokenizer, so we remove it and don't compare it between the two tokenizers
@@ -138,7 +141,8 @@ def check_hf_tokenizer_equivalence(tokenizer1, tokenizer2):
     assert tokenizer1.__dict__ == tokenizer2.__dict__
 
 
-def check_hf_model_equivalence(model1, model2):
+def check_hf_model_equivalence(model1: PretrainedModel,
+                               model2: PretrainedModel):
     if dist.get_global_rank() != 0:
         return
     expected_model_config_dict = model1.config.to_dict()
@@ -177,9 +181,11 @@ def get_config(
 @pytest.mark.gpu
 @pytest.mark.parametrize('model', ['mpt', 'neo', 'llama2'])
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded'])
-def test_convert_and_generate_callback(model: str, tmp_path: pathlib.Path,
-                                       fsdp_state_dict_type: str):
+def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
+                                         fsdp_state_dict_type: str):
     delete_transformers_cache()
+
+    dist.initialize_dist(get_device('gpu'))
 
     max_seq_len = 16
     save_interval_batches = 2
@@ -206,6 +212,8 @@ def test_convert_and_generate_callback(model: str, tmp_path: pathlib.Path,
         om_cfg['model'][
             'pretrained_model_name_or_path'] = 'meta-llama/Llama-2-7b-hf'
         om_cfg['model']['config_overrides']['num_hidden_layers'] = 2
+        om_cfg['model']['config_overrides']['hidden_size'] = 32
+        om_cfg['model']['config_overrides']['intermediate_size'] = 64
         om_cfg['model']['use_auth_token'] = True
         om_cfg['tokenizer']['name'] = 'meta-llama/Llama-2-7b-hf'
     else:
@@ -306,8 +314,6 @@ def test_convert_and_generate_callback(model: str, tmp_path: pathlib.Path,
                                                         save_interval_batches)
             assert len(huggingface_checkpoints) == math.ceil(
                 max_duration_batches / huggingface_save_interval_batches)
-
-            print(normal_checkpoints, huggingface_checkpoints)
 
             # load the last huggingface checkpoint
             loaded_model = transformers.AutoModelForCausalLM.from_pretrained(

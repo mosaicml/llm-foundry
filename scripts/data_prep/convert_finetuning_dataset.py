@@ -96,12 +96,13 @@ class SimpleDataset(IterableDataset):
             yield {key: sample[key].encode('utf-8') for key in self.columns}
 
 
-def build_dataloader(dataset: SimpleDataset, batch_size: int,
-                     num_workers: int) -> DataLoader:
+def build_dataloader(dataset: SimpleDataset,
+                     batch_size: int,
+                     num_workers: Optional[int] = None) -> DataLoader:
     if num_workers is None:
         # Multiple workers is only supported on linux machines
         if 'linux' in platform.platform().lower():
-            num_workers = max(1, psutil.cpu_count())  # type: ignore
+            num_workers = max(1, psutil.cpu_count())
         else:
             num_workers = 0
 

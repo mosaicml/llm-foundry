@@ -37,9 +37,11 @@ class HuggingFaceCheckpointer(Callback):
         save_folder: str,
         save_interval: Union[str, int, Time],
         huggingface_folder_name: str = 'ba{batch}',
+        overwrite: bool = False,
     ):
         self.backend, self.bucket_name, self.save_dir_format_str = parse_uri(
             save_folder)
+        self.overwrite = overwrite
         self.huggingface_folder_name_fstr = os.path.join(
             'huggingface', huggingface_folder_name)
         self.check_interval = create_interval_scheduler(
@@ -52,15 +54,14 @@ class HuggingFaceCheckpointer(Callback):
         else:
             self.remote_ud = None
 
-    def init(self, state: State, logger: Logger):
-        if self.upload_to_object_store and self.remote_ud is not None:
-            self.remote_ud.init(state, logger)
-            state.callbacks.append(self.remote_ud)
-
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         if state.get_elapsed_duration() is not None and self.check_interval(
                 state, event) or event == Event.FIT_END:
             self._save_checkpoint(state, logger)
+        elif event == Event.INIT:
+            if self.upload_to_object_store and self.remote_ud is not None:
+                self.remote_ud.init(state, logger)
+                state.callbacks.append(self.remote_ud)
 
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
@@ -92,5 +93,14 @@ class HuggingFaceCheckpointer(Callback):
                 if state.model.model.config.model_type == 'mpt':
                     print('Editing files for HF compatibility...')
                     edit_files_for_hf_compatibility(temp_save_dir)
+
+                if self.upload_to_object_store and self.remote_ud is not None:
+                    for filename in os.listdir(temp_save_dir):
+                        self.remote_ud.upload_file(
+                            state=state,
+                            remote_file_name=os.path.join(save_dir, filename),
+                            file_path=os.path.join(temp_save_dir, filename),
+                            overwrite=self.overwrite,
+                        )
 
         dist.barrier()

@@ -43,8 +43,11 @@ def rotate_half(x: torch.Tensor):
     return torch.cat((-x2, x1), dim=-1)
 
 
-def apply_rotary_pos_emb(q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor,
-                         sin: torch.Tensor, position_ids: torch.Tensor):
+def apply_rotary_pos_emb(q: torch.Tensor,
+                         k: torch.Tensor,
+                         cos: torch.Tensor,
+                         sin: torch.Tensor,
+                         position_ids: Optional[torch.Tensor] = None):
     # The first two dimensions of cos and sin are always 1, so we can `squeeze` them.
     cos = cos.squeeze(1).squeeze(0)  # [seq_len, dim]
     sin = sin.squeeze(1).squeeze(0)  # [seq_len, dim]
@@ -123,8 +126,6 @@ def llama_attention_patch_torch(
         kv_seq_len += past_key_value[0].shape[-2]
     cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
 
-    if position_ids is None:
-        raise ValueError('position_ids must be provided.')
     query_states, key_states = apply_rotary_pos_emb(query_states, key_states,
                                                     cos, sin, position_ids)
 
@@ -192,8 +193,6 @@ def llama_attention_patch_triton(
         raise NotImplementedError(
             'output_attentions is not supported when patching Llama attention with triton attention.'
         )
-    if position_ids is None:
-        raise ValueError('position_ids must be provided.')
 
     bsz, q_len, _ = hidden_states.size()
 

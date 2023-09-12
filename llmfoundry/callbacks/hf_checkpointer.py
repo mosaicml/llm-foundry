@@ -12,7 +12,9 @@ from composer.core import Callback, Event, State, Time
 from composer.core.state import fsdp_state_dict_type_context
 from composer.loggers import Logger
 from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
+from composer.models import HuggingFaceModel
 from composer.utils import dist, format_name_with_dist_and_time, parse_uri
+from transformers import PretrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
@@ -59,6 +61,10 @@ class HuggingFaceCheckpointer(Callback):
                 state, event) or event == Event.FIT_END:
             self._save_checkpoint(state, logger)
         elif event == Event.INIT:
+            if not isinstance(state.model, HuggingFaceModel):
+                raise ValueError(
+                    f'`HuggingFaceCheckpointer` is only compatible with `HuggingFaceModel`s. '
+                    + f'Got {type(state.model)} instead.')
             if self.upload_to_object_store and self.remote_ud is not None:
                 self.remote_ud.init(state, logger)
                 state.callbacks.append(self.remote_ud)
@@ -86,6 +92,10 @@ class HuggingFaceCheckpointer(Callback):
         with dir_context_mgr as temp_save_dir:
             assert isinstance(temp_save_dir,
                               str)  # pyright doesn't know about enter_result
+
+            # We check for HuggingFaceModel in the run_event method, so asserts here are just for pyright
+            assert isinstance(state.model, HuggingFaceModel)
+            assert isinstance(state.model.model, PretrainedModel)
             with fsdp_state_dict_type_context(state.model.model,
                                               state_dict_type='full'):
                 state_dict = state.model.model.state_dict()
@@ -93,12 +103,17 @@ class HuggingFaceCheckpointer(Callback):
             if dist.get_global_rank() == 0:
                 state.model.model.save_pretrained(temp_save_dir,
                                                   state_dict=state_dict)
-                state.model.tokenizer.save_pretrained(temp_save_dir)
+
+                if state.model.tokenizer is not None:
+                    assert isinstance(state.model.tokenizer,
+                                      PreTrainedTokenizerBase)
+                    state.model.tokenizer.save_pretrained(temp_save_dir)
                 # Only need to edit files for MPT because it has custom code
                 if state.model.model.config.model_type == 'mpt':
                     edit_files_for_hf_compatibility(temp_save_dir)
 
-                if self.upload_to_object_store and self.remote_ud is not None:
+                if self.upload_to_object_store:
+                    assert self.remote_ud is not None
                     # TODO change to log after other pr
                     print(
                         f'Uploading HuggingFace formatted checkpoint to {self.backend}://{self.bucket_name}/{save_dir}'

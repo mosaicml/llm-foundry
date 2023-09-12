@@ -7,8 +7,8 @@ import pathlib
 import sys
 
 from composer import Trainer
-from composer.utils import dist
 from composer.core.state import fsdp_state_dict_type_context
+from composer.utils import dist
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
@@ -27,11 +27,11 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import build_tokenizer, build_optimizer
 from llmfoundry.data.finetuning import build_finetuning_dataloader
+from llmfoundry.utils.builders import build_optimizer, build_tokenizer
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
-
 from tests.data_utils import make_tiny_ft_dataset
+
 
 def check_hf_tokenizer_equivalence(tokenizer1, tokenizer2):
     """
@@ -50,10 +50,13 @@ def check_hf_tokenizer_equivalence(tokenizer1, tokenizer2):
         assert tokenizer1.vocab == tokenizer2.vocab
 
     # we only care about the file and class name, not the full import path
-    assert str(type(tokenizer1)).split('.')[-2:] == str(type(tokenizer2)).split('.')[-2:]
+    assert str(type(tokenizer1)).split('.')[-2:] == str(
+        type(tokenizer2)).split('.')[-2:]
 
-    expected_tokenizer_output = tokenizer2('This is some text that should get tokenizer !? @ totallyarealtoken')
-    actual_tokenizer_output = tokenizer1('This is some text that should get tokenizer !? @ totallyarealtoken')
+    expected_tokenizer_output = tokenizer2(
+        'This is some text that should get tokenizer !? @ totallyarealtoken')
+    actual_tokenizer_output = tokenizer1(
+        'This is some text that should get tokenizer !? @ totallyarealtoken')
     assert expected_tokenizer_output == actual_tokenizer_output
 
     # we remove the actual _tokenizer object because it is an instantiated object and so does not pass equality
@@ -72,7 +75,8 @@ def check_hf_tokenizer_equivalence(tokenizer1, tokenizer2):
         tokenizer2.__dict__.pop('tokens_trie')
 
     # extra key that is not important
-    if hasattr(tokenizer1, 'deprecation_warnings') or hasattr(tokenizer2, 'deprecation_warnings'):
+    if hasattr(tokenizer1, 'deprecation_warnings') or hasattr(
+            tokenizer2, 'deprecation_warnings'):
         tokenizer1.__dict__.pop('deprecation_warnings')
         tokenizer2.__dict__.pop('deprecation_warnings')
 
@@ -122,14 +126,17 @@ def check_hf_tokenizer_equivalence(tokenizer1, tokenizer2):
 
     # The tokenizer name is changed in transformers 4.31 when changing the tokenizer mapping, so we remove it and compare
     # if necessary. Checks whether the names are subsets of each other.
-    tokenizer1_name = tokenizer1.__dict__['init_kwargs'].get('auto_map', {}).get('AutoTokenizer', [None])[0]
-    tokenizer2_name = tokenizer2.__dict__['init_kwargs'].get('auto_map', {}).get('AutoTokenizer', [None])[0]
+    tokenizer1_name = tokenizer1.__dict__['init_kwargs'].get(
+        'auto_map', {}).get('AutoTokenizer', [None])[0]
+    tokenizer2_name = tokenizer2.__dict__['init_kwargs'].get(
+        'auto_map', {}).get('AutoTokenizer', [None])[0]
     if tokenizer1_name is not None and tokenizer2_name is not None:
         assert tokenizer1_name in tokenizer2_name or tokenizer2_name in tokenizer1_name
     tokenizer1.__dict__['init_kwargs'].pop('auto_map', None)
     tokenizer2.__dict__['init_kwargs'].pop('auto_map', None)
 
     assert tokenizer1.__dict__ == tokenizer2.__dict__
+
 
 def check_hf_model_equivalence(model1, model2):
     if dist.get_global_rank() != 0:
@@ -139,7 +146,10 @@ def check_hf_model_equivalence(model1, model2):
     expected_model_config_dict.pop('_name_or_path')
     new_model_config_dict.pop('_name_or_path')
     assert expected_model_config_dict == new_model_config_dict
-    assert all(torch.equal(p1.cpu(), p2.cpu()) for p1, p2 in zip(model1.parameters(), model2.parameters()))
+    assert all(
+        torch.equal(p1.cpu(), p2.cpu())
+        for p1, p2 in zip(model1.parameters(), model2.parameters()))
+
 
 def delete_transformers_cache():
     hf_cache_home = os.path.expanduser(
@@ -162,11 +172,13 @@ def get_config(
 
     return cast(DictConfig, test_cfg)
 
+
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize('model', ['mpt', 'neo', 'llama2'])
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded'])
-def test_convert_and_generate_callback(model: str, tmp_path: pathlib.Path, fsdp_state_dict_type: str):
+def test_convert_and_generate_callback(model: str, tmp_path: pathlib.Path,
+                                       fsdp_state_dict_type: str):
     delete_transformers_cache()
 
     max_seq_len = 16
@@ -241,7 +253,11 @@ def test_convert_and_generate_callback(model: str, tmp_path: pathlib.Path, fsdp_
     expected_keys = ['input_ids', 'attention_mask', 'labels']
     expected_keys += ['bidirectional_mask']
 
-    train_dataloader = build_finetuning_dataloader(cfg, tokenizer, device_batch_size,)
+    train_dataloader = build_finetuning_dataloader(
+        cfg,
+        tokenizer,
+        device_batch_size,
+    )
 
     checkpointer_callback = HuggingFaceCheckpointer(
         save_folder=os.path.join(tmp_path, 'checkpoints'),
@@ -253,7 +269,8 @@ def test_convert_and_generate_callback(model: str, tmp_path: pathlib.Path, fsdp_
 
     optimizer_config = om_cfg['optimizer']
     optimizer_name = optimizer_config.pop('name')
-    optimizer = build_optimizer(original_model, optimizer_name, optimizer_config)
+    optimizer = build_optimizer(original_model, optimizer_name,
+                                optimizer_config)
 
     trainer = Trainer(
         model=original_model,
@@ -270,31 +287,45 @@ def test_convert_and_generate_callback(model: str, tmp_path: pathlib.Path, fsdp_
     trainer.fit()
 
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-    with FSDP.summon_full_params(trainer.state.model, writeback=False, recurse=True):
+    with FSDP.summon_full_params(trainer.state.model,
+                                 writeback=False,
+                                 recurse=True):
         loaded_model = None
         loaded_tokenizer = None
         if dist.get_global_rank() == 0:
-            normal_checkpoints = [name for name in os.listdir(os.path.join(tmp_path, 'checkpoints')) if name != 'huggingface']
-            huggingface_checkpoints = [name for name in os.listdir(os.path.join(tmp_path, 'checkpoints', 'huggingface'))]
-            assert len(normal_checkpoints) == math.ceil(max_duration_batches / save_interval_batches)
-            assert len(huggingface_checkpoints) == math.ceil(max_duration_batches / huggingface_save_interval_batches)
+            normal_checkpoints = [
+                name
+                for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
+                if name != 'huggingface'
+            ]
+            huggingface_checkpoints = [
+                name for name in os.listdir(
+                    os.path.join(tmp_path, 'checkpoints', 'huggingface'))
+            ]
+            assert len(normal_checkpoints) == math.ceil(max_duration_batches /
+                                                        save_interval_batches)
+            assert len(huggingface_checkpoints) == math.ceil(
+                max_duration_batches / huggingface_save_interval_batches)
 
             print(normal_checkpoints, huggingface_checkpoints)
 
             # load the last huggingface checkpoint
             loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
-                os.path.join(tmp_path, 'checkpoints', 'huggingface', f'ba{max_duration_batches}'),
+                os.path.join(tmp_path, 'checkpoints', 'huggingface',
+                             f'ba{max_duration_batches}'),
                 trust_remote_code=True,
             )
             loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
-                os.path.join(tmp_path, 'checkpoints', 'huggingface', f'ba{max_duration_batches}'),
+                os.path.join(tmp_path, 'checkpoints', 'huggingface',
+                             f'ba{max_duration_batches}'),
                 trust_remote_code=True,
             )
-        
+
         check_hf_model_equivalence(trainer.state.model.model, loaded_model)
         check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
     delete_transformers_cache()
+
 
 @pytest.mark.parametrize('model', ['mpt', 'neo', 'llama2'])
 def test_convert_and_generate(model: str, tmp_path: pathlib.Path):

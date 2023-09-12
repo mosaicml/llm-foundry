@@ -43,9 +43,9 @@ You can also modify the specific benchmarks executed and their formatting by mod
 ----
 ## In-depth walkthrough
 
-ICL evaluation can be done offline via the `scripts/eval/eval.py` or during training via `scripts/train/train.py`. 
+ICL evaluation can be done offline via the `scripts/eval/eval.py` or during training via `scripts/train/train.py`.
 
-In order to do ICL evaluation you must specify a set of benchmarks you'd like to run via the `icl_tasks` key in your eval/training config. `icl_tasks` can either consist of config, or it can be a file path pointing to a locally accessible YAML config (see `scripts/eval/yamls/icl_tasks.yaml` for an example). 
+In order to do ICL evaluation you must specify a set of benchmarks you'd like to run via the `icl_tasks` key in your eval/training config. `icl_tasks` can either consist of config, or it can be a file path pointing to a locally accessible YAML config (see `scripts/eval/yamls/icl_tasks.yaml` for an example).
 
 
 #### ICL task YAML format
@@ -85,7 +85,7 @@ Your YAML may optionally have a config section entitled eval\_gauntlet specifyin
 An eval\_gauntlet config  must specify the list of categories you'd like to generate composite scores for, as well as the list of benchmarks to be incldued in each category. For each category you need to list the name and the num\_fewshot. These two values must exactly match the values specifed in the icl\_tasks config. Additionally you must specify the random baseline accuracy for each benchmark.
 
 There are also three flags indicating how to perform the aggregation:
-1. `weighting` can either be EQUAL (all tasks are weighted equally), SAMPLE\_SZ (tasks are weighted proportional to the size of the dataset), or LOG\_SAMPLE\_SZ (tasks are weighted proportional to the logarithm of the dataset size). 
+1. `weighting` can either be EQUAL (all tasks are weighted equally), SAMPLE\_SZ (tasks are weighted proportional to the size of the dataset), or LOG\_SAMPLE\_SZ (tasks are weighted proportional to the logarithm of the dataset size).
 2. `subtract_random_baseline` can either be true or false. If true we will subtract the random baseline accuracy from the final accuracy before averaging, otherwise it will be averaged in as is.
 3. `rescale_accuracy` can either be true or false. If true (and if `subtract_random_baseline` was also true), the accuracy will be rescaled to be <= 1 before averaging.
 
@@ -125,7 +125,7 @@ You can use the default icl\_tasks and eval\_gauntlet configs or specify your ow
 
 ### Evaluation during training
 
-You can use ICL evaluation during training by taking an ordinary training YAML and adding an icl\_tasks and eval\_gauntlet config. You should also specify icl\_seq\_len in your training YAML and you can optionally run a truncated version of eval on a random subset of each benchmark by specifying a value for icl\_subset\_num\_batches 
+You can use ICL evaluation during training by taking an ordinary training YAML and adding an icl\_tasks and eval\_gauntlet config. You should also specify icl\_seq\_len in your training YAML and you can optionally run a truncated version of eval on a random subset of each benchmark by specifying a value for icl\_subset\_num\_batches
 
 An example is given below:
 ```

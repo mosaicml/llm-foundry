@@ -137,7 +137,7 @@ An example is given below:
 
 For training, we recommend you do not run the full eval gauntlet. Instead either use the `tasks_light.yaml` which is a subset of the full gauntlet benchmarks, or set icl\_subset\_num\_batches to a small number O(100) which will only run each benchmark on a random sample of icl\_subset\_num\_batches batches.
 
-You can use the default icl\_tasks and eval\_gauntlet configs or specify your own following the instructions above.
+You can use the default `icl_tasks` and `eval_gauntlet` configs or specify your own following the instructions above.
 
 ----
 

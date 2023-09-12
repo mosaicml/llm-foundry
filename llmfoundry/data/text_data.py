@@ -3,7 +3,6 @@
 
 """Build a StreamingTextDataset dataset and dataloader for training."""
 
-import logging
 import os
 from itertools import islice
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
@@ -16,8 +15,6 @@ from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
-
-log = logging.getLogger(__name__)
 
 
 class StreamingTextDataset(StreamingDataset):
@@ -227,8 +224,6 @@ def build_text_dataloader(
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
 ):
-    log.debug('Building a text dataloader now!')
-
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
     if cfg.dataset.get('group_method', None) is not None:
         raise NotImplementedError(

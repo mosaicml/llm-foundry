@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 from typing import List
 
 from composer.core import Callback, State
@@ -10,6 +11,8 @@ __all__ = [
     'GlobalLRScaling',
     'LayerFreezing',
 ]
+
+log = logging.getLogger(__name__)
 
 
 class GlobalLRScaling(Callback):
@@ -38,7 +41,7 @@ class GlobalLRScaling(Callback):
                 group['weight_decay'] = group['lr'] * self.wd_pct
                 if 'initial_lr' in group:
                     group['initial_lr'] *= self.lr_scale
-                print(
+                log.info(
                     f"Set LR and WD to {group['lr']}, {group['weight_decay']}")
 
         for scheduler in state.schedulers:
@@ -74,7 +77,7 @@ class LayerFreezing(Callback):
         for name, p in state.model.named_parameters():
             if p.requires_grad and name in self.layer_names:
                 p.requires_grad = False
-                print(f'Froze layer: {name}\nParam: {p}')
+                log.debug(f'Froze layer: {name}\nParam: {p}')
                 successful_freeze = True
 
         if not successful_freeze:

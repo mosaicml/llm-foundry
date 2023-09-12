@@ -323,7 +323,7 @@ def _build_hf_dataset_from_remote(
                         f'at {files_searched}'
                     ) from e
                 else:
-                    print(
+                    log.debug(
                         f'Could not find {name}, looking for another extension')
                 continue
 
@@ -343,7 +343,7 @@ def _build_hf_dataset_from_remote(
         dist.barrier()
 
         cfg.dataset.hf_name = finetune_dir
-        print(cfg.dataset)
+        log.info(cfg.dataset)
         dataset = dataset_constructor.build_from_hf(
             cfg.dataset,
             max_seq_len=cfg.dataset.max_seq_len,

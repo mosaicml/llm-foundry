@@ -91,6 +91,8 @@ class HuggingFaceCheckpointer(Callback):
         MPTConfig.register_for_auto_class()
         MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
 
+        assert isinstance(state.model, HuggingFaceModel)
+
         save_dir = format_name_with_dist_and_time(
             str(
                 Path(self.save_dir_format_str) /
@@ -149,7 +151,8 @@ class HuggingFaceCheckpointer(Callback):
                         self.remote_ud.upload_file(
                             state=state,
                             remote_file_name=os.path.join(save_dir, filename),
-                            file_path=os.path.join(temp_save_dir, filename),
+                            file_path=Path(os.path.join(temp_save_dir,
+                                                        filename)),
                             overwrite=self.overwrite,
                         )
 

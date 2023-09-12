@@ -13,7 +13,8 @@ from mcli import RunConfig, create_run
 
 
 def get_configs(cluster: str, mpt_7b_ckpt_path: str, wandb_entity: str,
-                wandb_project: str):
+                wandb_project: str, git_repo: str, git_branch: str):
+    print(f'Running regression tests on {git_repo} {git_branch}.')
     eval_7b_hf = RunConfig.from_file(
         os.path.join(REGRESSIONS_DIR, 'eval-7b-hf.yaml'))
     eval_7b_composer = RunConfig.from_file(
@@ -48,6 +49,8 @@ def get_configs(cluster: str, mpt_7b_ckpt_path: str, wandb_entity: str,
         config.cluster = cluster
         config.parameters['loggers'] = config.parameters.get('loggers', {})
         config.parameters['loggers']['wandb'] = wandb_config
+        config.integrations[0]['git_repo'] = git_repo
+        config.integrations[0]['git_branch'] = git_branch
 
     return all_configs, []
 
@@ -58,10 +61,13 @@ if __name__ == '__main__':
     parser.add_argument('--mpt-7b-ckpt-path', type=str)
     parser.add_argument('--wandb-entity', type=str)
     parser.add_argument('--wandb-project', type=str)
+    parser.add_argument('--git-repo', type=str, default='mosaicml/llm-foundry')
+    parser.add_argument('--git-branch', type=str, default='main')
 
     args = parser.parse_args()
 
     run_configs, _ = get_configs(args.cluster, args.mpt_7b_ckpt_path,
-                                 args.wandb_entity, args.wandb_project)
+                                 args.wandb_entity, args.wandb_project,
+                                 args.git_repo, args.git_branch)
     for run_config in run_configs:
         run = create_run(run_config)

@@ -415,6 +415,16 @@ def main(cfg: DictConfig) -> Trainer:
             'FSDP is not applicable for single-GPU training. Reverting to DDP.')
         fsdp_config = None
 
+    # set logging level
+    if python_log_level is not None:
+        logging.basicConfig(
+            # Example of format string
+            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
+
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
@@ -509,15 +519,6 @@ def main(cfg: DictConfig) -> Trainer:
         eval_metric_names = list(model.train_metrics.keys())
         eval_loader.metric_names = eval_metric_names
         evaluators.insert(0, eval_loader)  # Put the base eval_loader first
-
-    if python_log_level is not None:
-        logging.basicConfig(
-            # Example of format string
-            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
-            format=
-            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
-        )
-        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
 
     # Build the Trainer
     print('Building trainer...')

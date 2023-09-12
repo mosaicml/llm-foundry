@@ -25,8 +25,9 @@ def torch_default_param_init_fn_(
 ):
     del kwargs  # unused, just to capture any extra args from the config
 
-    if hasattr(module, 'reset_parameters'):
-        module.reset_parameters()  # type: ignore
+    if hasattr(module, 'reset_parameters') and isinstance(
+            module.reset_parameters, Callable):
+        module.reset_parameters()
 
 
 def fused_init_helper_(module: nn.Module, init_fn_: Callable):
@@ -42,12 +43,14 @@ def fused_init_helper_(module: nn.Module, init_fn_: Callable):
     if _fused is None:
         raise RuntimeError(f'Internal logic error')
 
+    assert isinstance(module.weight, torch.Tensor)
+
     dim, splits = _fused
-    splits = (0, *splits, module.weight.size(dim))  # type: ignore
+    splits = (0, *splits, module.weight.size(dim))
     for s, e in zip(splits[:-1], splits[1:]):
-        slice_indices = [slice(None)] * module.weight.ndim  # type: ignore
+        slice_indices = [slice(None)] * module.weight.ndim
         slice_indices[dim] = slice(s, e)
-        init_fn_(module.weight[slice_indices])  # type: ignore
+        init_fn_(module.weight[slice_indices])
 
 
 def generic_param_init_fn_(
@@ -74,9 +77,7 @@ def generic_param_init_fn_(
     elif isinstance(init_div_is_residual, float) or isinstance(
             init_div_is_residual, int):
         div_is_residual = init_div_is_residual
-    elif isinstance(
-            init_div_is_residual,  # type: ignore
-            str) and init_div_is_residual.isnumeric():
+    elif init_div_is_residual.isnumeric():
         # do not trust YAML parsing to always convert numbers to numbers
         div_is_residual = float(init_div_is_residual)
     else:
@@ -128,13 +129,13 @@ def generic_param_init_fn_(
 
         emb_init_fn_(module.weight)
 
-    elif isinstance(module,
-                    tuple(set(NORM_CLASS_REGISTRY.values()))):  # type: ignore
+    elif isinstance(module, tuple(set(NORM_CLASS_REGISTRY.values()))):
         # Norm
-        if hasattr(module, 'weight') and module.weight is not None:
-            torch.nn.init.ones_(module.weight)  # type: ignore
-        if hasattr(module, 'bias') and module.bias is not None:
-            torch.nn.init.zeros_(module.bias)  # type: ignore
+        if hasattr(module, 'weight') and isinstance(module.weight,
+                                                    torch.Tensor):
+            torch.nn.init.ones_(module.weight)
+        if hasattr(module, 'bias') and isinstance(module.bias, torch.Tensor):
+            torch.nn.init.zeros_(module.bias)
 
     elif isinstance(module, nn.MultiheadAttention):
         # torch's MultiheadAttention
@@ -172,10 +173,10 @@ def generic_param_init_fn_(
             torch.nn.init.zeros_(module.out_proj.bias)
 
     elif te is not None and isinstance(module, te.LayerNormMLP):
-        if module.layer_norm_weight is not None:
-            torch.nn.init.ones_(module.layer_norm_weight)  # type: ignore
-        if module.layer_norm_bias is not None:
-            torch.nn.init.zeros_(module.layer_norm_bias)  # type: ignore
+        if isinstance(module.layer_norm_weight, torch.Tensor):
+            torch.nn.init.ones_(module.layer_norm_weight)
+        if isinstance(module.layer_norm_bias, torch.Tensor):
+            torch.nn.init.zeros_(module.layer_norm_bias)
 
         init_fn_(module.fc1_weight)
         if module.fc1_bias is not None:

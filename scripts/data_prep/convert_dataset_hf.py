@@ -257,7 +257,7 @@ def build_dataloader(dataset: Dataset, batch_size: int,
     if num_workers is None:
         # Multiple workers is only supported on linux machines
         if 'linux' or 'macos' in platform.platform().lower():
-            num_workers = max(1, psutil.cpu_count())  # type: ignore
+            num_workers = max(1, psutil.cpu_count())
         else:
             num_workers = 0
 

@@ -463,7 +463,7 @@ class GroupedQueryAttention(nn.Module):
             i * self.head_dim
             for i in range(1, self.n_heads + 2 * self.kv_n_heads)
         ]
-        self.Wqkv._fused = (0, fuse_splits)  # type: ignore
+        self.Wqkv._fused = (0, fuse_splits)
 
         if self.qk_ln:
             norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
@@ -485,7 +485,7 @@ class GroupedQueryAttention(nn.Module):
             self.d_model,
             **fc_kwargs,
         )
-        self.out_proj._is_residual = True  # type: ignore
+        self.out_proj._is_residual = True
 
     def forward(
         self,

@@ -162,7 +162,7 @@ def evaluate_model(
         callbacks=callbacks,
         loggers=loggers,
         precision=precision,
-        fsdp_config=fsdp_config,  # type: ignore
+        fsdp_config=fsdp_config,
         load_path=load_path,
         load_weights_only=True,
         progress_bar=False,

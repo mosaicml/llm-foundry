@@ -111,7 +111,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
     _validate_config(cfg.dataset)
 
     # Use EOS as the pad token if none exists
-    if tokenizer.pad_token is None:  # type: ignore
+    if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
     dataset = None  # for pyright

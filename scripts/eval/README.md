@@ -121,7 +121,7 @@ You can either specify your `eval_gauntlet` config directly in your eval/train Y
 
 You can run the evaluation script on a model checkpoint via `composer eval/eval.py YOUR_YAML` from the `scripts` directory or launch it on the MosaicML platform using a an MCLI YAML following the format of [`llm-foundry/mcli/mcli-1b-eval.yaml`](https://github.com/mosaicml/llm-foundry/blob/main/mcli/mcli-1b-eval.yaml).
 
-You can use the default icl\_tasks and eval\_gauntlet configs or specify your own following the instructions above.
+You can use the default `icl_tasks` and `eval_gauntlet` configs or specify your own following the instructions above.
 
 ### Evaluation during training
 

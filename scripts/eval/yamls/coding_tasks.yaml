@@ -1,3 +1,4 @@
+icl_tasks:
 -
   label: human_eval
   dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI

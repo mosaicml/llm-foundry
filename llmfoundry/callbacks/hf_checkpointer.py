@@ -70,6 +70,7 @@ class HuggingFaceCheckpointer(Callback):
         self.last_checkpoint_batch: Optional[Time] = None
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
+        # The interval scheduler handles only returning True for the appropriate events
         if state.get_elapsed_duration() is not None and self.check_interval(
                 state,
                 event) and self.last_checkpoint_batch != state.timestamp.batch:

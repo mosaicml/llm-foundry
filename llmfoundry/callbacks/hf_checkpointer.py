@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
+import json
 import os
 import tempfile
 from pathlib import Path
 from typing import Union
 
+import torch
 from composer.callbacks.utils import create_interval_scheduler
 from composer.core import Callback, Event, State, Time
 from composer.core.state import fsdp_state_dict_type_context
@@ -27,11 +29,13 @@ class HuggingFaceCheckpointer(Callback):
     Args:
         save_folder (str): Top level folder to save checkpoints to (can be a URI). It is likely that
             this would be the same as your save_folder.
-        huggingface_folder_name (str): Folder to save each checkpoint under (can be a format string)
         save_interval: Union[str, int, Time]: The interval describing how often checkpoints should be
             saved. If an integer, it will be assumed to be in :attr:`.TimeUnit.EPOCH`.
             Otherwise, the unit must be either :attr:`.TimeUnit.EPOCH`, :attr:`.TimeUnit.BATCH`,
             :attr:`.TimeUnit.TOKEN`, or :attr:`.TimeUnit.SAMPLE`.
+        huggingface_folder_name (str): Folder to save each checkpoint under (can be a format string). Default is ``ba{batch}``.
+        precision: The precision to save the model in. Default is ``float32``. Options are ``bfloat16``, ``float16``, or ``float32``.
+        overwrite (bool): Whether to overwrite previous checkpoints.
     """
 
     def __init__(
@@ -39,11 +43,18 @@ class HuggingFaceCheckpointer(Callback):
         save_folder: str,
         save_interval: Union[str, int, Time],
         huggingface_folder_name: str = 'ba{batch}',
+        precision: str = 'fp32',
         overwrite: bool = False,
     ):
         self.backend, self.bucket_name, self.save_dir_format_str = parse_uri(
             save_folder)
         self.overwrite = overwrite
+        self.precision = precision
+        self.dtype = {
+            'float32': torch.float32,
+            'float16': torch.float16,
+            'bfloat16': torch.bfloat16,
+        }[precision]
         self.huggingface_folder_name_fstr = os.path.join(
             'huggingface', huggingface_folder_name)
         self.check_interval = create_interval_scheduler(
@@ -97,6 +108,11 @@ class HuggingFaceCheckpointer(Callback):
                                               state_dict_type='full'):
                 state_dict = state.model.model.state_dict()
 
+                # convert the state dict to the requested precision
+                for k, v in state_dict.items():
+                    if isinstance(v, torch.Tensor):
+                        state_dict[k] = v.to(dtype=self.dtype)
+
             if dist.get_global_rank() == 0:
                 # We raise above if the model is not a HuggingFaceModel, so this assert is safe
                 assert hasattr(state.model.model, 'save_pretrained')
@@ -107,9 +123,21 @@ class HuggingFaceCheckpointer(Callback):
                     assert isinstance(state.model.tokenizer,
                                       PreTrainedTokenizerBase)
                     state.model.tokenizer.save_pretrained(temp_save_dir)
+
                 # Only need to edit files for MPT because it has custom code
                 if state.model.model.config.model_type == 'mpt':
                     edit_files_for_hf_compatibility(temp_save_dir)
+
+                with open(os.path.join(temp_save_dir, 'config.json'), 'r') as f:
+                    edited_config = json.load(f)
+
+                if state.model.model.config.model_type == 'mpt':
+                    edited_config['attn_config']['attn_impl'] = 'torch'
+                    edited_config['init_device'] = 'cpu'
+
+                edited_config['torch_dtype'] = self.precision
+                with open(os.path.join(temp_save_dir, 'config.json'), 'w') as f:
+                    json.dump(edited_config, f, indent=4)
 
                 if self.upload_to_object_store:
                     assert self.remote_ud is not None

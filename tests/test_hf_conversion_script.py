@@ -192,10 +192,13 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     device_batch_size = 1
     dataset_size = 14
     max_duration_batches = 7
+    precision_str = 'bfloat16'
+    precision = torch.bfloat16
 
     checkpointer_callback = HuggingFaceCheckpointer(
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=f'{huggingface_save_interval_batches}ba',
+        precision=precision_str,
     )
 
     # get small version of each model
@@ -315,19 +318,36 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
             assert len(huggingface_checkpoints) == math.ceil(
                 max_duration_batches / huggingface_save_interval_batches)
 
-            # load the last huggingface checkpoint
+            # Load the last huggingface checkpoint
             loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
                 os.path.join(tmp_path, 'checkpoints', 'huggingface',
                              f'ba{max_duration_batches}'),
                 trust_remote_code=True,
             )
+
+            # Check that the loaded model has the correct precision, and then set it back
+            # to the original for the equivalence check
+            assert loaded_model.config.torch_dtype == precision
+            loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
+
+            if model == 'mpt':
+                # Check that we have correctly set these attributes, and then set them back
+                # to the original for the equivalence check
+                assert loaded_model.config.attn_config['attn_impl'] == 'torch'
+                assert loaded_model.config.init_device == 'cpu'
+                loaded_model.config.attn_config[
+                    'attn_impl'] = original_model.model.config.attn_config[
+                        'attn_impl']
+                loaded_model.config.init_device = original_model.model.config.init_device
+
             loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
                 os.path.join(tmp_path, 'checkpoints', 'huggingface',
                              f'ba{max_duration_batches}'),
                 trust_remote_code=True,
             )
 
-            check_hf_model_equivalence(trainer.state.model.model, loaded_model)
+            check_hf_model_equivalence(trainer.state.model.model.to(precision),
+                                       loaded_model)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
     delete_transformers_cache()

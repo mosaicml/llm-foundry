@@ -18,7 +18,6 @@ from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
-
 class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
 
@@ -66,6 +65,8 @@ class HuggingFaceCheckpointer(Callback):
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
 
+        print('Saving HuggingFace formatted checkpoint') #TODO change to log after other pr
+
         from transformers.models.auto.configuration_auto import CONFIG_MAPPING
         CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
         MPTConfig.register_for_auto_class()
@@ -91,10 +92,11 @@ class HuggingFaceCheckpointer(Callback):
                 state.model.tokenizer.save_pretrained(temp_save_dir)
                 # Only need to edit files for MPT because it has custom code
                 if state.model.model.config.model_type == 'mpt':
-                    print('Editing files for HF compatibility...')
                     edit_files_for_hf_compatibility(temp_save_dir)
 
                 if self.upload_to_object_store and self.remote_ud is not None:
+                    # TODO change to log after other pr
+                    print(f'Uploading HuggingFace formatted checkpoint to {self.backend}://{self.bucket_name}/{save_dir}')
                     for filename in os.listdir(temp_save_dir):
                         self.remote_ud.upload_file(
                             state=state,

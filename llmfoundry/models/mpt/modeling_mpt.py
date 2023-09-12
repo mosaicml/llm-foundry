@@ -150,8 +150,7 @@ class MPTModel(MPTPreTrainedModel):
                     module.register_parameter('bias', None)
 
         log.debug(self)
-        log.debug(
-            f'Using {self.config.init_config["name"]} initialization.')
+        log.debug(f'Using {self.config.init_config["name"]} initialization.')
 
     def get_input_embeddings(self):
         return self.wte

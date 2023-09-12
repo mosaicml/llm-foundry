@@ -114,7 +114,7 @@ eval_gauntlet:
       random_baseline: 0.25
 ```
 
-You can either specify your eval\_gauntlet config directly in your eval/train YAML or via a local path pointing to a YAML containing an eval\_gauntlet config.
+You can either specify your `eval_gauntlet` config directly in your eval/train YAML or via a local path pointing to a YAML containing an `eval_gauntlet` config.
 
 
 ### Offline evaluation

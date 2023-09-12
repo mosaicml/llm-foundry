@@ -31,7 +31,7 @@ You can also modify the specific benchmarks executed and their formatting by mod
 
 
 ### Evaluation during training
-To run offline evaluation, download this repo, follow the instructions in `scripts/train/README.md` to perform single node pre-training and run the following commands
+To run evaluatio during training, download this repo, follow the instructions in `scripts/train/README.md` to perform single node pre-training and run the following commands
 
 <!--pytest.mark.skip-->
 ```bash

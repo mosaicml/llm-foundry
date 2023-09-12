@@ -82,7 +82,7 @@ prompt_string: ''
 Your YAML may optionally have a config section entitled eval\_gauntlet specifying how to aggregate the results (if absent, only the individual benchmark accuracies will be reported). After the tasks listed in the `icl_tasks` config are evaluated, the eval script will use the `eval_gauntlet` config, if specified, to aggregate the individual benchmarks into composite scores.
 
 
-An eval\_gauntlet config  must specify the list of categories you'd like to generate composite scores for, as well as the list of benchmarks to be incldued in each category. For each category you need to list the name and the num\_fewshot. These two values must exactly match the values specifed in the icl\_tasks config. Additionally you must specify the random baseline accuracy for each benchmark.
+An `eval_gauntlet` config  must specify the list of categories you'd like to generate composite scores for, as well as the list of benchmarks to be included in each category. For each category you need to list the name and the `num_fewshot`. These two values must exactly match the values specified in the `icl_tasks` config. Additionally you must specify the random baseline accuracy for each benchmark.
 
 There are also three flags indicating how to perform the aggregation:
 1. `weighting` can either be EQUAL (all tasks are weighted equally), SAMPLE\_SZ (tasks are weighted proportional to the size of the dataset), or LOG\_SAMPLE\_SZ (tasks are weighted proportional to the logarithm of the dataset size).

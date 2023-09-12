@@ -125,7 +125,7 @@ You can use the default `icl_tasks` and `eval_gauntlet` configs or specify your 
 
 ### Evaluation during training
 
-You can use ICL evaluation during training by taking an ordinary training YAML and adding an icl\_tasks and eval\_gauntlet config. You should also specify icl\_seq\_len in your training YAML and you can optionally run a truncated version of eval on a random subset of each benchmark by specifying a value for icl\_subset\_num\_batches
+You can use ICL evaluation during training by taking an ordinary training YAML and adding an `icl_tasks` and `eval_gauntlet` config. You should also specify `icl_seq_len` in your training YAML and you can optionally run a truncated version of eval on a random subset of each benchmark by specifying a value for `icl_subset_num_batches`
 
 An example is given below:
 ```

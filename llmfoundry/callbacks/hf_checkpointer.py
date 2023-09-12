@@ -6,7 +6,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 import torch
 from composer.callbacks.utils import create_interval_scheduler
@@ -58,7 +58,7 @@ class HuggingFaceCheckpointer(Callback):
         self.huggingface_folder_name_fstr = os.path.join(
             'huggingface', huggingface_folder_name)
         self.check_interval = create_interval_scheduler(
-            save_interval, include_end_of_training=False)
+            save_interval, include_end_of_training=True)
         self.upload_to_object_store = (self.backend != '')
         if self.upload_to_object_store:
             self.remote_ud = RemoteUploaderDownloader(
@@ -67,9 +67,11 @@ class HuggingFaceCheckpointer(Callback):
         else:
             self.remote_ud = None
 
+        self.last_checkpoint_batch: Optional[Time] = None
+
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         if state.get_elapsed_duration() is not None and self.check_interval(
-                state, event) or event == Event.FIT_END:
+                state, event) and self.last_checkpoint_batch != state.timestamp.batch:
             self._save_checkpoint(state, logger)
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):
@@ -82,6 +84,8 @@ class HuggingFaceCheckpointer(Callback):
 
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
+
+        self.last_checkpoint_batch = state.timestamp.batch
 
         print('Saving HuggingFace formatted checkpoint'
              )  #TODO change to log after other pr

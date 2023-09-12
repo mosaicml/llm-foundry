@@ -6,7 +6,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Union, Optional
+from typing import Optional, Union
 
 import torch
 from composer.callbacks.utils import create_interval_scheduler
@@ -71,7 +71,8 @@ class HuggingFaceCheckpointer(Callback):
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         if state.get_elapsed_duration() is not None and self.check_interval(
-                state, event) and self.last_checkpoint_batch != state.timestamp.batch:
+                state,
+                event) and self.last_checkpoint_batch != state.timestamp.batch:
             self._save_checkpoint(state, logger)
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):

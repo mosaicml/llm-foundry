@@ -149,8 +149,8 @@ class MPTModel(MPTPreTrainedModel):
                     log.info(f'Removing bias ({module.bias}) from {module}.')
                     module.register_parameter('bias', None)
 
-        logging.debug(self)
-        logging.debug(
+        log.debug(self)
+        log.debug(
             f'Using {self.config.init_config["name"]} initialization.')
 
     def get_input_embeddings(self):

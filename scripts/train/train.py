@@ -416,6 +416,7 @@ def main(cfg: DictConfig) -> Trainer:
         fsdp_config = None
 
     # set logging level
+    print(f'log level is: {python_log_level}')
     if python_log_level is not None:
         logging.basicConfig(
             # Example of format string

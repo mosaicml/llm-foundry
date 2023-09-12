@@ -14,7 +14,7 @@ from composer.loggers import Logger
 from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.models import HuggingFaceModel
 from composer.utils import dist, format_name_with_dist_and_time, parse_uri
-from transformers import PreTrainedModel, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
@@ -93,14 +93,13 @@ class HuggingFaceCheckpointer(Callback):
             assert isinstance(temp_save_dir,
                               str)  # pyright doesn't know about enter_result
 
-            # We check for HuggingFaceModel in the run_event method, so asserts here are just for pyright
-            assert isinstance(state.model, HuggingFaceModel)
-            assert isinstance(state.model.model, PreTrainedModel)
             with fsdp_state_dict_type_context(state.model.model,
                                               state_dict_type='full'):
                 state_dict = state.model.model.state_dict()
 
             if dist.get_global_rank() == 0:
+                # We raise above if the model is not a HuggingFaceModel, so this assert is safe
+                assert hasattr(state.model.model, 'save_pretrained')
                 state.model.model.save_pretrained(temp_save_dir,
                                                   state_dict=state_dict)
 

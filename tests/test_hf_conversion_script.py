@@ -45,8 +45,6 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
     and that a string is tokenized the same one. Then we compare the __dict__ of the tokenizers, but we remove
     some keys that are not important for equivalence. See the inline explanations for each one.
     """
-    if dist.get_global_rank() != 0:
-        return
     if hasattr(tokenizer1, 'vocab') or hasattr(tokenizer2, 'vocab'):
         assert tokenizer1.vocab == tokenizer2.vocab
 
@@ -143,10 +141,11 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
 
 def check_hf_model_equivalence(model1: PreTrainedModel,
                                model2: PreTrainedModel):
-    if dist.get_global_rank() != 0:
-        return
     expected_model_config_dict = model1.config.to_dict()
     new_model_config_dict = model2.config.to_dict()
+
+    # _name_or_path is different depending on whether the model was loaded from disk or the hub,
+    # so we remove it
     expected_model_config_dict.pop('_name_or_path')
     new_model_config_dict.pop('_name_or_path')
     assert expected_model_config_dict == new_model_config_dict
@@ -194,45 +193,51 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     dataset_size = 14
     max_duration_batches = 7
 
-    om_cfg = None
+    checkpointer_callback = HuggingFaceCheckpointer(
+        save_folder=os.path.join(tmp_path, 'checkpoints'),
+        save_interval=f'{huggingface_save_interval_batches}ba',
+    )
+
+    # get small version of each model
+    model_cfg = None
     if model == 'mpt':
-        om_cfg = get_config(
+        model_cfg = get_config(
             conf_path='scripts/train/yamls/pretrain/testing.yaml')
     elif model == 'neo':
-        om_cfg = get_config(
+        model_cfg = get_config(
             conf_path='scripts/train/yamls/pretrain/gpt-neo-125m.yaml')
-        om_cfg['model']['config_overrides']['hidden_size'] = 36
+        model_cfg['model']['config_overrides']['hidden_size'] = 36
     elif model == 'llama2':
         if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
             pytest.skip(
                 'The CI cluster does not have access to the Llama models, so skip this test.'
             )
-        om_cfg = get_config(
+        model_cfg = get_config(
             conf_path='scripts/train/yamls/pretrain/gpt-neo-125m.yaml')
-        om_cfg['model'][
+        model_cfg['model'][
             'pretrained_model_name_or_path'] = 'meta-llama/Llama-2-7b-hf'
-        om_cfg['model']['config_overrides']['num_hidden_layers'] = 2
-        om_cfg['model']['config_overrides']['hidden_size'] = 32
-        om_cfg['model']['config_overrides']['intermediate_size'] = 64
-        om_cfg['model']['use_auth_token'] = True
-        om_cfg['tokenizer']['name'] = 'meta-llama/Llama-2-7b-hf'
+        model_cfg['model']['config_overrides']['num_hidden_layers'] = 2
+        model_cfg['model']['config_overrides']['hidden_size'] = 32
+        model_cfg['model']['config_overrides']['intermediate_size'] = 64
+        model_cfg['model']['use_auth_token'] = True
+        model_cfg['tokenizer']['name'] = 'meta-llama/Llama-2-7b-hf'
     else:
         raise ValueError(f'Unknown model {model}')
-    assert om_cfg is not None
+    assert model_cfg is not None
 
-    fsdp_config = om_cfg['fsdp_config']
+    fsdp_config = model_cfg['fsdp_config']
     fsdp_config['state_dict_type'] = fsdp_state_dict_type
 
-    om_cfg['model']['init_device'] = 'cpu'
+    model_cfg['model']['init_device'] = 'cpu'
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        om_cfg.tokenizer.name, use_auth_token=model == 'llama2')
+        model_cfg.tokenizer.name, use_auth_token=model == 'llama2')
 
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
     if dist.get_global_rank() == 0:
         make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size)
 
-    cfg = {
+    dataloader_cfg = {
         'name': 'finetuning',
         'dataset': {
             'hf_name': tiny_dataset_folder_path,
@@ -251,31 +256,23 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         'timeout': 0
     }
 
-    cfg = om.create(cfg)
+    dataloader_cfg = om.create(dataloader_cfg)
 
     tokenizer = build_tokenizer(
-        tokenizer_name=om_cfg['tokenizer']['name'],
+        tokenizer_name=model_cfg['tokenizer']['name'],
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
-    expected_keys = ['input_ids', 'attention_mask', 'labels']
-    expected_keys += ['bidirectional_mask']
-
     train_dataloader = build_finetuning_dataloader(
-        cfg,
+        dataloader_cfg,
         tokenizer,
         device_batch_size,
     )
 
-    checkpointer_callback = HuggingFaceCheckpointer(
-        save_folder=os.path.join(tmp_path, 'checkpoints'),
-        save_interval=f'{huggingface_save_interval_batches}ba',
-    )
+    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['model'].name](
+        model_cfg['model'], tokenizer)
 
-    original_model = COMPOSER_MODEL_REGISTRY[om_cfg['model'].name](
-        om_cfg['model'], tokenizer)
-
-    optimizer_config = om_cfg['optimizer']
+    optimizer_config = model_cfg['optimizer']
     optimizer_name = optimizer_config.pop('name')
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)
@@ -294,12 +291,15 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     )
     trainer.fit()
 
+    # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
     with FSDP.summon_full_params(trainer.state.model,
                                  writeback=False,
                                  recurse=True):
         loaded_model = None
         loaded_tokenizer = None
+        # Only rank zero is saving the huggingface checkpoints, so only check
+        # for equivalence on rank zero
         if dist.get_global_rank() == 0:
             normal_checkpoints = [
                 name
@@ -327,8 +327,8 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                 trust_remote_code=True,
             )
 
-        check_hf_model_equivalence(trainer.state.model.model, loaded_model)
-        check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
+            check_hf_model_equivalence(trainer.state.model.model, loaded_model)
+            check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
     delete_transformers_cache()
 

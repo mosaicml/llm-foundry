@@ -24,7 +24,7 @@ import torch
 import transformers
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import PretrainedModel, PreTrainedTokenizerBase
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.data.finetuning import build_finetuning_dataloader
@@ -141,8 +141,8 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
     assert tokenizer1.__dict__ == tokenizer2.__dict__
 
 
-def check_hf_model_equivalence(model1: PretrainedModel,
-                               model2: PretrainedModel):
+def check_hf_model_equivalence(model1: PreTrainedModel,
+                               model2: PreTrainedModel):
     if dist.get_global_rank() != 0:
         return
     expected_model_config_dict = model1.config.to_dict()

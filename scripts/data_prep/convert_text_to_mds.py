@@ -18,8 +18,6 @@ from transformers import AutoTokenizer
 
 from llmfoundry.data import ConcatTokensDataset
 from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
-                                              build_dataloader,
-                                              generate_samples,
                                               merge_shard_groups)
 
 
@@ -195,17 +193,20 @@ def download_and_convert(
             no_wrap=no_wrap,
         )
 
-        loader = build_dataloader(dataset=dataset, batch_size=512)
-        samples = generate_samples(loader)
         columns = {'tokens': 'bytes'}
 
         print(f'Converting to MDS format...')
+        total_tokens_bytes = 0
         with MDSWriter(out=output_folder,
                        columns=columns,
                        max_mds_writer_workers=max_mds_writer_workers,
                        compression=compression) as out:
-            for sample in tqdm(samples):
+            for sample in tqdm(dataset):
+                total_tokens_bytes += len(sample['tokens'])
                 out.write(sample)
+        total_tokens = total_tokens_bytes / 8
+        print('tokens', total_tokens_bytes, total_tokens)
+        return total_tokens
 
 
 def is_remote_path(path: str) -> bool:
@@ -300,7 +301,8 @@ def main(
                              bos_text, no_wrap, compression,
                              max_mds_writer_workers)
         with ProcessPoolExecutor(max_workers=processes) as executor:
-            list(executor.map(download_and_convert_starargs, args))
+            print('all tokens',
+                  sum(executor.map(download_and_convert_starargs, list(args))))
 
         # Merge the mds shards from each of the processes into a single folder
         merge_shard_groups(local_output_folder)

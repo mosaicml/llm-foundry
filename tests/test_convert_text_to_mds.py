@@ -12,12 +12,11 @@ sys.path.append(repo_dir)
 import pathlib
 from concurrent.futures import ProcessPoolExecutor
 from glob import glob
-from typing import Callable, Iterable, List, Optional
+from typing import Callable, Iterable, List
 from unittest.mock import Mock, patch
 
 import numpy as np
 from streaming import StreamingDataset
-from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer
 
 from scripts.data_prep.convert_text_to_mds import (download_and_convert,
@@ -83,26 +82,12 @@ def _mock_map(func: Callable, args: Iterable) -> Iterable:
         yield func(arg)
 
 
-# Build a dataloader with no threading so mock call counts are correct
-def _mock_build_dataloader(dataset: Dataset,
-                           batch_size: int,
-                           num_workers: Optional[int] = None) -> DataLoader:
-    return DataLoader(
-        dataset=dataset,
-        sampler=None,
-        batch_size=batch_size,
-        num_workers=0,
-    )
-
-
 def _assert_files_exist(prefix: str, files: List[str]):
     for file in files:
         assert os.path.exists(os.path.join(prefix, file))
 
 
 @pytest.mark.parametrize('processes', [1, 2, 3])
-@patch('scripts.data_prep.convert_text_to_mds.build_dataloader',
-       new=Mock(wraps=_mock_build_dataloader))
 @patch.object(ProcessPoolExecutor, 'map', new=Mock(wraps=_mock_map))
 @patch(
     'scripts.data_prep.convert_text_to_mds.maybe_create_object_store_from_uri')

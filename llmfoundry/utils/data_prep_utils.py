@@ -5,7 +5,7 @@ import json
 import os
 import platform
 from glob import glob
-from typing import Dict, Iterable, List, Optional
+from typing import List, Optional
 
 import psutil
 from composer.utils import ObjectStore
@@ -40,30 +40,6 @@ def build_dataloader(dataset: Dataset,
         num_workers=num_workers,
         prefetch_factor=prefetch_factor,
     )
-
-
-def generate_samples(
-        loader: DataLoader,
-        truncate_num_samples: Optional[int] = None
-) -> Iterable[Dict[str, bytes]]:
-    """Generator over samples of a dataloader.
-
-    Args:
-       loader (DataLoader): A dataloader emitting batches like {key: [sample0_bytes, sample1_bytes, sample2_bytes, ...]}
-       truncate_num_samples (Optional[int]): An optional # of samples to stop at.
-
-    Yields:
-        Sample dicts.
-    """
-    n_samples = 0
-    for batch in loader:
-        keys = list(batch.keys())
-        current_bs = len(batch[keys[0]])
-        for idx in range(current_bs):
-            if truncate_num_samples is not None and n_samples == truncate_num_samples:
-                return
-            n_samples += 1
-            yield {k: v[idx] for k, v in batch.items()}
 
 
 def with_id(basename: str, shard_id: int) -> str:

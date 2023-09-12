@@ -62,17 +62,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             self,
             om_model_config: _om_model_config_type,  # type: ignore
             tokenizer: PreTrainedTokenizerBase):
-
-        if not om_model_config.get('trust_remote_code',
-                                   True) and om_model_config.get(
-                                       'pretrained_model_name_or_path',
-                                       None).startswith('mosaicml/mpt'):
-            raise ValueError(
-                'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
-                +
-                'which is not significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
-            )
-
         # set up training and eval metrics
         train_metrics = [
             LanguageCrossEntropy(),
@@ -90,6 +79,15 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
         # if we are passed a DictConfig, we need to instantiate the model
         if isinstance(om_model_config, DictConfig):
+            if not om_model_config.get('trust_remote_code',
+                                       True) and om_model_config.get(
+                                           'pretrained_model_name_or_path',
+                                           None).startswith('mosaicml/mpt'):
+                raise ValueError(
+                    'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
+                    +
+                    'which is not significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
+                )
 
             # load the model config
             trust_remote_code = om_model_config.get('trust_remote_code', True)

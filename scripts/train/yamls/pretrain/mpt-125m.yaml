@@ -4,8 +4,7 @@ max_seq_len: 2048
 global_seed: 17
 
 # Run Name
-run_name: test-ckpt-sharded # If left blank, will be read from env var $RUN_NAME
-# run_name: test-ckpt
+run_name: # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:
@@ -71,16 +70,16 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 16ba # ~ 2.5B tokens
+max_duration: 4800ba # ~ 2.5B tokens
 eval_interval: 500ba
 eval_first: false
-eval_subset_num_batches: 10
-global_train_batch_size: 2
+eval_subset_num_batches: -1
+global_train_batch_size: 256
 
 # System
 seed: ${global_seed}
-device_eval_batch_size: 1
-device_train_microbatch_size: 1
+device_eval_batch_size: 16
+device_train_microbatch_size: 16
 # device_train_microbatch_size: auto
 precision: amp_bf16
 
@@ -93,7 +92,6 @@ fsdp_config:
   activation_cpu_offload: false
   limit_all_gathers: true
   verbose: false
-  state_dict_type: sharded
 
 # Logging
 progress_bar: false
@@ -106,17 +104,14 @@ callbacks:
   lr_monitor: {}
   memory_monitor: {}
   runtime_estimator: {}
-  hf_checkpointer:
-    save_interval: 10ba
-    save_folder: s3://mosaicml-internal-checkpoints-shared/daniel/hf-callback/{run_name}/checkpoints
 
 # loggers:
 #   wandb: {}
 
 # Checkpoint to local filesystem or remote object store
-save_interval: 5ba
+# save_interval: 500ba
 # save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
-save_folder: ./{run_name}/checkpoints
+# save_folder: ./{run_name}/checkpoints
 # save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
 
 # Load from local filesystem or remote object store

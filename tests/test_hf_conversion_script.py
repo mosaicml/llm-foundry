@@ -310,8 +310,8 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         device_batch_size,
     )
 
-    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](
-        model_cfg, tokenizer)
+    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
+                                                                tokenizer)
 
     optimizer_config = {
         'name': 'decoupled_adamw',

@@ -138,9 +138,9 @@ def export_to_onnx(
         with torch.no_grad():
             orig_out = model(**sample_input)
 
-        import onnx  # type: ignore
-        import onnx.checker  # type: ignore
-        import onnxruntime as ort  # type: ignore
+        import onnx
+        import onnx.checker
+        import onnxruntime as ort
 
         _ = onnx.load(str(output_file))
 

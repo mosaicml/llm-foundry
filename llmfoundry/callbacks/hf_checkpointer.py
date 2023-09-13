@@ -3,6 +3,7 @@
 
 import contextlib
 import json
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -22,6 +23,7 @@ from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
+log = logging.getLogger(__name__)
 
 class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
@@ -89,8 +91,7 @@ class HuggingFaceCheckpointer(Callback):
 
         self.last_checkpoint_batch = state.timestamp.batch
 
-        print('Saving HuggingFace formatted checkpoint'
-             )  #TODO change to log after other pr
+        log.info('Saving HuggingFace formatted checkpoint')
 
         from transformers.models.auto.configuration_auto import CONFIG_MAPPING
         CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
@@ -150,9 +151,7 @@ class HuggingFaceCheckpointer(Callback):
                 if self.upload_to_object_store:
                     assert self.remote_ud is not None
                     # TODO change to log after other pr
-                    print(
-                        f'Uploading HuggingFace formatted checkpoint to {self.backend}://{self.bucket_name}/{save_dir}'
-                    )
+                    log.info(f'Uploading HuggingFace formatted checkpoint to {self.backend}://{self.bucket_name}/{save_dir}')
                     for filename in os.listdir(temp_save_dir):
                         self.remote_ud.upload_file(
                             state=state,

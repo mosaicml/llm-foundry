@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Callable, Dict, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
@@ -360,7 +360,16 @@ if __name__ == '__main__':
     # build tokenizer
     if 'tokenizer' not in cfg:
         raise ValueError('config must define tokenizer')
-    tokenizer = build_tokenizer(cfg.tokenizer)
+
+    resolved_tokenizer_cfg = om.to_container(cfg.tokenizer, resolve=True)
+    if not isinstance(resolved_tokenizer_cfg, Dict):
+        raise ValueError(
+            'tokenizer config needs to be resolved by omegaconf into a Dict.')
+    tokenizer_cfg: Dict[Any, Any] = resolved_tokenizer_cfg
+
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     # Turn off packing for the dataloader (we want raw, pre-packed examples)
     dataloader_cfg.dataset.packing_ratio = None

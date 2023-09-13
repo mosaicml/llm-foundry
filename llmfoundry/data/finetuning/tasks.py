@@ -32,6 +32,7 @@ those keys are strings (i.e. text).
 """
 
 import importlib
+import logging
 import os
 import warnings
 from typing import Any, Callable, Dict, Optional, Union
@@ -40,6 +41,8 @@ import datasets as hf_datasets
 from omegaconf import DictConfig
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
+
+log = logging.getLogger(__name__)
 
 __all__ = ['dataset_constructor']
 
@@ -51,6 +54,14 @@ def _tokenize_formatted_example(example: Dict[str, Any],
             'Unable to tokenize example because it has not been properly formatted. ' +\
             '"prompt" and "response" are required keys but at least one was missing ' +\
             f'from {example=}.'
+        )
+    if not isinstance(example['prompt'], str):
+        raise TypeError(
+            f'Unable to tokenize example because "prompt" was not a string. {example=}'
+        )
+    if not isinstance(example['response'], str):
+        raise TypeError(
+            f'Unable to tokenize example because "response" was not a string. {example=}'
         )
     return tokenizer(text=example['prompt'], text_target=example['response'])
 
@@ -197,8 +208,7 @@ class DatasetConstructor:
 
     def get_preprocessing_fn_from_str(self,
                                       preprocessor: Optional[str],
-                                      dataset_name: Optional[str] = None,
-                                      verbose: bool = False):
+                                      dataset_name: Optional[str] = None):
         """Get a preprocessing function from a string.
 
         String can be either a registered function or an import path.
@@ -206,7 +216,6 @@ class DatasetConstructor:
         Args:
             preprocessor (Optional[str]): The name of the preprocessing function, or an import path.
             dataset_name (Optional[str]): The dataset name to look up in the registry.
-            verbose (bool): Whether to print verbose messages or not.
 
         Returns:
             Callable: The preprocessing function or None if not found.
@@ -218,33 +227,24 @@ class DatasetConstructor:
             if dataset_name is None:
                 return None
             if dataset_name in self._task_preprocessing_registry:
-                if verbose:
-                    print(
-                        f'Re-formatting dataset with "{dataset_name}" preprocessing function.'
-                    )
+                log.info(
+                    f'Re-formatting dataset with "{dataset_name}" preprocessing function.'
+                )
                 return self._task_preprocessing_registry[dataset_name]
             else:
-                if verbose:
-                    print(
-                        'No preprocessor was supplied and no preprocessing function ' +\
+                log.info('No preprocessor was supplied and no preprocessing function ' +\
                         f'is registered for dataset name "{dataset_name}". No additional ' +\
                         'preprocessing will be applied. If the dataset is already formatted ' +\
-                        'correctly, you can ignore this message.'
-                    )
+                        'correctly, you can ignore this message.')
                 return None
         if preprocessor in self._task_preprocessing_registry:
-            if verbose:
-                print(
-                    f'Re-formatting dataset with "{preprocessor}" preprocessing function.'
-                )
+            log.info(
+                f'Re-formatting dataset with "{preprocessor}" preprocessing function.'
+            )
             return self._task_preprocessing_registry[preprocessor]
 
         try:
             import_path, function_name = preprocessor.split(':', maxsplit=1)
-            if verbose:
-                print(
-                    f'Importing preprocessing function via: `from {import_path} import {function_name}`'
-                )
             module = importlib.import_module(import_path)
             preprocessing_fn = getattr(module, function_name)
         except Exception as e:
@@ -281,7 +281,7 @@ class DatasetConstructor:
                 proto_preprocessing_fn)
         else:
             preprocessing_fn = self.get_preprocessing_fn_from_str(
-                proto_preprocessing_fn, dataset_name, verbose=True)
+                proto_preprocessing_fn, dataset_name)
 
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 
@@ -306,7 +306,18 @@ class DatasetConstructor:
                 f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
             )
 
-        return prompt_length_filtered_dataset
+        empty_examples_dropped_dataset = prompt_length_filtered_dataset.filter(
+            lambda example: len(example['input_ids']) > 0 and len(example[
+                'labels']) > 0 and any(token_id != tokenizer.pad_token_id
+                                       for token_id in example['labels']))
+        empty_examples_removed = len(prompt_length_filtered_dataset) - len(
+            empty_examples_dropped_dataset)
+        if empty_examples_removed > 0:
+            warnings.warn(
+                f'Dropped {empty_examples_removed} examples where the prompt or response was empty, '
+                + 'or the response was only padding tokens.')
+
+        return empty_examples_dropped_dataset
 
     def build_from_streaming(self, *args: Any, **kwargs: Any):
         return StreamingFinetuningDataset(*args, **kwargs)

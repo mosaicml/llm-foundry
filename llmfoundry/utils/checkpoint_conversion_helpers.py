@@ -10,6 +10,7 @@ utility functions that are present in multiple scripts.
 """
 
 import json
+import logging
 import os
 import random
 import string
@@ -19,6 +20,8 @@ from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 import sentencepiece as spm
 from transformers import AutoTokenizer, PreTrainedTokenizer
+
+log = logging.getLogger(__name__)
 
 
 def _get_weight_data_type(data_type: str):
@@ -56,11 +59,15 @@ def get_hf_tokenizer_from_composer_state_dict(
         os.makedirs(tokenizer_save_dir, exist_ok=True)
 
         for filename, saved_content in hf_tokenizer_state.items():
+            # For backwards compatibility, check if the filename already has the file extension
+            if filename.endswith(saved_content['file_extension']):
+                tokenizer_file_name = filename
+            else:
+                tokenizer_file_name = filename + saved_content['file_extension']
+
             # This cannot be a temporary directory because huggingface relies on the slow tokenizer file
             # being persistent on disk
-            tokenizer_file_path = Path(
-                tokenizer_save_dir
-            ) / f'{filename}{saved_content["file_extension"]}'
+            tokenizer_file_path = Path(tokenizer_save_dir) / tokenizer_file_name
             if saved_content['file_extension'] == '.json':
                 with open(tokenizer_file_path, 'w') as _tmp_file:
                     json.dump(saved_content['content'], _tmp_file)
@@ -102,7 +109,7 @@ def _write_zero_bias(weight_name: str, weight_file_path: str,
         raise RuntimeError(
             f'Cannot write zero bias for {weight_name}. Input is not a weight tensor'
         )
-    print(f'zero bias for weight: {weight_name}')
+    log.debug(f'zero bias for weight: {weight_name}')
     bias_file_path = weight_file_path.replace('.weight', '.bias')
     bias = np.zeros(bias_shape, dtype=np.float32)
     bias.tofile(bias_file_path)
@@ -255,10 +262,10 @@ def convert_and_save_ft_weights(named_params: dict,
     }
 
     for name, param in named_params.items():
-        print(f'Working on parameter {name} ...')
+        log.debug(f'Working on parameter {name} ...')
         data = param.detach().cpu().numpy().astype(np_weight_data_type)
         if name.find('weight') == -1 and name.find('bias') == -1:
-            print(f'found a parameter name that is not handled: {name}')
+            log.debug(f'found a parameter name that is not handled: {name}')
             continue
         if name == 'transformer.wpe.weight':
             assert data.shape == (

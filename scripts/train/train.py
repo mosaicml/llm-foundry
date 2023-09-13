@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import copy
+import logging
 import os
 import sys
 import warnings
@@ -90,7 +91,7 @@ def validate_config(cfg: DictConfig):
             '`te.LayerNormMLP` requires has issues with torch._dynamo. ' +
             'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.'
         )
-        torch._dynamo.config.suppress_errors = True  # type: ignore
+        torch._dynamo.config.suppress_errors = True  # type: ignore (third-party)
 
     if cfg.model.get('load_in_8bit', False):
         raise ValueError(
@@ -217,7 +218,10 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Mandatory model training configs
     model_config: DictConfig = pop_config(cfg, 'model', must_exist=True)
-    tokenizer_config: DictConfig = pop_config(cfg, 'tokenizer', must_exist=True)
+    tokenizer_config: Dict[str, Any] = pop_config(cfg,
+                                                  'tokenizer',
+                                                  must_exist=True,
+                                                  convert=True)
     optimizer_config: Dict[str, Any] = pop_config(cfg,
                                                   'optimizer',
                                                   must_exist=True,
@@ -343,10 +347,10 @@ def main(cfg: DictConfig) -> Trainer:
                                       'log_to_console',
                                       must_exist=False,
                                       default_value=True)
-    python_log_level: str = pop_config(cfg,
-                                       'python_log_level',
-                                       must_exist=False,
-                                       default_value='debug')
+    python_log_level: Optional[str] = pop_config(cfg,
+                                                 'python_log_level',
+                                                 must_exist=False,
+                                                 default_value='debug')
     console_log_interval: Union[int, str] = pop_config(cfg,
                                                        'console_log_interval',
                                                        must_exist=False,
@@ -411,12 +415,24 @@ def main(cfg: DictConfig) -> Trainer:
             'FSDP is not applicable for single-GPU training. Reverting to DDP.')
         fsdp_config = None
 
+    # set logging level
+    if python_log_level is not None:
+        logging.basicConfig(
+            # Example of format string
+            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
+
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
 
     # Build tokenizer
-    tokenizer = build_tokenizer(tokenizer_config)
+    tokenizer_name = tokenizer_config['name']
+    tokenizer_kwargs = tokenizer_config.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     # Scheduler
     scheduler_name: str = scheduler_config.pop('name')
@@ -525,7 +541,7 @@ def main(cfg: DictConfig) -> Trainer:
         precision=precision,
         algorithms=algorithms,
         device_train_microbatch_size=device_train_microbatch_size,
-        fsdp_config=fsdp_config,  # type: ignore
+        fsdp_config=fsdp_config,
         save_folder=save_folder,
         save_filename=save_filename,
         save_latest_filename=save_latest_filename,

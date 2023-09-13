@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -32,11 +33,13 @@ from llmfoundry.models.inference_api_wrapper.openai_causal_lm import \
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 
+log = logging.getLogger(__name__)
+
 
 def build_icl_data_and_gauntlet(
     icl_tasks_config: Union[str, ListConfig],
     eval_gauntlet_config: Optional[Union[str, DictConfig]],
-    tokenizer: AutoTokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int] = None
@@ -158,35 +161,31 @@ def build_scheduler(name: str, scheduler_config: Dict[str, Any]):
 
 
 def build_tokenizer(
-    om_tokenizer_config: DictConfig,) -> PreTrainedTokenizerBase:
-    if om_tokenizer_config.name == 'openai':
-        return OpenAITokenizerWrapper(om_tokenizer_config.kwargs['name'])
+    tokenizer_name: str,
+    tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
+    if tokenizer_name == 'openai':
+        return OpenAITokenizerWrapper(tokenizer_name)
     else:
         os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
         os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    resolved_om_tokenizer_config = om.to_container(om_tokenizer_config,
-                                                   resolve=True)
-    tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
-        'kwargs', {})
-    tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
                                               **tokenizer_kwargs)
 
-    # HuggingFace does not respect the model_max_length kwarg, and overrides it with
-    # min(kwargs['model_max_length'], original_config['model_max_length']), so we
-    # explicitly set it here
-    tokenizer.model_max_length = tokenizer_kwargs.get(
-        'model_max_length',
-        int(1e30),
-    )
+        # HuggingFace does not respect the model_max_length kwarg, and overrides it with
+        # min(kwargs['model_max_length'], original_config['model_max_length']), so we
+        # explicitly set it here
+        tokenizer.model_max_length = tokenizer_kwargs.get(
+            'model_max_length',
+            int(1e30),
+        )
 
-    return tokenizer
+        return tokenizer
 
 
 def build_icl_evaluators(
     icl_tasks: Union[str, ListConfig],
-    tokenizer: AutoTokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     default_max_seq_len: int,
     default_batch_size: int,
     destination_dir: Optional[str] = None,
@@ -200,7 +199,7 @@ def build_icl_evaluators(
 
     icl_tasks_list = None
     if isinstance(icl_tasks, str):
-        print(f'Extracting ICL task config from path: {icl_tasks}')
+        log.info(f'Extracting ICL task config from path: {icl_tasks}')
         with open(icl_tasks, 'r') as icl_f:
             icl_task_cfg = om.load(icl_f)
         icl_tasks_list = icl_task_cfg.icl_tasks

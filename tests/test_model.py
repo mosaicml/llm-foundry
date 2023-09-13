@@ -19,9 +19,9 @@ from composer.trainer.dist_strategy import prepare_fsdp_module
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
-from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
-                          PreTrainedModel, PreTrainedTokenizer,
-                          PreTrainedTokenizerFast, pipeline)
+from transformers import (AutoModelForCausalLM, AutoTokenizer, PreTrainedModel,
+                          PreTrainedTokenizer, PreTrainedTokenizerFast,
+                          pipeline)
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
@@ -42,6 +42,12 @@ def get_config(
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return cast(DictConfig, test_cfg)
+
+
+def _load_tokenizer_cfg(cfg: DictConfig) -> Dict:
+    config = om.to_container(cfg, resolve=True)
+    assert isinstance(config, Dict)
+    return config
 
 
 def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
@@ -74,7 +80,9 @@ def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     test_cfg.device_eval_batch_size = 2
     test_cfg.device_train_microbatch_size = 2
 
-    tokenizer = build_tokenizer(test_cfg.tokenizer)
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
 
     model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                          tokenizer)
@@ -172,7 +180,7 @@ def test_attention_mechanism(batch_size: int = 2):
     # and with 0 everywhere else
     expected_zerod_weights = nn.Transformer.generate_square_subsequent_mask(test_cfg.max_seq_len)\
         .reshape(1, test_cfg.max_seq_len, test_cfg.max_seq_len)
-    expected_zerod_weights = torch.isneginf(  # type: ignore
+    expected_zerod_weights = torch.isneginf(
         torch.cat(batch_size * [expected_zerod_weights]))
     torch_key_padding = torch.cat(  # type: ignore
         test_cfg.max_seq_len *
@@ -221,7 +229,9 @@ def test_full_forward_and_backward_gpt2_small(prefixlm: bool,
     else:
         neo_cfg.model.name = 'hf_causal_lm'
 
-    tokenizer = build_tokenizer(neo_cfg.tokenizer)
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(neo_cfg.tokenizer)
+    tokenizer = build_tokenizer(neo_cfg.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
 
     model = COMPOSER_MODEL_REGISTRY[neo_cfg.model.name](neo_cfg.model,
                                                         tokenizer).to(device)
@@ -264,7 +274,9 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     t5_cfg.device = device
     t5_cfg.max_seq_len = 16
 
-    tokenizer = build_tokenizer(t5_cfg.tokenizer)
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(t5_cfg.tokenizer)
+    tokenizer = build_tokenizer(t5_cfg.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
 
     model = COMPOSER_MODEL_REGISTRY[t5_cfg.model.name](t5_cfg.model,
                                                        tokenizer).to(device)
@@ -316,7 +328,9 @@ def test_determinism(attn_impl: str, precision: torch.dtype):
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
-    tokenizer = build_tokenizer(test_cfg.tokenizer)
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
 
     model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                            tokenizer)
@@ -363,8 +377,9 @@ def test_loss_fn():
         pytest.skip('Fused cross entropy was not installed')
 
     # run numerical test in pure fp32
-    torch.backends.cuda.matmul.allow_tf32 = False  # type: ignore (third-party)
-    torch.backends.cudnn.allow_tf32 = False  # type: ignore (third-party)
+    from torch.backends import cuda, cudnn
+    cuda.matmul.allow_tf32 = False
+    cudnn.allow_tf32 = False
 
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
@@ -381,7 +396,9 @@ def test_loss_fn():
 
     reproducibility.seed_all(test_cfg.get('global_seed', 42))
 
-    tokenizer = build_tokenizer(test_cfg.tokenizer)
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
 
     model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                            tokenizer)
@@ -440,7 +457,9 @@ def test_opt_wrapping(prefixlm: bool):
     }
     config = DictConfig(conf)
 
-    tokenizer = build_tokenizer(config.tokenizer)
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
+    tokenizer = build_tokenizer(config.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
 
     if prefixlm:
         model = ComposerHFPrefixLM(config.model, tokenizer)
@@ -803,7 +822,8 @@ def test_generate_with_device_map(tmp_path: pathlib.Path, world_size: int,
     mpt = MPTForCausalLM(hf_config)
     mpt.save_pretrained(save_path)
 
-    AutoConfig.register('mpt', MPTConfig)
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
 
@@ -1376,7 +1396,8 @@ def test_hf_init(tmp_path: pathlib.Path,
     mpt = MPTForCausalLM(hf_config)
     mpt.save_pretrained(save_path)
 
-    AutoConfig.register('mpt', MPTConfig)
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
 
     context = contextlib.nullcontext()
@@ -1388,7 +1409,10 @@ def test_hf_init(tmp_path: pathlib.Path,
         model = AutoModelForCausalLM.from_pretrained(save_path,
                                                      trust_remote_code=True)
 
-    tokenizer = build_tokenizer(test_cfg.tokenizer)
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
+
     optimizer = DecoupledAdamW(model.parameters(),
                                lr=1e-5,
                                betas=tuple([0.9, 0.99]))
@@ -1435,7 +1459,9 @@ def test_head_dim_8_triton_mqa_attn(batch_size: int = 2):
     )
     test_cfg.device = torch.cuda.current_device()
 
-    tokenizer = build_tokenizer(test_cfg.tokenizer)
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
 
     mpt = MPTForCausalLM(hf_config)
 

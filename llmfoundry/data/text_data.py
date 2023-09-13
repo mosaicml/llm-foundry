@@ -5,7 +5,8 @@
 
 import os
 from itertools import islice
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
+from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
+                    Union, cast)
 
 import numpy as np
 import torch
@@ -65,6 +66,7 @@ class StreamingTextDataset(StreamingDataset):
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``. Defaults to ``balanced``.
     """
 
     def __init__(self,
@@ -88,6 +90,7 @@ class StreamingTextDataset(StreamingDataset):
                  shuffle_algo: str = 'py1b',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
+                 sampling_method: str = 'balanced',
                  **kwargs: Any):
 
         group_method = kwargs.pop('group_method', None)
@@ -110,6 +113,10 @@ class StreamingTextDataset(StreamingDataset):
                         f'local directory {local} does not contain split {split}'
                     )
 
+        # TODO: discover where yamls are being converted incorrect, but temporary workaround
+        if isinstance(shuffle_block_size, float):
+            shuffle_block_size = int(shuffle_block_size)
+
         # Build Dataset
         super().__init__(
             streams=streams,
@@ -130,6 +137,7 @@ class StreamingTextDataset(StreamingDataset):
             shuffle_algo=shuffle_algo,
             shuffle_seed=shuffle_seed,
             shuffle_block_size=shuffle_block_size,
+            sampling_method=sampling_method,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
@@ -186,11 +194,12 @@ class ConcatenatedSequenceCollatorWrapper:
                 '`bos_token_id` if sequences start with a BOS token.'
             )
 
-        self.split_token_id = eos_token_id
-        self.bos_mode = False
         if eos_token_id is None:
-            self.split_token_id = bos_token_id
+            self.split_token_id = cast(int, bos_token_id)
             self.bos_mode = True
+        else:
+            self.split_token_id = eos_token_id
+            self.bos_mode = False
 
     def __call__(self, examples: List[Any]) -> Dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
@@ -199,8 +208,7 @@ class ConcatenatedSequenceCollatorWrapper:
 
     def get_sequence_id_from_batch(
             self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
-        is_separator = torch.eq(batch['input_ids'],
-                                self.split_token_id)  # type: ignore
+        is_separator = torch.eq(batch['input_ids'], self.split_token_id)
         cumulative_sep = torch.cumsum(is_separator,
                                       dim=1).to(batch['input_ids'].dtype)
         # If separator token is bos, we're already done
@@ -244,6 +252,7 @@ def build_text_dataloader(
     dataset = StreamingTextDataset(
         tokenizer=tokenizer,
         streams=streams,
+        batch_size=device_batch_size,
         **cfg.dataset,
     )
 
@@ -327,13 +336,14 @@ if __name__ == '__main__':
     cfg = om.create(cfg)
     device_batch_size = 2
 
-    tokenizer_cfg = {'name': args.tokenizer, 'kwargs': {}}
-    tokenizer_cfg['kwargs'] = {'model_max_length': args.max_seq_len}
-    tokenizer_cfg = om.create(tokenizer_cfg)
-    tokenizer = build_tokenizer(tokenizer_cfg)
+    tokenizer_name = args.tokenizer
+    tokenizer_kwargs = {'model_max_length': args.max_seq_len}
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     loader = build_text_dataloader(cfg, tokenizer, device_batch_size)
-    tokenizer = loader.dataset.tokenizer  # type: ignore
+    assert isinstance(loader.dataset, StreamingTextDataset)
+    tokenizer = loader.dataset.tokenizer
+
     for batch_ix, batch in enumerate(islice(loader, 5)):
         print('\n')
         print('#' * 20, f'Batch {batch_ix}', '#' * 20)

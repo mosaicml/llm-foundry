@@ -23,7 +23,7 @@ class MLP(nn.Module):
         self.fc1 = nn.Linear(cfg.in_features, cfg.out_features, bias=True)
         self.ln_1 = nn.LayerNorm(cfg.out_features)
         self.fc2 = nn.Linear(cfg.out_features, cfg.out_features, bias=True)
-        self.fc2._is_residual = True  # type: ignore
+        self.fc2._is_residual = True
 
     def forward(self, x: torch.Tensor):
         y = self.ln_1(self.fc1(x))
@@ -76,7 +76,7 @@ def test_fused_init_helper(fused: bool):
     fc = nn.Linear(cfg.in_features, cfg.out_features, bias=True)
     fc.train()
     if fused:
-        fc._fused = (0, (cfg.out_features // 2,))  # type: ignore
+        fc._fused = (0, (cfg.out_features // 2,))
 
     def init_fn_(weight: torch.Tensor):
         # dummy init based on layer width
@@ -159,18 +159,18 @@ def test_emb_init(emb_init_cfg: Optional[Tuple[str, Union[int, List[int]]]]):
 
     model.apply(partial(MODEL_INIT_REGISTRY['kaiming_normal_'], **dict_cfg))
 
+    assert isinstance(model.emb, torch.nn.Embedding)
+
     if dict_cfg.get('emb_init_std') is not None:
         emb_init_std = dict_cfg.get('emb_init_std')
         if emb_init_std == 0:
-            assert (model.emb.weight == 0).all()  # type: ignore
+            assert (model.emb.weight == 0).all()
     elif dict_cfg.get('emb_init_uniform_lim') is not None:
         emb_init_uniform_lim = dict_cfg.get('emb_init_uniform_lim')
         if emb_init_uniform_lim == 0:
-            assert (model.emb.weight == 0).all()  # type: ignore
+            assert (model.emb.weight == 0).all()
         elif isinstance(emb_init_uniform_lim, Sequence):
             assert len(emb_init_uniform_lim) <= 2
             if len(emb_init_uniform_lim
                   ) == 2 and emb_init_uniform_lim[0] == emb_init_uniform_lim[1]:
-                assert isinstance(model.emb, torch.nn.Embedding)
-                assert (model.emb.weight == emb_init_uniform_lim[0]
-                       ).all()  # type: ignore
+                assert (model.emb.weight == emb_init_uniform_lim[0]).all()

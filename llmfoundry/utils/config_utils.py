@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
+import logging
 import math
 import warnings
 from typing import Any, Dict, Mapping, Optional, Union
@@ -11,6 +12,8 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.utils import init_empty_weights
+
+log = logging.getLogger(__name__)
 
 
 def pop_config(cfg: DictConfig,
@@ -29,7 +32,7 @@ def pop_config(cfg: DictConfig,
         if not isinstance(value, DictConfig) and not isinstance(
                 value, ListConfig):
             raise ValueError(
-                f'The key: {key} has a value: {value} that cannot be \
+                f'The key {key} has a value of type {type(value)} that cannot be \
                             converted to a dict or list. Please check your yaml.'
             )
         return om.to_container(value)
@@ -56,8 +59,8 @@ def calculate_batch_size_info(global_batch_size: int,
         device_grad_accum = 'auto'
     elif isinstance(device_microbatch_size, int):
         if device_microbatch_size > device_batch_size:
-            print(
-                f'WARNING: device_microbatch_size > device_batch_size, ' +
+            log.warn(
+                f'device_microbatch_size > device_batch_size, ' +
                 f'will be reduced from {device_microbatch_size} -> {device_batch_size}.'
             )
             device_microbatch_size = device_batch_size

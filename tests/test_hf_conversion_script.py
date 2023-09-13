@@ -249,12 +249,6 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
             'pretrained': False,
             'init_device': 'cpu',
         }
-        model_cfg['model'][
-            'pretrained_model_name_or_path'] = 'meta-llama/Llama-2-7b-hf'
-        model_cfg['model']['config_overrides']['num_hidden_layers'] = 2
-        model_cfg['model']['config_overrides']['hidden_size'] = 32
-        model_cfg['model']['config_overrides']['intermediate_size'] = 64
-        model_cfg['model']['use_auth_token'] = True
         tokenizer_name = 'meta-llama/Llama-2-7b-hf'
     else:
         raise ValueError(f'Unknown model {model}')

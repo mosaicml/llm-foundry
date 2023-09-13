@@ -1,13 +1,10 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: add_openai_wrapper # use your branch
+  git_branch: # use your branch
   # git_commit: 29d65cc26853c09f6de7542978056ddb0b07e98c # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
-- integration_type: wandb
-  project: model-gauntlet-v0
-  entity: mosaic-ml
 
 command: |
   cd llm-foundry/scripts
@@ -23,11 +20,8 @@ image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
-  dist_timeout: 6000
   seed: 1
   max_seq_len: 1024
-  device_eval_batch_size: 4
-  precision: amp_fp16
 
   models:
   -

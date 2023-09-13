@@ -6,7 +6,6 @@ from typing import Any, Dict, Optional
 import torch
 from composer.core.types import Batch
 from composer.metrics import InContextLearningMetric
-# required for loading a python model into composer
 from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
                                   InContextLearningMCExpectedCalibrationError,
@@ -37,18 +36,18 @@ class InferenceAPIEvalWrapper(ComposerModel):
         self.eval_metrics = {
             metric.__class__.__name__: metric for metric in eval_metrics
         }
-        super(InferenceAPIEvalWrapper, self).__init__()
-        self.mocked_layer = torch.nn.Linear(2, 3)
+        super().__init__()
 
     def get_metrics(self, is_train: bool = False):
         if is_train:
-            metrics = []
+            raise NotImplementedError("You cannot use OpenAI inference wrappers for training")
         else:
             metrics = self.eval_metrics
 
         return metrics if metrics else {}
 
-    def get_next_token_logit_tensor(self, prompt: str):
+    def get_next_token_logit_tensor(self, prompt: str) -> Optional[torch.Tensor]:
+        # returns None if the inference API stopped early
         raise NotImplementedError
 
     def rebatch(self, batch: Batch):
@@ -69,7 +68,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
             expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
             output_logits = torch.nn.functional.one_hot(
                 torch.tensor(tokens[1:cont_idxs[0]]),
-                num_classes=self.tokenizer.pad_token_id + 1)
+                num_classes=self.tokenizer.vocab_size)
             for i in range(len(expected_cont_tokens)):
                 # decode one token at a time
                 prompt = self.tokenizer.decode(tokens[:cont_idxs[0]] +
@@ -83,7 +82,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
             padding = torch.nn.functional.one_hot(
                 torch.full((seqlen - output_logits.shape[0],),
                            self.tokenizer.pad_token_id),
-                num_classes=self.tokenizer.pad_token_id + 1)
+                num_classes=self.tokenizer.vocab_size)
             output_logits = torch.cat([output_logits, padding])
             output_logits_batch.append(output_logits)
 
@@ -99,12 +98,10 @@ class InferenceAPIEvalWrapper(ComposerModel):
             assert self.labels is not None
             metric.update(batch, outputs, self.labels)
         else:
-            metric.update(
-                outputs,
-                self.labels)  # pyright: ignore [reportGeneralTypeIssues]
+            raise NotImplementedError("Inference API wrapper only supports InContextLearningMetrics and mode=icl_task")
 
     def forward(self):
-        pass
+        raise NotImplementedError("Inference API wrapper doesn't support forward")
 
     def loss(self):
-        pass
+        raise NotImplementedError("Inference API wrapper doesn't support loss")

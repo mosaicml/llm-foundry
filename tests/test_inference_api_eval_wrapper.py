@@ -36,23 +36,10 @@ def load_icl_config():
     })
 
 
-@pytest.fixture(autouse=True, scope='function')
-def tmp_dir():
-    TMP_FOLDER = 'tmp_data' + str(random.randint(0, 100_000))
-    dirpath = Path(TMP_FOLDER)
-    if dirpath.exists() and dirpath.is_dir():
-        shutil.rmtree(dirpath)
-    os.mkdir(TMP_FOLDER)
-    yield TMP_FOLDER
-    dirpath = Path(TMP_FOLDER)
-    if dirpath.exists() and dirpath.is_dir():
-        shutil.rmtree(dirpath)
-
-
 @pytest.mark.skipif(
     os.getenv('OPENAI_API_KEY') is None,
     reason='Unit test requires OPENAI_API_KEY environment variable.')
-def test_openai_api_eval_wrapper(tmp_dir: str):
+def test_openai_api_eval_wrapper(tmp_path):
     model_name = 'davinci'
     tokenizer = OpenAITokenizerWrapper(model_name)
     model = OpenAICausalLMEvalWrapper(model_cfg={'version': model_name},
@@ -63,7 +50,7 @@ def test_openai_api_eval_wrapper(tmp_dir: str):
         tokenizer,
         1024,
         8,
-        destination_dir=f'{os.getcwd()}/{tmp_dir}')
+        destination_dir=str(tmp_path))
 
     batch = next(evaluators[0].dataloader.dataloader.__iter__())
     result = model.eval_forward(batch)
@@ -80,7 +67,7 @@ def test_openai_api_eval_wrapper(tmp_dir: str):
 @pytest.mark.skipif(
     os.getenv('OPENAI_API_KEY') is None,
     reason='Unit test requires OPENAI_API_KEY environment variable.')
-def test_chat_api_eval_wrapper(tmp_dir: str):
+def test_chat_api_eval_wrapper(tmp_path):
     model_name = 'gpt-3.5-turbo'
     tokenizer = OpenAITokenizerWrapper(model_name)
     chatmodel = OpenAIChatAPIEvalWrapper(model_cfg={'version': model_name},
@@ -91,7 +78,7 @@ def test_chat_api_eval_wrapper(tmp_dir: str):
         tokenizer,
         1024,
         8,
-        destination_dir=f'{os.getcwd()}/{tmp_dir}')
+        destination_dir=str(tmp_path))
 
     batch = next(evaluators[0].dataloader.dataloader.__iter__())
     result = chatmodel.eval_forward(batch)

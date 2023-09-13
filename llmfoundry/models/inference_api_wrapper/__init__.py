@@ -8,5 +8,5 @@ from llmfoundry.models.inference_api_wrapper.openai_causal_lm import (
 
 __all__ = [
     'OpenAICausalLMEvalWrapper', 'OpenAIChatAPIEvalWrapper',
-    'OpenAITokenizerWrapper', 'InferenceAPIEvalWrapper'
+    'OpenAITokenizerWrapper', 'InferenceAPIEvalWrapper',
 ]

@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Implements a Hugging Causal LM wrapped inside a :class:`.ComposerModel`."""
+"""Implements a OpenAI chat and causal LM inference API wrappers."""
 
 import os
 from time import sleep
@@ -12,7 +12,7 @@ import tiktoken
 import torch
 from composer.core.types import Batch
 from openai.error import RateLimitError
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast, AutoTokenizer
 
 from llmfoundry.models.inference_api_wrapper.interface import \
     InferenceAPIEvalWrapper
@@ -25,10 +25,10 @@ __all__ = [
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
-MAX_RETRIES = 100
+MAX_RETRIES = 10
 
 
-class OpenAITokenizerWrapper:
+class OpenAITokenizerWrapper(AutoTokenizer):
 
     def __init__(self, name: str) -> None:
         self.tokenizer = tiktoken.encoding_for_model(name)
@@ -55,8 +55,11 @@ class OpenAITokenizerWrapper:
             raise ValueError(
                 f'`encode` argument must be str or List[str], got: {type(x)}')
 
-    def decode(self, x: List[int]):
-        return self.tokenizer.decode(x)
+    def decode(self, x: Union[List[int], List[List[int]]],):
+        if len(x) > 0 and isinstance(x[0], list):
+            return self.tokenizer.decode_batch(x)
+        else:
+            return self.tokenizer.decode(x)
 
     @property
     def pad_token_id(self):
@@ -66,9 +69,18 @@ class OpenAITokenizerWrapper:
     def eos_token_id(self):
         return self.tokenizer.eot_token
 
+    @property
+    def vocab_size(self):
+        return self.tokenizer.n_vocab
+    
     def construct_logit_tensor(self, logprobs: Dict[str, float]):
+        """Construct logit tensor of shape (vocab_size,) from mapping of words to logprobs.
+
+        Args:
+            logprobs (Dict[str, float]): Dictionary mapping tokens to log probabilities assigned to them by the model.
+        """
         tensor = torch.tensor([min(logprobs.values()) - 1] *
-                              (self.pad_token_id + 1))
+                              (self.vocab_size))
         for k in logprobs:
             encoding = self.encode(k)['input_ids']
             idx = encoding[0]
@@ -79,14 +91,22 @@ class OpenAITokenizerWrapper:
 class OpenAIChatAPIEvalWrapper(InferenceAPIEvalWrapper):
 
     def retokenize(self, tokens: List[int], cont_idxs: List[int]):
+        """
+        ChatAPI will never respond with a word-initial space.
+        
+        If the continuation tokens begin with a word initial space, we need to re-tokenize with the space removed.
+        """
         original_len = len(tokens)
         retokenized_continuation = self.tokenizer.encode(
             self.tokenizer.decode(tokens[cont_idxs[0]:cont_idxs[-1] +
                                          1]).strip())['input_ids']
+        
+        # replace the origina continuation with the retokenized continuation + padding
         tokens = tokens[:cont_idxs[0]] + retokenized_continuation + [
             tokens[-1]
         ] * (len(tokens) -
-             len(tokens[:cont_idxs[0]] + retokenized_continuation))
+             len(tokens[:cont_idxs[0]] + retokenized_continuation)) 
+        
         if len(tokens) > original_len:
             # this only happens if we were already at max seq len and the continuation got LARGER
             tokens = tokens[-original_len:]
@@ -100,6 +120,12 @@ class OpenAIChatAPIEvalWrapper(InferenceAPIEvalWrapper):
         return torch.tensor(tokens), torch.tensor(cont_idxs)
 
     def rebatch(self, batch: Batch):
+        """ChatAPI tokenization has different behavior than GPT3.
+
+        Model responses will never begin with spaces even if the continuation is expected to, so we need to retokenize the
+        input to account for that.
+        """
+        breakpoint()
         new_batch: Dict[str, Union[List[torch.Tensor], torch.Tensor]] = {
             'input_ids': [],
             'continuation_indices': [],
@@ -127,9 +153,10 @@ class OpenAIChatAPIEvalWrapper(InferenceAPIEvalWrapper):
         return new_batch
 
     def eval_forward(self, batch: Batch, outputs: Optional[Any] = None):
-        # If the batch mode is generate, we will generate a requested number of tokens using the underlying
-        # model's generate function. Extra generation kwargs can be passed in via the batch. Strings will
-        # be returned from eval_forward
+        # Override the base class because Chat's API always strips spacing from model outputs resulting in different tokens
+        # than what the continuation would expect.
+        # Get around this issue by retokenizing the batch to remove spacing from the continuation as well as 
+        # decoding the whole continuation at once.
         output_logits_batch = []
         batch = self.rebatch(batch)
         for tokens, cont_idxs in zip(batch['input_ids'],
@@ -141,7 +168,7 @@ class OpenAIChatAPIEvalWrapper(InferenceAPIEvalWrapper):
             expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
             output_logits = torch.nn.functional.one_hot(
                 torch.tensor(tokens[1:cont_idxs[0]]),
-                num_classes=self.tokenizer.pad_token_id + 1)
+                num_classes=self.tokenizer.vocab_size)
 
             prompt = self.tokenizer.decode(tokens[:cont_idxs[0]])
             next_logit_tensor = self.get_next_token_logit_tensor(
@@ -152,7 +179,7 @@ class OpenAIChatAPIEvalWrapper(InferenceAPIEvalWrapper):
             padding = torch.nn.functional.one_hot(
                 torch.full((seqlen - output_logits.shape[0],),
                            self.tokenizer.pad_token_id),
-                num_classes=self.tokenizer.pad_token_id + 1)
+                num_classes=self.tokenizer.vocab_size)
             output_logits = torch.cat([output_logits, padding])
             output_logits_batch.append(output_logits)
 

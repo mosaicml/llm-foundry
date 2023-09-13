@@ -1,8 +1,5 @@
-dist_timeout: 6000
 seed: 1
 max_seq_len: 1024
-device_eval_batch_size: 4
-precision: fp32 # we don't control OpenAI's precision, so this key is no-op for OpenAI models
 
 models:
 -

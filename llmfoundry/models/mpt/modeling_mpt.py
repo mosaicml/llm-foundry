@@ -63,6 +63,10 @@ except:
     pass
 # isort: on
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
@@ -118,8 +122,8 @@ class MPTModel(MPTPreTrainedModel):
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         if config.init_device != 'meta':
-            print(
-                f'You are using {config.init_device=}, but you can also use config.init_device="meta" with Composer + FSDP for fast initialization.'
+            log.info(
+                f'We recommend using config.init_device="meta" with Composer + FSDP for faster initialization.'
             )
             self.apply(self.param_init_fn)
 
@@ -142,19 +146,11 @@ class MPTModel(MPTPreTrainedModel):
             for module in self.modules():
                 if hasattr(module, 'bias') and isinstance(
                         module.bias, nn.Parameter):
-                    if config.verbose:
-                        warnings.warn(
-                            f'Removing bias ({module.bias}) from {module}.')
+                    log.info(f'Removing bias ({module.bias}) from {module}.')
                     module.register_parameter('bias', None)
 
-        # Print verbose info
-        if config.verbose and config.verbose > 2:
-            print(self)
-        if 'verbose' not in self.config.init_config:
-            self.config.init_config['verbose'] = self.config.verbose
-        if self.config.init_config['verbose'] > 1:
-            init_fn_name = self.config.init_config['name']
-            warnings.warn(f'Using {init_fn_name} initialization.')
+        log.debug(self)
+        log.debug(f'Using {self.config.init_config["name"]} initialization.')
 
     def get_input_embeddings(self):
         return self.wte
@@ -486,7 +482,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             raise ValueError(
                 'MPTForCausalLM only supports tied word embeddings')
 
-        print(f'Instantiating an MPTForCausalLM model from {__file__}')
+        log.info(f'Instantiating an MPTForCausalLM model from {__file__}')
 
         self.transformer: MPTModel = MPTModel(config)
 
@@ -717,8 +713,6 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 from flash_attn.losses.cross_entropy import \
                     CrossEntropyLoss as FusedCrossEntropyLoss
 
-                if hf_config.verbose > 1:
-                    warnings.warn('Using Fused Cross Entropy Loss.')
                 self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
             except:
                 raise ValueError(

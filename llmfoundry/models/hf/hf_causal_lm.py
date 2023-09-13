@@ -3,6 +3,7 @@
 
 """Implements a Hugging Causal LM wrapped inside a :class:`.ComposerModel`."""
 
+import logging
 import os
 from typing import Mapping, Union
 
@@ -34,6 +35,8 @@ except ImportError:
     model_types = transformers.PreTrainedModel
 
 __all__ = ['ComposerHFCausalLM']
+
+log = logging.getLogger(__name__)
 
 
 class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
@@ -185,7 +188,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                         f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
                     )
 
-                print(
+                log.debug(
                     f'Patching llama attention with {attention_patch_type} attention'
                 )
                 from transformers.models.llama.modeling_llama import \

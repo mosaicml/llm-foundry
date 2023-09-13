@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import copy
+import logging
 import os
 import sys
 import warnings
@@ -346,10 +347,10 @@ def main(cfg: DictConfig) -> Trainer:
                                       'log_to_console',
                                       must_exist=False,
                                       default_value=True)
-    python_log_level: str = pop_config(cfg,
-                                       'python_log_level',
-                                       must_exist=False,
-                                       default_value='debug')
+    python_log_level: Optional[str] = pop_config(cfg,
+                                                 'python_log_level',
+                                                 must_exist=False,
+                                                 default_value='debug')
     console_log_interval: Union[int, str] = pop_config(cfg,
                                                        'console_log_interval',
                                                        must_exist=False,
@@ -413,6 +414,16 @@ def main(cfg: DictConfig) -> Trainer:
         warnings.warn(
             'FSDP is not applicable for single-GPU training. Reverting to DDP.')
         fsdp_config = None
+
+    # set logging level
+    if python_log_level is not None:
+        logging.basicConfig(
+            # Example of format string
+            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)

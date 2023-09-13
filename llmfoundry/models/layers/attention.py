@@ -418,7 +418,6 @@ class GroupedQueryAttention(nn.Module):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
-        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__()
@@ -476,21 +475,8 @@ class GroupedQueryAttention(nn.Module):
             self.attn_fn = flash_attn_fn
         elif self.attn_impl == 'triton':
             self.attn_fn = triton_flash_attn_fn
-            if verbose:
-                warnings.warn(
-                    'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
-                    'it uses more memory. When training larger models this can trigger '  +\
-                    'alloc retries which hurts performance. If encountered, we recommend ' +\
-                    'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.'
-                )
         elif self.attn_impl == 'torch':
             self.attn_fn = scaled_multihead_dot_product_attention
-            if torch.cuda.is_available() and verbose:
-                warnings.warn(
-                    'Using `attn_impl: torch`. If your model does not use `alibi` or ' +\
-                    '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' +\
-                    'we recommend using `attn_impl: triton`.'
-                )
         else:
             raise ValueError(f'{attn_impl=} is an invalid setting.')
 
@@ -569,7 +555,6 @@ class MultiheadAttention(GroupedQueryAttention):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
-        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__(
@@ -583,7 +568,6 @@ class MultiheadAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
-            verbose=verbose,
             device=device)
 
 
@@ -605,7 +589,6 @@ class MultiQueryAttention(GroupedQueryAttention):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
-        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__(
@@ -619,7 +602,6 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
-            verbose=verbose,
             device=device)
 
 

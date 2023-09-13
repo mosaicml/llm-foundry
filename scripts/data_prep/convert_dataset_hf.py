@@ -342,9 +342,8 @@ def main(args: Namespace) -> None:
         # Write samples
         print(f'Converting {folder_split} to MDS format...')
         print(
-            f'Note that the progress bar is based on the dataset length before tokenization.'
+            f'Note: the progress bar is based on the dataset length before tokenization, and may finish at a value before 100%.'
         )
-        print(f'It will finish at a value below 100% if tokenizing')
         with MDSWriter(columns=columns,
                        out=os.path.join(args.out_root, folder_split),
                        compression=args.compression) as out:

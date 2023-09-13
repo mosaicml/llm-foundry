@@ -80,21 +80,27 @@ def init_on_device(device: torch.device, include_buffers: bool = False):
     if include_buffers:
         old_register_buffer = nn.Module.register_buffer
 
-    def register_empty_parameter(module: torch.nn.Module, name: str,
+    def register_empty_parameter(self: torch.nn.Module, name: str,
                                  param: Optional[torch.nn.Parameter]):
-        old_register_parameter(module, name, param)
+        old_register_parameter(self, name, param)
         if param is not None:
-            param_cls = type(module._parameters[name])
-            kwargs = module._parameters[name].__dict__  # type: ignore
-            module._parameters[name] = param_cls(
-                module._parameters[name].to(device), **kwargs)  # type: ignore
+            parameter = self._parameters[name]
+            assert parameter is not None
 
-    def register_empty_buffer(module: torch.nn.Module, name: str,
-                              buffer: Optional[torch.Tensor]):
-        old_register_buffer(module, name, buffer)
-        if buffer is not None:
-            module._buffers[name] = module._buffers[name].to(  # type: ignore
-                device)
+            param_cls = type(parameter)
+            kwargs = parameter.__dict__
+
+            self._parameters[name] = param_cls(parameter.to(device), **kwargs)
+
+    def register_empty_buffer(self: torch.nn.Module,
+                              name: str,
+                              tensor: Optional[torch.Tensor],
+                              persistent: bool = True):
+        old_register_buffer(self, name, tensor, persistent=persistent)
+        if tensor is not None:
+            named_buffer = self._buffers[name]
+            assert named_buffer is not None
+            self._buffers[name] = named_buffer.to(device)
 
     # Patch tensor creation
     if include_buffers:
@@ -114,9 +120,9 @@ def init_on_device(device: torch.device, include_buffers: bool = False):
         return wrapper
 
     try:
-        nn.Module.register_parameter = register_empty_parameter  # type: ignore
+        nn.Module.register_parameter = register_empty_parameter
         if include_buffers:
-            nn.Module.register_buffer = register_empty_buffer  # type: ignore
+            nn.Module.register_buffer = register_empty_buffer
         for torch_function_name in tensor_constructors_to_patch.keys():
             setattr(
                 torch, torch_function_name,

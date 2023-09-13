@@ -257,7 +257,7 @@ def build_dataloader(dataset: Dataset, batch_size: int,
     if num_workers is None:
         # Multiple workers is only supported on linux machines
         if 'linux' or 'macos' in platform.platform().lower():
-            num_workers = max(1, psutil.cpu_count())  # type: ignore
+            num_workers = max(1, psutil.cpu_count())
         else:
             num_workers = 0
 
@@ -368,9 +368,8 @@ def main(args: Namespace) -> None:
         # Write samples
         print(f'Converting {folder_split} to MDS format...')
         print(
-            f'Note that the progress bar is based on the dataset length before tokenization.'
+            f'Note: the progress bar is based on the dataset length before tokenization, and may finish at a value before 100%.'
         )
-        print(f'It will finish at a value below 100% if tokenizing')
         with MDSWriter(columns=columns,
                        out=os.path.join(args.out_root, folder_split),
                        compression=args.compression) as out:

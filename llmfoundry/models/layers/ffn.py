@@ -40,7 +40,7 @@ class MPTMLP(nn.Module):
             d_model,
             **fc_kwargs,
         )
-        self.down_proj._is_residual = True  # type: ignore
+        self.down_proj._is_residual = True
 
     def forward(self, x: torch.Tensor):
         return self.down_proj(self.act(self.up_proj(x)))

@@ -79,7 +79,7 @@ def _convert_gpt_causal_lm_to_prefix_lm(
         else:
             blocks = model.transformer.h
 
-        for block in blocks:  # type: ignore
+        for block in blocks:
             if isinstance(model, GPTNeoForCausalLM):
                 # Ignore "local" layers in this model type
                 if block.attn.attention_type != 'global':
@@ -150,7 +150,7 @@ def _convert_gpt_causal_lm_to_prefix_lm(
 
         if bidirectional_mask is None:
             # This wrapper is a no-op if bidirectional masks are not supplied
-            return call_og_forward()  # type: ignore
+            return call_og_forward()
         assert isinstance(bidirectional_mask, torch.Tensor)
 
         attn_modules = _get_attn_modules(model)
@@ -158,7 +158,9 @@ def _convert_gpt_causal_lm_to_prefix_lm(
         # Handle bidirectional_mask sizing
         # Note: all attn_modules.bias have the same size
         b, s = bidirectional_mask.shape
+
         max_length = attn_modules[0].bias.shape[-1]  # type: ignore
+
         if s > max_length:
             raise ValueError(
                 f'bidirectional_mask sequence length (={s}) exceeds the ' +\
@@ -174,8 +176,9 @@ def _convert_gpt_causal_lm_to_prefix_lm(
 
         # Incorporate the bidirectional mask into the original causal mask
         for attn_module in attn_modules:
-            attn_module.bias.data = torch.logical_or(
-                attn_module.bias.data, bidirectional)  # type: ignore
+            assert isinstance(attn_module.bias, torch.Tensor)
+            attn_module.bias.data = torch.logical_or(attn_module.bias.data,
+                                                     bidirectional)
 
         # Collect outputs using the model's original forward method
         output = call_og_forward()
@@ -201,7 +204,7 @@ def _convert_gpt_causal_lm_to_prefix_lm(
             attn_module.bias.data[:] = 1  # type: ignore
 
         # Collect outputs using the model's original forward method
-        output = self._original_generate(*args, **kwargs)  # type: ignore
+        output = self._original_generate(*args, **kwargs)
 
         # Reset the masks
         for attn_module in attn_modules:
@@ -330,7 +333,7 @@ def _convert_bloom_causal_lm_to_prefix_lm(
     # and one new argument (`bidirectional_mask`) is added to the signature.
     KeyValueT = Tuple[torch.Tensor, torch.Tensor]
 
-    def forward(  # type: ignore
+    def transformer_forward(
         self: BloomModel,
         input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[Tuple[KeyValueT, ...]] = None,
@@ -342,8 +345,9 @@ def _convert_bloom_causal_lm_to_prefix_lm(
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        **deprecated_arguments: Any) -> Union[Tuple[
-            torch.Tensor, ...], BaseModelOutputWithPastAndCrossAttentions]:
+        **deprecated_arguments: Any
+    ) -> Union[Tuple[torch.Tensor, ...],
+               BaseModelOutputWithPastAndCrossAttentions]:
         if deprecated_arguments.pop('position_ids', False) is not False:
             # `position_ids` could have been `torch.Tensor` or `None` so
             # defaulting pop to `False` allows to detect if users were
@@ -501,8 +505,8 @@ def _convert_bloom_causal_lm_to_prefix_lm(
             MethodType(_prepare_attn_mask, model.transformer))
     setattr(model.transformer, '_build_alibi_tensor',
             MethodType(_build_alibi_tensor, model.transformer))
-    setattr(model.transformer, 'forward', MethodType(forward,
-                                                     model.transformer))
+    setattr(model.transformer, 'forward',
+            MethodType(transformer_forward, model.transformer))
 
     # In order to actually use the new argument we've added to
     # model.transformer, we need to update the parent module's `forward` to

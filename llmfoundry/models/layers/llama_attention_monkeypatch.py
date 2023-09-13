@@ -9,7 +9,8 @@ import logging
 from typing import Callable, Optional, Tuple
 
 import torch
-import torch.functional as F
+import torch.nn.functional as F
+from transformers.models.llama.modeling_llama import LlamaAttention
 
 from llmfoundry.models.layers.attention import (
     scaled_multihead_dot_product_attention, triton_flash_attn_fn)
@@ -42,8 +43,11 @@ def rotate_half(x: torch.Tensor):
     return torch.cat((-x2, x1), dim=-1)
 
 
-def apply_rotary_pos_emb(q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor,
-                         sin: torch.Tensor, position_ids: torch.Tensor):
+def apply_rotary_pos_emb(q: torch.Tensor,
+                         k: torch.Tensor,
+                         cos: torch.Tensor,
+                         sin: torch.Tensor,
+                         position_ids: Optional[torch.Tensor] = None):
     # The first two dimensions of cos and sin are always 1, so we can `squeeze` them.
     cos = cos.squeeze(1).squeeze(0)  # [seq_len, dim]
     sin = sin.squeeze(1).squeeze(0)  # [seq_len, dim]
@@ -65,7 +69,7 @@ def get_llama_attention_patch_fn(patch_fn_name: str = 'torch') -> Callable:
 
 
 def llama_attention_patch_torch(
-    self,  # type: ignore
+    self: LlamaAttention,
     hidden_states: torch.Tensor,
     attention_mask: Optional[torch.Tensor] = None,
     position_ids: Optional[torch.LongTensor] = None,
@@ -89,21 +93,19 @@ def llama_attention_patch_torch(
         value_slices = self.v_proj.weight.split(key_value_slicing, dim=0)
 
         query_states = [
-            F.linear(  # type: ignore (thirdParty)
-                hidden_states, query_slices[i])
+            F.linear(hidden_states, query_slices[i])
             for i in range(self.config.pretraining_tp)
         ]
         query_states = torch.cat(query_states, dim=-1)
 
         key_states = [
-            F.linear(hidden_states, key_slices[i])  # type: ignore (thirdParty)
+            F.linear(hidden_states, key_slices[i])
             for i in range(self.config.pretraining_tp)
         ]
         key_states = torch.cat(key_states, dim=-1)
 
         value_states = [
-            F.linear(  # type: ignore (thirdParty)
-                hidden_states, value_slices[i])
+            F.linear(hidden_states, value_slices[i])
             for i in range(self.config.pretraining_tp)
         ]
         value_states = torch.cat(value_states, dim=-1)
@@ -123,9 +125,9 @@ def llama_attention_patch_torch(
     if past_key_value is not None:
         kv_seq_len += past_key_value[0].shape[-2]
     cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
-    query_states, key_states = apply_rotary_pos_emb(
-        query_states, key_states, cos, sin,
-        position_ids)  # type: ignore (thirdParty)
+
+    query_states, key_states = apply_rotary_pos_emb(query_states, key_states,
+                                                    cos, sin, position_ids)
 
     ### MAIN MODIFICATIONS START HERE ###
     query_states = query_states.transpose(1, 2).view(
@@ -160,21 +162,22 @@ def llama_attention_patch_torch(
                                                  self.config.pretraining_tp,
                                                  dim=1)
         attn_output = sum([
-            F.linear(  # type: ignore (thirdParty)
-                attn_output[i], o_proj_slices[i])
+            F.linear(attn_output[i], o_proj_slices[i])
             for i in range(self.config.pretraining_tp)
         ])
     else:
         attn_output = self.o_proj(attn_output)
 
+    assert isinstance(attn_output, torch.Tensor)
+
     if not output_attentions:
         attn_weights = None
 
-    return attn_output, attn_weights, None  # type: ignore (thirdParty)
+    return attn_output, attn_weights, None
 
 
 def llama_attention_patch_triton(
-    self,  # type: ignore
+    self: LlamaAttention,
     hidden_states: torch.Tensor,
     attention_mask: Optional[torch.Tensor] = None,
     position_ids: Optional[torch.LongTensor] = None,
@@ -190,6 +193,7 @@ def llama_attention_patch_triton(
         raise NotImplementedError(
             'output_attentions is not supported when patching Llama attention with triton attention.'
         )
+
     bsz, q_len, _ = hidden_states.size()
 
     if self.config.pretraining_tp > 1:
@@ -202,21 +206,19 @@ def llama_attention_patch_triton(
         value_slices = self.v_proj.weight.split(key_value_slicing, dim=0)
 
         query_states = [
-            F.linear(  # type: ignore (thirdParty)
-                hidden_states, query_slices[i])
+            F.linear(hidden_states, query_slices[i])
             for i in range(self.config.pretraining_tp)
         ]
         query_states = torch.cat(query_states, dim=-1)
 
         key_states = [
-            F.linear(hidden_states, key_slices[i])  # type: ignore (thirdParty)
+            F.linear(hidden_states, key_slices[i])
             for i in range(self.config.pretraining_tp)
         ]
         key_states = torch.cat(key_states, dim=-1)
 
         value_states = [
-            F.linear(  # type: ignore (thirdParty)
-                hidden_states, value_slices[i])
+            F.linear(hidden_states, value_slices[i])
             for i in range(self.config.pretraining_tp)
         ]
         value_states = torch.cat(value_states, dim=-1)
@@ -236,9 +238,8 @@ def llama_attention_patch_triton(
     if past_key_value is not None:
         kv_seq_len += past_key_value[0].shape[-2]
     cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
-    query_states, key_states = apply_rotary_pos_emb(
-        query_states, key_states, cos, sin,
-        position_ids)  # type: ignore (thirdParty)
+    query_states, key_states = apply_rotary_pos_emb(query_states, key_states,
+                                                    cos, sin, position_ids)
 
     ### MAIN MODIFICATIONS START HERE ###
     query_states = query_states.transpose(1, 2).view(
@@ -273,11 +274,12 @@ def llama_attention_patch_triton(
                                                  self.config.pretraining_tp,
                                                  dim=1)
         attn_output = sum([
-            F.linear(  # type: ignore (thirdParty)
-                attn_output[i], o_proj_slices[i])
+            F.linear(attn_output[i], o_proj_slices[i])
             for i in range(self.config.pretraining_tp)
         ])
     else:
         attn_output = self.o_proj(attn_output)
 
-    return attn_output, None, None  # type: ignore (thirdParty)
+    assert isinstance(attn_output, torch.Tensor)
+
+    return attn_output, None, None

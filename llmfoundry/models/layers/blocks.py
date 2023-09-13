@@ -24,7 +24,6 @@ class MPTBlock(nn.Module):
         ffn_config: Optional[Dict] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        verbose: int = 0,
         fc_type: str = 'torch',
         device: Optional[str] = None,
         **kwargs: Any,
@@ -70,7 +69,6 @@ class MPTBlock(nn.Module):
         self.attn = attn_class(d_model=d_model,
                                n_heads=n_heads,
                                fc_type=fc_type,
-                               verbose=verbose,
                                device=device,
                                **attn_config_subset_for_attn_class)
         self.norm_2 = None

@@ -203,37 +203,75 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
 
     # get small version of each model
     model_cfg = None
+    tokenizer_name = None
     if model == 'mpt':
-        model_cfg = get_config(
-            conf_path='scripts/train/yamls/pretrain/testing.yaml')
+        model_cfg = {
+            'name': 'mpt_causal_lm',
+            'init_device': 'cpu',
+            'd_model': 128,
+            'n_heads': 2,
+            'n_layers': 2,
+            'expansion_ratio': 4,
+            'max_seq_len': max_seq_len,
+            'vocab_size': 50368,
+            'attn_config': {
+                'attn_impl': 'torch',
+            },
+            'loss_fn': 'torch_crossentropy',
+        }
+        tokenizer_name = 'EleutherAI/gpt-neox-20b'
     elif model == 'neo':
-        model_cfg = get_config(
-            conf_path='scripts/train/yamls/pretrain/gpt-neo-125m.yaml')
-        model_cfg['model']['config_overrides']['hidden_size'] = 36
+        model_cfg = {
+            'name': 'hf_causal_lm',
+            'pretrained_model_name_or_path': 'EleutherAI/gpt-neo-125M',
+            'config_overrides': {
+                'max_position_embeddings': max_seq_len,
+                'hidden_size': 36,
+            },
+            'pretrained': False,
+            'init_device': 'cpu',
+        }
+        tokenizer_name = 'EleutherAI/gpt-neox-125M'
     elif model == 'llama2':
         if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
             pytest.skip(
                 'The CI cluster does not have access to the Llama models, so skip this test.'
             )
-        model_cfg = get_config(
-            conf_path='scripts/train/yamls/pretrain/gpt-neo-125m.yaml')
+        model_cfg = {
+            'name': 'hf_causal_lm',
+            'pretrained_model_name_or_path': 'meta-llama/Llama-2-7b-hf',
+            'config_overrides': {
+                'num_hidden_layers': 2,
+                'hidden_size': 32,
+                'intermediate_size': 64,
+            },
+            'use_auth_token': True,
+            'pretrained': False,
+            'init_device': 'cpu',
+        }
         model_cfg['model'][
             'pretrained_model_name_or_path'] = 'meta-llama/Llama-2-7b-hf'
         model_cfg['model']['config_overrides']['num_hidden_layers'] = 2
         model_cfg['model']['config_overrides']['hidden_size'] = 32
         model_cfg['model']['config_overrides']['intermediate_size'] = 64
         model_cfg['model']['use_auth_token'] = True
-        model_cfg['tokenizer']['name'] = 'meta-llama/Llama-2-7b-hf'
+        tokenizer_name = 'meta-llama/Llama-2-7b-hf'
     else:
         raise ValueError(f'Unknown model {model}')
     assert model_cfg is not None
 
-    fsdp_config = model_cfg['fsdp_config']
-    fsdp_config['state_dict_type'] = fsdp_state_dict_type
+    fsdp_config = {
+        'sharding_strategy': 'FULL_SHARD',
+        'mixed_precision': 'PURE',
+        'activation_checkpointing': False,
+        'activation_checkpointing_reentrant': False,
+        'activation_cpu_offload': False,
+        'limit_all_gathers': True,
+        'state_dict_type': fsdp_state_dict_type,
+    }
 
-    model_cfg['model']['init_device'] = 'cpu'
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        model_cfg.tokenizer.name, use_auth_token=model == 'llama2')
+        tokenizer_name, use_auth_token=model == 'llama2')
 
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
@@ -262,7 +300,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     dataloader_cfg = om.create(dataloader_cfg)
 
     tokenizer = build_tokenizer(
-        tokenizer_name=model_cfg['tokenizer']['name'],
+        tokenizer_name=tokenizer_name,
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
@@ -272,10 +310,16 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         device_batch_size,
     )
 
-    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['model'].name](
-        model_cfg['model'], tokenizer)
+    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](
+        model_cfg, tokenizer)
 
-    optimizer_config = model_cfg['optimizer']
+    optimizer_config = {
+        'name': 'decoupled_adamw',
+        'lr': 6e-4,
+        'betas': [0.9, 0.95],
+        'eps': 1e-8,
+        'weight_decay': 0.0,
+    }
     optimizer_name = optimizer_config.pop('name')
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)

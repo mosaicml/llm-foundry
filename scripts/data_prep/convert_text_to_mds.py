@@ -196,17 +196,12 @@ def download_and_convert(
         columns = {'tokens': 'bytes'}
 
         print(f'Converting to MDS format...')
-        total_tokens_bytes = 0
         with MDSWriter(out=output_folder,
                        columns=columns,
                        max_mds_writer_workers=max_mds_writer_workers,
                        compression=compression) as out:
             for sample in tqdm(dataset):
-                total_tokens_bytes += len(sample['tokens'])
                 out.write(sample)
-        total_tokens = total_tokens_bytes / 8
-        print('tokens', total_tokens_bytes, total_tokens)
-        return total_tokens
 
 
 def is_remote_path(path: str) -> bool:

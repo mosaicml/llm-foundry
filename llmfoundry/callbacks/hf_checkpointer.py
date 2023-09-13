@@ -25,6 +25,7 @@ from llmfoundry.utils.huggingface_hub_utils import \
 
 log = logging.getLogger(__name__)
 
+
 class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
 
@@ -151,7 +152,9 @@ class HuggingFaceCheckpointer(Callback):
                 if self.upload_to_object_store:
                     assert self.remote_ud is not None
                     # TODO change to log after other pr
-                    log.info(f'Uploading HuggingFace formatted checkpoint to {self.backend}://{self.bucket_name}/{save_dir}')
+                    log.info(
+                        f'Uploading HuggingFace formatted checkpoint to {self.backend}://{self.bucket_name}/{save_dir}'
+                    )
                     for filename in os.listdir(temp_save_dir):
                         self.remote_ud.upload_file(
                             state=state,

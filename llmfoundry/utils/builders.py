@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -29,6 +30,8 @@ from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
+
+log = logging.getLogger(__name__)
 
 
 def build_icl_data_and_gauntlet(
@@ -189,7 +192,7 @@ def build_icl_evaluators(
 
     icl_tasks_list = None
     if isinstance(icl_tasks, str):
-        print(f'Extracting ICL task config from path: {icl_tasks}')
+        log.info(f'Extracting ICL task config from path: {icl_tasks}')
         with open(icl_tasks, 'r') as icl_f:
             icl_task_cfg = om.load(icl_f)
         icl_tasks_list = icl_task_cfg.icl_tasks

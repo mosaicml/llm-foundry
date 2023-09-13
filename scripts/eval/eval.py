@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import os
 import sys
 import time
@@ -90,14 +91,22 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     )
 
 
-def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
-                   run_name: str, icl_tasks: Union[str, ListConfig],
-                   max_seq_len: int, device_eval_batch_size: int,
-                   eval_gauntlet_config: Optional[Union[str, DictConfig]],
-                   fsdp_config: Optional[Dict], num_retries: int,
-                   loggers_cfg: Dict[str, Any], python_log_level: str,
-                   precision: str, eval_gauntlet_df: Optional[pd.DataFrame],
-                   icl_subset_num_batches: Optional[int]):
+def evaluate_model(
+    model_cfg: DictConfig,
+    dist_timeout: Union[float, int],
+    run_name: str,
+    icl_tasks: Union[str, ListConfig],
+    max_seq_len: int,
+    device_eval_batch_size: int,
+    eval_gauntlet_config: Optional[Union[str, DictConfig]],
+    fsdp_config: Optional[Dict],
+    num_retries: int,
+    loggers_cfg: Dict[str, Any],
+    python_log_level: Optional[str],
+    precision: str,
+    eval_gauntlet_df: Optional[pd.DataFrame],
+    icl_subset_num_batches: Optional[int],
+):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
     tokenizer_cfg: Dict[str,
@@ -153,7 +162,7 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
         callbacks=callbacks,
         loggers=loggers,
         precision=precision,
-        fsdp_config=fsdp_config,  # type: ignore
+        fsdp_config=fsdp_config,
         load_path=load_path,
         load_weights_only=True,
         progress_bar=False,
@@ -206,10 +215,10 @@ def main(cfg: DictConfig):
                                              'device_eval_batch_size',
                                              must_exist=True)
     precision: str = pop_config(cfg, 'precision', must_exist=True)
-    python_log_level: str = pop_config(cfg,
-                                       'python_log_level',
-                                       must_exist=False,
-                                       default_value='debug')
+    python_log_level: Optional[str] = pop_config(cfg,
+                                                 'python_log_level',
+                                                 must_exist=False,
+                                                 default_value='debug')
 
     # Optional Evaluation Parameters with default values
     seed: int = pop_config(cfg, 'seed', must_exist=False, default_value=17)
@@ -245,6 +254,15 @@ def main(cfg: DictConfig):
 
     reproducibility.seed_all(seed)
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
+
+    if python_log_level is not None:
+        logging.basicConfig(
+            # Example of format string
+            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
 
     eval_gauntlet_df = None
     models_df = None

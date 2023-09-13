@@ -32,6 +32,7 @@ those keys are strings (i.e. text).
 """
 
 import importlib
+import logging
 import os
 import warnings
 from typing import Any, Callable, Dict, Optional, Union
@@ -40,6 +41,8 @@ import datasets as hf_datasets
 from omegaconf import DictConfig
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
+
+log = logging.getLogger(__name__)
 
 __all__ = ['dataset_constructor']
 
@@ -205,8 +208,7 @@ class DatasetConstructor:
 
     def get_preprocessing_fn_from_str(self,
                                       preprocessor: Optional[str],
-                                      dataset_name: Optional[str] = None,
-                                      verbose: bool = False):
+                                      dataset_name: Optional[str] = None):
         """Get a preprocessing function from a string.
 
         String can be either a registered function or an import path.
@@ -214,7 +216,6 @@ class DatasetConstructor:
         Args:
             preprocessor (Optional[str]): The name of the preprocessing function, or an import path.
             dataset_name (Optional[str]): The dataset name to look up in the registry.
-            verbose (bool): Whether to print verbose messages or not.
 
         Returns:
             Callable: The preprocessing function or None if not found.
@@ -226,33 +227,24 @@ class DatasetConstructor:
             if dataset_name is None:
                 return None
             if dataset_name in self._task_preprocessing_registry:
-                if verbose:
-                    print(
-                        f'Re-formatting dataset with "{dataset_name}" preprocessing function.'
-                    )
+                log.info(
+                    f'Re-formatting dataset with "{dataset_name}" preprocessing function.'
+                )
                 return self._task_preprocessing_registry[dataset_name]
             else:
-                if verbose:
-                    print(
-                        'No preprocessor was supplied and no preprocessing function ' +\
+                log.info('No preprocessor was supplied and no preprocessing function ' +\
                         f'is registered for dataset name "{dataset_name}". No additional ' +\
                         'preprocessing will be applied. If the dataset is already formatted ' +\
-                        'correctly, you can ignore this message.'
-                    )
+                        'correctly, you can ignore this message.')
                 return None
         if preprocessor in self._task_preprocessing_registry:
-            if verbose:
-                print(
-                    f'Re-formatting dataset with "{preprocessor}" preprocessing function.'
-                )
+            log.info(
+                f'Re-formatting dataset with "{preprocessor}" preprocessing function.'
+            )
             return self._task_preprocessing_registry[preprocessor]
 
         try:
             import_path, function_name = preprocessor.split(':', maxsplit=1)
-            if verbose:
-                print(
-                    f'Importing preprocessing function via: `from {import_path} import {function_name}`'
-                )
             module = importlib.import_module(import_path)
             preprocessing_fn = getattr(module, function_name)
         except Exception as e:
@@ -289,7 +281,7 @@ class DatasetConstructor:
                 proto_preprocessing_fn)
         else:
             preprocessing_fn = self.get_preprocessing_fn_from_str(
-                proto_preprocessing_fn, dataset_name, verbose=True)
+                proto_preprocessing_fn, dataset_name)
 
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 

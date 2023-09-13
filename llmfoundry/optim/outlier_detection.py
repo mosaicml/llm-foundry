@@ -41,7 +41,9 @@ class OutlierDetector:
         Returns:
             bool: Indicator of whether the most recent observation was an outlier.
         """
-        if len(self.intermediate_data_queue  # type: ignore
+        assert self.intermediate_data_queue.maxlen is not None, 'expected maxlen defined'
+
+        if len(self.intermediate_data_queue
               ) >= self.intermediate_data_queue.maxlen:
             # move data from intermediate queue to slow moving average queue
             intermediate_obs = self.intermediate_data_queue.popleft()

@@ -296,8 +296,7 @@ def main(
                              bos_text, no_wrap, compression,
                              max_mds_writer_workers)
         with ProcessPoolExecutor(max_workers=processes) as executor:
-            print('all tokens',
-                  sum(executor.map(download_and_convert_starargs, list(args))))
+            list(executor.map(download_and_convert_starargs, args))
 
         # Merge the mds shards from each of the processes into a single folder
         merge_shard_groups(local_output_folder)

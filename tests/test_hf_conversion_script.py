@@ -231,7 +231,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
             'pretrained': False,
             'init_device': 'cpu',
         }
-        tokenizer_name = 'EleutherAI/gpt-neox-125M'
+        tokenizer_name = 'EleutherAI/gpt-neo-125M'
     elif model == 'llama2':
         if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
             pytest.skip(
@@ -259,6 +259,8 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     else:
         raise ValueError(f'Unknown model {model}')
     assert model_cfg is not None
+    assert tokenizer_name is not None
+    model_cfg = om.create(model_cfg)
 
     fsdp_config = {
         'sharding_strategy': 'FULL_SHARD',

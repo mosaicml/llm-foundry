@@ -52,7 +52,7 @@ install_requires = [
     'transformers>=4.32,<4.33',
     'mosaicml-streaming>=0.5.1,<0.6',
     'torch>=1.13.1,<2.1.1',
-    'datasets==2.10.1',
+    'datasets>=2.14.5,<2.15',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
     'einops==0.5.0',

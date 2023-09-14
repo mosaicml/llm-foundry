@@ -77,6 +77,8 @@ extra_deps['dev'] = [
     'toml>=0.10.2,<0.11',
     'packaging>=21,<23',
     'hf_transfer==0.1.3',
+    'openai==0.27.8',
+    'tiktoken==0.4.0',
 ]
 
 extra_deps['tensorboard'] = [
@@ -99,10 +101,7 @@ extra_deps['peft'] = [
     'peft==0.4.0',
 ]
 
-extra_deps['openai'] = [
-    'openai==0.27.8',
-    'tiktoken==0.4.0',
-]
+
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
 
 setup(

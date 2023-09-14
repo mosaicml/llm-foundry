@@ -177,23 +177,27 @@ icl_tasks:
   label: human_eval
   dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0,3]
-  num_beams: 1
+  pass_at_k : 1
+  num_beams: 10
   icl_task_type: code_evaluation
 -
   label: human_eval_cpp
   dataset_uri: eval/local_data/programming/processed_human_eval_cpp.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0,3]
-  num_beams: 1
+  pass_at_k : 1
+  num_beams: 10
   icl_task_type: code_evaluation
 -
   label: human_eval_js
   dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0,3]
-  num_beams: 1
+  pass_at_k : 1
+  num_beams: 10
   icl_task_type: code_evaluation
 -
   label: human_eval_c
   dataset_uri: eval/local_data/programming/processed_human_eval_c.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0,3]
-  num_beams: 1
+  pass_at_k : 1
+  num_beams: 10
   icl_task_type: code_evaluation

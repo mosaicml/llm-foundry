@@ -209,7 +209,7 @@ class DecoupledAdaLRLion(Optimizer):
         # Only L2 norm metric keys are present, can skip sorting at this stage
         for metric in optimizer_metrics:
             # L2 norms need to be squared, before they are reduced via summation
-            optimizer_metrics[metric] = optimizer_metrics[metric]**2    
+            optimizer_metrics[metric] = optimizer_metrics[metric]**2
         return optimizer_metrics
 
     def report_per_parameter_metrics(self, param: torch.Tensor, name: str,

@@ -159,14 +159,14 @@ class MPTConfig(PretrainedConfig):
         self._validate_config()
 
     def _set_config_defaults(self, config: Dict[str, Any],
-                             config_defaults: Dict[str, Any]):
+                             config_defaults: Dict[str, Any]) -> Dict[str, Any]:
         # set config defaults
         for k, v in config_defaults.items():
             if k not in config:
                 config[k] = v
         return config
 
-    def _validate_config(self):
+    def _validate_config(self) -> None:
         # set config defaults
         self.attn_config = self._set_config_defaults(
             self.attn_config,

@@ -167,7 +167,7 @@ def build_tokenizer(
         tokenizer_name: str,
         tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
     if tokenizer_name == 'openai':
-        return OpenAITokenizerWrapper(tokenizer_name)
+        return OpenAITokenizerWrapper(**tokenizer_kwargs)
     else:
         os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
         os.environ['TOKENIZERS_PARALLELISM'] = 'false'

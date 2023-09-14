@@ -117,7 +117,7 @@ def _write_zero_bias(weight_name: str, weight_file_path: str,
 
 def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
                                tensor_name: str, config: Dict[str, Any],
-                               data: np.ndarray):
+                               data: np.ndarray) -> None:
     """Convert each MPT weight to a FasterTransformer compatible format.
 
     Args:
@@ -231,7 +231,7 @@ def convert_and_save_ft_weights(named_params: dict,
                                 config: dict,
                                 infer_gpu_num: int = 1,
                                 weight_data_type: str = 'fp32',
-                                save_dir: str = ''):
+                                save_dir: str = '') -> None:
     """Convert a Composer MPT checkpoint to a FasterTransformer format.
 
     Args:

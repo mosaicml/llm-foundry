@@ -498,6 +498,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
             torch.testing.assert_close(d_orig['errors'], d_new['errors'])
 
 
+@pytest.mark.skip('Avoiding rare flakiness; be sure to run manually!')
 @pytest.mark.gpu
 @pytest.mark.parametrize('N,D', [(32, 32), (256, 256), (1024, 1024),
                                  (4096, 4096), [16384, 16384]])

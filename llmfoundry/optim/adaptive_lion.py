@@ -101,7 +101,7 @@ class DecoupledAdaLRLion(Optimizer):
 
     @staticmethod
     def adjust_lr(lr: float, lr_penalty: float, num_times: int,
-                  min_scale: float):
+                  min_scale: float) -> float:
         """Adjusts LR.
 
         Multiplicatively scales down the LR by lr_penalty for each outlier

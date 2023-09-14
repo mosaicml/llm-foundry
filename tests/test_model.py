@@ -513,8 +513,10 @@ def test_mpt_creation(norm_type: str, no_bias: bool):
         assert block.norm_1.weight.shape == torch.Size([d_model])
         assert block.norm_2 is not None
         assert block.norm_2.weight.shape == torch.Size([d_model])
+        assert isinstance(block.ffn.up_proj, nn.Linear)
         assert block.ffn.up_proj.weight.shape == torch.Size(
             [hf_config.d_model * hf_config.expansion_ratio, hf_config.d_model])
+        assert isinstance(block.ffn.down_proj, nn.Linear)
         assert block.ffn.down_proj.weight.shape == torch.Size(
             [hf_config.d_model, hf_config.d_model * hf_config.expansion_ratio])
         assert block.resid_attn_dropout.p == 0.2

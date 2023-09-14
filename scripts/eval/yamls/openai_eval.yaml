@@ -1,6 +1,6 @@
 seed: 1
 max_seq_len: 1024
-
+device_eval_batch_size: 4
 models:
 -
   model_name: openai/davinci

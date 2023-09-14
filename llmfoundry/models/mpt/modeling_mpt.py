@@ -8,7 +8,8 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 import math
 import warnings
-from typing import Any, List, Mapping, MutableMapping, Optional, Tuple, Union, Dict
+from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
+                    Union)
 
 import torch
 import torch.nn as nn

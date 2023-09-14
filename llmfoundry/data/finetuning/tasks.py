@@ -35,7 +35,7 @@ import importlib
 import logging
 import os
 import warnings
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import datasets as hf_datasets
 from omegaconf import DictConfig
@@ -47,8 +47,9 @@ log = logging.getLogger(__name__)
 __all__ = ['dataset_constructor']
 
 
-def _tokenize_formatted_example(example: Dict[str, Any],
-                                tokenizer: PreTrainedTokenizerBase):
+def _tokenize_formatted_example(
+        example: Dict[str, Any],
+        tokenizer: PreTrainedTokenizerBase) -> Dict[str, List[int]]:
     if ('prompt' not in example) or ('response' not in example):
         raise KeyError(
             'Unable to tokenize example because it has not been properly formatted. ' +\
@@ -150,7 +151,7 @@ class DatasetConstructor:
     def __init__(self):
         self._task_preprocessing_registry: Dict[str, Callable] = {}
 
-    def register(self, *names: str):
+    def register(self, *names: str) -> Callable[[Callable], Callable]:
         """Decorator for registering preprocessing functions."""
 
         def _register_func(name: str, func: Callable) -> None:
@@ -168,11 +169,13 @@ class DatasetConstructor:
 
         return wrapper
 
-    def print_registered_tasks(self):
+    def print_registered_tasks(self) -> None:
         tasks = sorted(self._task_preprocessing_registry.keys())
         print('\n'.join(tasks))
 
-    def get_preprocessing_fn_from_dict(self, mapping: Union[Dict, DictConfig]):
+    def get_preprocessing_fn_from_dict(
+        self, mapping: Union[Dict, DictConfig]
+    ) -> Callable[[Dict[str, Any]], Dict[str, str]]:
         """Get a preprocessing function from a dictionary.
 
         The dictionary maps column names in the dataset to "prompt" and "response".
@@ -206,9 +209,11 @@ class DatasetConstructor:
 
         return _preprocessor
 
-    def get_preprocessing_fn_from_str(self,
-                                      preprocessor: Optional[str],
-                                      dataset_name: Optional[str] = None):
+    def get_preprocessing_fn_from_str(
+        self,
+        preprocessor: Optional[str],
+        dataset_name: Optional[str] = None
+    ) -> Optional[Callable[[Dict[str, Any]], Dict[str, str]]]:
         """Get a preprocessing function from a string.
 
         String can be either a registered function or an import path.
@@ -319,7 +324,8 @@ class DatasetConstructor:
 
         return empty_examples_dropped_dataset
 
-    def build_from_streaming(self, *args: Any, **kwargs: Any):
+    def build_from_streaming(self, *args: Any,
+                             **kwargs: Any) -> StreamingFinetuningDataset:
         return StreamingFinetuningDataset(*args, **kwargs)
 
 
@@ -327,7 +333,7 @@ dataset_constructor = DatasetConstructor()
 
 
 @dataset_constructor.register('tatsu-lab/alpaca')
-def alpaca_preprocessing_function(inp: Dict):
+def alpaca_preprocessing_function(inp: Dict) -> Dict[str, str]:
     """Split out prompt/response from text."""
     try:
         prompt, response = inp['text'].split('### Response:')
@@ -340,7 +346,7 @@ def alpaca_preprocessing_function(inp: Dict):
 
 
 @dataset_constructor.register('HuggingFaceH4/databricks_dolly_15k')
-def dolly_preprocessing_function(inp: Dict):
+def dolly_preprocessing_function(inp: Dict) -> Dict[str, str]:
     """Format the text string."""
     PROMPT_FORMAT = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n{instruction}\n\n### Response:\n'
     try:
@@ -357,7 +363,7 @@ def dolly_preprocessing_function(inp: Dict):
 
 
 @dataset_constructor.register('bigscience/P3')
-def p3_preprocessing_function(inp: Dict):
+def p3_preprocessing_function(inp: Dict) -> Dict[str, str]:
     """Format the already-split example."""
     return {
         'prompt': inp['inputs'] + ':',
@@ -367,7 +373,7 @@ def p3_preprocessing_function(inp: Dict):
 
 # Muennighoff's P3 and flan datasets share a similar convention
 @dataset_constructor.register('Muennighoff/P3', 'Muennighoff/flan')
-def muennighoff_tokenize_function(inp: Dict):
+def muennighoff_tokenize_function(inp: Dict) -> Dict[str, str]:
     """Format the already-split example."""
     try:
         prompt: str = inp['inputs']

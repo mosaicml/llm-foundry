@@ -47,11 +47,11 @@ class Generate(Callback):
                 if isinstance(destination, WandBLogger):
                     self.wandb_logger = destination
 
-    def batch_checkpoint(self, state: State, logger: Logger):
+    def batch_checkpoint(self, state: State, logger: Logger) -> None:
         if (state.timestamp.batch.value % self.batch_log_interval) == 0:
             self.generate(state, logger)
 
-    def generate(self, state: State, logger: Logger):
+    def generate(self, state: State, logger: Logger) -> None:
         model = state.model
         original_mode = model.training
         model.eval()

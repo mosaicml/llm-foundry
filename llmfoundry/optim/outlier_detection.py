@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Optional
+
 import collections
 
 
@@ -53,7 +55,7 @@ class OutlierDetector:
         delayed_mva = self.get_delayed_mva()
         return delayed_mva is not None and obs > self.threshold * delayed_mva
 
-    def get_delayed_mva(self):
+    def get_delayed_mva(self) -> Optional[float]:
         if len(self.delayed_moving_average) > 0:
             return sum(self.delayed_moving_average) / len(
                 self.delayed_moving_average)

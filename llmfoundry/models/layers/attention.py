@@ -18,7 +18,7 @@ from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
-                     original_is_causal: bool):
+                     original_is_causal: bool) -> bool:
     # disable causal when it is not needed
     # necessary for flash & triton for generation with kv_cache
     if original_is_causal and num_query_tokens != num_key_tokens:
@@ -495,7 +495,7 @@ class GroupedQueryAttention(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
-    ):
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
@@ -606,7 +606,7 @@ class MultiQueryAttention(GroupedQueryAttention):
 
 
 def attn_bias_shape(attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
-                    prefix_lm: bool, causal: bool, use_sequence_id: bool):
+                    prefix_lm: bool, causal: bool, use_sequence_id: bool) -> Optional[Tuple[int, int, int, int]]:
     if attn_impl == 'flash':
         return None
     elif attn_impl in ['torch', 'triton']:
@@ -629,7 +629,7 @@ def build_attn_bias(
     causal: bool = False,
     alibi: bool = False,
     alibi_bias_max: int = 8,
-):
+) -> Optional[torch.Tensor]:
     if attn_impl == 'flash':
         return None
     elif attn_impl in ['torch', 'triton']:
@@ -652,7 +652,7 @@ def build_attn_bias(
 
 def gen_slopes(n_heads: int,
                alibi_bias_max: int = 8,
-               device: Optional[torch.device] = None):
+               device: Optional[torch.device] = None) -> torch.Tensor:
     _n_heads = 2**math.ceil(math.log2(n_heads))
     m = torch.arange(1, _n_heads + 1, dtype=torch.float32, device=device)
     m = m.mul(alibi_bias_max / _n_heads)
@@ -674,7 +674,7 @@ def build_alibi_bias(
     alibi_bias_max: int = 8,
     device: Optional[torch.device] = None,
     dtype: Optional[torch.dtype] = None,
-):
+) -> torch.Tensor:
     alibi_bias = torch.arange(1 - seq_len, 1, dtype=torch.int32,
                               device=device).view(1, 1, 1, seq_len)
     if full:

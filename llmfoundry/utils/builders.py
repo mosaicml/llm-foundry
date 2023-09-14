@@ -6,19 +6,20 @@ import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
+from torch.optim.optimizer import Optimizer
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
                                 OptimizerMonitor, RuntimeEstimator,
-                                SpeedMonitor)
+                                SpeedMonitor, Callback)
 from composer.core import Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from composer.loggers import (InMemoryLogger, MLFlowLogger, TensorboardLogger,
-                              WandBLogger)
+                              WandBLogger, LoggerDestination)
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
-                                      LinearWithWarmupScheduler)
+                                      LinearWithWarmupScheduler, ComposerScheduler)
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -68,7 +69,7 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
-def build_callback(name: str, kwargs: Dict[str, Any]):
+def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
@@ -101,7 +102,7 @@ def build_callback(name: str, kwargs: Dict[str, Any]):
         raise ValueError(f'Not sure how to build callback: {name}')
 
 
-def build_logger(name: str, kwargs: Dict[str, Any]):
+def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
     if name == 'wandb':
         return WandBLogger(**kwargs)
     elif name == 'tensorboard':
@@ -114,7 +115,7 @@ def build_logger(name: str, kwargs: Dict[str, Any]):
         raise ValueError(f'Not sure how to build logger: {name}')
 
 
-def build_algorithm(name: str, kwargs: Dict[str, Any]):
+def build_algorithm(name: str, kwargs: Dict[str, Any]) -> algorithms.Algorithm:
     if name == 'gradient_clipping':
         return algorithms.GradientClipping(**kwargs)
     elif name == 'alibi':
@@ -130,7 +131,7 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]):
 
 
 def build_optimizer(model: torch.nn.Module, name: str,
-                    optimizer_config: Dict[str, Any]):
+                    optimizer_config: Dict[str, Any]) -> Optimizer:
     if name == 'decoupled_adamw':
         return DecoupledAdamW(model.parameters(), **optimizer_config)
     elif name == 'decoupled_lionw':
@@ -145,7 +146,7 @@ def build_optimizer(model: torch.nn.Module, name: str,
         raise ValueError(f'Not sure how to build optimizer: {name}')
 
 
-def build_scheduler(name: str, scheduler_config: Dict[str, Any]):
+def build_scheduler(name: str, scheduler_config: Dict[str, Any]) -> ComposerScheduler:
     if name == 'constant_with_warmup':
         return ConstantWithWarmupScheduler(**scheduler_config)
     elif name == 'cosine_with_warmup':
@@ -183,7 +184,7 @@ def build_icl_evaluators(
     default_batch_size: int,
     destination_dir: Optional[str] = None,
     icl_subset_num_batches: Optional[int] = None,
-):
+) -> Tuple[List[Evaluator], List[str]]:
     if destination_dir is None:
         destination_dir = os.getcwd()
 

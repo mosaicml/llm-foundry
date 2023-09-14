@@ -13,7 +13,7 @@ from transformers.models.opt.modeling_opt import OPTDecoder
 
 
 # helper functions
-def rhasattr(obj: Any, attr: str):
+def rhasattr(obj: Any, attr: str) -> bool:
     """A chain-able attribute version of hasattr.
 
     For example, to check if
@@ -31,7 +31,7 @@ def rhasattr(obj: Any, attr: str):
     return hasattr(_curr_obj, _nested_attrs[-1])
 
 
-def rgetattr(obj: Any, attr: str, *args: List[Any]):
+def rgetattr(obj: Any, attr: str, *args: List[Any]) -> Any:
     """A chain-able attribute version of getattr.
 
     For example, to get the attribute `foo.bar.baz` from `obj`, you can use:
@@ -45,14 +45,14 @@ def rgetattr(obj: Any, attr: str, *args: List[Any]):
     return functools.reduce(_getattr, [obj] + attr.split('.'))
 
 
-def findattr(obj: Any, attrs: Iterable[str]):
+def findattr(obj: Any, attrs: Iterable[str]) -> Optional[Any]:
     for attr in attrs:
         if rhasattr(obj, attr):
             return rgetattr(obj, attr)
     return None
 
 
-def hf_get_causal_base_model(model: PreTrainedModel):
+def hf_get_causal_base_model(model: PreTrainedModel) -> Any:
     """Returns the causal decoder backbone of the specified HuggingFace model.
 
     Newer HF models have a `self.get_decoder()` method. Older models do not.
@@ -75,7 +75,7 @@ def hf_get_causal_base_model(model: PreTrainedModel):
     return causal_base_model
 
 
-def hf_get_hidden_layers(model: PreTrainedModel):
+def hf_get_hidden_layers(model: PreTrainedModel) -> Any:
     """Returns the hidden layers of the specified model.
 
     NOTE: Different model configurations have different hidden layer attribute names.
@@ -102,7 +102,7 @@ def hf_get_hidden_layers(model: PreTrainedModel):
     return layers
 
 
-def hf_get_init_device(init_device: Optional[str]):
+def hf_get_init_device(init_device: Optional[str]) -> str:
     """Returns the appropriate device to initialize models."""
     from composer.utils import dist
     if init_device == 'mixed':

@@ -6,7 +6,7 @@
 import logging
 import math
 from enum import Enum
-from typing import Optional
+from typing import Optional, Dict
 
 from composer.core import Callback, State
 from composer.loggers import Logger
@@ -95,7 +95,7 @@ class EvalGauntlet(Callback):
                 assert weight is not None
                 benchmark['weighting'] = weight
 
-    def compute_averages(self, state: State):
+    def compute_averages(self, state: State) -> Dict[str, float]:
         results = {}
 
         for key in self.logger_keys:
@@ -120,7 +120,7 @@ class EvalGauntlet(Callback):
 
         return {k: sum(v) / len(v) for k, v in results.items()}
 
-    def eval_after_all(self, state: State, logger: Logger):
+    def eval_after_all(self, state: State, logger: Logger) -> Dict[str, float]:
         new_metrics = self.compute_averages(state)
         if len(new_metrics) == 0:
             return {}

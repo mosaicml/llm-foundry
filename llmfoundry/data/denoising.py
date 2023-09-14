@@ -269,11 +269,11 @@ class MixtureOfDenoisersCollator:
                 '`span_mean_lengths_and_ratios` and/or `sequence_mask_ratios`.')
 
     @property
-    def smallest_max_raw_length(self):
+    def smallest_max_raw_length(self) -> int:
         return int(self._smallest_max_raw_length)
 
     @property
-    def largest_max_raw_length(self):
+    def largest_max_raw_length(self) -> int:
         return int(self._largest_max_raw_length)
 
     def __call__(self, examples: List[Dict[str,
@@ -613,7 +613,7 @@ def noise_token_sequence(
 
 def _get_max_starting_length(max_length: int, mask_ratio: float,
                              mean_span_length: float, n_prefix_tokens: int,
-                             decoder_only_format: bool, context_eos: bool):
+                             decoder_only_format: bool, context_eos: bool) -> int:
     """Get max num raw tokens that will fit max_length."""
 
     def sequence_stats(length: int):

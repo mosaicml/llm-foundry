@@ -143,7 +143,7 @@ class StreamingTextDataset(StreamingDataset):
         self.max_seq_len = max_seq_len
 
     # How to tokenize a text sample to a token sample
-    def _tokenize(self, text_sample: Mapping):
+    def _tokenize(self, text_sample: Mapping) -> Dict[str, List[int]]:
         if self.tokenizer._pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             raise RuntimeError(
@@ -154,13 +154,13 @@ class StreamingTextDataset(StreamingDataset):
                               padding='max_length',
                               max_length=self.max_seq_len)
 
-    def _read_binary_tokenized_sample(self, sample: Dict[str, Any]):
+    def _read_binary_tokenized_sample(self, sample: Dict[str, Any]) -> torch.Tensor:
         return torch.from_numpy(
             np.frombuffer(sample['tokens'],
                           dtype=np.int64)[:self.max_seq_len].copy())
 
     # How to process a sample
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> Union[Dict[str, List[int]], torch.Tensor]:
         sample = super().__getitem__(idx)
         if 'text' in sample:
             token_sample = self._tokenize(sample)
@@ -224,7 +224,7 @@ def build_text_dataloader(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-):
+) -> DataLoader:
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
     if cfg.dataset.get('group_method', None) is not None:
         raise NotImplementedError(

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
-from typing import Union
+from typing import Union, Tuple
 
 import datasets as hf_datasets
 import torch
@@ -207,7 +207,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
         )
 
 
-def _validate_config(dataset_cfg: DictConfig):
+def _validate_config(dataset_cfg: DictConfig) -> None:
     """Validates the dataset configuration.
 
     Makes sure that the dataset is properly configured for either
@@ -354,7 +354,7 @@ def _build_hf_dataset_from_remote(
 
 def _build_collate_fn(dataset_cfg: DictConfig,
                       tokenizer: PreTrainedTokenizerBase,
-                      device_batch_size: int):
+                      device_batch_size: int) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackWrapper], int]:
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,
         max_seq_len=dataset_cfg.max_seq_len,

@@ -48,11 +48,11 @@ class BinPackWrapper:
         self._leftover_bins: List[Tuple[int, Dict[str, torch.Tensor]]] = []
 
     @property
-    def waste(self):
+    def waste(self) -> float:
         return 1 - (self.n_packed_tokens / self.n_total_tokens)
 
     @property
-    def efficiency(self):
+    def efficiency(self) -> float:
         return self.n_packed_tokens / (self.max_seq_len *
                                        self.n_packed_examples)
 
@@ -100,7 +100,7 @@ class BinPackWrapper:
         return batch
 
 
-def extract_trim_batch_idx(batch: Dict[str, torch.Tensor], idx: int):
+def extract_trim_batch_idx(batch: Dict[str, torch.Tensor], idx: int) -> Tuple[int, Dict[str, torch.Tensor]]:
     example = {k: v[idx] for k, v in batch.items()}
 
     keep = example['attention_mask'] == 1
@@ -112,7 +112,7 @@ def extract_trim_batch_idx(batch: Dict[str, torch.Tensor], idx: int):
 
 
 def combine_in_place(example: Dict[str, torch.Tensor],
-                     add_on: Dict[str, torch.Tensor]):
+                     add_on: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
     if 'labels' in add_on:
         # Prevents the last token in example from being trained to
         # predict the first token in add_on, which would make no sense.

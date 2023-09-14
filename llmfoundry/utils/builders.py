@@ -27,8 +27,8 @@ from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
-                                  GlobalLRScaling, LayerFreezing,
-                                  MonolithicCheckpointSaver,
+                                  GlobalLRScaling, HuggingFaceCheckpointer,
+                                  LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
@@ -99,6 +99,8 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
         return ScheduledGarbageCollector(**kwargs)
     elif name == 'early_stopper':
         return EarlyStopper(**kwargs)
+    elif name == 'hf_checkpointer':
+        return HuggingFaceCheckpointer(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

@@ -1,9 +1,9 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: # use your branch
+  git_branch: add_openai_wrapper # use your branch
   # git_commit: 29d65cc26853c09f6de7542978056ddb0b07e98c # OR use your commit hash
-  pip_install: -e ".[gpu]"
+  pip_install: -e ".[gpu,openai]"
   ssh_clone: false # Should be true if using a private repo
 
 command: |
@@ -12,9 +12,9 @@ command: |
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: openai-eval
-gpu_num: 8
-# gpu_type:
-# cluster:  # replace with your cluster here!
+# gpu_num: #
+# gpu_type: #
+cluster: # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
@@ -22,7 +22,7 @@ image: mosaicml/llm-foundry:2.0.1_cu118-latest
 parameters:
   seed: 1
   max_seq_len: 1024
-
+  device_eval_batch_size: 4
   models:
   -
     model_name: openai/davinci

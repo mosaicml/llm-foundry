@@ -161,8 +161,8 @@ def build_scheduler(name: str, scheduler_config: Dict[str, Any]):
 
 
 def build_tokenizer(
-    tokenizer_name: str,
-    tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
+        tokenizer_name: str,
+        tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
     if tokenizer_name == 'openai':
         return OpenAITokenizerWrapper(tokenizer_name)
     else:
@@ -170,7 +170,7 @@ def build_tokenizer(
         os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                              **tokenizer_kwargs)
+                                                  **tokenizer_kwargs)
 
         # HuggingFace does not respect the model_max_length kwarg, and overrides it with
         # min(kwargs['model_max_length'], original_config['model_max_length']), so we

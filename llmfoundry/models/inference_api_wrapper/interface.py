@@ -40,13 +40,15 @@ class InferenceAPIEvalWrapper(ComposerModel):
 
     def get_metrics(self, is_train: bool = False):
         if is_train:
-            raise NotImplementedError("You cannot use OpenAI inference wrappers for training")
+            raise NotImplementedError(
+                'You cannot use OpenAI inference wrappers for training')
         else:
             metrics = self.eval_metrics
 
         return metrics if metrics else {}
 
-    def get_next_token_logit_tensor(self, prompt: str) -> Optional[torch.Tensor]:
+    def get_next_token_logit_tensor(self,
+                                    prompt: str) -> Optional[torch.Tensor]:
         # returns None if the inference API stopped early
         raise NotImplementedError
 
@@ -98,10 +100,13 @@ class InferenceAPIEvalWrapper(ComposerModel):
             assert self.labels is not None
             metric.update(batch, outputs, self.labels)
         else:
-            raise NotImplementedError("Inference API wrapper only supports InContextLearningMetrics and mode=icl_task")
+            raise NotImplementedError(
+                'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task'
+            )
 
     def forward(self):
-        raise NotImplementedError("Inference API wrapper doesn't support forward")
+        raise NotImplementedError(
+            "Inference API wrapper doesn't support forward")
 
     def loss(self):
         raise NotImplementedError("Inference API wrapper doesn't support loss")

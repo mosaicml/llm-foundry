@@ -7,6 +7,8 @@ from llmfoundry.models.inference_api_wrapper.openai_causal_lm import (
     OpenAICausalLMEvalWrapper, OpenAIChatAPIEvalWrapper, OpenAITokenizerWrapper)
 
 __all__ = [
-    'OpenAICausalLMEvalWrapper', 'OpenAIChatAPIEvalWrapper',
-    'OpenAITokenizerWrapper', 'InferenceAPIEvalWrapper',
+    'OpenAICausalLMEvalWrapper',
+    'OpenAIChatAPIEvalWrapper',
+    'OpenAITokenizerWrapper',
+    'InferenceAPIEvalWrapper',
 ]

@@ -100,7 +100,8 @@ class BinPackWrapper:
         return batch
 
 
-def extract_trim_batch_idx(batch: Dict[str, torch.Tensor], idx: int) -> Tuple[int, Dict[str, torch.Tensor]]:
+def extract_trim_batch_idx(batch: Dict[str, torch.Tensor],
+                           idx: int) -> Tuple[int, Dict[str, torch.Tensor]]:
     example = {k: v[idx] for k, v in batch.items()}
 
     keep = example['attention_mask'] == 1
@@ -111,8 +112,9 @@ def extract_trim_batch_idx(batch: Dict[str, torch.Tensor], idx: int) -> Tuple[in
     return size, trim_example
 
 
-def combine_in_place(example: Dict[str, torch.Tensor],
-                     add_on: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+def combine_in_place(
+        example: Dict[str, torch.Tensor],
+        add_on: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
     if 'labels' in add_on:
         # Prevents the last token in example from being trained to
         # predict the first token in add_on, which would make no sense.

@@ -6,23 +6,24 @@ import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
-from torch.optim.optimizer import Optimizer
 from composer import algorithms
-from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
-                                OptimizerMonitor, RuntimeEstimator,
-                                SpeedMonitor, Callback)
-from composer.core import Evaluator
+from composer.callbacks import (EarlyStopper, LRMonitor,
+                                MemoryMonitor, OptimizerMonitor,
+                                RuntimeEstimator, SpeedMonitor)
+from composer.core import Evaluator, Callback, Algorithm
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from composer.loggers import (InMemoryLogger, MLFlowLogger, TensorboardLogger,
-                              WandBLogger, LoggerDestination)
+from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
+                              TensorboardLogger, WandBLogger)
 from composer.optim import DecoupledAdamW
-from composer.optim.scheduler import (ConstantWithWarmupScheduler,
+from composer.optim.scheduler import (ComposerScheduler,
+                                      ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
-                                      LinearWithWarmupScheduler, ComposerScheduler)
+                                      LinearWithWarmupScheduler)
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
+from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
@@ -115,7 +116,7 @@ def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
         raise ValueError(f'Not sure how to build logger: {name}')
 
 
-def build_algorithm(name: str, kwargs: Dict[str, Any]) -> algorithms.Algorithm:
+def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
     if name == 'gradient_clipping':
         return algorithms.GradientClipping(**kwargs)
     elif name == 'alibi':
@@ -146,7 +147,8 @@ def build_optimizer(model: torch.nn.Module, name: str,
         raise ValueError(f'Not sure how to build optimizer: {name}')
 
 
-def build_scheduler(name: str, scheduler_config: Dict[str, Any]) -> ComposerScheduler:
+def build_scheduler(name: str,
+                    scheduler_config: Dict[str, Any]) -> ComposerScheduler:
     if name == 'constant_with_warmup':
         return ConstantWithWarmupScheduler(**scheduler_config)
     elif name == 'cosine_with_warmup':

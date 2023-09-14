@@ -495,7 +495,8 @@ class GroupedQueryAttention(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor, torch.Tensor]]]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
+            torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
@@ -605,8 +606,10 @@ class MultiQueryAttention(GroupedQueryAttention):
             device=device)
 
 
-def attn_bias_shape(attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
-                    prefix_lm: bool, causal: bool, use_sequence_id: bool) -> Optional[Tuple[int, int, int, int]]:
+def attn_bias_shape(
+        attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
+        prefix_lm: bool, causal: bool,
+        use_sequence_id: bool) -> Optional[Tuple[int, int, int, int]]:
     if attn_impl == 'flash':
         return None
     elif attn_impl in ['torch', 'triton']:

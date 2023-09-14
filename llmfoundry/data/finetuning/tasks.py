@@ -35,7 +35,7 @@ import importlib
 import logging
 import os
 import warnings
-from typing import Any, Callable, Dict, Optional, Union, List
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import datasets as hf_datasets
 from omegaconf import DictConfig
@@ -47,8 +47,9 @@ log = logging.getLogger(__name__)
 __all__ = ['dataset_constructor']
 
 
-def _tokenize_formatted_example(example: Dict[str, Any],
-                                tokenizer: PreTrainedTokenizerBase) -> Dict[str, List[int]]:
+def _tokenize_formatted_example(
+        example: Dict[str, Any],
+        tokenizer: PreTrainedTokenizerBase) -> Dict[str, List[int]]:
     if ('prompt' not in example) or ('response' not in example):
         raise KeyError(
             'Unable to tokenize example because it has not been properly formatted. ' +\
@@ -172,7 +173,9 @@ class DatasetConstructor:
         tasks = sorted(self._task_preprocessing_registry.keys())
         print('\n'.join(tasks))
 
-    def get_preprocessing_fn_from_dict(self, mapping: Union[Dict, DictConfig]) -> Callable[[Dict[str, Any]], Dict[str, str]]:
+    def get_preprocessing_fn_from_dict(
+        self, mapping: Union[Dict, DictConfig]
+    ) -> Callable[[Dict[str, Any]], Dict[str, str]]:
         """Get a preprocessing function from a dictionary.
 
         The dictionary maps column names in the dataset to "prompt" and "response".
@@ -206,9 +209,11 @@ class DatasetConstructor:
 
         return _preprocessor
 
-    def get_preprocessing_fn_from_str(self,
-                                      preprocessor: Optional[str],
-                                      dataset_name: Optional[str] = None) -> Optional[Callable[[Dict[str, Any]], Dict[str, str]]]:
+    def get_preprocessing_fn_from_str(
+        self,
+        preprocessor: Optional[str],
+        dataset_name: Optional[str] = None
+    ) -> Optional[Callable[[Dict[str, Any]], Dict[str, str]]]:
         """Get a preprocessing function from a string.
 
         String can be either a registered function or an import path.
@@ -319,7 +324,8 @@ class DatasetConstructor:
 
         return empty_examples_dropped_dataset
 
-    def build_from_streaming(self, *args: Any, **kwargs: Any) -> StreamingFinetuningDataset:
+    def build_from_streaming(self, *args: Any,
+                             **kwargs: Any) -> StreamingFinetuningDataset:
         return StreamingFinetuningDataset(*args, **kwargs)
 
 

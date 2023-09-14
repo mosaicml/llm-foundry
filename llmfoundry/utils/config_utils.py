@@ -5,7 +5,7 @@ import contextlib
 import logging
 import math
 import warnings
-from typing import Any, Dict, Mapping, Optional, Union, Tuple, Literal
+from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
 
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
@@ -46,8 +46,9 @@ def pop_config(cfg: DictConfig,
         return default_value
 
 
-def calculate_batch_size_info(global_batch_size: int,
-                              device_microbatch_size: Union[int, str]) -> Tuple[int, Union[int, Literal["auto"]], Union[int, Literal["auto"]]]:
+def calculate_batch_size_info(
+    global_batch_size: int, device_microbatch_size: Union[int, str]
+) -> Tuple[int, Union[int, Literal['auto']], Union[int, Literal['auto']]]:
     if global_batch_size % dist.get_world_size() != 0:
         raise ValueError(
             f'Global batch size {global_batch_size} is not divisible by {dist.get_world_size()} '

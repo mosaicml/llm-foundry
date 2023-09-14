@@ -154,13 +154,15 @@ class StreamingTextDataset(StreamingDataset):
                               padding='max_length',
                               max_length=self.max_seq_len)
 
-    def _read_binary_tokenized_sample(self, sample: Dict[str, Any]) -> torch.Tensor:
+    def _read_binary_tokenized_sample(self, sample: Dict[str,
+                                                         Any]) -> torch.Tensor:
         return torch.from_numpy(
             np.frombuffer(sample['tokens'],
                           dtype=np.int64)[:self.max_seq_len].copy())
 
     # How to process a sample
-    def __getitem__(self, idx: int) -> Union[Dict[str, List[int]], torch.Tensor]:
+    def __getitem__(self,
+                    idx: int) -> Union[Dict[str, List[int]], torch.Tensor]:
         sample = super().__getitem__(idx)
         if 'text' in sample:
             token_sample = self._tokenize(sample)

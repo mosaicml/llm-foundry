@@ -8,7 +8,7 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 import math
 import warnings
-from typing import Any, List, Mapping, MutableMapping, Optional, Tuple, Union
+from typing import Any, List, Mapping, MutableMapping, Optional, Tuple, Union, Dict
 
 import torch
 import torch.nn as nn
@@ -166,7 +166,7 @@ class MPTModel(MPTPreTrainedModel):
         attention_mask: Optional[torch.ByteTensor] = None,
         prefix_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
-    ) -> Tuple[torch.Tensor, None]:
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.ByteTensor]]:
         if not self._attn_bias_initialized:
             if self.attn_bias_shape:
                 self.attn_bias = torch.zeros(self.attn_bias_shape,
@@ -509,14 +509,15 @@ class MPTForCausalLM(MPTPreTrainedModel):
     def get_input_embeddings(self) -> nn.Embedding:
         return self.transformer.wte
 
-    def set_input_embeddings(self, value: Union[SharedEmbedding, nn.Embedding]) -> None:
+    def set_input_embeddings(
+            self, value: Union[SharedEmbedding, nn.Embedding]) -> None:
         self.transformer.wte = value
 
     def get_output_embeddings(self) -> nn.Embedding:
         return self.transformer.wte
 
-    def set_output_embeddings(self, new_embeddings: Union[SharedEmbedding,
-                                                          nn.Embedding]) -> None:
+    def set_output_embeddings(
+            self, new_embeddings: Union[SharedEmbedding, nn.Embedding]) -> None:
         self.transformer.wte = new_embeddings
 
     def set_decoder(self, decoder: MPTModel) -> None:
@@ -655,8 +656,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
         }
 
     @staticmethod
-    def _reorder_cache(past_key_values: List[Tuple[torch.Tensor, torch.Tensor]],
-                       beam_idx: torch.LongTensor) -> List[Tuple[torch.Tensor, ...]]:
+    def _reorder_cache(
+            past_key_values: List[Tuple[torch.Tensor, torch.Tensor]],
+            beam_idx: torch.LongTensor) -> List[Tuple[torch.Tensor, ...]]:
         """Used by HuggingFace generate when using beam search with kv-caching.
 
         See https://github.com/huggingface/transformers/blob/3ec7a47664ebe40c40f4b722f6bb1cd30c3821ec/src/transformers/models/gpt2/modeling_gpt2.py#L1122-L1133
@@ -746,7 +748,8 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             inputs_embeds=batch.get('inputs_embeds', None),
         )
 
-    def loss(self, outputs: CausalLMOutputWithPast, batch: Mapping) -> torch.Tensor:
+    def loss(self, outputs: CausalLMOutputWithPast,
+             batch: Mapping) -> torch.Tensor:
         targets = self.get_targets(batch)
         return self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
                             targets.view(-1))

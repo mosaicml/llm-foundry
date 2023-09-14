@@ -62,7 +62,7 @@ class MonolithicCheckpointSaver(Callback):
             self._save_checkpoint(state, logger)
 
     def _save_checkpoint(self, state: State, logger: Logger) -> None:
-        del logger # unused
+        del logger  # unused
 
         filename = format_name_with_dist_and_time(self.filename_format_str,
                                                   state.run_name,

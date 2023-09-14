@@ -49,7 +49,8 @@ class AutoTokenizerForMOD(AutoTokenizer):
     """
 
     @classmethod
-    def from_pretrained(cls, *args: Any, **kwargs: Any) -> PreTrainedTokenizerBase:
+    def from_pretrained(cls, *args: Any,
+                        **kwargs: Any) -> PreTrainedTokenizerBase:
         """See `AutoTokenizer.from_pretrained` docstring."""
         tokenizer = super().from_pretrained(*args, **kwargs)
         adapt_tokenizer_for_denoising(tokenizer)

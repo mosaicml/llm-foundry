@@ -102,7 +102,7 @@ def hf_get_hidden_layers(model: PreTrainedModel) -> Any:
     return layers
 
 
-def hf_get_init_device(init_device: Optional[str]) -> str:
+def hf_get_init_device(init_device: Optional[str]) -> Optional[str]:
     """Returns the appropriate device to initialize models."""
     from composer.utils import dist
     if init_device == 'mixed':

@@ -32,7 +32,9 @@ class GlobalLRScaling(Callback):
         self.lr_scale = lr_scale
         self.wd_pct = wd_pct
 
-    def fit_start(self, state: State, logger: Logger):
+    def fit_start(self, state: State, logger: Logger) -> None:
+        del logger  # unused
+
         if hasattr(state, 'optimizer') and state.optimizers is None:
             raise Exception('No optimizers defined')
         for optimizer in state.optimizers:
@@ -65,7 +67,9 @@ class LayerFreezing(Callback):
     def __init__(self, layer_names: List[str]):
         self.layer_names = set(layer_names)
 
-    def fit_start(self, state: State, logger: Logger):
+    def fit_start(self, state: State, logger: Logger) -> None:
+        del logger  # unused
+
         model_layers = set(name for name, _ in state.model.named_parameters())
         for layer in self.layer_names:
             if layer not in model_layers:

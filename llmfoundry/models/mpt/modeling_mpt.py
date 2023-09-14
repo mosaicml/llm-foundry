@@ -8,7 +8,8 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 import math
 import warnings
-from typing import Any, List, Mapping, MutableMapping, Optional, Tuple, Union
+from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
+                    Union)
 
 import torch
 import torch.nn as nn
@@ -152,10 +153,10 @@ class MPTModel(MPTPreTrainedModel):
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
 
-    def get_input_embeddings(self):
+    def get_input_embeddings(self) -> nn.Embedding:
         return self.wte
 
-    def set_input_embeddings(self, value: nn.Embedding):
+    def set_input_embeddings(self, value: nn.Embedding) -> None:
         self.wte = value
 
     @torch.no_grad()
@@ -166,7 +167,7 @@ class MPTModel(MPTPreTrainedModel):
         attention_mask: Optional[torch.ByteTensor] = None,
         prefix_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
-    ):
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.ByteTensor]]:
         if not self._attn_bias_initialized:
             if self.attn_bias_shape:
                 self.attn_bias = torch.zeros(self.attn_bias_shape,
@@ -190,7 +191,7 @@ class MPTModel(MPTPreTrainedModel):
 
         if self.attn_bias is not None:
             # .to(*args, **kwargs) is a no-op if tensor is already on
-            # specified device or of specificed dtype
+            # specified device or of specified dtype
             self.attn_bias = self.attn_bias.to(dtype=dtype, device=device)
 
         attn_bias = self.attn_bias
@@ -231,7 +232,7 @@ class MPTModel(MPTPreTrainedModel):
         return attn_bias, None
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
-                           prefix_mask: torch.Tensor):
+                           prefix_mask: torch.Tensor) -> torch.Tensor:
         s_k, s_q = attn_bias.shape[-2:]
         if (s_k != self.config.max_seq_len) or (s_q != self.config.max_seq_len):
             raise ValueError(
@@ -262,7 +263,7 @@ class MPTModel(MPTPreTrainedModel):
         return attn_bias
 
     def _apply_sequence_id(self, attn_bias: torch.Tensor,
-                           sequence_id: torch.LongTensor):
+                           sequence_id: torch.LongTensor) -> torch.Tensor:
         seq_len = sequence_id.shape[-1]
         if seq_len > self.config.max_seq_len:
             raise ValueError(
@@ -296,7 +297,7 @@ class MPTModel(MPTPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
         inputs_embeds: Optional[torch.Tensor] = None,
-    ):
+    ) -> BaseModelOutputWithPast:
         return_dict = (return_dict
                        if return_dict is not None else self.config.return_dict)
         use_cache = (use_cache
@@ -456,7 +457,7 @@ class MPTModel(MPTPreTrainedModel):
         )
 
     # Param Initialization, needed for device='meta' fast initialization
-    def param_init_fn(self, module: nn.Module):
+    def param_init_fn(self, module: nn.Module) -> None:
         init_fn_name = self.config.init_config['name']
         MODEL_INIT_REGISTRY[init_fn_name](
             module=module,
@@ -466,11 +467,11 @@ class MPTModel(MPTPreTrainedModel):
         )
 
     # FSDP Wrap function
-    def fsdp_wrap_fn(self, module: nn.Module):
+    def fsdp_wrap_fn(self, module: nn.Module) -> bool:
         return isinstance(module, MPTBlock)
 
     # Activation Checkpointing
-    def activation_checkpointing_fn(self, module: nn.Module):
+    def activation_checkpointing_fn(self, module: nn.Module) -> bool:
         return isinstance(module, MPTBlock)
 
 
@@ -506,23 +507,24 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     )
             self.logit_scale = logit_scale
 
-    def get_input_embeddings(self):
+    def get_input_embeddings(self) -> nn.Embedding:
         return self.transformer.wte
 
-    def set_input_embeddings(self, value: Union[SharedEmbedding, nn.Embedding]):
+    def set_input_embeddings(
+            self, value: Union[SharedEmbedding, nn.Embedding]) -> None:
         self.transformer.wte = value
 
-    def get_output_embeddings(self):
+    def get_output_embeddings(self) -> nn.Embedding:
         return self.transformer.wte
 
-    def set_output_embeddings(self, new_embeddings: Union[SharedEmbedding,
-                                                          nn.Embedding]):
+    def set_output_embeddings(
+            self, new_embeddings: Union[SharedEmbedding, nn.Embedding]) -> None:
         self.transformer.wte = new_embeddings
 
-    def set_decoder(self, decoder: MPTModel):
+    def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder
 
-    def get_decoder(self):
+    def get_decoder(self) -> MPTModel:
         return self.transformer
 
     def forward(
@@ -538,7 +540,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
-    ):
+    ) -> CausalLMOutputWithPast:
         return_dict = (return_dict
                        if return_dict is not None else self.config.return_dict)
         use_cache = (use_cache
@@ -593,7 +595,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         )
 
     # Param Initialization, needed for device='meta' fast initialization
-    def param_init_fn(self, module: nn.Module):
+    def param_init_fn(self, module: nn.Module) -> None:
         init_fn_name = self.config.init_config['name']
         MODEL_INIT_REGISTRY[init_fn_name](
             module=module,
@@ -603,11 +605,11 @@ class MPTForCausalLM(MPTPreTrainedModel):
         )
 
     # FSDP Wrap function
-    def fsdp_wrap_fn(self, module: nn.Module):
+    def fsdp_wrap_fn(self, module: nn.Module) -> bool:
         return isinstance(module, MPTBlock)
 
     # Activation Checkpointing
-    def activation_checkpointing_fn(self, module: nn.Module):
+    def activation_checkpointing_fn(self, module: nn.Module) -> bool:
         return isinstance(module, MPTBlock)
 
     def prepare_inputs_for_generation(
@@ -617,7 +619,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
                                              torch.Tensor]]] = None,
         inputs_embeds: Optional[torch.Tensor] = None,
         **kwargs: Any,
-    ):
+    ) -> Dict[str, Any]:
         if inputs_embeds is not None:
             raise NotImplementedError(
                 'inputs_embeds is not implemented for MPT yet')
@@ -655,8 +657,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
         }
 
     @staticmethod
-    def _reorder_cache(past_key_values: List[Tuple[torch.Tensor, torch.Tensor]],
-                       beam_idx: torch.LongTensor):
+    def _reorder_cache(
+            past_key_values: List[Tuple[torch.Tensor, torch.Tensor]],
+            beam_idx: torch.LongTensor) -> List[Tuple[torch.Tensor, ...]]:
         """Used by HuggingFace generate when using beam search with kv-caching.
 
         See https://github.com/huggingface/transformers/blob/3ec7a47664ebe40c40f4b722f6bb1cd30c3821ec/src/transformers/models/gpt2/modeling_gpt2.py#L1122-L1133
@@ -729,12 +732,12 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 f'Specified loss_fn={self.loss_fn} not recognized. `loss_fn` must be one of [`fused_crossentropy`, `torch_crossentropy`].'
             )
 
-    def get_targets(self, batch: Mapping):
+    def get_targets(self, batch: Mapping) -> torch.Tensor:
         targets = torch.roll(batch['labels'], shifts=-1)
         targets[:, -1] = -100
         return targets
 
-    def forward(self, batch: MutableMapping):
+    def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
         if self.model.transformer.prefix_lm:
             add_bidirectional_mask_if_missing(batch)
         # Note: prefix_mask is only used if model.prefix_lm is True
@@ -746,12 +749,13 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             inputs_embeds=batch.get('inputs_embeds', None),
         )
 
-    def loss(self, outputs: CausalLMOutputWithPast, batch: Mapping):
+    def loss(self, outputs: CausalLMOutputWithPast,
+             batch: Mapping) -> torch.Tensor:
         targets = self.get_targets(batch)
         return self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
                             targets.view(-1))
 
-    def flops_per_batch(self, batch: Mapping):
+    def flops_per_batch(self, batch: Mapping) -> int:
         # Note: this computation does not take into account padding, and assumes
         # that the dataset has been constructed without padding. Additionally, we
         # assume the backward pass is approximately 2x the forward pass

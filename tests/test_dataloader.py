@@ -11,6 +11,7 @@ from typing import Optional
 
 import pytest
 import torch
+import numpy
 from composer.utils import dist, using_torch_2
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
@@ -52,6 +53,25 @@ def build_mock_ft_streaming_dataset(data_path: str, split: str):
     }, {
         'prompt': 'This is just a test2',
         'response': 'Hello world2'
+    }]
+
+    output_path = os.path.join(data_path, split)
+
+    with MDSWriter(columns=columns, out=output_path,
+                   compression=None) as output_writer:
+        for sample in dataset:
+            output_writer.write(sample)
+
+
+def build_mock_tokenized_ft_streaming_dataset(data_path, split):
+    columns = {'tokens': 'bytes', 'labels': 'bytes'}
+
+    dataset = [{
+        'tokens': numpy.asarray([1, 2, 3, 4]).tobytes(),
+        'labels': numpy.asarray([2, 3, 4, 5]).tobytes()
+    }, {
+        'tokens': numpy.asarray([2, 3, 4, 5]).tobytes(),
+        'labels': numpy.asarray([3, 4, 5, 6]).tobytes()
     }]
 
     output_path = os.path.join(data_path, split)
@@ -470,6 +490,48 @@ def test_finetuning_dataloader_streaming(tmp_path: pathlib.Path):
     )
 
     _ = build_finetuning_dataloader(cfg, tokenizer, 4)
+
+
+def test_finetuning_dataloader_streaming_tokenized(tmp_path: pathlib.Path):
+    remote_path = os.path.join(tmp_path, 'remote')
+    local_path = os.path.join(tmp_path, 'local')
+
+    build_mock_tokenized_ft_streaming_dataset(remote_path, 'train')
+
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'remote': remote_path,
+            'local': local_path,
+            'split': 'train',
+            'max_seq_len': 2048,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 4,
+        'pin_memory': False,
+        'prefetch_factor': 2,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    tokenizer = build_tokenizer(
+        tokenizer_name='gpt2',
+        tokenizer_kwargs={'model_max_length': 2048},
+    )
+
+    ft_dataloader = build_finetuning_dataloader(cfg, tokenizer, 4)
+
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+
+    for batch in ft_dataloader:
+        for k in expected_keys:
+            assert k in batch
 
 
 @pytest.mark.parametrize('add_bad_data_dropped', [True, False])

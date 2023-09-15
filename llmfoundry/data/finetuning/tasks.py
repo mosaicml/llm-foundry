@@ -38,6 +38,8 @@ import warnings
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import datasets as hf_datasets
+import numpy as np
+import torch
 from omegaconf import DictConfig
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
@@ -65,6 +67,19 @@ def _tokenize_formatted_example(
             f'Unable to tokenize example because "response" was not a string. {example=}'
         )
     return tokenizer(text=example['prompt'], text_target=example['response'])
+
+
+def _read_binary_tokenized_sample(sample: Dict[str, Any]):
+    example = {
+        'input_ids':
+            torch.from_numpy(
+                np.frombuffer(sample['tokens'], dtype=np.int64).copy()),
+        'labels':
+            torch.from_numpy(
+                np.frombuffer(sample['labels'], dtype=np.int64).copy()),
+    }
+    example['attention_mask'] = torch.ones(example['input_ids'].size())
+    return example
 
 
 class StreamingFinetuningDataset(StreamingDataset):
@@ -185,7 +200,14 @@ class StreamingFinetuningDataset(StreamingDataset):
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         sample = super().__getitem__(idx)
-        return _tokenize_formatted_example(sample, tokenizer=self.tokenizer)
+        if 'prompt' in sample and 'response' in sample:
+            return _tokenize_formatted_example(sample, tokenizer=self.tokenizer)
+        elif 'tokens' in sample and 'labels' in sample:
+            return _read_binary_tokenized_sample(sample)
+        else:
+            raise RuntimeError(
+                'FineTurningDataset needs samples to have prompt/response columns '
+                'or tokens/labels columns')
 
 
 class DatasetConstructor:

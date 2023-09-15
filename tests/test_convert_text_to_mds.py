@@ -33,7 +33,8 @@ class MockObjectStore():
         os.makedirs(remote_folder, exist_ok=True)
         for i in range(n_text_files):
             with open(os.path.join(remote_folder, f'test{i}.txt'), 'w') as f:
-                f.write((text_content + ' ') * 500)
+                f.write(text_content)
+
         self.remote_folder = remote_folder
         self.n_text_files = n_text_files
 
@@ -59,12 +60,13 @@ class MockObjectStore():
             remote_file.write(local_file.read())
 
 
-def _call_convert_text_to_mds(processes: int, tokenizer_name: str) -> None:
+def _call_convert_text_to_mds(processes: int, tokenizer_name: str,
+                              concat_tokens: int) -> None:
     main(
         tokenizer_name=tokenizer_name,
         output_folder=f's3://fake-test-output-path',
         input_folder=f's3://fake-test-input-path',
-        concat_tokens=2048,
+        concat_tokens=concat_tokens,
         eos_text='',
         bos_text='',
         no_wrap=False,
@@ -101,9 +103,10 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
                                   maybe_create_object_store_from_uri: Mock,
                                   tmp_path: pathlib.Path, processes: int):
     remote_folder = os.path.join(tmp_path, 'remote')
-    text_content = 'HELLO WORLD'
+    text_content = 'HELLO WORLD ' * 500
     tokenizer_name = 'mosaicml/mpt-7b'
     n_text_files = processes * 3
+    concat_tokens = 2048
 
     mock_object_store = Mock(
         wraps=MockObjectStore(remote_folder, n_text_files, text_content))
@@ -111,7 +114,8 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
     parse_uri.return_value = ('s3', 'fake-test-bucket', str(remote_folder))
 
     _call_convert_text_to_mds(processes=processes,
-                              tokenizer_name=tokenizer_name)
+                              tokenizer_name=tokenizer_name,
+                              concat_tokens=concat_tokens)
 
     # Check call counts
     assert download_and_convert.call_count == processes  # called once per process
@@ -134,7 +138,8 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
                         files=['index.json', get_done_file_name()] + shards)
 
     _call_convert_text_to_mds(processes=processes,
-                              tokenizer_name=tokenizer_name)
+                              tokenizer_name=tokenizer_name,
+                              concat_tokens=concat_tokens)
 
     # Check call counts
     assert download_and_convert.call_count == processes  # No changes because we shoudn't reprocess
@@ -143,24 +148,45 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
 
     # Create an extra text file and call again.
     n_text_files += 1
-    mock_object_store = Mock(
-        wraps=MockObjectStore(remote_folder, n_text_files, text_content))
+    object_store = MockObjectStore(remote_folder, n_text_files, text_content)
+    mock_object_store = Mock(wraps=object_store)
     maybe_create_object_store_from_uri.return_value = mock_object_store
 
     _call_convert_text_to_mds(processes=processes,
-                              tokenizer_name=tokenizer_name)
+                              tokenizer_name=tokenizer_name,
+                              concat_tokens=concat_tokens)
 
     # Check call counts
     assert download_and_convert.call_count == processes * 2  # called once per process
     assert mock_object_store.download_object.call_count == n_text_files + 1  # text files + done file
     assert mock_object_store.upload_object.call_count == processes + 2  # shard per process + done file + index.json
 
-    # Check that the dataset can be used and produces samples with the original text_content
+    # Compute the expected number of tokens
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-    dataset = StreamingDataset(local=remote_folder)
-    sample = dataset.__iter__().__next__()
-    assert tokenizer.decode(np.frombuffer(sample['tokens'],
-                                          dtype=int)).startswith(text_content)
+    tokens_per_file = len(tokenizer(text_content)['input_ids'])
+    files_per_process = [n_text_files // processes
+                        ] * processes  # Distrubte the files equally
+    print('files per process!', files_per_process)
+    files_per_process[
+        0] += n_text_files % processes  # Give one of the processes the remainder
+    # expected number of tokens accounts for last tokens dropped by ConcatTokensDataset
+    expected_n_tokens = sum([
+        ((n_files * tokens_per_file) // concat_tokens) * concat_tokens
+        for n_files in files_per_process
+    ])
+
+    dataset = StreamingDataset(local=remote_folder, num_canonical_nodes=1)
+    n_tokens = 0
+    for i in range(dataset.num_samples):
+        sample = dataset[i]
+        tokens = np.frombuffer(sample['tokens'], dtype=int)
+        if i == 0:  # For the first sample, check that the decoded sample matches the text_content
+            decoded = tokenizer.decode(tokens)
+            assert decoded == text_content[:len(decoded)]
+        n_tokens += len(tokens)
+
+    # Check that the number of tokens found while iterating through the dataset is as expected.
+    assert n_tokens == expected_n_tokens
 
 
 def test_is_already_processed(tmp_path: pathlib.Path):

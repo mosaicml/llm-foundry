@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import copy
+import logging
 import math
 import os
 import tempfile
@@ -19,6 +19,8 @@ from transformers import AutoTokenizer
 from llmfoundry.data import ConcatTokensDataset
 from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
                                               merge_shard_groups)
+
+log = logging.getLogger(__name__)
 
 
 def parse_args() -> Namespace:
@@ -45,8 +47,7 @@ def parse_args() -> Namespace:
                         default='zstd',
                         help='The compression algorithm to use for MDS writing')
 
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument(
+    parser.add_argument(
         '--concat_tokens',
         type=int,
         help='Convert text to tokens and concatenate up to this many tokens')
@@ -121,7 +122,7 @@ def get_object_names(input_folder: str) -> List[str]:
             for text_file in glob(os.path.join(dirpath, '*.txt'))
         ]
     # return names, sizes
-    print(f'Found {len(names)} text files at {input_folder}')
+    log.info(f'Found {len(names)} text files at {input_folder}')
 
     return names
 
@@ -195,7 +196,7 @@ def download_and_convert(
 
         columns = {'tokens': 'bytes'}
 
-        print(f'Converting to MDS format...')
+        log.info('Converting to MDS format...')
         with MDSWriter(out=output_folder,
                        columns=columns,
                        max_mds_writer_workers=max_mds_writer_workers,
@@ -276,11 +277,13 @@ def main(
     is_remote_output = is_remote_path(output_folder)
 
     object_names = get_object_names(input_folder)
+    if len(object_names) == 0:
+        raise ValueError(f'No text files were found at {input_folder}.')
 
     # Check if the text files in the bucket have already been processed.
     if not reprocess and is_already_processed(output_folder, done_file_name,
                                               args_str, object_names):
-        print(
+        log.info(
             f'Input folder {input_folder} is already processed at {output_folder} and reprocess is set to False. Set reprocess to True if you would like to force reprocessing.'
         )
         return
@@ -328,11 +331,20 @@ def _args_str(original_args: Namespace) -> str:
     Args:
         original_args (Namespace): args to transform
     """
-    args = copy.deepcopy(original_args)
+    # Take the arguments that influence the final result.
+    # reprocess and max_mds_writer_workers are not taken.
+    args = Namespace(
+        tokenizer_name=original_args.tokenizer,
+        output_folder=original_args.output_folder,
+        input_folder=original_args.input_folder,
+        concat_tokens=original_args.concat_tokens,
+        eos_text=original_args.eos_text,
+        bos_text=original_args.bos_text,
+        no_wrap=original_args.no_wrap,
+        compression=original_args.compression,
+        processes=original_args.processes,
+    )
 
-    # Remove args that do not affect the final result.
-    delattr(args, 'max_mds_writer_workers')
-    delattr(args, 'reprocess')
     return str(args)
 
 

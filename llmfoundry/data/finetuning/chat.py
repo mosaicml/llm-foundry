@@ -111,6 +111,30 @@ class ChatMLFormatter(ChatFormatter):
         super().__init__(system)
 
 
+class InstructFormatter(ChatFormatter):
+    """A class for formatting the chat history in MPTInstruct syntax.
+    
+    Args:
+        system: The system prompt. If None, a default MPTInstruct-formatted prompt is used.
+        user: The user prompt. If None, a default MPTInstruct value is used.
+        assistant: The assistant prompt. If None, a default MPTInstruct value is used.
+    """
+
+    DEFAULT_SYSTEM_PROMPT = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
+
+    def __init__(self, system: str = None) -> None:
+        self.system_fmt = '{}\n'
+        if system:
+            system = self.system_fmt.format(system)
+        else:
+            system = self.system_fmt.format(self.DEFAULT_SYSTEM_PROMPT)
+        
+        user ="\n### Instruction\n{}"
+        assistant = "\n### Response\n{}"
+        super().__init__(system, user, assistant, turn_joiner='\n')
+
+
+
 class Llama2ChatFormatter(ChatFormatter):
     """A class for formatting the chat history in Llama2Chat syntax.
     

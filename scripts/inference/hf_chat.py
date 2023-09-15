@@ -12,7 +12,7 @@ from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           PreTrainedModel, PreTrainedTokenizerBase,
                           StoppingCriteria, StoppingCriteriaList, TextStreamer)
 
-from llmfoundry.data.finetuning.chat import ChatFormatter, ChatMLFormatter, Llama2ChatFormatter
+from llmfoundry.data.finetuning.chat import ChatFormatter, ChatMLFormatter, InstructFormatter, Llama2ChatFormatter
 
 
 class Conversation:
@@ -333,10 +333,17 @@ def main(args: Namespace) -> None:
         print('NOT using autocast...')
 
     # Chat format
-    model_name = model.config.model_type
-    if 'llama2' in model_name.lower():
+    model_coarse_name = model.config.model_type
+    model_name = args.name_or_path
+    print(model_coarse_name, model_name)
+    if 'llama2' in model_coarse_name.lower():
         chat_format = Llama2ChatFormatter(system=args.system_prompt)
-    elif 'mpt' in model_name.lower():
+    elif model_name in ["mosaicml/mpt-7b-8k-instruct", "mosaicml/mpt-30b-instruct",  "mosaicml/mpt-7b-instruct"]:
+        chat_format = InstructFormatter(system=args.system_prompt)
+    elif model_name in ["mosaicml/mpt-7b-8k-chat", "mosaicml/mpt-30b-chat",  "mosaicml/mpt-7b-chat"]:
+        chat_format = ChatMLFormatter(system=args.system_prompt)
+    elif model_coarse_name == "mpt":
+        print("unrecognized model name, using MPT-Chat format")
         chat_format = ChatMLFormatter(system=args.system_prompt)
     else:
         chat_format = ChatFormatter(system=args.system_prompt,

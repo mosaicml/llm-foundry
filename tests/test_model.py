@@ -1341,6 +1341,7 @@ def test_forward_with_output_attentions_and_output_hidden_states(
 
         if output_attentions:
             assert len(outputs.attentions) == n_layers
+            assert outputs.attentions[0] is not None
         if output_hidden_states:
             assert len(outputs.hidden_states) == n_layers + 1
 

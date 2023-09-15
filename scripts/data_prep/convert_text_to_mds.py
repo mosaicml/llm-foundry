@@ -87,7 +87,7 @@ def parse_args() -> Namespace:
         required=False,
         default=False,
         help=
-        'If true, reprocess the input_folder to mds format. Otherwise, only reprocess upon changes to the input folder.'
+        'If true, reprocess the input_folder to mds format. Otherwise, only reprocess upon changes to the input folder or dataset creation parameters.'
     )
 
     parsed = parser.parse_args()

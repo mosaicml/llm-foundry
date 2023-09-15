@@ -20,8 +20,9 @@ from streaming import StreamingDataset
 from transformers import AutoTokenizer
 
 from scripts.data_prep.convert_text_to_mds import (DONE_FILENAME,
+                                                   convert_text_to_mds,
                                                    download_and_convert,
-                                                   is_already_processed, main,
+                                                   is_already_processed,
                                                    merge_shard_groups,
                                                    write_done_file)
 
@@ -62,7 +63,7 @@ class MockObjectStore():
 
 def _call_convert_text_to_mds(processes: int, tokenizer_name: str,
                               concat_tokens: int) -> None:
-    main(
+    convert_text_to_mds(
         tokenizer_name=tokenizer_name,
         output_folder=f's3://fake-test-output-path',
         input_folder=f's3://fake-test-input-path',

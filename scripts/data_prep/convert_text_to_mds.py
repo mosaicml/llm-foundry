@@ -28,68 +28,82 @@ def parse_args() -> Namespace:
     """Parse commandline arguments."""
     parser = ArgumentParser(
         description=
-        'Convert text files into MDS format, optionally concatenating and tokenizing'
+        'Convert text files into MDS format, optionally concatenating and tokenizing',
     )
     parser.add_argument(
         '--max_mds_writer_workers',
         type=int,
         default=64,
-        help='The maximum number of workers to use for MDS writing')
-    parser.add_argument('--output_folder',
-                        type=str,
-                        required=True,
-                        help='The folder to write output to')
-    parser.add_argument('--input_folder',
-                        type=str,
-                        required=True,
-                        help='The folder with text files to convert to mds')
-    parser.add_argument('--compression',
-                        type=str,
-                        default='zstd',
-                        help='The compression algorithm to use for MDS writing')
+        help='The maximum number of workers to use for MDS writing',
+    )
+    parser.add_argument(
+        '--output_folder',
+        type=str,
+        required=True,
+        help='The folder to write output to',
+    )
+    parser.add_argument(
+        '--input_folder',
+        type=str,
+        required=True,
+        help='The folder with text files to convert to mds',
+    )
+    parser.add_argument(
+        '--compression',
+        type=str,
+        default='zstd',
+        help='The compression algorithm to use for MDS writing',
+    )
 
     parser.add_argument(
         '--concat_tokens',
         type=int,
-        help='Convert text to tokens and concatenate up to this many tokens')
+        help='Convert text to tokens and concatenate up to this many tokens',
+    )
 
-    parser.add_argument('--tokenizer',
-                        type=str,
-                        help='The name of the tokenizer to use')
+    parser.add_argument(
+        '--tokenizer',
+        type=str,
+        help='The name of the tokenizer to use',
+    )
     parser.add_argument(
         '--bos_text',
         type=str,
         required=False,
         default=None,
         help=
-        'The text to prepend to each example to separate concatenated examples')
+        'The text to prepend to each example to separate concatenated examples',
+    )
     parser.add_argument(
         '--eos_text',
         type=str,
         required=False,
         default=None,
         help=
-        'The text to append to each example to separate concatenated examples')
+        'The text to append to each example to separate concatenated examples',
+    )
     parser.add_argument(
         '--no_wrap',
         default=False,
         action='store_true',
         help=
-        'Whether to let text examples wrap across multiple training examples')
+        'Whether to let text examples wrap across multiple training examples',
+    )
     parser.add_argument(
         '--processes',
         type=int,
         required=False,
         default=1,
-        help='The number of processes to use to download and convert the dataset'
+        help=
+        'The number of processes to use to download and convert the dataset',
     )
     parser.add_argument(
         '--reprocess',
         type=bool,
         required=False,
         default=False,
-        help=
-        'If true, reprocess the input_folder to mds format. Otherwise, only reprocess upon changes to the input folder or dataset creation parameters.'
+        help='If true, reprocess the input_folder to mds format. Otherwise, ' +
+        'only reprocess upon changes to the input folder or dataset creation parameters.',
     )
 
     parsed = parser.parse_args()
@@ -109,6 +123,11 @@ def parse_args() -> Namespace:
 
 
 def get_object_names(input_folder: str) -> List[str]:
+    """Get object names from a local or remote folder.
+
+    Args:
+        input_folder (str): local or remote folder path.
+    """
     object_store = maybe_create_object_store_from_uri(input_folder)
     if object_store is not None:
         _, _, folder_prefix = parse_uri(input_folder)
@@ -141,6 +160,23 @@ def get_task_args(
     compression: str,
     max_mds_writer_workers: int,
 ) -> Iterable:
+    """Get download_and_convert arguments split across n_groups.
+
+    Each group handles a portion of object_names.
+
+    Args:
+        object_names (List[str]): Names of objects to process
+        output_root (str): Folder to write MDS shards to
+        input_folder (str): Folder of text files to process
+        n_groups (int): Number of groups to split the object names into
+        tokenizer_name (str): Name of tokenizer to use
+        concat_tokens (int): Concantenate up to this many tokens
+        eos_text (str): Textend to append to each example to separate concatenated samples
+        bos_text (str): Text to prepend to each example to separate concatenated samples
+        no_wrap: (bool): Whether to let text examples wrap across multiple training examples
+        compression (str): The compression algorithm to use for MDS writing
+        max_mds_writer_workers (int): number of workers for MDS writing
+    """
     num_objects = len(object_names)
     objs_per_group = math.ceil(num_objects / n_groups)
     for group, i in enumerate(range(0, num_objects, objs_per_group)):
@@ -160,6 +196,10 @@ def get_task_args(
 
 
 def download_and_convert_starargs(args: Tuple):
+    """Helper function to call download_and_convert with star args.
+
+    This helps us use download_and_convert with mutiprocessing.
+    """
     return download_and_convert(*args)
 
 
@@ -175,6 +215,20 @@ def download_and_convert(
     compression: str,
     max_mds_writer_workers: int,
 ):
+    """Downloads and converts text fies to MDS format.
+
+    Args:
+        file_names (List[str]): Files to process
+        output_folder (str): Folder to write MDS shards to
+        input_folder (str): Folder of text files to process
+        tokenizer_name (str): Name of tokenizer to use
+        concat_tokens (int): Concantenate up to this many tokens
+        eos_text (str): Textend to append to each example to separate concatenated samples
+        bos_text (str): Text to prepend to each example to separate concatenated samples
+        no_wrap: (bool): Whether to let text examples wrap across multiple training examples
+        compression (str): The compression algorithm to use for MDS writing
+        max_mds_writer_workers (int): number of workers for MDS writing
+    """
     object_store = maybe_create_object_store_from_uri(input_folder)
 
     # Download file_names
@@ -200,19 +254,33 @@ def download_and_convert(
         log.info('Converting to MDS format...')
         with MDSWriter(out=output_folder,
                        columns=columns,
-                       max_mds_writer_workers=max_mds_writer_workers,
+                       max_workers=max_mds_writer_workers,
                        compression=compression) as out:
             for sample in tqdm(dataset):
                 out.write(sample)
 
 
 def is_remote_path(path: str) -> bool:
+    """Checks whether a path is a remote path.
+
+    Args:
+        path (str): path to check
+    """
     backend, bucket, _ = parse_uri(path)
     return backend != '' and bucket != ''
 
 
 def is_already_processed(output_root: str, args_str: str,
                          object_names: List[str]) -> bool:
+    """Determines whether a group of text files has already been processed.
+
+    Checks the done fie at output root to determine this.
+
+    Args:
+        output_root (str): Output folder where a done file may exist
+        args_str (str): String representation of the arguments
+        object_names (List[str]): Names of objects to convert to MDS format
+    """
     # Retrieve the done file contents
     output_object_store = maybe_create_object_store_from_uri(output_root)
     if output_object_store is not None:
@@ -251,11 +319,21 @@ def is_already_processed(output_root: str, args_str: str,
 
 
 def write_done_file(folder: str, args_str: str, object_names: List[str]):
+    """Write a file to signify completion.
+
+    This the done file includes the arguments to processing and
+    a list of objects that were processed.
+
+    Args:
+        folder (str): Folder to write the done file to
+        args_str (str): String representation of arguments
+        object_names (List[str]): List of objects to convert to MDS format
+    """
     with open(os.path.join(folder, DONE_FILENAME), 'w') as done_file:
         done_file.write('\n'.join([args_str] + object_names) + '\n')
 
 
-def main(
+def convert_text_to_mds(
     tokenizer_name: str,
     output_folder: str,
     input_folder: str,
@@ -269,6 +347,22 @@ def main(
     args_str: str,
     reprocess: bool,
 ):
+    """Convert a folder of text files to MDS format.
+
+    Args:
+        tokenizer_name (str): Name of tokenizer to use
+        output_folder (str): Folder to write MDS shards to
+        input_folder (str): Folder of text files to process
+        concat_tokens (int): Concantenate up to this many tokens
+        eos_text (str): Textend to append to each example to separate concatenated samples
+        bos_text (str): Text to prepend to each example to separate concatenated samples
+        no_wrap: (bool): Whether to let text examples wrap across multiple training examples
+        max_mds_writer_workers (int): number of workers for MDS writing
+        compression (str): The compression algorithm to use for MDS writing
+        processes (int): The number of processes to use.
+        args_str (str): String representation of the arguments
+        reprocess (bool): Whether to always reprocess the given folder of text files
+    """
     is_remote_output = is_remote_path(output_folder)
 
     object_names = get_object_names(input_folder)
@@ -345,15 +439,15 @@ def _args_str(original_args: Namespace) -> str:
 
 if __name__ == '__main__':
     args = parse_args()
-    main(tokenizer_name=args.tokenizer,
-         output_folder=args.output_folder,
-         input_folder=args.input_folder,
-         concat_tokens=args.concat_tokens,
-         eos_text=args.eos_text,
-         bos_text=args.bos_text,
-         no_wrap=args.no_wrap,
-         max_mds_writer_workers=args.max_mds_writer_workers,
-         compression=args.compression,
-         processes=args.processes,
-         reprocess=args.reprocess,
-         args_str=_args_str(args))
+    convert_text_to_mds(tokenizer_name=args.tokenizer,
+                        output_folder=args.output_folder,
+                        input_folder=args.input_folder,
+                        concat_tokens=args.concat_tokens,
+                        eos_text=args.eos_text,
+                        bos_text=args.bos_text,
+                        no_wrap=args.no_wrap,
+                        max_mds_writer_workers=args.max_mds_writer_workers,
+                        compression=args.compression,
+                        processes=args.processes,
+                        reprocess=args.reprocess,
+                        args_str=_args_str(args))

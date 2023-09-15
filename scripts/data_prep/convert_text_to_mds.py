@@ -239,7 +239,8 @@ def download_and_convert(
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
 
-        # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up to the maximum sequence length
+        # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up
+        # to the maximum sequence length
         dataset = ConcatTokensDataset(
             hf_dataset=downloading_iter,
             max_length=concat_tokens,
@@ -373,7 +374,9 @@ def convert_text_to_mds(
     if not reprocess and is_already_processed(output_folder, args_str,
                                               object_names):
         log.info(
-            f'Input folder {input_folder} is already processed at {output_folder} and reprocess is set to False. Set reprocess to True if you would like to force reprocessing.'
+            f'Input folder {input_folder} is already processed at {output_folder} and '
+            +
+            'reprocess is set to False. Set reprocess to True if you would like to force reprocessing.'
         )
         return
 

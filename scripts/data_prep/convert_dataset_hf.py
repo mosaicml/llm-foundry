@@ -3,19 +3,20 @@
 
 """Streaming dataset conversion scripts for C4 and The Pile."""
 import os
+import platform
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Iterable, Optional, Union
 
 import datasets as hf_datasets
+import psutil
 from streaming import MDSWriter
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import DataLoader, Dataset, IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
-from llmfoundry.utils.data_prep_utils import build_dataloader
 
 
 class ConcatMode(Enum):
@@ -249,6 +250,31 @@ def _est_progress_denominator(total_samples: int, chars_per_sample: int,
         return total_samples
     elif mode == ConcatMode.CONCAT_TOKENS:
         return total_samples * est_tokens_per_sample // max_length
+
+
+def build_dataloader(dataset: Dataset, batch_size: int,
+                     num_workers: Optional[int]) -> DataLoader:
+    if num_workers is None:
+        # Multiple workers is only supported on linux machines
+        if 'linux' or 'macos' in platform.platform().lower():
+            num_workers = max(1, psutil.cpu_count())
+        else:
+            num_workers = 0
+
+    # If using multiple workers, configure each worker to prefetch as many samples as it can, up to
+    # the aggregate device batch size
+    # If not using workers, the torch DataLoader expects the default value for prefetch_factor,
+    # which non-intuitively must be 2.
+    prefetch_factor = max(1, 2 * batch_size //
+                          num_workers) if num_workers > 0 else 2
+
+    return DataLoader(
+        dataset=dataset,
+        sampler=None,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        prefetch_factor=prefetch_factor,
+    )
 
 
 def generate_samples(

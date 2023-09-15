@@ -2,16 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable, List, Optional, Union
 
 import datasets as hf_datasets
+import psutil
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 
 from llmfoundry.data.finetuning.tasks import dataset_constructor
-from llmfoundry.utils.data_prep_utils import build_dataloader
 
 
 def parse_args() -> Namespace:
@@ -93,6 +94,36 @@ class SimpleDataset(IterableDataset):
         for sample in self.hf_dataset:
             # convert to bytes to store in MDS binary format
             yield {key: sample[key].encode('utf-8') for key in self.columns}
+
+
+def build_dataloader(dataset: SimpleDataset,
+                     batch_size: int,
+                     num_workers: Optional[int] = None) -> DataLoader:
+    if num_workers is None:
+        # Multiple workers is only supported on linux machines
+        if 'linux' in platform.platform().lower():
+            num_workers = max(1, psutil.cpu_count())
+        else:
+            num_workers = 0
+
+    # If using multiple workers, configure each worker to prefetch as many samples as it can, up to
+    # the aggregate device batch size
+    # If not using workers, the torch DataLoader expects the default value for prefetch_factor,
+    # which non-intuitively must be 2.
+    # If on macOS, PyTorch requires prefetch_factor set to None since num_workers is always zero
+    if 'macos' in platform.platform().lower() and num_workers == 0:
+        prefetch_factor = None
+    else:
+        prefetch_factor = max(1, 2 * batch_size //
+                              num_workers) if num_workers > 0 else 2
+
+    return DataLoader(
+        dataset=dataset,
+        sampler=None,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        prefetch_factor=prefetch_factor,
+    )
 
 
 def generate_samples(

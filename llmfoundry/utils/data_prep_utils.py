@@ -3,43 +3,10 @@
 
 import json
 import os
-import platform
 from glob import glob
 from typing import List, Optional
 
-import psutil
 from composer.utils import ObjectStore
-from torch.utils.data import DataLoader, Dataset
-
-
-def build_dataloader(dataset: Dataset,
-                     batch_size: int,
-                     num_workers: Optional[int] = None) -> DataLoader:
-    if num_workers is None:
-        # Multiple workers is only supported on linux machines
-        if 'linux' in platform.platform().lower():
-            num_workers = max(1, psutil.cpu_count())
-        else:
-            num_workers = 0
-
-    # If using multiple workers, configure each worker to prefetch as many samples as it can, up to
-    # the aggregate device batch size
-    # If not using workers, the torch DataLoader expects the default value for prefetch_factor,
-    # which non-intuitively must be 2.
-    # If on macOS, PyTorch requires prefetch_factor set to None since num_workers is always zero
-    if 'macos' in platform.platform().lower() or num_workers == 0:
-        prefetch_factor = None
-    else:
-        prefetch_factor = max(1, 2 * batch_size //
-                              num_workers) if num_workers > 0 else 2
-
-    return DataLoader(
-        dataset=dataset,
-        sampler=None,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        prefetch_factor=prefetch_factor,
-    )
 
 
 def with_id(basename: str, shard_id: int) -> str:

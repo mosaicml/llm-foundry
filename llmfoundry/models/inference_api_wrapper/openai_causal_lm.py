@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer.core.types import Batch
 from composer.utils.import_helpers import MissingConditionalImportError
-from openai.error import RateLimitError
 from transformers import (AutoTokenizer, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
 
@@ -133,6 +132,13 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
         return self.process_result(completion)
 
     def try_generate_completion(self, prompt: str, num_tokens: int):
+        try:
+            from openai.error import RateLimitError
+        except ImportError as e:
+            raise MissingConditionalImportError(
+                extra_deps_group='openai',
+                conda_package='openai',
+                conda_channel='conda-forge') from e
         tries = 0
         completion = None
         while tries < MAX_RETRIES:

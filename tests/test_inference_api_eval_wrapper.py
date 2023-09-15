@@ -66,9 +66,16 @@ def mock_create(**kwargs: Dict[str, str]):
             }],
         }
     else:
-        raise ValueError(
-            f'Mocked `openai.Completion.create` received invalid prompt: {prompt}.'
-        )
+        # dummy token to make sure the model is incorrect on any other prompt
+        return {
+            'choices': [{
+                'logprobs': {
+                    'top_logprobs': [{
+                        ' ': 0,
+                    }],
+                },
+            }],
+        }
 
 
 def test_openai_api_eval_wrapper(tmp_path: str):
@@ -82,7 +89,7 @@ def test_openai_api_eval_wrapper(tmp_path: str):
         evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
                                              tokenizer,
                                              1024,
-                                             1,
+                                             2,
                                              destination_dir=str(tmp_path))
 
         batch = next(evaluators[0].dataloader.dataloader.__iter__())
@@ -94,7 +101,7 @@ def test_openai_api_eval_wrapper(tmp_path: str):
         acc = model.get_metrics(
         )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
         )  # pyright: ignore
-        assert acc == 1.0
+        assert acc == 0.5
 
 
 def test_chat_api_eval_wrapper(tmp_path: str):
@@ -115,7 +122,7 @@ def test_chat_api_eval_wrapper(tmp_path: str):
         evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
                                              tokenizer,
                                              1024,
-                                             1,
+                                             2,
                                              destination_dir=str(tmp_path))
 
         batch = next(evaluators[0].dataloader.dataloader.__iter__())
@@ -128,4 +135,4 @@ def test_chat_api_eval_wrapper(tmp_path: str):
         acc = chatmodel.get_metrics(
         )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
         )
-        assert acc == 1.0
+        assert acc == 0.5

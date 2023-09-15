@@ -20,7 +20,6 @@ from transformers import AutoTokenizer
 class InferenceAPIEvalWrapper(ComposerModel):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer):
-        self.model_name = model_cfg['version']
         self.tokenizer = tokenizer
         self.labels = None
         # set up training and eval metrics
@@ -41,7 +40,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
     def get_metrics(self, is_train: bool = False):
         if is_train:
             raise NotImplementedError(
-                'You cannot use OpenAI inference wrappers for training')
+                'You cannot use inference wrappers for training')
         else:
             metrics = self.eval_metrics
 

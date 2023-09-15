@@ -7,8 +7,21 @@ import os
 from time import sleep
 from typing import Any, Dict, List, Optional, Union
 
-import openai
-import tiktoken
+from composer.utils.import_helpers import MissingConditionalImportError
+
+try:
+    import openai
+except ImportError as e:
+    raise MissingConditionalImportError(extra_deps_group='openai',
+                                        conda_package='openai',
+                                        conda_channel='conda-forge') from e
+try:
+    import tiktoken
+except ImportError as e:
+    raise MissingConditionalImportError(extra_deps_group='openai',
+                                        conda_package='tiktoken',
+                                        conda_channel='conda-forge') from e
+
 import torch
 from composer.core.types import Batch
 from openai.error import RateLimitError

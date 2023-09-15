@@ -7,6 +7,7 @@ import sys
 import time
 import warnings
 from typing import Any, Dict, List, Optional, Union
+from composer.core.callback import Callback
 
 import pandas as pd
 import torch
@@ -21,7 +22,7 @@ from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
 
 from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import (build_icl_data_and_gauntlet,
+from llmfoundry.utils.builders import (build_icl_data_and_gauntlet, build_callback,
                                        build_logger, build_tokenizer)
 from llmfoundry.utils.config_utils import pop_config, process_init_device
 
@@ -106,6 +107,7 @@ def evaluate_model(
     precision: str,
     eval_gauntlet_df: Optional[pd.DataFrame],
     icl_subset_num_batches: Optional[int],
+    callback_configs: Optional[Dict]
 ):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
@@ -120,7 +122,12 @@ def evaluate_model(
         icl_tasks, eval_gauntlet_config, tokenizer, device_eval_batch_size,
         max_seq_len, icl_subset_num_batches)
 
-    callbacks = []
+    # Callbacks
+    callbacks: List[Callback] = [
+        build_callback(str(name), callback_cfg)
+        for name, callback_cfg in callback_configs.items()
+    ] if callback_configs else []
+
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
 
@@ -170,6 +177,7 @@ def evaluate_model(
         dist_timeout=dist_timeout,
         python_log_level=python_log_level,
     )
+    breakpoint()
 
     if torch.cuda.is_available():
         torch.cuda.synchronize()
@@ -245,7 +253,11 @@ def main(cfg: DictConfig):
                                              default_value=None)
     # Pop out interpolation variables.
     pop_config(cfg, 'model_name_or_path', must_exist=False, default_value=None)
-
+    callback_configs: Optional[DictConfig] = pop_config(cfg,
+                                                        'callbacks',
+                                                        must_exist=False,
+                                                        default_value=None)
+    
     # Warn for unused parameters
     for key in cfg:
         warnings.warn(
@@ -283,7 +295,9 @@ def main(cfg: DictConfig):
              python_log_level=python_log_level,
              precision=precision,
              eval_gauntlet_df=eval_gauntlet_df,
-             icl_subset_num_batches=icl_subset_num_batches)
+             icl_subset_num_batches=icl_subset_num_batches,
+             callback_configs=callback_configs
+        )
 
         if eval_gauntlet_callback is not None:
             composite_scores = eval_gauntlet_callback.eval_after_all(

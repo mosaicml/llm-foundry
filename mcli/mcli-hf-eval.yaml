@@ -7,6 +7,7 @@ integrations:
   ssh_clone: false # Should be true if using a private repo
 
 command: |
+  pip install git+https://github.com/bmosaicml/composer.git@error_logging_callback
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 

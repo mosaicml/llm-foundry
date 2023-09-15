@@ -45,3 +45,8 @@ device_eval_batch_size: 4
 
 icl_tasks: 'eval/yamls/tasks.yaml'
 eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+
+callbacks:
+  eval_output_logging:
+      print_only_incorrect: false
+      subset_sample: 100

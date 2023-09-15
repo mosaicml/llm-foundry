@@ -120,7 +120,7 @@ class OpenAIChatAPIEvalWrapper(InferenceAPIEvalWrapper):
             self.tokenizer.decode(tokens[cont_idxs[0]:cont_idxs[-1] +
                                          1]).strip())['input_ids']
 
-        # replace the origina continuation with the retokenized continuation + padding
+        # replace the original continuation with the retokenized continuation + padding
         tokens = tokens[:cont_idxs[0]] + retokenized_continuation + [
             tokens[-1]
         ] * (len(tokens) -

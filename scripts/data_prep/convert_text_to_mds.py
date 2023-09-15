@@ -21,6 +21,7 @@ from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
                                               merge_shard_groups)
 
 log = logging.getLogger(__name__)
+DONE_FILENAME = '.text_to_mds_conversion_done'
 
 
 def parse_args() -> Namespace:
@@ -210,7 +211,7 @@ def is_remote_path(path: str) -> bool:
     return backend != '' and bucket != ''
 
 
-def is_already_processed(output_root: str, done_file_name: str, args_str: str,
+def is_already_processed(output_root: str, args_str: str,
                          object_names: List[str]) -> bool:
     # Retrieve the done file contents
     output_object_store = maybe_create_object_store_from_uri(output_root)
@@ -219,9 +220,9 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str,
         _, _, output_folder_prefix = parse_uri(output_root)
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
-                done_file = os.path.join(tmp_dir, done_file_name)
+                done_file = os.path.join(tmp_dir, DONE_FILENAME)
                 output_object_store.download_object(
-                    os.path.join(output_folder_prefix, done_file_name),
+                    os.path.join(output_folder_prefix, DONE_FILENAME),
                     done_file)
                 with open(done_file) as df:
                     done_file_contents = df.read().splitlines()
@@ -229,7 +230,7 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str,
             return False
     else:
         # Read the local done file
-        done_file = os.path.join(output_root, done_file_name)
+        done_file = os.path.join(output_root, DONE_FILENAME)
         if not os.path.isfile(done_file):
             return False
         with open(done_file) as df:
@@ -249,14 +250,9 @@ def is_already_processed(output_root: str, done_file_name: str, args_str: str,
     return True
 
 
-def write_done_file(folder: str, file_name: str, args_str: str,
-                    object_names: List[str]):
-    with open(os.path.join(folder, file_name), 'w') as done_file:
+def write_done_file(folder: str, args_str: str, object_names: List[str]):
+    with open(os.path.join(folder, DONE_FILENAME), 'w') as done_file:
         done_file.write('\n'.join([args_str] + object_names) + '\n')
-
-
-def get_done_file_name() -> str:
-    return '.text_to_mds_conversion_done'
 
 
 def main(
@@ -273,7 +269,6 @@ def main(
     args_str: str,
     reprocess: bool,
 ):
-    done_file_name = get_done_file_name()
     is_remote_output = is_remote_path(output_folder)
 
     object_names = get_object_names(input_folder)
@@ -281,8 +276,8 @@ def main(
         raise ValueError(f'No text files were found at {input_folder}.')
 
     # Check if the text files in the bucket have already been processed.
-    if not reprocess and is_already_processed(output_folder, done_file_name,
-                                              args_str, object_names):
+    if not reprocess and is_already_processed(output_folder, args_str,
+                                              object_names):
         log.info(
             f'Input folder {input_folder} is already processed at {output_folder} and reprocess is set to False. Set reprocess to True if you would like to force reprocessing.'
         )
@@ -309,7 +304,7 @@ def main(
                              no_wrap, compression, max_mds_writer_workers)
 
     # Write a done file with the args and object names
-    write_done_file(local_output_folder, done_file_name, args_str, object_names)
+    write_done_file(local_output_folder, args_str, object_names)
 
     if is_remote_output:
         # Upload the local output to the remote location

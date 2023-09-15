@@ -19,8 +19,8 @@ import numpy as np
 from streaming import StreamingDataset
 from transformers import AutoTokenizer
 
-from scripts.data_prep.convert_text_to_mds import (download_and_convert,
-                                                   get_done_file_name,
+from scripts.data_prep.convert_text_to_mds import (DONE_FILENAME,
+                                                   download_and_convert,
                                                    is_already_processed, main,
                                                    merge_shard_groups,
                                                    write_done_file)
@@ -135,7 +135,7 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
     # Check that correct output files exist
     shards = [f'shard.0000{i}.mds.zstd' for i in range(processes)]
     _assert_files_exist(prefix=remote_folder,
-                        files=['index.json', get_done_file_name()] + shards)
+                        files=['index.json', DONE_FILENAME] + shards)
 
     _call_convert_text_to_mds(processes=processes,
                               tokenizer_name=tokenizer_name,
@@ -191,21 +191,20 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
 
 def test_is_already_processed(tmp_path: pathlib.Path):
     tmp_path_str = str(tmp_path)
-    fname = get_done_file_name()
     args_str = 'Namespace(x = 5)'
     object_names = ['test0.txt', 'test1.txt']
 
-    assert not is_already_processed(tmp_path_str, fname, args_str,
+    assert not is_already_processed(tmp_path_str, args_str,
                                     object_names)  # Done file doesn't exist
 
-    write_done_file(tmp_path_str, fname, args_str, object_names)
-    assert is_already_processed(tmp_path_str, fname, args_str,
+    write_done_file(tmp_path_str, args_str, object_names)
+    assert is_already_processed(tmp_path_str, args_str,
                                 object_names)  # Args and names match
 
-    write_done_file(tmp_path_str, fname, args_str, object_names + ['test2.txt'])
-    assert not is_already_processed(tmp_path_str, fname, args_str,
+    write_done_file(tmp_path_str, args_str, object_names + ['test2.txt'])
+    assert not is_already_processed(tmp_path_str, args_str,
                                     object_names)  # Object names differ
 
-    write_done_file(tmp_path_str, fname, 'Namespace()', object_names)
-    assert not is_already_processed(tmp_path_str, fname, args_str,
+    write_done_file(tmp_path_str, 'Namespace()', object_names)
+    assert not is_already_processed(tmp_path_str, args_str,
                                     object_names)  # Argument strings differ

@@ -166,7 +166,6 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
     tokens_per_file = len(tokenizer(text_content)['input_ids'])
     files_per_process = [n_text_files // processes
                         ] * processes  # Distrubte the files equally
-    print('files per process!', files_per_process)
     files_per_process[
         0] += n_text_files % processes  # Give one of the processes the remainder
     # expected number of tokens accounts for last tokens dropped by ConcatTokensDataset

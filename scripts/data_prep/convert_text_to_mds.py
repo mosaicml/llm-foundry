@@ -324,7 +324,7 @@ def _args_str(original_args: Namespace) -> str:
     """Create a string from the args to determine whether to reprocess.
 
     Args:
-        original_args (Namespace): args to transform
+        original_args (Namespace): Arguments to main function.
     """
     # Take the arguments that influence the final result.
     # reprocess and max_mds_writer_workers are not taken.

@@ -43,7 +43,7 @@ def get_abs_data_path(data_local: str):
     return os.path.join(os.getcwd(), data_local)
 
 
-def build_mock_ft_streaming_dataset(data_path, split):
+def build_mock_ft_streaming_dataset(data_path: str, split: str):
     columns = {'prompt': 'str', 'response': 'str'}
 
     dataset = [{
@@ -435,7 +435,6 @@ def test_finetuning_dataloader_custom_split_remote(
 
 
 def test_finetuning_dataloader_streaming(tmp_path: pathlib.Path):
-    tokenizer_name = 'gpt2'
     max_seq_len = 2048
 
     remote_path = os.path.join(tmp_path, 'remote')

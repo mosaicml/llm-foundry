@@ -48,7 +48,6 @@ class InferenceAPIEvalWrapper(ComposerModel):
 
     def get_next_token_logit_tensor(self,
                                     prompt: str) -> Optional[torch.Tensor]:
-        # returns None if the inference API stopped early
         raise NotImplementedError
 
     def rebatch(self, batch: Batch):

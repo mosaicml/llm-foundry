@@ -79,6 +79,7 @@ def mock_create(**kwargs: Dict[str, str]):
 
 
 def test_openai_api_eval_wrapper(tmp_path: str):
+    openai = pytest.importorskip('openai')
     with patch('openai.Completion') as mock:
         mock.create = mock_create
         model_name = 'davinci'

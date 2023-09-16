@@ -13,7 +13,7 @@ import torch
 from composer.callbacks.utils import create_interval_scheduler
 from composer.core import Callback, Event, State, Time
 from composer.core.state import fsdp_state_dict_type_context
-from composer.loggers import Logger
+from composer.loggers import Logger, MLFlowLogger
 from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.models import HuggingFaceModel
 from composer.utils import dist, format_name_with_dist_and_time, parse_uri
@@ -39,6 +39,7 @@ class HuggingFaceCheckpointer(Callback):
         huggingface_folder_name (str): Folder to save each checkpoint under (can be a format string). Default is ``ba{batch}``.
         precision: The precision to save the model in. Default is ``float32``. Options are ``bfloat16``, ``float16``, or ``float32``.
         overwrite (bool): Whether to overwrite previous checkpoints.
+        log_to_mlflow (bool): Whether to log and register the checkpoint to MLFlow. Default is ``False``.
     """
 
     def __init__(
@@ -48,6 +49,7 @@ class HuggingFaceCheckpointer(Callback):
         huggingface_folder_name: str = 'ba{batch}',
         precision: str = 'fp32',
         overwrite: bool = False,
+        log_to_mlflow: bool = False,
     ):
         self.backend, self.bucket_name, self.save_dir_format_str = parse_uri(
             save_folder)
@@ -58,6 +60,7 @@ class HuggingFaceCheckpointer(Callback):
             'float16': torch.float16,
             'bfloat16': torch.bfloat16,
         }[precision]
+        self.log_to_mlflow = log_to_mlflow
         self.huggingface_folder_name_fstr = os.path.join(
             'huggingface', huggingface_folder_name)
         self.check_interval = create_interval_scheduler(
@@ -77,7 +80,7 @@ class HuggingFaceCheckpointer(Callback):
         if state.get_elapsed_duration() is not None and self.check_interval(
                 state,
                 event) and self.last_checkpoint_batch != state.timestamp.batch:
-            self._save_checkpoint(state, logger)
+            self._save_checkpoint(state, logger, is_fit_end=event == Event.FIT_END)
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):
                 raise ValueError(
@@ -87,7 +90,15 @@ class HuggingFaceCheckpointer(Callback):
                 self.remote_ud.init(state, logger)
                 state.callbacks.append(self.remote_ud)
 
-    def _save_checkpoint(self, state: State, logger: Logger):
+            if self.log_to_mlflow:
+                mlflow_loggers = [logger_destination for logger_destination in state.loggers if isinstance(logger_destination, MLFlowLogger)]
+                if len(mlflow_loggers) == 0:
+                    raise ValueError(
+                        f'`log_to_mlflow` was set to `True` but no `MLFlowLogger` was found in the `state.loggers` list. ' +
+                        'Please add an `MLFlowLogger` or set `log_to_mlflow` to `False`.'
+                    )
+
+    def _save_checkpoint(self, state: State, logger: Logger, is_fit_end: bool = False):
         del logger  # unused
 
         self.last_checkpoint_batch = state.timestamp.batch
@@ -163,5 +174,8 @@ class HuggingFaceCheckpointer(Callback):
                                                         filename)),
                             overwrite=self.overwrite,
                         )
+
+                if self.log_to_mlflow:
+                    
 
         dist.barrier()

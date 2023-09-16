@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict
+
+import pytest
 from unittest.mock import patch
 
 from omegaconf import DictConfig, ListConfig

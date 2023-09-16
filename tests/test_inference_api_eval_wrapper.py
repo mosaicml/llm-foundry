@@ -108,7 +108,7 @@ def test_openai_api_eval_wrapper(tmp_path: str):
 
 
 def test_chat_api_eval_wrapper(tmp_path: str):
-    openai = pytest.importorskip(  # pyright: ignore [reportUnusedVariable]
+    _ = pytest.importorskip('openai')
         'openai')
     with patch('openai.ChatCompletion') as mock:
         mock.create.return_value = {

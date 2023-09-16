@@ -50,7 +50,7 @@ install_requires = [
     'mosaicml[libcloud,wandb,mlflow]>=0.16.1,<0.17',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
     'transformers>=4.33,<4.34',
-    'mosaicml-streaming>=0.5.1,<0.6',
+    'mosaicml-streaming>=0.6,<0.7',
     'torch>=1.13.1,<2.1.1',
     'datasets>=2.14.5,<2.15',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data

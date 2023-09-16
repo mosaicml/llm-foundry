@@ -80,7 +80,7 @@ def mock_create(**kwargs: Dict[str, str]):
 
 
 def test_openai_api_eval_wrapper(tmp_path: str):
-    openai = pytest.importorskip(  # pyright: ignore [reportUnusedVariable]
+    _ = pytest.importorskip('openai')
         'openai')
     with patch('openai.Completion') as mock:
         mock.create = mock_create

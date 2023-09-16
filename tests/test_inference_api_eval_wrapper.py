@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict
-
-import pytest
 from unittest.mock import patch
 
+import pytest
 from omegaconf import DictConfig, ListConfig
 
 from llmfoundry.models.inference_api_wrapper import (OpenAICausalLMEvalWrapper,
@@ -81,7 +80,8 @@ def mock_create(**kwargs: Dict[str, str]):
 
 
 def test_openai_api_eval_wrapper(tmp_path: str):
-    openai = pytest.importorskip('openai')
+    openai = pytest.importorskip(  # pyright: ignore [reportUnusedVariable]
+        'openai')
     with patch('openai.Completion') as mock:
         mock.create = mock_create
         model_name = 'davinci'
@@ -108,7 +108,8 @@ def test_openai_api_eval_wrapper(tmp_path: str):
 
 
 def test_chat_api_eval_wrapper(tmp_path: str):
-    openai = pytest.importorskip('openai')
+    openai = pytest.importorskip(  # pyright: ignore [reportUnusedVariable]
+        'openai')
     with patch('openai.ChatCompletion') as mock:
         mock.create.return_value = {
             'choices': [{

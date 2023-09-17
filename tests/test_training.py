@@ -1,5 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+import copy
 import os
 import shutil
 import sys
@@ -149,3 +150,51 @@ def test_train_gauntlet(set_correct_cwd: Any):
         inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1], tuple)
 
     assert inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1][-1] == 0
+
+
+def test_train_multi_eval(set_correct_cwd: Any):
+    """Test training run with a small dataset."""
+    dataset_name = create_c4_dataset_xsmall('cpu-gauntlet')
+    test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
+    # Set up multiple eval dataloaders
+    first_eval_loader = test_cfg.eval_loader
+    first_eval_loader.label = 'eval_1'
+    second_eval_loader = copy.deepcopy(first_eval_loader)
+    second_eval_loader.label = 'eval_2'
+    test_cfg.eval_loader = om.create([first_eval_loader, second_eval_loader])
+    test_cfg.eval_subset_num_batches = 1  # -1 to evaluate on all batches
+
+    test_cfg.max_duration = '1ba'
+    test_cfg.eval_interval = '1ba'
+    test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
+    trainer = main(test_cfg)
+
+    assert isinstance(trainer.logger.destinations, tuple)
+
+    assert len(trainer.logger.destinations) > 0
+    inmemorylogger = trainer.logger.destinations[
+        0]  # pyright: ignore [reportGeneralTypeIssues]
+    assert isinstance(inmemorylogger, InMemoryLogger)
+    print(inmemorylogger.data.keys())
+
+    # Checks for first eval dataloader
+    assert 'metrics/eval/eval_1/LanguageCrossEntropy' in inmemorylogger.data.keys(
+    )
+    assert isinstance(
+        inmemorylogger.data['metrics/eval/eval_1/LanguageCrossEntropy'], list)
+    assert len(
+        inmemorylogger.data['metrics/eval/eval_1/LanguageCrossEntropy'][-1]) > 0
+    assert isinstance(
+        inmemorylogger.data['metrics/eval/eval_1/LanguageCrossEntropy'][-1],
+        tuple)
+
+    # Checks for second eval dataloader
+    assert 'metrics/eval/eval_2/LanguageCrossEntropy' in inmemorylogger.data.keys(
+    )
+    assert isinstance(
+        inmemorylogger.data['metrics/eval/eval_2/LanguageCrossEntropy'], list)
+    assert len(
+        inmemorylogger.data['metrics/eval/eval_2/LanguageCrossEntropy'][-1]) > 0
+    assert isinstance(
+        inmemorylogger.data['metrics/eval/eval_2/LanguageCrossEntropy'][-1],
+        tuple)

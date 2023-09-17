@@ -250,10 +250,8 @@ def main(cfg: DictConfig) -> Trainer:
                                                        must_exist=False,
                                                        default_value=None,
                                                        convert=True)
-    eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(cfg,
-                                                          'eval_loader',
-                                                          must_exist=False,
-                                                          default_value=None)
+    eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(
+        cfg, 'eval_loader', must_exist=False, default_value=None)
     icl_tasks_config: Optional[Union[ListConfig,
                                      str]] = pop_config(cfg,
                                                         'icl_tasks',
@@ -478,26 +476,24 @@ def main(cfg: DictConfig) -> Trainer:
                 if eval_config.label is None:
                     raise ValueError(
                         'When specifying multiple evaluation datasets, each one must include the \
-                            `label` attribute.'
-                    )
+                            `label` attribute.')
                 eval_dataloader = build_dataloader(eval_config, tokenizer,
-                                            device_eval_batch_size)
+                                                   device_eval_batch_size)
                 eval_loader = Evaluator(
-                    label=f'eval/{+eval_config.label}',
+                    label=f'eval/{eval_config.label}',
                     dataloader=eval_dataloader,
                     metric_names=[],  # we will add these after model is created
                 )
                 eval_loaders.append(eval_loader)
         else:
             eval_dataloader = build_dataloader(eval_loader_config, tokenizer,
-                                            device_eval_batch_size)
+                                               device_eval_batch_size)
             eval_loader = Evaluator(
                 label='eval',
                 dataloader=eval_dataloader,
                 metric_names=[],  # we will add these after model is created
             )
             eval_loaders.append(eval_loader)
-            
 
     eval_gauntlet_callback = None
 

@@ -175,8 +175,10 @@ def get_config(
 
     return cast(DictConfig, test_cfg)
 
+
 def test_callback_inits_with_defaults():
     _ = HuggingFaceCheckpointer(save_folder='test', save_interval='1ba')
+
 
 @pytest.mark.world_size(2)
 @pytest.mark.gpu

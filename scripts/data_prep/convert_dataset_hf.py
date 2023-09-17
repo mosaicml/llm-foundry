@@ -17,8 +17,8 @@ from torch.utils.data import DataLoader, Dataset, IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
 from llmfoundry import TiktokenTokenizerWrapper
+from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
 
 
 class ConcatMode(Enum):
@@ -324,7 +324,8 @@ def main(args: Namespace) -> None:
         if args.tokenizer == 'tiktoken':
             tokenizer = TiktokenTokenizerWrapper(**args.tokenizer_kwargs)
         else:
-            tokenizer = AutoTokenizer.from_pretrained(args.tokenizer, **args.tokenizer_kwargs)
+            tokenizer = AutoTokenizer.from_pretrained(args.tokenizer,
+                                                      **args.tokenizer_kwargs)
         # we will enforce length, so suppress warnings about sequences too long for the model
         tokenizer.model_max_length = int(1e30)
         columns = {'tokens': 'bytes'}

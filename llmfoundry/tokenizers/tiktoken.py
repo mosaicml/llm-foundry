@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 from transformers import PreTrainedTokenizer
 
@@ -28,18 +28,16 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             raise ValueError(
                 'You need to specify either model_name or encoding_name.')
 
-        if model_name is not None and encoding_name is not None:
-            raise ValueError(
-                'You need to specify either model_name or encoding_name, not both.'
-            )
-
         self.model_name = model_name
         self.encoding_name = encoding_name
 
         if self.model_name is not None:
             self.encoding = tiktoken.encoding_for_model(self.model_name)
-        else:
+        elif self.encoding_name is not None:
             self.encoding = tiktoken.get_encoding(self.encoding_name)
+        else:
+            raise ValueError(
+                'You need to specify either model_name or encoding_name.')
 
         self.add_bos_token = add_bos_token
 
@@ -78,7 +76,6 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
     def _tokenize(self, text: str, **kwargs: Dict[str, Any]):
         """Returns a tokenized string."""
-
         tokens = [
             self._convert_id_to_token(t)
             for t in self.encoding.encode(text, allowed_special='all')
@@ -88,20 +85,20 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
     def _convert_token_to_id(self, token: str):
         """Converts a token (str) in an id using the vocab."""
-
         return self.encoding.encode(token, allowed_special='all')[0]
 
     def _convert_id_to_token(self, index: int):
         """Converts an index (integer) in a token (str) using the vocab."""
-
         return self.encoding.decode([index])
 
     def convert_tokens_to_string(self, tokens: List[str]):
         """Converts a sequence of tokens (string) in a single string."""
-
         return ''.join(tokens)
 
-    def build_inputs_with_special_tokens(self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None):
+    def build_inputs_with_special_tokens(
+            self,
+            token_ids_0: List[int],
+            token_ids_1: Optional[List[int]] = None):
         if self.add_bos_token:
             bos_token_ids = [self.bos_token_id]
         else:
@@ -120,6 +117,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             token_ids_1: Optional[List[int]] = None,
             already_has_special_tokens: bool = False) -> List[int]:
         """Retrieves sequence ids from a token list that has no special tokens
+
         added. This method is called when adding special tokens using the
         tokenizer `prepare_for_model` or `encode_plus` methods.
 
@@ -154,8 +152,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             self,
             token_ids_0: List[int],
             token_ids_1: Optional[List[int]] = None) -> List[int]:
-        """
-        Create a mask from the two sequences passed to be used in a sequence-pair classification task. A FAIRSEQ
+        """Create a mask from the two sequences passed to be used in a sequence-pair classification task. A FAIRSEQ
+        
         Transformer sequence pair mask has the following format:
 
         ```
@@ -183,4 +181,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     def save_vocabulary(self,
                         save_directory: str,
                         filename_prefix: Optional[str] = None) -> Tuple[str]:
-        return (None, None)
+        
+        # ignore the below type to keep the original signature
+        # we are knowingly breaking the signature here, although not 100% certain
+        # it doesn't have side effects
+        return (None, None) # type: ignore

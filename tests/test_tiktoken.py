@@ -77,7 +77,9 @@ def test_tiktoken(model_name: str, tmp_path: pathlib.Path):
         if original_tokenizer.encode(key, allowed_special='all') == [value]:
             continue
         else:
-            didnt_match.append((key, original_tokenizer.encode(key, allowed_special='all'), value))
+            didnt_match.append(
+                (key, original_tokenizer.encode(key,
+                                                allowed_special='all'), value))
 
     # Decode is lossy because some bytes are not representable in utf-8
     # see https://github.com/openai/tiktoken/blob/39f29cecdb6fc38d9a3434e5dd15e4de58cf3c80/tiktoken/core.py#L245-L247

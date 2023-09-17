@@ -53,7 +53,6 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     @property
     def vocab_size(self):
         """Returns vocab size."""
-
         return self.encoding.n_vocab
 
     @property
@@ -116,7 +115,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             token_ids_0: List[int],
             token_ids_1: Optional[List[int]] = None,
             already_has_special_tokens: bool = False) -> List[int]:
-        """Retrieves sequence ids from a token list that has no special tokens
+        """Retrieves sequence ids from a token list that has no special tokens.
 
         added. This method is called when adding special tokens using the
         tokenizer `prepare_for_model` or `encode_plus` methods.
@@ -152,8 +151,10 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             self,
             token_ids_0: List[int],
             token_ids_1: Optional[List[int]] = None) -> List[int]:
-        """Create a mask from the two sequences passed to be used in a sequence-pair classification task. A FAIRSEQ
-        
+        """Create a mask from the two sequences passed to be used in a sequence-
+
+        pair classification task. A FAIRSEQ.
+
         Transformer sequence pair mask has the following format:
 
         ```
@@ -181,8 +182,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     def save_vocabulary(self,
                         save_directory: str,
                         filename_prefix: Optional[str] = None) -> Tuple[str]:
-        
+
         # ignore the below type to keep the original signature
         # we are knowingly breaking the signature here, although not 100% certain
         # it doesn't have side effects
-        return (None, None) # type: ignore
+        return (None, None)  # type: ignore

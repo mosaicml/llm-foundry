@@ -172,7 +172,7 @@ def build_tokenizer(
         tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
     else:
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                                **tokenizer_kwargs)
+                                                  **tokenizer_kwargs)
 
     # HuggingFace does not respect the model_max_length kwarg, and overrides it with
     # min(kwargs['model_max_length'], original_config['model_max_length']), so we

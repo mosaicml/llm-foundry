@@ -188,4 +188,5 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         # it doesn't have side effects
         return (None, None)  # type: ignore
 
+
 TiktokenTokenizerWrapper.register_for_auto_class()

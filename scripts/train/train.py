@@ -475,11 +475,15 @@ def main(cfg: DictConfig) -> Trainer:
     if eval_loader_config is not None:
         if isinstance(eval_loader_config, ListConfig):
             for eval_config in eval_loader_config:
-                assert eval_config.label is not None
+                if eval_config.label is None:
+                    raise ValueError(
+                        'When specifying multiple evaluation datasets, each one must include the \
+                            `label` attribute.'
+                    )
                 eval_dataloader = build_dataloader(eval_config, tokenizer,
                                             device_eval_batch_size)
                 eval_loader = Evaluator(
-                    label='eval/'+eval_config.label,
+                    label=f'eval/{+eval_config.label}',
                     dataloader=eval_dataloader,
                     metric_names=[],  # we will add these after model is created
                 )
@@ -533,7 +537,6 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Now add the eval metrics
     if eval_loader_config is not None:
-        assert len(eval_loaders) != 0
         assert model.train_metrics is not None
         eval_metric_names = list(model.train_metrics.keys())
         for eval_loader in eval_loaders:

@@ -187,3 +187,5 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         # we are knowingly breaking the signature here, although not 100% certain
         # it doesn't have side effects
         return (None, None)  # type: ignore
+
+TiktokenTokenizerWrapper.register_for_auto_class()

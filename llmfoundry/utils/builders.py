@@ -32,6 +32,7 @@ from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
+from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
 log = logging.getLogger(__name__)
 
@@ -167,8 +168,11 @@ def build_tokenizer(
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                              **tokenizer_kwargs)
+    if tokenizer_name.startswith('tiktoken'):
+        tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+                                                **tokenizer_kwargs)
 
     # HuggingFace does not respect the model_max_length kwarg, and overrides it with
     # min(kwargs['model_max_length'], original_config['model_max_length']), so we

@@ -5,17 +5,14 @@ import pathlib
 
 import pytest
 import transformers
-from transformers import AutoTokenizer
 
-from llmfoundry import MPTConfig, TiktokenTokenizerWrapper
+from llmfoundry import TiktokenTokenizerWrapper
 
 
 @pytest.mark.parametrize('model_name',
                          ['gpt-4', 'gpt-3.5-turbo', 'text-davinci-003'])
 def test_tiktoken(model_name: str, tmp_path: pathlib.Path):
     tiktoken = pytest.importorskip('tiktoken')
-
-    AutoTokenizer.register(MPTConfig, TiktokenTokenizerWrapper)
 
     # Construction
     wrapped_tokenizer = TiktokenTokenizerWrapper(model_name='gpt-4')
@@ -27,7 +24,7 @@ def test_tiktoken(model_name: str, tmp_path: pathlib.Path):
     # Save and load
     wrapped_tokenizer.save_pretrained(tmp_path)
     reloaded_wrapped_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        tmp_path)
+        tmp_path, trust_remote_code=True)
 
     # Simple tokenization test
     wrapped_output = wrapped_tokenizer('Hello world!')

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Streaming dataset conversion scripts for C4 and The Pile."""
+import json
 import os
 import platform
 from argparse import ArgumentParser, Namespace
@@ -17,6 +18,7 @@ from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
+from llmfoundry import TiktokenTokenizerWrapper
 
 
 class ConcatMode(Enum):
@@ -49,12 +51,15 @@ def parse_args() -> Namespace:
         help='Convert text to tokens and concatenate up to this many tokens')
 
     parser.add_argument('--tokenizer', type=str, required=False, default=None)
+    parser.add_argument('--tokenizer_kwargs', type=str, required=False)
     parser.add_argument('--bos_text', type=str, required=False, default=None)
     parser.add_argument('--eos_text', type=str, required=False, default=None)
     parser.add_argument('--no_wrap', default=False, action='store_true')
     parser.add_argument('--num_workers', type=int, required=False, default=None)
 
     parsed = parser.parse_args()
+
+    parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)
 
     if os.path.isdir(parsed.out_root) and len(
             set(os.listdir(parsed.out_root)).intersection(set(
@@ -316,7 +321,10 @@ def main(args: Namespace) -> None:
 
     if args.concat_tokens is not None:
         mode = ConcatMode.CONCAT_TOKENS
-        tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
+        if args.tokenizer == 'tiktoken':
+            tokenizer = TiktokenTokenizerWrapper(**args.tokenizer_kwargs)
+        else:
+            tokenizer = AutoTokenizer.from_pretrained(args.tokenizer, **args.tokenizer_kwargs)
         # we will enforce length, so suppress warnings about sequences too long for the model
         tokenizer.model_max_length = int(1e30)
         columns = {'tokens': 'bytes'}

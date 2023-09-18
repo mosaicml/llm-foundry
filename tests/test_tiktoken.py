@@ -10,9 +10,13 @@ from llmfoundry import TiktokenTokenizerWrapper
 from tests.horrible_strings import HORRIBLE_STRINGS
 
 TEST_STRINGS = [
-    'Hello world!', 'def hello_world(input: str):\n    print(input)',
+    'Hello world!',
+    'def hello_world(input: str):\n    print(input)',
     '0000000000000000000000000000',
-    '19234324 asas sf 119aASDFM AW3RAW-AF;;9900', '\n\n\n\nhello\n\t,'
+    '19234324 asas sf 119aASDFM AW3RAW-AF;;9900',
+    '\n\n\n\nhello\n\t',
+    '            hello\n\t\\\\     goodbye!?*#&@!)     ',
+    'This is just a normal sentence. And here is another one!',
 ]
 
 TEST_STRINGS += HORRIBLE_STRINGS
@@ -103,4 +107,5 @@ def test_tiktoken(model_name: str, tmp_path: pathlib.Path):
 
     # Decode is lossy because some bytes are not representable in utf-8
     # see https://github.com/openai/tiktoken/blob/39f29cecdb6fc38d9a3434e5dd15e4de58cf3c80/tiktoken/core.py#L245-L247
+    # This means that the str: int vocab mapping doesn't work. Would have to look more into how other HF tokenizers handle this.
     assert len(didnt_match) == 77

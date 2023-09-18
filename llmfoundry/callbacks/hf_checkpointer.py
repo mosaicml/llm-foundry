@@ -46,7 +46,7 @@ class HuggingFaceCheckpointer(Callback):
         save_folder: str,
         save_interval: Union[str, int, Time],
         huggingface_folder_name: str = 'ba{batch}',
-        precision: str = 'fp32',
+        precision: str = 'float32',
         overwrite: bool = False,
     ):
         self.backend, self.bucket_name, self.save_dir_format_str = parse_uri(

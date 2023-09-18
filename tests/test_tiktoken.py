@@ -28,8 +28,8 @@ def test_tiktoken(model_name: str, tmp_path: pathlib.Path):
     tiktoken = pytest.importorskip('tiktoken')
 
     # Construction
-    wrapped_tokenizer = TiktokenTokenizerWrapper(model_name='gpt-4')
-    original_tokenizer = tiktoken.encoding_for_model('gpt-4')
+    wrapped_tokenizer = TiktokenTokenizerWrapper(model_name=model_name)
+    original_tokenizer = tiktoken.encoding_for_model(model_name)
 
     # Repr works
     _ = wrapped_tokenizer.__repr__()
@@ -114,4 +114,7 @@ def test_tiktoken(model_name: str, tmp_path: pathlib.Path):
     # Decode is lossy because some bytes are not representable in utf-8
     # see https://github.com/openai/tiktoken/blob/39f29cecdb6fc38d9a3434e5dd15e4de58cf3c80/tiktoken/core.py#L245-L247
     # This means that the str: int vocab mapping doesn't work. Would have to look more into how other HF tokenizers handle this.
-    assert len(didnt_match) == 77
+    if model_name in ['gpt-4, gpt-3.5-turbot']:
+        assert len(didnt_match) == 77
+    elif model_name in ['text-davinci-003']:
+        assert len(didnt_match) == 14

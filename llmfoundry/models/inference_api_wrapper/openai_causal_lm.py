@@ -30,7 +30,7 @@ MAX_RETRIES = 10
 
 
 class OpenAITokenizerWrapper(AutoTokenizer):
-
+    # this API is experimental and for evaluation only. It is subject to change as we add support for training
     def __init__(self, name: str) -> None:
         try:
             import tiktoken

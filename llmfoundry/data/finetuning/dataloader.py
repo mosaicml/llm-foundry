@@ -136,6 +136,8 @@ def build_finetuning_dataloader(cfg: DictConfig,
             shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
             shuffle_block_size=cfg.dataset.get('shuffle_block_size', 1 << 18),
             sampling_method=cfg.dataset.get('sampling_method', 'balanced'),
+            sampling_granularity=cfg.dataset.get('sampling_granularity', 1),
+            batching_method=cfg.dataset.get('batching_method', 'random'),
         )
 
         collate_fn, dataloader_batch_size = _build_collate_fn(

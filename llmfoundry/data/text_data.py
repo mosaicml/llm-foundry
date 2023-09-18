@@ -66,7 +66,14 @@ class StreamingTextDataset(StreamingDataset):
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
-        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``. Defaults to ``balanced``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
+            Defaults to ``balanced``.
+        sampling_granularity (int): When picking samples for a stream's final partial repeat,
+            how many samples to pick from the same shard at a time (``1`` for evenly balanced
+            across shards, ``1000`` to pick 1000 samples from the same shard at a time, etc).
+            Defaults to ``1``.
+        batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
+            ``per_stream``. Defaults to ``random``.
     """
 
     def __init__(self,
@@ -91,6 +98,8 @@ class StreamingTextDataset(StreamingDataset):
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
                  sampling_method: str = 'balanced',
+                 sampling_granularity: int = 1,
+                 batching_method: str = 'random',
                  **kwargs: Any):
 
         group_method = kwargs.pop('group_method', None)
@@ -138,6 +147,8 @@ class StreamingTextDataset(StreamingDataset):
             shuffle_seed=shuffle_seed,
             shuffle_block_size=shuffle_block_size,
             sampling_method=sampling_method,
+            sampling_granularity=sampling_granularity,
+            batching_method=batching_method,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len

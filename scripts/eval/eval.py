@@ -214,7 +214,10 @@ def main(cfg: DictConfig):
     device_eval_batch_size: int = pop_config(cfg,
                                              'device_eval_batch_size',
                                              must_exist=True)
-    precision: str = pop_config(cfg, 'precision', must_exist=True)
+    precision: str = pop_config(cfg,
+                                'precision',
+                                must_exist=False,
+                                default_value=None)
     python_log_level: Optional[str] = pop_config(cfg,
                                                  'python_log_level',
                                                  must_exist=False,

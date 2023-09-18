@@ -82,12 +82,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         However, not all vocab indices can be decoded into a string, so instead we just return the integers
         from this function, and have adjusted the _convert_token_to_id method to handle integers as well as strings.
         The only use of _tokenize that I could find was in this way, so this _should_ be safe.
-        
         """
-        tokens = [
-            t
-            for t in self.encoding.encode(text, allowed_special='all')
-        ]
+        tokens = [t for t in self.encoding.encode(text, allowed_special='all')]
 
         return tokens
 
@@ -105,13 +101,13 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     def convert_tokens_to_string(self, tokens: List[str]):
         """Converts a sequence of tokens (string) in a single string."""
         return ''.join(tokens)
-    
+
     def convert_ids_to_tokens(
-        self, ids: Union[int, List[int]], skip_special_tokens: bool = False
-    ) -> Union[str, List[str]]:
-        """
-        Converts a single index or a sequence of indices in a token or a sequence of tokens, using the vocabulary and
-        added tokens.
+            self,
+            ids: Union[int, List[int]],
+            skip_special_tokens: bool = False) -> Union[str, List[str]]:
+        """Converts a single index or a sequence of indices in a token or a
+        sequence of tokens, using the vocabulary and added tokens.
 
         Args:
             ids (`int` or `List[int]`):
@@ -141,7 +137,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 tokens.append(self.added_tokens_decoder[index])
             else:
                 current_stream.append(index)
-        
+
         if len(current_stream) > 0:
             tokens.append(self.encoding.decode(current_stream))
         return tokens

@@ -13,9 +13,11 @@ TEST_STRINGS = [
     'def hello_world(input: str):\n    print(input)',
     '0000000000000000000000000000',
     '19234324 asas sf 119aASDFM AW3RAW-AF;;9900',
-    '\n\n\n\nhello\n\t\t\t\tworld\n\n\n\n',
+    '\n\n\n\nhello\n\t,'
 ]
 
+# yapf: disable
+# taken from https://github.com/explosion/spaCy/blob/8f0d6b0a8c42e4852bf6e24cdf629043f2f39361/spacy/tests/tokenizer/test_naughty_strings.py#L7
 NAUGHTY_STRINGS = [
     # ASCII punctuation
     r",./;'[]\-=",
@@ -118,6 +120,7 @@ NAUGHTY_STRINGS = [
     r"Powerلُلُصّبُلُلصّبُررً ॣ ॣh ॣ ॣ冗",
     r"🏳0🌈️",
 ]
+# yapf: enable
 
 TEST_STRINGS += NAUGHTY_STRINGS
 

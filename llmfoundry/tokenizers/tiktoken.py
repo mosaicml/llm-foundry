@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from transformers import PreTrainedTokenizer
 
@@ -73,18 +73,30 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
         return vocab
 
-    def _tokenize(self, text: str, **kwargs: Dict[str, Any]):
-        """Returns a tokenized string."""
+    def _tokenize(self, text: str):
+        """Returns a tokenized string.
+
+        Note: We have slightly redefined the expected contract between this method and
+        the _convert_token_to_id method. Normally, this method turns a string, into a list of strings,
+        and then the _convert_token_to_id method turns that list of strings into a list of integers.
+        However, not all vocab indices can be decoded into a string, so instead we just return the integers
+        from this function, and have adjusted the _convert_token_to_id method to handle integers as well as strings.
+        The only use of _tokenize that I could find was in this way, so this _should_ be safe.
+        
+        """
         tokens = [
-            self._convert_id_to_token(t)
+            t
             for t in self.encoding.encode(text, allowed_special='all')
         ]
 
         return tokens
 
-    def _convert_token_to_id(self, token: str):
+    def _convert_token_to_id(self, token: Union[int, str]):
         """Converts a token (str) in an id using the vocab."""
-        return self.encoding.encode(token, allowed_special='all')[0]
+        if isinstance(token, int):
+            return token
+        else:
+            return self.encoding.encode(token, allowed_special='all')[0]
 
     def _convert_id_to_token(self, index: int):
         """Converts an index (integer) in a token (str) using the vocab."""
@@ -93,6 +105,46 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     def convert_tokens_to_string(self, tokens: List[str]):
         """Converts a sequence of tokens (string) in a single string."""
         return ''.join(tokens)
+    
+    def convert_ids_to_tokens(
+        self, ids: Union[int, List[int]], skip_special_tokens: bool = False
+    ) -> Union[str, List[str]]:
+        """
+        Converts a single index or a sequence of indices in a token or a sequence of tokens, using the vocabulary and
+        added tokens.
+
+        Args:
+            ids (`int` or `List[int]`):
+                The token id (or token ids) to convert to tokens.
+            skip_special_tokens (`bool`, *optional*, defaults to `False`):
+                Whether or not to remove special tokens in the decoding.
+
+        Returns:
+            `str` or `List[str]`: The decoded token(s).
+        """
+        if isinstance(ids, int):
+            if ids in self.added_tokens_decoder:
+                return self.added_tokens_decoder[ids]
+            else:
+                return self._convert_id_to_token(ids)
+
+        tokens = []
+        current_stream = []
+        for index in ids:
+            index = int(index)
+            if skip_special_tokens and index in self.all_special_ids:
+                continue
+
+            if index in self.added_tokens_decoder:
+                tokens.append(self.encoding.decode(current_stream))
+                current_stream = []
+                tokens.append(self.added_tokens_decoder[index])
+            else:
+                current_stream.append(index)
+        
+        if len(current_stream) > 0:
+            tokens.append(self.encoding.decode(current_stream))
+        return tokens
 
     def build_inputs_with_special_tokens(
             self,

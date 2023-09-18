@@ -107,6 +107,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             ids: Union[int, List[int]],
             skip_special_tokens: bool = False) -> Union[str, List[str]]:
         """Converts a single index or a sequence of indices in a token or a
+        
         sequence of tokens, using the vocabulary and added tokens.
 
         Args:

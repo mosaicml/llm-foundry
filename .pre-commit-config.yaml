@@ -25,7 +25,6 @@ repos:
   rev: 5.12.0
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.3.0
-  exclude: tests/test_tiktoken.py
   hooks:
   - id: check-added-large-files
   - id: check-ast
@@ -51,6 +50,7 @@ repos:
   - id: debug-statements
   - id: destroyed-symlinks
   - id: double-quote-string-fixer
+    exclude: .*/test_tiktoken.py
   - id: end-of-file-fixer
   - id: fix-byte-order-marker
   - id: mixed-line-ending

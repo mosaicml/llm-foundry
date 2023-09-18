@@ -88,7 +88,7 @@ def parse_args() -> Namespace:
         '--processes',
         type=int,
         required=False,
-        default=min(max(psutil.cpu_count() - 2, 1), 16),
+        default=min(max(psutil.cpu_count() - 2, 1), 32),
         help=
         'The number of processes to use to download and convert the dataset',
     )

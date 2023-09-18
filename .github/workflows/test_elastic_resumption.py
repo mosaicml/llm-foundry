@@ -15,6 +15,9 @@ from mcli import RunConfig, RunStatus, create_run, wait_for_run_status
 
 def test_elastic_resumption(cluster: str, save_folder: str, wandb_entity: str,
                             wandb_project: str, git_repo: str, git_branch: str):
+    commit_hash = subprocess.check_output(['git', 'rev-parse',
+                                    'HEAD']).strip().decode('utf-8')
+    timestamp = datetime.datetime.now().strftime('%m-%d-%Y::%H:%M:%S')
     def create_run_and_wait(gpus: int, resume: bool, subdir: str):
         config = RunConfig.from_file(
             os.path.join(REGRESSIONS_DIR, 'mpt-125m-elastic-resumption.yaml'))
@@ -22,9 +25,9 @@ def test_elastic_resumption(cluster: str, save_folder: str, wandb_entity: str,
         # Add the command to train our model
         composer_command = '\ncomposer train/train.py /mnt/config/parameters.yaml'
         if resume:
-            composer_command += ' autoresume=true' # TODO: autoresume and save_overwrite can't both be true, but i have to overwrite if i run multiple runs with same save folder
+            composer_command += ' autoresume=true'
         else:
-            composer_command += ' save_overwrite=true autoresume=false'
+            composer_command += ' autoresume=false'
         config.command += composer_command
 
         # Add suffix to name
@@ -38,9 +41,7 @@ def test_elastic_resumption(cluster: str, save_folder: str, wandb_entity: str,
         config.compute['gpus'] = gpus
         config.parameters['save_folder'] = os.path.join(save_folder, subdir)
         config.parameters['max_duration'] = '20ba' if resume else '10ba'
-        commit_hash = subprocess.check_output(['git', 'rev-parse',
-                                            'HEAD']).strip().decode('utf-8')
-        timestamp = datetime.datetime.now().strftime('%m-%d-%Y::%H:%M:%S')
+
         wandb_group = f'{timestamp}::{commit_hash}'
         wandb_config = {
             'entity': wandb_entity,
@@ -61,12 +62,12 @@ def test_elastic_resumption(cluster: str, save_folder: str, wandb_entity: str,
         log.info(f'Completed run {run.name}')
     
     # Test 1 node => 2 node elastic resumption
-    subdir = '1_to_2_node'
+    subdir = f'1_to_2_node_{commit_hash}_{timestamp}'
     create_run_and_wait(gpus=8, resume=False, subdir=subdir)
     create_run_and_wait(gpus=16, resume=True, subdir=subdir)
 
     # Test 2 node => 1 node elastic resumption
-    subdir = '2_to_1_node'
+    subdir = f'2_to_1_node_{commit_hash}_{timestamp}'
     create_run_and_wait(gpus=16, resume=False, subdir=subdir)
     create_run_and_wait(gpus=8, resume=True, subdir=subdir)
 

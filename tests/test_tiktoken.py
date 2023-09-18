@@ -71,6 +71,8 @@ def test_tiktoken(model_name: str, tmp_path: pathlib.Path):
     assert wrapped_output['input_ids'] == original_output
     assert set(wrapped_output.keys()) == {'input_ids', 'attention_mask'}
     assert reloaded_wrapped_output == wrapped_output
+    assert wrapped_tokenizer.batch_decode(wrapped_output['input_ids']) == original_tokenizer.decode_batch(original_output)
+    assert reloaded_wrapped_tokenizer.batch_decode(reloaded_wrapped_output['input_ids']) == original_tokenizer.decode_batch(original_output)
 
     # With padding
     wrapped_tokenizer.pad_token_id = wrapped_tokenizer.eos_token_id

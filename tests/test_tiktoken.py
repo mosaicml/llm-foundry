@@ -16,7 +16,6 @@ TEST_STRINGS = [
     '\n\n\n\nhello\n\t,'
 ]
 
-# yapf: disable
 # taken from https://github.com/explosion/spaCy/blob/8f0d6b0a8c42e4852bf6e24cdf629043f2f39361/spacy/tests/tokenizer/test_naughty_strings.py#L7
 NAUGHTY_STRINGS = [
     # ASCII punctuation
@@ -120,7 +119,6 @@ NAUGHTY_STRINGS = [
     r"Powerلُلُصّبُلُلصّبُررً ॣ ॣh ॣ ॣ冗",
     r"🏳0🌈️",
 ]
-# yapf: enable
 
 TEST_STRINGS += NAUGHTY_STRINGS
 

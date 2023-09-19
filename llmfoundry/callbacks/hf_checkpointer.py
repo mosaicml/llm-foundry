@@ -197,7 +197,7 @@ class HuggingFaceCheckpointer(Callback):
                     else:
                         model_class = state.model.model
 
-                    new_model_instance = type(model_class)(state.model.model.config)
+                    new_model_instance = type(model_class)(edited_config)
                     new_model_instance.to(dtype=self.dtype)
                     new_model_instance.load_state_dict(state_dict)
                     del state_dict

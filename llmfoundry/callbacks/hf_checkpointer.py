@@ -89,7 +89,7 @@ class HuggingFaceCheckpointer(Callback):
         if state.get_elapsed_duration() is not None and self.check_interval(
                 state,
                 event) and self.last_checkpoint_batch != state.timestamp.batch:
-            self._save_checkpoint(state, logger, is_fit_end=event == Event.FIT_END)
+            self._save_checkpoint(state, logger)
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):
                 raise ValueError(
@@ -110,7 +110,7 @@ class HuggingFaceCheckpointer(Callback):
                 import mlflow
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set("5GB")
 
-    def _save_checkpoint(self, state: State, logger: Logger, is_fit_end: bool = False):
+    def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
 
         self.last_checkpoint_batch = state.timestamp.batch
@@ -188,7 +188,7 @@ class HuggingFaceCheckpointer(Callback):
                             overwrite=self.overwrite,
                         )
 
-                if self.log_to_mlflow and is_fit_end:
+                if self.log_to_mlflow and state.get_elapsed_duration() >= 1.0:
                     log.debug('Reloading model to log to MLFlow')
                     # Free up memory before creating another copy of the model to log to MLFlow
                     del state_dict

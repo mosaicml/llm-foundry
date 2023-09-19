@@ -75,6 +75,7 @@ class HuggingFaceCheckpointer(Callback):
             self.remote_ud = None
 
         self.last_checkpoint_batch: Optional[Time] = None
+        self.mlflow_loggers = []
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         # The interval scheduler handles only returning True for the appropriate events
@@ -92,8 +93,8 @@ class HuggingFaceCheckpointer(Callback):
                 state.callbacks.append(self.remote_ud)
 
             if self.log_to_mlflow:
-                mlflow_loggers = [logger_destination for logger_destination in state.loggers if isinstance(logger_destination, MLFlowLogger)]
-                if len(mlflow_loggers) == 0:
+                self.mlflow_loggers = [logger_destination for logger_destination in state.loggers if isinstance(logger_destination, MLFlowLogger)]
+                if len(self.mlflow_loggers) == 0:
                     raise ValueError(
                         f'`log_to_mlflow` was set to `True` but no `MLFlowLogger` was found in the `state.loggers` list. ' +
                         'Please add an `MLFlowLogger` or set `log_to_mlflow` to `False`.'
@@ -138,6 +139,8 @@ class HuggingFaceCheckpointer(Callback):
             if dist.get_global_rank() == 0:
                 # We raise above if the model is not a HuggingFaceModel, so this assert is safe
                 assert hasattr(state.model.model, 'save_pretrained')
+                print(type(state.model.model.module))
+                print(type(state.model.model))
                 state.model.model.save_pretrained(temp_save_dir,
                                                   state_dict=state_dict)
 
@@ -178,6 +181,14 @@ class HuggingFaceCheckpointer(Callback):
                 if self.log_to_mlflow:
                     # Free up memory before creating another copy of the model to log to MLFlow
                     del state_dict
+
+                    from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+                    if isinstance(state.model.model, FSDP):
+                        model_class = state.model.model.module
+                    else:
+                        model_class = state.model.model
+
+                    new_instance = model_class.from_pretrained(temp_save_dir)
 
                     
                     

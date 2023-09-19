@@ -30,6 +30,8 @@ from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
                                   GlobalLRScaling, HuggingFaceCheckpointer,
                                   LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
+from llmfoundry.models.inference_api_wrapper.openai_causal_lm import \
+    OpenAITokenizerWrapper
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
@@ -111,6 +113,8 @@ def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
         return WandBLogger(**kwargs)
     elif name == 'tensorboard':
         return TensorboardLogger(**kwargs)
+    elif name == 'in_memory_logger':
+        return InMemoryLogger(**kwargs)
     elif name == 'mlflow':
         return MLFlowLogger(**kwargs)
     elif name == 'inmemory':
@@ -165,8 +169,11 @@ def build_scheduler(name: str,
 def build_tokenizer(
         tokenizer_name: str,
         tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
-    os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
-    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+    if tokenizer_name == 'openai':
+        return OpenAITokenizerWrapper(**tokenizer_kwargs)
+    else:
+        os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
+        os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
     if tokenizer_name.startswith('tiktoken'):
         tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
@@ -174,15 +181,15 @@ def build_tokenizer(
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
                                                   **tokenizer_kwargs)
 
-    # HuggingFace does not respect the model_max_length kwarg, and overrides it with
-    # min(kwargs['model_max_length'], original_config['model_max_length']), so we
-    # explicitly set it here
-    tokenizer.model_max_length = tokenizer_kwargs.get(
-        'model_max_length',
-        int(1e30),
-    )
+        # HuggingFace does not respect the model_max_length kwarg, and overrides it with
+        # min(kwargs['model_max_length'], original_config['model_max_length']), so we
+        # explicitly set it here
+        tokenizer.model_max_length = tokenizer_kwargs.get(
+            'model_max_length',
+            int(1e30),
+        )
 
-    return tokenizer
+        return tokenizer
 
 
 def build_icl_evaluators(

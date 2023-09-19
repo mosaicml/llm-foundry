@@ -99,6 +99,10 @@ extra_deps['peft'] = [
     'peft==0.4.0',
 ]
 
+extra_deps['openai'] = [
+    'openai==0.27.8',
+    'tiktoken==0.4.0',
+]
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
 
 setup(

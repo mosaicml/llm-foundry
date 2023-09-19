@@ -8,7 +8,7 @@ import time
 import warnings
 from typing import Any, Dict, List, Optional, Union
 from composer.core.callback import Callback
-
+from composer.callbacks import EvalOutputLogging
 import pandas as pd
 import torch
 from composer.loggers.logger_destination import LoggerDestination
@@ -177,7 +177,7 @@ def evaluate_model(
         dist_timeout=dist_timeout,
         python_log_level=python_log_level,
     )
-    breakpoint()
+    
 
     if torch.cuda.is_available():
         torch.cuda.synchronize()
@@ -341,6 +341,9 @@ def main(cfg: DictConfig):
         print(f'Printing complete results for all models')
         assert models_df is not None
         print(models_df.to_markdown(index=False))
+
+
+
 
 
 def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,

@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 from typing import List
 
 from composer.core import Callback, State
@@ -10,6 +11,8 @@ __all__ = [
     'GlobalLRScaling',
     'LayerFreezing',
 ]
+
+log = logging.getLogger(__name__)
 
 
 class GlobalLRScaling(Callback):
@@ -29,7 +32,9 @@ class GlobalLRScaling(Callback):
         self.lr_scale = lr_scale
         self.wd_pct = wd_pct
 
-    def fit_start(self, state: State, logger: Logger):
+    def fit_start(self, state: State, logger: Logger) -> None:
+        del logger  # unused
+
         if hasattr(state, 'optimizer') and state.optimizers is None:
             raise Exception('No optimizers defined')
         for optimizer in state.optimizers:
@@ -38,7 +43,7 @@ class GlobalLRScaling(Callback):
                 group['weight_decay'] = group['lr'] * self.wd_pct
                 if 'initial_lr' in group:
                     group['initial_lr'] *= self.lr_scale
-                print(
+                log.info(
                     f"Set LR and WD to {group['lr']}, {group['weight_decay']}")
 
         for scheduler in state.schedulers:
@@ -62,7 +67,9 @@ class LayerFreezing(Callback):
     def __init__(self, layer_names: List[str]):
         self.layer_names = set(layer_names)
 
-    def fit_start(self, state: State, logger: Logger):
+    def fit_start(self, state: State, logger: Logger) -> None:
+        del logger  # unused
+
         model_layers = set(name for name, _ in state.model.named_parameters())
         for layer in self.layer_names:
             if layer not in model_layers:
@@ -74,7 +81,7 @@ class LayerFreezing(Callback):
         for name, p in state.model.named_parameters():
             if p.requires_grad and name in self.layer_names:
                 p.requires_grad = False
-                print(f'Froze layer: {name}\nParam: {p}')
+                log.debug(f'Froze layer: {name}\nParam: {p}')
                 successful_freeze = True
 
         if not successful_freeze:

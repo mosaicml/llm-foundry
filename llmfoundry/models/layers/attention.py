@@ -18,7 +18,7 @@ from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
-                     original_is_causal: bool):
+                     original_is_causal: bool) -> bool:
     # disable causal when it is not needed
     # necessary for flash & triton for generation with kv_cache
     if original_is_causal and num_query_tokens != num_key_tokens:
@@ -418,7 +418,6 @@ class GroupedQueryAttention(nn.Module):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
-        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__()
@@ -464,7 +463,7 @@ class GroupedQueryAttention(nn.Module):
             i * self.head_dim
             for i in range(1, self.n_heads + 2 * self.kv_n_heads)
         ]
-        self.Wqkv._fused = (0, fuse_splits)  # type: ignore
+        self.Wqkv._fused = (0, fuse_splits)
 
         if self.qk_ln:
             norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
@@ -476,21 +475,8 @@ class GroupedQueryAttention(nn.Module):
             self.attn_fn = flash_attn_fn
         elif self.attn_impl == 'triton':
             self.attn_fn = triton_flash_attn_fn
-            if verbose:
-                warnings.warn(
-                    'While `attn_impl: triton` can be faster than `attn_impl: flash` ' +\
-                    'it uses more memory. When training larger models this can trigger '  +\
-                    'alloc retries which hurts performance. If encountered, we recommend ' +\
-                    'using `attn_impl: flash` if your model does not use `alibi` or `prefix_lm`.'
-                )
         elif self.attn_impl == 'torch':
             self.attn_fn = scaled_multihead_dot_product_attention
-            if torch.cuda.is_available() and verbose:
-                warnings.warn(
-                    'Using `attn_impl: torch`. If your model does not use `alibi` or ' +\
-                    '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' +\
-                    'we recommend using `attn_impl: triton`.'
-                )
         else:
             raise ValueError(f'{attn_impl=} is an invalid setting.')
 
@@ -499,7 +485,7 @@ class GroupedQueryAttention(nn.Module):
             self.d_model,
             **fc_kwargs,
         )
-        self.out_proj._is_residual = True  # type: ignore
+        self.out_proj._is_residual = True
 
     def forward(
         self,
@@ -509,7 +495,8 @@ class GroupedQueryAttention(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
-    ):
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
+            torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
@@ -569,7 +556,6 @@ class MultiheadAttention(GroupedQueryAttention):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
-        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__(
@@ -583,7 +569,6 @@ class MultiheadAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
-            verbose=verbose,
             device=device)
 
 
@@ -605,7 +590,6 @@ class MultiQueryAttention(GroupedQueryAttention):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
-        verbose: int = 0,
         device: Optional[str] = None,
     ):
         super().__init__(
@@ -619,12 +603,13 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
-            verbose=verbose,
             device=device)
 
 
-def attn_bias_shape(attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
-                    prefix_lm: bool, causal: bool, use_sequence_id: bool):
+def attn_bias_shape(
+        attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
+        prefix_lm: bool, causal: bool,
+        use_sequence_id: bool) -> Optional[Tuple[int, int, int, int]]:
     if attn_impl == 'flash':
         return None
     elif attn_impl in ['torch', 'triton']:
@@ -647,7 +632,7 @@ def build_attn_bias(
     causal: bool = False,
     alibi: bool = False,
     alibi_bias_max: int = 8,
-):
+) -> Optional[torch.Tensor]:
     if attn_impl == 'flash':
         return None
     elif attn_impl in ['torch', 'triton']:
@@ -670,7 +655,7 @@ def build_attn_bias(
 
 def gen_slopes(n_heads: int,
                alibi_bias_max: int = 8,
-               device: Optional[torch.device] = None):
+               device: Optional[torch.device] = None) -> torch.Tensor:
     _n_heads = 2**math.ceil(math.log2(n_heads))
     m = torch.arange(1, _n_heads + 1, dtype=torch.float32, device=device)
     m = m.mul(alibi_bias_max / _n_heads)
@@ -692,7 +677,7 @@ def build_alibi_bias(
     alibi_bias_max: int = 8,
     device: Optional[torch.device] = None,
     dtype: Optional[torch.dtype] = None,
-):
+) -> torch.Tensor:
     alibi_bias = torch.arange(1 - seq_len, 1, dtype=torch.int32,
                               device=device).view(1, 1, 1, seq_len)
     if full:

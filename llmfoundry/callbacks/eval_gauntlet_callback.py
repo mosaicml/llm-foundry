@@ -3,14 +3,17 @@
 
 """Aggregate ICL evals into composite scores."""
 
+import logging
 import math
 from enum import Enum
-from typing import Optional
+from typing import Dict, Optional
 
 from composer.core import Callback, State
 from composer.loggers import Logger
 
 __all__ = ['EvalGauntlet']
+
+log = logging.getLogger(__name__)
 
 
 class Weighting(Enum):
@@ -92,7 +95,7 @@ class EvalGauntlet(Callback):
                 assert weight is not None
                 benchmark['weighting'] = weight
 
-    def compute_averages(self, state: State):
+    def compute_averages(self, state: State) -> Dict[str, float]:
         results = {}
 
         for key in self.logger_keys:
@@ -117,7 +120,7 @@ class EvalGauntlet(Callback):
 
         return {k: sum(v) / len(v) for k, v in results.items()}
 
-    def eval_after_all(self, state: State, logger: Logger):
+    def eval_after_all(self, state: State, logger: Logger) -> Dict[str, float]:
         new_metrics = self.compute_averages(state)
         if len(new_metrics) == 0:
             return {}
@@ -130,9 +133,8 @@ class EvalGauntlet(Callback):
                 key = f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
 
                 if key not in new_metrics:
-                    print(
-                        f"Warning: couldn't find results for benchmark: {benchmark}"
-                    )
+                    log.warning(
+                        f'Could not find results for benchmark: {benchmark}.')
                     missing_metrics.append(key)
                 else:
                     score = new_metrics[key]
@@ -150,8 +152,8 @@ class EvalGauntlet(Callback):
                     })
 
             if len(missing_metrics) > 0:
-                print(
-                    f"Removing category `{category['name']}` from gauntlet scores because benchmarks were missing: {missing_metrics}"
+                log.warning(
+                    f"Removing category `{category['name']}` from scores because benchmarks were missing: {missing_metrics}"
                 )
                 del composite_scores[category['name']]
                 continue

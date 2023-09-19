@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -9,27 +10,33 @@ from composer import algorithms
 from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
                                 OptimizerMonitor, RuntimeEstimator,
                                 SpeedMonitor)
-from composer.core import Evaluator
+from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from composer.loggers import (InMemoryLogger, MLFlowLogger, TensorboardLogger,
-                              WandBLogger)
+from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
+                              TensorboardLogger, WandBLogger)
 from composer.optim import DecoupledAdamW
-from composer.optim.scheduler import (ConstantWithWarmupScheduler,
+from composer.optim.scheduler import (ComposerScheduler,
+                                      ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
                                       LinearWithWarmupScheduler)
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
+from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
-                                  GlobalLRScaling, LayerFreezing,
-                                  MonolithicCheckpointSaver,
+                                  GlobalLRScaling, HuggingFaceCheckpointer,
+                                  LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
+from llmfoundry.models.inference_api_wrapper.openai_causal_lm import \
+    OpenAITokenizerWrapper
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
+
+log = logging.getLogger(__name__)
 
 
 def build_icl_data_and_gauntlet(
@@ -66,7 +73,7 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
-def build_callback(name: str, kwargs: Dict[str, Any]):
+def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
@@ -95,15 +102,19 @@ def build_callback(name: str, kwargs: Dict[str, Any]):
         return ScheduledGarbageCollector(**kwargs)
     elif name == 'early_stopper':
         return EarlyStopper(**kwargs)
+    elif name == 'hf_checkpointer':
+        return HuggingFaceCheckpointer(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
 
-def build_logger(name: str, kwargs: Dict[str, Any]):
+def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
     if name == 'wandb':
         return WandBLogger(**kwargs)
     elif name == 'tensorboard':
         return TensorboardLogger(**kwargs)
+    elif name == 'in_memory_logger':
+        return InMemoryLogger(**kwargs)
     elif name == 'mlflow':
         return MLFlowLogger(**kwargs)
     elif name == 'inmemory':
@@ -112,7 +123,7 @@ def build_logger(name: str, kwargs: Dict[str, Any]):
         raise ValueError(f'Not sure how to build logger: {name}')
 
 
-def build_algorithm(name: str, kwargs: Dict[str, Any]):
+def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
     if name == 'gradient_clipping':
         return algorithms.GradientClipping(**kwargs)
     elif name == 'alibi':
@@ -128,7 +139,7 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]):
 
 
 def build_optimizer(model: torch.nn.Module, name: str,
-                    optimizer_config: Dict[str, Any]):
+                    optimizer_config: Dict[str, Any]) -> Optimizer:
     if name == 'decoupled_adamw':
         return DecoupledAdamW(model.parameters(), **optimizer_config)
     elif name == 'decoupled_lionw':
@@ -143,7 +154,8 @@ def build_optimizer(model: torch.nn.Module, name: str,
         raise ValueError(f'Not sure how to build optimizer: {name}')
 
 
-def build_scheduler(name: str, scheduler_config: Dict[str, Any]):
+def build_scheduler(name: str,
+                    scheduler_config: Dict[str, Any]) -> ComposerScheduler:
     if name == 'constant_with_warmup':
         return ConstantWithWarmupScheduler(**scheduler_config)
     elif name == 'cosine_with_warmup':
@@ -159,21 +171,24 @@ def build_scheduler(name: str, scheduler_config: Dict[str, Any]):
 def build_tokenizer(
         tokenizer_name: str,
         tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
-    os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
-    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+    if tokenizer_name == 'openai':
+        return OpenAITokenizerWrapper(**tokenizer_kwargs)
+    else:
+        os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
+        os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                              **tokenizer_kwargs)
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+                                                  **tokenizer_kwargs)
 
-    # HuggingFace does not respect the model_max_length kwarg, and overrides it with
-    # min(kwargs['model_max_length'], original_config['model_max_length']), so we
-    # explicitly set it here
-    tokenizer.model_max_length = tokenizer_kwargs.get(
-        'model_max_length',
-        int(1e30),
-    )
+        # HuggingFace does not respect the model_max_length kwarg, and overrides it with
+        # min(kwargs['model_max_length'], original_config['model_max_length']), so we
+        # explicitly set it here
+        tokenizer.model_max_length = tokenizer_kwargs.get(
+            'model_max_length',
+            int(1e30),
+        )
 
-    return tokenizer
+        return tokenizer
 
 
 def build_icl_evaluators(
@@ -183,7 +198,7 @@ def build_icl_evaluators(
     default_batch_size: int,
     destination_dir: Optional[str] = None,
     icl_subset_num_batches: Optional[int] = None,
-):
+) -> Tuple[List[Evaluator], List[str]]:
     if destination_dir is None:
         destination_dir = os.getcwd()
 
@@ -192,7 +207,7 @@ def build_icl_evaluators(
 
     icl_tasks_list = None
     if isinstance(icl_tasks, str):
-        print(f'Extracting ICL task config from path: {icl_tasks}')
+        log.info(f'Extracting ICL task config from path: {icl_tasks}')
         with open(icl_tasks, 'r') as icl_f:
             icl_task_cfg = om.load(icl_f)
         icl_tasks_list = icl_task_cfg.icl_tasks

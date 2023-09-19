@@ -40,9 +40,9 @@ class MPTMLP(nn.Module):
             d_model,
             **fc_kwargs,
         )
-        self.down_proj._is_residual = True  # type: ignore
+        self.down_proj._is_residual = True
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.down_proj(self.act(self.up_proj(x)))
 
 
@@ -61,7 +61,7 @@ def build_ffn(
     fc_type: str = 'torch',
     device: Optional[str] = None,
     **kwargs: Any,
-):
+) -> nn.Module:
     ffn_type = kwargs.pop('ffn_type')
     if ffn_type == 'mptmlp':
         if len(kwargs) > 0:

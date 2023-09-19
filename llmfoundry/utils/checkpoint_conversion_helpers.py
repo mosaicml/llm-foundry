@@ -10,6 +10,7 @@ utility functions that are present in multiple scripts.
 """
 
 import json
+import logging
 import os
 import random
 import string
@@ -19,6 +20,8 @@ from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 import sentencepiece as spm
 from transformers import AutoTokenizer, PreTrainedTokenizer
+
+log = logging.getLogger(__name__)
 
 
 def _get_weight_data_type(data_type: str):
@@ -106,7 +109,7 @@ def _write_zero_bias(weight_name: str, weight_file_path: str,
         raise RuntimeError(
             f'Cannot write zero bias for {weight_name}. Input is not a weight tensor'
         )
-    print(f'zero bias for weight: {weight_name}')
+    log.debug(f'zero bias for weight: {weight_name}')
     bias_file_path = weight_file_path.replace('.weight', '.bias')
     bias = np.zeros(bias_shape, dtype=np.float32)
     bias.tofile(bias_file_path)
@@ -114,7 +117,7 @@ def _write_zero_bias(weight_name: str, weight_file_path: str,
 
 def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
                                tensor_name: str, config: Dict[str, Any],
-                               data: np.ndarray):
+                               data: np.ndarray) -> None:
     """Convert each MPT weight to a FasterTransformer compatible format.
 
     Args:
@@ -228,7 +231,7 @@ def convert_and_save_ft_weights(named_params: dict,
                                 config: dict,
                                 infer_gpu_num: int = 1,
                                 weight_data_type: str = 'fp32',
-                                save_dir: str = ''):
+                                save_dir: str = '') -> None:
     """Convert a Composer MPT checkpoint to a FasterTransformer format.
 
     Args:
@@ -259,10 +262,10 @@ def convert_and_save_ft_weights(named_params: dict,
     }
 
     for name, param in named_params.items():
-        print(f'Working on parameter {name} ...')
+        log.debug(f'Working on parameter {name} ...')
         data = param.detach().cpu().numpy().astype(np_weight_data_type)
         if name.find('weight') == -1 and name.find('bias') == -1:
-            print(f'found a parameter name that is not handled: {name}')
+            log.debug(f'found a parameter name that is not handled: {name}')
             continue
         if name == 'transformer.wpe.weight':
             assert data.shape == (

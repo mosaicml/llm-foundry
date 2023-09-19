@@ -30,7 +30,7 @@ import argparse
 import os
 from argparse import ArgumentTypeError
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import torch
 from composer.utils import (maybe_create_object_store_from_uri, parse_uri,
@@ -82,7 +82,7 @@ def export_to_onnx(
     export_batch_size: int,
     max_seq_len: Optional[int],
     verify_export: bool,
-    from_pretrained_kwargs: dict,
+    from_pretrained_kwargs: Dict[str, Any],
 ):
     reproducibility.seed_all(42)
     save_object_store = maybe_create_object_store_from_uri(output_folder)
@@ -138,9 +138,9 @@ def export_to_onnx(
         with torch.no_grad():
             orig_out = model(**sample_input)
 
-        import onnx  # type: ignore
-        import onnx.checker  # type: ignore
-        import onnxruntime as ort  # type: ignore
+        import onnx
+        import onnx.checker
+        import onnxruntime as ort
 
         _ = onnx.load(str(output_file))
 

@@ -56,7 +56,7 @@ parameters:
   -
     label: rlhf_prompts
     dataset_uri: eval/local_data/rlhf_prompts/rlhf_prompts.jsonl # ADD YOUR OWN DATASET URI
-    num_fewshot: 0
+    num_fewshot: [0]
     icl_task_type: question_answering
     has_categories: true
   

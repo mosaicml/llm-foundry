@@ -190,8 +190,6 @@ class HuggingFaceCheckpointer(Callback):
 
                 if self.log_to_mlflow and state.get_elapsed_duration() >= 1.0:
                     log.debug('Reloading model to log to MLFlow')
-                    # Free up memory before creating another copy of the model to log to MLFlow
-                    del state_dict
 
                     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
                     if isinstance(state.model.model, FSDP):
@@ -199,8 +197,9 @@ class HuggingFaceCheckpointer(Callback):
                     else:
                         model_class = state.model.model
 
-                    new_model_instance = model_class.from_pretrained(temp_save_dir)
-                    new_model_instance.to(self.dtype)
+                    new_model_instance = model_class.from_config(state.model.model.config, torch_dtype=self.dtype)
+                    new_model_instance.load_state_dict(state_dict)
+                    del state_dict
                     components = {'model': new_model_instance}
                     if state.model.tokenizer is not None:
                         new_tokenizer_instance = AutoTokenizer.from_pretrained(temp_save_dir)

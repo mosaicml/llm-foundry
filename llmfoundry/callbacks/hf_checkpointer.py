@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
+import copy
 import json
 import logging
 import os
@@ -197,7 +198,12 @@ class HuggingFaceCheckpointer(Callback):
                     else:
                         model_class = state.model.model
 
-                    new_model_instance = type(model_class)(edited_config)
+                    copied_config = copy.deepcopy(state.model.model.config)
+                    if state.model.model.config.model_type == 'mpt':
+                        copied_config.attn_config['attn_impl'] = 'torch'
+                        copied_config.init_device = 'cpu'
+
+                    new_model_instance = type(model_class)(copied_config)
                     new_model_instance.to(dtype=self.dtype)
                     new_model_instance.load_state_dict(state_dict)
                     del state_dict

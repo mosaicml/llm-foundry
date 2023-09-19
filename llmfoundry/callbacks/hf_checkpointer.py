@@ -20,6 +20,7 @@ from composer.utils import dist, format_name_with_dist_and_time, parse_uri
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
+from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
@@ -162,7 +163,6 @@ class HuggingFaceCheckpointer(Callback):
 
                 if self.upload_to_object_store:
                     assert self.remote_ud is not None
-                    # TODO change to log after other pr
                     log.info(
                         f'Uploading HuggingFace formatted checkpoint to {self.backend}://{self.bucket_name}/{save_dir}'
                     )
@@ -176,6 +176,10 @@ class HuggingFaceCheckpointer(Callback):
                         )
 
                 if self.log_to_mlflow:
+                    # Free up memory before creating another copy of the model to log to MLFlow
+                    del state_dict
+
+                    
                     
 
         dist.barrier()

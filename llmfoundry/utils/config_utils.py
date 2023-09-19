@@ -162,5 +162,5 @@ def log_config(cfg: DictConfig) -> None:
             import mlflow
         except ImportError as e:
             raise e
-        if mlflow.active_run():
-            mlflow.log_params(params=om.to_container(cfg, resolve=True))
+        # if mlflow.active_run():
+        #     mlflow.log_params(params=om.to_container(cfg, resolve=True))

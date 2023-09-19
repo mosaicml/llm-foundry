@@ -134,6 +134,7 @@ class HuggingFaceCheckpointer(Callback):
             assert isinstance(temp_save_dir,
                               str)  # pyright doesn't know about enter_result
 
+            log.debug('Gathering state dict')
             with fsdp_state_dict_type_context(state.model.model,
                                               state_dict_type='full'):
                 state_dict = state.model.model.state_dict()
@@ -144,6 +145,7 @@ class HuggingFaceCheckpointer(Callback):
                         state_dict[k] = v.to(dtype=self.dtype)
 
             if dist.get_global_rank() == 0:
+                log.debug('Saving Hugging Face checkpoint to disk')
                 # We raise above if the model is not a HuggingFaceModel, so this assert is safe
                 assert hasattr(state.model.model, 'save_pretrained')
                 state.model.model.save_pretrained(temp_save_dir,
@@ -184,6 +186,7 @@ class HuggingFaceCheckpointer(Callback):
                         )
 
                 if self.log_to_mlflow:
+                    log.debug('Reloading model to log to MLFlow')
                     # Free up memory before creating another copy of the model to log to MLFlow
                     del state_dict
 
@@ -194,11 +197,13 @@ class HuggingFaceCheckpointer(Callback):
                         model_class = state.model.model
 
                     new_model_instance = model_class.from_pretrained(temp_save_dir)
+                    new_model_instance.to(self.dtype)
                     components = {'model': new_model_instance}
                     if state.model.tokenizer is not None:
                         new_tokenizer_instance = AutoTokenizer.from_pretrained(temp_save_dir)
                         components['tokenizer'] = new_tokenizer_instance
 
+                    log.debug('Logging Hugging Face model to MLFlow')
                     for mlflow_logger in self.mlflow_loggers:
                         mlflow_logger.log_model(
                             flavor='transformers',

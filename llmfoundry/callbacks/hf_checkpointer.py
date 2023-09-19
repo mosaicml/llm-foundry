@@ -106,6 +106,9 @@ class HuggingFaceCheckpointer(Callback):
                         f'`log_to_mlflow` was set to `True` but no `MLFlowLogger` was found in the `logger.destinations` list. ' +
                         'Please add an `MLFlowLogger` or set `log_to_mlflow` to `False`.'
                     )
+                
+                import mlflow
+                mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set("5GB")
 
     def _save_checkpoint(self, state: State, logger: Logger, is_fit_end: bool = False):
         del logger  # unused
@@ -185,7 +188,7 @@ class HuggingFaceCheckpointer(Callback):
                             overwrite=self.overwrite,
                         )
 
-                if self.log_to_mlflow:
+                if self.log_to_mlflow and is_fit_end:
                     log.debug('Reloading model to log to MLFlow')
                     # Free up memory before creating another copy of the model to log to MLFlow
                     del state_dict
@@ -212,4 +215,5 @@ class HuggingFaceCheckpointer(Callback):
                             task=self.mlflow_task,
                             registered_model_name=f'{state.run_name}_{os.path.basename(save_dir)}',
                             metadata=self.mlflow_metadata,
+                            await_registration_for=None,
                         )

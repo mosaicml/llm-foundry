@@ -17,10 +17,9 @@ from composer.loggers import Logger, MLFlowLogger
 from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.models import HuggingFaceModel
 from composer.utils import dist, format_name_with_dist_and_time, parse_uri
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase, AutoTokenizer
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
-from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
@@ -51,6 +50,8 @@ class HuggingFaceCheckpointer(Callback):
         precision: str = 'fp32',
         overwrite: bool = False,
         log_to_mlflow: bool = False,
+        mlflow_task: str = 'text-generation',
+        mlflow_metadata: Optional[dict] = None,
     ):
         self.backend, self.bucket_name, self.save_dir_format_str = parse_uri(
             save_folder)
@@ -62,6 +63,12 @@ class HuggingFaceCheckpointer(Callback):
             'bfloat16': torch.bfloat16,
         }[precision]
         self.log_to_mlflow = log_to_mlflow
+        self.mlflow_task = mlflow_task
+
+        self.mlflow_metadata = mlflow_metadata
+        if self.mlflow_metadata is None:
+            self.mlflow_metadata = {'task': 'llm/v1/completions'}
+
         self.huggingface_folder_name_fstr = os.path.join(
             'huggingface', huggingface_folder_name)
         self.check_interval = create_interval_scheduler(
@@ -93,10 +100,10 @@ class HuggingFaceCheckpointer(Callback):
                 state.callbacks.append(self.remote_ud)
 
             if self.log_to_mlflow:
-                self.mlflow_loggers = [logger_destination for logger_destination in state.loggers if isinstance(logger_destination, MLFlowLogger)]
+                self.mlflow_loggers = [logger_destination for logger_destination in logger.destinations if isinstance(logger_destination, MLFlowLogger)]
                 if len(self.mlflow_loggers) == 0:
                     raise ValueError(
-                        f'`log_to_mlflow` was set to `True` but no `MLFlowLogger` was found in the `state.loggers` list. ' +
+                        f'`log_to_mlflow` was set to `True` but no `MLFlowLogger` was found in the `logger.destinations` list. ' +
                         'Please add an `MLFlowLogger` or set `log_to_mlflow` to `False`.'
                     )
 
@@ -139,8 +146,6 @@ class HuggingFaceCheckpointer(Callback):
             if dist.get_global_rank() == 0:
                 # We raise above if the model is not a HuggingFaceModel, so this assert is safe
                 assert hasattr(state.model.model, 'save_pretrained')
-                print(type(state.model.model.module))
-                print(type(state.model.model))
                 state.model.model.save_pretrained(temp_save_dir,
                                                   state_dict=state_dict)
 
@@ -188,9 +193,18 @@ class HuggingFaceCheckpointer(Callback):
                     else:
                         model_class = state.model.model
 
-                    new_instance = model_class.from_pretrained(temp_save_dir)
+                    new_model_instance = model_class.from_pretrained(temp_save_dir)
+                    components = {'model': new_model_instance}
+                    if state.model.tokenizer is not None:
+                        new_tokenizer_instance = AutoTokenizer.from_pretrained(temp_save_dir)
+                        components['tokenizer'] = new_tokenizer_instance
 
-                    
-                    
-
-        dist.barrier()
+                    for mlflow_logger in self.mlflow_loggers:
+                        mlflow_logger.log_model(
+                            flavor='transformers',
+                            transformers_model=components,
+                            artifact_path=os.path.basename(save_dir),
+                            task=self.mlflow_task,
+                            registered_model_name=f'{state.run_name}_{os.path.basename(save_dir)}',
+                            metadata=self.mlflow_metadata,
+                        )

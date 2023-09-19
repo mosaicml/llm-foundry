@@ -11,8 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer.core.types import Batch
 from composer.utils.import_helpers import MissingConditionalImportError
-from transformers import (AutoTokenizer, PreTrainedTokenizer,
-                          PreTrainedTokenizerFast)
+from transformers import AutoTokenizer
 
 log = logging.getLogger(__name__)
 
@@ -20,91 +19,11 @@ from llmfoundry.models.inference_api_wrapper.interface import \
     InferenceAPIEvalWrapper
 
 __all__ = [
-    'OpenAICausalLMEvalWrapper', 'OpenAIChatAPIEvalWrapper',
-    'OpenAITokenizerWrapper'
+    'OpenAICausalLMEvalWrapper',
+    'OpenAIChatAPIEvalWrapper',
 ]
 
-Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
-
 MAX_RETRIES = 10
-
-
-class OpenAITokenizerWrapper(AutoTokenizer):
-    # this API is experimental and for evaluation only. It is subject to change as we add support for training
-    def __init__(self, name: str) -> None:
-        try:
-            import tiktoken
-        except ImportError as e:
-            raise MissingConditionalImportError(
-                extra_deps_group='openai',
-                conda_package='tiktoken',
-                conda_channel='conda-forge') from e
-        self.tokenizer = tiktoken.encoding_for_model(name)
-
-    def __call__(self, x: str, add_special_tokens: bool = False):
-        if add_special_tokens:
-            raise ValueError(
-                'OpenAITokenizerWrapper only supports add_special_tokens=False')
-        return self.encode(x)
-
-    def encode(self,
-               x: Union[str, List[str]],
-               add_special_tokens: bool = False):
-        if add_special_tokens:
-            raise ValueError(
-                'OpenAITokenizerWrapper only supports add_special_tokens=False')
-        if isinstance(x, str):
-            return {
-                'input_ids':
-                    self.tokenizer.encode(x, allowed_special={'<|endoftext|>'})
-            }
-        elif isinstance(x,
-                        list):  # pyright: ignore [reportUnnecessaryIsInstance]
-            return {
-                'input_ids':
-                    self.tokenizer.encode_batch(
-                        x, allowed_special={'<|endoftext|>'})
-            }
-        else:
-            raise ValueError(
-                f'`encode` argument must be str or List[str], got: {type(x)}')
-
-    def decode(
-        self,
-        x: Union[List[int], List[List[int]]],
-    ):
-        if len(x) > 0 and isinstance(x[0], list):
-            return self.tokenizer.decode_batch(
-                x)  # pyright: ignore [reportGeneralTypeIssues]
-        else:
-            assert isinstance(x, list)
-            return self.tokenizer.decode(
-                x)  # pyright: ignore [reportGeneralTypeIssues]
-
-    @property
-    def pad_token_id(self):
-        return self.tokenizer.eot_token
-
-    @property
-    def eos_token_id(self):
-        return self.tokenizer.eot_token
-
-    @property
-    def vocab_size(self):
-        return self.tokenizer.n_vocab
-
-    def construct_logit_tensor(self, logprobs: Dict[str, float]):
-        """Construct tensor of shape (vocab_size,) mapping words to logprobs.
-
-        Args:
-            logprobs (Dict[str, float]): Dictionary mapping tokens to log probabilities assigned to them by the model.
-        """
-        tensor = torch.tensor([min(logprobs.values()) - 1] * (self.vocab_size))
-        for k in logprobs:
-            encoding = self.encode(k)['input_ids']
-            idx = encoding[0]
-            tensor[idx] = logprobs[k]
-        return tensor
 
 
 class OpenAIEvalInterface(InferenceAPIEvalWrapper):

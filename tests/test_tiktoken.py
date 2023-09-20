@@ -12,20 +12,14 @@ from tests.horrible_strings import HORRIBLE_STRINGS
 from tests.test_hf_conversion_script import check_hf_tokenizer_equivalence
 
 TEST_STRINGS = [
-    'Hello world!',
-    'def hello_world(input: str):\n    print(input)',
+    'Hello world!', 'def hello_world(input: str):\n    print(input)',
     '0000000000000000000000000000',
-    '19234324 asas sf 119aASDFM AW3RAW-AF;;9900',
-    '\n\n\n\nhello\n\t',
+    '19234324 asas sf 119aASDFM AW3RAW-AF;;9900', '\n\n\n\nhello\n\t',
     '            hello\n\t\\\\     goodbye!?*#&@!)     ',
     'This is just a normal sentence. And here is another one!',
-    'hello<|endoftext|>world',
-    'hello <|endoftext|> world',
-    'hello <|endoftext|>',
-    'hello <|endoftext|> ',
-    '<|endoftext}>',
-    '<|endoftext}> ',
-    ' <|endoftext|>',
+    'hello<|endoftext|>world', 'hello <|endoftext|> world',
+    'hello <|endoftext|>', 'hello <|endoftext|> ', '<|endoftext}>',
+    '<|endoftext}> ', ' <|endoftext|>',
     '<|endoftext|><|endoftext|><|endoftext|><|endoftext|>',
     '<|endoftext|> <|endoftext|> <|endoftext|> <|endoftext|>'
 ]
@@ -60,7 +54,8 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
     # Simple tokenization test
     for string in TEST_STRINGS:
         wrapped_output = wrapped_tokenizer(string)
-        original_output = original_tokenizer.encode(string, allowed_special='all')
+        original_output = original_tokenizer.encode(string,
+                                                    allowed_special='all')
         reloaded_wrapped_output = reloaded_wrapped_tokenizer(string)
 
         try:
@@ -140,4 +135,5 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
     elif model_name in ['text-davinci-003']:
         assert len(didnt_match) == 14
 
-    check_hf_tokenizer_equivalence(wrapped_tokenizer, reloaded_wrapped_tokenizer)
+    check_hf_tokenizer_equivalence(wrapped_tokenizer,
+                                   reloaded_wrapped_tokenizer)

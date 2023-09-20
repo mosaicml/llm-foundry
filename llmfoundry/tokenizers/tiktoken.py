@@ -238,11 +238,12 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         # we are knowingly breaking the signature here, although not 100% certain
         # it doesn't have side effects
         return (None, None)  # type: ignore
-    
+
     def sanitize_special_tokens(self) -> int:
-        """
-        Make sure that all the special tokens attributes of the tokenizer (`tokenizer.mask_token`,
-        `tokenizer.cls_token`, etc.) are in the vocabulary.
+        """Make sure that all the special tokens attributes of the tokenizer
+        
+        (`tokenizer.mask_token`, `tokenizer.cls_token`, etc.) are in the
+        vocabulary.
 
         Add the missing ones to the vocabulary if needed.
 

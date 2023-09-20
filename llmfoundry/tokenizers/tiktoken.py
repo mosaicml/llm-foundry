@@ -154,7 +154,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 return self.added_tokens_decoder[ids]
 
             return self._convert_id_to_token(ids)
-        
+
         # current_stream will collect multiple tokens, and then separately add items
         # for each added token. This is done so that decode works properly with token ids
         # that cannot be represented naively in utf-8.

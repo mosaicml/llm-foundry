@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, Dataset, IterableDataset
 from tqdm import tqdm
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.builders import build_tokenizer
+from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
 
 

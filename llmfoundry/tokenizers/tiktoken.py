@@ -56,10 +56,10 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         self.encoding_name = encoding_name
 
         if self.model_name is not None:
-            self.encoding = tiktoken.encoding_for_model( # type: ignore (thirdParty)
+            self.encoding = tiktoken.encoding_for_model(  # type: ignore (thirdParty)
                 self.model_name)
         elif self.encoding_name is not None:
-            self.encoding = tiktoken.get_encoding( # type: ignore (thirdParty)
+            self.encoding = tiktoken.get_encoding(  # type: ignore (thirdParty)
                 self.encoding_name)
         else:
             raise ValueError(

@@ -111,8 +111,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         """
         if not isinstance(text, str):
             raise ValueError(
-                f'Expected a string input to _tokenize but got {type(text)}.'
-            )
+                f'Expected a string input to _tokenize but got {type(text)}.')
 
         tokens = [t for t in self.encoding.encode(text, allowed_special='all')]
 
@@ -137,7 +136,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             self,
             ids: Union[int, List[int]],
             skip_special_tokens: bool = False) -> Union[str, List[str]]:
-        """Converts a single index or a sequence of indices into a token or a
+        """Converts a single index or a sequence of indices into a token or a.
 
         sequence of tokens, using the vocabulary and added tokens.
 
@@ -264,7 +263,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
         return self.add_tokens(actual_new_tokens, special_tokens=True)
 
-    def construct_logit_tensor(self, logprobs: Dict[str, float]) -> torch.Tensor:
+    def construct_logit_tensor(self, logprobs: Dict[str,
+                                                    float]) -> torch.Tensor:
         """Construct tensor of shape (vocab_size,) mapping words to logprobs.
 
         Args:

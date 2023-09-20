@@ -252,7 +252,7 @@ def flash_attn_fn(
 
     reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
 
-    output_unpad = flash_attn_interface.flash_attn_unpadded_func(
+    output_unpad = flash_attn_interface.flash_attn_kvpacked_func(
         query_unpad,
         key_unpad,
         value_unpad,

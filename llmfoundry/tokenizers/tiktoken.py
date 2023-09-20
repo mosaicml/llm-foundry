@@ -9,6 +9,11 @@ from transformers import PreTrainedTokenizer
 
 
 class TiktokenTokenizerWrapper(PreTrainedTokenizer):
+    """A thin wrapper around tiktoken to make it compatible with Hugging Face tokenizers.
+    
+    See HuggingFace for further documentation on general tokenizer methods.
+    """
+
     model_input_names = ['input_ids', 'attention_mask']
 
     def __init__(self,
@@ -20,6 +25,19 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                  bos_token: Optional[str] = '<|endoftext|>',
                  pad_token: Optional[str] = None,
                  **kwargs: Dict[str, Any]):
+        """Constructor creates a tiktoken tokenizer to use as the underlying tokenizer.
+
+        Args:
+            model_name (Optional[str], optional): The name of the model to load from tiktoken. Defaults to None.
+                Either model_name or encoding_name must be set, but not both.
+            encoding_name (Optional[str], optional): The name of the encoding to load from tiktoken. Defaults to None.
+                Either model_name or encoding_name must be set, but not both.
+            add_bos_token (bool, optional): Whether to add bos tokens. Defaults to False.
+            unk_token (Optional[str], optional): The unk token. Defaults to '<|endoftext|>'.
+            eos_token (Optional[str], optional): The eos token. Defaults to '<|endoftext|>'.
+            bos_token (Optional[str], optional): The bos token. Defaults to '<|endoftext|>'.
+            pad_token (Optional[str], optional): The pad token. Defaults to None.
+        """
         try:
             import tiktoken
         except:
@@ -202,28 +220,6 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             self,
             token_ids_0: List[int],
             token_ids_1: Optional[List[int]] = None) -> List[int]:
-        """Create a mask from the two sequences passed to be used in a sequence-
-
-        pair classification task. A FAIRSEQ.
-
-        Transformer sequence pair mask has the following format:
-
-        ```
-        0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1
-        | first sequence    | second sequence |
-        ```
-
-        If `token_ids_1` is `None`, this method only returns the first portion of the mask (0s).
-
-        Args:
-            token_ids_0 (`List[int]`):
-                List of IDs.
-            token_ids_1 (`List[int]`, *optional*):
-                Optional second list of IDs for sequence pairs.
-
-        Returns:
-            `List[int]`: List of [token type IDs](../glossary#token-type-ids) according to the given sequence(s).
-        """
         sep = [self.sep_token_id]
 
         if token_ids_1 is None:

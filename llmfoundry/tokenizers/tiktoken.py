@@ -1,16 +1,16 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import torch
-
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import torch
 from transformers import PreTrainedTokenizer
 
 
 class TiktokenTokenizerWrapper(PreTrainedTokenizer):
-    """A thin wrapper around tiktoken to make it compatible with Hugging Face tokenizers.
-    
+    """A thin wrapper around tiktoken to make it compatible with Hugging Face
+    tokenizers.
+
     See HuggingFace for further documentation on general tokenizer methods.
     """
 
@@ -25,7 +25,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                  bos_token: Optional[str] = '<|endoftext|>',
                  pad_token: Optional[str] = None,
                  **kwargs: Dict[str, Any]):
-        """Constructor creates a tiktoken tokenizer to use as the underlying tokenizer.
+        """Constructor creates a tiktoken tokenizer to use as the underlying
+        tokenizer.
 
         Args:
             model_name (Optional[str], optional): The name of the model to load from tiktoken. Defaults to None.
@@ -234,7 +235,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         # we are knowingly breaking the signature here, although not 100% certain
         # it doesn't have side effects
         return (None, None)  # type: ignore
-    
+
     def construct_logit_tensor(self, logprobs: Dict[str, float]):
         """Construct tensor of shape (vocab_size,) mapping words to logprobs.
 

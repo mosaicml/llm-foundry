@@ -195,7 +195,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         if len(completion['choices']) > 0:
             tensors = []
             for t in self.tokenizer(completion['choices'][0]['message']
-                                           ['content'])['input_ids']:
+                                    ['content'])['input_ids']:
                 tensors.append(
                     self.tokenizer.construct_logit_tensor(
                         {self.tokenizer.decode([t]): 0.0}))

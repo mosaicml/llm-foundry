@@ -84,7 +84,8 @@ def test_openai_api_eval_wrapper(tmp_path: str):
     with patch('openai.Completion') as mock:
         mock.create = mock_create
         model_name = 'davinci'
-        tokenizer = TiktokenTokenizerWrapper(model_name=model_name, pad_token='<|endoftext|>')
+        tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
+                                             pad_token='<|endoftext|>')
         model = OpenAICausalLMEvalWrapper(model_cfg={'version': model_name},
                                           tokenizer=tokenizer)
         task_cfg = load_icl_config()
@@ -118,7 +119,8 @@ def test_chat_api_eval_wrapper(tmp_path: str):
             }],
         }
         model_name = 'gpt-3.5-turbo'
-        tokenizer = TiktokenTokenizerWrapper(model_name=model_name, pad_token='<|endoftext|>')
+        tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
+                                             pad_token='<|endoftext|>')
         chatmodel = OpenAIChatAPIEvalWrapper(model_cfg={'version': model_name},
                                              tokenizer=tokenizer)
         task_cfg = load_icl_config()

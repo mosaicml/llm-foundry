@@ -240,8 +240,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         return (None, None)  # type: ignore
 
     def sanitize_special_tokens(self) -> int:
-        """Make sure that all the special tokens attributes of the tokenizer
-        
+        """Make sure that all the special tokens attributes of the tokenizer.
+
         (`tokenizer.mask_token`, `tokenizer.cls_token`, etc.) are in the
         vocabulary.
 

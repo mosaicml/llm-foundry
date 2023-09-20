@@ -49,7 +49,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
         if model_name is not None and encoding_name is not None:
             raise ValueError(
-                'You need to specify either model_name or encoding_name, not both.')
+                'You need to specify either model_name or encoding_name, not both.'
+            )
 
         self.model_name = model_name
         self.encoding_name = encoding_name

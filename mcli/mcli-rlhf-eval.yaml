@@ -25,7 +25,7 @@ parameters:
   dist_timeout: 6000
   seed: 1
   max_seq_len: 1024
-  device_eval_batch_size: 4
+  device_eval_batch_size: 1
   precision: amp_fp16
 
   models:

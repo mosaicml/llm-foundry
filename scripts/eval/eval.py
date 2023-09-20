@@ -173,7 +173,7 @@ def evaluate_model(
         load_path=load_path,
         load_weights_only=True,
         progress_bar=False,
-        log_to_console=False,
+        log_to_console=True,
         dist_timeout=dist_timeout,
         python_log_level=python_log_level,
     )

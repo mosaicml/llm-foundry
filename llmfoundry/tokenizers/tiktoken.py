@@ -248,6 +248,9 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         # ignore the below type to keep the original signature
         # we are knowingly breaking the signature here, although not 100% certain
         # it doesn't have side effects
+        # There is some code in huggingface that calls this function to get the vocab files,
+        # but it doesn't seem to access them (or at least checks for their existence
+        # before accessing them)
         return (None, None)  # type: ignore
 
     def sanitize_special_tokens(self) -> int:

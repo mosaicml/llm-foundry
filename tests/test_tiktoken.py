@@ -1,9 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Optional
-
 import pathlib
+from typing import Optional
 
 import pytest
 import transformers
@@ -25,12 +24,15 @@ TEST_STRINGS += HORRIBLE_STRINGS
 
 
 @pytest.mark.parametrize('model_name,encoding_name',
-                         [('gpt-4', None), ('gpt-3.5-turbo', None), ('text-davinci-003', None), (None, 'cl100k_base')])
-def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str], tmp_path: pathlib.Path):
+                         [('gpt-4', None), ('gpt-3.5-turbo', None),
+                          ('text-davinci-003', None), (None, 'cl100k_base')])
+def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
+                  tmp_path: pathlib.Path):
     tiktoken = pytest.importorskip('tiktoken')
 
     # Construction
-    wrapped_tokenizer = TiktokenTokenizerWrapper(model_name=model_name, encoding_name=encoding_name)
+    wrapped_tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
+                                                 encoding_name=encoding_name)
     if model_name is not None:
         original_tokenizer = tiktoken.encoding_for_model(model_name)
     else:

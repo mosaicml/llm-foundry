@@ -8,8 +8,8 @@ from transformers import PreTrainedTokenizer
 
 
 class TiktokenTokenizerWrapper(PreTrainedTokenizer):
-    """A thin wrapper around tiktoken to make it compatible with Hugging Face
-    
+    """A thin wrapper around tiktoken to make it compatible with Hugging Face.
+
     tokenizers.
 
     See HuggingFace for further documentation on general tokenizer methods.
@@ -26,8 +26,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                  bos_token: Optional[str] = '<|endoftext|>',
                  pad_token: Optional[str] = None,
                  **kwargs: Dict[str, Any]):
-        """Constructor creates a tiktoken tokenizer to use as the underlying
-        
+        """Constructor creates a tiktoken tokenizer to use as the underlying.
+
         tokenizer.
 
         Args:

@@ -119,14 +119,14 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         return tokens
 
     def _convert_token_to_id(self, token: Union[int, str]) -> int:
-        """Converts a token (str) in an id using the vocab."""
+        """Converts a token (str) into an id using the vocab."""
         if isinstance(token, int):
             return token
         else:
             return self.encoding.encode(token, allowed_special='all')[0]
 
     def _convert_id_to_token(self, index: int) -> str:
-        """Converts an index (integer) in a token (str) using the vocab."""
+        """Converts an index (integer) into a token (str) using the vocab."""
         return self.encoding.decode([index])
 
     def convert_tokens_to_string(self, tokens: List[str]) -> str:
@@ -137,7 +137,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             self,
             ids: Union[int, List[int]],
             skip_special_tokens: bool = False) -> Union[str, List[str]]:
-        """Converts a single index or a sequence of indices in a token or a.
+        """Converts a single index or a sequence of indices into a token or a
 
         sequence of tokens, using the vocabulary and added tokens.
 

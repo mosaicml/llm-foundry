@@ -139,7 +139,8 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
     # This means that the str: int vocab mapping doesn't work. Would have to look more into how other HF tokenizers handle this.
     model_or_encoding_name = model_name or encoding_name
     if model_or_encoding_name is not None:
-        expected_didnt_match = model_or_encoding_name_to_non_utf8_tokens.get(model_or_encoding_name)
+        expected_didnt_match = model_or_encoding_name_to_non_utf8_tokens.get(
+            model_or_encoding_name)
         assert len(didnt_match) == expected_didnt_match
     else:
         raise NotImplementedError(

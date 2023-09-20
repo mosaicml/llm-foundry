@@ -154,7 +154,6 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         tokens = []
         current_stream = []
         for index in ids:
-            index = int(index)
             if skip_special_tokens and index in self.all_special_ids:
                 continue
 

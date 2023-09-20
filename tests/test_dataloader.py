@@ -63,7 +63,7 @@ def build_mock_ft_streaming_dataset(data_path: str, split: str):
             output_writer.write(sample)
 
 
-def build_mock_tokenized_ft_streaming_dataset(data_path, split):
+def build_mock_tokenized_ft_streaming_dataset(data_path: str, split: str):
     columns = {'tokens': 'bytes', 'labels': 'bytes'}
 
     dataset = [{

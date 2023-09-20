@@ -206,7 +206,7 @@ class StreamingFinetuningDataset(StreamingDataset):
             return _read_binary_tokenized_sample(sample)
         else:
             raise RuntimeError(
-                'FineTurningDataset needs samples to have prompt/response columns '
+                'FineTurningDataset needs samples to have prompt/response columns ' +\
                 'or tokens/labels columns')
 
 

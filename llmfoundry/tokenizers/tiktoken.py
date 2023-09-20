@@ -154,7 +154,10 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 return self.added_tokens_decoder[ids]
 
             return self._convert_id_to_token(ids)
-
+        
+        # current_stream will collect multiple tokens, and then separately add items
+        # for each added token. This is done so that decode works properly with token ids
+        # that cannot be represented naively in utf-8.
         tokens = []
         current_stream = []
         for index in ids:
@@ -194,6 +197,9 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             token_ids_1: Optional[List[int]] = None,
             already_has_special_tokens: bool = False) -> List[int]:
         """Retrieves sequence ids from a token list that has no special tokens.
+
+        Function copied from
+        https://github.com/huggingface/transformers/blob/e3a4bd2bee212a2d0fd9f03b27fe7bfc1debe42d/src/transformers/models/gpt2/tokenization_gpt2.py#L265-L295
 
         added. This method is called when adding special tokens using the
         tokenizer `prepare_for_model` or `encode_plus` methods.

@@ -30,8 +30,6 @@ from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
                                   GlobalLRScaling, HuggingFaceCheckpointer,
                                   LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
-from llmfoundry.models.inference_api_wrapper.openai_causal_lm import \
-    OpenAITokenizerWrapper
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper

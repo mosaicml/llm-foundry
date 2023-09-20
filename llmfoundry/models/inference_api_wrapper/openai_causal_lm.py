@@ -104,7 +104,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         re-tokenize with the space removed.
         """
         original_len = len(tokens)
-        retokenized_continuation = self.tokenizer.encode(
+        retokenized_continuation = self.tokenizer(
             self.tokenizer.decode(tokens[cont_idxs[0]:cont_idxs[-1] +
                                          1]).strip())['input_ids']
 
@@ -194,7 +194,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         assert isinstance(completion, dict)
         if len(completion['choices']) > 0:
             tensors = []
-            for t in self.tokenizer.encode(completion['choices'][0]['message']
+            for t in self.tokenizer(completion['choices'][0]['message']
                                            ['content'])['input_ids']:
                 tensors.append(
                     self.tokenizer.construct_logit_tensor(

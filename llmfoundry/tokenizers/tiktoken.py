@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import torch
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from transformers import PreTrainedTokenizer
@@ -47,7 +49,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                          unk_token=unk_token,
                          eos_token=eos_token,
                          bos_token=bos_token,
-                         pad_token=None,
+                         pad_token=pad_token,
                          **kwargs)
 
     @property
@@ -236,6 +238,19 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         # we are knowingly breaking the signature here, although not 100% certain
         # it doesn't have side effects
         return (None, None)  # type: ignore
+    
+    def construct_logit_tensor(self, logprobs: Dict[str, float]):
+        """Construct tensor of shape (vocab_size,) mapping words to logprobs.
+
+        Args:
+            logprobs (Dict[str, float]): Dictionary mapping tokens to log probabilities assigned to them by the model.
+        """
+        tensor = torch.tensor([min(logprobs.values()) - 1] * (self.vocab_size))
+        for k in logprobs:
+            encoding = self(k)['input_ids']
+            idx = encoding[0]
+            tensor[idx] = logprobs[k]
+        return tensor
 
 
 TiktokenTokenizerWrapper.register_for_auto_class()

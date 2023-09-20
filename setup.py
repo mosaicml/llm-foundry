@@ -65,6 +65,7 @@ install_requires = [
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
     'boto3>=1.21.45,<2',
+    'huggingface-hub>=0.17.0,<1.0',
 ]
 
 extra_deps = {}

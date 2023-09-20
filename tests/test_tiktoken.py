@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pathlib
-from typing import Optional
+from typing import Optional, Tuple, TYPE_CHECKING
 
 import pytest
 import transformers
@@ -10,6 +10,9 @@ import transformers
 from llmfoundry import TiktokenTokenizerWrapper
 from tests.horrible_strings import HORRIBLE_STRINGS
 from tests.test_hf_conversion_script import check_hf_tokenizer_equivalence
+
+if TYPE_CHECKING:
+    from tiktoken.core import Encoding
 
 TEST_STRINGS = [
     'Hello world!', 'def hello_world(input: str):\n    print(input)',
@@ -26,19 +29,21 @@ TEST_STRINGS = [
 
 TEST_STRINGS += HORRIBLE_STRINGS
 
-model_or_encoding_name_to_non_utf8_tokens = {
+MODEL_OR_ENCODING_NAME_TO_NON_UTF8_TOKENS = {
     'gpt-4': 77,
     'gpt-3.5-turbo': 77,
     'text-davinci-003': 14,
     'cl100k_base': 77,
 }
 
+MODEL_ENCODING_NAME_PARAMETRIZATION = [
+    ('gpt-4', None),
+    ('gpt-3.5-turbo', None),
+    ('text-davinci-003', None),
+    (None, 'cl100k_base'),
+]
 
-@pytest.mark.parametrize('model_name,encoding_name',
-                         [('gpt-4', None), ('gpt-3.5-turbo', None),
-                          ('text-davinci-003', None), (None, 'cl100k_base')])
-def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
-                  tmp_path: pathlib.Path):
+def get_tokenizers_for_testing(model_name: Optional[str], encoding_name: Optional[str], tmp_path: pathlib.Path) -> Tuple[TiktokenTokenizerWrapper, TiktokenTokenizerWrapper, 'Encoding']:
     tiktoken = pytest.importorskip('tiktoken')
 
     # Construction
@@ -56,8 +61,14 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
     wrapped_tokenizer.save_pretrained(tmp_path)
     reloaded_wrapped_tokenizer = transformers.AutoTokenizer.from_pretrained(
         tmp_path, trust_remote_code=True)
+    
+    return wrapped_tokenizer, reloaded_wrapped_tokenizer, original_tokenizer
 
-    didnt_match = []
+@pytest.mark.parametrize('model_name,encoding_name', MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_tiktoken_simple(model_name: Optional[str], encoding_name: Optional[str],
+                  tmp_path: pathlib.Path):
+    wrapped_tokenizer, reloaded_wrapped_tokenizer, original_tokenizer = get_tokenizers_for_testing(model_name, encoding_name, tmp_path)
+
     # Simple tokenization test
     for string in TEST_STRINGS:
         wrapped_output = wrapped_tokenizer(string)
@@ -65,14 +76,15 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
                                                     allowed_special='all')
         reloaded_wrapped_output = reloaded_wrapped_tokenizer(string)
 
-        try:
-            assert wrapped_output['input_ids'] == original_output
-            assert set(wrapped_output.keys()) == {'input_ids', 'attention_mask'}
-            assert reloaded_wrapped_output == wrapped_output
-        except:
-            assert False
+        assert wrapped_output['input_ids'] == original_output
+        assert set(wrapped_output.keys()) == {'input_ids', 'attention_mask'}
+        assert reloaded_wrapped_output == wrapped_output
 
-    # Round trip
+@pytest.mark.parametrize('model_name,encoding_name', MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_tiktoken_roundtrip(model_name: Optional[str], encoding_name: Optional[str],
+                  tmp_path: pathlib.Path):
+    wrapped_tokenizer, reloaded_wrapped_tokenizer, original_tokenizer = get_tokenizers_for_testing(model_name, encoding_name, tmp_path)
+
     for string in TEST_STRINGS:
         wrapped_output = wrapped_tokenizer.decode(
             wrapped_tokenizer(string)['input_ids'])
@@ -84,7 +96,11 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
         assert original_output == string
         assert reloaded_wrapped_output == string
 
-    # Batched tokenization
+@pytest.mark.parametrize('model_name,encoding_name', MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_tiktoken_batched(model_name: Optional[str], encoding_name: Optional[str],
+                  tmp_path: pathlib.Path):
+    wrapped_tokenizer, reloaded_wrapped_tokenizer, original_tokenizer = get_tokenizers_for_testing(model_name, encoding_name, tmp_path)
+
     wrapped_output = wrapped_tokenizer(
         ['Hello world!', 'Hello world but longer!'])
     original_output = original_tokenizer.encode_batch(
@@ -101,7 +117,11 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
         reloaded_wrapped_output['input_ids']
     ) == original_tokenizer.decode_batch(original_output)
 
-    # With padding
+@pytest.mark.parametrize('model_name,encoding_name', MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_tiktoken_padding(model_name: Optional[str], encoding_name: Optional[str],
+                  tmp_path: pathlib.Path):
+    wrapped_tokenizer, reloaded_wrapped_tokenizer, original_tokenizer = get_tokenizers_for_testing(model_name, encoding_name, tmp_path)
+
     wrapped_tokenizer.pad_token_id = wrapped_tokenizer.eos_token_id
     reloaded_wrapped_tokenizer.pad_token_id = reloaded_wrapped_tokenizer.eos_token_id
     wrapped_output = wrapped_tokenizer(
@@ -120,7 +140,11 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
     assert set(wrapped_output.keys()) == {'input_ids', 'attention_mask'}
     assert reloaded_wrapped_output == wrapped_output
 
-    # Get vocab
+@pytest.mark.parametrize('model_name,encoding_name', MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_tiktoken_vocab(model_name: Optional[str], encoding_name: Optional[str],
+                  tmp_path: pathlib.Path):
+    wrapped_tokenizer, reloaded_wrapped_tokenizer, original_tokenizer = get_tokenizers_for_testing(model_name, encoding_name, tmp_path)
+
     wrapped_vocab = wrapped_tokenizer.get_vocab()
     reloaded_wrapped_vocab = reloaded_wrapped_tokenizer.get_vocab()
     assert wrapped_vocab == reloaded_wrapped_vocab
@@ -139,7 +163,7 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
     # This means that the str: int vocab mapping doesn't work. Would have to look more into how other HF tokenizers handle this.
     model_or_encoding_name = model_name or encoding_name
     if model_or_encoding_name is not None:
-        expected_didnt_match = model_or_encoding_name_to_non_utf8_tokens.get(
+        expected_didnt_match = MODEL_OR_ENCODING_NAME_TO_NON_UTF8_TOKENS.get(
             model_or_encoding_name)
         assert len(didnt_match) == expected_didnt_match
     else:
@@ -147,5 +171,9 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
             'Add the new tokenizer and how many tokens in the vocab are not utf8 representable.'
         )
 
+@pytest.mark.parametrize('model_name,encoding_name', MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_tiktoken_save_from_pretrained(model_name: Optional[str], encoding_name: Optional[str],
+                  tmp_path: pathlib.Path):
+    wrapped_tokenizer, reloaded_wrapped_tokenizer, _ = get_tokenizers_for_testing(model_name, encoding_name, tmp_path)
     check_hf_tokenizer_equivalence(wrapped_tokenizer,
                                    reloaded_wrapped_tokenizer)

@@ -121,8 +121,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         """Converts a token (str) into an id using the vocab."""
         if isinstance(token, int):
             return token
-        else:
-            return self.encoding.encode(token, allowed_special='all')[0]
+
+        return self.encoding.encode(token, allowed_special='all')[0]
 
     def _convert_id_to_token(self, index: int) -> str:
         """Converts an index (integer) into a token (str) using the vocab."""
@@ -152,8 +152,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         if isinstance(ids, int):
             if ids in self.added_tokens_decoder:
                 return self.added_tokens_decoder[ids]
-            else:
-                return self._convert_id_to_token(ids)
+
+            return self._convert_id_to_token(ids)
 
         tokens = []
         current_stream = []

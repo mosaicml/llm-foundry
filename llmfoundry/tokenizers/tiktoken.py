@@ -77,7 +77,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                          **kwargs)
 
     @property
-    def vocab_size(self):
+    def vocab_size(self) -> int:
         """Returns vocab size."""
         return self.encoding.n_vocab
 
@@ -85,7 +85,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     def is_fast(self) -> bool:
         return False
 
-    def get_vocab(self):
+    def get_vocab(self) -> Dict[str, int]:
         """Returns vocab as a dict."""
         vocab = {}
         for i in range(self.vocab_size):
@@ -99,7 +99,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
         return vocab
 
-    def _tokenize(self, text: str):
+    def _tokenize(self, text: str) -> List[int]:
         """Returns a tokenized string.
 
         Note: We have slightly redefined the expected contract between this method and
@@ -109,22 +109,27 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         from this function, and have adjusted the _convert_token_to_id method to handle integers as well as strings.
         The only use of _tokenize that I could find was in this way, so this _should_ be safe.
         """
+        if not isinstance(text, str):
+            raise ValueError(
+                f'Expected a string input to _tokenize but got {type(text)}.'
+            )
+
         tokens = [t for t in self.encoding.encode(text, allowed_special='all')]
 
         return tokens
 
-    def _convert_token_to_id(self, token: Union[int, str]):
+    def _convert_token_to_id(self, token: Union[int, str]) -> int:
         """Converts a token (str) in an id using the vocab."""
         if isinstance(token, int):
             return token
         else:
             return self.encoding.encode(token, allowed_special='all')[0]
 
-    def _convert_id_to_token(self, index: int):
+    def _convert_id_to_token(self, index: int) -> str:
         """Converts an index (integer) in a token (str) using the vocab."""
         return self.encoding.decode([index])
 
-    def convert_tokens_to_string(self, tokens: List[str]):
+    def convert_tokens_to_string(self, tokens: List[str]) -> str:
         """Converts a sequence of tokens (string) in a single string."""
         return ''.join(tokens)
 
@@ -171,7 +176,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     def build_inputs_with_special_tokens(
             self,
             token_ids_0: List[int],
-            token_ids_1: Optional[List[int]] = None):
+            token_ids_1: Optional[List[int]] = None) -> List[int]:
         if self.add_bos_token:
             bos_token_ids = [self.bos_token_id]
         else:
@@ -259,7 +264,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
         return self.add_tokens(actual_new_tokens, special_tokens=True)
 
-    def construct_logit_tensor(self, logprobs: Dict[str, float]):
+    def construct_logit_tensor(self, logprobs: Dict[str, float]) -> torch.Tensor:
         """Construct tensor of shape (vocab_size,) mapping words to logprobs.
 
         Args:

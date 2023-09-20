@@ -47,9 +47,9 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             raise ImportError(
                 'You need to install tiktoken to use TiktokenTokenizerWrapper.')
 
-        if model_name is None and encoding_name is None:
+        if model_name is not None and encoding_name is not None:
             raise ValueError(
-                'You need to specify either model_name or encoding_name.')
+                'You need to specify either model_name or encoding_name, not both.')
 
         self.model_name = model_name
         self.encoding_name = encoding_name

@@ -106,6 +106,7 @@ extra_deps['openai'] = [
     'tiktoken==0.4.0',
 ]
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
+extra_deps['all-cpu'] = set(dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
 
 setup(
     name=_PACKAGE_NAME,

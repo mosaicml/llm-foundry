@@ -33,6 +33,7 @@ model_or_encoding_name_to_non_utf8_tokens = {
     'cl100k_base': 77,
 }
 
+
 @pytest.mark.parametrize('model_name,encoding_name',
                          [('gpt-4', None), ('gpt-3.5-turbo', None),
                           ('text-davinci-003', None), (None, 'cl100k_base')])
@@ -136,13 +137,14 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
     # Decode is lossy because some bytes are not representable in utf-8
     # see https://github.com/openai/tiktoken/blob/39f29cecdb6fc38d9a3434e5dd15e4de58cf3c80/tiktoken/core.py#L245-L247
     # This means that the str: int vocab mapping doesn't work. Would have to look more into how other HF tokenizers handle this.
-    expected_didnt_match = model_or_encoding_name_to_non_utf8_tokens.get(
-        model_name or encoding_name)
-    if expected_didnt_match is not None:
+    model_or_encoding_name = model_name or encoding_name
+    if model_or_encoding_name is not None:
+        expected_didnt_match = model_or_encoding_name_to_non_utf8_tokens.get(model_or_encoding_name)
         assert len(didnt_match) == expected_didnt_match
     else:
         raise NotImplementedError(
-            'Add the new tokenizer and how many tokens in the vocab are not utf8 representable.')
+            'Add the new tokenizer and how many tokens in the vocab are not utf8 representable.'
+        )
 
     check_hf_tokenizer_equivalence(wrapped_tokenizer,
                                    reloaded_wrapped_tokenizer)

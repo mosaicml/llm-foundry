@@ -324,7 +324,7 @@ def main(args: Namespace) -> None:
 
     if args.concat_tokens is not None:
         mode = ConcatMode.CONCAT_TOKENS
-        tokenizer = build_tokenizer(args.tokenizer, **args.tokenizer_kwargs)
+        tokenizer = build_tokenizer(args.tokenizer, args.tokenizer_kwargs)
         # we will enforce length, so suppress warnings about sequences too long for the model
         tokenizer.model_max_length = int(1e30)
         columns = {'tokens': 'bytes'}

@@ -9,6 +9,7 @@ import transformers
 
 from llmfoundry import TiktokenTokenizerWrapper
 from tests.horrible_strings import HORRIBLE_STRINGS
+from tests.test_hf_conversion_script import check_hf_tokenizer_equivalence
 
 TEST_STRINGS = [
     'Hello world!',
@@ -18,6 +19,15 @@ TEST_STRINGS = [
     '\n\n\n\nhello\n\t',
     '            hello\n\t\\\\     goodbye!?*#&@!)     ',
     'This is just a normal sentence. And here is another one!',
+    'hello<|endoftext|>world',
+    'hello <|endoftext|> world',
+    'hello <|endoftext|>',
+    'hello <|endoftext|> ',
+    '<|endoftext}>',
+    '<|endoftext}> ',
+    ' <|endoftext|>',
+    '<|endoftext|><|endoftext|><|endoftext|><|endoftext|>',
+    '<|endoftext|> <|endoftext|> <|endoftext|> <|endoftext|>'
 ]
 
 TEST_STRINGS += HORRIBLE_STRINGS
@@ -50,18 +60,22 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
     # Simple tokenization test
     for string in TEST_STRINGS:
         wrapped_output = wrapped_tokenizer(string)
-        original_output = original_tokenizer.encode(string)
+        original_output = original_tokenizer.encode(string, allowed_special='all')
         reloaded_wrapped_output = reloaded_wrapped_tokenizer(string)
-        assert wrapped_output['input_ids'] == original_output
-        assert set(wrapped_output.keys()) == {'input_ids', 'attention_mask'}
-        assert reloaded_wrapped_output == wrapped_output
+
+        try:
+            assert wrapped_output['input_ids'] == original_output
+            assert set(wrapped_output.keys()) == {'input_ids', 'attention_mask'}
+            assert reloaded_wrapped_output == wrapped_output
+        except:
+            assert False
 
     # Round trip
     for string in TEST_STRINGS:
         wrapped_output = wrapped_tokenizer.decode(
             wrapped_tokenizer(string)['input_ids'])
         original_output = original_tokenizer.decode(
-            original_tokenizer.encode(string))
+            original_tokenizer.encode(string, allowed_special='all'))
         reloaded_wrapped_output = reloaded_wrapped_tokenizer.decode(
             reloaded_wrapped_tokenizer(string)['input_ids'])
         assert wrapped_output == string
@@ -125,3 +139,5 @@ def test_tiktoken(model_name: Optional[str], encoding_name: Optional[str],
         assert len(didnt_match) == 77
     elif model_name in ['text-davinci-003']:
         assert len(didnt_match) == 14
+
+    check_hf_tokenizer_equivalence(wrapped_tokenizer, reloaded_wrapped_tokenizer)

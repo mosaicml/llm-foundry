@@ -238,6 +238,24 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         # we are knowingly breaking the signature here, although not 100% certain
         # it doesn't have side effects
         return (None, None)  # type: ignore
+    
+    def sanitize_special_tokens(self) -> int:
+        """
+        Make sure that all the special tokens attributes of the tokenizer (`tokenizer.mask_token`,
+        `tokenizer.cls_token`, etc.) are in the vocabulary.
+
+        Add the missing ones to the vocabulary if needed.
+
+        Return:
+            `int`: The number of tokens added in the vocabulary during the operation.
+        """
+        actual_new_tokens = []
+        for token in self.all_special_tokens_extended:
+            encoded = self.encoding.encode(token, allowed_special='all')
+            if len(encoded) > 1:
+                actual_new_tokens.append(token)
+
+        return self.add_tokens(actual_new_tokens, special_tokens=True)
 
     def construct_logit_tensor(self, logprobs: Dict[str, float]):
         """Construct tensor of shape (vocab_size,) mapping words to logprobs.

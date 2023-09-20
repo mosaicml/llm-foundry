@@ -59,7 +59,10 @@ def parse_args() -> Namespace:
 
     parsed = parser.parse_args()
 
-    parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)
+    if parsed.tokenizer_kwargs is not None:
+        parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)
+    else:
+        parsed.tokenizer_kwargs = {}
 
     if os.path.isdir(parsed.out_root) and len(
             set(os.listdir(parsed.out_root)).intersection(set(

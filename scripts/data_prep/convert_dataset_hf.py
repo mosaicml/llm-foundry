@@ -15,10 +15,10 @@ import psutil
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, Dataset, IterableDataset
 from tqdm import tqdm
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
 from llmfoundry.builders import build_tokenizer
+from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
 
 
 class ConcatMode(Enum):

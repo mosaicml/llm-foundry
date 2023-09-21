@@ -1341,6 +1341,8 @@ def test_forward_with_output_attentions_and_output_hidden_states(
 
         if output_attentions:
             assert len(outputs.attentions) == n_layers
+            assert all(
+                attn.shape == (1, 4, 3, 3) for attn in outputs.attentions)
         if output_hidden_states:
             assert len(outputs.hidden_states) == n_layers + 1
 

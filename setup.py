@@ -65,6 +65,7 @@ install_requires = [
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
     'boto3>=1.21.45,<2',
+    'huggingface-hub>=0.17.0,<1.0',
 ]
 
 extra_deps = {}
@@ -104,6 +105,8 @@ extra_deps['openai'] = [
     'openai==0.27.8',
     'tiktoken==0.4.0',
 ]
+extra_deps['all-cpu'] = set(
+    dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
 
 setup(

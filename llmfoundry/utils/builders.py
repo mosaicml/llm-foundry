@@ -184,7 +184,7 @@ def build_tokenizer(
             int(1e30),
         )
 
-        return tokenizer
+    return tokenizer
 
 
 def build_icl_evaluators(

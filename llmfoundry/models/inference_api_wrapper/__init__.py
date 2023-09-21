@@ -4,11 +4,10 @@
 from llmfoundry.models.inference_api_wrapper.interface import \
     InferenceAPIEvalWrapper
 from llmfoundry.models.inference_api_wrapper.openai_causal_lm import (
-    OpenAICausalLMEvalWrapper, OpenAIChatAPIEvalWrapper, OpenAITokenizerWrapper)
+    OpenAICausalLMEvalWrapper, OpenAIChatAPIEvalWrapper)
 
 __all__ = [
     'OpenAICausalLMEvalWrapper',
     'OpenAIChatAPIEvalWrapper',
-    'OpenAITokenizerWrapper',
     'InferenceAPIEvalWrapper',
 ]

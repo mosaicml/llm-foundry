@@ -36,6 +36,7 @@ def create_c4_dataset_xsmall(prefix: str) -> str:
                 'compression': None,
                 'concat_tokens': 2048,
                 'tokenizer': 'EleutherAI/gpt-neox-20b',
+                'tokenizer_kwargs': {},
                 'bos_text': '',
                 'eos_text': '<|endoftext|>',
                 'no_wrap': False,

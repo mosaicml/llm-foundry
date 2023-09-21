@@ -27,7 +27,7 @@ jobs:
         set -ex
         export PATH=/composer-python:$PATH
         python -m pip install --upgrade 'pip<23' wheel
-        python -m pip install --upgrade .[dev]
+        python -m pip install --upgrade .[all-cpu]
     - name: Run Tests
       id: tests
       run: |

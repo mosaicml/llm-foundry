@@ -13,7 +13,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.tasks import dataset_constructor
-from llmfoundry.data.packing import BinPackWrapper
+from llmfoundry.data.packing import BinPackWrapper, auto_packing_ratio
 
 log = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
         )
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
-            cfg.dataset, tokenizer, device_batch_size)
+            cfg, tokenizer, device_batch_size)
 
         return DataLoader(
             dataset,
@@ -172,7 +172,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             )
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
-            cfg.dataset, tokenizer, device_batch_size)
+            cfg, tokenizer, device_batch_size)
 
         if cfg.drop_last:
             world_size = dist.get_world_size()
@@ -355,9 +355,10 @@ def _build_hf_dataset_from_remote(
 
 
 def _build_collate_fn(
-    dataset_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+    dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackWrapper], int]:
+    dataset_cfg = dataloader_cfg.dataset
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,
         max_seq_len=dataset_cfg.max_seq_len,
@@ -373,6 +374,10 @@ def _build_collate_fn(
                 'but dataset.packing_ratio has not been set. Please set ' +\
                 'the latter to turn on packing or remove the former from the config.')
         return collate_fn, device_batch_size
+
+    if packing_ratio == 'auto':
+        packing_ratio = auto_packing_ratio(dataloader_cfg, tokenizer,
+                                           device_batch_size)
 
     if packing_ratio == 1.0:
         return collate_fn, device_batch_size

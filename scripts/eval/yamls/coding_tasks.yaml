@@ -20,10 +20,3 @@ icl_tasks:
   pass_at_k : 1
   num_beams: 20
   icl_task_type: code_evaluation
--
-  label: human_eval_c
-  dataset_uri: eval/local_data/programming/processed_human_eval_c.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0]
-  pass_at_k : 1
-  num_beams: 20
-  icl_task_type: code_evaluation

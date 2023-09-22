@@ -235,7 +235,7 @@ def build_icl_evaluators(
         if 'pass_at_k' not in icl_cfg:
             icl_cfg.pass_at_k = 1
         if 'num_beams' not in icl_cfg:
-            icl_cfg.num_beams = 1
+            icl_cfg.num_beams = 20
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)

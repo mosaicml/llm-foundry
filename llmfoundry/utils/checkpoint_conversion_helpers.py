@@ -95,7 +95,8 @@ def get_hf_tokenizer_from_composer_state_dict(
 
 
 def _write_zero_bias(weight_name: str, weight_file_path: str,
-                     bias_shape: Union[Tuple[int, ...], int]) -> None:
+                     bias_shape: Union[Tuple[int, ...], int],
+                     np_data_type: np.dtype) -> None:
     """Write zeros for bias when converting MPT to FasterTransformer weights.
 
     MPT model might not have bias while FT expects bias.
@@ -111,13 +112,14 @@ def _write_zero_bias(weight_name: str, weight_file_path: str,
         )
     log.debug(f'zero bias for weight: {weight_name}')
     bias_file_path = weight_file_path.replace('.weight', '.bias')
-    bias = np.zeros(bias_shape, dtype=np.float32)
+    bias = np.zeros(bias_shape, dtype=np_data_type)
     bias.tofile(bias_file_path)
 
 
 def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
                                tensor_name: str, config: Dict[str, Any],
-                               data: np.ndarray) -> None:
+                               data: np.ndarray,
+                               np_weight_data_type: np.dtype) -> None:
     """Convert each MPT weight to a FasterTransformer compatible format.
 
     Args:
@@ -138,7 +140,7 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
         save_path = os.path.join(save_dir, f'model.{tensor_name}.bin')
         data.tofile(save_path)
         if 'weight' in tensor_name and config['no_bias']:
-            _write_zero_bias(tensor_name, save_path, data.shape[-1])
+            _write_zero_bias(tensor_name, save_path, data.shape[-1], np_weight_data_type)
 
     elif tensor_name.find('attention.dense.weight') != -1:
         assert data.shape == (
@@ -153,11 +155,11 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
         if config['no_bias']:
             fake_weight_path = os.path.join(save_dir,
                                             f'model.{tensor_name}.bin')
-            _write_zero_bias(tensor_name, fake_weight_path, data.shape[-1])
+            _write_zero_bias(tensor_name, fake_weight_path, data.shape[-1], np_weight_data_type)
 
     elif tensor_name.find('mlp.dense_4h_to_h.weight') != -1:
         assert data.shape == (
-            config['d_model'], config['mlp_ratio'] *
+            config['d_model'], config['expansion_ratio'] *
             config['d_model']), f'unexpected dim for {tensor_name}'
         # nn.Linear weights are transposed
         data = data.T
@@ -168,11 +170,11 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
         if config['no_bias']:
             fake_weight_path = os.path.join(save_dir,
                                             f'model.{tensor_name}.bin')
-            _write_zero_bias(tensor_name, fake_weight_path, data.shape[-1])
+            _write_zero_bias(tensor_name, fake_weight_path, data.shape[-1], np_weight_data_type)
 
     elif tensor_name.find('mlp.dense_h_to_4h.weight') != -1:
         assert data.shape == (
-            config['mlp_ratio'] * config['d_model'],
+            config['expansion_ratio'] * config['d_model'],
             config['d_model']), f'unexpected dim for {tensor_name}'
         # nn.Linear weights are transposed
         data = data.T
@@ -183,11 +185,11 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
             split_vals[j].tofile(save_path)
             if config['no_bias']:
                 _write_zero_bias(tensor_name, save_path,
-                                 split_vals[j].shape[-1])
+                                 split_vals[j].shape[-1], np_weight_data_type)
 
     elif tensor_name.find('mlp.dense_h_to_4h.bias') != -1:
         assert data.shape == (
-            config['mlp_ratio'] *
+            config['expansion_ratio'] *
             config['d_model'],), f'unexpected dim for {tensor_name}'
         split_vals = np.split(data, infer_gpu_num, axis=-1)
         for j in range(infer_gpu_num):
@@ -221,7 +223,7 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
             split_vals[j].tofile(save_path)
             if config['no_bias']:
                 _write_zero_bias(tensor_name, save_path,
-                                 (3, split_vals[j].shape[-1]))
+                                 (3, split_vals[j].shape[-1]), np_weight_data_type)
 
     else:
         raise RuntimeError(f'Tensor with name {tensor_name} is not handled')
@@ -289,7 +291,7 @@ def convert_and_save_ft_weights(named_params: dict,
                                      'model.final_layernorm.weight.bin')
             data.tofile(save_path)
             if config['no_bias']:
-                _write_zero_bias(name, save_path, data.shape[-1])
+                _write_zero_bias(name, save_path, data.shape[-1], np_weight_data_type)
         elif name == 'transformer.lm_head.weight':
             data.tofile(os.path.join(save_dir, 'model.lm_head.weight.bin'))
         else:
@@ -299,4 +301,4 @@ def convert_and_save_ft_weights(named_params: dict,
                                             'layers.').replace(
                                                 mpt_pattern, ft_pattern)
                     _convert_weight_to_ft_each(save_dir, infer_gpu_num,
-                                               new_name, config, data)
+                                               new_name, config, data, np_weight_data_type)

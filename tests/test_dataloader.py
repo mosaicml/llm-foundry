@@ -9,9 +9,9 @@ import tempfile
 from argparse import Namespace
 from typing import Optional
 
+import numpy
 import pytest
 import torch
-import numpy
 from composer.utils import dist, using_torch_2
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
@@ -64,14 +64,14 @@ def build_mock_ft_streaming_dataset(data_path: str, split: str):
 
 
 def build_mock_tokenized_ft_streaming_dataset(data_path: str, split: str):
-    columns = {'tokens': 'bytes', 'labels': 'bytes'}
+    columns = {'prompt': 'bytes', 'response': 'bytes'}
 
     dataset = [{
-        'tokens': numpy.asarray([1, 2, 3, 4]).tobytes(),
-        'labels': numpy.asarray([2, 3, 4, 5]).tobytes()
+        'prompt': numpy.asarray([1, 2, 3, 4]).tobytes(),
+        'response': numpy.asarray([2, 3, 4, 5]).tobytes()
     }, {
-        'tokens': numpy.asarray([2, 3, 4, 5]).tobytes(),
-        'labels': numpy.asarray([3, 4, 5, 6]).tobytes()
+        'prompt': numpy.asarray([2, 3, 4, 5]).tobytes(),
+        'response': numpy.asarray([3, 4, 5, 6]).tobytes()
     }]
 
     output_path = os.path.join(data_path, split)

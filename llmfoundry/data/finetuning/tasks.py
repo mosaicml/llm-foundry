@@ -49,27 +49,8 @@ log = logging.getLogger(__name__)
 __all__ = ['dataset_constructor']
 
 
-def _tokenize_formatted_example(
-        example: Dict[str, Any],
-        tokenizer: PreTrainedTokenizerBase) -> Dict[str, List[int]]:
-    if ('prompt' not in example) or ('response' not in example):
-        raise KeyError(
-            'Unable to tokenize example because it has not been properly formatted. ' +\
-            '"prompt" and "response" are required keys but at least one was missing ' +\
-            f'from {example=}.'
-        )
-    if not isinstance(example['prompt'], str):
-        raise TypeError(
-            f'Unable to tokenize example because "prompt" was not a string. {example=}'
-        )
-    if not isinstance(example['response'], str):
-        raise TypeError(
-            f'Unable to tokenize example because "response" was not a string. {example=}'
-        )
-    return tokenizer(text=example['prompt'], text_target=example['response'])
-
-
-def _read_binary_tokenized_sample(sample: Dict[str, Any]):
+def _read_binary_tokenized_sample(
+        sample: Dict[str, Any]) -> Dict[str, torch.Tensor]:
     example = {
         'input_ids':
             torch.from_numpy(
@@ -80,6 +61,27 @@ def _read_binary_tokenized_sample(sample: Dict[str, Any]):
     }
     example['attention_mask'] = torch.ones(example['input_ids'].size())
     return example
+
+
+def _tokenize_formatted_example(
+    example: Dict[str, Any], tokenizer: PreTrainedTokenizerBase
+) -> Union[Dict[str, List[int]], Dict[str, torch.Tensor]]:
+    if ('prompt' not in example) or ('response' not in example):
+        raise KeyError(
+            'Unable to tokenize example because it has not been properly formatted. ' +\
+            '"prompt" and "response" are required keys but at least one was missing ' +\
+            f'from {example=}.'
+        )
+    if isinstance(example['prompt'], str) and isinstance(
+            example['response'], str):
+        return tokenizer(text=example['prompt'],
+                         text_target=example['response'])
+    elif isinstance(example['prompt'], bytes) and isinstance(
+            example['response'], bytes):
+        return _read_binary_tokenized_sample(example)
+    else:
+        raise TypeError('Unable to process example. Both "prompt" and "response" ' +\
+                        'either need to be a string or byte array')
 
 
 class StreamingFinetuningDataset(StreamingDataset):
@@ -200,14 +202,7 @@ class StreamingFinetuningDataset(StreamingDataset):
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         sample = super().__getitem__(idx)
-        if 'prompt' in sample and 'response' in sample:
-            return _tokenize_formatted_example(sample, tokenizer=self.tokenizer)
-        elif 'tokens' in sample and 'labels' in sample:
-            return _read_binary_tokenized_sample(sample)
-        else:
-            raise RuntimeError(
-                'FineTurningDataset needs samples to have prompt/response columns ' +\
-                'or tokens/labels columns')
+        return _tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 
 
 class DatasetConstructor:

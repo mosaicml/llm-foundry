@@ -434,6 +434,7 @@ class MPTModel(MPTPreTrainedModel):
                 attn_bias=attn_bias,
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
+                output_attentions=bool(output_attentions),
             )
             if past_key_values is not None:
                 past_key_values[b_idx] = past_key_value

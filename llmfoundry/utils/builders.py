@@ -32,6 +32,7 @@ from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
+from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
 log = logging.getLogger(__name__)
 
@@ -110,6 +111,8 @@ def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
         return WandBLogger(**kwargs)
     elif name == 'tensorboard':
         return TensorboardLogger(**kwargs)
+    elif name == 'in_memory_logger':
+        return InMemoryLogger(**kwargs)
     elif name == 'mlflow':
         return MLFlowLogger(**kwargs)
     elif name == 'inmemory':
@@ -167,16 +170,19 @@ def build_tokenizer(
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                              **tokenizer_kwargs)
+    if tokenizer_name.startswith('tiktoken'):
+        tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+                                                  **tokenizer_kwargs)
 
-    # HuggingFace does not respect the model_max_length kwarg, and overrides it with
-    # min(kwargs['model_max_length'], original_config['model_max_length']), so we
-    # explicitly set it here
-    tokenizer.model_max_length = tokenizer_kwargs.get(
-        'model_max_length',
-        int(1e30),
-    )
+        # HuggingFace does not respect the model_max_length kwarg, and overrides it with
+        # min(kwargs['model_max_length'], original_config['model_max_length']), so we
+        # explicitly set it here
+        tokenizer.model_max_length = tokenizer_kwargs.get(
+            'model_max_length',
+            int(1e30),
+        )
 
     return tokenizer
 

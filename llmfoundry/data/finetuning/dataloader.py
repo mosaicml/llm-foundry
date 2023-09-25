@@ -299,6 +299,9 @@ def _build_hf_dataset_from_remote(
         'downloaded_finetuning',
         cfg.dataset.split if cfg.dataset.split != 'data' else 'data_not',
     )
+    # HF datasets does not support a split with dashes, so we replace dashes
+    # with underscores in the destination split.
+    destination_split = cfg.dataset.split.replace('-', '_')
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in supported_extensions:
         name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
@@ -306,7 +309,9 @@ def _build_hf_dataset_from_remote(
             os.path.abspath(
                 os.path.join(
                     finetune_dir, 'data',
-                    f'{cfg.dataset.split}-00000-of-00001.{extension}')))
+                    f'{destination_split}-00000-of-00001.{extension}')))
+        print('HERE!!!', destination_split)
+
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file
         signal_file_path = os.path.join(finetune_dir, '.the_eagle_has_landed')

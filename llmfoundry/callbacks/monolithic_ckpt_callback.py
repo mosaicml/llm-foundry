@@ -46,22 +46,24 @@ class MonolithicCheckpointSaver(Callback):
         else:
             self.remote_ud = None
 
-    def init(self, state: State, logger: Logger):
+    def init(self, state: State, logger: Logger) -> None:
         if self.upload_to_object_store and self.remote_ud is not None:
             self.remote_ud.init(state, logger)
             # updated_logger_destinations = [*logger.destinations, new_remote_ud]
             # logger.destinations = tuple(updated_logger_destinations)
             state.callbacks.append(self.remote_ud)
 
-    def batch_checkpoint(self, state: State, logger: Logger):
+    def batch_checkpoint(self, state: State, logger: Logger) -> None:
         if state.timestamp.batch.value % self.batch_interval == 0:
             self._save_checkpoint(state, logger)
 
-    def fit_end(self, state: State, logger: Logger):
+    def fit_end(self, state: State, logger: Logger) -> None:
         if state.timestamp.batch.value % self.batch_interval != 0:
             self._save_checkpoint(state, logger)
 
-    def _save_checkpoint(self, state: State, logger: Logger):
+    def _save_checkpoint(self, state: State, logger: Logger) -> None:
+        del logger  # unused
+
         filename = format_name_with_dist_and_time(self.filename_format_str,
                                                   state.run_name,
                                                   state.timestamp)
@@ -72,6 +74,9 @@ class MonolithicCheckpointSaver(Callback):
         ) if self.upload_to_object_store else contextlib.nullcontext(
             enter_result=save_dir)
         with dir_context_mgr as temp_save_dir:
+            # pyright doesn't know about enter_result
+            assert isinstance(temp_save_dir, str)
+
             save_path = str(Path(temp_save_dir) / Path(filename))
             dirname = os.path.dirname(save_path)
             if dirname:

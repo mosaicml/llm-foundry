@@ -22,7 +22,7 @@ except:
 def torch_default_param_init_fn_(
     module: nn.Module,
     **kwargs: Any,
-):
+) -> None:
     del kwargs  # unused, just to capture any extra args from the config
 
     if hasattr(module, 'reset_parameters') and isinstance(
@@ -30,7 +30,7 @@ def torch_default_param_init_fn_(
         module.reset_parameters()
 
 
-def fused_init_helper_(module: nn.Module, init_fn_: Callable):
+def fused_init_helper_(module: nn.Module, init_fn_: Callable) -> None:
     # parameter initialization is often based on the parameters shape.
     # If a layer is fused, initialization should be based on the shapes
     # of the original tensor instead of the shape of the fused tensor.
@@ -62,7 +62,7 @@ def generic_param_init_fn_(
     emb_init_std: Optional[float] = None,
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     **kwargs: Any,
-):
+) -> None:
     del kwargs  # unused, just to capture any extra args from the config
     # enable user to divide _is_residual weights by
 
@@ -198,7 +198,7 @@ def generic_param_init_fn_(
             )
 
 
-def _normal_init_(std: float, mean: float = 0.0):
+def _normal_init_(std: float, mean: float = 0.0) -> Callable:
     return partial(torch.nn.init.normal_, mean=mean, std=std)
 
 
@@ -211,7 +211,7 @@ def _normal_param_init_fn_(
     emb_init_std: Optional[float] = None,
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     **kwargs: Any,
-):
+) -> None:
     del kwargs  # unused, just to capture any extra args from the config
     init_fn_ = _normal_init_(std=std)
 
@@ -228,14 +228,14 @@ def _normal_param_init_fn_(
 
 def baseline_param_init_fn_(
     module: nn.Module,
-    init_std: float,
+    init_std: Optional[float],
     n_layers: int,
     d_model: Optional[int] = None,
     init_div_is_residual: Union[int, float, str, bool] = True,
     emb_init_std: Optional[float] = None,
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     **kwargs: Any,
-):
+) -> None:
     del kwargs  # unused, just to capture any extra args from the config
     if init_std is None:
         raise ValueError(
@@ -260,7 +260,7 @@ def small_param_init_fn_(
     emb_init_std: Optional[float] = None,
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     **kwargs: Any,
-):
+) -> None:
     del kwargs  # unused, just to capture any extra args from the config
     # very close to kaiming normal
     # from Transformers without Tears (2019) - Nguyen & Salazar
@@ -283,7 +283,7 @@ def neox_param_init_fn_(
     emb_init_std: Optional[float] = None,
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     **kwargs: Any,
-):
+) -> None:
     """From section 2.3.1 of GPT-NeoX-20B:
 
     An Open-Source AutoregressiveLanguage Model — Black et. al. (2022)
@@ -314,7 +314,7 @@ def kaiming_uniform_param_init_fn_(
     fan_mode: str = 'fan_in',
     init_nonlinearity: str = 'leaky_relu',
     **kwargs: Any,
-):
+) -> None:
     del kwargs  # unused, just to capture any extra args from the config
 
     kaiming_uniform_ = partial(nn.init.kaiming_uniform_,
@@ -344,7 +344,7 @@ def kaiming_normal_param_init_fn_(
     fan_mode: str = 'fan_in',
     init_nonlinearity: str = 'leaky_relu',
     **kwargs: Any,
-):
+) -> None:
     del kwargs  # unused, just to capture any extra args from the config
 
     kaiming_normal_ = partial(torch.nn.init.kaiming_normal_,
@@ -372,7 +372,7 @@ def xavier_uniform_param_init_fn_(
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     init_gain: float = 0,
     **kwargs: Any,
-):
+) -> None:
     del kwargs  # unused, just to capture any extra args from the config
     xavier_uniform_ = partial(torch.nn.init.xavier_uniform_, gain=init_gain)
 
@@ -396,7 +396,7 @@ def xavier_normal_param_init_fn_(
     emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
     init_gain: float = 0,
     **kwargs: Any,
-):
+) -> None:
     del kwargs  # unused, just to capture any extra args from the config
     xavier_normal_ = partial(torch.nn.init.xavier_normal_, gain=init_gain)
 

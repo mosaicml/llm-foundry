@@ -73,7 +73,7 @@ class MPTBlock(nn.Module):
             fc_type=fc_type,
             device=device,
             **attn_config_subset_for_attn_class,
-            no_bias=no_bias,
+            bias=not no_bias,
         )
         self.norm_2 = None
         if not getattr(FFN_CLASS_REGISTRY[ffn_config['ffn_type']], '_has_norm',
@@ -83,6 +83,7 @@ class MPTBlock(nn.Module):
             d_model=d_model,
             expansion_ratio=expansion_ratio,
             device=device,
+            bias=not no_bias,
             **ffn_config,
         )
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)

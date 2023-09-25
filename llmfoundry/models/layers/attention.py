@@ -419,7 +419,7 @@ class GroupedQueryAttention(nn.Module):
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
-        no_bias: bool = False,
+        bias: bool = True,
     ):
         super().__init__()
 
@@ -452,7 +452,7 @@ class GroupedQueryAttention(nn.Module):
         self.attn_dropout_p = attn_pdrop
 
         fc_kwargs = {
-            'bias': not no_bias,
+            'bias': bias,
         }
         if fc_type != 'te':
             fc_kwargs['device'] = device
@@ -560,7 +560,7 @@ class MultiheadAttention(GroupedQueryAttention):
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
-        no_bias: bool = False
+        bias: bool = True
     ):
         super().__init__(
             d_model=d_model,
@@ -574,7 +574,7 @@ class MultiheadAttention(GroupedQueryAttention):
             norm_type=norm_type,
             fc_type=fc_type,
             device=device,
-            no_bias=no_bias,
+            bias=bias,
         )
 
 
@@ -597,7 +597,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
-        no_bias: bool = False
+        bias: bool = True,
     ):
         super().__init__(
             d_model=d_model,
@@ -611,7 +611,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             norm_type=norm_type,
             fc_type=fc_type,
             device=device,
-            no_bias=no_bias,
+            bias=bias,
         )
 
 

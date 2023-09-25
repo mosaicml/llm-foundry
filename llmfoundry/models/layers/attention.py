@@ -548,20 +548,18 @@ class MultiheadAttention(GroupedQueryAttention):
     additive bias.
     """
 
-    def __init__(
-        self,
-        d_model: int,
-        n_heads: int,
-        attn_impl: str = 'triton',
-        clip_qkv: Optional[float] = None,
-        qk_ln: bool = False,
-        softmax_scale: Optional[float] = None,
-        attn_pdrop: float = 0.0,
-        norm_type: str = 'low_precision_layernorm',
-        fc_type: str = 'torch',
-        device: Optional[str] = None,
-        bias: bool = True
-    ):
+    def __init__(self,
+                 d_model: int,
+                 n_heads: int,
+                 attn_impl: str = 'triton',
+                 clip_qkv: Optional[float] = None,
+                 qk_ln: bool = False,
+                 softmax_scale: Optional[float] = None,
+                 attn_pdrop: float = 0.0,
+                 norm_type: str = 'low_precision_layernorm',
+                 fc_type: str = 'torch',
+                 device: Optional[str] = None,
+                 bias: bool = True):
         super().__init__(
             d_model=d_model,
             n_heads=n_heads,

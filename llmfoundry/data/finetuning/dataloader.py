@@ -310,7 +310,6 @@ def _build_hf_dataset_from_remote(
                 os.path.join(
                     finetune_dir, 'data',
                     f'{destination_split}-00000-of-00001.{extension}')))
-        print('HERE!!!', destination_split)
 
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file

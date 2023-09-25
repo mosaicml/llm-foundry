@@ -24,7 +24,6 @@ class NoConcatDataset(IterableDataset):
 
     def __iter__(self) -> Iterable[Dict[str, bytes]]:
         for sample in self.hf_dataset:
-            # print(sample)
             # convert to bytes to store in MDS binary format
             yield {'text': sample['text'].encode('utf-8')}
 

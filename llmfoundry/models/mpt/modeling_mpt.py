@@ -64,6 +64,10 @@ except:
     pass
 # isort: on
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
@@ -119,8 +123,8 @@ class MPTModel(MPTPreTrainedModel):
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         if config.init_device != 'meta':
-            print(
-                f'You are using {config.init_device=}, but you can also use config.init_device="meta" with Composer + FSDP for fast initialization.'
+            log.info(
+                f'We recommend using config.init_device="meta" with Composer + FSDP for faster initialization.'
             )
             self.apply(self.param_init_fn)
 
@@ -143,19 +147,11 @@ class MPTModel(MPTPreTrainedModel):
             for module in self.modules():
                 if hasattr(module, 'bias') and isinstance(
                         module.bias, nn.Parameter):
-                    if config.verbose:
-                        warnings.warn(
-                            f'Removing bias ({module.bias}) from {module}.')
+                    log.info(f'Removing bias ({module.bias}) from {module}.')
                     module.register_parameter('bias', None)
 
-        # Print verbose info
-        if config.verbose and config.verbose > 2:
-            print(self)
-        if 'verbose' not in self.config.init_config:
-            self.config.init_config['verbose'] = self.config.verbose
-        if self.config.init_config['verbose'] > 1:
-            init_fn_name = self.config.init_config['name']
-            warnings.warn(f'Using {init_fn_name} initialization.')
+        log.debug(self)
+        log.debug(f'Using {self.config.init_config["name"]} initialization.')
 
     def get_input_embeddings(self):
         return self.wte
@@ -308,12 +304,10 @@ class MPTModel(MPTPreTrainedModel):
                      if use_cache is not None else self.config.use_cache)
 
         if attention_mask is not None:
-            attention_mask = attention_mask.bool(
-            )  # type: ignore (TODO to figure out the right type here)
+            attention_mask = attention_mask.bool()  # type: ignore
 
         if prefix_mask is not None:
-            prefix_mask = prefix_mask.bool(
-            )  # type: ignore (TODO to figure out the right type here)
+            prefix_mask = prefix_mask.bool()  # type: ignore
 
         # These args are passed in by keyword in huggingface's generate function
         # https://github.com/huggingface/transformers/blob/68287689f2f0d8b7063c400230b3766987abf18d/src/transformers/generation/utils.py#L2201-L2206
@@ -361,7 +355,7 @@ class MPTModel(MPTPreTrainedModel):
             S <= self.config.max_seq_len
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
-        tok_emb = self.wte(input_ids)  # type: ignore
+        tok_emb = self.wte(input_ids)
         if self.learned_pos_emb:
             past_position = 0
             if past_key_values is not None:
@@ -398,14 +392,14 @@ class MPTModel(MPTPreTrainedModel):
                     min=0,
                 )
 
-            pos_emb = self.wpe(pos)  # type: ignore
+            pos_emb = self.wpe(pos)
             x = tok_emb + pos_emb
         else:
             # ALiBi and NoPE use this path (RoPE will also use this path if / when enabled)
             x = tok_emb
 
         if self.embedding_fraction == 1:
-            x = self.emb_drop(x)  # type: ignore
+            x = self.emb_drop(x)
         else:
             # this implementation is proposed on page 7 of the GLM-130B paper https://arxiv.org/abs/2210.02414
             x_shrunk = (x * self.embedding_fraction) + (
@@ -428,7 +422,7 @@ class MPTModel(MPTPreTrainedModel):
 
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
-        for b_idx, block in enumerate(self.blocks):  # type: ignore
+        for b_idx, block in enumerate(self.blocks):
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
                 all_hidden_states = all_hidden_states + (x,)
@@ -448,7 +442,7 @@ class MPTModel(MPTPreTrainedModel):
                 assert all_self_attns is not None  # pyright
                 all_self_attns = all_self_attns + (attn_weights,)
 
-        x = self.norm_f(x)  # type: ignore
+        x = self.norm_f(x)
 
         # add hidden states from the last decoder layer
         if output_hidden_states:
@@ -489,7 +483,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             raise ValueError(
                 'MPTForCausalLM only supports tied word embeddings')
 
-        print(f'Instantiating an MPTForCausalLM model from {__file__}')
+        log.info(f'Instantiating an MPTForCausalLM model from {__file__}')
 
         self.transformer: MPTModel = MPTModel(config)
 
@@ -718,10 +712,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
             try:
-                from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
+                from flash_attn.losses.cross_entropy import \
+                    CrossEntropyLoss as FusedCrossEntropyLoss
 
-                if hf_config.verbose > 1:
-                    warnings.warn('Using Fused Cross Entropy Loss.')
                 self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
             except:
                 raise ValueError(

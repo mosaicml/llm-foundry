@@ -27,7 +27,7 @@ class MPTMLP(nn.Module):
         bias: bool = True,
     ):
         super().__init__()
-        fc_kwargs = {
+        fc_kwargs: dict[str, Any] = {
             'bias': bias,
         }
         if fc_type != 'te':

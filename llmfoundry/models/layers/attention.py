@@ -5,7 +5,7 @@
 
 import math
 import warnings
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -451,7 +451,7 @@ class GroupedQueryAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
 
-        fc_kwargs = {
+        fc_kwargs: dict[str, Any] = {
             'bias': bias,
         }
         if fc_type != 'te':

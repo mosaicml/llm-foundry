@@ -17,6 +17,8 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 
 from scripts.data_prep.convert_dataset_hf import main as main_hf  # noqa: E402
+from scripts.data_prep.convert_dataset_json import \
+    main as main_json  # noqa: E402
 from scripts.train.train import main  # noqa: E402
 
 
@@ -51,6 +53,30 @@ def create_c4_dataset_xsmall(prefix: str) -> str:
                         os.path.join(c4_dir, mocked_split))
     assert os.path.exists(c4_dir)
     return c4_dir
+
+
+def create_arxiv_dataset(prefix: str) -> str:
+    """Creates an arxiv dataset."""
+    arxiv_dir = os.path.join(os.getcwd(), f'my-copy-arxiv-{prefix}')
+    shutil.rmtree(arxiv_dir, ignore_errors=True)
+    downloaded_split = 'train'
+
+    main_json(
+        Namespace(
+            **{
+                'path': 'data_prep/example_data/arxiv.jsonl',
+                'out_root': arxiv_dir,
+                'compression': None,
+                'split': downloaded_split,
+                'concat_tokens': None,
+                'bos_text': None,
+                'eos_text': None,
+                'no_wrap': False,
+                'num_workers': None
+            }))
+
+    assert os.path.exists(arxiv_dir)
+    return arxiv_dir
 
 
 def gpt_tiny_cfg(dataset_name: str, device: str):
@@ -154,14 +180,17 @@ def test_train_gauntlet(set_correct_cwd: Any):
 
 
 def test_train_multi_eval(set_correct_cwd: Any):
-    """Test training run with a small dataset."""
-    dataset_name = create_c4_dataset_xsmall('cpu-gauntlet')
-    test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
+    """Test training run with multiple eval datasets."""
+    c4_dataset_name = create_c4_dataset_xsmall('multi-eval')
+    test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')
     # Set up multiple eval dataloaders
     first_eval_loader = test_cfg.eval_loader
-    first_eval_loader.label = 'eval_1'
+    first_eval_loader.label = 'c4'
+    # Create second eval dataloader using the arxiv dataset.
     second_eval_loader = copy.deepcopy(first_eval_loader)
-    second_eval_loader.label = 'eval_2'
+    arxiv_dataset_name = create_arxiv_dataset('multi-eval')
+    second_eval_loader.data_local = arxiv_dataset_name
+    second_eval_loader.label = 'arxiv'
     test_cfg.eval_loader = om.create([first_eval_loader, second_eval_loader])
     test_cfg.eval_subset_num_batches = 1  # -1 to evaluate on all batches
 
@@ -179,23 +208,21 @@ def test_train_multi_eval(set_correct_cwd: Any):
     print(inmemorylogger.data.keys())
 
     # Checks for first eval dataloader
-    assert 'metrics/eval/eval_1/LanguageCrossEntropy' in inmemorylogger.data.keys(
-    )
+    assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
     assert isinstance(
-        inmemorylogger.data['metrics/eval/eval_1/LanguageCrossEntropy'], list)
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'], list)
     assert len(
-        inmemorylogger.data['metrics/eval/eval_1/LanguageCrossEntropy'][-1]) > 0
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1]) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/eval_1/LanguageCrossEntropy'][-1],
-        tuple)
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1], tuple)
 
     # Checks for second eval dataloader
-    assert 'metrics/eval/eval_2/LanguageCrossEntropy' in inmemorylogger.data.keys(
+    assert 'metrics/eval/arxiv/LanguageCrossEntropy' in inmemorylogger.data.keys(
     )
     assert isinstance(
-        inmemorylogger.data['metrics/eval/eval_2/LanguageCrossEntropy'], list)
+        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'], list)
     assert len(
-        inmemorylogger.data['metrics/eval/eval_2/LanguageCrossEntropy'][-1]) > 0
+        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1]) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/eval_2/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1],
         tuple)

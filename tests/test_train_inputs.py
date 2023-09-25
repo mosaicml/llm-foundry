@@ -166,13 +166,12 @@ class TestTrainingYAMLInputs:
         cfg.train_loader.dataset.local = data_local
         # Set up multiple eval datasets
         first_eval_loader = cfg.eval_loader
-        first_eval_loader.label = 'eval_1'
+        first_eval_loader.dataset.local = data_local
         second_eval_loader = copy.deepcopy(first_eval_loader)
-        cfg.eval_loader = om.create([first_eval_loader, second_eval_loader])
-        for loader in cfg.eval_loader:
-            loader.dataset.local = data_local
         # Set the first eval dataloader to have no label
-        cfg.eval_loader[0].label = None
+        first_eval_loader.label = None
+        second_eval_loader.label = 'eval_1'
+        cfg.eval_loader = om.create([first_eval_loader, second_eval_loader])
         with pytest.raises(ValueError) as exception_info:
             main(cfg)
         assert str(

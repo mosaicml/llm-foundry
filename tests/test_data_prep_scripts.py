@@ -37,13 +37,13 @@ def test_download_script_from_api():
 
 def test_json_script_from_api():
     # test calling it directly
-    path = os.path.join(os.getcwd(), 'my-copy-c4-3')
+    path = os.path.join(os.getcwd(), 'my-copy-arxiv-1')
     shutil.rmtree(path, ignore_errors=True)
     main_json(
         Namespace(
             **{
                 'path': 'scripts/data_prep/example_data/arxiv.jsonl',
-                'out_root': './my-copy-c4-3',
+                'out_root': './my-copy-arxiv-1',
                 'compression': None,
                 'split': 'train',
                 'concat_tokens': None,

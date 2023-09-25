@@ -36,9 +36,13 @@ def validate_config(cfg: DictConfig):
         eval_loader = cfg.eval_loader
         if isinstance(eval_loader, ListConfig):
             for loader in eval_loader:
+                if loader.label is None:
+                    raise ValueError(
+                        'When specifying multiple evaluation datasets, each one must include the \
+                            `label` attribute.')
                 loaders.append(loader)
         else:
-            loaders.append(cfg.eval_loader)
+            loaders.append(eval_loader)
     for loader in loaders:
         if loader.name == 'text':
             if cfg.model.name in ['hf_prefix_lm', 'hf_t5']:
@@ -471,25 +475,15 @@ def main(cfg: DictConfig) -> Trainer:
     evaluators = []
     eval_loaders = []
     if eval_loader_config is not None:
-        if isinstance(eval_loader_config, ListConfig):
-            for eval_config in eval_loader_config:
-                if eval_config.label is None:
-                    raise ValueError(
-                        'When specifying multiple evaluation datasets, each one must include the \
-                            `label` attribute.')
-                eval_dataloader = build_dataloader(eval_config, tokenizer,
-                                                   device_eval_batch_size)
-                eval_loader = Evaluator(
-                    label=f'eval/{eval_config.label}',
-                    dataloader=eval_dataloader,
-                    metric_names=[],  # we will add these after model is created
-                )
-                eval_loaders.append(eval_loader)
-        else:
-            eval_dataloader = build_dataloader(eval_loader_config, tokenizer,
+        is_multi_eval = isinstance(eval_loader_config, ListConfig)
+        eval_configs = eval_loader_config if is_multi_eval else [
+            eval_loader_config
+        ]
+        for eval_config in eval_configs:
+            eval_dataloader = build_dataloader(eval_config, tokenizer,
                                                device_eval_batch_size)
             eval_loader = Evaluator(
-                label='eval',
+                label=f'eval/{eval_config.label}' if is_multi_eval else 'eval',
                 dataloader=eval_dataloader,
                 metric_names=[],  # we will add these after model is created
             )

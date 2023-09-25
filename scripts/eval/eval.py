@@ -91,12 +91,12 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     )
 
 
-
 @torch.no_grad()
 def evaluate_model(
     model_cfg: DictConfig,
     dist_timeout: Union[float, int],
     run_name: str,
+    seed: int,
     icl_tasks: Union[str, ListConfig],
     max_seq_len: int,
     device_eval_batch_size: int,
@@ -161,7 +161,7 @@ def evaluate_model(
 
     trainer = Trainer(
         run_name=run_name,
-        seed = seed,
+        seed=seed,
         model=composer_model,
         callbacks=callbacks,
         loggers=loggers,
@@ -277,7 +277,7 @@ def main(cfg: DictConfig):
              model_cfg=model_cfg,
              dist_timeout=dist_timeout,
              run_name=run_name,
-             seed = seed,
+             seed=seed,
              icl_tasks=icl_tasks,
              max_seq_len=max_seq_len,
              device_eval_batch_size=device_eval_batch_size,

@@ -86,8 +86,8 @@ extra_deps['tensorboard'] = [
 ]
 
 extra_deps['gpu'] = [
-    'flash-attn==v1.0.3.post0',
-    'mosaicml-turbo==0.0.3',
+    'flash-attn==1.0.9',
+    'mosaicml-turbo==0.0.4',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy',
 ]
@@ -105,6 +105,8 @@ extra_deps['openai'] = [
     'openai==0.27.8',
     'tiktoken==0.4.0',
 ]
+extra_deps['all-cpu'] = set(
+    dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
 
 setup(

@@ -30,10 +30,9 @@ from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
                                   GlobalLRScaling, HuggingFaceCheckpointer,
                                   LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
-from llmfoundry.models.inference_api_wrapper.openai_causal_lm import \
-    OpenAITokenizerWrapper
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
+from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
 log = logging.getLogger(__name__)
 
@@ -168,12 +167,12 @@ def build_scheduler(name: str,
 def build_tokenizer(
         tokenizer_name: str,
         tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
-    if tokenizer_name == 'openai':
-        return OpenAITokenizerWrapper(**tokenizer_kwargs)
-    else:
-        os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
-        os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+    os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
+    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
+    if tokenizer_name.startswith('tiktoken'):
+        tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
+    else:
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
                                                   **tokenizer_kwargs)
 
@@ -185,7 +184,7 @@ def build_tokenizer(
             int(1e30),
         )
 
-        return tokenizer
+    return tokenizer
 
 
 def build_icl_evaluators(

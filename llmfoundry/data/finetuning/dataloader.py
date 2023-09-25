@@ -293,15 +293,15 @@ def _build_hf_dataset_from_remote(
         FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.
     """
     supported_extensions = ['jsonl', 'csv', 'parquet']
+    # HF datasets does not support a split with dashes, so we replace dashes
+    # with underscores in the destination split.
+    destination_split = cfg.dataset.split.replace('-', '_')
     finetune_dir = os.path.join(
         os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
         'downloaded_finetuning',
-        cfg.dataset.split if cfg.dataset.split != 'data' else 'data_not',
+        destination_split if destination_split != 'data' else 'data_not',
     )
-    # HF datasets does not support a split with dashes, so we replace dashes
-    # with underscores in the destination split.
-    destination_split = cfg.dataset.split.replace('-', '_')
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in supported_extensions:
         name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'

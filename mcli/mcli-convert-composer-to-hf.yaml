@@ -1,16 +1,16 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.2.0
+  git_branch: v0.3.0
   # git_commit: # OR use your commit hash
   pip_install: -e .
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  cd llm-foundry/llmfoundry/inference
+  cd llm-foundry/scripts/inference
   python convert_composer_to_hf.py \
-    --composer_path s3://bucket/folder/checkpoint-path.pt \
-    --hf_output_path s3://bucket/folder/hf/ \
+    --composer_path s3://mosaicml-internal-checkpoints-shared/daniel/i5-adamw-5e-7-09-099-00-005dur-00-cos-1e-6-64/checkpoints/ep3-ba2781-rank0.pt \
+    --hf_output_path s3://mosaicml-internal-checkpoints-shared/daniel/hf-convert-030-test \
     --output_precision bf16 \
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04

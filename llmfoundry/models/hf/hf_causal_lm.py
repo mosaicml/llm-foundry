@@ -164,7 +164,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     f'init_device="{init_device}" must be either "cpu" or "meta".'
                 )
 
-            signal_file_path = '.local_rank0_completed_autoresume'
+            signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed'
             if dist.get_local_rank() == 0:
                 with open(signal_file_path, 'wb') as f:
                     f.write(b'local_rank0_completed_download')

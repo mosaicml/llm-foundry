@@ -5,7 +5,7 @@
 
 import math
 import warnings
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -444,6 +444,7 @@ class GroupedQueryAttention(nn.Module):
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
+        bias: bool = True,
     ):
         super().__init__()
 
@@ -475,7 +476,9 @@ class GroupedQueryAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
 
-        fc_kwargs = {}
+        fc_kwargs: dict[str, Any] = {
+            'bias': bias,
+        }
         if fc_type != 'te':
             fc_kwargs['device'] = device
         self.Wqkv = FC_CLASS_REGISTRY[fc_type](
@@ -582,6 +585,7 @@ class MultiheadAttention(GroupedQueryAttention):
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
+        bias: bool = True,
     ):
         super().__init__(
             d_model=d_model,
@@ -594,7 +598,9 @@ class MultiheadAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
-            device=device)
+            device=device,
+            bias=bias,
+        )
 
 
 class MultiQueryAttention(GroupedQueryAttention):
@@ -616,6 +622,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
+        bias: bool = True,
     ):
         super().__init__(
             d_model=d_model,
@@ -628,7 +635,9 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
-            device=device)
+            device=device,
+            bias=bias,
+        )
 
 
 def attn_bias_shape(

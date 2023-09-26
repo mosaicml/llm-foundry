@@ -91,7 +91,6 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     )
 
 
-@torch.no_grad()
 def evaluate_model(
     model_cfg: DictConfig,
     dist_timeout: Union[float, int],

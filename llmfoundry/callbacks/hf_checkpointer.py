@@ -195,8 +195,8 @@ class HuggingFaceCheckpointer(Callback):
                             overwrite=self.overwrite,
                         )
 
-                if self.log_to_mlflow and state.get_elapsed_duration(
-                ) is not None and state.get_elapsed_duration() >= 1.0:
+                elapsed_duration = state.get_elapsed_duration()
+                if self.log_to_mlflow and elapsed_duration is not None and elapsed_duration >= 1.0:
                     log.debug('Reloading model to log to MLFlow')
 
                     from torch.distributed.fsdp import \

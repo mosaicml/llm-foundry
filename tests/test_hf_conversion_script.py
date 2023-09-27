@@ -189,7 +189,7 @@ def test_callback_inits_with_defaults():
 @pytest.mark.parametrize('log_to_mlflow', [True, False])
 def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                                          fsdp_state_dict_type: str,
-                                         log_to_mlflow: bool, monkeypatch):
+                                         log_to_mlflow: bool):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))

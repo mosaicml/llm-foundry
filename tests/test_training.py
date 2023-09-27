@@ -114,9 +114,9 @@ def set_correct_cwd():
         os.chdir('..')
 
 
-def test_train_gauntlet(set_correct_cwd: Any):
+def test_train_gauntlet(set_correct_cwd: Any, tmp_path: pathlib.Path):
     """Test training run with a small dataset."""
-    dataset_name = create_c4_dataset_xsmall('cpu-gauntlet')
+    dataset_name = create_c4_dataset_xsmall(tmp_path)
     test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
     test_cfg.icl_tasks = ListConfig([
         DictConfig({

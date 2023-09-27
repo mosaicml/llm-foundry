@@ -89,9 +89,10 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
             'log_optimizer_metrics', True),)
     elif name == 'generate_callback':
         prompts = kwargs.pop('prompts')
+        interval = kwargs.pop('interval', None)
         # Generate callback used to be batch_log_interval, so this is for backwards compatibility
-        interval = kwargs.pop(
-            'interval') or f"{kwargs.pop('batch_log_interval')}ba"
+        if interval is None:
+            interval = f"{kwargs.pop('batch_log_interval')}ba"
         return Generate(prompts=list(prompts), interval=interval, **kwargs)
     elif name == 'global_lr_scaling':
         return GlobalLRScaling(**kwargs)

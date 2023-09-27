@@ -17,8 +17,9 @@ class Generate(ComposerGenerate):
                  **kwargs: Any):
 
         warnings.warn(
-            'Accessing llmfoundry.callbacks.generate_callback.Generate will be deprecated in a future release. '
-            / 'Please use composer.callbacks.Generate instead.')
+            ('Accessing llmfoundry.callbacks.generate_callback.Generate will '
+             'be deprecated in a future release. '
+             'Please use composer.callbacks.Generate instead.'))
 
         interval = f'{batch_log_interval}ba'
         super().__init__(prompts=prompts, interval=interval, **kwargs)

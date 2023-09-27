@@ -202,9 +202,6 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     precision_str = 'bfloat16'
     precision = torch.bfloat16
 
-    mock_log_model = MagicMock(spec=MLFlowLogger)
-    monkeypatch.setattr('mlflow.transformers.log_model', mock_log_model)
-
     checkpointer_callback = HuggingFaceCheckpointer(
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=f'{huggingface_save_interval_batches}ba',
@@ -331,6 +328,9 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)
 
+    mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
+    mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
+    mlflow_logger_mock.log_model = MagicMock()
     trainer = Trainer(
         model=original_model,
         device='gpu',
@@ -340,13 +340,16 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         save_interval=f'{save_interval_batches}ba',
         max_duration=f'{max_duration_batches}ba',
         callbacks=[checkpointer_callback],
-        loggers=[MagicMock()] if log_to_mlflow else [],
+        loggers=[mlflow_logger_mock] if log_to_mlflow else [],
         optimizers=optimizer,
         save_latest_filename=None,
     )
     trainer.fit()
 
-    assert mock_log_model.call_count == int(log_to_mlflow)
+    if dist.get_global_rank() == 0:
+        assert mlflow_logger_mock.log_model.call_count == (1 if log_to_mlflow else 0)
+    else:
+        assert mlflow_logger_mock.log_model.call_count == 0
 
     # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP

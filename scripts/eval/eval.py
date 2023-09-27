@@ -95,6 +95,7 @@ def evaluate_model(
     model_cfg: DictConfig,
     dist_timeout: Union[float, int],
     run_name: str,
+    seed: int,
     icl_tasks: Union[str, ListConfig],
     max_seq_len: int,
     device_eval_batch_size: int,
@@ -107,6 +108,7 @@ def evaluate_model(
     eval_gauntlet_df: Optional[pd.DataFrame],
     icl_subset_num_batches: Optional[int],
 ):
+
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
     tokenizer_cfg: Dict[str,
@@ -158,6 +160,7 @@ def evaluate_model(
 
     trainer = Trainer(
         run_name=run_name,
+        seed=seed,
         model=composer_model,
         callbacks=callbacks,
         loggers=loggers,
@@ -214,7 +217,10 @@ def main(cfg: DictConfig):
     device_eval_batch_size: int = pop_config(cfg,
                                              'device_eval_batch_size',
                                              must_exist=True)
-    precision: str = pop_config(cfg, 'precision', must_exist=True)
+    precision: str = pop_config(cfg,
+                                'precision',
+                                must_exist=False,
+                                default_value=None)
     python_log_level: Optional[str] = pop_config(cfg,
                                                  'python_log_level',
                                                  must_exist=False,
@@ -273,6 +279,7 @@ def main(cfg: DictConfig):
              model_cfg=model_cfg,
              dist_timeout=dist_timeout,
              run_name=run_name,
+             seed=seed,
              icl_tasks=icl_tasks,
              max_seq_len=max_seq_len,
              device_eval_batch_size=device_eval_batch_size,

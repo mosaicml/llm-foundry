@@ -48,7 +48,7 @@ class HuggingFaceCheckpointer(Callback):
         save_folder: str,
         save_interval: Union[str, int, Time],
         huggingface_folder_name: str = 'ba{batch}',
-        precision: str = 'fp32',
+        precision: str = 'float32',
         overwrite: bool = False,
         log_to_mlflow: bool = False,
         mlflow_task: str = 'text-generation',

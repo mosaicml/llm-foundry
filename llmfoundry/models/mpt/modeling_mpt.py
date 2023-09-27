@@ -14,7 +14,8 @@ from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.metrics import (InContextLearningLMAccuracy,
+from composer.metrics import (InContextLearningCodeEvalAccuracy,
+                              InContextLearningLMAccuracy,
                               InContextLearningLMExpectedCalibrationError,
                               InContextLearningMCExpectedCalibrationError,
                               InContextLearningMultipleChoiceAccuracy,
@@ -149,6 +150,11 @@ class MPTModel(MPTPreTrainedModel):
                         module.bias, nn.Parameter):
                     log.info(f'Removing bias ({module.bias}) from {module}.')
                     module.register_parameter('bias', None)
+
+                # For transformer engine
+                if hasattr(module, 'use_bias'):
+                    log.info(f'Setting use_bias=False for {module}.')
+                    module.use_bias = False
 
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
@@ -434,6 +440,7 @@ class MPTModel(MPTPreTrainedModel):
                 attn_bias=attn_bias,
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
+                output_attentions=bool(output_attentions),
             )
             if past_key_values is not None:
                 past_key_values[b_idx] = past_key_value
@@ -694,6 +701,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
+            InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError(),
         ]

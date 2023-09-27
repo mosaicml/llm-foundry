@@ -5,7 +5,9 @@ precision: amp_fp16
 # If you are using one model, put it here:
 model_name_or_path: EleutherAI/gpt-neo-125m
 # If you are using a seperated lora weight, put it here:
-lora_id_or_path: nathan0/lora-gpt-neo-125m-alpaca
+# lora weights must be compatible with the specified model
+lora_id_or_path: edbeeching/gpt-neo-125M-imdb-lora # Example lora weights for gpt-neo-125m
+
 # otherwise, write a block for each model you want to test in the `models` section
 
 models:
@@ -14,7 +16,7 @@ models:
   model:
     name: hf_causal_lm
     pretrained_model_name_or_path: ${model_name_or_path}
-    init_device: cpu
+    init_device: mixed
     pretrained: true
     pretrained_lora_id_or_path: ${lora_id_or_path}
   tokenizer:

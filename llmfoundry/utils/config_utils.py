@@ -47,7 +47,7 @@ def pop_config(cfg: DictConfig,
 
 
 def calculate_batch_size_info(
-    global_batch_size: int, device_microbatch_size: Union[int, str]
+    global_batch_size: int, device_microbatch_size: Union[int, Literal['auto']]
 ) -> Tuple[int, Union[int, Literal['auto']], Union[int, Literal['auto']]]:
     if global_batch_size % dist.get_world_size() != 0:
         raise ValueError(

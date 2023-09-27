@@ -92,6 +92,7 @@ def test_correct_padding(tokenizer_name: str,
                     'compression': None,
                     'concat_tokens': 2048,
                     'tokenizer': tokenizer_name,
+                    'tokenizer_kwargs': {},
                     'bos_text': bos_text,
                     'eos_text': eos_text,
                     'no_wrap': False,
@@ -108,6 +109,7 @@ def test_correct_padding(tokenizer_name: str,
                     'compression': None,
                     'concat_tokens': None,
                     'tokenizer': tokenizer_name,
+                    'tokenizer_kwargs': {},
                     'bos_text': bos_text,
                     'eos_text': eos_text,
                     'no_wrap': False,
@@ -396,7 +398,7 @@ def mock_get_file(path: str, destination: str, overwrite: bool = False):
     make_tiny_ft_dataset(path=destination, size=16)
 
 
-@pytest.mark.parametrize('split', ['train', 'custom', 'data'])
+@pytest.mark.parametrize('split', ['train', 'custom', 'custom-dash', 'data'])
 def test_finetuning_dataloader_custom_split_remote(
         tmp_path: pathlib.Path, split: str, monkeypatch: pytest.MonkeyPatch):
     tokenizer_name = 'gpt2'

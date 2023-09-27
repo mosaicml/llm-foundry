@@ -26,6 +26,7 @@ class MPTBlock(nn.Module):
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
+        no_bias: bool = False,
         **kwargs: Any,
     ):
         if attn_config is None:
@@ -66,11 +67,14 @@ class MPTBlock(nn.Module):
         }
 
         self.norm_1 = norm_class(d_model, device=device)
-        self.attn = attn_class(d_model=d_model,
-                               n_heads=n_heads,
-                               fc_type=fc_type,
-                               device=device,
-                               **attn_config_subset_for_attn_class)
+        self.attn = attn_class(
+            d_model=d_model,
+            n_heads=n_heads,
+            fc_type=fc_type,
+            device=device,
+            **attn_config_subset_for_attn_class,
+            bias=not no_bias,
+        )
         self.norm_2 = None
         if not getattr(FFN_CLASS_REGISTRY[ffn_config['ffn_type']], '_has_norm',
                        False):
@@ -79,6 +83,7 @@ class MPTBlock(nn.Module):
             d_model=d_model,
             expansion_ratio=expansion_ratio,
             device=device,
+            bias=not no_bias,
             **ffn_config,
         )
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)
@@ -91,6 +96,7 @@ class MPTBlock(nn.Module):
         attn_bias: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         is_causal: bool = True,
+        output_attentions: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
             torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
@@ -100,6 +106,7 @@ class MPTBlock(nn.Module):
             attn_bias=attn_bias,
             attention_mask=attention_mask,
             is_causal=is_causal,
+            needs_weights=output_attentions,
         )
         x = x + self.resid_attn_dropout(b)
         m = x

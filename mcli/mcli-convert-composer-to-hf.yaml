@@ -9,8 +9,8 @@ integrations:
 command: |
   cd llm-foundry/scripts/inference
   python convert_composer_to_hf.py \
-    --composer_path s3://mosaicml-internal-checkpoints-shared/daniel/i5-adamw-5e-7-09-099-00-005dur-00-cos-1e-6-64/checkpoints/ep3-ba2781-rank0.pt \
-    --hf_output_path s3://mosaicml-internal-checkpoints-shared/daniel/hf-convert-030-test \
+    --composer_path s3://bucket/folder/checkpoint-path.pt \
+    --hf_output_path s3://bucket/folder/hf/ \
     --output_precision bf16 \
 
 image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04

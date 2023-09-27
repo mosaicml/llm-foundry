@@ -18,7 +18,7 @@ from composer.loggers import Logger, MLFlowLogger
 from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.models import HuggingFaceModel
 from composer.utils import dist, format_name_with_dist_and_time, parse_uri
-from transformers import PreTrainedTokenizerBase, AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
@@ -101,15 +101,21 @@ class HuggingFaceCheckpointer(Callback):
                 state.callbacks.append(self.remote_ud)
 
             if self.log_to_mlflow:
-                self.mlflow_loggers = [logger_destination for logger_destination in logger.destinations if isinstance(logger_destination, MLFlowLogger)]
+                self.mlflow_loggers = [
+                    logger_destination
+                    for logger_destination in logger.destinations
+                    if isinstance(logger_destination, MLFlowLogger)
+                ]
                 if len(self.mlflow_loggers) == 0:
                     raise ValueError(
-                        f'`log_to_mlflow` was set to `True` but no `MLFlowLogger` was found in the `logger.destinations` list. ' +
+                        f'`log_to_mlflow` was set to `True` but no `MLFlowLogger` was found in the `logger.destinations` list. '
+                        +
                         'Please add an `MLFlowLogger` or set `log_to_mlflow` to `False`.'
                     )
-                
+
                 import mlflow
-                mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set("5GB")
+                mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
+                    '5GB')
 
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
@@ -192,7 +198,8 @@ class HuggingFaceCheckpointer(Callback):
                 if self.log_to_mlflow and state.get_elapsed_duration() >= 1.0:
                     log.debug('Reloading model to log to MLFlow')
 
-                    from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+                    from torch.distributed.fsdp import \
+                        FullyShardedDataParallel as FSDP
                     if isinstance(state.model.model, FSDP):
                         model_class = state.model.model.module
                     else:
@@ -209,7 +216,8 @@ class HuggingFaceCheckpointer(Callback):
                     del state_dict
                     components = {'model': new_model_instance}
                     if state.model.tokenizer is not None:
-                        new_tokenizer_instance = AutoTokenizer.from_pretrained(temp_save_dir)
+                        new_tokenizer_instance = AutoTokenizer.from_pretrained(
+                            temp_save_dir)
                         components['tokenizer'] = new_tokenizer_instance
 
                     log.debug('Logging Hugging Face model to MLFlow')
@@ -219,7 +227,8 @@ class HuggingFaceCheckpointer(Callback):
                             transformers_model=components,
                             artifact_path=os.path.basename(save_dir),
                             task=self.mlflow_task,
-                            registered_model_name=f'{state.run_name}_{os.path.basename(save_dir)}',
+                            registered_model_name=
+                            f'{state.run_name}_{os.path.basename(save_dir)}',
                             metadata=self.mlflow_metadata,
                             await_registration_for=None,
                         )

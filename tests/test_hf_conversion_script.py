@@ -188,7 +188,8 @@ def test_callback_inits_with_defaults():
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded'])
 @pytest.mark.parametrize('log_to_mlflow', [True, False])
 def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
-                                         fsdp_state_dict_type: str, log_to_mlflow: bool, monkeypatch):
+                                         fsdp_state_dict_type: str,
+                                         log_to_mlflow: bool, monkeypatch):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
@@ -347,7 +348,8 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     trainer.fit()
 
     if dist.get_global_rank() == 0:
-        assert mlflow_logger_mock.log_model.call_count == (1 if log_to_mlflow else 0)
+        assert mlflow_logger_mock.log_model.call_count == (1 if log_to_mlflow
+                                                           else 0)
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
 

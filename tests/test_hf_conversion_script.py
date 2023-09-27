@@ -8,6 +8,7 @@ import sys
 from unittest.mock import MagicMock
 
 from composer import Trainer
+from composer.loggers import MLFlowLogger
 from composer.utils import dist, get_device
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
@@ -201,7 +202,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     precision_str = 'bfloat16'
     precision = torch.bfloat16
 
-    mock_log_model = MagicMock()
+    mock_log_model = MagicMock(spec=MLFlowLogger)
     monkeypatch.setattr('mlflow.transformers.log_model', mock_log_model)
 
     checkpointer_callback = HuggingFaceCheckpointer(

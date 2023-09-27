@@ -7,9 +7,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from composer import algorithms
-from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
-                                OptimizerMonitor, RuntimeEstimator,
-                                SpeedMonitor)
+from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
+                                MemoryMonitor, OptimizerMonitor,
+                                RuntimeEstimator, SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -26,9 +26,9 @@ from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
-                                  GlobalLRScaling, HuggingFaceCheckpointer,
-                                  LayerFreezing, MonolithicCheckpointSaver,
+from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
+                                  HuggingFaceCheckpointer, LayerFreezing,
+                                  MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
@@ -89,7 +89,10 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
             'log_optimizer_metrics', True),)
     elif name == 'generate_callback':
         prompts = kwargs.pop('prompts')
-        return Generate(prompts=list(prompts), **kwargs)
+        # Generate callback used to be batch_log_interval, so this is for backwards compatibility
+        interval = kwargs.pop(
+            'interval') or f"{kwargs.pop('batch_log_interval')}ba"
+        return Generate(prompts=list(prompts), interval=interval, **kwargs)
     elif name == 'global_lr_scaling':
         return GlobalLRScaling(**kwargs)
     elif name == 'layer_freezing':

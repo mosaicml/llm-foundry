@@ -4,7 +4,8 @@
 try:
     from llmfoundry.callbacks.eval_gauntlet_callback import EvalGauntlet
     from llmfoundry.callbacks.fdiff_callback import FDiffMetrics
-    from llmfoundry.callbacks.generate_callback import Generate
+    from llmfoundry.callbacks.generate_callback import \
+        Generate  # TODO: deprecate
     from llmfoundry.callbacks.hf_checkpointer import HuggingFaceCheckpointer
     from llmfoundry.callbacks.model_gauntlet_callback import ModelGauntlet
     from llmfoundry.callbacks.monolithic_ckpt_callback import \

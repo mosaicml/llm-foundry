@@ -5,6 +5,7 @@ import math
 import os
 import pathlib
 import sys
+from unittest.mock import MagicMock
 
 from composer import Trainer
 from composer.utils import dist, get_device
@@ -184,8 +185,9 @@ def test_callback_inits_with_defaults():
 @pytest.mark.gpu
 @pytest.mark.parametrize('model', ['mpt', 'neo', 'llama2'])
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded'])
+@pytest.mark.parametrize('log_to_mlflow', [True, False])
 def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
-                                         fsdp_state_dict_type: str):
+                                         fsdp_state_dict_type: str, log_to_mlflow: bool, monkeypatch):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
@@ -199,10 +201,14 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     precision_str = 'bfloat16'
     precision = torch.bfloat16
 
+    mock_log_model = MagicMock()
+    monkeypatch.setattr('mlflow.transformers.log_model', mock_log_model)
+
     checkpointer_callback = HuggingFaceCheckpointer(
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=f'{huggingface_save_interval_batches}ba',
         precision=precision_str,
+        log_to_mlflow=log_to_mlflow,
     )
 
     # get small version of each model
@@ -337,6 +343,8 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         save_latest_filename=None,
     )
     trainer.fit()
+
+    assert mock_log_model.call_count == int(log_to_mlflow)
 
     # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP

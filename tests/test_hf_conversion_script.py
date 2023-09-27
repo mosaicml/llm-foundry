@@ -339,6 +339,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         save_interval=f'{save_interval_batches}ba',
         max_duration=f'{max_duration_batches}ba',
         callbacks=[checkpointer_callback],
+        loggers=[MagicMock()] if log_to_mlflow else [],
         optimizers=optimizer,
         save_latest_filename=None,
     )

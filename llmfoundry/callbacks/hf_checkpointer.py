@@ -99,7 +99,6 @@ class HuggingFaceCheckpointer(Callback):
                     f'`uc_prefix` must be of the form `{{catalog}}.{{schema}}`. Got {uc_prefix} instead.'
                 )
 
-
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         # The interval scheduler handles only returning True for the appropriate events
         if state.get_elapsed_duration() is not None and self.check_interval(
@@ -129,7 +128,8 @@ class HuggingFaceCheckpointer(Callback):
                     )
 
                 import mlflow
-                mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set("5GB")
+                mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
+                    '5GB')
                 mlflow.set_registry_uri('databricks-uc')
 
     def _save_checkpoint(self, state: State, logger: Logger):

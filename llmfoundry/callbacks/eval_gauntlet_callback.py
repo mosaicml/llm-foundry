@@ -132,7 +132,7 @@ class EvalGauntlet(Callback):
     def calculate_averages(self, composite_scores):
         average_scores = {}
         for avg_name, category_list in self.averages.items():
-            composite_subset = [category for category in composite_scores if category in category_list]
+            composite_subset = {category: score for category, score in composite_scores.items() if category in category_list}
             average_scores[avg_name] = sum(
                 composite_subset.values()) / len(composite_subset.values()) if len(
                     composite_subset.values()) > 0 else 0

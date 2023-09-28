@@ -41,6 +41,11 @@ class HuggingFaceCheckpointer(Callback):
         precision: The precision to save the model in. Default is ``float32``. Options are ``bfloat16``, ``float16``, or ``float32``.
         overwrite (bool): Whether to overwrite previous checkpoints.
         log_to_mlflow (bool): Whether to log and register the checkpoint to MLFlow. Default is ``False``.
+        mlflow_task (str): The MLFlow task to log the checkpoint under. Only used if ``log_to_mlflow`` is ``True``. Default is ``text-generation``.
+        mlflow_metadata (Optional[dict]): The MLFlow metadata to log the checkpoint with. Only used if ``log_to_mlflow`` is ``True``. Default is ``None``.
+        uc_prefix: (Optional[str]): Prefix to use for the MLFlow registered model. If specified, the model will be logged to UC rather than
+            the workspace model registry. If specified, the prefix must be of the form ``{catalog}.{schema}``
+            The model will be registered at ``{catalog}.{schema}.{model name}``. Only used if ``log_to_mlflow`` is ``True``. Default is ``None``.
     """
 
     def __init__(
@@ -53,6 +58,7 @@ class HuggingFaceCheckpointer(Callback):
         log_to_mlflow: bool = False,
         mlflow_task: str = 'text-generation',
         mlflow_metadata: Optional[dict] = None,
+        uc_prefix: Optional[str] = None,
     ):
         self.backend, self.bucket_name, self.save_dir_format_str = parse_uri(
             save_folder)
@@ -85,6 +91,15 @@ class HuggingFaceCheckpointer(Callback):
         self.last_checkpoint_batch: Optional[Time] = None
         self.mlflow_loggers = []
 
+        self.uc_prefix = uc_prefix
+        if self.log_to_mlflow and uc_prefix is not None:
+            split_prefix = uc_prefix.split('.')
+            if len(split_prefix) != 2:
+                raise ValueError(
+                    f'`uc_prefix` must be of the form `{{catalog}}.{{schema}}`. Got {uc_prefix} instead.'
+                )
+
+
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         # The interval scheduler handles only returning True for the appropriate events
         if state.get_elapsed_duration() is not None and self.check_interval(
@@ -114,8 +129,8 @@ class HuggingFaceCheckpointer(Callback):
                     )
 
                 import mlflow
-                mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
-                    '5GB')
+                mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set("5GB")
+                mlflow.set_registry_uri('databricks-uc')
 
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
@@ -222,14 +237,15 @@ class HuggingFaceCheckpointer(Callback):
                         components['tokenizer'] = new_tokenizer_instance
 
                     log.debug('Logging Hugging Face model to MLFlow')
+                    registered_model_name = f'{state.run_name}_{os.path.basename(save_dir)}'
+                    registered_model_name_full = f'{self.uc_prefix}.{registered_model_name}' if self.uc_prefix is not None else registered_model_name
                     for mlflow_logger in self.mlflow_loggers:
                         mlflow_logger.log_model(
                             flavor='transformers',
                             transformers_model=components,
                             artifact_path=os.path.basename(save_dir),
                             task=self.mlflow_task,
-                            registered_model_name=
-                            f'{state.run_name}_{os.path.basename(save_dir)}',
+                            registered_model_name=registered_model_name_full,
                             metadata=self.mlflow_metadata,
                             await_registration_for=None,
                         )

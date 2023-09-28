@@ -239,6 +239,7 @@ class HuggingFaceCheckpointer(Callback):
                     log.debug('Logging Hugging Face model to MLFlow')
                     registered_model_name = f'{state.run_name}_{os.path.basename(save_dir)}'
                     registered_model_name_full = f'{self.uc_prefix}.{registered_model_name}' if self.uc_prefix is not None else registered_model_name
+                    log.debug(f'Registering model to UC at {registered_model_name_full}')
                     for mlflow_logger in self.mlflow_loggers:
                         mlflow_logger.log_model(
                             flavor='transformers',

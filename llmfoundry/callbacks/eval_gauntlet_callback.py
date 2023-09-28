@@ -51,7 +51,8 @@ class EvalGauntlet(Callback):
                  weighting: str = 'EQUAL',
                  subtract_random_baseline: bool = True,
                  rescale_accuracy: bool = True,
-                 benchmark_sizes: Optional[dict] = None):
+                 benchmark_sizes: Optional[dict] = None,
+                 averages: Optional[dict] = None):
         if isinstance(logger_keys, dict):
             raise ValueError(
                 'logger_keys now requires a list type as input, not a dict')
@@ -95,6 +96,14 @@ class EvalGauntlet(Callback):
                 assert weight is not None
                 benchmark['weighting'] = weight
 
+
+        self.averages = {}
+        if averages is not None:
+            self.averages = dict(averages)
+        else:
+            # if no averages spec provided, simply average everything
+            self.averages['average'] = list(self.categories.keys())
+
     def compute_averages(self, state: State) -> Dict[str, float]:
         results = {}
 
@@ -119,6 +128,17 @@ class EvalGauntlet(Callback):
             results[key].append(val)
 
         return {k: sum(v) / len(v) for k, v in results.items()}
+
+    def calculate_averages(self, composite_scores):
+        average_scores = {}
+        for avg_name, category_list in self.averages.items():
+            composite_subset = [category for category in composite_scores if category in category_list]
+            average_scores[avg_name] = sum(
+                composite_subset.values()) / len(composite_subset.values()) if len(
+                    composite_subset.values()) > 0 else 0
+        
+        composite_scores.update(average_scores)
+        return composite_scores
 
     def eval_after_all(self, state: State, logger: Logger) -> Dict[str, float]:
         new_metrics = self.compute_averages(state)
@@ -163,14 +183,11 @@ class EvalGauntlet(Callback):
                 k['score'] * (k['weighting'] / total_weight)
                 for k in composite_scores[category['name']])
 
+        composite_scores = self.calculate_averages(composite_scores)
         composite_scores = {
             f'icl/metrics/eval_gauntlet/{k}': v
             for k, v in composite_scores.items()
         }
-
-        composite_scores['icl/metrics/eval_gauntlet/average'] = sum(
-            composite_scores.values()) / len(composite_scores.values()) if len(
-                composite_scores.values()) > 0 else 0
         if logger is not None:
             logger.log_metrics(composite_scores)
 

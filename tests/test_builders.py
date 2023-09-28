@@ -49,7 +49,7 @@ def test_build_generate_callback(
     interval_value: Union[str, int],
 ):
 
-    with mock.patch.object(Generate, "__init__",
+    with mock.patch.object(Generate, '__init__',
                            autospec=True) as mock_generate:
         mock_generate.return_value = None
         build_callback(

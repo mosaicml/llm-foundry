@@ -234,6 +234,8 @@ class HuggingFaceCheckpointer(Callback):
                         log.debug(f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{registered_model_name}')
                         local_save_path = str(
                             Path(temp_save_dir) / f'mlflow_save_{i}')
+                        import mlflow
+                        mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ""
                         mlflow_logger.save_model(
                             flavor='transformers',
                             transformers_model=components,

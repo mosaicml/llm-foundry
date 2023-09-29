@@ -17,9 +17,8 @@ from composer.loggers import Logger, MLFlowLogger
 from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.models import HuggingFaceModel
 from composer.utils import dist, format_name_with_dist_and_time, parse_uri
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase, PreTrainedModel
 
-from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
@@ -183,6 +182,7 @@ class HuggingFaceCheckpointer(Callback):
                 del state_dict
 
                 log.debug('Saving Hugging Face checkpoint to disk')
+                assert isinstance(new_model_instance, PreTrainedModel)
                 new_model_instance.save_pretrained(temp_save_dir)
                 if state.model.tokenizer is not None:
                     assert isinstance(state.model.tokenizer,

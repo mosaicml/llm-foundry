@@ -43,7 +43,6 @@ class HuggingFaceCheckpointer(Callback):
         log_to_mlflow (bool): Whether to log and register the checkpoint to MLflow. Default is ``False``.
         mlflow_logging_config (Optional[dict]): A dictionary of config arguments that will get passed along to the MLflow ``log_model`` call.
             Expected to contain ``metadata`` and ``task`` keys. If either is unspecified, the defaults are ``'text-generation'`` and
-            
     """
 
     def __init__(
@@ -231,11 +230,13 @@ class HuggingFaceCheckpointer(Callback):
                     log.debug('Logging Hugging Face model to MLFlow')
                     registered_model_name = f'{state.run_name}_{os.path.basename(save_dir)}'
                     for i, mlflow_logger in enumerate(self.mlflow_loggers):
-                        log.debug(f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{registered_model_name}')
+                        log.debug(
+                            f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{registered_model_name}'
+                        )
                         local_save_path = str(
                             Path(temp_save_dir) / f'mlflow_save_{i}')
                         import mlflow
-                        mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ""
+                        mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
                         mlflow_logger.save_model(
                             flavor='transformers',
                             transformers_model=components,
@@ -247,4 +248,3 @@ class HuggingFaceCheckpointer(Callback):
                             name=registered_model_name,
                             await_registration_for=3600,
                         )
-

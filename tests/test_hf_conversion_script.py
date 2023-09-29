@@ -351,9 +351,9 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
 
     if dist.get_global_rank() == 0:
         assert mlflow_logger_mock.save_model.call_count == (1 if log_to_mlflow
-                                                           else 0)
-        assert mlflow_logger_mock.register_model.call_count == (1 if log_to_mlflow
-                                                           else 0)
+                                                            else 0)
+        assert mlflow_logger_mock.register_model.call_count == (
+            1 if log_to_mlflow else 0)
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
         assert mlflow_logger_mock.register_model.call_count == 0

@@ -3,7 +3,6 @@
 
 import contextlib
 import copy
-import json
 import logging
 import os
 import tempfile
@@ -18,7 +17,7 @@ from composer.loggers import Logger, MLFlowLogger
 from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.models import HuggingFaceModel
 from composer.utils import dist, format_name_with_dist_and_time, parse_uri
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
@@ -183,9 +182,10 @@ class HuggingFaceCheckpointer(Callback):
                 new_model_instance.load_state_dict(state_dict)
                 del state_dict
 
-                log.debug("Saving Hugging Face checkpoint to disk")
+                log.debug('Saving Hugging Face checkpoint to disk')
                 new_model_instance.save_pretrained('temp_save_dir')
                 if state.model.tokenizer is not None:
+                    assert isinstance(state.model.tokenizer, PreTrainedTokenizerBase)
                     state.model.tokenizer.save_pretrained('temp_save_dir')
 
                 # Only need to edit files for MPT because it has custom code

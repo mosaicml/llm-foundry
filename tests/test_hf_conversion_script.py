@@ -331,7 +331,9 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
 
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
-    mlflow_logger_mock.log_model = MagicMock()
+    mlflow_logger_mock.save_model = MagicMock()
+    mlflow_logger_mock.register_model = MagicMock()
+    mlflow_logger_mock.model_registry_prefix = ''
     trainer = Trainer(
         model=original_model,
         device='gpu',
@@ -348,10 +350,13 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     trainer.fit()
 
     if dist.get_global_rank() == 0:
-        assert mlflow_logger_mock.log_model.call_count == (1 if log_to_mlflow
+        assert mlflow_logger_mock.save_model.call_count == (1 if log_to_mlflow
+                                                           else 0)
+        assert mlflow_logger_mock.register_model.call_count == (1 if log_to_mlflow
                                                            else 0)
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
+        assert mlflow_logger_mock.register_model.call_count == 0
 
     # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP

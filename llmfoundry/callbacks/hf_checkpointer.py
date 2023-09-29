@@ -19,6 +19,7 @@ from composer.models import HuggingFaceModel
 from composer.utils import dist, format_name_with_dist_and_time, parse_uri
 from transformers import PreTrainedTokenizerBase, PreTrainedModel
 
+from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 

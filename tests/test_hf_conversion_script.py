@@ -12,7 +12,8 @@ from composer.loggers import MLFlowLogger
 from composer.utils import dist, get_device
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
-from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM, MPTConfig, MPTForCausalLM
+from llmfoundry.models.mpt.modeling_mpt import (ComposerMPTCausalLM, MPTConfig,
+                                                MPTForCausalLM)
 
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -162,7 +163,10 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
     auto_map_2 = new_model_config_dict.pop('auto_map', None)
     if auto_map_1 != auto_map_2:
         assert auto_map_1 == {'AutoConfig': 'configuration_mpt.MPTConfig'}
-        assert auto_map_2 == {'AutoConfig': 'configuration_mpt.MPTConfig', 'AutoModelForCausalLM': 'modeling_mpt.MPTForCausalLM'}
+        assert auto_map_2 == {
+            'AutoConfig': 'configuration_mpt.MPTConfig',
+            'AutoModelForCausalLM': 'modeling_mpt.MPTForCausalLM'
+        }
 
     assert expected_model_config_dict == new_model_config_dict
     assert all(

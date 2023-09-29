@@ -314,23 +314,15 @@ def main(cfg: DictConfig):
         if eval_gauntlet_df is not None and eval_gauntlet_callback is not None:
             assert composite_scores is not None
             row = {'model_name': model_cfg['model_name']}
-            row.update({
-                t.name:
-                composite_scores.get(f'icl/metrics/eval_gauntlet/{t.name}',
-                                     None)
-                for t in eval_gauntlet_callback.categories
-            })
-            row.update({
-                'average':
-                    composite_scores[f'icl/metrics/eval_gauntlet/average']
-            })
+            row.update({k.split('/')[-1]: v for k,v in composite_scores.items()})
             eval_gauntlet_df = pd.concat(
                 [eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
 
             print(f'Printing gauntlet results for all models')
+            
             print(
                 eval_gauntlet_df.sort_values(
-                    'average', ascending=False).to_markdown(index=False))
+                   list(eval_gauntlet_df.columns)[-1], ascending=False).to_markdown(index=False))
         print(f'Printing complete results for all models')
         assert models_df is not None
         print(models_df.to_markdown(index=False))

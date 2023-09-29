@@ -48,16 +48,15 @@ log = logging.getLogger(__name__)
 
 __all__ = ['dataset_constructor']
 
-
 def _read_binary_tokenized_sample(
         sample: Dict[str, Any]) -> Dict[str, torch.Tensor]:
     example = {
         'input_ids':
             torch.from_numpy(
-                np.frombuffer(sample['tokens'], dtype=np.int64).copy()),
+                np.frombuffer(sample['prompt'], dtype=np.int64).copy()),
         'labels':
             torch.from_numpy(
-                np.frombuffer(sample['labels'], dtype=np.int64).copy()),
+                np.frombuffer(sample['response'], dtype=np.int64).copy()),
     }
     example['attention_mask'] = torch.ones(example['input_ids'].size())
     return example

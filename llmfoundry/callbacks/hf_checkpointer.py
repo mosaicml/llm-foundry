@@ -91,14 +91,6 @@ class HuggingFaceCheckpointer(Callback):
         self.last_checkpoint_batch: Optional[Time] = None
         self.mlflow_loggers = []
 
-        # self.uc_prefix = uc_prefix
-        # if self.log_to_mlflow and uc_prefix is not None:
-        #     split_prefix = uc_prefix.split('.')
-        #     if len(split_prefix) != 2:
-        #         raise ValueError(
-        #             f'`uc_prefix` must be of the form `{{catalog}}.{{schema}}`. Got {uc_prefix} instead.'
-        #         )
-
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         # The interval scheduler handles only returning True for the appropriate events
         if state.get_elapsed_duration() is not None and self.check_interval(
@@ -238,15 +230,19 @@ class HuggingFaceCheckpointer(Callback):
 
                     log.debug('Logging Hugging Face model to MLFlow')
                     registered_model_name = f'{state.run_name}_{os.path.basename(save_dir)}'
-                    # registered_model_name_full = f'{self.uc_prefix}.{registered_model_name}' if self.uc_prefix is not None else registered_model_name
-                    log.debug(f'Registering model to UC at {registered_model_name}')
-                    for mlflow_logger in self.mlflow_loggers:
-                        mlflow_logger.log_model(
+                    for i, mlflow_logger in enumerate(self.mlflow_loggers):
+                        log.debug(f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{registered_model_name}')
+                        local_save_path = str(
+                            Path(temp_save_dir) / f'mlflow_save_{i}')
+                        mlflow_logger.save_model(
                             flavor='transformers',
                             transformers_model=components,
-                            artifact_path=os.path.basename(save_dir),
-                            task=self.mlflow_task,
-                            registered_model_name=registered_model_name,
-                            metadata=self.mlflow_metadata,
-                            await_registration_for=None,
+                            path=local_save_path,
+                            **self.mlflow_logging_config,
                         )
+                        mlflow_logger.register_model(
+                            model_uri=local_save_path,
+                            name=registered_model_name,
+                            await_registration_for=3600,
+                        )
+

@@ -39,9 +39,10 @@ class HuggingFaceCheckpointer(Callback):
         huggingface_folder_name (str): Folder to save each checkpoint under (can be a format string). Default is ``ba{batch}``.
         precision: The precision to save the model in. Default is ``float32``. Options are ``bfloat16``, ``float16``, or ``float32``.
         overwrite (bool): Whether to overwrite previous checkpoints.
-        log_to_mlflow (bool): Whether to log and register the checkpoint to MLflow. Default is ``False``.
-        mlflow_logging_config (Optional[dict]): A dictionary of config arguments that will get passed along to the MLflow ``log_model`` call.
+        log_to_mlflow (bool): Whether to register the model to MLflow. This will only register one model at the end of training. Default is ``False``.
+        mlflow_logging_config (Optional[dict]): A dictionary of config arguments that will get passed along to the MLflow ``save_model`` call.
             Expected to contain ``metadata`` and ``task`` keys. If either is unspecified, the defaults are ``'text-generation'`` and
+            ``{'task': 'llm/v1/completions'}`` respectively.
     """
 
     def __init__(
@@ -120,7 +121,6 @@ class HuggingFaceCheckpointer(Callback):
                 import mlflow
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
                     '5GB')
-                # mlflow.set_registry_uri('databricks-uc')
 
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused

@@ -162,30 +162,36 @@ class HuggingFaceCheckpointer(Callback):
 
             if dist.get_global_rank() == 0:
                 log.debug('Saving Hugging Face checkpoint to disk')
-                # We raise above if the model is not a HuggingFaceModel, so this assert is safe
-                assert hasattr(state.model.model, 'save_pretrained')
-                state.model.model.save_pretrained(temp_save_dir,
-                                                  state_dict=state_dict)
 
+                from torch.distributed.fsdp import \
+                    FullyShardedDataParallel as FSDP
+                if isinstance(state.model.model, FSDP):
+                    model_class = state.model.model.module
+                else:
+                    model_class = state.model.model
+
+                copied_config = copy.deepcopy(state.model.model.config)
+                if state.model.model.config.model_type == 'mpt':
+                    copied_config.attn_config['attn_impl'] = 'torch'
+                    copied_config.init_device = 'cpu'
+
+                # TODO: after torch 2.1, we can load a state dict into a meta model
+                # and skip the extra model init
+                log.debug(f'Creating new model instance')
+                new_model_instance = type(model_class)(copied_config)
+                new_model_instance.to(dtype=self.dtype)
+                new_model_instance.load_state_dict(state_dict)
+                del state_dict
+
+                log.debug("Saving Hugging Face checkpoint to disk")
+                new_model_instance.save_pretrained('temp_save_dir')
                 if state.model.tokenizer is not None:
-                    assert isinstance(state.model.tokenizer,
-                                      PreTrainedTokenizerBase)
-                    state.model.tokenizer.save_pretrained(temp_save_dir)
+                    state.model.tokenizer.save_pretrained('temp_save_dir')
 
                 # Only need to edit files for MPT because it has custom code
                 if state.model.model.config.model_type == 'mpt':
+                    log.debug('Editing MPT files for HuggingFace compatibility')
                     edit_files_for_hf_compatibility(temp_save_dir)
-
-                with open(os.path.join(temp_save_dir, 'config.json'), 'r') as f:
-                    edited_config = json.load(f)
-
-                if state.model.model.config.model_type == 'mpt':
-                    edited_config['attn_config']['attn_impl'] = 'torch'
-                    edited_config['init_device'] = 'cpu'
-
-                edited_config['torch_dtype'] = self.precision
-                with open(os.path.join(temp_save_dir, 'config.json'), 'w') as f:
-                    json.dump(edited_config, f, indent=4)
 
                 if self.upload_to_object_store:
                     assert self.remote_ud is not None
@@ -203,29 +209,9 @@ class HuggingFaceCheckpointer(Callback):
 
                 elapsed_duration = state.get_elapsed_duration()
                 if self.log_to_mlflow and elapsed_duration is not None and elapsed_duration >= 1.0:
-                    log.debug('Reloading model to log to MLFlow')
-
-                    from torch.distributed.fsdp import \
-                        FullyShardedDataParallel as FSDP
-                    if isinstance(state.model.model, FSDP):
-                        model_class = state.model.model.module
-                    else:
-                        model_class = state.model.model
-
-                    copied_config = copy.deepcopy(state.model.model.config)
-                    if state.model.model.config.model_type == 'mpt':
-                        copied_config.attn_config['attn_impl'] = 'torch'
-                        copied_config.init_device = 'cpu'
-
-                    new_model_instance = type(model_class)(copied_config)
-                    new_model_instance.to(dtype=self.dtype)
-                    new_model_instance.load_state_dict(state_dict)
-                    del state_dict
                     components = {'model': new_model_instance}
                     if state.model.tokenizer is not None:
-                        new_tokenizer_instance = AutoTokenizer.from_pretrained(
-                            temp_save_dir)
-                        components['tokenizer'] = new_tokenizer_instance
+                        components['tokenizer'] = state.model.tokenizer
 
                     log.debug('Logging Hugging Face model to MLFlow')
                     registered_model_name = f'{state.run_name}_{os.path.basename(save_dir)}'
@@ -235,6 +221,8 @@ class HuggingFaceCheckpointer(Callback):
                         )
                         local_save_path = str(
                             Path(temp_save_dir) / f'mlflow_save_{i}')
+
+                        # TODO: Remove after mlflow fixes the bug that makes this necessary
                         import mlflow
                         mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
                         mlflow_logger.save_model(

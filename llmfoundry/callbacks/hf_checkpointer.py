@@ -183,10 +183,10 @@ class HuggingFaceCheckpointer(Callback):
                 del state_dict
 
                 log.debug('Saving Hugging Face checkpoint to disk')
-                new_model_instance.save_pretrained('temp_save_dir')
+                new_model_instance.save_pretrained(temp_save_dir)
                 if state.model.tokenizer is not None:
                     assert isinstance(state.model.tokenizer, PreTrainedTokenizerBase)
-                    state.model.tokenizer.save_pretrained('temp_save_dir')
+                    state.model.tokenizer.save_pretrained(temp_save_dir)
 
                 # Only need to edit files for MPT because it has custom code
                 if state.model.model.config.model_type == 'mpt':

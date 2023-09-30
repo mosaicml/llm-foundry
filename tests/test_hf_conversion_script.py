@@ -19,7 +19,7 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 import shutil
 from argparse import Namespace
-from typing import cast
+from typing import cast, Optional
 
 import pytest
 import torch
@@ -202,10 +202,10 @@ def test_callback_inits_with_defaults():
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize('model', ['mpt', 'neo', 'llama2'])
-@pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded'])
+@pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
 @pytest.mark.parametrize('log_to_mlflow', [True, False])
 def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
-                                         fsdp_state_dict_type: str,
+                                         fsdp_state_dict_type: Optional[str],
                                          log_to_mlflow: bool):
     delete_transformers_cache()
 
@@ -354,7 +354,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     trainer = Trainer(
         model=original_model,
         device='gpu',
-        fsdp_config=fsdp_config,
+        fsdp_config=fsdp_config if fsdp_state_dict_type is not None else None,
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=f'{save_interval_batches}ba',
@@ -427,7 +427,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                 trust_remote_code=True,
             )
 
-            check_hf_model_equivalence(trainer.state.model.model.to(precision),
+            check_hf_model_equivalence(trainer.state.model.model.to(precision) if fsdp_state_dict_type is not None else trainer.state.model.module.model.to(precision),
                                        loaded_model)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 

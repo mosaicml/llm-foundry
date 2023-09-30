@@ -19,7 +19,7 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 import shutil
 from argparse import Namespace
-from typing import cast, Optional
+from typing import Optional, cast
 
 import pytest
 import torch
@@ -427,8 +427,10 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                 trust_remote_code=True,
             )
 
-            check_hf_model_equivalence(trainer.state.model.model.to(precision) if fsdp_state_dict_type is not None else trainer.state.model.module.model.to(precision),
-                                       loaded_model)
+            check_hf_model_equivalence(
+                trainer.state.model.model.to(precision) if fsdp_state_dict_type
+                is not None else trainer.state.model.module.model.to(precision),
+                loaded_model)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
     delete_transformers_cache()

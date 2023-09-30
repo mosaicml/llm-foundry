@@ -17,7 +17,7 @@ from composer.loggers import Logger, MLFlowLogger
 from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.models import HuggingFaceModel
 from composer.utils import dist, format_name_with_dist_and_time, parse_uri
-from transformers import PreTrainedTokenizerBase, PreTrainedModel
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
@@ -148,9 +148,8 @@ class HuggingFaceCheckpointer(Callback):
                               str)  # pyright doesn't know about enter_result
 
             log.debug('Gathering state dict')
-            from torch.distributed.fsdp import \
-                FullyShardedDataParallel as FSDP
-            
+            from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+
             if state.is_model_ddp:
                 original_model = state.model.module.model
                 original_tokenizer = state.model.module.tokenizer
@@ -164,7 +163,10 @@ class HuggingFaceCheckpointer(Callback):
             assert isinstance(original_model, PreTrainedModel)
             assert isinstance(original_tokenizer, PreTrainedTokenizerBase)
 
-            state_dict_context = fsdp_state_dict_type_context(original_model, state_dict_type='full') if ((not state.is_model_ddp) and isinstance(state.model.model, FSDP)) else contextlib.nullcontext()
+            state_dict_context = fsdp_state_dict_type_context(
+                original_model, state_dict_type='full') if (
+                    (not state.is_model_ddp) and isinstance(
+                        state.model.model, FSDP)) else contextlib.nullcontext()
             with state_dict_context:
                 state_dict = original_model.state_dict()
 
@@ -192,7 +194,8 @@ class HuggingFaceCheckpointer(Callback):
                 log.debug('Saving Hugging Face checkpoint to disk')
                 new_model_instance.save_pretrained(temp_save_dir)
                 if original_tokenizer is not None:
-                    assert isinstance(original_tokenizer, PreTrainedTokenizerBase)
+                    assert isinstance(original_tokenizer,
+                                      PreTrainedTokenizerBase)
                     original_tokenizer.save_pretrained(temp_save_dir)
 
                 # Only need to edit files for MPT because it has custom code

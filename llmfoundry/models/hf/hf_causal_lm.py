@@ -24,8 +24,6 @@ from transformers import (AutoConfig, AutoModelForCausalLM,
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
-from llmfoundry.models.layers.llama_attention_monkeypatch import \
-    get_llama_attention_patch_fn
 from llmfoundry.models.utils import init_empty_weights
 
 try:
@@ -136,6 +134,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             # Rank 0 will still be pretrained, and distribute the weights appropriately
             if dist.get_local_rank() != 0 and init_device == 'mixed':
                 om_model_config.pretrained = False
+            
+            if config.model_type == 'llama':
+                transformers.utils.is_flash_attn_available = lambda : False
 
             # initialize the model on the correct device
             if resolved_init_device == 'cpu':
@@ -193,6 +194,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 log.debug(
                     f'Patching llama attention with {attention_patch_type} attention'
                 )
+                from llmfoundry.models.layers.llama_attention_monkeypatch import \
+                    get_llama_attention_patch_fn
                 from transformers.models.llama.modeling_llama import \
                     LlamaAttention
                 LlamaAttention.forward = get_llama_attention_patch_fn(

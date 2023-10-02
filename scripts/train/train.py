@@ -28,7 +28,6 @@ from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
 
-
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""
     loaders = [cfg.train_loader]

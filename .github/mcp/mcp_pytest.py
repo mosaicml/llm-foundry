@@ -86,11 +86,12 @@ if __name__ == '__main__':
     if len(name) > 56:
         name = name[:56]
 
+    clear_tmp_path_flag = '-o tmp_path_retention_policy=none'
     command += f'''
 
     pip install --upgrade --user .[all]
 
-    export COMMON_ARGS="-v --durations=20 -m '{args.pytest_markers}'"
+    export COMMON_ARGS="-v --durations=20 -m '{args.pytest_markers}' {clear_tmp_path_flag}"
 
     make test PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS --codeblocks"
 

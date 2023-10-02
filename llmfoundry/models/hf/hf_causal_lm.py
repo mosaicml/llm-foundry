@@ -66,7 +66,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                  tokenizer: PreTrainedTokenizerBase):
         # set up training and eval metrics
         use_train_metrics = om_model_config.get('use_train_metrics', True)
-        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()] if use_train_metrics else []
+        train_metrics = [LanguageCrossEntropy(),
+                         LanguagePerplexity()] if use_train_metrics else []
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),

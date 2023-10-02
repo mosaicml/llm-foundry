@@ -65,9 +65,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                                               nn.Module],
                  tokenizer: PreTrainedTokenizerBase):
         # set up training and eval metrics
-        use_train_metrics = om_model_config.get('use_train_metrics', True)
-        train_metrics = [LanguageCrossEntropy(),
-                         LanguagePerplexity()] if use_train_metrics else []
+        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
@@ -90,6 +88,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     +
                     'which is not significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
                 )
+
+            if not om_model_config.get('use_train_metrics', True):
+                train_metrics = []
 
             # load the model config
             trust_remote_code = om_model_config.get('trust_remote_code', True)

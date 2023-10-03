@@ -109,7 +109,9 @@ Our microbatching engine enables microbatch sizes that do not divde Global Batch
 
 |  Model | SeqLen (T) | # GPUs | GPU | MFU | HFU | MicroBatchSize | GradAccum | GlobalBatchSize | Throughput (S/s) | Throughput (T/s) | Throughput (T/s/GPU) | GlobalBatchSize (T) | Precision | MP Mode | Sharding Strategy | Activation Checkpointing | Activation CPUOffload | NumParams |
 |  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-|  30b | 8192 | 8 | a100_80gb | 39.38 | 52.5 | 1 | 21 | 168 | 0 | 4594 | 574 | 1376256 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 30019254272 |
+|  70b | 2048 | 64 | a100_80gb | 53.33 | 71.1 | 8 | 4 | 2048 | 12 | 26274 | 410 | 4194304 | bf16 | PURE | FULL_SHARD | True | False | 64862437376 |
+|  70b | 2048 | 32 | a100_80gb | 48.56 | 64.75 | 2 | 16 | 1024 | 5 | 11962 | 373 | 2097152 | bf16 | PURE | FULL_SHARD | True | False | 64862437376 |
+|  30b | 8192 | 8 | a100_80gb | 42.66 | 56.89 | 1 | 21 | 168 | 0 | 4977 | 622 | 1376256 | bf16 | PURE | FULL_SHARD | True | False | 30019254272 |
 |  30b | 4096 | 8 | a100_80gb | 51.37 | 68.49 | 1 | 21 | 168 | 1 | 6513 | 814 | 688128 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 29989894144 |
 |  30b | 2048 | 8 | a100_80gb | 55.3 | 73.74 | 3 | 21 | 504 | 3 | 7330 | 916 | 1032192 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 29975214080 |
 |  30b | 1024 | 8 | a100_80gb | 55.82 | 74.43 | 6 | 21 | 1008 | 7 | 7571 | 946 | 1032192 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 29967874048 |

@@ -47,7 +47,7 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.16.1,<0.17',
+    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.16.3,<0.17',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
     'transformers>=4.33,<4.34',
     'mosaicml-streaming>=0.6,<0.7',
@@ -89,7 +89,7 @@ extra_deps['gpu'] = [
     'flash-attn==1.0.9',
     'mosaicml-turbo==0.0.4',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy',
+    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
 ]
 
 extra_deps['peft'] = [

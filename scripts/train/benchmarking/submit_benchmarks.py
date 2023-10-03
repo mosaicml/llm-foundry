@@ -375,7 +375,7 @@ def get_integrations(project: str,
     }
     git_integration.update({
         'integration_type': 'git_repo',
-        'git_repo': 'crinard/llm-foundry',
+        'git_repo': 'mosaicml/llm-foundry',
         'pip_install': '-e .[gpu]'
     })
 

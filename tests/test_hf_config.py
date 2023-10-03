@@ -140,6 +140,7 @@ def test_hf_config_override(
         else:
             assert getattr(hf_model.config, k) == v
 
+
 def test_rope_scaling_override():
     model_cfg = {
         'name': 'hf_causal_lm',
@@ -149,7 +150,8 @@ def test_rope_scaling_override():
             'hidden_size': 32,
             'intermediate_size': 64,
             'rope_scaling': {
-                "type": 'dynamic', "factor": 0.5
+                'type': 'dynamic',
+                'factor': 0.5
             }
         },
         'use_auth_token': True,
@@ -160,4 +162,4 @@ def test_rope_scaling_override():
 
     model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer=None)
     model.get_metadata()
-    assert model.config.rope_scaling == {"type": 'dynamic', "factor": 0.5}
+    assert model.config.rope_scaling == {'type': 'dynamic', 'factor': 0.5}

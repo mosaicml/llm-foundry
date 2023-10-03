@@ -35,9 +35,6 @@ def str_to_bool(value: Union[bool, str]):
         return True
     raise ValueError(f'{value} is not a valid boolean value')
 
-def str_to_list_int(value: Union[List[int], str]):
-    print(value)
-
 def parse_args():
     parser = argparse.ArgumentParser(
         description=
@@ -248,7 +245,6 @@ def get_gpu_nums(clusters: List[str], gpu_types: List[str]):
     max_gpus_per_run = 1
     for c in clusters:
         for gpu_info in CLUSTER_INFO[c]:
-            print(gpu_info) #TODO: remove
             if gpu_info[0] in gpu_types:
                 max_gpus_per_run = max(max_gpus_per_run, gpu_info[1])
 
@@ -355,12 +351,6 @@ def mod_parameters(parameters: Dict[str, Any],
         parameters['fsdp_config']['activation_cpu_offload'] = activation_cpu_offload
     # parameters['fsdp_config']['verbose'] = True
     parameters['compile_config'] = {} if torch_compile else None
-    # if torch_compile_fullgraph is not None:
-    #     parameters['compile_config']['fullgraph'] = torch_compile_fullgraph
-    # if torch_compile_dynamic is not None:
-    #    parameters['compile_config']['dynamic'] = torch_compile_dynamic
-    # if torch_compile_mode is not None:
-    #     parameters['compile_config']['mode'] = torch_compile_mode
 
     if wandb:
         # add wandb

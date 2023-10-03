@@ -1,9 +1,9 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import tempfile
 from copy import deepcopy
-import os
 from pathlib import Path
 from typing import Any, Dict, Mapping
 
@@ -142,7 +142,8 @@ def test_hf_config_override(
             assert getattr(hf_model.config, k) == v
 
 
-@pytest.mark.skipif('HUGGING_FACE_HUB_TOKEN' not in os.environ, reason='CI does not have access to llama2')
+@pytest.mark.skipif('HUGGING_FACE_HUB_TOKEN' not in os.environ,
+                    reason='CI does not have access to llama2')
 def test_rope_scaling_override():
     model_cfg = {
         'name': 'hf_causal_lm',

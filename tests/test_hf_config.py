@@ -142,7 +142,7 @@ def test_hf_config_override(
             assert getattr(hf_model.config, k) == v
 
 
-@pytest.mark.skipif('HUGGING_FACE_HUB_TOKEN' not in os.environ)
+@pytest.mark.skipif('HUGGING_FACE_HUB_TOKEN' not in os.environ, reason='CI does not have access to llama2')
 def test_rope_scaling_override():
     model_cfg = {
         'name': 'hf_causal_lm',

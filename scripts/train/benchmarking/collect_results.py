@@ -5,6 +5,7 @@ import argparse
 import csv
 import math
 from typing import Any, Dict, List, Union
+from composer.callbacks.speed_monitor import GPU_AVAILABLE_FLOPS as GPU_FLOP_DICT
 
 from mcli import sdk as msdk
 
@@ -57,7 +58,7 @@ def get_runs(args: argparse.Namespace):
             print(model_name)
             raise ValueError
         model_size = int(model_name[:-1])
-        return (r.gpu_type, r.image, model_name_size, model_size, r.submitted_config.parameters['max_seq_len'],
+        return (r.image, model_name_size, model_size, r.submitted_config.parameters['max_seq_len'],
                 num_gpu, r.submitted_config.parameters['global_train_batch_size'])
     runs.sort(reverse=True, key=sort_key)
 
@@ -93,7 +94,14 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     model_name = run.name.split('-')[2]
     gpus = run.gpus
     gpu_type = run.gpu_type
-    GPU_AVAILABLE_FLOPS = 312_000_000_000_000 if (gpu_type != "h100_80gb") else (1_979_000_000_000_000/2 if run.submitted_config.parameters['precision'] == 'amp_bf16' else 1_979_000_000_000_000)# NOTE: This is accurate for BF16 or FP8 only
+
+    if 'h100'in gpu_type:
+        gpu_type = 'h100-sxm'
+    if 'a100' in gpu_type:
+        gpu_type = 'a100'
+    GPU_AVAILABLE_FLOPS = GPU_FLOP_DICT[gpu_type][run.submitted_config.parameters['precision']]
+    
+    gpu_type = run.gpu_type
     fsdp_config = run.submitted_config.parameters['fsdp_config']
 
     seq_len = run.submitted_config.parameters['max_seq_len']
@@ -190,6 +198,8 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
             str(fsdp_config['activation_cpu_offload']),
         'NumParams':
             n_params,
+        'Image':
+            image,
         # 'Compile Mode':
         #     compile_mode,
         # 'Compile Fullgraph':

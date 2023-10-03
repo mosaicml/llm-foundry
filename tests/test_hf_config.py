@@ -161,5 +161,6 @@ def test_rope_scaling_override():
     model_cfg = om.create(model_cfg)
 
     model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer=None)
+    # This would error if the config isn't parsed into a proper dictionary
     model.get_metadata()
     assert model.config.rope_scaling == {'type': 'dynamic', 'factor': 0.5}

@@ -109,6 +109,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     )
 
                 attr = getattr(config, k)
+                # attempt to disallow typos in nested configs
                 if isinstance(attr, Mapping):
                     extra_keys = [
                         _k for _k in v.keys() if _k not in attr.keys()
@@ -119,6 +120,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                             f'Extra keys: {extra_keys}. ' +
                             f'Expected (a subset of) keys: {list(attr.keys())}.'
                         )
+                    getattr(config, k).update(v)
+                # necessary case to allow for rope_scaling to be overriden in llama config
+                elif attr is None and isinstance(v, Mapping):
+                    setattr(config, k, {})
                     getattr(config, k).update(v)
                 else:
                     setattr(config, k, v)

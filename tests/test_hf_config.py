@@ -139,3 +139,25 @@ def test_hf_config_override(
                 assert getattr(hf_model.config, k)[_k] == _v
         else:
             assert getattr(hf_model.config, k) == v
+
+def test_rope_scaling_override():
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': 'meta-llama/Llama-2-7b-hf',
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+            'rope_scaling': {
+                "type": 'dynamic', "factor": 0.5
+            }
+        },
+        'use_auth_token': True,
+        'pretrained': False,
+        'init_device': 'cpu',
+    }
+    model_cfg = om.create(model_cfg)
+
+    model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer=None)
+    model.get_metadata()
+    assert model.config.rope_scaling == {"type": 'dynamic', "factor": 0.5}

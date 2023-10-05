@@ -9,7 +9,8 @@ from typing import Mapping, Union
 
 # required for loading a python model into composer
 import transformers
-from composer.metrics.nlp import (InContextLearningLMAccuracy,
+from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
+                                  InContextLearningLMAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
                                   InContextLearningMCExpectedCalibrationError,
                                   InContextLearningMultipleChoiceAccuracy,
@@ -64,16 +65,14 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                                               nn.Module],
                  tokenizer: PreTrainedTokenizerBase):
         # set up training and eval metrics
-        train_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-        ]
+        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
+            InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError()
         ]
@@ -89,6 +88,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     +
                     'which is not significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
                 )
+
+            if not om_model_config.get('use_train_metrics', True):
+                train_metrics = []
 
             # load the model config
             trust_remote_code = om_model_config.get('trust_remote_code', True)
@@ -107,6 +109,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     )
 
                 attr = getattr(config, k)
+                # attempt to disallow typos in nested configs
                 if isinstance(attr, Mapping):
                     extra_keys = [
                         _k for _k in v.keys() if _k not in attr.keys()
@@ -117,6 +120,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                             f'Extra keys: {extra_keys}. ' +
                             f'Expected (a subset of) keys: {list(attr.keys())}.'
                         )
+                    getattr(config, k).update(v)
+                # necessary case to allow for rope_scaling to be overriden in llama config
+                elif attr is None and isinstance(v, Mapping):
+                    setattr(config, k, {})
                     getattr(config, k).update(v)
                 else:
                     setattr(config, k, v)
@@ -164,7 +171,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     f'init_device="{init_device}" must be either "cpu" or "meta".'
                 )
 
-            signal_file_path = '.local_rank0_completed_autoresume'
+            signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed'
             if dist.get_local_rank() == 0:
                 with open(signal_file_path, 'wb') as f:
                     f.write(b'local_rank0_completed_download')

@@ -567,7 +567,7 @@ class GroupedQueryAttention(nn.Module):
         if rotation_matrix is not None:
             query = query.view(*(query.shape[:-1]), -1, self.head_dim)
             key = key.view(*(key.shape[:-1]), -1, self.head_dim)
-            query, key = self.apply_rotary_position_embeddings(
+            query, key = self._apply_rotary_position_embeddings(
                 rotation_matrix, query, key)
             query = query.reshape(*(query.shape[:-2]), self.d_model)
             key = key.reshape(*(key.shape[:-2]),

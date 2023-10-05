@@ -16,7 +16,7 @@ from torch import nn
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
-
+# Code taken from https://github.com/huggingface/transformers/blob/v4.33.3/src/transformers/models/roformer/modeling_roformer.py
 def _apply_rotary_position_embeddings(rotation_matrix: torch.Tensor,
                                       query: torch.Tensor, key: torch.Tensor):
     rotation_matrix = rotation_matrix.unsqueeze(-2).unsqueeze(0)

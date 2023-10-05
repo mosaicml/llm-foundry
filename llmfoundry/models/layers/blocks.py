@@ -41,6 +41,8 @@ class MPTBlock(nn.Module):
                 'attn_uses_sequence_id': False,
                 'alibi': False,
                 'alibi_bias_max': 8,
+                'rope': False,
+                'rope_bf': 10000,
             }
 
         if ffn_config is None:
@@ -58,7 +60,7 @@ class MPTBlock(nn.Module):
         # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         args_to_exclude_in_attn_class = {
             'attn_type', 'prefix_lm', 'alibi', 'attn_uses_sequence_id',
-            'alibi_bias_max'
+            'alibi_bias_max', 'rope', 'rope_bf'
         }
         attn_config_subset_for_attn_class = {
             k: v
@@ -94,6 +96,7 @@ class MPTBlock(nn.Module):
         x: torch.Tensor,
         past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
+        rotation_matrix: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         is_causal: bool = True,
         output_attentions: bool = False,
@@ -104,6 +107,7 @@ class MPTBlock(nn.Module):
             a,
             past_key_value=past_key_value,
             attn_bias=attn_bias,
+            rotation_matrix=rotation_matrix,
             attention_mask=attention_mask,
             is_causal=is_causal,
             needs_weights=output_attentions,

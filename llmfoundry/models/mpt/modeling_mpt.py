@@ -144,6 +144,15 @@ class MPTModel(MPTPreTrainedModel):
             use_sequence_id=self.attn_uses_sequence_id,
         )
 
+        self.alibi = config.attn_config['rope']
+        self._rotation_matrix_initialized = False
+        self.rotation_matrix = None
+        assert (config.d_model % config.n_heads == 0)
+        self.rope_max_seq_len = config.max_seq_len
+        self.rope_head_dim = config.d_model//config.n_heads
+        self.rope_bf = config.attn_config['rope_bf']
+        self.rotation_matrix_shape = (config.max_seq_len, self.rope_head_dim)
+
         if config.no_bias:
             for module in self.modules():
                 if hasattr(module, 'bias') and isinstance(
@@ -236,6 +245,27 @@ class MPTModel(MPTPreTrainedModel):
                 ~attention_mask.view(-1, 1, 1, s_k), min_val)
 
         return attn_bias, None
+
+    # Code taken from https://github.com/huggingface/transformers/blob/v4.33.3/src/transformers/models/roformer/modeling_roformer.py
+    @torch.no_grad()
+    def _rotation_matrix(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+        """
+        Identical to the XLM create_sinusoidal_embeddings except features are not interleaved. The cos features are in
+        the 2nd half of the vector. [head_dim // 2:]
+        """
+        if not self._rotation_matrix_initialized:
+            self.rotation_matrix = None
+            if self.rope:
+                self.rotation_matrix = torch.empty(self.rotation_matrix_shape, device=device, dtype=dtype)
+
+                theta = 1/(torch.pow(self.rope_bf, 2 * (torch.arange(self.rope_head_dim)//2) / self.rope_head_dim))
+                position_enc = torch.outer(torch.arange(self.rope_max_seq_len), theta)
+
+                sentinel = self.rope_head_dim // 2 if self.rope_head_dim % 2 == 0 else (self.rope_head_dim // 2) + 1
+                self.rotation_matrix[:, 0:sentinel] = torch.FloatTensor(torch.sin(position_enc[:, 0::2])).to(self.rotation_matrix)
+                self.rotation_matrix[:, sentinel:] = torch.FloatTensor(torch.cos(position_enc[:, 1::2])).to(self.rotation_matrix)
+                self._rotation_matrix_initialized = True
+        return self.rotation_matrix
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
                            prefix_mask: torch.Tensor) -> torch.Tensor:
@@ -421,6 +451,8 @@ class MPTModel(MPTPreTrainedModel):
             sequence_id=sequence_id,
         )
 
+        rotation_matrix = self._rotation_matrix(device=x.device, dtype=torch.float32)
+
         # initialize the past key values cache if it should be used
         if use_cache and past_key_values is None:
             past_key_values = [() for _ in range(self.config.n_layers)
@@ -438,6 +470,7 @@ class MPTModel(MPTPreTrainedModel):
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
+                rotation_matrix=rotation_matrix,
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),

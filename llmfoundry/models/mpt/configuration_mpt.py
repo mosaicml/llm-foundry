@@ -19,6 +19,8 @@ attn_config_defaults: Dict = {
     'attn_uses_sequence_id': False,
     'alibi': False,
     'alibi_bias_max': 8,
+    'rope': False,
+    'rope_bf': 10000,
 }
 
 ffn_config_defaults: Dict = {
@@ -94,6 +96,8 @@ class MPTConfig(PretrainedConfig):
                     Defaults to ``False`` meaning any provided `sequence_id` will be ignored.
                 alibi (bool): Whether to use the alibi bias instead of position embeddings.
                 alibi_bias_max (int): The maximum value of the alibi bias.
+                rope (bool): Whether to use rotary positional embeddings.
+                rope_bf (int): The base frequency for rope.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
                 ffn_type (str): type of ffn to use. Options: mptmlp, te_ln_mlp

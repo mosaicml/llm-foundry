@@ -16,11 +16,11 @@ model:
   vocab_size: 50368 # update for hero run with custom tokenizer
   no_bias: true
   attn_config:
-    alibi: true
+    alibi: false
     attn_impl: triton
     clip_qkv: 6
     attn_uses_sequence_id: true
-    rope: false # Keep alibi: true, and pos_bias_type can be one of alibi, rope, or...
+    rope: true # Keep alibi: true, and pos_bias_type can be one of alibi, rope, or...
     rope_bf: 10000 # Use 10000 for original rope, 500000 for rope_abf (https://arxiv.org/pdf/2309.16039.pdf)
 
 # Tokenizer

@@ -1,0 +1,177 @@
+global_seed: 17
+max_seq_len: 2048 # max tokens per sequence during training
+
+data_local: /root/my-copy-c4
+data_remote: oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/ # If blank, files must be present in data_local 
+
+# Model
+model:
+  name: mpt_causal_lm
+  init_device: meta
+  d_model: 768
+  n_heads: 12
+  n_layers: 12
+  expansion_ratio: 4
+  max_seq_len: ${max_seq_len}
+  vocab_size: 50368 # update for hero run with custom tokenizer
+  no_bias: true
+  attn_config:
+    alibi: false
+    attn_impl: triton
+    clip_qkv: 6
+    attn_uses_sequence_id: true
+    pos_bias_type: rope # Keep alibi: true, and pos_bias_type can be one of alibi, rope, or...
+    rope_bf: 10000 # Use 10000 for original rope, 500000 for rope_abf (https://arxiv.org/pdf/2309.16039.pdf)
+
+# Tokenizer
+tokenizer:
+  name: EleutherAI/gpt-neox-20b # default tokenizer used for MPT
+  kwargs:
+    model_max_length: ${max_seq_len}
+
+# Optimization
+global_train_batch_size: 512 # ~1M tokens, update for hero run, must be divisible by gpu_num
+max_duration: 100000ba # update for hero run, e.g. 100000ba ~= 100B tokens
+
+optimizer:
+  name: decoupled_lionw
+  lr: 0.0006
+  betas:
+  - 0.9
+  - 0.95
+  weight_decay: 0.0006
+
+scheduler:
+  name: cosine_with_warmup
+  t_warmup: 5000ba
+  alpha_f: 0.1
+
+# System
+seed: ${global_seed}
+precision: amp_bf16
+device_train_microbatch_size: 16 # NOTE: Please ensure that ${gpus} is less than or equal to ${global_train_batch_size}/${device_train_microbatch_size}.
+                                  # 1. If you want to increase the number of gpus beyond this number, please decrease device_train_microbatch_size correspondingly to
+                                  #    satisfy this equation.
+                                  # 2. If you want to increase the number of gpus beyond this number and keep device_train_microbatch_size the same (or increase it),
+                                  #    you would need to increase global_train_batch_size. However, in that case other hyperparameters like lr would probably need to
+                                  #    be changed and we cannot guarantee convergence.
+device_eval_batch_size: 16
+
+# FSDP
+fsdp_config:
+  activation_checkpointing: false
+  activation_checkpointing_reentrant: false
+  activation_cpu_offload: false
+  limit_all_gathers: true
+  mixed_precision: PURE
+  sharding_strategy: SHARD_GRAD_OP
+  state_dict_type: full
+  verbose: false
+
+# Logging
+eval_first: false
+eval_interval: 900000ba
+log_to_console: true
+console_log_interval: 1ba 
+progress_bar: false
+python_log_level: DEBUG
+loggers:
+  wandb: {}
+
+# Checkpointing
+autoresume: true
+save_filename: ep{epoch}-ba{batch}/rank{rank}.pt
+save_folder: oci://mosaicml-internal-checkpoints/shashank/rope-vs-alibi/mpt-125m # update for hero run
+save_interval: 100000ba # update for hero run, e.g. 2000ba
+save_num_checkpoints_to_keep: 1
+
+# Algos and Callbacks
+algorithms:
+  gradient_clipping:
+    clipping_threshold: 1
+    clipping_type: norm
+
+callbacks:
+  # generate_callback:
+  #   batch_log_interval: 10 # update for hero run, e.g. 2000
+  #   do_sample: true
+  #   max_new_tokens: 100
+  #   prompts:
+  #   - The quick brown fox jumps over
+  #   - |-
+  #     Vegan Banana Bread
+  #     Instructions:
+  #     1.
+  #   - The other day I was explaining what generative AI is to my five year old.
+  #   temperature: 1
+  #   top_k: 50
+  #   top_p: 0.95
+  #   use_cache: true
+  lr_monitor: {}
+  memory_monitor: {}
+  # mono_ckpt_saver:
+  #   batch_interval: ${save_interval}
+  #   filename: ep{epoch}-ba{batch}/mono.pt
+  #   save_folder: ${save_folder}
+  runtime_estimator: {}
+  scheduled_gc:
+    batch_interval: 2000
+  speed_monitor:
+    window_size: 10
+
+# Dataloaders
+eos_token_id: 0 # update for hero run with custom tokenizer
+num_canonical_nodes: 128 # update for hero run, must be codivisible by # physical nodes
+
+# Eval loader
+eval_loader:
+  name: text
+  drop_last: false
+  num_workers: 8
+  
+  # dataset yaml from https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/yamls/pretrain/mpt-125m.yaml -
+  dataset:
+    eos_token_id: ${eos_token_id}
+    local: ${data_local}
+    remote: ${data_remote}
+    split: val
+    shuffle: false
+    max_seq_len: ${max_seq_len}
+    shuffle_seed: ${global_seed}
+  
+
+
+# In-context-learning tasks
+
+## If you want to use one of our suites of tasks
+# icl_tasks: eval/yamls/tasks_light.yaml
+
+## Or if you want to manually specify individual tasks
+icl_tasks:
+-
+  label: piqa
+  dataset_uri: eval/local_data/commonsense_reasoning/piqa.jsonl
+  num_fewshot: [0, 1, 5]
+  icl_task_type: multiple_choice
+  continuation_delimiter: 'Answer: '
+-
+  label: lambada
+  dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
+  num_fewshot: [0]
+  icl_task_type: language_modeling
+
+# Train loader
+train_loader:
+  name: text
+  drop_last: true
+  num_workers: 8
+
+  # dataset yaml from https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/yamls/pretrain/mpt-125m.yaml -
+  dataset:
+    eos_token_id: ${eos_token_id}
+    local: ${data_local}
+    remote: ${data_remote}
+    split: train
+    shuffle: true
+    max_seq_len: ${max_seq_len}
+    shuffle_seed: ${global_seed}

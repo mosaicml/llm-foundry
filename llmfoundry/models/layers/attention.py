@@ -17,6 +17,30 @@ from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
+def _apply_rotary_position_embeddings(rotation_matrix: torch.Tensor,
+                                      query: torch.Tensor, key: torch.Tensor):
+    rotation_matrix = rotation_matrix.unsqueeze(-2).unsqueeze(0)
+    # sin [batch_size, sequence_length, num_heads, embed_size_per_head//2]
+    # cos [batch_size, sequence_length, num_heads, embed_size_per_head//2]
+    sin, cos = rotation_matrix.chunk(2, dim=-1)
+    # sin [θ0,θ1,θ2......θd/2-1] -> sin_pos [θ0,θ0,θ1,θ1,θ2,θ2......θd/2-1,θd/2-1]
+    sin_pos = torch.stack([sin, sin], dim=-1).reshape_as(rotation_matrix)
+    # cos [θ0,θ1,θ2......θd/2-1] -> cos_pos [θ0,θ0,θ1,θ1,θ2,θ2......θd/2-1,θd/2-1]
+    cos_pos = torch.stack([cos, cos], dim=-1).reshape_as(rotation_matrix)
+
+    # rotate_half_query_layer [-q1,q0,-q3,q2......,-qd-1,qd-2]
+    rotate_half_query_layer = torch.stack([-query[..., 1::2], query[..., ::2]],
+                                          dim=-1).reshape_as(query)
+    query = (query * cos_pos + rotate_half_query_layer * sin_pos).to(query)
+
+    # rotate_half_key_layer [-k1,k0,-k3,k2......,-kd-1,kd-2]
+    rotate_half_key_layer = torch.stack([-key[..., 1::2], key[..., ::2]],
+                                        dim=-1).reshape_as(key)
+    key = (key * cos_pos + rotate_half_key_layer * sin_pos).to(key)
+
+    return query, key
+
+
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
                      original_is_causal: bool) -> bool:
     # disable causal when it is not needed
@@ -521,6 +545,7 @@ class GroupedQueryAttention(nn.Module):
         past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
+        rotation_matrix: Optional[torch.Tensor] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
@@ -538,6 +563,15 @@ class GroupedQueryAttention(nn.Module):
             ],
             dim=2,
         )
+
+        if rotation_matrix is not None:
+            query = query.view(*(query.shape[:-1]), -1, self.head_dim)
+            key = key.view(*(key.shape[:-1]), -1, self.head_dim)
+            query, key = self.apply_rotary_position_embeddings(
+                rotation_matrix, query, key)
+            query = query.reshape(*(query.shape[:-2]), self.d_model)
+            key = key.reshape(*(key.shape[:-2]),
+                              self.kv_n_heads * self.head_dim)
 
         key_padding_mask = attention_mask
 

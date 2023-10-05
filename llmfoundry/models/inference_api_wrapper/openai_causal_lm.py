@@ -81,14 +81,14 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
         try:
-            import openai
+            import litellm
         except ImportError as e:
             raise MissingConditionalImportError(
-                extra_deps_group='openai',
-                conda_package='openai',
+                extra_deps_group='litellm',
+                conda_package='litellm',
                 conda_channel='conda-forge') from e
 
-        self.generate_completion = lambda prompt, num_tokens: openai.ChatCompletion.create(
+        self.generate_completion = lambda prompt, num_tokens: litellm.completion(
             self.model_name,
             messages=[{
                 'role': 'user',

@@ -264,7 +264,7 @@ class MPTModel(MPTPreTrainedModel):
                 sentinel = self.rope_head_dim // 2 if self.rope_head_dim % 2 == 0 else (self.rope_head_dim // 2) + 1
                 self.rotation_matrix[:, 0:sentinel] = torch.FloatTensor(torch.sin(position_enc[:, 0::2])).to(self.rotation_matrix)
                 self.rotation_matrix[:, sentinel:] = torch.FloatTensor(torch.cos(position_enc[:, 1::2])).to(self.rotation_matrix)
-                self._rotation_matrix_initialized = True
+            self._rotation_matrix_initialized = True
         return self.rotation_matrix
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,

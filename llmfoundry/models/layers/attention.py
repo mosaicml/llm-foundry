@@ -564,7 +564,6 @@ class GroupedQueryAttention(nn.Module):
             dim=2,
         )
 
-        breakpoint()
         if rotation_matrix is not None:
             query = query.view(*(query.shape[:-1]), -1, self.head_dim)
             key = key.view(*(key.shape[:-1]), -1, self.head_dim)

@@ -144,7 +144,7 @@ class MPTModel(MPTPreTrainedModel):
             use_sequence_id=self.attn_uses_sequence_id,
         )
 
-        self.alibi = config.attn_config['rope']
+        self.rope = config.attn_config['rope']
         self._rotation_matrix_initialized = False
         self.rotation_matrix = None
         assert (config.d_model % config.n_heads == 0)

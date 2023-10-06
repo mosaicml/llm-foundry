@@ -5,6 +5,7 @@ icl_tasks:
   num_fewshot: [0]
   pass_at_k: 1
   num_beams: 20
+  batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_cpp
@@ -12,6 +13,7 @@ icl_tasks:
   num_fewshot: [0]
   pass_at_k: 1
   num_beams: 20
+  batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_js
@@ -19,6 +21,7 @@ icl_tasks:
   num_fewshot: [0]
   pass_at_k: 1
   num_beams: 20
+  batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_return_simple
@@ -26,6 +29,7 @@ icl_tasks:
   num_fewshot: [0]
   pass_at_k: 1
   num_beams: 20
+  batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_return_complex
@@ -33,6 +37,7 @@ icl_tasks:
   num_fewshot: [0]
   pass_at_k: 1
   num_beams: 20
+  batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_25
@@ -40,6 +45,7 @@ icl_tasks:
   num_fewshot: [0]
   pass_at_k: 1
   num_beams: 20
+  batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_50
@@ -47,6 +53,7 @@ icl_tasks:
   num_fewshot: [0]
   pass_at_k: 1
   num_beams: 20
+  batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_75
@@ -54,4 +61,5 @@ icl_tasks:
   num_fewshot: [0]
   pass_at_k: 1
   num_beams: 20
+  batch_size: 1
   icl_task_type: code_evaluation

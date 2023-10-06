@@ -42,40 +42,47 @@ np.set_printoptions(linewidth=160, formatter={'float': lambda f: f'{f:5.3f}'})
                                               (True, True)])
 def test_modifies_weights_and_momentums(N: int, D: int, dtype: torch.dtype,
                                         fused: bool, use_errors: bool) -> None:
-    device = 'cuda'
-    torch.manual_seed(123)
-    X = torch.randn((N, D), device=device, requires_grad=False, dtype=dtype)
-    W = torch.randn((D, D), device=device, requires_grad=True, dtype=dtype)
-    W_orig = W.detach().clone()
+    error_context = contextlib.nullcontext()
+    if use_errors and version.parse(
+            torch.__version__) >= version.parse('2.1.0'):
+        error_context = pytest.raises(
+            RuntimeError, match='DecoupledLionW_8bit with error correction')
 
-    opt = Lion8bit([W],
-                   lr=1.0,
-                   _fused=fused,
-                   betas=(.75, .75),
-                   weight_decay=.2,
-                   error_correction=use_errors)
+    with error_context:
+        device = 'cuda'
+        torch.manual_seed(123)
+        X = torch.randn((N, D), device=device, requires_grad=False, dtype=dtype)
+        W = torch.randn((D, D), device=device, requires_grad=True, dtype=dtype)
+        W_orig = W.detach().clone()
 
-    Y = X @ W
-    loss = Y.sum()
-    loss.backward()
-    torch.testing.assert_close(W_orig, W)  # no weight modification yet
-    opt.step()
-    opt.zero_grad()
+        opt = Lion8bit([W],
+                    lr=1.0,
+                    _fused=fused,
+                    betas=(.75, .75),
+                    weight_decay=.2,
+                    error_correction=use_errors)
 
-    with pytest.raises(AssertionError):  # opt step modified the weights
-        torch.testing.assert_close(W_orig, W)
+        Y = X @ W
+        loss = Y.sum()
+        loss.backward()
+        torch.testing.assert_close(W_orig, W)  # no weight modification yet
+        opt.step()
+        opt.zero_grad()
 
-    # Every momentum should be nonzero with infinite precision, but
-    # might be zero after quantization. We turn the _MaybeQuantizedTensor
-    # instance into a regular torch Tensor to simplify this check.
-    param_state = opt.state[W]  # type:ignore using tensor as key
-    momentum = param_state['exp_avg'].materialize()
-    assert momentum.shape == (D, D)
-    momentum = momentum.ravel()
-    if momentum.numel() == 1:
-        assert momentum.item() != 0
-    else:
-        assert torch.std(momentum).item() > 0
+        with pytest.raises(AssertionError):  # opt step modified the weights
+            torch.testing.assert_close(W_orig, W)
+
+        # Every momentum should be nonzero with infinite precision, but
+        # might be zero after quantization. We turn the _MaybeQuantizedTensor
+        # instance into a regular torch Tensor to simplify this check.
+        param_state = opt.state[W]  # type:ignore using tensor as key
+        momentum = param_state['exp_avg'].materialize()
+        assert momentum.shape == (D, D)
+        momentum = momentum.ravel()
+        if momentum.numel() == 1:
+            assert momentum.item() != 0
+        else:
+            assert torch.std(momentum).item() > 0
 
 
 @pytest.mark.gpu
@@ -92,33 +99,40 @@ def test_changes_with_zero_grads(N: int, D: int, device: str,
                                  fused: bool, use_errors: bool) -> None:
     if (device == 'cpu') and (fused or use_errors):
         return
+    
+    error_context = contextlib.nullcontext()
+    if use_errors and version.parse(
+            torch.__version__) >= version.parse('2.1.0'):
+        error_context = pytest.raises(
+            RuntimeError, match='DecoupledLionW_8bit with error correction')
 
-    torch.manual_seed(123)
-    W = torch.rand((D, D), device=device, requires_grad=True)
-    W_orig = W.detach().clone()
+    with error_context:
+        torch.manual_seed(123)
+        W = torch.rand((D, D), device=device, requires_grad=True)
+        W_orig = W.detach().clone()
 
-    opt = Lion8bit([W],
-                   _fused=fused,
-                   betas=(.5, .5),
-                   quantize=(device != 'cpu'),
-                   weight_decay=weight_decay,
-                   error_correction=use_errors)
+        opt = Lion8bit([W],
+                    _fused=fused,
+                    betas=(.5, .5),
+                    quantize=(device != 'cpu'),
+                    weight_decay=weight_decay,
+                    error_correction=use_errors)
 
-    zeros_grad = torch.zeros_like(W)
-    for _ in range(5):
-        W.grad = zeros_grad
-        opt.step()
-        opt.zero_grad()
+        zeros_grad = torch.zeros_like(W)
+        for _ in range(5):
+            W.grad = zeros_grad
+            opt.step()
+            opt.zero_grad()
 
-        mom = opt.state[W]['exp_avg']  # type:ignore using tensor as key
-        assert torch.all(mom.materialize() == 0)
-        if mom.is_quantized():
-            assert torch.all(mom.quantized == 0)
+            mom = opt.state[W]['exp_avg']  # type:ignore using tensor as key
+            assert torch.all(mom.materialize() == 0)
+            if mom.is_quantized():
+                assert torch.all(mom.quantized == 0)
 
-        if weight_decay:
-            assert torch.all(W_orig.abs() > W.abs())
-        else:
-            torch.testing.assert_close(W_orig, W)  # no weight modification
+            if weight_decay:
+                assert torch.all(W_orig.abs() > W.abs())
+            else:
+                torch.testing.assert_close(W_orig, W)  # no weight modification
 
 
 @pytest.mark.gpu
@@ -133,43 +147,51 @@ def test_descends(N: int, D: int, device: str, dtype: torch.dtype, fused: bool,
                   use_errors: bool) -> None:
     if (device == 'cpu') and (fused or use_errors):
         return
-    torch.manual_seed(123)
-    X = torch.randn((N, D), device=device, requires_grad=False, dtype=dtype)
-    W = torch.randn((D, D), device=device, requires_grad=True, dtype=dtype)
+    
+    error_context = contextlib.nullcontext()
+    if use_errors and version.parse(
+            torch.__version__) >= version.parse('2.1.0'):
+        error_context = pytest.raises(
+            RuntimeError, match='DecoupledLionW_8bit with error correction')
 
-    # we use tiny beta1 so we move almost entirely in the gradient direction
-    opt = Lion8bit([W],
-                   lr=1e-2,
-                   betas=(.5, .5),
-                   quantize=(device != 'cpu'),
-                   _fused=fused,
-                   error_correction=use_errors)
+    with error_context:
+        torch.manual_seed(123)
+        X = torch.randn((N, D), device=device, requires_grad=False, dtype=dtype)
+        W = torch.randn((D, D), device=device, requires_grad=True, dtype=dtype)
 
-    prev_loss = np.inf
-    prev_momentum = None
-    num_iters = 10 if device == 'cuda' else 2  # keep test fast
-    for _ in range(num_iters):
-        Y = X @ W
-        loss = (Y * Y).mean()
-        loss.backward()
-        opt.step()
-        opt.zero_grad()
+        # we use tiny beta1 so we move almost entirely in the gradient direction
+        opt = Lion8bit([W],
+                    lr=1e-2,
+                    betas=(.5, .5),
+                    quantize=(device != 'cpu'),
+                    _fused=fused,
+                    error_correction=use_errors)
 
-        loss_val = loss.item()
-        assert loss_val < prev_loss
-        prev_loss = loss_val
+        prev_loss = np.inf
+        prev_momentum = None
+        num_iters = 10 if device == 'cuda' else 2  # keep test fast
+        for _ in range(num_iters):
+            Y = X @ W
+            loss = (Y * Y).mean()
+            loss.backward()
+            opt.step()
+            opt.zero_grad()
 
-        # since we're getting the same batch every time and have a small
-        # learning rate, our gradients should point in the same direction
-        # at each step. Consequently, our momentum should grow each step.
-        state_for_param = opt.state[W]  # type:ignore using tensor as key
-        momentum = state_for_param['exp_avg'].materialize()
-        assert momentum is not None and momentum.shape == W.shape
-        if prev_momentum is not None:
-            momentum_abs_changes = (momentum - prev_momentum).abs()
-            assert torch.all(momentum_abs_changes >= 0)
-            assert momentum_abs_changes.max() > 0
-        prev_momentum = momentum.clone()  # {gpu, f32 on cpu} write in place
+            loss_val = loss.item()
+            assert loss_val < prev_loss
+            prev_loss = loss_val
+
+            # since we're getting the same batch every time and have a small
+            # learning rate, our gradients should point in the same direction
+            # at each step. Consequently, our momentum should grow each step.
+            state_for_param = opt.state[W]  # type:ignore using tensor as key
+            momentum = state_for_param['exp_avg'].materialize()
+            assert momentum is not None and momentum.shape == W.shape
+            if prev_momentum is not None:
+                momentum_abs_changes = (momentum - prev_momentum).abs()
+                assert torch.all(momentum_abs_changes >= 0)
+                assert momentum_abs_changes.max() > 0
+            prev_momentum = momentum.clone()  # {gpu, f32 on cpu} write in place
 
 
 def _nmse(vals_true: torch.Tensor,
@@ -329,58 +351,65 @@ def test_lion8b_fused_unfused_unquantized_same(w_init: str, grad_strategy: str,
 @pytest.mark.parametrize('use_errors', [False, True])
 def test_state_dict_save_load(device: str, quantized_state: bool,
                               dtype: torch.dtype, use_errors: bool):
-    torch.manual_seed(123)
-    params = []
-    for shape in _MANY_PARAM_SHAPES:
-        p = torch.rand(shape, device=device, dtype=dtype, requires_grad=True)
-        p.grad = torch.rand_like(p)
-        params.append(p)
+    error_context = contextlib.nullcontext()
+    if use_errors and version.parse(
+            torch.__version__) >= version.parse('2.1.0'):
+        error_context = pytest.raises(
+            RuntimeError, match='DecoupledLionW_8bit with error correction')
 
-    # create optimizer and have it step so that state gets populated
-    opt = Lion8bit(params,
-                   compress_state_dict=quantized_state,
-                   error_correction=use_errors)
-    if device == 'cpu':
-        with pytest.raises(NotImplementedError):
+    with error_context:
+        torch.manual_seed(123)
+        params = []
+        for shape in _MANY_PARAM_SHAPES:
+            p = torch.rand(shape, device=device, dtype=dtype, requires_grad=True)
+            p.grad = torch.rand_like(p)
+            params.append(p)
+
+        # create optimizer and have it step so that state gets populated
+        opt = Lion8bit(params,
+                    compress_state_dict=quantized_state,
+                    error_correction=use_errors)
+        if device == 'cpu':
+            with pytest.raises(NotImplementedError):
+                opt.step()
+            return
+        else:
             opt.step()
-        return
-    else:
-        opt.step()
-    opt.zero_grad()
+        opt.zero_grad()
 
-    # copy state dict into a new instance
-    state_dict = opt.state_dict()
-    opt_new = Lion8bit(params,
-                       compress_state_dict=quantized_state,
-                       error_correction=use_errors)
-    opt_new.load_state_dict(state_dict)
+        # copy state dict into a new instance
+        state_dict = opt.state_dict()
+        opt_new = Lion8bit(params,
+                        compress_state_dict=quantized_state,
+                        error_correction=use_errors)
+        opt_new.load_state_dict(state_dict)
 
-    for p in params:
-        d_orig = opt.state[p]
-        d_new = opt_new.state[p]
-        assert list(d_orig.keys()) == list(d_new.keys())
-        mom_orig = d_orig['exp_avg']
-        mom_new = d_new['exp_avg']
-        if quantized_state:
-            # Optimizer load_state_dict insists on converting scales to
-            # dtype of param, which is lossy for bf16 params.
-            # Ideally we'd require == for everything but it's less complexity
-            # to just relax the bf16 test
-            assert torch.all(mom_orig.quantized == mom_new.quantized)
-            if dtype == torch.bfloat16:
-                torch.testing.assert_close(mom_orig.scales,
-                                           mom_new.scales,
-                                           atol=1e-3,
-                                           rtol=1e-2)
-            else:
-                assert torch.all(mom_orig.scales == mom_new.scales)
+        for p in params:
+            d_orig = opt.state[p]
+            d_new = opt_new.state[p]
+            assert list(d_orig.keys()) == list(d_new.keys())
+            mom_orig = d_orig['exp_avg']
+            mom_new = d_new['exp_avg']
+            if quantized_state:
+                # Optimizer load_state_dict insists on converting scales to
+                # dtype of param, which is lossy for bf16 params.
+                # Ideally we'd require == for everything but it's less complexity
+                # to just relax the bf16 test
+                assert torch.all(mom_orig.quantized == mom_new.quantized)
+                if dtype == torch.bfloat16:
+                    torch.testing.assert_close(mom_orig.scales,
+                                            mom_new.scales,
+                                            atol=1e-3,
+                                            rtol=1e-2)
+                else:
+                    assert torch.all(mom_orig.scales == mom_new.scales)
 
-        torch.testing.assert_close(mom_orig.materialize(),
-                                   mom_new.materialize(),
-                                   atol=1. / (2 * 127),
-                                   rtol=np.inf)
-        if use_errors and (dtype != torch.float32):
-            torch.testing.assert_close(d_orig['errors'], d_new['errors'])
+            torch.testing.assert_close(mom_orig.materialize(),
+                                    mom_new.materialize(),
+                                    atol=1. / (2 * 127),
+                                    rtol=np.inf)
+            if use_errors and (dtype != torch.float32):
+                torch.testing.assert_close(d_orig['errors'], d_new['errors'])
 
 
 class _DummyModule(nn.Module):

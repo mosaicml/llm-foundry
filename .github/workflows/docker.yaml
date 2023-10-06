@@ -3,6 +3,12 @@ on:
   push:
     branches:
     - main
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ./Dockerfile
+      - .github/workflows/docker.yaml
   workflow_dispatch: {}
 jobs:
   docker-build:

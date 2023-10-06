@@ -283,7 +283,7 @@ class MPTModel(MPTPreTrainedModel):
         return self.rotation_matrix
 
     @torch.no_grad()
-    def _rotary_emb(self, device, dtype, seq_len) -> torch.Tensor:
+    def _rotary_emb(self, device, dtype, seq_len, pos) -> torch.Tensor:
         if not self._rotary_embedding_initialized:
             self.rotary_embedding = None
             if self.rope:
@@ -297,7 +297,7 @@ class MPTModel(MPTPreTrainedModel):
             self._rotary_embedding_initialized = True
         if self.rotary_embedding is None:
             return None
-        return self.rotary_embedding(device, dtype, seq_len)
+        return (*(self.rotary_embedding(device, dtype, seq_len)), pos)
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
                            prefix_mask: torch.Tensor) -> torch.Tensor:
@@ -488,7 +488,7 @@ class MPTModel(MPTPreTrainedModel):
         rotation_matrix = self._rotation_matrix(device=x.device,
                                                 dtype=torch.float32)
 
-        (sin, cos) = self._rotary_emb(x.device, x.dtype, S)
+        rotary_emb = self._rotary_emb(x.device, x.dtype, S, pos)
 
         # initialize the past key values cache if it should be used
         if use_cache and past_key_values is None:
@@ -508,7 +508,7 @@ class MPTModel(MPTPreTrainedModel):
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
                 rotation_matrix=rotation_matrix,
-                rotary_emb=(sin, cos, pos),
+                rotary_emb=rotary_emb,
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),

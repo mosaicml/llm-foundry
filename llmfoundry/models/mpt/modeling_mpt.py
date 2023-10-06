@@ -450,7 +450,7 @@ class MPTModel(MPTPreTrainedModel):
                 # adjust the position indices to account for padding tokens
                 pos = torch.clamp(
                     pos - torch.cumsum((~attention_mask).to(torch.int32),
-                                    dim=1)[:, past_position:],
+                                       dim=1)[:, past_position:],
                     min=0,
                 )
 

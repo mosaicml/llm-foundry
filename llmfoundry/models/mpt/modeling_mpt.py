@@ -147,7 +147,7 @@ class MPTModel(MPTPreTrainedModel):
 
         self.rope = config.attn_config['rope']
         assert (config.d_model % config.n_heads == 0)
-        self.rope_head_dim = config.d_model//config.n_heads
+        self.rope_head_dim = config.d_model // config.n_heads
         self.rope_max_seq_len = config.max_seq_len
         self.rope_bf = config.attn_config['rope_bf']
 
@@ -253,39 +253,50 @@ class MPTModel(MPTPreTrainedModel):
 
     # Code taken from https://github.com/huggingface/transformers/blob/v4.33.3/src/transformers/models/roformer/modeling_roformer.py
     @torch.no_grad()
-    def _rotation_matrix(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
-        """
-        Identical to the XLM create_sinusoidal_embeddings except features are not interleaved. The cos features are in
-        the 2nd half of the vector. [head_dim // 2:]
+    def _rotation_matrix(self, device: torch.device,
+                         dtype: torch.dtype) -> torch.Tensor:
+        """Identical to the XLM create_sinusoidal_embeddings except features are
+        not interleaved.
+
+        The cos features are in the 2nd half of the vector. [head_dim // 2:]
         """
         if not self._rotation_matrix_initialized:
             self.rotation_matrix = None
             if self.rope:
-                self.rotation_matrix = torch.empty(self.rotation_matrix_shape, device=device, dtype=dtype)
+                self.rotation_matrix = torch.empty(self.rotation_matrix_shape,
+                                                   device=device,
+                                                   dtype=dtype)
 
-                theta = 1/(torch.pow(self.rope_bf, 2 * (torch.arange(self.rope_head_dim)//2) / self.rope_head_dim))
-                position_enc = torch.outer(torch.arange(self.rope_max_seq_len), theta)
+                theta = 1 / (torch.pow(
+                    self.rope_bf, 2 * (torch.arange(self.rope_head_dim) // 2) /
+                    self.rope_head_dim))
+                position_enc = torch.outer(torch.arange(self.rope_max_seq_len),
+                                           theta)
 
-                sentinel = self.rope_head_dim // 2 if self.rope_head_dim % 2 == 0 else (self.rope_head_dim // 2) + 1
-                self.rotation_matrix[:, 0:sentinel] = torch.FloatTensor(torch.sin(position_enc[:, 0::2])).to(self.rotation_matrix)
-                self.rotation_matrix[:, sentinel:] = torch.FloatTensor(torch.cos(position_enc[:, 1::2])).to(self.rotation_matrix)
+                sentinel = self.rope_head_dim // 2 if self.rope_head_dim % 2 == 0 else (
+                    self.rope_head_dim // 2) + 1
+                self.rotation_matrix[:, 0:sentinel] = torch.FloatTensor(
+                    torch.sin(position_enc[:, 0::2])).to(self.rotation_matrix)
+                self.rotation_matrix[:, sentinel:] = torch.FloatTensor(
+                    torch.cos(position_enc[:, 1::2])).to(self.rotation_matrix)
             self._rotation_matrix_initialized = True
         return self.rotation_matrix
-    
+
     @torch.no_grad()
     def _rotary_emb(self, device, dtype, seq_len) -> torch.Tensor:
         if not self._rotary_embedding_initialized:
-            self.rotary_embedding= None
+            self.rotary_embedding = None
             if self.rope:
-                self.rotary_embedding=RotaryEmbedding(
+                self.rotary_embedding = RotaryEmbedding(
                     self.rope_head_dim,
                     max_position_embeddings=self.rope_max_seq_len,
                     base=self.rope_bf,
-                    )
-                
+                    device=device,
+                    dtype=dtype)
+
             self._rotary_embedding_initialized = True
         if self.rotary_embedding is None:
-            return None            
+            return None
         return self.rotary_embedding(device, dtype, seq_len)
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
@@ -438,10 +449,10 @@ class MPTModel(MPTPreTrainedModel):
             # adjust the position indices to account for padding tokens
             pos = torch.clamp(
                 pos - torch.cumsum((~attention_mask).to(torch.int32),
-                                    dim=1)[:, past_position:],
+                                   dim=1)[:, past_position:],
                 min=0,
             )
-            
+
         if self.learned_pos_emb:
             if S + past_position > self.config.max_seq_len:
                 raise ValueError(
@@ -449,7 +460,7 @@ class MPTModel(MPTPreTrainedModel):
                     +
                     f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
                 )
-            
+
             pos_emb = self.wpe(pos)
             x = tok_emb + pos_emb
         else:
@@ -473,8 +484,9 @@ class MPTModel(MPTPreTrainedModel):
             sequence_id=sequence_id,
         )
 
-        rotation_matrix = self._rotation_matrix(device=x.device, dtype=torch.float32)
-        
+        rotation_matrix = self._rotation_matrix(device=x.device,
+                                                dtype=torch.float32)
+
         (sin, cos) = self._rotary_emb(x.device, x.dtype, S)
 
         # initialize the past key values cache if it should be used

@@ -17,6 +17,7 @@ from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.layers.rotary_embedding import apply_rotary_pos_emb
 
+
 # Code taken from https://github.com/huggingface/transformers/blob/v4.33.3/src/transformers/models/roformer/modeling_roformer.py
 def _apply_rotary_position_embeddings(rotation_matrix: torch.Tensor,
                                       query: torch.Tensor, key: torch.Tensor):
@@ -566,19 +567,27 @@ class GroupedQueryAttention(nn.Module):
             dim=2,
         )
 
-        # if rotation_matrix is not None:
-        #     query = query.view(*(query.shape[:-1]), -1, self.head_dim)
-        #     key = key.view(*(key.shape[:-1]), -1, self.head_dim)
-        #     query, key = _apply_rotary_position_embeddings(
-        #         rotation_matrix, query, key)
-        #     query = query.reshape(*(query.shape[:-2]), self.d_model)
-        #     key = key.reshape(*(key.shape[:-2]),
-        #                       self.kv_n_heads * self.head_dim)
-            
-        
-        if rotary_emb is not None:
-            (cos, sin, pos) = rotary_emb
-            query, key = apply_rotary_pos_emb(query, key, cos, sin, pos)
+        if rotation_matrix is not None:
+            query = query.view(*(query.shape[:-1]), -1, self.head_dim)
+            key = key.view(*(key.shape[:-1]), -1, self.head_dim)
+
+            if False:  # roformer implementation of rope
+                query, key = _apply_rotary_position_embeddings(
+                    rotation_matrix, query, key)
+
+            if True:  # llama implementation of rope
+                (cos, sin, pos) = rotary_emb
+                query = query.transpose(1, 2)
+                key = key.transpose(1, 2)
+                query, key = apply_rotary_pos_emb(query, key, cos, sin, pos)
+                query = query.transpose(1, 2)
+                key = key.transpose(1, 2)
+
+            breakpoint()
+
+            query = query.reshape(*(query.shape[:-2]), self.d_model)
+            key = key.reshape(*(key.shape[:-2]),
+                              self.kv_n_heads * self.head_dim)
 
         key_padding_mask = attention_mask
 

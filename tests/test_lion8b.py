@@ -481,7 +481,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
 
         assert mom_orig.shape == mom_new.shape
         assert mom_orig.dtype == mom_new.dtype
-        if use_errors:
+        if use_errors and (dtype != torch.float32):
             errs_orig = d_orig['errors']
             errs_new = d_new['errors']
             assert errs_orig.shape == errs_new.shape

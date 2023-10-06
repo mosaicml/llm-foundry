@@ -583,8 +583,6 @@ class GroupedQueryAttention(nn.Module):
                 query = query.transpose(1, 2)
                 key = key.transpose(1, 2)
 
-            breakpoint()
-
             query = query.reshape(*(query.shape[:-2]), self.d_model)
             key = key.reshape(*(key.shape[:-2]),
                               self.kv_n_heads * self.head_dim)

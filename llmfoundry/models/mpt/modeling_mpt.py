@@ -295,7 +295,7 @@ class MPTModel(MPTPreTrainedModel):
                     dtype=dtype)
 
             self._rotary_embedding_initialized = True
-        if self.rotary_embedding is None:
+        if self.rotary_embedding is None or pos is None:
             return None
         return (*(self.rotary_embedding(device, dtype, seq_len)), pos)
 
@@ -485,10 +485,12 @@ class MPTModel(MPTPreTrainedModel):
             sequence_id=sequence_id,
         )
 
-        rotation_matrix = self._rotation_matrix(device=x.device,
-                                                dtype=torch.float32)
-
-        rotary_emb = self._rotary_emb(x.device, x.dtype, S, pos)
+        rotation_matrix=None
+        rotary_emb=None
+        if self.rope:
+            # rotation_matrix = self._rotation_matrix(device=x.device, dtype=torch.float32)
+            rotary_emb = self._rotary_emb(x.device, x.dtype, S, pos)
+        breakpoint()
 
         # initialize the past key values cache if it should be used
         if use_cache and past_key_values is None:

@@ -567,21 +567,26 @@ class GroupedQueryAttention(nn.Module):
             dim=2,
         )
 
-        if rotation_matrix is not None:
+        # # Roformer implementation of rope
+        # if rotation_matrix is not None:
+        #     query = query.view(*(query.shape[:-1]), -1, self.head_dim)
+        #     key = key.view(*(key.shape[:-1]), -1, self.head_dim)            
+        #     query, key = _apply_rotary_position_embeddings(
+        #         rotation_matrix, query, key)
+        #     query = query.reshape(*(query.shape[:-2]), self.d_model)
+        #     key = key.reshape(*(key.shape[:-2]),
+        #                       self.kv_n_heads * self.head_dim)
+
+        # Llama implementation of rope
+        if rotary_emb is not None:
             query = query.view(*(query.shape[:-1]), -1, self.head_dim)
             key = key.view(*(key.shape[:-1]), -1, self.head_dim)
-
-            if False:  # roformer implementation of rope
-                query, key = _apply_rotary_position_embeddings(
-                    rotation_matrix, query, key)
-
-            if True:  # llama implementation of rope
-                (cos, sin, pos) = rotary_emb
-                query = query.transpose(1, 2)
-                key = key.transpose(1, 2)
-                query, key = apply_rotary_pos_emb(query, key, cos, sin, pos)
-                query = query.transpose(1, 2)
-                key = key.transpose(1, 2)
+            (cos, sin, pos) = rotary_emb
+            query = query.transpose(1, 2)
+            key = key.transpose(1, 2)
+            query, key = apply_rotary_pos_emb(query, key, cos, sin, pos)
+            query = query.transpose(1, 2)
+            key = key.transpose(1, 2)
 
             query = query.reshape(*(query.shape[:-2]), self.d_model)
             key = key.reshape(*(key.shape[:-2]),

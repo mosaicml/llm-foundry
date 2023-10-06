@@ -29,4 +29,6 @@ __all__ = [
     'SharedEmbedding',
     'FFN_CLASS_REGISTRY',
     'build_ffn',
+    'RotaryEmbedding',
+    'apply_rotary_pos_emb',
 ]

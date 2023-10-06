@@ -38,6 +38,7 @@ from llmfoundry.models.layers.ffn import \
 from llmfoundry.models.layers.ffn import MPTMLP as MPTMLP
 from llmfoundry.models.layers.ffn import build_ffn as build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
+from llmfoundry.models.layers.rotary_embedding import RotaryEmbedding
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
 # NOTE: All utils are imported directly even if unused so that
@@ -145,13 +146,17 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         self.rope = config.attn_config['rope']
+        assert (config.d_model % config.n_heads == 0)
+        self.rope_head_dim = config.d_model//config.n_heads
+        self.rope_max_seq_len = config.max_seq_len
+        self.rope_bf = config.attn_config['rope_bf']
+
         self._rotation_matrix_initialized = False
         self.rotation_matrix = None
-        assert (config.d_model % config.n_heads == 0)
-        self.rope_max_seq_len = config.max_seq_len
-        self.rope_head_dim = config.d_model//config.n_heads
-        self.rope_bf = config.attn_config['rope_bf']
         self.rotation_matrix_shape = (config.max_seq_len, self.rope_head_dim)
+
+        self._rotary_embedding_initialized = False
+        self.rotary_embedding = None
 
         if config.no_bias:
             for module in self.modules():
@@ -266,6 +271,22 @@ class MPTModel(MPTPreTrainedModel):
                 self.rotation_matrix[:, sentinel:] = torch.FloatTensor(torch.cos(position_enc[:, 1::2])).to(self.rotation_matrix)
             self._rotation_matrix_initialized = True
         return self.rotation_matrix
+    
+    @torch.no_grad()
+    def _rotary_emb(self, device, dtype, seq_len) -> torch.Tensor:
+        if not self._rotary_embedding_initialized:
+            self.rotary_embedding= None
+            if self.rope:
+                self.rotary_embedding=RotaryEmbedding(
+                    self.rope_head_dim,
+                    max_position_embeddings=self.rope_max_seq_len,
+                    base=self.rope_bf,
+                    )
+                
+            self._rotary_embedding_initialized = True
+        if self.rotary_embedding is None:
+            return None            
+        return self.rotary_embedding(device, dtype, seq_len)
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
                            prefix_mask: torch.Tensor) -> torch.Tensor:
@@ -392,42 +413,43 @@ class MPTModel(MPTPreTrainedModel):
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
         tok_emb = self.wte(input_ids)
-        if self.learned_pos_emb:
-            past_position = 0
-            if past_key_values is not None:
-                if len(past_key_values) != self.config.n_layers:
-                    raise ValueError(
-                        f'past_key_values must provide a past_key_value for each attention '
-                        +
-                        f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
-                    )
-                # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
-                # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
-                # Here we shift position embedding using the `seq` dim of the past key
-                past_position = past_key_values[0][0].size(1)
-                if self.attn_impl == 'torch':
-                    past_position = past_key_values[0][0].size(3)
+        past_position = 0
+        if past_key_values is not None:
+            if len(past_key_values) != self.config.n_layers:
+                raise ValueError(
+                    f'past_key_values must provide a past_key_value for each attention '
+                    +
+                    f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
+                )
+            # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
+            # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
+            # Here we shift position embedding using the `seq` dim of the past key
+            past_position = past_key_values[0][0].size(1)
+            if self.attn_impl == 'torch':
+                past_position = past_key_values[0][0].size(3)
 
+        pos = torch.arange(
+            past_position,
+            S + past_position,
+            dtype=torch.long,
+            device=input_ids.device,
+        ).unsqueeze(0)
+        if attention_mask is not None:
+            # adjust the position indices to account for padding tokens
+            pos = torch.clamp(
+                pos - torch.cumsum((~attention_mask).to(torch.int32),
+                                    dim=1)[:, past_position:],
+                min=0,
+            )
+            
+        if self.learned_pos_emb:
             if S + past_position > self.config.max_seq_len:
                 raise ValueError(
                     f'Cannot forward input with past sequence length {past_position} and current sequence length '
                     +
                     f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
                 )
-            pos = torch.arange(
-                past_position,
-                S + past_position,
-                dtype=torch.long,
-                device=input_ids.device,
-            ).unsqueeze(0)
-            if attention_mask is not None:
-                # adjust the position indices to account for padding tokens
-                pos = torch.clamp(
-                    pos - torch.cumsum((~attention_mask).to(torch.int32),
-                                       dim=1)[:, past_position:],
-                    min=0,
-                )
-
+            
             pos_emb = self.wpe(pos)
             x = tok_emb + pos_emb
         else:
@@ -452,6 +474,8 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         rotation_matrix = self._rotation_matrix(device=x.device, dtype=torch.float32)
+        
+        (sin, cos) = self._rotary_emb(x.device, x.dtype, S)
 
         # initialize the past key values cache if it should be used
         if use_cache and past_key_values is None:
@@ -471,6 +495,7 @@ class MPTModel(MPTPreTrainedModel):
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
                 rotation_matrix=rotation_matrix,
+                rotary_emb=(sin, cos, pos),
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),

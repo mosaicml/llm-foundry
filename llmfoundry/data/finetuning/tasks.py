@@ -319,7 +319,9 @@ class DatasetConstructor:
             Dataset: The tokenized dataset.
         """
         dataset_name = cfg.hf_name
-        split = cfg.split
+        # HF datasets does not support a split with dashes,so we replace split
+        # dashes with underscore.
+        split = cfg.split.replace('-', '_')
         kwargs = cfg.get('hf_kwargs', {})
         proto_preprocessing_fn = cfg.get('preprocessing_fn')
         if isinstance(proto_preprocessing_fn, dict) or isinstance(

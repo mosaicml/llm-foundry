@@ -14,7 +14,8 @@ from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.metrics import (InContextLearningLMAccuracy,
+from composer.metrics import (InContextLearningCodeEvalAccuracy,
+                              InContextLearningLMAccuracy,
                               InContextLearningLMExpectedCalibrationError,
                               InContextLearningMCExpectedCalibrationError,
                               InContextLearningMultipleChoiceAccuracy,
@@ -149,6 +150,11 @@ class MPTModel(MPTPreTrainedModel):
                         module.bias, nn.Parameter):
                     log.info(f'Removing bias ({module.bias}) from {module}.')
                     module.register_parameter('bias', None)
+
+                # For transformer engine
+                if hasattr(module, 'use_bias'):
+                    log.info(f'Setting use_bias=False for {module}.')
+                    module.use_bias = False
 
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
@@ -688,13 +694,16 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         hf_config = MPTConfig.from_dict(resolved_om_model_config)
         model = MPTForCausalLM(hf_config)
 
-        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
+        use_train_metrics = om_model_config.get('use_train_metrics', True)
+        train_metrics = [LanguageCrossEntropy(),
+                         LanguagePerplexity()] if use_train_metrics else []
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
+            InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError(),
         ]

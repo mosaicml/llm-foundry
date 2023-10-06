@@ -1,7 +1,8 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_commit: 5ec4016b40652557d57a1d4949ad13a65251184b # TODO: repin this after next release
+  git_branch: v0.3.0
+  # git_commit: # OR use your commit hash
   pip_install: -e .[gpu]
   ssh_clone: false # Should be true if using a private repo
 

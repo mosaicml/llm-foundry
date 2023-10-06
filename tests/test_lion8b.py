@@ -255,11 +255,16 @@ def test_lion8b_fused_unfused_unquantized_same(w_init: str, grad_strategy: str,
     opt_uq = Lion8bit([W_uq], quantize=False, **kwargs)
     opt_uf = Lion8bit([W_uf], _fused=False, **kwargs)
     opt_fq = Lion8bit([W_fq], _fused=True, **kwargs)
-    opt_fqe = Lion8bit([W_fqe], _fused=True, error_correction=True, **kwargs)
     opt_sgd = torch.optim.SGD([W_sgd], lr=lr)
 
-    W_list = [W_true, W_uq, W_uf, W_fq, W_fqe, W_sgd]
-    opt_list = [opt_true, opt_uq, opt_uf, opt_fq, opt_fqe, opt_sgd]
+    W_list = [W_true, W_uq, W_uf, W_fq, W_sgd]
+    opt_list = [opt_true, opt_uq, opt_uf, opt_fq, opt_sgd]
+    
+    # error correction not supported on torch 2.1
+    if version.parse(torch.__version__) < version.parse('2.1.0'):
+        opt_fqe = Lion8bit([W_fqe], _fused=True, error_correction=True, **kwargs)
+        W_list.append(W_fqe)
+        opt_list.append(opt_fqe)
 
     if grad_strategy == 'zero':
         grads = torch.zeros_like(W0)
@@ -555,7 +560,13 @@ def test_fused_as_fast_as_unfused(N: int,
 
         times = {}
         kwargs = {'weight_decay': .01}
+
         combos = [(True, False), (True, True), (False, False), ('NA', False)]
+        # use_errors not currently supported on torch 2.1
+        if version.parse(
+            torch.__version__) >= version.parse('2.1.0'):
+            combos = [(True, False), (False, False), ('NA', False)]
+
         for fused, use_errors in combos:
             if fused == 'NA':
                 opt = Lion8bit(

@@ -331,7 +331,7 @@ def test_lion8b_fused_unfused_unquantized_same(w_init: str, grad_strategy: str,
         # at all; latter is "ground truth"
         assert cossim(diffs_true, diffs_fq, dim=-1) > min_cossim
         assert _nmse(diffs_true, diffs_fq) < max_nmse
-        
+
         # error correction not supported on torch 2.1
         if version.parse(torch.__version__) < version.parse('2.1.0'):
             # fused impl with errors should also be close to "true" updates;

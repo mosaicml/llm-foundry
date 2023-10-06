@@ -68,9 +68,11 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                  compress_state_dict: bool = False,
                  error_correction: bool = False,
                  _fused: bool = True):  # XXX this flag is mostly for testing...
-        if version.parse(torch.__version__) >= version.parse('2.1.0') and error_correction:
+        if version.parse(torch.__version__) >= version.parse(
+                '2.1.0') and error_correction:
             raise RuntimeError(
-                'DecoupledLionW_8bit with error correction requires PyTorch <2.1.0')
+                'DecoupledLionW_8bit with error correction requires PyTorch <2.1.0'
+            )
 
         if lr < 0.0:
             raise ValueError('Invalid learning rate: {}'.format(lr))

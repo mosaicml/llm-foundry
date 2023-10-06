@@ -1,10 +1,10 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import os
 import time
 import warnings
-import contextlib
 
 import numpy as np
 import packaging.version as version
@@ -415,10 +415,12 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
     if version.parse(torch.__version__) < version.parse('2.0.1'):
         pytest.skip(f'This test requires torch 2.0.1 or greater.')
 
-    error_context = contextlib.null_context()
-    if use_errors and version.parse(torch.__version__) >= version.parse('2.1.0'):
-        error_context = pytest.raises(RuntimeError, match='DecoupledLionW_8bit with error correction')
-    
+    error_context = contextlib.nullcontext()
+    if use_errors and version.parse(
+            torch.__version__) >= version.parse('2.1.0'):
+        error_context = pytest.raises(
+            RuntimeError, match='DecoupledLionW_8bit with error correction')
+
     with error_context:
         torch.cuda.set_device(f'cuda:{os.environ["RANK"]}')  # needed for fsdp
         if not dist.is_initialized():
@@ -453,7 +455,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
                 _LOCAL_STATE: LocalOptimStateDictConfig(),
             }[state_sharding]
             FSDP.set_state_dict_type(model, state_sharding, state_dict_cfg,
-                                    optim_cfg)
+                                     optim_cfg)
 
         # load FSDP state dict
         _set_state_dict_type(mod)

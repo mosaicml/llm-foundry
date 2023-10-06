@@ -259,10 +259,13 @@ def test_lion8b_fused_unfused_unquantized_same(w_init: str, grad_strategy: str,
 
     W_list = [W_true, W_uq, W_uf, W_fq, W_sgd]
     opt_list = [opt_true, opt_uq, opt_uf, opt_fq, opt_sgd]
-    
+
     # error correction not supported on torch 2.1
     if version.parse(torch.__version__) < version.parse('2.1.0'):
-        opt_fqe = Lion8bit([W_fqe], _fused=True, error_correction=True, **kwargs)
+        opt_fqe = Lion8bit([W_fqe],
+                           _fused=True,
+                           error_correction=True,
+                           **kwargs)
         W_list.append(W_fqe)
         opt_list.append(opt_fqe)
 
@@ -563,8 +566,7 @@ def test_fused_as_fast_as_unfused(N: int,
 
         combos = [(True, False), (True, True), (False, False), ('NA', False)]
         # use_errors not currently supported on torch 2.1
-        if version.parse(
-            torch.__version__) >= version.parse('2.1.0'):
+        if version.parse(torch.__version__) >= version.parse('2.1.0'):
             combos = [(True, False), (False, False), ('NA', False)]
 
         for fused, use_errors in combos:

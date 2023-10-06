@@ -416,7 +416,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
 
     torch.cuda.set_device(f'cuda:{os.environ["RANK"]}')  # needed for fsdp
     if not dist.is_initialized():
-        dist.init_process_group()
+        dist.init_process_group(backend='nccl')
     assert dist.get_world_size() >= 2, 'Misconfigured test run!'
 
     mod = FSDP(_DummyModule(device=device, dtype=dtype))

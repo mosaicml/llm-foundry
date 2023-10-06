@@ -424,34 +424,35 @@ class MPTModel(MPTPreTrainedModel):
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
         tok_emb = self.wte(input_ids)
-        past_position = 0
-        if past_key_values is not None:
-            if len(past_key_values) != self.config.n_layers:
-                raise ValueError(
-                    f'past_key_values must provide a past_key_value for each attention '
-                    +
-                    f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
-                )
-            # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
-            # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
-            # Here we shift position embedding using the `seq` dim of the past key
-            past_position = past_key_values[0][0].size(1)
-            if self.attn_impl == 'torch':
-                past_position = past_key_values[0][0].size(3)
+        if self.learned_pos_emb or self.rope:
+            past_position = 0
+            if past_key_values is not None:
+                if len(past_key_values) != self.config.n_layers:
+                    raise ValueError(
+                        f'past_key_values must provide a past_key_value for each attention '
+                        +
+                        f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
+                    )
+                # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
+                # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
+                # Here we shift position embedding using the `seq` dim of the past key
+                past_position = past_key_values[0][0].size(1)
+                if self.attn_impl == 'torch':
+                    past_position = past_key_values[0][0].size(3)
 
-        pos = torch.arange(
-            past_position,
-            S + past_position,
-            dtype=torch.long,
-            device=input_ids.device,
-        ).unsqueeze(0)
-        if attention_mask is not None:
-            # adjust the position indices to account for padding tokens
-            pos = torch.clamp(
-                pos - torch.cumsum((~attention_mask).to(torch.int32),
-                                   dim=1)[:, past_position:],
-                min=0,
-            )
+            pos = torch.arange(
+                past_position,
+                S + past_position,
+                dtype=torch.long,
+                device=input_ids.device,
+            ).unsqueeze(0)
+            if attention_mask is not None:
+                # adjust the position indices to account for padding tokens
+                pos = torch.clamp(
+                    pos - torch.cumsum((~attention_mask).to(torch.int32),
+                                    dim=1)[:, past_position:],
+                    min=0,
+                )
 
         if self.learned_pos_emb:
             if S + past_position > self.config.max_seq_len:

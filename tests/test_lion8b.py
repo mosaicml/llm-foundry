@@ -460,7 +460,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
 
     # load state dict into the new optimizer
     opt_state_dict_slice = FSDP.optim_state_dict_to_load(
-        opt_state_dict, mod_new, opt_new)
+        optim_state_dict=opt_state_dict, model=mod_new, optim=opt_new)
     opt_new.load_state_dict(opt_state_dict_slice)
 
     new_opt_state_dict = FSDP.optim_state_dict(mod_new, opt_new)

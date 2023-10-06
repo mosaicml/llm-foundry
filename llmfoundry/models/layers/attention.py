@@ -567,15 +567,15 @@ class GroupedQueryAttention(nn.Module):
             dim=2,
         )
 
-        # # Roformer implementation of rope
-        # if rotation_matrix is not None:
-        #     query = query.view(*(query.shape[:-1]), -1, self.head_dim)
-        #     key = key.view(*(key.shape[:-1]), -1, self.head_dim)            
-        #     query, key = _apply_rotary_position_embeddings(
-        #         rotation_matrix, query, key)
-        #     query = query.reshape(*(query.shape[:-2]), self.d_model)
-        #     key = key.reshape(*(key.shape[:-2]),
-        #                       self.kv_n_heads * self.head_dim)
+        # Roformer implementation of rope
+        if rotation_matrix is not None:
+            query = query.view(*(query.shape[:-1]), -1, self.head_dim)
+            key = key.view(*(key.shape[:-1]), -1, self.head_dim)            
+            query, key = _apply_rotary_position_embeddings(
+                rotation_matrix, query, key)
+            query = query.reshape(*(query.shape[:-2]), self.d_model)
+            key = key.reshape(*(key.shape[:-2]),
+                              self.kv_n_heads * self.head_dim)
 
         # Llama implementation of rope
         if rotary_emb is not None:

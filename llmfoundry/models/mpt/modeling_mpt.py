@@ -424,6 +424,7 @@ class MPTModel(MPTPreTrainedModel):
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
         tok_emb = self.wte(input_ids)
+        pos = None
         if self.learned_pos_emb or self.rope:
             past_position = 0
             if past_key_values is not None:
@@ -485,12 +486,11 @@ class MPTModel(MPTPreTrainedModel):
             sequence_id=sequence_id,
         )
 
-        rotation_matrix=None
-        rotary_emb=None
-        if self.rope:
-            # rotation_matrix = self._rotation_matrix(device=x.device, dtype=torch.float32)
-            rotary_emb = self._rotary_emb(x.device, x.dtype, S, pos)
-        breakpoint()
+        
+        # rotation_matrix is used for the roformer implementation of rope, rotary_emb is used for llama implemenation of rope
+        rotation_matrix = None
+        # rotation_matrix = self._rotation_matrix(device=x.device, dtype=torch.float32)
+        rotary_emb = self._rotary_emb(x.device, x.dtype, S, pos)
 
         # initialize the past key values cache if it should be used
         if use_cache and past_key_values is None:

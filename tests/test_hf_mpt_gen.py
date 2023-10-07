@@ -102,9 +102,13 @@ class MockMPTForCausalLM(MPTForCausalLM):
         inputs_embeds: Optional[torch.FloatTensor] = None,
     ):
         result = super().forward(input_ids, past_key_values, attention_mask, prefix_mask, sequence_id, labels, return_dict, output_attentions, output_hidden_states, use_cache, inputs_embeds)
-        # Rank 0 should hit EOS immediately.
+        # Modify the logits to select the next token.
         if dist.get_global_rank() == 0:
+            # Rank 0 hits EOS immediately.
             result.logits[:, :, EOS_TOKEN_ID] = torch.inf
+        else:
+            # Other ranks do not hit EOS.
+            result.logits[:, :, EOS_TOKEN_ID] = -torch.inf
         return result
 
 def mock_from_config(config: MPTConfig, **_):

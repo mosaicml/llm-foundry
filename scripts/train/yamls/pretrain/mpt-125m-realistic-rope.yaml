@@ -15,6 +15,7 @@ model:
   max_seq_len: ${max_seq_len}
   vocab_size: 50368 # update for hero run with custom tokenizer
   no_bias: true
+  learned_pos_emb: false
   attn_config:
     alibi: false
     attn_impl: triton

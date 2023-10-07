@@ -280,7 +280,7 @@ def main():
     shared_contexts_ratio = args.shared_contexts_ratio
     layernorm_eps = args.layernorm_eps
     use_attention_linear_bias = args.alibi
-    has_positional_encoding = not args.alibi
+    has_positional_encoding = not args.alibi # TODO: Should be: has_positional_encoding = not (args.alibi or args.rope)
 
     print('\n=================== Arguments ===================')
     for k, v in vars(args).items():

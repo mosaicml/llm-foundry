@@ -66,8 +66,12 @@ jobs:
         elif [ "${{ github.event_name }}" == "pull_request" ]; then
           echo "Triggered by pull_request event."
           STAGING_REPO="mosaicml/ci-staging"
-          IMAGE_TAG="${STAGING_REPO}:${{matrix.name}}-${GIT_SHA}""
+          IMAGE_TAG="${STAGING_REPO}:${{matrix.name}}-${GIT_SHA}"
           IMAGE_CACHE="${STAGING_REPO}:${{matrix.name}}-buildcache"
+        else
+          echo "Triggered by unknown event: ${{ github.event_name }}"
+          exit 1
+        fi
 
     - name: Build and Push the Docker Image
       uses: docker/build-push-action@v3

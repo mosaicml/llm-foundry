@@ -113,8 +113,10 @@ extra_deps['openai'] = [
 ]
 extra_deps['all-cpu'] = set(
     dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
-extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps if key != 'gpu-flash2')
-extra_deps['all-flash2'] = set(dep for key, deps in extra_deps.items() for dep in deps if key != 'gpu')
+extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
+                        if key != 'gpu-flash2')
+extra_deps['all-flash2'] = set(
+    dep for key, deps in extra_deps.items() for dep in deps if key != 'gpu')
 
 setup(
     name=_PACKAGE_NAME,

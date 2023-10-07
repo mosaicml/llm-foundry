@@ -61,12 +61,12 @@ jobs:
         if [ "${{ github.event_name }}" == "push" ]; then
           echo "Triggered by push event."
           PROD_REPO="mosaicml/llm-foundry"
-          IMAGE_TAG=${PROD_REPO}:${{matrix.name}}-${GIT_SHA},${PROD_REPO}:${{matrix.name}}-latest
+          IMAGE_TAG="${PROD_REPO}:${{matrix.name}}-${GIT_SHA},${PROD_REPO}:${{matrix.name}}-latest"
           IMAGE_CACHE="${PROD_REPO}:${{matrix.name}}-buildcache"
         elif [ "${{ github.event_name }}" == "pull_request" ]; then
           echo "Triggered by pull_request event."
           STAGING_REPO="mosaicml/ci-staging"
-          IMAGE_TAG=${STAGING_REPO}:${{matrix.name}}-${GIT_SHA}
+          IMAGE_TAG="${STAGING_REPO}:${{matrix.name}}-${GIT_SHA}""
           IMAGE_CACHE="${STAGING_REPO}:${{matrix.name}}-buildcache"
 
     - name: Build and Push the Docker Image

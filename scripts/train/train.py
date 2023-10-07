@@ -33,7 +33,16 @@ def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""
     loaders = [cfg.train_loader]
     if 'eval_loader' in cfg:
-        loaders.append(cfg.eval_loader)
+        eval_loader = cfg.eval_loader
+        if isinstance(eval_loader, ListConfig):
+            for loader in eval_loader:
+                if loader.label is None:
+                    raise ValueError(
+                        'When specifying multiple evaluation datasets, each one must include the \
+                            `label` attribute.')
+                loaders.append(loader)
+        else:
+            loaders.append(eval_loader)
     for loader in loaders:
         if loader.name == 'text':
             if cfg.model.name in ['hf_prefix_lm', 'hf_t5']:
@@ -245,10 +254,8 @@ def main(cfg: DictConfig) -> Trainer:
                                                        must_exist=False,
                                                        default_value=None,
                                                        convert=True)
-    eval_loader_config: Optional[DictConfig] = pop_config(cfg,
-                                                          'eval_loader',
-                                                          must_exist=False,
-                                                          default_value=None)
+    eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(
+        cfg, 'eval_loader', must_exist=False, default_value=None)
     icl_tasks_config: Optional[Union[ListConfig,
                                      str]] = pop_config(cfg,
                                                         'icl_tasks',
@@ -469,15 +476,21 @@ def main(cfg: DictConfig) -> Trainer:
     ## Evaluation
     print('Building eval loader...')
     evaluators = []
-    eval_loader = None
+    eval_loaders = []
     if eval_loader_config is not None:
-        eval_dataloader = build_dataloader(eval_loader_config, tokenizer,
-                                           device_eval_batch_size)
-        eval_loader = Evaluator(
-            label='eval',
-            dataloader=eval_dataloader,
-            metric_names=[],  # we will add these after model is created
-        )
+        is_multi_eval = isinstance(eval_loader_config, ListConfig)
+        eval_configs = eval_loader_config if is_multi_eval else [
+            eval_loader_config
+        ]
+        for eval_config in eval_configs:
+            eval_dataloader = build_dataloader(eval_config, tokenizer,
+                                               device_eval_batch_size)
+            eval_loader = Evaluator(
+                label=f'eval/{eval_config.label}' if is_multi_eval else 'eval',
+                dataloader=eval_dataloader,
+                metric_names=[],  # we will add these after model is created
+            )
+            eval_loaders.append(eval_loader)
 
     eval_gauntlet_callback = None
 
@@ -517,11 +530,11 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Now add the eval metrics
     if eval_loader_config is not None:
-        assert eval_loader is not None
         assert model.train_metrics is not None
         eval_metric_names = list(model.train_metrics.keys())
-        eval_loader.metric_names = eval_metric_names
-        evaluators.insert(0, eval_loader)  # Put the base eval_loader first
+        for eval_loader in eval_loaders:
+            eval_loader.metric_names = eval_metric_names
+            evaluators.insert(0, eval_loader)  # Put the base eval_loaders first
 
     # Build the Trainer
     print('Building trainer...')

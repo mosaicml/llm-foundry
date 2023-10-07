@@ -443,7 +443,7 @@ class MPTModel(MPTPreTrainedModel):
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
             )
-            if use_cache:
+            if presents is not None:
                 presents += (present,)
 
             if output_attentions:

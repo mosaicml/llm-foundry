@@ -251,37 +251,6 @@ class MPTModel(MPTPreTrainedModel):
 
         return attn_bias, None
 
-    # Code taken from https://github.com/huggingface/transformers/blob/v4.33.3/src/transformers/models/roformer/modeling_roformer.py
-    @torch.no_grad()
-    def _rotation_matrix(self, device: torch.device,
-                         dtype: torch.dtype) -> torch.Tensor:
-        """Identical to the XLM create_sinusoidal_embeddings except features are
-        not interleaved.
-
-        The cos features are in the 2nd half of the vector. [head_dim // 2:]
-        """
-        if not self._rotation_matrix_initialized:
-            self.rotation_matrix = None
-            if self.rope:
-                self.rotation_matrix = torch.empty(self.rotation_matrix_shape,
-                                                   device=device,
-                                                   dtype=dtype)
-
-                theta = 1 / (torch.pow(
-                    self.rope_bf, 2 * (torch.arange(self.rope_head_dim) // 2) /
-                    self.rope_head_dim))
-                position_enc = torch.outer(torch.arange(self.rope_max_seq_len),
-                                           theta)
-
-                sentinel = self.rope_head_dim // 2 if self.rope_head_dim % 2 == 0 else (
-                    self.rope_head_dim // 2) + 1
-                self.rotation_matrix[:, 0:sentinel] = torch.FloatTensor(
-                    torch.sin(position_enc[:, 0::2])).to(self.rotation_matrix)
-                self.rotation_matrix[:, sentinel:] = torch.FloatTensor(
-                    torch.cos(position_enc[:, 1::2])).to(self.rotation_matrix)
-            self._rotation_matrix_initialized = True
-        return self.rotation_matrix
-
     @torch.no_grad()
     def _rotary_emb(self, device, dtype, seq_len, pos) -> torch.Tensor:
         if not self._rotary_embedding_initialized:
@@ -486,10 +455,6 @@ class MPTModel(MPTPreTrainedModel):
             sequence_id=sequence_id,
         )
 
-        
-        # rotation_matrix is used for the roformer implementation of rope, rotary_emb is used for llama implemenation of rope
-        rotation_matrix = None
-        # rotation_matrix = self._rotation_matrix(device=x.device, dtype=torch.float32)
         rotary_emb = self._rotary_emb(x.device, x.dtype, S, pos)
 
         # initialize the past key values cache if it should be used
@@ -509,7 +474,6 @@ class MPTModel(MPTPreTrainedModel):
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
-                rotation_matrix=rotation_matrix,
                 rotary_emb=rotary_emb,
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,

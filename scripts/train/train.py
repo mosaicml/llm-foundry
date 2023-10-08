@@ -383,6 +383,10 @@ def main(cfg: DictConfig) -> Trainer:
                                          'load_weights_only',
                                          must_exist=False,
                                          default_value=False)
+    load_strict_model_weights: bool = pop_config(cfg,
+                                         'load_strict_model_weights',
+                                         must_exist=False,
+                                         default_value=True)
     load_ignore_keys: Optional[List[str]] = pop_config(cfg,
                                                        'load_ignore_keys',
                                                        must_exist=False,
@@ -567,6 +571,7 @@ def main(cfg: DictConfig) -> Trainer:
         save_weights_only=save_weights_only,
         load_path=load_path,
         load_weights_only=load_weights_only,
+        load_strict_model_weights=load_strict_model_weights,
         load_ignore_keys=load_ignore_keys,
         autoresume=autoresume,
         python_log_level=python_log_level,

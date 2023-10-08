@@ -267,7 +267,7 @@ class MPTModel(MPTPreTrainedModel):
             self._rotary_embedding_initialized = True
         if self.rotary_embedding is None or pos is None:
             return None
-        return (*(self.rotary_embedding(dtype, seq_len)), pos)
+        return (*(self.rotary_embedding(dtype, device, seq_len)), pos)
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
                            prefix_mask: torch.Tensor) -> torch.Tensor:

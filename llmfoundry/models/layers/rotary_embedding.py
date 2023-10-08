@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Code taken from https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py
+# Code modified from https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py
 
 import torch
 from torch import nn
@@ -12,39 +12,29 @@ class RotaryEmbedding(nn.Module):
     def __init__(self, dim: int, max_position_embeddings: int, base: int,
                  device: torch.device, dtype: torch.dtype):
         super().__init__()
-        self.dim = dim
+
         self.max_position_embeddings = max_position_embeddings
-        self.base = base
-        inv_freq = 1.0 / (self.base**(
-            torch.arange(0, self.dim, 2).float().to(device) / self.dim))
-        self.register_buffer('inv_freq', inv_freq, persistent=False)
 
-        self.max_seq_len_cached = max_position_embeddings
-        # Build here to make `torch.jit.trace` work.
-        self._set_cos_sin_cache(seq_len=max_position_embeddings, dtype=dtype)
+        inv_freq = 1.0 / (base
+                          **(torch.arange(0, dim, 2).float().to(device) / dim))
+        t = torch.arange(self.max_position_embeddings).to(inv_freq)
 
-    def _set_cos_sin_cache(self, seq_len: int, dtype: torch.dtype):
-        self.max_seq_len_cached = seq_len
-        t = torch.arange(self.max_seq_len_cached).to(self.inv_freq)
-
-        freqs = torch.einsum('i,j->ij', t, self.inv_freq)
+        freqs = torch.einsum('i,j->ij', t, inv_freq)
         # Different from paper, but it uses a different permutation in order to obtain the same calculation
         emb = torch.cat((freqs, freqs), dim=-1)
-        self.register_buffer('cos_cached',
-                             emb.cos()[None, None, :, :].to(dtype),
-                             persistent=False)
-        self.register_buffer('sin_cached',
-                             emb.sin()[None, None, :, :].to(dtype),
-                             persistent=False)
+        self.cos_cached = emb.cos()[None, None, :, :].to(dtype)
+        self.sin_cached = emb.sin()[None, None, :, :].to(dtype)
 
-    def forward(self, dtype: torch.dtype, seq_len: int):
+    def forward(self, dtype: torch.dtype, device: torch.device, seq_len: int):
         # x: [bs, num_attention_heads, seq_len, head_size]
-        if seq_len > self.max_seq_len_cached:
-            self._set_cos_sin_cache(seq_len=seq_len, dtype=dtype)
+        if seq_len > self.max_position_embeddings:
+            raise ValueError(
+                'The sequence length is greater than the maximum sequence length.'
+            )
 
         return (
-            self.cos_cached[:, :, :seq_len, ...].to(dtype=dtype),
-            self.sin_cached[:, :, :seq_len, ...].to(dtype=dtype),
+            self.cos_cached[:, :, :seq_len, ...].to(dtype=dtype, device=device),
+            self.sin_cached[:, :, :seq_len, ...].to(dtype=dtype, device=device),
         )
 
 

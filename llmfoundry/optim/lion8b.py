@@ -133,13 +133,17 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                 mom, try_quantize=self._quantize)
         need_errs = (p.dtype != torch.float32) and self._error_correction
         if state.get('errors') is None and need_errs:
-            errors = torch.zeros(p.shape, dtype=torch.uint8, device=p.device)
+            numel = p.numel()
+            numel += numel % 2  # ensure even number of bytes
+            errors = torch.zeros(numel, dtype=torch.uint8, device=p.device)
             # as of torch 2.1, FSDP can't shard ints for no reason
             state['errors'] = errors.view(torch.bfloat16)
         decay_factor = hparams['weight_decay']
         decay_factor *= hparams['lr'] / hparams['initial_lr']
-        errors = (state['errors'].view(dtype=torch.uint8)
-                 if 'errors' in state else None)
+        errors: Optional[torch.Tensor] = None
+        if 'errors' in state:
+            errors = state['errors'].view(dtype=torch.uint8)
+            errors = errors[:p.numel()].view(p.shape)  # strip padding + reshape
         _lion8b_step(momentums=state['exp_avg'],
                      weights=p,
                      grads=p.grad,

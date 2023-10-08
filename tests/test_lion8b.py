@@ -387,7 +387,7 @@ class _DummyModule(nn.Module):
     def __init__(self, device: str, dtype: torch.dtype):
         super().__init__()
         self.linear0 = nn.Linear(4, 3, device=device, dtype=dtype)
-        self.linear1 = nn.Linear(3, 4, device=device, dtype=dtype)
+        self.linear1 = nn.Linear(3, 5, device=device, dtype=dtype)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type:ignore
         return self.linear1(self.linear0(x))

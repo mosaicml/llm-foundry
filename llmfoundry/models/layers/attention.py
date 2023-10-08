@@ -541,7 +541,6 @@ class GroupedQueryAttention(nn.Module):
             dim=2,
         )
 
-        # Llama implementation of rope
         if rotary_emb is not None:
             query = query.view(*(query.shape[:-1]), -1, self.head_dim)
             key = key.view(*(key.shape[:-1]), -1, self.head_dim)

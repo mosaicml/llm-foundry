@@ -97,7 +97,6 @@ class MPTBlock(nn.Module):
         past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
-        pos: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         is_causal: bool = True,
         output_attentions: bool = False,

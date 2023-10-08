@@ -252,7 +252,8 @@ class MPTModel(MPTPreTrainedModel):
         return attn_bias, None
 
     @torch.no_grad()
-    def _rotary_emb(self, device, dtype, seq_len, pos) -> torch.Tensor:
+    def _rotary_emb(self, device: torch.device, dtype: torch.dtype,
+                    seq_len: int, pos: Union[torch.Tensor, None]):
         if not self._rotary_embedding_initialized:
             self.rotary_embedding = None
             if self.rope:
@@ -266,7 +267,7 @@ class MPTModel(MPTPreTrainedModel):
             self._rotary_embedding_initialized = True
         if self.rotary_embedding is None or pos is None:
             return None
-        return (*(self.rotary_embedding(device, dtype, seq_len)), pos)
+        return (*(self.rotary_embedding(dtype, seq_len)), pos)
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
                            prefix_mask: torch.Tensor) -> torch.Tensor:

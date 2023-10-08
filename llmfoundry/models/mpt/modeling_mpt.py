@@ -146,15 +146,9 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         self.rope = config.attn_config['rope']
-        assert (config.d_model % config.n_heads == 0)
         self.rope_head_dim = config.d_model // config.n_heads
         self.rope_max_seq_len = config.max_seq_len
         self.rope_bf = config.attn_config['rope_bf']
-
-        self._rotation_matrix_initialized = False
-        self.rotation_matrix = None
-        self.rotation_matrix_shape = (config.max_seq_len, self.rope_head_dim)
-
         self._rotary_embedding_initialized = False
         self.rotary_embedding = None
 

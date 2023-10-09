@@ -8,7 +8,7 @@ ARG DEP_GROUPS
 
 # Install and uninstall foundry to cache foundry requirements
 # TEMPORARY CHANGE DO NOT MERGE
-RUN git clone -b flash2-upstream https://github.com/mosaicml/llm-foundry.git 
+RUN git clone -b flash2-upstream https://github.com/mosaicml/llm-foundry.git
 RUN pip install --no-cache-dir "./llm-foundry${DEP_GROUPS}"
 RUN pip uninstall -y llm-foundry
 RUN rm -rf llm-foundry

@@ -16,6 +16,17 @@ from torch import nn
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
+def raise_if_flash_attn_v2():
+    flash_attn_version = None
+    # This only needs to be in a try except so that huggingface does not try to import it
+    try:
+        from flash_attn import __version__ as flash_attn_version
+        if version.parse(flash_attn_version) >= version.parse('2.0.0'):
+            raise RuntimeError(
+                'flash-attn==2.0.0+ is not supported. Please use flash-attn==1.0.9.'
+            )
+    except:
+        pass
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
                      original_is_causal: bool) -> bool:
@@ -197,7 +208,7 @@ def flash_attn_fn(
     try:
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
     except:
-        raise RuntimeError('Please install flash-attn==1.0.3.post0')
+        raise RuntimeError('Please install flash-attn==1.0.9')
 
     check_valid_inputs(query, key, value)
 
@@ -321,7 +332,7 @@ def triton_flash_attn_fn(
         if version.parse(torch.__version__) < version.parse('2.0.0'):
             _installed = True
             # if torch1.13.1 revert to using triton flash attn from HazyResearch
-            # with flash-attn==1.0.3.post0 and triton==2.0.0.dev20221202
+            # with flash-attn==1.0.9 and triton==2.0.0.dev20221202
             try:
                 from flash_attn.flash_attn_triton import flash_attn_func
             except:

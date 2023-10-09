@@ -19,10 +19,16 @@ jobs:
         include:
         - name: '1.13.1_cu117'
           base_image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+          dep_groups: [gpu]
         - name: '2.0.1_cu118'
           base_image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
+          dep_groups: [gpu]
         - name: '2.1.0_cu121'
           base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
+          dep_groups: [gpu]
+        - name: '2.1.0_cu121_flash2'
+          base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
+          dep_groups: [gpu-flash2]
 
     steps:
     - name: Maximize Build Space on Worker
@@ -84,4 +90,6 @@ jobs:
         push: true
         cache-from: type=registry,ref=${{ env.IMAGE_CACHE }}
         cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max
-        build-args: BASE_IMAGE=${{ matrix.base_image }}
+        build-args: |
+          BASE_IMAGE=${{ matrix.base_image }}
+          DEP_GROUPS=${{ matrix.dep_groups }}

@@ -16,6 +16,7 @@ from torch import nn
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
+
 def raise_if_flash_attn_v2():
     flash_attn_version = None
     # This only needs to be in a try except so that huggingface does not try to import it

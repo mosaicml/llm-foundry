@@ -249,7 +249,6 @@ class MPTModel(MPTPreTrainedModel):
     def _rotary_emb(self, device: torch.device, dtype: torch.dtype,
                     seq_len: int, pos: Union[torch.Tensor, None]):
         if not self._rotary_embedding_initialized:
-            self.rotary_embedding = None
             if self.rope:
                 self.rotary_embedding = RotaryEmbedding(
                     self.rope_head_dim,
@@ -405,6 +404,12 @@ class MPTModel(MPTPreTrainedModel):
                 if self.attn_impl == 'torch':
                     past_position = past_key_values[0][0].size(3)
 
+            if S + past_position > self.config.max_seq_len:
+                raise ValueError(
+                    f'Cannot forward input with past sequence length {past_position} and current sequence length '
+                    +
+                    f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
+                )
             pos = torch.arange(
                 past_position,
                 S + past_position,
@@ -419,19 +424,9 @@ class MPTModel(MPTPreTrainedModel):
                     min=0,
                 )
 
+        x = tok_emb
         if self.learned_pos_emb:
-            if S + past_position > self.config.max_seq_len:
-                raise ValueError(
-                    f'Cannot forward input with past sequence length {past_position} and current sequence length '
-                    +
-                    f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
-                )
-
-            pos_emb = self.wpe(pos)
-            x = tok_emb + pos_emb
-        else:
-            # ALiBi and NoPE use this path (RoPE will also use this path if / when enabled)
-            x = tok_emb
+            x += self.wpe(pos)
 
         if self.embedding_fraction == 1:
             x = self.emb_drop(x)

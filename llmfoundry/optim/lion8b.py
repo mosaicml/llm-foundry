@@ -4,7 +4,6 @@
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import torch
-from packaging import version
 
 
 class DecoupledLionW_8bit(torch.optim.Optimizer):
@@ -142,7 +141,9 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
         decay_factor *= hparams['lr'] / hparams['initial_lr']
         errors: Optional[torch.Tensor] = None
         if 'errors' in state:
-            errors = state['errors'].view(dtype=torch.uint8)
+            errors = state['errors']
+            assert errors is not None  # pyright
+            errors = errors.view(dtype=torch.uint8)
             errors = errors[:p.numel()].view(p.shape)  # strip padding + reshape
         _lion8b_step(momentums=state['exp_avg'],
                      weights=p,
@@ -174,8 +175,8 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                 # we need to cast back to the correct dtype since optimizer
                 # load_state_dict casts to param dtype for fp params; see
                 # https://github.com/pytorch/pytorch/blob/a25eee1d77d93079614fab3ea4ac66e64fb2343b/torch/optim/optimizer.py#L626C7-L626C7 # noqa
-                errs = param_state['errors'].to(
-                    dtype=torch.uint8).view(torch.bfloat16)
+                errs = param_state['errors'].to(dtype=torch.uint8).view(
+                    torch.bfloat16)
                 new_state['errors'] = errs
             opt_state[param_id] = new_state
         super().__setstate__(state)

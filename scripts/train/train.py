@@ -392,9 +392,12 @@ def main(cfg: DictConfig) -> Trainer:
         and save_folder is not None \
         and not save_overwrite \
         and not save_weights_only:
+        autoresume_default = True
+
+    if cfg.get('autoresume') is None and autoresume_default:
         print('As run_name, save_folder, and save_latest_filename are set, \
                 changing autoresume default to True...')
-        autoresume_default = True
+
     autoresume: bool = pop_config(cfg,
                                   'autoresume',
                                   must_exist=False,

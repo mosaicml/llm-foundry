@@ -1,8 +1,8 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: # use your branch
-  # git_commit: 29d65cc26853c09f6de7542978056ddb0b07e98c # OR use your commit hash
+  git_branch: v0.3.0
+  # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu,openai]"
   ssh_clone: false # Should be true if using a private repo
 

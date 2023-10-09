@@ -694,7 +694,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         hf_config = MPTConfig.from_dict(resolved_om_model_config)
         model = MPTForCausalLM(hf_config)
 
-        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
+        use_train_metrics = om_model_config.get('use_train_metrics', True)
+        train_metrics = [LanguageCrossEntropy(),
+                         LanguagePerplexity()] if use_train_metrics else []
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),

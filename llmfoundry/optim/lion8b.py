@@ -4,6 +4,7 @@
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import torch
+from packaging import version
 
 
 class DecoupledLionW_8bit(torch.optim.Optimizer):
@@ -53,7 +54,7 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             by retaining information across optimizer steps.
 
     Raises:
-        NotImplemenetedError - If any of `quantize`, `compress_state_dict`,
+        NotImplementedError - If any of `quantize`, `compress_state_dict`,
             or `error_correction` are `True` and either a) there is no CUDA
             device, or b) step() is executed on a non-CUDA parameter.
     """
@@ -67,6 +68,12 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                  compress_state_dict: bool = False,
                  error_correction: bool = False,
                  _fused: bool = True):  # XXX this flag is mostly for testing...
+        if version.parse(torch.__version__) >= version.parse(
+                '2.1.0') and error_correction:
+            raise RuntimeError(
+                'DecoupledLionW_8bit with error correction requires PyTorch <2.1.0'
+            )
+
         if lr < 0.0:
             raise ValueError('Invalid learning rate: {}'.format(lr))
         if not 0.0 <= betas[0] <= 1.0:

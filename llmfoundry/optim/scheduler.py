@@ -85,7 +85,7 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
                  t_max: Union[str, Time] = '1dur',
                  alpha_f_decay: float = 0.0,
                  alpha_f_cooldown: float = 0.0,
-                 scale_warmup: bool = False):
+                 scale_warmup: bool = False) -> None:
         if alpha_f_decay < alpha_f_cooldown:
             raise ValueError(
                 f'Required: alpha_f_decay >= alpha_f_cooldown. Current: alpha_f_decay={alpha_f_decay}, alpha_f_cooldown={alpha_f_cooldown}'

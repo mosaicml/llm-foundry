@@ -96,7 +96,7 @@ if __name__ == '__main__':
     make test-dist PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS" WORLD_SIZE=2
 
     make test PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS --codeblocks"
-    
+
     python -m coverage combine
 
     python -m coverage report

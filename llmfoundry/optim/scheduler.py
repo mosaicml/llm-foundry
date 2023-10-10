@@ -112,8 +112,8 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
         if t_warmup.value == 0:
             warnings.warn(
                 textwrap.dedent("""\
-                The warmup duration is 0. If you specified warmup as a fraction of total
-                training duration, take note that the warmup duration is calculated in the
+                The warmup duration is 0. If warmup was specified as a fraction of the total
+                training duration, the warmup duration is calculated in the
                 same unit as the trainer's max_duration parameter."""))
 
         if state.timestamp < t_warmup:

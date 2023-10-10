@@ -17,6 +17,22 @@ from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
+def is_flash_v2_installed():
+    try:
+        import flash_attn as flash_attn
+    except:
+        return False
+    return version.parse(flash_attn.__version__) >= version.parse('2.0.0')
+
+
+def is_flash_v1_installed():
+    try:
+        import flash_attn as flash_attn
+    except:
+        return False
+    return version.parse(flash_attn.__version__) < version.parse('2.0.0')
+
+
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
                      original_is_causal: bool) -> bool:
     # disable causal when it is not needed
@@ -197,7 +213,8 @@ def flash_attn_fn(
     try:
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
     except:
-        raise RuntimeError('Please install flash-attn==1.0.3.post0')
+        raise RuntimeError(
+            'Please install flash-attn==1.0.9 or flash-attn==2.3.2')
 
     check_valid_inputs(query, key, value)
 
@@ -278,18 +295,35 @@ def flash_attn_fn(
 
     reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
 
-    output_unpad = flash_attn_interface.flash_attn_unpadded_func(
-        query_unpad,
-        key_unpad,
-        value_unpad,
-        cu_seqlens_q,
-        cu_seqlens_k,
-        max_seqlen_q,
-        max_seqlen_k,
-        dropout_p,
-        softmax_scale=softmax_scale,
-        causal=reset_is_causal,
-        return_attn_probs=needs_weights)
+    if is_flash_v1_installed():
+        output_unpad = flash_attn_interface.flash_attn_unpadded_func(
+            q=query_unpad,
+            k=key_unpad,
+            v=value_unpad,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_k=max_seqlen_k,
+            dropout_p=dropout_p,
+            softmax_scale=softmax_scale,
+            causal=reset_is_causal,
+            return_attn_probs=needs_weights)
+    elif is_flash_v2_installed():
+        output_unpad = flash_attn_interface.flash_attn_varlen_func(
+            q=query_unpad,
+            k=key_unpad,
+            v=value_unpad,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_k=max_seqlen_k,
+            dropout_p=dropout_p,
+            softmax_scale=softmax_scale,
+            causal=reset_is_causal,
+            return_attn_probs=needs_weights)
+    else:
+        raise RuntimeError(
+            'flash-attn==1.0.9 or flash-attn==2.3.2 is required.')
 
     output = bert_padding.pad_input(
         rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,
@@ -321,7 +355,7 @@ def triton_flash_attn_fn(
         if version.parse(torch.__version__) < version.parse('2.0.0'):
             _installed = True
             # if torch1.13.1 revert to using triton flash attn from HazyResearch
-            # with flash-attn==1.0.3.post0 and triton==2.0.0.dev20221202
+            # with flash-attn==1.0.9 and triton==2.0.0.dev20221202
             try:
                 from flash_attn.flash_attn_triton import flash_attn_func
             except:

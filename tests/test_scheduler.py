@@ -59,7 +59,7 @@ class SimpleModel(ComposerClassifier):
         self.fc1 = fc1
         self.fc2 = fc2
 
-    def param_init_fn(self, module):
+    def param_init_fn(self, module: torch.nn.Module):
         init_fn = partial(torch.nn.init.normal_, mean=0.0, std=0.1)
 
         if isinstance(module, torch.nn.Linear):

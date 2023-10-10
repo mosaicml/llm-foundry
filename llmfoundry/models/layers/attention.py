@@ -296,27 +296,27 @@ def flash_attn_fn(
 
     if is_flash_v1_installed():
         output_unpad = flash_attn_interface.flash_attn_unpadded_func(
-            query_unpad,
-            key_unpad,
-            value_unpad,
-            cu_seqlens_q,
-            cu_seqlens_k,
-            max_seqlen_q,
-            max_seqlen_k,
-            dropout_p,
+            q=query_unpad,
+            k=key_unpad,
+            v=value_unpad,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_k=max_seqlen_k,
+            dropout_p=dropout_p,
             softmax_scale=softmax_scale,
             causal=reset_is_causal,
             return_attn_probs=needs_weights)
     elif is_flash_v2_installed():
-        output_unpad = flash_attn_interface.flash_attn_func(
-            query_unpad,
-            key_unpad,
-            value_unpad,
-            cu_seqlens_q,
-            cu_seqlens_k,
-            max_seqlen_q,
-            max_seqlen_k,
-            dropout_p,
+        output_unpad = flash_attn_interface.flash_attn_varlen_func(
+            q=query_unpad,
+            k=key_unpad,
+            v=value_unpad,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_k=max_seqlen_k,
+            dropout_p=dropout_p,
             softmax_scale=softmax_scale,
             causal=reset_is_causal,
             return_attn_probs=needs_weights)

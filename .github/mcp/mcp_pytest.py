@@ -8,7 +8,7 @@ import argparse
 from mcli.sdk import (RunConfig, RunStatus, create_run, follow_run_logs,
                       wait_for_run_status)
 
-    
+
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--name',
@@ -55,6 +55,7 @@ def parse_arguments():
                         help='Timeout for run (in seconds)')
     return parser.parse_args()
 
+
 def construct_base_command(args):
     command = 'cd llm-foundry'
 
@@ -70,20 +71,20 @@ def construct_base_command(args):
 
     return command
 
+
 def construct_run_command(args, distributed: bool):
     clear_tmp_path_flag = '-o tmp_path_retention_policy=none'
-    if distributed: 
+    if distributed:
         make_command = f'''make test-dist PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS" WORLD_SIZE=2'''
-    else: 
-        make_command =  f'''make test PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS --codeblocks"'''
-
+    else:
+        make_command = f'''make test PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS --codeblocks"'''
 
     run_command = f'''
 
     pip install --upgrade --user .[all]
 
     export COMMON_ARGS="-v --durations=20 -m '{args.pytest_markers}' {clear_tmp_path_flag}"
-    
+
     {make_command}
 
     python -m coverage combine
@@ -111,7 +112,7 @@ def create_and_follow_run(args, command):
     # Shorten name if too long
     if len(name) > 56:
         name = name[:56]
-    
+
     config = RunConfig(
         name=name,
         cluster=args.cluster,
@@ -145,7 +146,9 @@ def create_and_follow_run(args, command):
 if __name__ == '__main__':
     args = parse_arguments()
     command_base = construct_base_command(args)
-    distributed_gpu_test_run_command = construct_run_command(args, distributed=True)
+    distributed_gpu_test_run_command = construct_run_command(args,
+                                                             distributed=True)
     create_and_follow_run(args, command_base + distributed_gpu_test_run_command)
-    single_node_gpu_test_run_command = construct_run_command(args, distributed=False)
+    single_node_gpu_test_run_command = construct_run_command(args,
+                                                             distributed=False)
     create_and_follow_run(args, command_base + single_node_gpu_test_run_command)

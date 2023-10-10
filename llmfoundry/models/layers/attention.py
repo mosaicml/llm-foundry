@@ -32,21 +32,6 @@ def is_flash_v1_installed():
         return False
     return version.parse(flash_attn.__version__) < version.parse('2.0.0')
 
-def is_flash_v2_installed():
-    try:
-        import flash_attn as flash_attn
-    except:
-        return False
-    return version.parse(flash_attn.__version__) >= version.parse('2.0.0')
-
-
-def is_flash_v1_installed():
-    try:
-        import flash_attn as flash_attn
-    except:
-        return False
-    return version.parse(flash_attn.__version__) < version.parse('2.0.0')
-
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
                      original_is_causal: bool) -> bool:

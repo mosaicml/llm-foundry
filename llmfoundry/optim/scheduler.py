@@ -72,13 +72,13 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
             To change this behavior, set ``scale_warmup=True``.
 
     Args:
-        t_warmup (str | Time): Warmup time.
-        t_scale (str | Time): Time scale.
-        t_cooldown (str | Time): Cooldown time.
+        t_warmup (str | Time): The warmup time.
+        t_scale (str | Time): The time scale.
+        t_cooldown (str | Time): The cooldown time.
         t_max (str | Time): The duration of this scheduler. Default = ``"1dur"``.
-        alpha_f_decay (float): Learning rate multiplier to decay inverse square root decay to. Default = ``0.0``.
-        alpha_f_cooldown (float): Learning rate multiplier to decay linear cooldown to. Default = ``0.0``.
-        scale_warmup (bool): SSR also scales the warmup period. Default = ``False``.
+        alpha_f_decay (float): The learning rate multiplier to decay inverse square root decay to. Default = ``0.0``.
+        alpha_f_cooldown (float): The learning rate multiplier to decay linear cooldown to. Default = ``0.0``.
+        scale_warmup (bool): If ``True``, SSR also scales the warmup period. Default = ``False``.
     """
 
     def __init__(self,
@@ -116,8 +116,8 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
         if t_warmup.value == 0:
             warnings.warn(
                 textwrap.dedent("""\
-                The warmup duration is 0. If you specified warmup as a fraction of total
-                training duration, take note that the warmup duration is calculated in the
+                The warmup duration is 0. If warmup was specified as a fraction of the total
+                training duration, the warmup duration is calculated in the
                 same unit as the trainer's max_duration parameter."""))
 
         if state.timestamp < t_warmup:

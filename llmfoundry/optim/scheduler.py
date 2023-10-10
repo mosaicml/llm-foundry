@@ -14,24 +14,21 @@ from composer.optim.scheduler import _convert_time
 __all__ = ['InverseSquareRootWithWarmupScheduler']
 
 
-def _raise_if_units_dont_match(time: Union[str, Time],
-                               t_max: Union[str, Time],
+def _raise_if_units_dont_match(time: Union[str, Time], t_max: Union[str, Time],
                                name: str) -> None:
     if isinstance(time, str):
         time = Time.from_timestring(time)
     if isinstance(t_max, str):
         t_max = Time.from_timestring(t_max)
     if time.unit != t_max.unit:
-        raise ValueError(
-            f'{name} units must match max_duration units.')
+        raise ValueError(f'{name} units must match max_duration units.')
 
 
 def _raise_if_units_dur(time: Union[str, Time], name: str) -> None:
     if isinstance(time, str):
         time = Time.from_timestring(time)
     if time.unit == TimeUnit('dur'):
-        raise ValueError(
-            f'{name} cannot be in units of "dur".')
+        raise ValueError(f'{name} cannot be in units of "dur".')
 
 
 class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
@@ -91,7 +88,8 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
                  scale_warmup: bool = False):
         if alpha_f_decay < alpha_f_cooldown:
             raise ValueError(
-                f'Required: alpha_f_decay >= alpha_f_cooldown. Current: alpha_f_decay={alpha_f_decay}, alpha_f_cooldown={alpha_f_cooldown}')
+                f'Required: alpha_f_decay >= alpha_f_cooldown. Current: alpha_f_decay={alpha_f_decay}, alpha_f_cooldown={alpha_f_cooldown}'
+            )
         _raise_if_units_dur(t_warmup, 't_warmup')
         _raise_if_units_dur(t_scale, 't_scale')
         _raise_if_units_dur(t_cooldown, 't_cooldown')
@@ -108,9 +106,11 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
 
     def __call__(self, state: State, ssr: float = 1.0) -> float:
         assert state.max_duration is not None, 'max_duration should be set whenever schedulers are invoked'
-        _raise_if_units_dont_match(self.t_warmup, state.max_duration, 't_warmup')
+        _raise_if_units_dont_match(self.t_warmup, state.max_duration,
+                                   't_warmup')
         _raise_if_units_dont_match(self.t_scale, state.max_duration, 't_scale')
-        _raise_if_units_dont_match(self.t_cooldown, state.max_duration, 't_cooldown')
+        _raise_if_units_dont_match(self.t_cooldown, state.max_duration,
+                                   't_cooldown')
 
         t_warmup = _convert_time(self.t_warmup, state)
         if t_warmup.value == 0:

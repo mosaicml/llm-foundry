@@ -37,7 +37,10 @@ class SimpleModel(ComposerClassifier):
         self.num_features = num_features
         self.num_classes = num_classes
 
-        fc1 = torch.nn.Linear(num_features, num_hidden, device=device, bias=bias)
+        fc1 = torch.nn.Linear(num_features,
+                              num_hidden,
+                              device=device,
+                              bias=bias)
         fc2 = torch.nn.Linear(num_hidden, num_classes, device=device, bias=bias)
 
         net = torch.nn.Sequential(
@@ -72,7 +75,8 @@ class SimpleModel(ComposerClassifier):
 def dummy_schedulers_state(request: pytest.FixtureRequest):
     device = None
     for item in request.session.items:
-        device = DeviceCPU() if item.get_closest_marker('gpu') is None else DeviceGPU()
+        device = DeviceCPU(
+        ) if item.get_closest_marker('gpu') is None else DeviceGPU()
         break
     assert device != None
     state = State(
@@ -87,30 +91,48 @@ def dummy_schedulers_state(request: pytest.FixtureRequest):
 
 
 @pytest.mark.parametrize('scheduler,ssr,test_times,expected_lrs', [
-    pytest.param(InverseSquareRootWithWarmupScheduler(t_warmup='10ba', t_scale='10ba', t_cooldown='0ba', alpha_f_decay=0, alpha_f_cooldown=0), 1.0,
-                 ['0ba', '5ba', '10ba', '40ba', '90ba', '100ba'], [0.0, 0.5, 1.0, 0.5, 0.33333, 0.31623]),
-    pytest.param(InverseSquareRootWithWarmupScheduler(t_warmup='20ba', t_scale='2ba', t_cooldown='10ba', alpha_f_decay=0.4, alpha_f_cooldown=0.1), 1.0,
-                 ['0ba', '10ba', '20ba', '36ba', '90ba', '95ba', '100ba'], [0.0, 0.5, 1.0, 0.6, 0.5, 0.3, 0.1]),
+    pytest.param(
+        InverseSquareRootWithWarmupScheduler(t_warmup='10ba',
+                                             t_scale='10ba',
+                                             t_cooldown='0ba',
+                                             alpha_f_decay=0,
+                                             alpha_f_cooldown=0), 1.0,
+        ['0ba', '5ba', '10ba', '40ba', '90ba', '100ba'],
+        [0.0, 0.5, 1.0, 0.5, 0.33333, 0.31623]),
+    pytest.param(
+        InverseSquareRootWithWarmupScheduler(t_warmup='20ba',
+                                             t_scale='2ba',
+                                             t_cooldown='10ba',
+                                             alpha_f_decay=0.4,
+                                             alpha_f_cooldown=0.1), 1.0,
+        ['0ba', '10ba', '20ba', '36ba', '90ba', '95ba', '100ba'],
+        [0.0, 0.5, 1.0, 0.6, 0.5, 0.3, 0.1]),
 ])
-def test_scheduler_init(scheduler: ComposerScheduler, ssr: float, test_times: List[str], expected_lrs: List[float],
+def test_scheduler_init(scheduler: ComposerScheduler, ssr: float,
+                        test_times: List[str], expected_lrs: List[float],
                         dummy_schedulers_state: State):
 
     state = dummy_schedulers_state
     assert state.dataloader_len is not None
     assert state.max_duration is not None
-    state.max_duration = Time(value=int(state.max_duration.value * ssr), unit=state.max_duration.unit)
+    state.max_duration = Time(value=int(state.max_duration.value * ssr),
+                              unit=state.max_duration.unit)
     for test_time, expected_lr in zip(test_times, expected_lrs):
         parsed_time = Time.from_timestring(test_time)
         assert parsed_time.unit in [TimeUnit.EPOCH, TimeUnit.BATCH]
         if parsed_time.unit == TimeUnit.EPOCH:
             state.timestamp = state.timestamp.copy(
                 epoch=parsed_time,
-                batch=Time(int(state.dataloader_len) * int(parsed_time), TimeUnit.BATCH),
+                batch=Time(
+                    int(state.dataloader_len) * int(parsed_time),
+                    TimeUnit.BATCH),
             )
         else:
             state.timestamp = state.timestamp.copy(
                 batch=parsed_time,
-                epoch=Time(int(parsed_time) // int(state.dataloader_len), TimeUnit.EPOCH),
+                epoch=Time(
+                    int(parsed_time) // int(state.dataloader_len),
+                    TimeUnit.EPOCH),
             )
 
         lr = scheduler(state, ssr)

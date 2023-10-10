@@ -20,7 +20,9 @@ attn_config_defaults: Dict = {
     'alibi': False,
     'alibi_bias_max': 8,
     'rope': False,
-    'rope_bf': 10000,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'no_scaling',
+    'rope_scaling_factor': 1.0,
 }
 
 ffn_config_defaults: Dict = {
@@ -97,7 +99,9 @@ class MPTConfig(PretrainedConfig):
                 alibi (bool): Whether to use the alibi bias instead of position embeddings.
                 alibi_bias_max (int): The maximum value of the alibi bias.
                 rope (bool): Whether to use rotary positional embeddings.
-                rope_bf (int): The base frequency for rope.
+                rope_theta (int): The base frequency for rope.
+                rope_scaling_type (str): Can be one of 'no_scaling', 'linear', or 'dynamic'. 'no_scaling' uses the default implementation for rotary embeddings, 'linear' uses linear scaling as proposed by the Reddit user /u/kaiokendev, and 'dynamic' uses Dynamic NTK scaling as proposed by the Reddit users /u/bloc97 and /u/emozilla.
+                rope_scaling_factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling_type.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
                 ffn_type (str): type of ffn to use. Options: mptmlp, te_ln_mlp
@@ -154,10 +158,12 @@ class MPTConfig(PretrainedConfig):
             del kwargs['name']
         if 'loss_fn' in kwargs:
             del kwargs['loss_fn']
-        if self.attn_config.get('alibi', False) or self.attn_config.get('rope', False):
+        if self.attn_config.get('alibi', False) or self.attn_config.get(
+                'rope', False):
             self.learned_pos_emb = False
             warnings.warn(
-                f'alibi or rope is turned on, setting `learned_pos_emb` to `False.`')
+                f'alibi or rope is turned on, setting `learned_pos_emb` to `False.`'
+            )
         super().__init__(**kwargs)
 
         self._validate_config()
@@ -221,7 +227,8 @@ class MPTConfig(PretrainedConfig):
             )
         if self.init_config.get('name', None) is None:
             raise ValueError(f"{self.init_config=} 'name' needs to be set.")
-        if not (self.learned_pos_emb or self.attn_config['alibi'] or self.attn_config['rope']):
+        if not (self.learned_pos_emb or self.attn_config['alibi'] or
+                self.attn_config['rope']):
             warnings.warn(
                 f'Positional information not being provided to the model using either learned_pos_emb or alibi or rope.'
             )
@@ -237,6 +244,12 @@ class MPTConfig(PretrainedConfig):
                     + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
                     'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
                 )
+        if self.attn_config['rope_scaling_type'] not in [
+                'no_scaling', 'linear', 'dynamic'
+        ]:
+            raise ValueError(
+                'rope_scaling_type should be one of "no_scaling", "linear" or "dynamic".'
+            )
         if self.ffn_config['ffn_type'] == 'mptmlp':
             self.ffn_config['fc_type'] = self.fc_type
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':

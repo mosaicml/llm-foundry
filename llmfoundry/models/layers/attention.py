@@ -5,7 +5,7 @@
 
 import math
 import warnings
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -522,8 +522,7 @@ class GroupedQueryAttention(nn.Module):
         past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
-        rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor,
-                                   torch.Tensor]] = None,
+        rotary_emb_w_offset_info: Optional[Dict] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
@@ -542,12 +541,15 @@ class GroupedQueryAttention(nn.Module):
             dim=2,
         )
 
-        if rotary_emb is not None:
+        if rotary_emb_w_offset_info is not None:
             query = query.view(*(query.shape[:-1]), -1, self.head_dim)
             key = key.view(*(key.shape[:-1]), -1, self.head_dim)
-            (cos, sin, pos) = rotary_emb
             query = query.transpose(1, 2)
             key = key.transpose(1, 2)
+            rotary_emb = rotary_emb_w_offset_info['rotary_emb']
+            seq_len = rotary_emb_w_offset_info['seq_len']
+            pos = rotary_emb_w_offset_info['pos']
+            (cos, sin) = rotary_emb(x, seq_len)
             query, key = apply_rotary_pos_emb(query, key, cos, sin, pos)
             query = query.transpose(1, 2)
             key = key.transpose(1, 2)

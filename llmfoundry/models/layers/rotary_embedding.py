@@ -9,33 +9,88 @@ from torch import nn
 
 class RotaryEmbedding(nn.Module):
 
-    def __init__(self, dim: int, max_position_embeddings: int, base: int,
-                 device: torch.device, dtype: torch.dtype):
+    def __init__(self, dim: int, base: float):
         super().__init__()
+        self.dim = dim
+        self.base = base
+        self.max_seq_len_cached = -1
 
-        self.max_position_embeddings = max_position_embeddings
+        self.caches_initialized = False
+        self.cos_cached = torch.Tensor()
+        self.sin_cached = torch.Tensor()
 
-        inv_freq = 1.0 / (base
-                          **(torch.arange(0, dim, 2).float().to(device) / dim))
-        t = torch.arange(self.max_position_embeddings).to(inv_freq)
-
+    def _set_cos_sin_cache(self, x: torch.Tensor, seq_len: int):
+        self.max_seq_len_cached = seq_len
+        inv_freq = self._get_inv_freq(x, seq_len)
+        t = self._get_t(x)
         freqs = torch.einsum('i,j->ij', t, inv_freq)
         # Different from paper, but it uses a different permutation in order to obtain the same calculation
         emb = torch.cat((freqs, freqs), dim=-1)
-        self.cos_cached = emb.cos()[None, None, :, :].to(dtype)
-        self.sin_cached = emb.sin()[None, None, :, :].to(dtype)
+        self.cos_cached = emb.cos()
+        self.sin_cached = emb.sin()
+        self.caches_initialized = True
 
-    def forward(self, dtype: torch.dtype, device: torch.device, seq_len: int):
-        # x: [bs, num_attention_heads, seq_len, head_size]
-        if seq_len > self.max_position_embeddings:
-            raise ValueError(
-                'The sequence length is greater than the maximum sequence length.'
-            )
+    def _get_t(self, x: torch.Tensor):
+        t = torch.arange(self.max_seq_len_cached).to(x)
+        return t
+
+    def _get_inv_freq(self, x: torch.Tensor, seq_len: int):
+        del seq_len
+        inv_freq = (
+            1.0 / (self.base**(torch.arange(0, self.dim, 2) / self.dim))).to(x)
+        return inv_freq
+
+    @torch.no_grad()
+    def forward(self, x: torch.Tensor, seq_len: int):
+        # x is only used to get the correct dtype and device
+        if (not self.caches_initialized) or seq_len > self.max_seq_len_cached:
+            self._set_cos_sin_cache(seq_len=seq_len, x=x)
 
         return (
-            self.cos_cached[:, :, :seq_len, ...].to(dtype=dtype, device=device),
-            self.sin_cached[:, :, :seq_len, ...].to(dtype=dtype, device=device),
+            self.cos_cached[:seq_len],
+            self.sin_cached[:seq_len],
         )
+
+
+class LinearScalingRotaryEmbedding(RotaryEmbedding):
+    """RotaryEmbedding extended with linear scaling.
+
+    Credits to the Reddit user /u/kaiokendev
+    """
+
+    def __init__(self, dim: int, base: float, scaling_factor: float):
+        self.scaling_factor = scaling_factor
+        super().__init__(dim, base)
+
+    def _get_t(self, x: torch.Tensor):
+        t = (torch.arange(self.max_seq_len_cached) / self.scaling_factor).to(x)
+        return t
+
+
+class DynamicNTKScalingRotaryEmbedding(RotaryEmbedding):
+    """RotaryEmbedding extended with Dynamic NTK scaling.
+
+    Credits to the Reddit users /u/bloc97 and /u/emozilla
+    """
+
+    def __init__(self, dim: int, base: float, scaling_factor: float,
+                 max_position_embeddings: float):
+        self.scaling_factor = scaling_factor
+        self.max_position_embeddings = max_position_embeddings
+        super().__init__(dim, base)
+
+    def _get_inv_freq(self, x: torch.Tensor, seq_len: int):
+        if seq_len > self.max_position_embeddings:
+            base = self.base * (
+                (self.scaling_factor * seq_len / self.max_position_embeddings) -
+                (self.scaling_factor - 1))**(self.dim / (self.dim - 2))
+            inv_freq = (1.0 /
+                        (base**(torch.arange(0, self.dim, 2) / self.dim))).to(x)
+        else:
+            inv_freq = (
+                1.0 /
+                (self.base**(torch.arange(0, self.dim, 2) / self.dim))).to(x)
+        return inv_freq
 
 
 def rotate_half(x: torch.Tensor):
@@ -45,13 +100,12 @@ def rotate_half(x: torch.Tensor):
     return torch.cat((-x2, x1), dim=-1)
 
 
+# Copied from transformers.models.gpt_neox.modeling_gpt_neox.apply_rotary_pos_emb
 def apply_rotary_pos_emb(q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor,
                          sin: torch.Tensor, position_ids: torch.Tensor):
-    # The first two dimensions of cos and sin are always 1, so we can `squeeze` them.
-    cos = cos.squeeze(1).squeeze(0)  # [seq_len, dim]
-    sin = sin.squeeze(1).squeeze(0)  # [seq_len, dim]
-    cos = cos[position_ids].unsqueeze(1)  # [bs, 1, seq_len, dim]
-    sin = sin[position_ids].unsqueeze(1)  # [bs, 1, seq_len, dim]
+    cos = cos[position_ids].unsqueeze(
+        1)  # [seq_len, dim] -> [batch_size, 1, seq_len, head_dim]
+    sin = sin[position_ids].unsqueeze(1)
     q_embed = (q * cos) + (rotate_half(q) * sin)
     k_embed = (k * cos) + (rotate_half(k) * sin)
-    return q_embed.to(q), k_embed.to(k)
+    return q_embed, k_embed

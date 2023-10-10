@@ -38,7 +38,9 @@ from llmfoundry.models.layers.ffn import \
 from llmfoundry.models.layers.ffn import MPTMLP as MPTMLP
 from llmfoundry.models.layers.ffn import build_ffn as build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-from llmfoundry.models.layers.rotary_embedding import RotaryEmbedding
+from llmfoundry.models.layers.rotary_embedding import (
+    DynamicNTKScalingRotaryEmbedding, LinearScalingRotaryEmbedding,
+    RotaryEmbedding)
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
 # NOTE: All utils are imported directly even if unused so that
@@ -147,8 +149,10 @@ class MPTModel(MPTPreTrainedModel):
 
         self.rope = config.attn_config['rope']
         self.rope_head_dim = config.d_model // config.n_heads
+        self.rope_theta = config.attn_config['rope_theta']
+        self.rope_scaling_type = config.attn_config['rope_scaling_type']
+        self.rope_scaling_factor = config.attn_config['rope_scaling_factor']
         self.rope_max_seq_len = config.max_seq_len
-        self.rope_bf = config.attn_config['rope_bf']
         self._rotary_embedding_initialized = False
         self.rotary_embedding = None
 
@@ -246,21 +250,25 @@ class MPTModel(MPTPreTrainedModel):
         return attn_bias, None
 
     @torch.no_grad()
-    def _rotary_emb(self, device: torch.device, dtype: torch.dtype,
-                    seq_len: int, pos: Union[torch.Tensor, None]):
+    def _rotary_emb(self):
         if not self._rotary_embedding_initialized:
-            if self.rope:
-                self.rotary_embedding = RotaryEmbedding(
+            if self.rope_scaling_type == 'no_scaling':
+                self.rotary_embedding = RotaryEmbedding(self.rope_head_dim,
+                                                        base=self.rope_theta)
+            elif self.rope_scaling_type == 'linear':
+                self.rotary_embedding = LinearScalingRotaryEmbedding(
                     self.rope_head_dim,
-                    max_position_embeddings=self.rope_max_seq_len,
-                    base=self.rope_bf,
-                    device=device,
-                    dtype=dtype)
+                    base=self.rope_theta,
+                    scaling_factor=self.rope_scaling_factor)
+            elif self.rope_scaling_type == 'dynamic':
+                self.rotary_embedding = DynamicNTKScalingRotaryEmbedding(
+                    self.rope_head_dim,
+                    base=self.rope_theta,
+                    scaling_factor=self.rope_scaling_factor,
+                    max_position_embeddings=self.rope_max_seq_len)
 
             self._rotary_embedding_initialized = True
-        if self.rotary_embedding is None or pos is None:
-            return None
-        return (*(self.rotary_embedding(dtype, device, seq_len)), pos)
+        return self.rotary_embedding
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
                            prefix_mask: torch.Tensor) -> torch.Tensor:
@@ -386,8 +394,9 @@ class MPTModel(MPTPreTrainedModel):
             S <= self.config.max_seq_len
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
+        rotary_emb_w_offset_info = None
+        pos_emb = 0.0
         tok_emb = self.wte(input_ids)
-        pos = None
         if self.learned_pos_emb or self.rope:
             past_position = 0
             if past_key_values is not None:
@@ -404,7 +413,8 @@ class MPTModel(MPTPreTrainedModel):
                 if self.attn_impl == 'torch':
                     past_position = past_key_values[0][0].size(3)
 
-            if S + past_position > self.config.max_seq_len:
+            if self.learned_pos_emb and (S + past_position >
+                                         self.config.max_seq_len):
                 raise ValueError(
                     f'Cannot forward input with past sequence length {past_position} and current sequence length '
                     +
@@ -423,10 +433,17 @@ class MPTModel(MPTPreTrainedModel):
                                        dim=1)[:, past_position:],
                     min=0,
                 )
+            if self.rope:
+                rotary_emb = self._rotary_emb()
+                rotary_emb_w_offset_info = {
+                    'rotary_emb': rotary_emb,
+                    'pos': pos,
+                    'seq_len': S + past_position
+                }
+            if self.learned_pos_emb:
+                pos_emb = self.wpe(pos)
 
-        x = tok_emb
-        if self.learned_pos_emb:
-            x += self.wpe(pos)
+        x = tok_emb + pos_emb
 
         if self.embedding_fraction == 1:
             x = self.emb_drop(x)
@@ -445,8 +462,6 @@ class MPTModel(MPTPreTrainedModel):
             sequence_id=sequence_id,
         )
 
-        rotary_emb = self._rotary_emb(x.device, x.dtype, S, pos)
-
         # initialize the past key values cache if it should be used
         if use_cache and past_key_values is None:
             past_key_values = [() for _ in range(self.config.n_layers)
@@ -464,7 +479,7 @@ class MPTModel(MPTPreTrainedModel):
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
-                rotary_emb=rotary_emb,
+                rotary_emb_w_offset_info=rotary_emb_w_offset_info,
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),

@@ -7,7 +7,6 @@ icl_tasks:
   num_beams: 20
   batch_size: 1
   icl_task_type: code_evaluation
-  batch_size: 1
 
 -
   label: human_eval_cpp
@@ -17,7 +16,6 @@ icl_tasks:
   num_beams: 20
   batch_size: 1
   icl_task_type: code_evaluation
-  batch_size: 1
 -
   label: human_eval_js
   dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl # ADD YOUR OWN DATASET URI
@@ -66,4 +64,3 @@ icl_tasks:
   num_beams: 20
   batch_size: 1
   icl_task_type: code_evaluation
-  batch_size: 1

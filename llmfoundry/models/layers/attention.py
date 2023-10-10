@@ -24,6 +24,7 @@ def is_flash_v2_installed():
         return False
     return version.parse(flash_attn.__version__) >= version.parse('2.0.0')
 
+
 def is_flash_v1_installed():
     try:
         import flash_attn as flash_attn

@@ -18,6 +18,7 @@ jobs:
     uses: ./.github/workflows/pytest-gpu.yaml
     strategy:
       matrix:
+        # TODO: After the PR with the flash attention 2 images goes in, add the new unit test suite
         include:
         - name: 'gpu-latest'
           container: mosaicml/pytorch:latest  # mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04

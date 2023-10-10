@@ -269,11 +269,11 @@ class MixtureOfDenoisersCollator:
                 '`span_mean_lengths_and_ratios` and/or `sequence_mask_ratios`.')
 
     @property
-    def smallest_max_raw_length(self):
+    def smallest_max_raw_length(self) -> int:
         return int(self._smallest_max_raw_length)
 
     @property
-    def largest_max_raw_length(self):
+    def largest_max_raw_length(self) -> int:
         return int(self._largest_max_raw_length)
 
     def __call__(self, examples: List[Dict[str,
@@ -613,7 +613,8 @@ def noise_token_sequence(
 
 def _get_max_starting_length(max_length: int, mask_ratio: float,
                              mean_span_length: float, n_prefix_tokens: int,
-                             decoder_only_format: bool, context_eos: bool):
+                             decoder_only_format: bool,
+                             context_eos: bool) -> int:
     """Get max num raw tokens that will fit max_length."""
 
     def sequence_stats(length: int):
@@ -677,8 +678,7 @@ def _sample_mask_array(length: int, mask_ratio: float,
         """
         span_markers = np.less(np.arange(total_tokens - 1), num_spans -
                                1)[np.random.permutation(total_tokens - 1)]
-        span_start_indicator = np.concatenate([[0],
-                                               span_markers])  # type: ignore
+        span_start_indicator = np.concatenate([np.array([0]), span_markers])
         span_id = np.cumsum(span_start_indicator).reshape(-1, 1)
         spans = np.arange(num_spans).reshape(1, -1)
         span_lengths = np.sum(span_id == spans, axis=0)
@@ -715,13 +715,13 @@ def _apply_mask(tokens: Union[torch.Tensor, Sequence[int], np.ndarray],
 
         # Ensure there's an end-of-sentence token at the end
         if ensure_eos and (noised_tokens[-1] != eos_token_id):
-            noised_tokens = np.concatenate([noised_tokens,
-                                            [eos_token_id]])  # type: ignore
+            noised_tokens = np.concatenate(
+                [noised_tokens, np.array([eos_token_id])])
 
         return noised_tokens
 
     # Masking at previous token
-    prev_token_mask = np.concatenate([[0], mask[:-1]])  # type: ignore
+    prev_token_mask = np.concatenate([np.array([0]), mask[:-1]])
 
     # Decompose mask into start-of-span mask and non-start-of-span mask
     start_of_noise_span_token = np.logical_and(mask,
@@ -740,8 +740,8 @@ def _apply_mask(tokens: Union[torch.Tensor, Sequence[int], np.ndarray],
 
     # Ensure there's an end-of-sentence token at the end
     if ensure_eos and (noised_tokens[-1] != eos_token_id):
-        noised_tokens = np.concatenate([noised_tokens,
-                                        [eos_token_id]])  # type: ignore
+        noised_tokens = np.concatenate(
+            [noised_tokens, np.array([eos_token_id])])
     return noised_tokens
 
 

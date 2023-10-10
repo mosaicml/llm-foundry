@@ -5,7 +5,8 @@
 
 import os
 from itertools import islice
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
+from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
+                    Union, cast)
 
 import numpy as np
 import torch
@@ -65,7 +66,14 @@ class StreamingTextDataset(StreamingDataset):
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
-        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``. Defaults to ``balanced``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
+            Defaults to ``balanced``.
+        sampling_granularity (int): When picking samples for a stream's final partial repeat,
+            how many samples to pick from the same shard at a time (``1`` for evenly balanced
+            across shards, ``1000`` to pick 1000 samples from the same shard at a time, etc).
+            Defaults to ``1``.
+        batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
+            ``per_stream``. Defaults to ``random``.
     """
 
     def __init__(self,
@@ -90,6 +98,8 @@ class StreamingTextDataset(StreamingDataset):
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
                  sampling_method: str = 'balanced',
+                 sampling_granularity: int = 1,
+                 batching_method: str = 'random',
                  **kwargs: Any):
 
         group_method = kwargs.pop('group_method', None)
@@ -137,12 +147,14 @@ class StreamingTextDataset(StreamingDataset):
             shuffle_seed=shuffle_seed,
             shuffle_block_size=shuffle_block_size,
             sampling_method=sampling_method,
+            sampling_granularity=sampling_granularity,
+            batching_method=batching_method,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
 
     # How to tokenize a text sample to a token sample
-    def _tokenize(self, text_sample: Mapping):
+    def _tokenize(self, text_sample: Mapping) -> Dict[str, List[int]]:
         if self.tokenizer._pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             raise RuntimeError(
@@ -153,13 +165,15 @@ class StreamingTextDataset(StreamingDataset):
                               padding='max_length',
                               max_length=self.max_seq_len)
 
-    def _read_binary_tokenized_sample(self, sample: Dict[str, Any]):
+    def _read_binary_tokenized_sample(self, sample: Dict[str,
+                                                         Any]) -> torch.Tensor:
         return torch.from_numpy(
             np.frombuffer(sample['tokens'],
                           dtype=np.int64)[:self.max_seq_len].copy())
 
     # How to process a sample
-    def __getitem__(self, idx: int):
+    def __getitem__(self,
+                    idx: int) -> Union[Dict[str, List[int]], torch.Tensor]:
         sample = super().__getitem__(idx)
         if 'text' in sample:
             token_sample = self._tokenize(sample)
@@ -193,11 +207,12 @@ class ConcatenatedSequenceCollatorWrapper:
                 '`bos_token_id` if sequences start with a BOS token.'
             )
 
-        self.split_token_id = eos_token_id
-        self.bos_mode = False
         if eos_token_id is None:
-            self.split_token_id = bos_token_id
+            self.split_token_id = cast(int, bos_token_id)
             self.bos_mode = True
+        else:
+            self.split_token_id = eos_token_id
+            self.bos_mode = False
 
     def __call__(self, examples: List[Any]) -> Dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
@@ -206,8 +221,7 @@ class ConcatenatedSequenceCollatorWrapper:
 
     def get_sequence_id_from_batch(
             self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
-        is_separator = torch.eq(batch['input_ids'],
-                                self.split_token_id)  # type: ignore
+        is_separator = torch.eq(batch['input_ids'], self.split_token_id)
         cumulative_sep = torch.cumsum(is_separator,
                                       dim=1).to(batch['input_ids'].dtype)
         # If separator token is bos, we're already done
@@ -223,7 +237,7 @@ def build_text_dataloader(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-):
+) -> DataLoader:
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
     if cfg.dataset.get('group_method', None) is not None:
         raise NotImplementedError(
@@ -340,7 +354,9 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     loader = build_text_dataloader(cfg, tokenizer, device_batch_size)
-    tokenizer = loader.dataset.tokenizer  # type: ignore
+    assert isinstance(loader.dataset, StreamingTextDataset)
+    tokenizer = loader.dataset.tokenizer
+
     for batch_ix, batch in enumerate(islice(loader, 5)):
         print('\n')
         print('#' * 20, f'Batch {batch_ix}', '#' * 20)

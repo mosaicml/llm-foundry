@@ -13,7 +13,7 @@ from transformers.models.opt.modeling_opt import OPTDecoder
 
 
 # helper functions
-def rhasattr(obj: Any, attr: str):
+def rhasattr(obj: Any, attr: str) -> bool:
     """A chain-able attribute version of hasattr.
 
     For example, to check if
@@ -31,7 +31,7 @@ def rhasattr(obj: Any, attr: str):
     return hasattr(_curr_obj, _nested_attrs[-1])
 
 
-def rgetattr(obj: Any, attr: str, *args: List[Any]):
+def rgetattr(obj: Any, attr: str, *args: List[Any]) -> Any:
     """A chain-able attribute version of getattr.
 
     For example, to get the attribute `foo.bar.baz` from `obj`, you can use:
@@ -45,14 +45,14 @@ def rgetattr(obj: Any, attr: str, *args: List[Any]):
     return functools.reduce(_getattr, [obj] + attr.split('.'))
 
 
-def findattr(obj: Any, attrs: Iterable[str]):
+def findattr(obj: Any, attrs: Iterable[str]) -> Optional[Any]:
     for attr in attrs:
         if rhasattr(obj, attr):
             return rgetattr(obj, attr)
     return None
 
 
-def hf_get_causal_base_model(model: PreTrainedModel):
+def hf_get_causal_base_model(model: PreTrainedModel) -> Any:
     """Returns the causal decoder backbone of the specified HuggingFace model.
 
     Newer HF models have a `self.get_decoder()` method. Older models do not.
@@ -75,7 +75,7 @@ def hf_get_causal_base_model(model: PreTrainedModel):
     return causal_base_model
 
 
-def hf_get_hidden_layers(model: PreTrainedModel):
+def hf_get_hidden_layers(model: PreTrainedModel) -> Any:
     """Returns the hidden layers of the specified model.
 
     NOTE: Different model configurations have different hidden layer attribute names.
@@ -94,10 +94,15 @@ def hf_get_hidden_layers(model: PreTrainedModel):
         'model.layers',  # LLaMa
         'transformer.blocks',  # MPT
     )
-    return findattr(model, hidden_layers_attrs)
+    layers = findattr(model, hidden_layers_attrs)
+    if layers is None:
+        raise ValueError(
+            f'Unable to find hidden layer for {model}. Model must have one of the following attributes: {hidden_layers_attrs}'
+        )
+    return layers
 
 
-def hf_get_init_device(init_device: Optional[str]):
+def hf_get_init_device(init_device: Optional[str]) -> Optional[str]:
     """Returns the appropriate device to initialize models."""
     from composer.utils import dist
     if init_device == 'mixed':
@@ -136,7 +141,7 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
     # OPT has an extra layer of wrapping, so special case here
     if isinstance(causal_base_model, OPTDecoder):
         model.model._fsdp_wrap = False
-    model_block = hf_get_hidden_layers(model)  # type: ignore
+    model_block = hf_get_hidden_layers(model)
     lm_head = model.get_output_embeddings()
     # some models (OPT) implement .get_input_embeddings for the causal subclass
     # but all of them implement it for the base model
@@ -153,7 +158,7 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
             raise ValueError(
                 f'Unable to FSDP-wrap this model! `{mod_name}` does not ' +
                 'follow common layer/weight naming conventions.')
-    block_type = type(model_block[0])  # type: ignore
+    block_type = type(model_block[0])
     if init_device == 'mixed':
         # For FSDP with models with different device initializations, `mixed`, which
         # initializes the model on rank 0 on `cpu` and on all other ranks on `meta,``
@@ -186,9 +191,9 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
         # These lines ensures that both modules stay together in the top-most block when
         # the model has this tying enabled (almost all do; this property defaults to True)
         if model.config.tie_word_embeddings:
-            causal_base_model._fsdp_wrap = False  # type: ignore
-            tied_embeddings._fsdp_wrap = False  # type: ignore
-            lm_head._fsdp_wrap = False  # type: ignore
+            causal_base_model._fsdp_wrap = False
+            tied_embeddings._fsdp_wrap = False
+            lm_head._fsdp_wrap = False
 
     # FSDP Wrap and Activation Checkpoint every model block
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)
@@ -228,15 +233,15 @@ def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel,
             raise ValueError(
                 f'Unable to FSDP-wrap this model! `{mod_name}` does not ' +
                 'follow common layer/weight naming conventions.')
-    decoder_block_type = type(decoder_block[0])  # type: ignore
-    encoder_block_type = type(encoder_block[0])  # type: ignore
+    decoder_block_type = type(decoder_block[0])
+    encoder_block_type = type(encoder_block[0])
 
     if model.config.tie_word_embeddings:
         # it is possible to train an enc/dec without tied embeddings, hence the check
-        tied_embeddings._fsdp_wrap = False  # type: ignore
-        encoder._fsdp_wrap = False  # type: ignore
-        decoder._fsdp_wrap = False  # type: ignore
-        lm_head._fsdp_wrap = False  # type: ignore
+        tied_embeddings._fsdp_wrap = False
+        encoder._fsdp_wrap = False
+        decoder._fsdp_wrap = False
+        lm_head._fsdp_wrap = False
 
     # FSDP Wrap and Activation Checkpoint every decoder block
     model.fsdp_wrap_fn = lambda module: isinstance(module, decoder_block_type)

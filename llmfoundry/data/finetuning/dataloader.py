@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
-from typing import Union
+from typing import Tuple, Union
 
 import datasets as hf_datasets
 import torch
@@ -111,7 +111,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
     _validate_config(cfg.dataset)
 
     # Use EOS as the pad token if none exists
-    if tokenizer.pad_token is None:  # type: ignore
+    if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
     dataset = None  # for pyright
@@ -136,6 +136,8 @@ def build_finetuning_dataloader(cfg: DictConfig,
             shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
             shuffle_block_size=cfg.dataset.get('shuffle_block_size', 1 << 18),
             sampling_method=cfg.dataset.get('sampling_method', 'balanced'),
+            sampling_granularity=cfg.dataset.get('sampling_granularity', 1),
+            batching_method=cfg.dataset.get('batching_method', 'random'),
         )
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
@@ -207,7 +209,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
         )
 
 
-def _validate_config(dataset_cfg: DictConfig):
+def _validate_config(dataset_cfg: DictConfig) -> None:
     """Validates the dataset configuration.
 
     Makes sure that the dataset is properly configured for either
@@ -291,20 +293,31 @@ def _build_hf_dataset_from_remote(
         FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.
     """
     supported_extensions = ['jsonl', 'csv', 'parquet']
+    # HF datasets does not support a split with dashes, so we replace dashes
+    # with underscores in the destination split.
+    destination_split = cfg.dataset.split.replace('-', '_')
     finetune_dir = os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        f'downloaded_finetuning_data/{cfg.dataset.split}')
+        os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
+        'downloaded_finetuning',
+        destination_split if destination_split != 'data' else 'data_not',
+    )
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in supported_extensions:
         name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
         destination = str(
-            os.path.abspath(f'{finetune_dir}/{cfg.dataset.split}.{extension}'))
+            os.path.abspath(
+                os.path.join(
+                    finetune_dir, 'data',
+                    f'{destination_split}-00000-of-00001.{extension}')))
+
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file
-        signal_file_path = os.path.join(finetune_dir, '.the_eagle_has_landed')
+        signal_file_path = os.path.join(
+            finetune_dir, f'.node_{dist.get_node_rank()}_local_rank0_completed')
         if dist.get_local_rank() == 0:
             try:
-                get_file(name, destination, overwrite=True)
+                get_file(path=name, destination=destination, overwrite=True)
             except FileNotFoundError as e:
                 if extension == supported_extensions[-1]:
                     files_searched = [
@@ -317,7 +330,7 @@ def _build_hf_dataset_from_remote(
                         f'at {files_searched}'
                     ) from e
                 else:
-                    print(
+                    log.debug(
                         f'Could not find {name}, looking for another extension')
                 continue
 
@@ -337,7 +350,7 @@ def _build_hf_dataset_from_remote(
         dist.barrier()
 
         cfg.dataset.hf_name = finetune_dir
-        print(cfg.dataset)
+        log.info(cfg.dataset)
         dataset = dataset_constructor.build_from_hf(
             cfg.dataset,
             max_seq_len=cfg.dataset.max_seq_len,
@@ -346,9 +359,10 @@ def _build_hf_dataset_from_remote(
         return dataset
 
 
-def _build_collate_fn(dataset_cfg: DictConfig,
-                      tokenizer: PreTrainedTokenizerBase,
-                      device_batch_size: int):
+def _build_collate_fn(
+    dataset_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+    device_batch_size: int
+) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackWrapper], int]:
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,
         max_seq_len=dataset_cfg.max_seq_len,

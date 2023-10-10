@@ -7,15 +7,14 @@ integrations:
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  pip install git+https://github.com/bmosaicml/composer.git@add_cot_eval
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: cot_eval
-gpu_num: 32
-cluster: r12z3
-gpu_type: a100_40gb # replace with your cluster here!
+run_name: mpt-eval
+gpu_num: 8
+# gpu_type:
+# cluster:  # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 

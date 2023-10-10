@@ -56,12 +56,12 @@ class MPTConfig(PretrainedConfig):
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
-        verbose: int = 0,
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
         use_cache: bool = False,
         init_config: Dict = init_config_defaults,
         fc_type: str = 'torch',
+        verbose: Optional[int] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -135,12 +135,17 @@ class MPTConfig(PretrainedConfig):
         self.init_device = init_device
         self.logit_scale = logit_scale
         self.no_bias = no_bias
-        self.verbose = verbose
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
         self.use_cache = use_cache
         self.init_config = init_config
         self.fc_type = fc_type
+        if verbose is not None:
+            warnings.warn(
+                DeprecationWarning(
+                    'verbose argument for MPTConfig is now ignored and will be removed. Use python_log_level instead.'
+                ))
+
         if 'name' in kwargs:
             del kwargs['name']
         if 'loss_fn' in kwargs:
@@ -154,14 +159,14 @@ class MPTConfig(PretrainedConfig):
         self._validate_config()
 
     def _set_config_defaults(self, config: Dict[str, Any],
-                             config_defaults: Dict[str, Any]):
+                             config_defaults: Dict[str, Any]) -> Dict[str, Any]:
         # set config defaults
         for k, v in config_defaults.items():
             if k not in config:
                 config[k] = v
         return config
 
-    def _validate_config(self):
+    def _validate_config(self) -> None:
         # set config defaults
         self.attn_config = self._set_config_defaults(
             self.attn_config,

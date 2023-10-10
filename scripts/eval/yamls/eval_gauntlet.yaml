@@ -2,28 +2,27 @@ eval_gauntlet:
   weighting: EQUAL
   subtract_random_baseline: true
   rescale_accuracy: true
-  # average_groupings:
-  #   - name: gauntlet_average
-  #     categories:
-  #       - world_knowledge
-  #       - commonsense_reasoning
-  #       - language_understanding
-  #       - symbolic_problem_solving
-  #       - reading_comprehension
-  #   - name: lm_subscore_average  
-  #     categories:
-  #       - world_knowledge_lm_task_subscore
-  #       - commonsense_reasoning_lm_task_subscore
-  #       - language_understanding_lm_task_subscore
-  #       - symbolic_problem_solving_lm_task_subscore
-  #       - reading_comprehension_lm_task_subscore
-  #   - name: lite_subscore_average  
-  #     categories:
-  #       - world_knowledge_lite
-  #       - commonsense_reasoning_lite
-  #       - language_understanding_lite
-  #       - symbolic_problem_solving_lite
-  #       - reading_comprehension_lite
+  averages:
+    core_average:
+    - world_knowledge
+    - commonsense_reasoning
+    - language_understanding
+    - symbolic_problem_solving
+    - reading_comprehension
+    - programming
+    lm_task_average:
+    - world_knowledge_lm_task_subscore
+    - commonsense_reasoning_lm_task_subscore
+    - language_understanding_lm_task_subscore
+    - symbolic_problem_solving_lm_task_subscore
+    - reading_comprehension_lm_task_subscore
+    lite_average:
+    - world_knowledge_lite
+    - commonsense_reasoning_lite
+    - language_understanding_lite
+    - symbolic_problem_solving_lite
+    - reading_comprehension_lite
+    - programming_lite
   categories:
   - name: world_knowledge
     benchmarks:
@@ -181,6 +180,17 @@ eval_gauntlet:
     - name: winogender_mc_male
       num_fewshot: 10
       random_baseline: 0.5
+  - name: programming
+    benchmarks:
+    - name: human_eval
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: human_eval_cpp
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: human_eval_js
+      num_fewshot: 0
+      random_baseline: 0.0
   - name: world_knowledge_lm_task_subscore
     benchmarks:
       - name: jeopardy
@@ -228,6 +238,50 @@ eval_gauntlet:
       - name: coqa
         num_fewshot: 10
         random_baseline: 0
+  - name: world_knowledge_lm_task_subscore
+    benchmarks:
+    - name: jeopardy
+      num_fewshot: 10
+      random_baseline: 0
+    - name: bigbench_qa_wikidata
+      num_fewshot: 10
+      random_baseline: 0
+  - name: language_understanding_lm_task_subscore
+    benchmarks:
+    - name: lambada_openai
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: bigbench_conlang_translation
+      num_fewshot: 0
+      random_baseline: 0.0
+  - name: symbolic_problem_solving_lm_task_subscore
+    benchmarks:
+    - name: bigbench_dyck_languages
+      num_fewshot: 10
+      random_baseline: 0
+    - name: bigbench_cs_algorithms
+      num_fewshot: 10
+      random_baseline: 0
+    - name: bigbench_operators
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: bigbench_repeat_copy_logic
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: simple_arithmetic_withspaces
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: simple_arithmetic_nospaces
+      num_fewshot: 10
+      random_baseline: 0.0
+  - name: reading_comprehension_lm_task_subscore
+    benchmarks:
+    - name: pubmed_qa_labeled
+      num_fewshot: 10
+      random_baseline: 0.0
+    - name: squad
+      num_fewshot: 10
+      random_baseline: 0
   - name: world_knowledge_lite
     benchmarks:
     - name: jeopardy
@@ -283,3 +337,8 @@ eval_gauntlet:
     - name: squad
       num_fewshot: 10
       random_baseline: 0
+  - name: programming_lite
+    benchmarks:
+    - name: human_eval
+      num_fewshot: 0
+      random_baseline: 0.0

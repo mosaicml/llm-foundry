@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import os
 import sys
 import time
@@ -90,14 +91,24 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     )
 
 
-def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
-                   run_name: str, icl_tasks: Union[str, ListConfig],
-                   max_seq_len: int, device_eval_batch_size: int,
-                   eval_gauntlet_config: Optional[Union[str, DictConfig]],
-                   fsdp_config: Optional[Dict], num_retries: int,
-                   loggers_cfg: Dict[str, Any], python_log_level: str,
-                   precision: str, eval_gauntlet_df: Optional[pd.DataFrame],
-                   icl_subset_num_batches: Optional[int]):
+def evaluate_model(
+    model_cfg: DictConfig,
+    dist_timeout: Union[float, int],
+    run_name: str,
+    seed: int,
+    icl_tasks: Union[str, ListConfig],
+    max_seq_len: int,
+    device_eval_batch_size: int,
+    eval_gauntlet_config: Optional[Union[str, DictConfig]],
+    fsdp_config: Optional[Dict],
+    num_retries: int,
+    loggers_cfg: Dict[str, Any],
+    python_log_level: Optional[str],
+    precision: str,
+    eval_gauntlet_df: Optional[pd.DataFrame],
+    icl_subset_num_batches: Optional[int],
+):
+
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
     tokenizer_cfg: Dict[str,
@@ -134,7 +145,7 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
 
     if eval_gauntlet_df is None and eval_gauntlet_callback is not None:
         eval_gauntlet_df = pd.DataFrame(
-            columns=['model_name', 'average'] +
+            columns=['model_name'] + [avg for avg in eval_gauntlet_callback.averages] + 
             [t.name for t in eval_gauntlet_callback.categories])
 
     load_path = model_cfg.get('load_path', None)
@@ -149,11 +160,12 @@ def evaluate_model(model_cfg: DictConfig, dist_timeout: Union[float, int],
 
     trainer = Trainer(
         run_name=run_name,
+        seed=seed,
         model=composer_model,
         callbacks=callbacks,
         loggers=loggers,
         precision=precision,
-        fsdp_config=fsdp_config,  # type: ignore
+        fsdp_config=fsdp_config,
         load_path=load_path,
         load_weights_only=True,
         progress_bar=False,
@@ -204,11 +216,14 @@ def main(cfg: DictConfig):
     device_eval_batch_size: int = pop_config(cfg,
                                              'device_eval_batch_size',
                                              must_exist=True)
-    precision: str = pop_config(cfg, 'precision', must_exist=True)
-    python_log_level: str = pop_config(cfg,
-                                       'python_log_level',
-                                       must_exist=False,
-                                       default_value='debug')
+    precision: str = pop_config(cfg,
+                                'precision',
+                                must_exist=False,
+                                default_value=None)
+    python_log_level: Optional[str] = pop_config(cfg,
+                                                 'python_log_level',
+                                                 must_exist=False,
+                                                 default_value='debug')
 
     # Optional Evaluation Parameters with default values
     seed: int = pop_config(cfg, 'seed', must_exist=False, default_value=17)
@@ -245,6 +260,15 @@ def main(cfg: DictConfig):
     reproducibility.seed_all(seed)
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
+    if python_log_level is not None:
+        logging.basicConfig(
+            # Example of format string
+            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
+
     eval_gauntlet_df = None
     models_df = None
     composite_scores = None
@@ -254,6 +278,7 @@ def main(cfg: DictConfig):
              model_cfg=model_cfg,
              dist_timeout=dist_timeout,
              run_name=run_name,
+             seed=seed,
              icl_tasks=icl_tasks,
              max_seq_len=max_seq_len,
              device_eval_batch_size=device_eval_batch_size,
@@ -288,23 +313,15 @@ def main(cfg: DictConfig):
         if eval_gauntlet_df is not None and eval_gauntlet_callback is not None:
             assert composite_scores is not None
             row = {'model_name': model_cfg['model_name']}
-            row.update({
-                t.name:
-                composite_scores.get(f'icl/metrics/eval_gauntlet/{t.name}',
-                                     None)
-                for t in eval_gauntlet_callback.categories
-            })
-            row.update({
-                'average':
-                    composite_scores[f'icl/metrics/eval_gauntlet/average']
-            })
+            row.update({k.split('/')[-1]: v for k,v in composite_scores.items()})
             eval_gauntlet_df = pd.concat(
                 [eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
 
             print(f'Printing gauntlet results for all models')
+            
             print(
                 eval_gauntlet_df.sort_values(
-                    'average', ascending=False).to_markdown(index=False))
+                   list(eval_gauntlet_callback.averages.keys())[0], ascending=False).to_markdown(index=False))
         print(f'Printing complete results for all models')
         assert models_df is not None
         print(models_df.to_markdown(index=False))

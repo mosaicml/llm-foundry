@@ -2,15 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
+import logging
 import math
 import warnings
-from typing import Any, Dict, Mapping, Optional, Union
+from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
 
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.utils import init_empty_weights
+
+log = logging.getLogger(__name__)
 
 
 def pop_config(cfg: DictConfig,
@@ -43,8 +46,9 @@ def pop_config(cfg: DictConfig,
         return default_value
 
 
-def calculate_batch_size_info(global_batch_size: int,
-                              device_microbatch_size: Union[int, str]):
+def calculate_batch_size_info(
+    global_batch_size: int, device_microbatch_size: Union[int, Literal['auto']]
+) -> Tuple[int, Union[int, Literal['auto']], Union[int, Literal['auto']]]:
     if global_batch_size % dist.get_world_size() != 0:
         raise ValueError(
             f'Global batch size {global_batch_size} is not divisible by {dist.get_world_size()} '
@@ -56,8 +60,8 @@ def calculate_batch_size_info(global_batch_size: int,
         device_grad_accum = 'auto'
     elif isinstance(device_microbatch_size, int):
         if device_microbatch_size > device_batch_size:
-            print(
-                f'WARNING: device_microbatch_size > device_batch_size, ' +
+            log.warn(
+                f'device_microbatch_size > device_batch_size, ' +
                 f'will be reduced from {device_microbatch_size} -> {device_batch_size}.'
             )
             device_microbatch_size = device_batch_size
@@ -70,7 +74,7 @@ def calculate_batch_size_info(global_batch_size: int,
 
 
 # Coming soon: this conversion math will be done inside Composer Trainer
-def update_batch_size_info(cfg: DictConfig):
+def update_batch_size_info(cfg: DictConfig) -> DictConfig:
     device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
         cfg.global_train_batch_size, cfg.device_train_microbatch_size)
     cfg.n_gpus = dist.get_world_size()
@@ -138,7 +142,7 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
     return init_context
 
 
-def log_config(cfg: DictConfig):
+def log_config(cfg: DictConfig) -> None:
     """Logs the current config and updates the wandb and mlflow configs.
 
     This function can be called multiple times to update the wandb and MLflow

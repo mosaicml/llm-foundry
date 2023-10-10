@@ -165,7 +165,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     print(f'{hf_model_fwd.mean().item() = }\n{model_fwd.mean().item() = }')
     if hf_model_fwd.mean().allclose(model_fwd.mean()):
         warn_msg = f'WARNING: model_fwd ({model_fwd}) and hf_model_fwd ({hf_model_fwd}) are very close at init.'
-        raise warnings.warn(warn_msg)  # type: ignore
+        raise RuntimeError(warn_msg)
 
     hf_model_statedict = hf_model.state_dict()
 

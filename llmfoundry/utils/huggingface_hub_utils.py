@@ -14,7 +14,7 @@ class DeleteSpecificNodes(ast.NodeTransformer):
     def __init__(self, nodes_to_remove: List[ast.AST]):
         self.nodes_to_remove = nodes_to_remove
 
-    def visit(self, node: ast.AST):
+    def visit(self, node: ast.AST) -> Optional[ast.AST]:
         if node in self.nodes_to_remove:
             return None
 
@@ -92,7 +92,7 @@ def process_file(file_path: str, folder_path: str) -> List[str]:
     return new_files_to_process
 
 
-def edit_files_for_hf_compatibility(folder: str):
+def edit_files_for_hf_compatibility(folder: str) -> None:
     files_to_process = [
         os.path.join(folder, filename)
         for filename in os.listdir(folder)

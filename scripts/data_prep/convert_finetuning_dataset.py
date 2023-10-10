@@ -96,12 +96,13 @@ class SimpleDataset(IterableDataset):
             yield {key: sample[key].encode('utf-8') for key in self.columns}
 
 
-def build_dataloader(dataset: SimpleDataset, batch_size: int,
-                     num_workers: int) -> DataLoader:
+def build_dataloader(dataset: SimpleDataset,
+                     batch_size: int,
+                     num_workers: Optional[int] = None) -> DataLoader:
     if num_workers is None:
         # Multiple workers is only supported on linux machines
         if 'linux' in platform.platform().lower():
-            num_workers = max(1, psutil.cpu_count())  # type: ignore
+            num_workers = max(1, psutil.cpu_count())
         else:
             num_workers = 0
 
@@ -160,9 +161,7 @@ def main(args: Namespace) -> None:
     else:
         preprocessor_str = args.preprocessor
         preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_str(
-            preprocessor=preprocessor_str,
-            dataset_name=args.dataset,
-            verbose=True)
+            preprocessor=preprocessor_str, dataset_name=args.dataset)
         if preprocessing_fn is None:
             raise ValueError(
                 '`args.preprocessor` was not set and no preprocessing function ' +\

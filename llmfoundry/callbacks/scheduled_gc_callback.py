@@ -9,7 +9,7 @@ from composer.loggers import Logger
 
 
 def gc_cuda():
-    """Gargage collect Torch (CUDA) memory."""
+    """Garbage collect Torch (CUDA) memory."""
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -32,7 +32,9 @@ class ScheduledGarbageCollector(Callback):
         self.eval_keep_disabled = eval_keep_disabled
         self.gc_init_state = None
 
-    def fit_start(self, state: State, logger: Logger):
+    def fit_start(self, state: State, logger: Logger) -> None:
+        del state, logger  # unused
+
         # cache if automatic garbage collection is enabled; reset at fit_end
         self.gc_init_state = gc.isenabled()
 
@@ -40,7 +42,9 @@ class ScheduledGarbageCollector(Callback):
         gc.disable()
         gc_cuda()
 
-    def fit_end(self, state: State, logger: Logger):
+    def fit_end(self, state: State, logger: Logger) -> None:
+        del state, logger  # unused
+
         gc_cuda()
 
         # reset automatic garbage collection at fit_end
@@ -49,16 +53,22 @@ class ScheduledGarbageCollector(Callback):
         else:
             gc.disable()
 
-    def before_dataloader(self, state: State, logger: Logger):
+    def before_dataloader(self, state: State, logger: Logger) -> None:
+        del logger  # unused
+
         if state.timestamp.batch.value % self.batch_interval == 0:
             gc_cuda()
 
-    def eval_start(self, state: State, logger: Logger):
+    def eval_start(self, state: State, logger: Logger) -> None:
+        del state, logger  # unused
+
         gc_cuda()
         if not self.eval_keep_disabled:
             gc.enable()
 
-    def eval_end(self, state: State, logger: Logger):
+    def eval_end(self, state: State, logger: Logger) -> None:
+        del state, logger  # unused
+
         if not self.eval_keep_disabled:
             gc.disable()
 

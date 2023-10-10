@@ -3,7 +3,6 @@ tokenizer_name: EleutherAI/gpt-neox-20b
 seed: 1
 precision: amp_fp16
 
-
 models:
 -
   model_name: mpt_test
@@ -15,7 +14,8 @@ models:
   load_path: # Add your (optional) Composer checkpoint path here!
   model:
     name: mpt_causal_lm
-    init_device: meta
+    init_device: mixed
+    # Set the below model parameters to match the checkpoint specified with load_path
     d_model: 768
     n_heads: 12
     n_layers: 12

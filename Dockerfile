@@ -7,7 +7,6 @@ FROM $BASE_IMAGE
 ARG DEP_GROUPS
 
 # Install and uninstall foundry to cache foundry requirements
-# TEMPORARY CHANGE DO NOT MERGE
 RUN git clone -b main https://github.com/mosaicml/llm-foundry.git
 RUN pip install --no-cache-dir "./llm-foundry${DEP_GROUPS}"
 RUN pip uninstall -y llm-foundry

@@ -95,7 +95,7 @@ extra_deps['gpu-flash2'] = [
     'flash-attn==2.3.2',
     'mosaicml-turbo==0.0.4',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v2.3.1#subdirectory=csrc/xentropy',
+    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v2.3.2#subdirectory=csrc/xentropy',
 ]
 
 extra_deps['peft'] = [

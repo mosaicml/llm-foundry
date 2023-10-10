@@ -27,6 +27,7 @@ from llmfoundry.utils.builders import (build_algorithm, build_callback,
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
+from llmfoundry.callbacks.run_events_callback import RunEventsCallback
 
 
 def validate_config(cfg: DictConfig):
@@ -446,10 +447,14 @@ def main(cfg: DictConfig) -> Trainer:
     scheduler = build_scheduler(scheduler_name, scheduler_config)
 
     # Loggers
-    loggers = [
-        build_logger(str(name), logger_cfg)
-        for name, logger_cfg in logger_configs.items()
-    ] if logger_configs else None
+    loggers = []
+    if logger_configs:
+        for name, logger_cfg in logger_configs.items():
+            current_logger = build_logger(str(name), logger_cfg)
+            if name == 'mosaicml':
+                mosaicMlLogger = current_logger
+    else:
+        loggers = None
 
     # Callbacks
     callbacks: List[Callback] = [
@@ -470,6 +475,8 @@ def main(cfg: DictConfig) -> Trainer:
         tokenizer,
         device_train_batch_size,
     )
+    RunEventsCallback.data_validated(mosaicMlLogger, len(train_loader.dataset))
+
     ## Evaluation
     print('Building eval loader...')
     evaluators = []

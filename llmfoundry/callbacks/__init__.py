@@ -13,6 +13,7 @@ try:
                                                            LayerFreezing)
     from llmfoundry.callbacks.scheduled_gc_callback import \
         ScheduledGarbageCollector
+    from llmfoundry.callbacks.run_events_callback import RunEventsCallback
 except ImportError as e:
     raise ImportError(
         'Please make sure to pip install . to get requirements for llm-foundry.'
@@ -28,4 +29,5 @@ __all__ = [
     'EvalGauntlet',
     'ModelGauntlet',
     'HuggingFaceCheckpointer',
+    'RunEventsCallback'
 ]

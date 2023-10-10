@@ -87,15 +87,11 @@ if __name__ == '__main__':
         name = name[:56]
 
     clear_tmp_path_flag = '-o tmp_path_retention_policy=none'
-    command += f'''
+    run_command = f'''
 
     pip install --upgrade --user .[all]
 
     export COMMON_ARGS="-v --durations=20 -m '{args.pytest_markers}' {clear_tmp_path_flag}"
-
-    make test PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS --codeblocks"
-
-    pkill python 
     
     make test-dist PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS" WORLD_SIZE=2
 
@@ -111,9 +107,41 @@ if __name__ == '__main__':
         gpu_num=args.gpu_num,
         image=args.image,
         integrations=[git_integration],
-        command=command,
+        command=command + run_command,
         scheduling={'max_duration': args.timeout / 60 / 60},
     )
+
+    # Create run
+    run = create_run(config)
+    print(f'[GHA] Run created: {run.name}')
+
+    # Wait until run starts before fetching logs
+    run = wait_for_run_status(run, status='running')
+    start_time = time.time()
+    print('[GHA] Run started. Following logs...')
+
+    # Print logs
+    for line in follow_run_logs(run):
+        print(line, end='')
+
+    print('[GHA] Run completed. Waiting for run to finish...')
+    run = wait_for_run_status(run, status='completed')
+
+    # Fail if command exited with non-zero exit code or timed out
+    assert run.status == RunStatus.COMPLETED
+
+    run_command = f'''
+
+    pip install --upgrade --user .[all]
+
+    export COMMON_ARGS="-v --durations=20 -m '{args.pytest_markers}' {clear_tmp_path_flag}"
+    
+    make test PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS --codeblocks"
+
+    python -m coverage combine
+
+    python -m coverage report
+    '''
 
     # Create run
     run = create_run(config)

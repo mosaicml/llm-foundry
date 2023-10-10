@@ -183,4 +183,4 @@ def test_mpt_generate_callback(callback_generate: Any, tmpdir: Path):
     trainer.logger.log_table = Mock()
     trainer.fit()
 
-    assert callback_generate.assert_called_once
+    callback_generate.assert_called_once()

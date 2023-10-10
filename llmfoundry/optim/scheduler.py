@@ -136,9 +136,9 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
             t_cooldown_start = t_warmup
 
         if state.timestamp < t_cooldown_start:
-            # rescale LR by a coeff equal to the inverse square root of the time
+            # Rescale LR by a coefficient equal to the inverse square root of the time
             # elapsed after warmup, rescaled by the time scale, such that, at
-            # infinite time, the LR decays to alpha_f_decay
+            # infinite time, the LR decays to alpha_f_decay.
             coeff = 1 / ((current_time + t_shift) / t_scale).value**0.5
             current_factor = (self.alpha_f_decay + coeff *
                               (1.0 - self.alpha_f_decay))

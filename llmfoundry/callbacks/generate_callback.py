@@ -1,5 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+
 """Deprecated Generate callback.
 
 Please use composer.callbacks.Generate instead.
@@ -21,7 +22,9 @@ class Generate(ComposerGenerate):
         warnings.warn(
             ('Accessing llmfoundry.callbacks.generate_callback.Generate will '
              'be deprecated in a future release. '
-             'Please use composer.callbacks.Generate instead.'))
+             'Please use composer.callbacks.Generate instead.'),
+            DeprecationWarning,
+        )
 
         interval = f'{batch_log_interval}ba'
         super().__init__(prompts=prompts, interval=interval, **kwargs)

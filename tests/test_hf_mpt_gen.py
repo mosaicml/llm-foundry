@@ -1,16 +1,22 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from pathlib import Path
 from typing import Any, Dict
+from unittest.mock import Mock, patch
 
 import pytest
+from composer.callbacks import Generate as ComposerGenerate
 from composer.core.precision import get_precision_context
+from composer.trainer import Trainer
 from composer.utils import get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.data.finetuning import build_finetuning_dataloader
 from llmfoundry.utils import build_tokenizer
+from tests.data_utils import make_tiny_ft_dataset
 
 
 @pytest.mark.gpu
@@ -72,3 +78,109 @@ def test_init_hfhub_mpt(device: str, attn_impl: str):
 
 def test_init_hfhub_mpt_cpu():
     test_init_hfhub_mpt(device='cpu', attn_impl='torch')
+
+
+@pytest.mark.gpu
+@patch.object(ComposerGenerate,
+              'generate',
+              side_effect=ComposerGenerate.generate,
+              autospec=True)
+def test_mpt_generate_callback(callback_generate: Any, tmpdir: Path):
+    composer_device = get_device('gpu')
+    reproducibility.seed_all(42)
+    max_seq_len = 128
+
+    # testing dataset and dataloader
+    dataset_size = 5
+
+    tiny_dataset_path = tmpdir / 'test-ift-data-small'
+    tiny_dataset_path.mkdir()
+    tiny_dataset_file = tiny_dataset_path / 'train.jsonl'
+    make_tiny_ft_dataset(path=str(tiny_dataset_file), size=dataset_size)
+
+    dataloader_cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': str(tiny_dataset_path),
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 4,
+        'pin_memory': False,
+        'prefetch_factor': 2,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    dataloader_cfg = om.create(dataloader_cfg)
+
+    # build tokenizer
+    tokenizer_cfg: Dict[str, Any] = om.to_container(
+        DictConfig({
+            'name': 'EleutherAI/gpt-neox-20b',
+            'kwargs': {
+                'model_max_length': max_seq_len,
+            }
+        }),
+        resolve=True,
+    )  # type: ignore
+    tokenizer = build_tokenizer(tokenizer_cfg['name'],
+                                tokenizer_cfg.get('kwargs', {}))
+
+    # build mpt model
+    model_config = DictConfig({
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': 'mosaicml/mpt-7b',
+        'pretrained': False,
+        'config_overrides': {
+            'd_model': 128,
+            'n_heads': 4,
+            'n_layers': 2,
+            'expansion_ratio': 2,
+            'attn_config': {
+                'attn_impl': 'torch',
+                'attn_uses_sequence_id': True,
+            },
+        },
+    })
+    model = COMPOSER_MODEL_REGISTRY['mpt_causal_lm'](model_config, tokenizer)
+    model = composer_device.module_to_device(model)
+
+    # generate callback
+    prompts = [
+        'The best banana bread recipe is',
+        '2+2=',
+        'how much wood could a woodchuck chuck',
+    ]
+    gen_interval = 1
+    generate_cb = ComposerGenerate(
+        prompts,
+        interval=f'{gen_interval}ba',
+        max_new_tokens=5,
+        use_cache=True,
+    )
+
+    # build trainer
+    device_batch_size = 1
+    train_dataloader = build_finetuning_dataloader(
+        dataloader_cfg,
+        tokenizer,
+        device_batch_size,
+    )
+
+    trainer = Trainer(
+        model=model,
+        train_dataloader=train_dataloader,
+        device=composer_device,
+        max_duration=f'{gen_interval}ba',
+        callbacks=[generate_cb],
+    )
+    trainer.logger.log_table = Mock()
+    trainer.fit()
+
+    assert callback_generate.assert_called_once

@@ -151,8 +151,8 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
             if t_cooldown.value == 0:
                 return alpha_i
 
-            # linearly decay the LR from its value at the step at which cooldown
-            # started to alpha_f_cooldown over t_cooldown time
+            # Linearly decay the LR from its value at the step at which cooldown
+            # started to alpha_f_cooldown over t_cooldown time.
             frac_of_cooldown = ((current_time - t_cooldown_start) /
                                 t_cooldown).value
             frac_of_cooldown = min(1.0, frac_of_cooldown)

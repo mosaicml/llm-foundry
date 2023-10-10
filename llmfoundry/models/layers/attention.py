@@ -17,17 +17,19 @@ from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
-def raise_if_flash_attn_v2():
-    flash_attn_version = None
-    # This only needs to be in a try except so that huggingface does not try to import it
+def is_flash_v2_installed():
     try:
-        from flash_attn import __version__ as flash_attn_version
-        if version.parse(flash_attn_version) >= version.parse('2.0.0'):
-            raise RuntimeError(
-                'flash-attn==2.0.0+ is not supported. Please use flash-attn==1.0.9.'
-            )
+        import flash_attn as flash_attn
     except:
-        pass
+        return False
+    return version.parse(flash_attn.__version__) >= version.parse('2.0.0')
+
+def is_flash_v1_installed():
+    try:
+        import flash_attn as flash_attn
+    except:
+        return False
+    return version.parse(flash_attn.__version__) < version.parse('2.0.0')
 
 def is_flash_v2_installed():
     try:

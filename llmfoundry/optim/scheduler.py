@@ -87,9 +87,9 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
                  alpha_f_cooldown: float = 0.0,
                  scale_warmup: bool = False) -> None:
         if alpha_f_decay < alpha_f_cooldown:
-            raise ValueError(
-                f'Required: alpha_f_decay >= alpha_f_cooldown. Current: alpha_f_decay={alpha_f_decay}, alpha_f_cooldown={alpha_f_cooldown}'
-            )
+            raise ValueError(('Required: alpha_f_decay >= alpha_f_cooldown. '
+                              f'Current: alpha_f_decay={alpha_f_decay}, '
+                              f'alpha_f_cooldown={alpha_f_cooldown}.'))
         _raise_if_units_dur(t_warmup, 't_warmup')
         _raise_if_units_dur(t_scale, 't_scale')
         _raise_if_units_dur(t_cooldown, 't_cooldown')
@@ -131,6 +131,7 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
         current_time = state.timestamp.get(t_scale.unit)
 
         t_shift = t_scale - t_warmup
+        # t_cooldown_start = max(t_warmup, t_max - t_cooldown)
         t_cooldown_start = t_max - t_cooldown
         if t_cooldown_start < t_warmup:
             t_cooldown_start = t_warmup

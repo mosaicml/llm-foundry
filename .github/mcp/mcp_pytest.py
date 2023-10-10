@@ -142,6 +142,16 @@ if __name__ == '__main__':
 
     python -m coverage report
     '''
+    config = RunConfig(
+        name=name,
+        cluster=args.cluster,
+        gpu_type=args.gpu_type,
+        gpu_num=args.gpu_num,
+        image=args.image,
+        integrations=[git_integration],
+        command=command + run_command,
+        scheduling={'max_duration': args.timeout / 60 / 60},
+    )
 
     # Create run
     run = create_run(config)

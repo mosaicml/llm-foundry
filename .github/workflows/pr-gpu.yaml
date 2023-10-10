@@ -32,11 +32,6 @@ jobs:
           container: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
           markers: 'gpu'
           pytest_command: 'coverage run -m pytest'
-          # TODO: After the PR with the flash attention 2 images goes in, add the new unit test suite
-        # - name: 'gpu-2.1.0-flash2'
-        #   container: # UPDATE AFTER THIS PR GOES TO PRODUCTION IMAGE
-        #   markers: 'gpu'
-        #   pytest_command: 'coverage run -m pytest'
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     with:

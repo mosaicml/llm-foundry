@@ -20,6 +20,9 @@ def _raise_if_units_dont_match(time: Union[str, Time], t_max: Union[str, Time],
         time = Time.from_timestring(time)
     if isinstance(t_max, str):
         t_max = Time.from_timestring(t_max)
+
+    assert isinstance(time, Time) and isinstance(t_max, Time)
+
     if time.unit != t_max.unit:
         raise ValueError(f'{time.unit=} does not match {t_max.unit=}.')
 
@@ -27,6 +30,8 @@ def _raise_if_units_dont_match(time: Union[str, Time], t_max: Union[str, Time],
 def _raise_if_units_dur(time: Union[str, Time], name: str) -> None:
     if isinstance(time, str):
         time = Time.from_timestring(time)
+
+    assert isinstance(time, Time)
     if time.unit == TimeUnit('dur'):
         raise ValueError(f'{name} cannot be in units of "dur".')
 

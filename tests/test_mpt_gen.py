@@ -6,7 +6,6 @@ import torch
 from composer.core.precision import get_precision_context
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
-from omegaconf import OmegaConf as om
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
@@ -55,13 +54,9 @@ def test_mpt_generate_multi_gpu():
     """
     composer_device = get_device('gpu')
     dist.initialize_dist(composer_device)
-    with open('scripts/train/yamls/pretrain/testing.yaml') as f:
-        test_cfg = om.load(f)
+    reproducibility.seed_all(42)
 
-    assert isinstance(test_cfg, DictConfig)
-    reproducibility.seed_all(test_cfg.get('seed', 42))
-
-    test_cfg.model = DictConfig({
+    model_config = DictConfig({
         'name': 'mpt_causal_lm',
         'config_overrides': {
             'd_model': 128,
@@ -74,11 +69,10 @@ def test_mpt_generate_multi_gpu():
     })
 
     # build tokenizer
-    tokenizer_name = test_cfg.tokenizer.name
-    tokenizer = build_tokenizer(tokenizer_name, {})
+    tokenizer = build_tokenizer('EleutherAI/gpt-neox-20b', {})
 
     # build model
-    model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
+    model = COMPOSER_MODEL_REGISTRY[model_config.name](model_config,
                                                          tokenizer)
     model = composer_device.module_to_device(model)
 

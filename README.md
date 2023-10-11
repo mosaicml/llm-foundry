@@ -115,7 +115,7 @@ You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117
 |-------------------------------------------------------------|----------------|--------------|-------------------------------------|
 | `mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04`      | 1.13.1         | 11.7         | No                                  |
 | `mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04`       | 2.0.1          | 11.8         | No                                  |
-| `mosaicml/pytorch:2.0.1_cu121-python3.10-ubuntu20.04`       | 2.1.0          | 12.1         | No                                  |
+| `mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04`       | 2.1.0          | 12.1         | No                                  |
 | `mosaicml/llm-foundry:1.13.1_cu117-latest`                  | 1.13.1         | 11.7         | Yes                                 |
 | `mosaicml/llm-foundry:2.0.1_cu118-latest`                   | 2.0.1          | 11.8         | Yes                                 |
 | `mosaicml/llm-foundry:2.1.0_cu121-latest`                   | 2.1.0          | 12.1         | Yes (flash attention v1)            |

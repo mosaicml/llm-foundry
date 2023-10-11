@@ -81,11 +81,7 @@ def test_init_hfhub_mpt_cpu():
 
 
 @pytest.mark.gpu
-@patch.object(ComposerGenerate,
-              'generate',
-              side_effect=ComposerGenerate.generate,
-              autospec=True)
-def test_mpt_generate_callback(callback_generate: Any, tmpdir: Path):
+def test_mpt_generate_callback(tmpdir: Path):
     composer_device = get_device('gpu')
     reproducibility.seed_all(42)
     max_seq_len = 128
@@ -140,13 +136,14 @@ def test_mpt_generate_callback(callback_generate: Any, tmpdir: Path):
         'how much wood could a woodchuck chuck',
     ]
     gen_interval = 1
-    generate_cb = ComposerGenerate(
+    generate = ComposerGenerate(
         prompts,
         interval=f'{gen_interval}ba',
         max_new_tokens=5,
         batch_size=len(prompts),
         use_cache=True,
     )
+    generate.generate = Mock(wraps=generate.generate, autospec=True)
 
     # build trainer
     device_batch_size = 1
@@ -161,9 +158,10 @@ def test_mpt_generate_callback(callback_generate: Any, tmpdir: Path):
         train_dataloader=train_dataloader,
         device=composer_device,
         max_duration=f'{gen_interval}ba',
-        callbacks=[generate_cb],
+        callbacks=[generate],
     )
     trainer.logger.log_table = Mock()
     trainer.fit()
 
-    callback_generate.assert_called_once()
+    generate.generate.assert_called_once()
+    trainer.logger.log_table.assert_called_once()

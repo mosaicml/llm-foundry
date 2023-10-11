@@ -3,6 +3,7 @@
 
 import logging
 import os
+import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -95,6 +96,13 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
         if interval is None:
             if 'batch_log_interval' in kwargs:
                 interval = f"{kwargs.pop('batch_log_interval')}ba"
+                warnings.warn(
+                    (
+                        'generate_callback.batch_log_interval is deprecated and will be removed in a future release.',
+                        f'Please use interval="{interval}" instead',
+                    ),
+                    DeprecationWarning,
+                )
             else:
                 raise KeyError(
                     '"interval" must be specified with generate callback')

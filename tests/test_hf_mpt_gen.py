@@ -98,7 +98,7 @@ def test_mpt_generate_callback(callback_generate: Any, tmpdir: Path):
     tiny_dataset_file = tiny_dataset_path / 'train.jsonl'
     make_tiny_ft_dataset(path=str(tiny_dataset_file), size=dataset_size)
 
-    dataloader_cfg = {
+    dataloader_cfg = DictConfig({
         'name': 'finetuning',
         'dataset': {
             'hf_name': str(tiny_dataset_path),
@@ -115,39 +115,22 @@ def test_mpt_generate_callback(callback_generate: Any, tmpdir: Path):
         'prefetch_factor': 2,
         'persistent_workers': False,
         'timeout': 0
-    }
-
-    dataloader_cfg = om.create(dataloader_cfg)
+    })
 
     # build tokenizer
-    tokenizer_cfg: Dict[str, Any] = om.to_container(
-        DictConfig({
-            'name': 'EleutherAI/gpt-neox-20b',
-            'kwargs': {
-                'model_max_length': max_seq_len,
-            }
-        }),
-        resolve=True,
-    )  # type: ignore
-    tokenizer = build_tokenizer(tokenizer_cfg['name'],
-                                tokenizer_cfg.get('kwargs', {}))
+    tokenizer = build_tokenizer('EleutherAI/gpt-neox-20b', {})
 
     # build mpt model
     model_config = DictConfig({
         'name': 'mpt_causal_lm',
-        'pretrained_model_name_or_path': 'mosaicml/mpt-7b',
-        'pretrained': False,
         'config_overrides': {
             'd_model': 128,
             'n_heads': 4,
             'n_layers': 2,
             'expansion_ratio': 2,
-            'attn_config': {
-                'attn_impl': 'triton',
-            },
         },
     })
-    model = COMPOSER_MODEL_REGISTRY['mpt_causal_lm'](model_config, tokenizer)
+    model = COMPOSER_MODEL_REGISTRY[model_config.name](model_config, tokenizer)
     model = composer_device.module_to_device(model)
 
     # generate callback
@@ -161,6 +144,7 @@ def test_mpt_generate_callback(callback_generate: Any, tmpdir: Path):
         prompts,
         interval=f'{gen_interval}ba',
         max_new_tokens=5,
+        batch_size=len(prompts),
         use_cache=True,
     )
 

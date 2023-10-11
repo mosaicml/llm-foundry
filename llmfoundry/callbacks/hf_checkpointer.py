@@ -68,9 +68,9 @@ class HuggingFaceCheckpointer(Callback):
 
         # mlflow config setup
         self.mlflow_registered_model_name = mlflow_registered_model_name
+        if mlflow_logging_config is None:
+            mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:
-            if mlflow_logging_config is None:
-                mlflow_logging_config = {}
             if 'metadata' not in mlflow_logging_config:
                 mlflow_logging_config['metadata'] = {
                     'task': 'llm/v1/completions'

@@ -20,7 +20,7 @@ class Generate(ComposerGenerate):
                  **kwargs: Any):
 
         warnings.warn(
-            ('Accessing llmfoundry.callbacks.generate_callback.Generate will '
+            ('Accessing llmfoundry.callbacks.generate_callback.Generate '
              'is deprecated and will be removed in a future release. '
              'Please use composer.callbacks.Generate instead.'),
             DeprecationWarning,

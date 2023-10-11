@@ -66,3 +66,15 @@ def test_build_generate_callback(
         assert kwargs['interval'] == '10ba'
         assert kwargs['something'] == 'else'
         assert kwargs['foo'] == 'bar'
+
+
+def test_build_generate_callback_unspecified_interval():
+    with pytest.raises(KeyError):
+        with mock.patch.object(Generate, '__init__',
+                               autospec=True) as mock_generate:
+            mock_generate.return_value = None
+            build_callback('generate_callback', {
+                'prompts': ['hello'],
+                'foo': 'bar',
+                'something': 'else',
+            })

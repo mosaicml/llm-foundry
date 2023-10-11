@@ -92,7 +92,11 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
         interval = kwargs.pop('interval', None)
         # Generate callback used to be batch_log_interval, so this is for backwards compatibility
         if interval is None:
-            interval = f"{kwargs.pop('batch_log_interval')}ba"
+            if 'batch_log_interval' in kwargs:
+                interval = f"{kwargs.pop('batch_log_interval')}ba"
+            else:
+                raise KeyError(
+                    '"interval" must be specified with generate callback')
         return Generate(prompts=list(prompts), interval=interval, **kwargs)
     elif name == 'global_lr_scaling':
         return GlobalLRScaling(**kwargs)

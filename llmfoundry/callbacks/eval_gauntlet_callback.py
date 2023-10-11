@@ -21,15 +21,22 @@ class Weighting(Enum):
     SAMPLE_SZ = 2
     LOG_SAMPLE_SZ = 3
 
-def calculate_named_averages(average_names, category_scores):
+
+def calculate_named_averages(average_names: Dict[str, list],
+                             category_scores: Dict[str, float]):
     average_scores = {}
-    for avg_name, category_list in average_names:
-        composite_subset = {category: score for category, score in category_scores.items() if category in category_list}
-        average_scores[avg_name] = sum(
-            composite_subset.values()) / len(composite_subset.values()) if len(
+    for avg_name, category_list in average_names.items():
+        composite_subset = {
+            category: score
+            for category, score in category_scores.items()
+            if category in category_list
+        }
+        average_scores[avg_name] = sum(composite_subset.values()) / len(
+            composite_subset.values()) if len(
                 composite_subset.values()) > 0 else 0
-    
+
     return average_scores
+
 
 class EvalGauntlet(Callback):
     """The EvalGauntlet aggregates ICL eval results.
@@ -77,13 +84,12 @@ class EvalGauntlet(Callback):
             )
 
         self.categories = categories
+        self.category_names = [conf.get('name', '') for conf in self.categories]
         self.weighting = Weighting[weighting]
         self.subtract_random_baseline = subtract_random_baseline
         self.rescale_accuracy = rescale_accuracy
         self.logger_keys = logger_keys
-
         for category in self.categories:
-
             for benchmark in category['benchmarks']:
                 bench_name = f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
 
@@ -106,17 +112,18 @@ class EvalGauntlet(Callback):
                 assert weight is not None
                 benchmark['weighting'] = weight
 
-
         self.averages = {}
         if averages is not None:
             self.averages = dict(averages)
         else:
             # if no averages spec provided, simply average everything
-            self.averages['global_average'] = list(self.categories.keys())
+            self.averages['global_average'] = self.category_names
 
         for avg_name in self.averages:
-            if avg_name in self.categories:
-                raise ValueError(f"Found average name `{avg_name}` used as category name. Average names and category names must be non-overlapping.")
+            if avg_name in self.category_names:
+                raise ValueError(
+                    f'Found average name `{avg_name}` used as category name. Average names and category names must be non-overlapping.'
+                )
 
     def extract_metrics_from_state(self, state: State) -> Dict[str, float]:
         results = {}
@@ -143,23 +150,11 @@ class EvalGauntlet(Callback):
 
         return {k: sum(v) / len(v) for k, v in results.items()}
 
-    def calculate_averages(self, composite_scores):
-        average_scores = {}
-        for avg_name, category_list in self.averages.items():
-            composite_subset = {category: score for category, score in composite_scores.items() if category in category_list}
-            average_scores[avg_name] = sum(
-                composite_subset.values()) / len(composite_subset.values()) if len(
-                    composite_subset.values()) > 0 else 0
-        
-        composite_scores.update(average_scores)
-        return composite_scores
-
     def eval_after_all(self, state: State, logger: Logger) -> Dict[str, float]:
         computed_metrics = self.extract_metrics_from_state(state)
         if len(computed_metrics) == 0:
             return {}
         category_scores = {}
-
         for category in self.categories:
             missing_metrics = []
             category_scores[category['name']] = []
@@ -197,7 +192,8 @@ class EvalGauntlet(Callback):
                 k['score'] * (k['weighting'] / total_weight)
                 for k in category_scores[category['name']])
 
-        named_averages = calculate_named_averages(self.averages, self.composite_scores)
+        named_averages = calculate_named_averages(self.averages,
+                                                  category_scores)
         category_scores.update(named_averages)
         category_scores = {
             f'icl/metrics/eval_gauntlet/{k}': v

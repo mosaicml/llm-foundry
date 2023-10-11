@@ -122,7 +122,7 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
         current_time = state.timestamp.get(t_scale.unit)
 
         t_shift = t_scale - t_warmup
-        # t_cooldown_start = max(t_warmup, t_max - t_cooldown)
+        # t_cooldown_start is max of t_warmup, t_max - t_cooldown
         t_cooldown_start = t_max - t_cooldown
         if t_cooldown_start < t_warmup:
             t_cooldown_start = t_warmup

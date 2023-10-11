@@ -340,3 +340,11 @@ icl_tasks:
   num_beams: 20
   batch_size: 1
   icl_task_type: code_evaluation
+-
+  label: human_eval_execution_prediction
+  dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [3]
+  pass_at_k: 1
+  num_beams: 20
+  batch_size: 1
+  icl_task_type: code_execution_prediction

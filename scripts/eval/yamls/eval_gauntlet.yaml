@@ -213,6 +213,9 @@ eval_gauntlet:
     - name: human_eval_75
       num_fewshot: 0
       random_baseline: 0.0
+    - name: human_eval_execution_prediction
+      num_fewshot: 3
+      random_baseline: 0.0
   - name: world_knowledge_lm_task_subscore
     benchmarks:
       - name: jeopardy

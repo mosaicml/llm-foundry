@@ -71,3 +71,39 @@ def test_scheduler_init(scheduler: ComposerScheduler, ssr: float,
         )
         lr = scheduler(state, ssr)
         assert lr == pytest.approx(expected_lr, abs=1e-3)
+
+@pytest.mark.parametrize('state_unit,warmup_unit,scale_unit,cooldown_unit', [
+    ['ep', 'ba', 'ba', 'ba'],
+    ['ba', 'ep', 'ep', 'ep'],
+    ['ep', 'ep', 'ba', 'ep'],
+])
+def test_scheduler_units_match_error(state_unit: str,
+                                     warmup_unit: str,
+                                     scale_unit: str,
+                                     cooldown_unit: str):
+    state = dummy_schedulers_state
+    state.max_duration = f'1{state_unit}'
+    scheduler = InverseSquareRootWithWarmupScheduler(t_warmup=f'10{warmup_unit}',
+                                                     t_scale=f'10{scale_unit}',
+                                                     t_cooldown=f'10{cooldown_unit}')
+    with pytest.raises(ValueError, match='does not match'):
+        _ = scheduler(state, 1.0)
+
+@pytest.mark.parametrize('warmup_unit,scale_unit,cooldown_unit', [
+    ['dur', 'ba', 'ba'],
+    ['ba', 'dur', 'ba'],
+    ['ba', 'ba', 'dur'],
+])
+def test_unit_dur_error(warmup_unit: str, scale_unit: str, cooldown_unit: str):
+    with pytest.raises(ValueError, match='cannot be in units of "dur".'):
+        _ = InverseSquareRootWithWarmupScheduler(t_warmup=f'1{warmup_unit}',
+                                                 t_scale=f'1{scale_unit}',
+                                                 t_cooldown=f'1{cooldown_unit}')
+
+def test_unit_dur_error():
+    with pytest.raises(ValueError, match='alpha_f_decay >= alpha_f_cooldown.'):
+        _ = InverseSquareRootWithWarmupScheduler(t_warmup='10ba',
+                                                 t_scale='10ba',
+                                                 t_cooldown='10ba',
+                                                 alpha_f_decay=0.0,
+                                                 alpha_f_cooldown=0.1)

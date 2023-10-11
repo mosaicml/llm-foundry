@@ -64,10 +64,6 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
     Also note, ``t_warmup``, ``t_scale``, and ``t_cooldown`` cannot be specified in units of duration; since this schedule is designed for continual learning,
     ``max_duration`` is expected to change. Instead, these parameters need to be specified in the same units as ``max_duration`` passed to the trainer.
 
-    .. warning::
-            By default, initial warmup time is **not** scaled according to any provided scale schedule ratio.
-            To change this behavior, set ``scale_warmup=True``.
-
     Args:
         t_warmup (str | Time): The warmup time.
         t_scale (str | Time): The time scale.
@@ -75,7 +71,6 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
         t_max (str | Time): The duration of this scheduler. Default = ``"1dur"``.
         alpha_f_decay (float): The learning rate multiplier to decay inverse square root decay to. Default = ``0.0``.
         alpha_f_cooldown (float): The learning rate multiplier to decay linear cooldown to. Default = ``0.0``.
-        scale_warmup (bool): If ``True``, SSR also scales the warmup period. Default = ``False``.
     """
 
     def __init__(self,
@@ -84,8 +79,7 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
                  t_cooldown: Union[str, Time],
                  t_max: Union[str, Time] = '1dur',
                  alpha_f_decay: float = 0.0,
-                 alpha_f_cooldown: float = 0.0,
-                 scale_warmup: bool = False) -> None:
+                 alpha_f_cooldown: float = 0.0) -> None:
         if alpha_f_decay < alpha_f_cooldown:
             raise ValueError(('Required: alpha_f_decay >= alpha_f_cooldown. '
                               f'Current: alpha_f_decay={alpha_f_decay}, '
@@ -99,7 +93,6 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
         self.t_max = t_max
         self.alpha_f_decay = alpha_f_decay
         self.alpha_f_cooldown = alpha_f_cooldown
-        self.scale_warmup = scale_warmup
         self.warmup_scheduler = LinearScheduler(alpha_i=0.0,
                                                 alpha_f=1.0,
                                                 t_max=t_warmup)
@@ -121,8 +114,6 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
                 same unit as the trainer's max_duration parameter."""))
 
         if state.timestamp < t_warmup:
-            if self.scale_warmup:
-                return self.warmup_scheduler(state, ssr)
             return self.warmup_scheduler(state)
 
         t_scale = _convert_time(self.t_scale, state, ssr=ssr)

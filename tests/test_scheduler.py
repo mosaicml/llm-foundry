@@ -79,7 +79,9 @@ def test_scheduler_init(scheduler: ComposerScheduler, ssr: float,
     ['ep', 'ep', 'ba', 'ep'],
 ])
 def test_scheduler_units_match_error(state_unit: str, warmup_unit: str,
-                                     scale_unit: str, cooldown_unit: str):
+                                     scale_unit: str, cooldown_unit: str,
+                                     dummy_schedulers_state: State):
+
     state = dummy_schedulers_state
     state.max_duration = f'1{state_unit}'
     scheduler = InverseSquareRootWithWarmupScheduler(

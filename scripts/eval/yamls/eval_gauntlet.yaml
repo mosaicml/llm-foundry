@@ -9,6 +9,7 @@ eval_gauntlet:
     - language_understanding
     - symbolic_problem_solving
     - reading_comprehension
+    - safety
     - programming
     lm_task_average:
     - world_knowledge_lm_task_subscore
@@ -180,6 +181,12 @@ eval_gauntlet:
     - name: winogender_mc_male
       num_fewshot: 10
       random_baseline: 0.5
+    - name: enterprise_pii_classification
+      num_fewshot: 10
+      random_baseline: 0.5
+    - name: bbq
+      num_fewshot: 3
+      random_baseline: 0.5
   - name: programming
     benchmarks:
     - name: human_eval
@@ -189,6 +196,21 @@ eval_gauntlet:
       num_fewshot: 0
       random_baseline: 0.0
     - name: human_eval_js
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: human_eval_return_simple
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: human_eval_return_complex
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: human_eval_25
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: human_eval_50
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: human_eval_75
       num_fewshot: 0
       random_baseline: 0.0
   - name: world_knowledge_lm_task_subscore

@@ -263,12 +263,12 @@ Programming tasks evaluate the model's ability to understand code, write functio
     - Number of few shot examples: 0
     - Random baseline accuracy: 0%
 36. HumanEval C++ code generation
-    - Description: HumanEval C++ consists of 161 C++ programming challenges, in which the model is presented with the method signature and docstring comment for a C++ program and is expected to complete the program. We then test the resultant code’s functional correctness on a number of test input/output pairs.
+    - Description: HumanEval C++ consists of 161 C++ programming challenges, in which the model is presented with the method signature and docstring comment for a C++ program and is expected to complete the program. We then test the resultant code’s functional correctness on a number of test input/output pairs. The C++ translation of HumanEval comes from the [CodeGeex](https://huggingface.co/datasets/THUDM/humaneval-x/viewer/cpp) project.
     - Year released: 2022
     - Number of few shot examples: 0
     - Random baseline accuracy: 0%
 37. HumanEval JS code generation
-    - Description: HumanEval JS consists of 164 Javscript programming challenges, in which the model is presented with the method signature and docstring comment for a Javacript program and is expected to complete the program. We then test the resultant code’s functional correctness on a number of test input/output pairs.
+    - Description: HumanEval JS consists of 164 Javscript programming challenges, in which the model is presented with the method signature and docstring comment for a Javacript program and is expected to complete the program. We then test the resultant code’s functional correctness on a number of test input/output pairs. The JS translation of HumanEval comes from the [CodeGeex](https://huggingface.co/datasets/THUDM/humaneval-x/viewer/cpp) project.
     - Year released: 2022
     - Number of few shot examples: 0
     - Random baseline accuracy: 0%

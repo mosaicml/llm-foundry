@@ -19,7 +19,31 @@ def allclose_helper(t0: torch.Tensor,
 @pytest.mark.parametrize('attn_impl_1', ['flash', 'triton', 'torch'])
 @pytest.mark.parametrize('clip_qkv', [True, False])
 @pytest.mark.parametrize('qk_ln', [True, False])
-@pytest.mark.parametrize('alibi', [True, False])
+@pytest.mark.parametrize('pos_emb_config', [{
+    'alibi': False,
+    'rope': False
+}, {
+    'alibi': True,
+    'rope': False
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'no_scaling',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'linear',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'dynamic',
+    'rope_scaling_factor': 1.0
+}])
 @pytest.mark.parametrize(
     'attn_type',
     ['multihead_attention', 'multiquery_attention', 'grouped_query_attention'])
@@ -27,7 +51,7 @@ def test_attn_impl(attn_impl_0: str,
                    attn_impl_1: str,
                    clip_qkv: bool,
                    qk_ln: bool,
-                   alibi: bool,
+                   pos_emb_config: dict,
                    attn_type: str,
                    device: str = 'cuda'):
     """Compare all attn impl with each other.
@@ -35,7 +59,11 @@ def test_attn_impl(attn_impl_0: str,
     Includes testing with and without attn_clip_qkv, attn_qk_ln, and alibi.
     """
     from llmfoundry.models.layers import attention
-
+    from llmfoundry.models.layers.rotary_embedding import (
+        DynamicNTKScalingRotaryEmbedding, LinearScalingRotaryEmbedding,
+        RotaryEmbedding)
+    alibi = pos_emb_config['alibi']
+    rope = pos_emb_config['rope']
     if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'):
         pytest.xfail('flash attn does not support alibi')
 
@@ -51,7 +79,8 @@ def test_attn_impl(attn_impl_0: str,
     })
 
     n, s, f = 2, 16, cfg.d_model
-
+    assert cfg.d_model % cfg.n_heads == 0
+    rope_head_dim = cfg.d_model // cfg.n_heads
     if attn_type == 'grouped_query_attention':
         cfg.kv_n_heads = 2
 
@@ -87,6 +116,27 @@ def test_attn_impl(attn_impl_0: str,
 
         return attn_bias
 
+    def gen_rotary_emb():
+        if pos_emb_config['rope_scaling_type'] == 'no_scaling':
+            rotary_embedding = RotaryEmbedding(
+                rope_head_dim, base=pos_emb_config['rope_theta'])
+        elif pos_emb_config['rope_scaling_type'] == 'linear':
+            rotary_embedding = LinearScalingRotaryEmbedding(
+                rope_head_dim,
+                base=pos_emb_config['rope_theta'],
+                scaling_factor=pos_emb_config['rope_scaling_factor'])
+        elif pos_emb_config['rope_scaling_type'] == 'dynamic':
+            rotary_embedding = DynamicNTKScalingRotaryEmbedding(
+                rope_head_dim,
+                base=pos_emb_config['rope_theta'],
+                scaling_factor=pos_emb_config['rope_scaling_factor'],
+                max_position_embeddings=s)
+        else:
+            raise ValueError(
+                'rope_scaling_type should be one no_scaling, linear, or dynamic'
+            )
+        return rotary_embedding
+
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()
     x0.requires_grad = True
@@ -94,16 +144,33 @@ def test_attn_impl(attn_impl_0: str,
 
     with torch.autocast(x0.device.type):
         attn_bias = gen_bias(attn0.attn_impl)
+        pos = torch.arange(s).unsqueeze(0).to(device=device)
+        # adjust the position indices to account for padding tokens
+        pos = torch.clamp(
+            pos - torch.cumsum((~attention_mask).to(torch.int32), dim=1),
+            min=0,
+        )
+
+        rotary_emb_w_offset_info = None
+        if rope:
+            rotary_emb = gen_rotary_emb()
+            rotary_emb_w_offset_info = {
+                'rotary_emb': rotary_emb,
+                'pos': pos,
+                'seq_len': s
+            }
         y0, _, _ = attn0(x0,
                          past_key_value=None,
                          attn_bias=attn_bias,
                          attention_mask=attention_mask,
+                         rotary_emb_w_offset_info=rotary_emb_w_offset_info,
                          is_causal=True)
         attn_bias = gen_bias(attn1.attn_impl)
         y1, _, _ = attn1(x1,
                          past_key_value=None,
                          attn_bias=attn_bias,
                          attention_mask=attention_mask,
+                         rotary_emb_w_offset_info=rotary_emb_w_offset_info,
                          is_causal=True)
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)

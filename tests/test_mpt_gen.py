@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import List, Optional, Tuple
 from unittest.mock import patch
 
@@ -13,6 +16,7 @@ from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 
 EOS_TOKEN_ID = 0
+
 
 class MockMPTForCausalLM(MPTForCausalLM):
     """Class that overrides the forward of MPTForCausalLM."""
@@ -44,11 +48,13 @@ class MockMPTForCausalLM(MPTForCausalLM):
             result.logits[:, :, EOS_TOKEN_ID] = -torch.inf
         return result
 
+
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
-@patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM', new=MockMPTForCausalLM)
+@patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
+       new=MockMPTForCausalLM)
 def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool):
     """Tests mpt generation with mutiple gpus.
 
@@ -77,8 +83,7 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool):
     tokenizer = build_tokenizer('EleutherAI/gpt-neox-20b', {})
 
     # build model
-    model = COMPOSER_MODEL_REGISTRY[model_config.name](model_config,
-                                                         tokenizer)
+    model = COMPOSER_MODEL_REGISTRY[model_config.name](model_config, tokenizer)
     model = composer_device.module_to_device(model)
 
     model.model = FSDP(model.model)
@@ -86,7 +91,7 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool):
     with get_precision_context('amp_bf16'):
         _ = model.generate(composer_device.tensor_to_device(
             tokenizer('hello', return_tensors='pt')['input_ids']),
-                        max_new_tokens=3,
-                        eos_token_id=EOS_TOKEN_ID,
-                        use_cache=True,
-                        synced_gpus=True)
+                           max_new_tokens=3,
+                           eos_token_id=EOS_TOKEN_ID,
+                           use_cache=True,
+                           synced_gpus=True)

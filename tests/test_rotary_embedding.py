@@ -15,9 +15,11 @@ def allclose_helper(t0: torch.Tensor,
 
 @pytest.mark.parametrize('device', ['cpu', 'cuda'])
 @pytest.mark.parametrize('dtype', [torch.float32, torch.bfloat16])
-@pytest.mark.parametrize('rope_scaling_type', ['no_scaling', 'linear', 'dynamic'])
+@pytest.mark.parametrize('rope_scaling_type',
+                         ['no_scaling', 'linear', 'dynamic'])
 @pytest.mark.parametrize('tensor_type', ['query', 'key'])
-def test_rotation_scaling_factor_1(device: str, dtype: torch.dtype, rope_scaling_type: str, tensor_type: str):
+def test_rotation_scaling_factor_1(device: str, dtype: torch.dtype,
+                                   rope_scaling_type: str, tensor_type: str):
     """Checks all the rotation embedding techniques with scaling factor 1."""
     from llmfoundry.models.layers.rotary_embedding import (
         DynamicNTKScalingRotaryEmbedding, LinearScalingRotaryEmbedding,
@@ -33,22 +35,28 @@ def test_rotation_scaling_factor_1(device: str, dtype: torch.dtype, rope_scaling
     seq_len = 7
     batch_size = 1
     num_heads = 1
-    pos = torch.arange(seq_len, device=device, dtype=torch.long).repeat(batch_size, 1) # 
+    pos = torch.arange(seq_len, device=device,
+                       dtype=torch.long).repeat(batch_size, 1)  #
 
     # x will test the first half cosine part of the rotation and second half of the sine part
-    x = torch.ones((batch_size, num_heads, seq_len, rope_head_dim), device=device, dtype=dtype)
-    x[..., rope_head_dim//2:] = 0.0
-    
-    # y will test the first half sine part of the rotation and second half of the cosine part
-    y = torch.ones((batch_size, num_heads, seq_len, rope_head_dim), device=device, dtype=dtype)
-    y[..., :rope_head_dim//2] = 0.0
+    x = torch.ones((batch_size, num_heads, seq_len, rope_head_dim),
+                   device=device,
+                   dtype=dtype)
+    x[..., rope_head_dim // 2:] = 0.0
 
-    z = torch.zeros((batch_size, num_heads, seq_len, rope_head_dim), device=device, dtype=dtype)
+    # y will test the first half sine part of the rotation and second half of the cosine part
+    y = torch.ones((batch_size, num_heads, seq_len, rope_head_dim),
+                   device=device,
+                   dtype=dtype)
+    y[..., :rope_head_dim // 2] = 0.0
+
+    z = torch.zeros((batch_size, num_heads, seq_len, rope_head_dim),
+                    device=device,
+                    dtype=dtype)
 
     def gen_rotary_emb():
         if rope_scaling_type == 'no_scaling':
-            rotary_embedding = RotaryEmbedding(
-                rope_head_dim, base=rope_theta)
+            rotary_embedding = RotaryEmbedding(rope_head_dim, base=rope_theta)
         elif rope_scaling_type == 'linear':
             rotary_embedding = LinearScalingRotaryEmbedding(
                 rope_head_dim,
@@ -68,10 +76,12 @@ def test_rotation_scaling_factor_1(device: str, dtype: torch.dtype, rope_scaling
 
     rotary_emb = gen_rotary_emb()
     (cos, sin) = rotary_emb(x, seq_len)
-    assert allclose_helper(cos[:, :rope_head_dim//2], cos[:, rope_head_dim//2:])
-    assert allclose_helper(sin[:, :rope_head_dim//2], sin[:, rope_head_dim//2:])
+    assert allclose_helper(cos[:, :rope_head_dim // 2],
+                           cos[:, rope_head_dim // 2:])
+    assert allclose_helper(sin[:, :rope_head_dim // 2],
+                           sin[:, rope_head_dim // 2:])
 
-    assert allclose_helper(cos*cos + sin*sin, torch.ones_like(cos))
+    assert allclose_helper(cos * cos + sin * sin, torch.ones_like(cos))
 
     if tensor_type == 'query':
         x, _ = apply_rotary_pos_emb(x, z, cos, sin, pos)
@@ -80,14 +90,19 @@ def test_rotation_scaling_factor_1(device: str, dtype: torch.dtype, rope_scaling
         _, x = apply_rotary_pos_emb(z, x, cos, sin, pos)
         _, y = apply_rotary_pos_emb(z, y, cos, sin, pos)
 
-    assert allclose_helper(x[..., :rope_head_dim//2], y[..., rope_head_dim//2:])
-    assert allclose_helper(x[..., rope_head_dim//2:], -y[..., :rope_head_dim//2])
+    assert allclose_helper(x[..., :rope_head_dim // 2], y[...,
+                                                          rope_head_dim // 2:])
+    assert allclose_helper(x[..., rope_head_dim // 2:],
+                           -y[..., :rope_head_dim // 2])
 
     inv_freq = (
-            1.0 / (rope_theta**(torch.arange(0, rope_head_dim, 2) / rope_head_dim))).to(x)
+        1.0 /
+        (rope_theta**(torch.arange(0, rope_head_dim, 2) / rope_head_dim))).to(x)
     t = torch.arange(seq_len).to(x)
 
     expected_rotation_angles = torch.outer(t, inv_freq)
 
-    assert allclose_helper(x[..., :rope_head_dim//2], expected_rotation_angles.cos())
-    assert allclose_helper(x[..., rope_head_dim//2:], expected_rotation_angles.sin())
+    assert allclose_helper(x[..., :rope_head_dim // 2],
+                           expected_rotation_angles.cos())
+    assert allclose_helper(x[..., rope_head_dim // 2:],
+                           expected_rotation_angles.sin())

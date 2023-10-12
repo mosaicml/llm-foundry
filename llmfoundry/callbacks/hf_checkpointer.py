@@ -71,6 +71,8 @@ class HuggingFaceCheckpointer(Callback):
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:
+            # Both the metadata and the task are needed in order for mlflow
+            # and databricks optimized model serving to work
             if 'metadata' not in mlflow_logging_config:
                 mlflow_logging_config['metadata'] = {
                     'task': 'llm/v1/completions'

@@ -117,9 +117,9 @@ class HuggingFaceCheckpointer(Callback):
                 ]
                 if len(self.mlflow_loggers) == 0:
                     raise ValueError(
-                        f'`log_to_mlflow` was set to `True` but no `MLFlowLogger` was found in the `logger.destinations` list. '
+                        f'`mlflow_registered_model_name` was set, but no `MLFlowLogger` was found in the `logger.destinations` list. '
                         +
-                        'Please add an `MLFlowLogger` or set `log_to_mlflow` to `False`.'
+                        'Please add an `MLFlowLogger` or set `mlflow_registered_model_name` to `None`.'
                     )
 
                 import mlflow
@@ -156,9 +156,11 @@ class HuggingFaceCheckpointer(Callback):
 
             if state.is_model_ddp:
                 original_model: PreTrainedModel = state.model.module.model
+                state_dict_model = state.model.module.model
                 original_tokenizer = state.model.module.tokenizer
             elif isinstance(state.model.model, FSDP):
                 original_model: PreTrainedModel = state.model.model.module
+                state_dict_model = state.model.model
                 original_tokenizer = state.model.tokenizer
             else:
                 original_model: PreTrainedModel = state.model.model
@@ -167,9 +169,10 @@ class HuggingFaceCheckpointer(Callback):
             state_dict_context = fsdp_state_dict_type_context(
                 original_model, state_dict_type='full') if (
                     (not state.is_model_ddp) and isinstance(
-                        state.model.model, FSDP)) else contextlib.nullcontext()
+                        state_dict_model, FSDP)) else contextlib.nullcontext()
+
             with state_dict_context:
-                state_dict = original_model.state_dict()
+                state_dict = state_dict_model.state_dict()
 
                 # convert the state dict to the requested precision
                 for k, v in state_dict.items():

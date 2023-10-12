@@ -74,7 +74,7 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool):
         'use_cache': True,
         'attn_config': {
             'attn_impl': attn_impl,
-            'attn_uses_sequence_id': True,
+            'attn_uses_sequence_id': False,
             'alibi': use_alibi
         },
     })

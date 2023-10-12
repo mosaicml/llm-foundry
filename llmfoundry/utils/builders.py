@@ -94,13 +94,12 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
         interval = kwargs.pop('interval', None)
         # Generate callback used to be batch_log_interval, so this is for backwards compatibility
         if interval is None:
-            if 'batch_log_interval' in kwargs:
-                interval = f"{kwargs.pop('batch_log_interval')}ba"
+            batch_log_interval: str = kwargs.pop('batch_log_interval', '')
+            if batch_log_interval:
+                interval = f'{batch_log_interval}ba'
                 warnings.warn(
-                    (
-                        'generate_callback.batch_log_interval is deprecated and will be removed in a future release.',
-                        f'Please use interval="{interval}" instead',
-                    ),
+                    ('generate_callback.batch_log_interval is deprecated and will be removed in a future release.'
+                     f'Please use interval: {interval}'),
                     DeprecationWarning,
                 )
             else:

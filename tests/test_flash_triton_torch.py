@@ -56,7 +56,7 @@ def test_attn_impl(attn_impl_0: str,
                    device: str = 'cuda'):
     """Compare all attn impl with each other.
 
-    Includes testing with and without attn_clip_qkv, attn_qk_ln, and alibi.
+    Includes testing with and without attn_clip_qkv, attn_qk_ln, alibi, and rope.
     """
     from llmfoundry.models.layers import attention
     from llmfoundry.models.layers.rotary_embedding import (

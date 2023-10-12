@@ -3,7 +3,6 @@
 
 """Log model run events and information."""
 
-import datetime
 import logging
 import time
 
@@ -24,5 +23,5 @@ class RunEventsCallback(Callback):
     
     def data_validated(self, logger: Logger, total_num_samples: int) -> None:
        logger.log_metrics({
-           'data_validated': datetime.fromtimestamp(time.time()),
+           'data_validated': time.time(),
            'total_num_samples': total_num_samples})

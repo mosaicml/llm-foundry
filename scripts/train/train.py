@@ -11,6 +11,7 @@ import torch
 from composer import Trainer
 from composer.core import Evaluator
 from composer.core.callback import Callback
+from composer.loggers import MosaicMLLogger
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -447,14 +448,13 @@ def main(cfg: DictConfig) -> Trainer:
     scheduler = build_scheduler(scheduler_name, scheduler_config)
 
     # Loggers
-    loggers = []
-    if logger_configs:
-        for name, logger_cfg in logger_configs.items():
-            current_logger = build_logger(str(name), logger_cfg)
-            if name == 'mosaicml':
-                mosaicMlLogger = current_logger
-    else:
+    if not logger_configs:
         loggers = None
+    else:
+        loggers = [
+            build_logger(str(name), logger_cfg)
+            for name, logger_cfg in logger_configs.items()]
+        mosaicMlLogger = next((x for x in loggers if isinstance(x, MosaicMLLogger)), None)
 
     # Callbacks
     callbacks: List[Callback] = [
@@ -475,7 +475,8 @@ def main(cfg: DictConfig) -> Trainer:
         tokenizer,
         device_train_batch_size,
     )
-    RunEventsCallback.data_validated(mosaicMlLogger, len(train_loader.dataset))
+    if mosaicMlLogger:
+        RunEventsCallback.data_validated(mosaicMlLogger, len(train_loader.dataset))
 
     ## Evaluation
     print('Building eval loader...')

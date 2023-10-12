@@ -30,7 +30,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
                                   GlobalLRScaling, HuggingFaceCheckpointer,
                                   LayerFreezing, MonolithicCheckpointSaver,
-                                  ScheduledGarbageCollector, RunEventsCallback)
+                                  RunEventsCallback, ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper

@@ -224,7 +224,8 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=f'{huggingface_save_interval_batches}ba',
         precision=precision_str,
-        mlflow_registered_model_name='dummy-registered-name' if log_to_mlflow else None,
+        mlflow_registered_model_name='dummy-registered-name'
+        if log_to_mlflow else None,
     )
 
     # get small version of each model

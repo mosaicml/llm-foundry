@@ -164,6 +164,7 @@ class HuggingFaceCheckpointer(Callback):
                 original_tokenizer = state.model.tokenizer
             else:
                 original_model: PreTrainedModel = state.model.model
+                state_dict_model = state.model.model
                 original_tokenizer = state.model.tokenizer
 
             state_dict_context = fsdp_state_dict_type_context(

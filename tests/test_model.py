@@ -527,13 +527,39 @@ def test_mpt_creation(norm_type: str, no_bias: bool):
                                                    ('flash', 'gpu'),
                                                    ('triton', 'gpu'),
                                                    ('torch', 'gpu')])
-@pytest.mark.parametrize('alibi', [True, False])
-def test_forward_with_padding(attention_impl: str, device: str, alibi: bool):
+@pytest.mark.parametrize('pos_emb_config', [{
+    'alibi': False,
+    'rope': False
+}, {
+    'alibi': True,
+    'rope': False
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'no_scaling',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'linear',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'dynamic',
+    'rope_scaling_factor': 1.0
+}])
+def test_forward_with_padding(attention_impl: str, device: str,
+                              pos_emb_config: dict):
     # Test that different placement of padding does not affect the output.
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
         )
+    alibi = pos_emb_config['alibi']
     if alibi and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
@@ -551,7 +577,7 @@ def test_forward_with_padding(attention_impl: str, device: str, alibi: bool):
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attention_impl,
-            'alibi': alibi,
+            **pos_emb_config,
         },
         init_config={
             'name': 'baseline_',
@@ -705,15 +731,39 @@ def test_advanced_mask_building(attention_impl: str):
                                                    ('flash', 'gpu'),
                                                    ('triton', 'gpu'),
                                                    ('torch', 'gpu')])
-@pytest.mark.parametrize('alibi', [True, False])
-def test_generate(attention_impl: str, device: str, alibi: bool):
+@pytest.mark.parametrize('pos_emb_config', [{
+    'alibi': False,
+    'rope': False
+}, {
+    'alibi': True,
+    'rope': False
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'no_scaling',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'linear',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'dynamic',
+    'rope_scaling_factor': 1.0
+}])
+def test_generate(attention_impl: str, device: str, pos_emb_config: dict):
     # Test that generate works, and produces the same output with or without
     # padding in the input.
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
         )
-    if alibi and attention_impl == 'flash':
+    if pos_emb_config['alibi'] and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     reproducibility.seed_all(1234)
@@ -730,7 +780,7 @@ def test_generate(attention_impl: str, device: str, alibi: bool):
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attention_impl,
-            'alibi': alibi,
+            **pos_emb_config,
         },
     )
     mpt = MPTForCausalLM(hf_config)
@@ -900,8 +950,32 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
     check_hf_model_equivalence(mpt, mpt2)
 
 
-@pytest.mark.parametrize('alibi', [True, False])
-def test_forward_with_cache_and_padding(alibi: bool):
+@pytest.mark.parametrize('pos_emb_config', [{
+    'alibi': False,
+    'rope': False
+}, {
+    'alibi': True,
+    'rope': False
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'no_scaling',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'linear',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'dynamic',
+    'rope_scaling_factor': 1.0
+}])
+def test_forward_with_cache_and_padding(pos_emb_config: dict):
     # Tests that the result is the same with or without padding when using kv caching
     hf_config = MPTConfig(
         init_device='cpu',
@@ -914,7 +988,7 @@ def test_forward_with_cache_and_padding(alibi: bool):
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': 'torch',
-            'alibi': alibi,
+            **pos_emb_config,
         },
         use_cache=True,
         init_config={
@@ -973,15 +1047,39 @@ def test_forward_with_cache_and_padding(alibi: bool):
     ('triton', 'gpu'),
     ('torch', 'gpu'),
 ])
-@pytest.mark.parametrize('alibi', [True, False])
-def test_forward_with_cache(attn_impl: str, device: str, alibi: bool):
+@pytest.mark.parametrize('pos_emb_config', [{
+    'alibi': False,
+    'rope': False
+}, {
+    'alibi': True,
+    'rope': False
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'no_scaling',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'linear',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'dynamic',
+    'rope_scaling_factor': 1.0
+}])
+def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: bool):
     # Test that model forward with and without the key-value cache produces the
     # same output.
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
         )
-    if alibi and attn_impl == 'flash':
+    if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     composer_device = get_device(device)
@@ -997,10 +1095,8 @@ def test_forward_with_cache(attn_impl: str, device: str, alibi: bool):
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
-            'alibi': alibi,
+            **pos_emb_config,
         },
-        attn_impl=attn_impl,
-        alibi=alibi,
         use_cache=True,
         init_config={
             'name': 'baseline_',
@@ -1084,8 +1180,32 @@ def test_forward_with_cache(attn_impl: str, device: str, alibi: bool):
         )
 
 
-@pytest.mark.parametrize('alibi', [True, False])
-def test_generate_with_past_kv(alibi: bool):
+@pytest.mark.parametrize('pos_emb_config', [{
+    'alibi': False,
+    'rope': False
+}, {
+    'alibi': True,
+    'rope': False
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'no_scaling',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'linear',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'dynamic',
+    'rope_scaling_factor': 1.0
+}])
+def test_generate_with_past_kv(pos_emb_config: dict):
     hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
@@ -1097,7 +1217,7 @@ def test_generate_with_past_kv(alibi: bool):
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': 'torch',
-            'alibi': alibi,
+            **pos_emb_config,
         },
         use_cache=True,
         init_config={
@@ -1144,9 +1264,33 @@ def test_generate_with_past_kv(alibi: bool):
     'do_sample': True,
     'top_p': 0.95
 }])
-@pytest.mark.parametrize('alibi', [True, False])
+@pytest.mark.parametrize('pos_emb_config', [{
+    'alibi': False,
+    'rope': False
+}, {
+    'alibi': True,
+    'rope': False
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'no_scaling',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'linear',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'dynamic',
+    'rope_scaling_factor': 1.0
+}])
 def test_generation_kwargs_dont_crash(generation_kwargs: Dict[str, Any],
-                                      alibi: bool):
+                                      pos_emb_config: dict):
     hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
@@ -1158,7 +1302,7 @@ def test_generation_kwargs_dont_crash(generation_kwargs: Dict[str, Any],
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': 'torch',
-            'alibi': alibi,
+            **pos_emb_config,
         },
         use_cache=True,
     )
@@ -1176,14 +1320,38 @@ def test_generation_kwargs_dont_crash(generation_kwargs: Dict[str, Any],
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('attention_impl', ['torch', 'flash', 'triton'])
-@pytest.mark.parametrize('alibi', [True, False])
-def test_model_to(attention_impl: str, alibi: bool):
+@pytest.mark.parametrize('pos_emb_config', [{
+    'alibi': False,
+    'rope': False
+}, {
+    'alibi': True,
+    'rope': False
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'no_scaling',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'linear',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'dynamic',
+    'rope_scaling_factor': 1.0
+}])
+def test_model_to(attention_impl: str, pos_emb_config: dict):
     # test that moving the model to diff devices and dtypes in diff ways does not break the model
     if not torch.cuda.is_available():
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
         )
-    if alibi and attention_impl == 'flash':
+    if pos_emb_config['alibi'] and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     hf_config = MPTConfig(
@@ -1197,7 +1365,7 @@ def test_model_to(attention_impl: str, alibi: bool):
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attention_impl,
-            'alibi': alibi,
+            **pos_emb_config,
         },
         use_cache=True,
         init_config={
@@ -1277,18 +1445,42 @@ def test_alibi_vs_hf():
     ('triton', 'gpu'),
     ('torch', 'gpu'),
 ])
-@pytest.mark.parametrize('alibi', [True, False])
+@pytest.mark.parametrize('pos_emb_config', [{
+    'alibi': False,
+    'rope': False
+}, {
+    'alibi': True,
+    'rope': False
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'no_scaling',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'linear',
+    'rope_scaling_factor': 1.0
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_scaling_type': 'dynamic',
+    'rope_scaling_factor': 1.0
+}])
 @pytest.mark.parametrize('output_attentions', [True, False])
 @pytest.mark.parametrize('output_hidden_states', [True, False])
 def test_forward_with_output_attentions_and_output_hidden_states(
-        attn_impl: str, device: str, alibi: bool, output_attentions: bool,
-        output_hidden_states: bool):
+        attn_impl: str, device: str, pos_emb_config: dict,
+        output_attentions: bool, output_hidden_states: bool):
     # Test that model forward with output_attentions_and_output_hidden_states
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
         )
-    if alibi and attn_impl == 'flash':
+    if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
     if output_attentions and attn_impl in ['flash', 'triton']:
         pytest.skip(f'output_attentions only implemented with torch attention.')
@@ -1308,10 +1500,8 @@ def test_forward_with_output_attentions_and_output_hidden_states(
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
-            'alibi': alibi,
+            **pos_emb_config,
         },
-        attn_impl=attn_impl,
-        alibi=alibi,
         use_cache=True,
         init_config={
             'name': 'baseline_',

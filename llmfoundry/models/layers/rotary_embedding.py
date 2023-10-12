@@ -47,8 +47,8 @@ class RotaryEmbedding(nn.Module):
             self._set_cos_sin_cache(seq_len=seq_len, x=x)
 
         return (
-            self.cos_cached[:seq_len],
-            self.sin_cached[:seq_len],
+            self.cos_cached[:seq_len].to(x),
+            self.sin_cached[:seq_len].to(x),
         )
 
 

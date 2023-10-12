@@ -20,7 +20,8 @@ def allclose_helper(t0: torch.Tensor,
 @pytest.mark.parametrize('tensor_type', ['query', 'key'])
 def test_rotation_scaling_factor_1(device: str, dtype: torch.dtype,
                                    rope_scaling_type: str, tensor_type: str):
-    """Checks all the rotation embedding techniques with scaling factor 1."""
+    """Checks all the rotation embedding techniques (with scaling factor 1)
+    produce the expected rotation."""
     from llmfoundry.models.layers.rotary_embedding import (
         DynamicNTKScalingRotaryEmbedding, LinearScalingRotaryEmbedding,
         RotaryEmbedding, apply_rotary_pos_emb)

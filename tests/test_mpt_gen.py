@@ -46,8 +46,10 @@ class MockMPTForCausalLM(MPTForCausalLM):
 
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
+@pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
+@pytest.mark.parametrize('use_alibi', [True, False])
 @patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM', new=MockMPTForCausalLM)
-def test_mpt_generate_multi_gpu():
+def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool):
     """Tests mpt generation with mutiple gpus.
 
     and generations of different lengths.
@@ -58,14 +60,17 @@ def test_mpt_generate_multi_gpu():
 
     model_config = DictConfig({
         'name': 'mpt_causal_lm',
-        'config_overrides': {
-            'd_model': 128,
-            'n_heads': 4,
-            'n_layers': 2,
-            'expansion_ratio': 2,
-            'no_bias': False,
-            'use_cache': False
-        }
+        'd_model': 128,
+        'n_heads': 4,
+        'n_layers': 2,
+        'expansion_ratio': 2,
+        'no_bias': False,
+        'use_cache': True,
+        'attn_config': {
+            'attn_impl': attn_impl,
+            'attn_uses_sequence_id': True,
+            'alibi': use_alibi
+        },
     })
 
     # build tokenizer
@@ -78,8 +83,7 @@ def test_mpt_generate_multi_gpu():
 
     model.model = FSDP(model.model)
 
-    with get_precision_context('amp_bf16' if composer_device.name ==
-                               'gpu' else 'fp32'):
+    with get_precision_context('amp_bf16'):
         _ = model.generate(composer_device.tensor_to_device(
             tokenizer('hello', return_tensors='pt')['input_ids']),
                         max_new_tokens=3,

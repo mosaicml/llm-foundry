@@ -85,6 +85,7 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool):
     # build model
     model = COMPOSER_MODEL_REGISTRY[model_config.name](model_config, tokenizer)
     model = composer_device.module_to_device(model)
+    model.eval()
 
     model.model = FSDP(model.model)
 

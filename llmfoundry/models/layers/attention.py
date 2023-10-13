@@ -546,14 +546,15 @@ class GroupedQueryAttention(nn.Module):
             key = key.view(*(key.shape[:-1]), -1, self.head_dim)
             query = query.transpose(1, 2)
             key = key.transpose(1, 2)
+
             rotary_emb = rotary_emb_w_offset_info['rotary_emb']
             seq_len = rotary_emb_w_offset_info['seq_len']
             pos = rotary_emb_w_offset_info['pos']
             (cos, sin) = rotary_emb(query, seq_len)
             query, key = apply_rotary_pos_emb(query, key, cos, sin, pos)
+
             query = query.transpose(1, 2)
             key = key.transpose(1, 2)
-
             query = query.reshape(*(query.shape[:-2]), self.d_model)
             key = key.reshape(*(key.shape[:-2]),
                               self.kv_n_heads * self.head_dim)

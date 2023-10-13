@@ -24,8 +24,7 @@ from transformers import (AutoConfig, AutoModelForCausalLM,
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
-from llmfoundry.models.layers.llama_attention_monkeypatch import \
-    get_llama_attention_patch_fn
+from llmfoundry.models.layers.attention import is_flash_v1_installed
 from llmfoundry.models.utils import init_empty_weights
 
 try:
@@ -76,6 +75,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError()
         ]
+
+        # Before importing any transformers models, we need to disable transformers flash attention if
+        # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
+        # gated import otherwise.
+        if is_flash_v1_installed():
+            transformers.utils.is_flash_attn_available = lambda : False
 
         # if we are passed a DictConfig, we need to instantiate the model
         if isinstance(om_model_config, DictConfig):
@@ -200,6 +205,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 )
                 from transformers.models.llama.modeling_llama import \
                     LlamaAttention
+                from llmfoundry.models.layers.llama_attention_monkeypatch import \
+                    get_llama_attention_patch_fn
                 LlamaAttention.forward = get_llama_attention_patch_fn(
                     attention_patch_type)
                 model.config.use_cache = False

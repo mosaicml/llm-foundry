@@ -1,0 +1,38 @@
+max_seq_len: 16384
+seed: 1
+precision: amp_fp16
+
+models:
+-
+  model_name: EleutherAI/gpt-neo-125m
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: EleutherAI/gpt-neo-125m
+    init_device: cpu
+    pretrained: true
+  tokenizer:
+    name: EleutherAI/gpt-neo-125m
+    kwargs:
+      model_max_length: ${max_seq_len}
+
+device_eval_batch_size: 4
+
+# FSDP config for model sharding
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: FULL
+
+icl_tasks:
+-
+  label: lambada_openai
+  dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
+  num_fewshot: [0]
+  icl_task_type: language_modeling
+-
+  label: piqa
+  dataset_uri: eval/local_data/commonsense_reasoning/piqa.jsonl  # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+
+model_gauntlet: 'eval/yamls/model_gauntlet.yaml'

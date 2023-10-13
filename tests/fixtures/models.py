@@ -1,4 +1,5 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
+from composer import ComposerModel
 from omegaconf import DictConfig
 from pytest import fixture
 from composer.devices import Device
@@ -7,6 +8,10 @@ from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.utils.builders import build_tokenizer
+
+from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
+
+from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
 
 
 def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase, device: Device):
@@ -19,8 +24,8 @@ def tokenizer():
     return build_tokenizer('EleutherAI/gpt-neox-20b', {})
 
 @fixture
-def build_mpt(tokenizer: PreTrainedTokenizerBase):
-    def build(device: Optional[Union[str, Device]], **kwargs: Dict[str, Any]):
+def build_mpt(tokenizer: PreTrainedTokenizerBase) -> Callable[..., ComposerMPTCausalLM]:
+    def build(device: Device, **kwargs: Any) -> ComposerMPTCausalLM:
         config = DictConfig({
             'name': 'mpt_causal_lm',
             'd_model': 128,
@@ -30,12 +35,13 @@ def build_mpt(tokenizer: PreTrainedTokenizerBase):
         })
         config.update(kwargs)
         model = _build_model(config, tokenizer, device)
+        assert isinstance(model, ComposerMPTCausalLM)
         return model
     return build
 
 @fixture
-def build_hf_mpt(tokenizer: PreTrainedTokenizerBase):
-    def build(device: Optional[Union[str, Device]], **kwargs: Dict[str, Any]):
+def build_hf_mpt(tokenizer: PreTrainedTokenizerBase) -> Callable[..., ComposerHFCausalLM]:
+    def build(device: Device, **kwargs: Dict[str, Any]) -> Callable[..., ComposerHFCausalLM]:
         config_overrides = {
                 'd_model': 128,
                 'n_heads': 4,
@@ -50,5 +56,6 @@ def build_hf_mpt(tokenizer: PreTrainedTokenizerBase):
             'config_overrides': config_overrides,
         })
         model = _build_model(config, tokenizer, device)
+        assert isinstance(model, ComposerHFCausalLM)
         return model
     return build

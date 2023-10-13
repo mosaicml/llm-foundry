@@ -2,20 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from unittest.mock import Mock, patch
 from composer import ComposerModel, Trainer
+from composer.devices import Device
 from transformers import PreTrainedTokenizerBase
 
 import pytest
 import torch
 from composer.core.precision import get_precision_context
-from composer.utils import dist, get_device, reproducibility
+from composer.utils import dist, get_device
 from omegaconf import DictConfig
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
+from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 
 from tests.data_utils import make_tiny_ft_dataset
@@ -65,7 +66,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
 @patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
        new=MockMPTForCausalLM)
 def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool, 
-                                build_mpt: Callable[[Dict[str, Any]], Type[ComposerModel]], 
+                                build_mpt: Callable[..., ComposerMPTCausalLM], 
                                 tokenizer: PreTrainedTokenizerBase):
     """Tests mpt generation with mutiple gpus.
 
@@ -91,9 +92,8 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
                            synced_gpus=True)
         
 @pytest.mark.gpu
-def test_mpt_generate_callback(tmpdir: Path):
-    composer_device = get_device('gpu')
-    reproducibility.seed_all(42)
+def test_mpt_generate_callback(tmpdir: Path, build_mpt: Callable[..., ComposerMPTCausalLM]):
+    device = get_device('gpu')
     max_seq_len = 128
 
     # testing dataset and dataloader
@@ -127,17 +127,7 @@ def test_mpt_generate_callback(tmpdir: Path):
     tokenizer = build_tokenizer('EleutherAI/gpt-neox-20b', {})
 
     # build mpt model
-    model_config = DictConfig({
-        'name': 'mpt_causal_lm',
-        'config_overrides': {
-            'd_model': 128,
-            'n_heads': 4,
-            'n_layers': 2,
-            'expansion_ratio': 2,
-        },
-    })
-    model = COMPOSER_MODEL_REGISTRY[model_config.name](model_config, tokenizer)
-    model = composer_device.module_to_device(model)
+    model = build_mpt(device)
 
     # generate callback
     prompts = [
@@ -166,7 +156,7 @@ def test_mpt_generate_callback(tmpdir: Path):
     trainer = Trainer(
         model=model,
         train_dataloader=train_dataloader,
-        device=composer_device,
+        device=device,
         max_duration=f'{gen_interval}ba',
         callbacks=[generate],
     )

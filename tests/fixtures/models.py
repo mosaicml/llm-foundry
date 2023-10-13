@@ -12,6 +12,7 @@ from llmfoundry.utils.builders import build_tokenizer
 def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase, device: Device):
     model = COMPOSER_MODEL_REGISTRY[config.name](config, tokenizer)
     model = device.module_to_device(model)
+    return model
 
 @fixture
 def tokenizer():

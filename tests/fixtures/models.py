@@ -20,11 +20,11 @@ def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase, device:
     return model
 
 @fixture
-def tokenizer():
+def mpt_tokenizer():
     return build_tokenizer('EleutherAI/gpt-neox-20b', {})
 
 @fixture
-def build_mpt(tokenizer: PreTrainedTokenizerBase) -> Callable[..., ComposerMPTCausalLM]:
+def build_mpt(mpt_tokenizer: PreTrainedTokenizerBase) -> Callable[..., ComposerMPTCausalLM]:
     def build(device: Device, **kwargs: Any) -> ComposerMPTCausalLM:
         config = DictConfig({
             'name': 'mpt_causal_lm',
@@ -34,13 +34,13 @@ def build_mpt(tokenizer: PreTrainedTokenizerBase) -> Callable[..., ComposerMPTCa
             'expansion_ratio': 2,
         })
         config.update(kwargs)
-        model = _build_model(config, tokenizer, device)
+        model = _build_model(config, mpt_tokenizer, device)
         assert isinstance(model, ComposerMPTCausalLM)
         return model
     return build
 
 @fixture
-def build_hf_mpt(tokenizer: PreTrainedTokenizerBase) -> Callable[..., ComposerHFCausalLM]:
+def build_hf_mpt(mpt_tokenizer: PreTrainedTokenizerBase) -> Callable[..., ComposerHFCausalLM]:
     def build(device: Device, **kwargs: Dict[str, Any]) -> Callable[..., ComposerHFCausalLM]:
         config_overrides = {
                 'd_model': 128,
@@ -55,7 +55,7 @@ def build_hf_mpt(tokenizer: PreTrainedTokenizerBase) -> Callable[..., ComposerHF
             'pretrained': False,
             'config_overrides': config_overrides,
         })
-        model = _build_model(config, tokenizer, device)
+        model = _build_model(config, mpt_tokenizer, device)
         assert isinstance(model, ComposerHFCausalLM)
         return model
     return build

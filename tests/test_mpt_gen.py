@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 from unittest.mock import Mock, patch
-from composer import ComposerModel, Trainer
-from composer.devices import Device
+from composer import Trainer
 from transformers import PreTrainedTokenizerBase
 
 import pytest
@@ -15,7 +14,6 @@ from composer.utils import dist, get_device
 from omegaconf import DictConfig
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 
@@ -67,7 +65,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
        new=MockMPTForCausalLM)
 def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool, 
                                 build_mpt: Callable[..., ComposerMPTCausalLM], 
-                                tokenizer: PreTrainedTokenizerBase):
+                                mpt_tokenizer: PreTrainedTokenizerBase):
     """Tests mpt generation with mutiple gpus.
 
     and generations of different lengths.
@@ -85,14 +83,16 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
 
     with get_precision_context('amp_bf16'):
         _ = model.generate(device.tensor_to_device(
-            tokenizer('hello', return_tensors='pt')['input_ids']),
+            mpt_tokenizer('hello', return_tensors='pt')['input_ids']),
                            max_new_tokens=3,
                            eos_token_id=EOS_TOKEN_ID,
                            use_cache=True,
                            synced_gpus=True)
         
 @pytest.mark.gpu
-def test_mpt_generate_callback(tmpdir: Path, build_mpt: Callable[..., ComposerMPTCausalLM]):
+def test_mpt_generate_callback(tmpdir: Path, 
+                               build_mpt: Callable[..., ComposerMPTCausalLM],
+                               mpt_tokenizer: PreTrainedTokenizerBase):
     device = get_device('gpu')
     max_seq_len = 128
 
@@ -123,9 +123,6 @@ def test_mpt_generate_callback(tmpdir: Path, build_mpt: Callable[..., ComposerMP
         'timeout': 0
     })
 
-    # build tokenizer
-    tokenizer = build_tokenizer('EleutherAI/gpt-neox-20b', {})
-
     # build mpt model
     model = build_mpt(device)
 
@@ -149,7 +146,7 @@ def test_mpt_generate_callback(tmpdir: Path, build_mpt: Callable[..., ComposerMP
     device_batch_size = 1
     train_dataloader = build_finetuning_dataloader(
         dataloader_cfg,
-        tokenizer,
+        mpt_tokenizer,
         device_batch_size,
     )
 

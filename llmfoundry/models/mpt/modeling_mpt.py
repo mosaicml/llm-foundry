@@ -390,7 +390,6 @@ class MPTModel(MPTPreTrainedModel):
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
         rotary_emb_w_offset_info = None
-        pos_emb = 0.0
         tok_emb = self.wte(input_ids)
         if self.learned_pos_emb or self.rope:
             past_position = 0
@@ -434,12 +433,10 @@ class MPTModel(MPTPreTrainedModel):
                     'pos': pos,
                     'seq_len': S + past_position
                 }
-            x = tok_emb
-            if self.learned_pos_emb:
-                pos_emb = self.wpe(pos)
-                x = x + pos_emb
-
-        x = tok_emb + pos_emb
+        x = tok_emb
+        if self.learned_pos_emb:
+            pos_emb = self.wpe(pos)
+            x = x + pos_emb
 
         if self.embedding_fraction == 1:
             x = self.emb_drop(x)

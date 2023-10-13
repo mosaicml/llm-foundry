@@ -28,10 +28,12 @@ from omegaconf import OmegaConf as om
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.modeling_outputs import (BaseModelOutputWithPast,
                                            CausalLMOutputWithPast)
-from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding as RotaryEmbedding
-from transformers.models.llama.modeling_llama import LlamaLinearScalingRotaryEmbedding as LinearScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import LlamaDynamicNTKScalingRotaryEmbedding as DynamicNTKScalingRotaryEmbedding
-
+from transformers.models.llama.modeling_llama import \
+    LlamaDynamicNTKScalingRotaryEmbedding as DynamicNTKScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import \
+    LlamaLinearScalingRotaryEmbedding as LinearScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import \
+    LlamaRotaryEmbedding as RotaryEmbedding
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
@@ -73,22 +75,24 @@ import logging
 
 log = logging.getLogger(__name__)
 
-def _rotary_embedding(config: Dict):
+
+def _rotary_embedding(config: MPTConfig):
     rope_head_dim = config.d_model // config.n_heads
     if config.attn_config['rope_scaling']['type'] == 'no_scaling':
         return RotaryEmbedding(rope_head_dim,
-                                                    base=config.attn_config['rope_theta'])
+                               base=config.attn_config['rope_theta'])
     elif config.attn_config['rope_scaling']['type'] == 'linear':
         return LinearScalingRotaryEmbedding(
-                rope_head_dim,
-                base=config.attn_config['rope_theta'],
-                scaling_factor=config.attn_config['rope_scaling']['factor'])
+            rope_head_dim,
+            base=config.attn_config['rope_theta'],
+            scaling_factor=config.attn_config['rope_scaling']['factor'])
     elif config.attn_config['rope_scaling']['type'] == 'dynamic':
         return DynamicNTKScalingRotaryEmbedding(
-                rope_head_dim,
-                base=config.attn_config['rope_theta'],
-                scaling_factor=config.attn_config['rope_scaling']['factor'],
-                max_position_embeddings=config.max_seq_len)
+            rope_head_dim,
+            base=config.attn_config['rope_theta'],
+            scaling_factor=config.attn_config['rope_scaling']['factor'],
+            max_position_embeddings=config.max_seq_len)
+
 
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig

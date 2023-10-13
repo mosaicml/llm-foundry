@@ -1096,7 +1096,7 @@ def test_forward_with_cache_and_padding(pos_emb_config: dict):
         'factor': 1.0
     }
 }])
-def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: bool):
+def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
     # Test that model forward with and without the key-value cache produces the
     # same output.
     if not torch.cuda.is_available() and device == 'gpu':

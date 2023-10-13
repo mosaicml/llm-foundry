@@ -434,8 +434,10 @@ class MPTModel(MPTPreTrainedModel):
                     'pos': pos,
                     'seq_len': S + past_position
                 }
+            x = tok_emb
             if self.learned_pos_emb:
                 pos_emb = self.wpe(pos)
+                x = x + pos_emb
 
         x = tok_emb + pos_emb
 

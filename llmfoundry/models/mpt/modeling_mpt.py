@@ -28,6 +28,10 @@ from omegaconf import OmegaConf as om
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.modeling_outputs import (BaseModelOutputWithPast,
                                            CausalLMOutputWithPast)
+from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding as RotaryEmbedding
+from transformers.models.llama.modeling_llama import LlamaLinearScalingRotaryEmbedding as LinearScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import LlamaDynamicNTKScalingRotaryEmbedding as DynamicNTKScalingRotaryEmbedding
+
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
@@ -38,9 +42,6 @@ from llmfoundry.models.layers.ffn import \
 from llmfoundry.models.layers.ffn import MPTMLP as MPTMLP
 from llmfoundry.models.layers.ffn import build_ffn as build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-from llmfoundry.models.layers.rotary_embedding import (
-    DynamicNTKScalingRotaryEmbedding, LinearScalingRotaryEmbedding,
-    RotaryEmbedding)
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
 # NOTE: All utils are imported directly even if unused so that
@@ -154,7 +155,7 @@ class MPTModel(MPTPreTrainedModel):
         self.rope_scaling_factor = config.attn_config['rope_scaling']['factor']
         self.rope_max_seq_len = config.max_seq_len
         self._rotary_embedding_initialized = False
-        self.rotary_embedding = None
+        self.rotary_embedding = self._rotary_emb()
 
         if config.no_bias:
             for module in self.modules():

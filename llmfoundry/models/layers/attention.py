@@ -12,10 +12,10 @@ import torch.nn as nn
 from einops import rearrange
 from packaging import version
 from torch import nn
+from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
 
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-from llmfoundry.models.layers.rotary_embedding import apply_rotary_pos_emb
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,

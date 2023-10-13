@@ -106,4 +106,5 @@ def test_gauntlet_callback():
         name = f'icl/metrics/eval_gauntlet/{category}'
         assert result[name] == pytest.approx(0.25)
 
-    assert result['icl/metrics/eval_gauntlet/average'] == pytest.approx(0.25)
+    assert result['icl/metrics/eval_gauntlet/global_average'] == pytest.approx(
+        0.25)

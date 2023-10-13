@@ -549,7 +549,7 @@ class GroupedQueryAttention(nn.Module):
             rotary_emb = rotary_emb_w_offset_info['rotary_emb']
             seq_len = rotary_emb_w_offset_info['seq_len']
             pos = rotary_emb_w_offset_info['pos']
-            (cos, sin) = rotary_emb(x, seq_len)
+            (cos, sin) = rotary_emb(query, seq_len)
             query, key = apply_rotary_pos_emb(query, key, cos, sin, pos)
             query = query.transpose(1, 2)
             key = key.transpose(1, 2)

@@ -5,9 +5,13 @@ import pytest
 import torch
 from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
-from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding as RotaryEmbedding
-from transformers.models.llama.modeling_llama import LlamaLinearScalingRotaryEmbedding as LinearScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import LlamaDynamicNTKScalingRotaryEmbedding as DynamicNTKScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import \
+    LlamaDynamicNTKScalingRotaryEmbedding as DynamicNTKScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import \
+    LlamaLinearScalingRotaryEmbedding as LinearScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import \
+    LlamaRotaryEmbedding as RotaryEmbedding
+
 
 def allclose_helper(t0: torch.Tensor,
                     t1: torch.Tensor,
@@ -124,15 +128,15 @@ def test_attn_impl(attn_impl_0: str,
 
     def gen_rotary_emb():
         if pos_emb_config['rope_scaling']['type'] == 'no_scaling':
-            rotary_embedding = RotaryEmbedding(
-                rope_head_dim, base=pos_emb_config['rope_theta'])
+            return RotaryEmbedding(rope_head_dim,
+                                   base=pos_emb_config['rope_theta'])
         elif pos_emb_config['rope_scaling']['type'] == 'linear':
-            rotary_embedding = LinearScalingRotaryEmbedding(
+            return LinearScalingRotaryEmbedding(
                 rope_head_dim,
                 base=pos_emb_config['rope_theta'],
                 scaling_factor=pos_emb_config['rope_scaling']['factor'])
         elif pos_emb_config['rope_scaling']['type'] == 'dynamic':
-            rotary_embedding = DynamicNTKScalingRotaryEmbedding(
+            return DynamicNTKScalingRotaryEmbedding(
                 rope_head_dim,
                 base=pos_emb_config['rope_theta'],
                 scaling_factor=pos_emb_config['rope_scaling']['factor'],
@@ -141,7 +145,6 @@ def test_attn_impl(attn_impl_0: str,
             raise ValueError(
                 'rope_scaling.type should be one no_scaling, linear, or dynamic'
             )
-        return rotary_embedding
 
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()
@@ -159,7 +162,7 @@ def test_attn_impl(attn_impl_0: str,
 
         rotary_emb_w_offset_info = None
         if rope:
-            rotary_emb = gen_rotary_emb()
+            rotary_emb = gen_rotary_emb().to(device)
             rotary_emb_w_offset_info = {
                 'rotary_emb': rotary_emb,
                 'pos': pos,

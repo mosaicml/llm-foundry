@@ -15,7 +15,7 @@ try:
     from llmfoundry.models.layers.attention import (
         MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
         flash_attn_fn, scaled_multihead_dot_product_attention,
-        triton_flash_attn_fn)
+        triton_flash_attn_fn, is_flash_v1_installed)
     from llmfoundry.models.layers.blocks import MPTBlock
     from llmfoundry.models.layers.ffn import (FFN_CLASS_REGISTRY, MPTMLP,
                                               build_ffn)
@@ -24,6 +24,13 @@ try:
                                        MPTForCausalLM, MPTModel,
                                        MPTPreTrainedModel)
     from llmfoundry.tokenizers import TiktokenTokenizerWrapper
+
+    # Before importing any transformers models, we need to disable transformers flash attention if
+    # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
+    # gated import otherwise.
+    import transformers
+    if is_flash_v1_installed():
+        transformers.utils.is_flash_attn_available = lambda : False
 
 except ImportError as e:
     try:

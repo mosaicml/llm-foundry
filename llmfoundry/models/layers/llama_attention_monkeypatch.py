@@ -11,16 +11,6 @@ from typing import Callable, Optional, Tuple
 import torch
 import torch.nn.functional as F
 
-from llmfoundry.models.layers.attention import is_flash_v1_installed
-
-import transformers
-
-# Before importing any transformers models, we need to disable transformers flash attention if
-# we are in an environment with flash attention version <2. Transformers hard errors on a not properly
-# gated import otherwise.
-if is_flash_v1_installed():
-    transformers.utils.is_flash_attn_available = lambda : False
-
 from transformers.models.llama.modeling_llama import LlamaAttention
 
 from llmfoundry.models.layers.attention import (

@@ -24,7 +24,7 @@ from transformers import (AutoConfig, AutoModelForCausalLM,
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
-from llmfoundry.models.layers.attention import is_flash_v1_installed
+from llmfoundry.models.layers.attention import is_flash_v1_installed, is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 
 try:
@@ -76,12 +76,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             InContextLearningMCExpectedCalibrationError()
         ]
 
-        # Before importing any transformers models, we need to disable transformers flash attention if
-        # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
-        # gated import otherwise.
-        if is_flash_v1_installed():
-            transformers.utils.is_flash_attn_available = lambda : False
-
         # if we are passed a DictConfig, we need to instantiate the model
         if isinstance(om_model_config, DictConfig):
             if not om_model_config.get('trust_remote_code',
@@ -100,10 +94,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             # load the model config
             trust_remote_code = om_model_config.get('trust_remote_code', True)
             use_auth_token = om_model_config.get('use_auth_token', False)
+            use_flash_attention_2 = om_model_config.get('use_flash_attention_2', is_flash_v2_installed())
             config = AutoConfig.from_pretrained(
                 om_model_config.pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
+                use_flash_attention_2=use_flash_attention_2,
             )
 
             # set config overrides

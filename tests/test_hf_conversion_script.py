@@ -138,16 +138,19 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
 
     # Additional special tokens do not match between original tokenizer and loaded tokenizer due to transformers
     # constructor differences
-    additional_special_tokens_1 = set(tokenizer1.__dict__.pop('_additional_special_tokens', []))
-    additional_special_tokens_2 = set(tokenizer2.__dict__.pop('_additional_special_tokens', []))
+    additional_special_tokens_1 = set(
+        tokenizer1.__dict__.pop('_additional_special_tokens', []))
+    additional_special_tokens_2 = set(
+        tokenizer2.__dict__.pop('_additional_special_tokens', []))
     # Also pop it out of init_kwargs
     tokenizer1.__dict__['init_kwargs'].pop('additional_special_tokens', None)
     tokenizer2.__dict__['init_kwargs'].pop('additional_special_tokens', None)
     tokenizer1.__dict__['init_kwargs'].pop('added_tokens_decoder', None)
     tokenizer2.__dict__['init_kwargs'].pop('added_tokens_decoder', None)
     # If the additional special tokens are the same (or a subset of each other), or if one of them is empty, then we are good
-    assert additional_special_tokens_1.issubset(additional_special_tokens_2) or additional_special_tokens_2.issubset(
-        additional_special_tokens_1)
+    assert additional_special_tokens_1.issubset(
+        additional_special_tokens_2) or additional_special_tokens_2.issubset(
+            additional_special_tokens_1)
 
     # The special token attributes may be strings or they may be AddedToken objects, so we just check string values
     # First check that they have the same attrs
@@ -158,8 +161,10 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
         if special_token_attr == 'additional_special_tokens':
             continue
 
-        init_attr1 = tokenizer1.__dict__['init_kwargs'].pop(special_token_attr, None)
-        init_attr2 = tokenizer2.__dict__['init_kwargs'].pop(special_token_attr, None)
+        init_attr1 = tokenizer1.__dict__['init_kwargs'].pop(
+            special_token_attr, None)
+        init_attr2 = tokenizer2.__dict__['init_kwargs'].pop(
+            special_token_attr, None)
 
         # Due to a transformers bug (https://github.com/huggingface/transformers/issues/26773)
         # we just check the content of the special token attributes, not the actual objects
@@ -167,7 +172,7 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
         attr2 = tokenizer2.__dict__.pop('_' + special_token_attr, None)
         if attr1 is None and attr2 is None:
             continue
-        
+
         # Due to a transformers bug (https://github.com/huggingface/transformers/issues/26775)
         # the added pad token does not persist through save and load
         if '_' + special_token_attr == '_pad_token':
@@ -176,8 +181,10 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
         if init_attr1 is None and init_attr2 is None:
             continue
 
-        init_attr_value1 = init_attr1 if isinstance(init_attr1, str) else init_attr1.content
-        init_attr_value2 = init_attr2 if isinstance(init_attr2, str) else init_attr2.content
+        init_attr_value1 = init_attr1 if isinstance(init_attr1,
+                                                    str) else init_attr1.content
+        init_attr_value2 = init_attr2 if isinstance(init_attr2,
+                                                    str) else init_attr2.content
         assert init_attr_value1 == init_attr_value2
 
         attr_value1 = attr1 if isinstance(attr1, str) else attr1.content

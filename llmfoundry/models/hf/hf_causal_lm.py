@@ -24,7 +24,7 @@ from transformers import (AutoConfig, AutoModelForCausalLM,
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
-from llmfoundry.models.layers.attention import is_flash_v1_installed, is_flash_v2_installed
+from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 
 try:
@@ -94,7 +94,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             # load the model config
             trust_remote_code = om_model_config.get('trust_remote_code', True)
             use_auth_token = om_model_config.get('use_auth_token', False)
-            use_flash_attention_2 = om_model_config.get('use_flash_attention_2', is_flash_v2_installed())
+            use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
+                                                        is_flash_v2_installed())
             config = AutoConfig.from_pretrained(
                 om_model_config.pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
@@ -201,6 +202,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 )
                 from transformers.models.llama.modeling_llama import \
                     LlamaAttention
+
                 from llmfoundry.models.layers.llama_attention_monkeypatch import \
                     get_llama_attention_patch_fn
                 LlamaAttention.forward = get_llama_attention_patch_fn(

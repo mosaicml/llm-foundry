@@ -10,7 +10,6 @@ from typing import Callable, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
-
 from transformers.models.llama.modeling_llama import LlamaAttention
 
 from llmfoundry.models.layers.attention import (

@@ -14,7 +14,7 @@ from llmfoundry.models.layers.attention import is_flash_v1_installed
 # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
 # gated import otherwise.
 if is_flash_v1_installed():
-    transformers.utils.is_flash_attn_available = lambda : False
+    transformers.utils.is_flash_attn_available = lambda: False
 
 from transformers.models.llama.modeling_llama import LlamaAttention
 

@@ -73,6 +73,22 @@ import logging
 
 log = logging.getLogger(__name__)
 
+def _rotary_embedding(config: Dict):
+    rope_head_dim = config.d_model // config.n_heads
+    if config.attn_config['rope_scaling']['type'] == 'no_scaling':
+        return RotaryEmbedding(rope_head_dim,
+                                                    base=config.attn_config['rope_theta'])
+    elif config.attn_config['rope_scaling']['type'] == 'linear':
+        return LinearScalingRotaryEmbedding(
+                rope_head_dim,
+                base=config.attn_config['rope_theta'],
+                scaling_factor=config.attn_config['rope_scaling']['factor'])
+    elif config.attn_config['rope_scaling']['type'] == 'dynamic':
+        return DynamicNTKScalingRotaryEmbedding(
+                rope_head_dim,
+                base=config.attn_config['rope_theta'],
+                scaling_factor=config.attn_config['rope_scaling']['factor'],
+                max_position_embeddings=config.max_seq_len)
 
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
@@ -149,13 +165,8 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         self.rope = config.attn_config['rope']
-        self.rope_head_dim = config.d_model // config.n_heads
-        self.rope_theta = config.attn_config['rope_theta']
-        self.rope_scaling_type = config.attn_config['rope_scaling']['type']
-        self.rope_scaling_factor = config.attn_config['rope_scaling']['factor']
-        self.rope_max_seq_len = config.max_seq_len
-        self._rotary_embedding_initialized = False
-        self.rotary_embedding = self._rotary_emb()
+        if self.rope:
+            self.rotary_embedding = _rotary_embedding(config)
 
         if config.no_bias:
             for module in self.modules():
@@ -249,27 +260,6 @@ class MPTModel(MPTPreTrainedModel):
                 ~attention_mask.view(-1, 1, 1, s_k), min_val)
 
         return attn_bias, None
-
-    @torch.no_grad()
-    def _rotary_emb(self):
-        if not self._rotary_embedding_initialized:
-            if self.rope_scaling_type == 'no_scaling':
-                self.rotary_embedding = RotaryEmbedding(self.rope_head_dim,
-                                                        base=self.rope_theta)
-            elif self.rope_scaling_type == 'linear':
-                self.rotary_embedding = LinearScalingRotaryEmbedding(
-                    self.rope_head_dim,
-                    base=self.rope_theta,
-                    scaling_factor=self.rope_scaling_factor)
-            elif self.rope_scaling_type == 'dynamic':
-                self.rotary_embedding = DynamicNTKScalingRotaryEmbedding(
-                    self.rope_head_dim,
-                    base=self.rope_theta,
-                    scaling_factor=self.rope_scaling_factor,
-                    max_position_embeddings=self.rope_max_seq_len)
-
-            self._rotary_embedding_initialized = True
-        return self.rotary_embedding
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
                            prefix_mask: torch.Tensor) -> torch.Tensor:
@@ -435,9 +425,8 @@ class MPTModel(MPTPreTrainedModel):
                     min=0,
                 )
             if self.rope:
-                rotary_emb = self._rotary_emb()
                 rotary_emb_w_offset_info = {
-                    'rotary_emb': rotary_emb,
+                    'rotary_emb': self.rotary_embedding,
                     'pos': pos,
                     'seq_len': S + past_position
                 }

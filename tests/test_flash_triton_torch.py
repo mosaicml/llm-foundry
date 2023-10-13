@@ -5,7 +5,9 @@ import pytest
 import torch
 from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
-
+from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding as RotaryEmbedding
+from transformers.models.llama.modeling_llama import LlamaLinearScalingRotaryEmbedding as LinearScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import LlamaDynamicNTKScalingRotaryEmbedding as DynamicNTKScalingRotaryEmbedding
 
 def allclose_helper(t0: torch.Tensor,
                     t1: torch.Tensor,
@@ -66,9 +68,6 @@ def test_attn_impl(attn_impl_0: str,
     rope.
     """
     from llmfoundry.models.layers import attention
-    from llmfoundry.models.layers.rotary_embedding import (
-        DynamicNTKScalingRotaryEmbedding, LinearScalingRotaryEmbedding,
-        RotaryEmbedding)
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
     if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'):

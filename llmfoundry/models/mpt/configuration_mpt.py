@@ -21,8 +21,10 @@ attn_config_defaults: Dict = {
     'alibi_bias_max': 8,
     'rope': False,
     'rope_theta': 10000,
-    'rope_scaling_type': 'no_scaling',
-    'rope_scaling_factor': 1.0,
+    'rope_scaling': {
+        'type': 'no_scaling',
+        'factor': 1.0
+    }
 }
 
 ffn_config_defaults: Dict = {
@@ -100,8 +102,9 @@ class MPTConfig(PretrainedConfig):
                 alibi_bias_max (int): The maximum value of the alibi bias.
                 rope (bool): Whether to use rotary positional embeddings.
                 rope_theta (int): The base frequency for rope.
-                rope_scaling_type (str): Can be one of 'no_scaling', 'linear', or 'dynamic'. 'no_scaling' uses the default implementation for rotary embeddings, 'linear' uses linear scaling as proposed by the Reddit user /u/kaiokendev, and 'dynamic' uses Dynamic NTK scaling as proposed by the Reddit users /u/bloc97 and /u/emozilla.
-                rope_scaling_factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling_type.
+                rope_scaling (Dict): A dictionary used to configure rope's scaling behavior (when scaling beyond the training length)
+                    type (str): Can be one of 'no_scaling', 'linear', or 'dynamic'. 'no_scaling' uses the default implementation for rotary embeddings, 'linear' uses linear scaling as proposed by the Reddit user /u/kaiokendev, and 'dynamic' uses Dynamic NTK scaling as proposed by the Reddit users /u/bloc97 and /u/emozilla.
+                    factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling.type.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
                 ffn_type (str): type of ffn to use. Options: mptmlp, te_ln_mlp
@@ -244,11 +247,11 @@ class MPTConfig(PretrainedConfig):
                     + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
                     'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
                 )
-        if self.attn_config['rope_scaling_type'] not in [
+        if self.attn_config['rope_scaling']['type'] not in [
                 'no_scaling', 'linear', 'dynamic'
         ]:
             raise ValueError(
-                'rope_scaling_type should be one of "no_scaling", "linear" or "dynamic".'
+                'rope_scaling.type should be one of "no_scaling", "linear" or "dynamic".'
             )
         if self.ffn_config['ffn_type'] == 'mptmlp':
             self.ffn_config['fc_type'] = self.fc_type

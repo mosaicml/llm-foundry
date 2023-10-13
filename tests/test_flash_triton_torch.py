@@ -29,20 +29,26 @@ def allclose_helper(t0: torch.Tensor,
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'no_scaling',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'no_scaling',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'linear',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'linear',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'dynamic',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'dynamic',
+        'factor': 1.0
+    }
 }])
 @pytest.mark.parametrize(
     'attn_type',
@@ -56,7 +62,8 @@ def test_attn_impl(attn_impl_0: str,
                    device: str = 'cuda'):
     """Compare all attn impl with each other.
 
-    Includes testing with and without attn_clip_qkv, attn_qk_ln, alibi, and rope.
+    Includes testing with and without attn_clip_qkv, attn_qk_ln, alibi, and
+    rope.
     """
     from llmfoundry.models.layers import attention
     from llmfoundry.models.layers.rotary_embedding import (
@@ -117,23 +124,23 @@ def test_attn_impl(attn_impl_0: str,
         return attn_bias
 
     def gen_rotary_emb():
-        if pos_emb_config['rope_scaling_type'] == 'no_scaling':
+        if pos_emb_config['rope_scaling']['type'] == 'no_scaling':
             rotary_embedding = RotaryEmbedding(
                 rope_head_dim, base=pos_emb_config['rope_theta'])
-        elif pos_emb_config['rope_scaling_type'] == 'linear':
+        elif pos_emb_config['rope_scaling']['type'] == 'linear':
             rotary_embedding = LinearScalingRotaryEmbedding(
                 rope_head_dim,
                 base=pos_emb_config['rope_theta'],
-                scaling_factor=pos_emb_config['rope_scaling_factor'])
-        elif pos_emb_config['rope_scaling_type'] == 'dynamic':
+                scaling_factor=pos_emb_config['rope_scaling']['factor'])
+        elif pos_emb_config['rope_scaling']['type'] == 'dynamic':
             rotary_embedding = DynamicNTKScalingRotaryEmbedding(
                 rope_head_dim,
                 base=pos_emb_config['rope_theta'],
-                scaling_factor=pos_emb_config['rope_scaling_factor'],
+                scaling_factor=pos_emb_config['rope_scaling']['factor'],
                 max_position_embeddings=s)
         else:
             raise ValueError(
-                'rope_scaling_type should be one no_scaling, linear, or dynamic'
+                'rope_scaling.type should be one no_scaling, linear, or dynamic'
             )
         return rotary_embedding
 

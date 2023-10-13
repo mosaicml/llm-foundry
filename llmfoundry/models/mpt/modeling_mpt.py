@@ -150,8 +150,8 @@ class MPTModel(MPTPreTrainedModel):
         self.rope = config.attn_config['rope']
         self.rope_head_dim = config.d_model // config.n_heads
         self.rope_theta = config.attn_config['rope_theta']
-        self.rope_scaling_type = config.attn_config['rope_scaling_type']
-        self.rope_scaling_factor = config.attn_config['rope_scaling_factor']
+        self.rope_scaling_type = config.attn_config['rope_scaling']['type']
+        self.rope_scaling_factor = config.attn_config['rope_scaling']['factor']
         self.rope_max_seq_len = config.max_seq_len
         self._rotary_embedding_initialized = False
         self.rotary_embedding = None

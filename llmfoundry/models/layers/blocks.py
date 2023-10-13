@@ -43,8 +43,10 @@ class MPTBlock(nn.Module):
                 'alibi_bias_max': 8,
                 'rope': False,
                 'rope_theta': 10000,
-                'rope_scaling_type': 'no_scaling',
-                'rope_scaling_factor': 1.0,
+                'rope_scaling': {
+                    'type': 'no_scaling',
+                    'factor': 1.0
+                }
             }
 
         if ffn_config is None:
@@ -61,9 +63,14 @@ class MPTBlock(nn.Module):
 
         # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         args_to_exclude_in_attn_class = {
-            'attn_type', 'prefix_lm', 'alibi', 'attn_uses_sequence_id',
-            'alibi_bias_max', 'rope', 'rope_theta', 'rope_scaling_type',
-            'rope_scaling_factor'
+            'attn_type',
+            'prefix_lm',
+            'alibi',
+            'attn_uses_sequence_id',
+            'alibi_bias_max',
+            'rope',
+            'rope_theta',
+            'rope_scaling',
         }
         attn_config_subset_for_attn_class = {
             k: v

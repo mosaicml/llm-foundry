@@ -537,20 +537,26 @@ def test_mpt_creation(norm_type: str, no_bias: bool):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'no_scaling',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'no_scaling',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'linear',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'linear',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'dynamic',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'dynamic',
+        'factor': 1.0
+    }
 }])
 def test_forward_with_padding(attention_impl: str, device: str,
                               pos_emb_config: dict):
@@ -741,20 +747,26 @@ def test_advanced_mask_building(attention_impl: str):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'no_scaling',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'no_scaling',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'linear',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'linear',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'dynamic',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'dynamic',
+        'factor': 1.0
+    }
 }])
 def test_generate(attention_impl: str, device: str, pos_emb_config: dict):
     # Test that generate works, and produces the same output with or without
@@ -960,20 +972,26 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'no_scaling',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'no_scaling',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'linear',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'linear',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'dynamic',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'dynamic',
+        'factor': 1.0
+    }
 }])
 def test_forward_with_cache_and_padding(pos_emb_config: dict):
     # Tests that the result is the same with or without padding when using kv caching
@@ -1057,20 +1075,26 @@ def test_forward_with_cache_and_padding(pos_emb_config: dict):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'no_scaling',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'no_scaling',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'linear',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'linear',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'dynamic',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'dynamic',
+        'factor': 1.0
+    }
 }])
 def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: bool):
     # Test that model forward with and without the key-value cache produces the
@@ -1190,20 +1214,26 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: bool):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'no_scaling',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'no_scaling',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'linear',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'linear',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'dynamic',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'dynamic',
+        'factor': 1.0
+    }
 }])
 def test_generate_with_past_kv(pos_emb_config: dict):
     hf_config = MPTConfig(
@@ -1274,20 +1304,26 @@ def test_generate_with_past_kv(pos_emb_config: dict):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'no_scaling',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'no_scaling',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'linear',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'linear',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'dynamic',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'dynamic',
+        'factor': 1.0
+    }
 }])
 def test_generation_kwargs_dont_crash(generation_kwargs: Dict[str, Any],
                                       pos_emb_config: dict):
@@ -1330,20 +1366,26 @@ def test_generation_kwargs_dont_crash(generation_kwargs: Dict[str, Any],
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'no_scaling',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'no_scaling',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'linear',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'linear',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'dynamic',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'dynamic',
+        'factor': 1.0
+    }
 }])
 def test_model_to(attention_impl: str, pos_emb_config: dict):
     # test that moving the model to diff devices and dtypes in diff ways does not break the model
@@ -1455,20 +1497,26 @@ def test_alibi_vs_hf():
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'no_scaling',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'no_scaling',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'linear',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'linear',
+        'factor': 1.0
+    }
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling_type': 'dynamic',
-    'rope_scaling_factor': 1.0
+    'rope_scaling': {
+        'type': 'dynamic',
+        'factor': 1.0
+    }
 }])
 @pytest.mark.parametrize('output_attentions', [True, False])
 @pytest.mark.parametrize('output_hidden_states', [True, False])

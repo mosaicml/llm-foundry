@@ -1,8 +1,11 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List, Optional, Tuple
-from unittest.mock import patch
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
+from unittest.mock import Mock, patch
+from composer import ComposerModel, Trainer
+from transformers import PreTrainedTokenizerBase
 
 import pytest
 import torch
@@ -14,6 +17,13 @@ from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
+
+from tests.data_utils import make_tiny_ft_dataset
+from composer.callbacks import Generate as ComposerGenerate
+from llmfoundry.data.finetuning import build_finetuning_dataloader
+from tests.data_utils import make_tiny_ft_dataset
+
+
 
 EOS_TOKEN_ID = 0
 
@@ -55,7 +65,9 @@ class MockMPTForCausalLM(MPTForCausalLM):
 @pytest.mark.parametrize('use_alibi', [True, False])
 @patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
        new=MockMPTForCausalLM)
-def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool):
+def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool, 
+                                build_model: Callable[[Dict[str, Any]], Type[ComposerModel]], 
+                                tokenizer: PreTrainedTokenizerBase):
     """Tests mpt generation with mutiple gpus.
 
     and generations of different lengths.
@@ -64,27 +76,11 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool):
     dist.initialize_dist(composer_device)
     reproducibility.seed_all(42)
 
-    model_config = DictConfig({
-        'name': 'mpt_causal_lm',
-        'd_model': 128,
-        'n_heads': 4,
-        'n_layers': 2,
-        'expansion_ratio': 2,
-        'no_bias': False,
-        'use_cache': True,
-        'attn_config': {
+    model = build_model(attn_config={
             'attn_impl': attn_impl,
             'attn_uses_sequence_id': False,
             'alibi': use_alibi
-        },
-    })
-
-    # build tokenizer
-    tokenizer = build_tokenizer('EleutherAI/gpt-neox-20b', {})
-
-    # build model
-    model = COMPOSER_MODEL_REGISTRY[model_config.name](model_config, tokenizer)
-    model = composer_device.module_to_device(model)
+        },)
     model.eval()
 
     model.model = FSDP(model.model)
@@ -96,3 +92,89 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool):
                            eos_token_id=EOS_TOKEN_ID,
                            use_cache=True,
                            synced_gpus=True)
+        
+# @pytest.mark.gpu
+# def test_mpt_generate_callback(tmpdir: Path):
+#     composer_device = get_device('gpu')
+#     reproducibility.seed_all(42)
+#     max_seq_len = 128
+
+#     # testing dataset and dataloader
+#     dataset_size = 5
+
+#     tiny_dataset_path = tmpdir / 'test-ift-data-small'
+#     tiny_dataset_path.mkdir()
+#     tiny_dataset_file = tiny_dataset_path / 'train.jsonl'
+#     make_tiny_ft_dataset(path=str(tiny_dataset_file), size=dataset_size)
+
+#     dataloader_cfg = DictConfig({
+#         'name': 'finetuning',
+#         'dataset': {
+#             'hf_name': str(tiny_dataset_path),
+#             'split': 'train',
+#             'max_seq_len': max_seq_len,
+#             'decoder_only_format': True,
+#             'allow_pad_trimming': False,
+#             'packing_ratio': None,
+#             'shuffle': True,
+#         },
+#         'drop_last': False,
+#         'num_workers': 4,
+#         'pin_memory': False,
+#         'prefetch_factor': 2,
+#         'persistent_workers': False,
+#         'timeout': 0
+#     })
+
+#     # build tokenizer
+#     tokenizer = build_tokenizer('EleutherAI/gpt-neox-20b', {})
+
+#     # build mpt model
+#     model_config = DictConfig({
+#         'name': 'mpt_causal_lm',
+#         'config_overrides': {
+#             'd_model': 128,
+#             'n_heads': 4,
+#             'n_layers': 2,
+#             'expansion_ratio': 2,
+#         },
+#     })
+#     model = COMPOSER_MODEL_REGISTRY[model_config.name](model_config, tokenizer)
+#     model = composer_device.module_to_device(model)
+
+#     # generate callback
+#     prompts = [
+#         'The best banana bread recipe is',
+#         '2+2=',
+#         'how much wood could a woodchuck chuck',
+#     ]
+#     gen_interval = 1
+#     generate = ComposerGenerate(
+#         prompts,
+#         interval=f'{gen_interval}ba',
+#         max_new_tokens=5,
+#         batch_size=len(prompts),
+#         use_cache=True,
+#     )
+#     generate.generate = Mock(wraps=generate.generate, autospec=True)
+
+#     # build trainer
+#     device_batch_size = 1
+#     train_dataloader = build_finetuning_dataloader(
+#         dataloader_cfg,
+#         tokenizer,
+#         device_batch_size,
+#     )
+
+#     trainer = Trainer(
+#         model=model,
+#         train_dataloader=train_dataloader,
+#         device=composer_device,
+#         max_duration=f'{gen_interval}ba',
+#         callbacks=[generate],
+#     )
+#     trainer.logger.log_table = Mock()
+#     trainer.fit()
+
+#     generate.generate.assert_called_once()
+#     trainer.logger.log_table.assert_called_once()

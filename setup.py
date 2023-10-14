@@ -115,8 +115,9 @@ extra_deps['all-cpu'] = set(
     dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
 extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
                         if key not in {'gpu-flash2', 'all-cpu'})
-extra_deps['all-flash2'] = set(
-    dep for key, deps in extra_deps.items() for dep in deps if key not in {'gpu', 'all', 'all-cpu'})
+extra_deps['all-flash2'] = set(dep for key, deps in extra_deps.items()
+                               for dep in deps
+                               if key not in {'gpu', 'all', 'all-cpu'})
 
 setup(
     name=_PACKAGE_NAME,

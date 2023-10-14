@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import os
 
 import pytest
@@ -172,25 +173,31 @@ def test_flash2(model_name: str, use_flash_attention_2: bool):
     )
     tokenizer.pad_token = tokenizer.eos_token
 
-    model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg, tokenizer)
+    error_context = pytest.raises(
+        ValueError,
+        match='use_flash_attention_2 is set to True') if is_flash_v1_installed(
+        ) and use_flash_attention_2 else contextlib.nullcontext()
 
-    # check that it actually used flash attention 2
-    assert model.model.config._flash_attn_2_enabled if is_flash_v2_installed(
-    ) else not model.model.config._flash_attn_2_enabled
-    attention_layer = rgetattr(
-        rgetattr(model, attention_layers_attr)[0], attention_attr)
-    assert isinstance(attention_layer, flash_attn_class)
+    with error_context:
+        model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg, tokenizer)
 
-    tokenized_input = tokenizer(['Hello world blah blah', 'Goodbye world'],
-                                return_tensors='pt',
-                                padding=True)
-    tokenized_input['labels'] = tokenized_input['input_ids'].clone()
+        # check that it actually used flash attention 2
+        assert model.model.config._flash_attn_2_enabled if is_flash_v2_installed(
+        ) else not model.model.config._flash_attn_2_enabled
+        attention_layer = rgetattr(
+            rgetattr(model, attention_layers_attr)[0], attention_attr)
+        assert isinstance(attention_layer, flash_attn_class)
 
-    tokenized_input = {k: v.cuda() for k, v in tokenized_input.items()}
-    model.to('cuda')
+        tokenized_input = tokenizer(['Hello world blah blah', 'Goodbye world'],
+                                    return_tensors='pt',
+                                    padding=True)
+        tokenized_input['labels'] = tokenized_input['input_ids'].clone()
 
-    with get_precision_context('amp_bf16'):
-        # We're just testing that flash attention 2 runs okay
-        outputs = model(tokenized_input)
-        loss = outputs.loss
-        loss.backward()
+        tokenized_input = {k: v.cuda() for k, v in tokenized_input.items()}
+        model.to('cuda')
+
+        with get_precision_context('amp_bf16'):
+            # We're just testing that flash attention 2 runs okay
+            outputs = model(tokenized_input)
+            loss = outputs.loss
+            loss.backward()

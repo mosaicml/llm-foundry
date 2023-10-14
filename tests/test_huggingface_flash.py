@@ -160,7 +160,7 @@ def test_flash2(model_name: str, use_flash_attention_2: bool):
         attention_attr = 'self_attn'
     else:
         raise ValueError(f'Unknown model: {model_name}')
-    
+
     if use_flash_attention_2:
         model_cfg['use_flash_attention_2'] = True
 
@@ -173,9 +173,9 @@ def test_flash2(model_name: str, use_flash_attention_2: bool):
     tokenizer.pad_token = tokenizer.eos_token
 
     error_context = pytest.raises(
-        ValueError,
-        match='use_flash_attention_2 is set to True') if not is_flash_v2_installed(
-        ) and use_flash_attention_2 else contextlib.nullcontext()
+        ValueError, match='use_flash_attention_2 is set to True'
+    ) if not is_flash_v2_installed(
+    ) and use_flash_attention_2 else contextlib.nullcontext()
 
     with error_context:
         model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg, tokenizer)

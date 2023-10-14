@@ -209,7 +209,7 @@ def main(cfg: DictConfig) -> Trainer:
     if max_split_size_mb is not None:
         os.environ[
             'PYTORCH_CUDA_ALLOC_CONF'] = f'max_split_size_mb:{max_split_size_mb}'
-        
+
     # Set CUDA lazy loading
     cuda_load_lazy: bool = cfg.pop('cuda_load_lazy', True)
     if cuda_load_lazy:

@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import copy
+import gc
 import logging
 import os
 import sys
@@ -581,6 +582,7 @@ def main(cfg: DictConfig) -> Trainer:
     print('Logging config')
     log_config(logged_cfg)
     torch.cuda.empty_cache()
+    gc.collect()
 
     # Eval first if requested
     if eval_first and trainer.state.timestamp.batch.value == 0:

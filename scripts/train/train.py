@@ -20,6 +20,7 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
+from llmfoundry.callbacks.run_events_callback import RunEventsCallback
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_data_and_gauntlet,
@@ -28,7 +29,8 @@ from llmfoundry.utils.builders import (build_algorithm, build_callback,
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
-from llmfoundry.callbacks.run_events_callback import RunEventsCallback
+
+from scripts.train.benchmarking.submit_benchmarks import get_global_train_batch_sizes
 
 
 def validate_config(cfg: DictConfig):
@@ -453,8 +455,10 @@ def main(cfg: DictConfig) -> Trainer:
     else:
         loggers = [
             build_logger(str(name), logger_cfg)
-            for name, logger_cfg in logger_configs.items()]
-        mosaicMlLogger = next((x for x in loggers if isinstance(x, MosaicMLLogger)), None)
+            for name, logger_cfg in logger_configs.items()
+        ]
+        mosaicMlLogger = next(
+            (x for x in loggers if isinstance(x, MosaicMLLogger)), None)
 
     # Callbacks
     callbacks: List[Callback] = [
@@ -476,7 +480,7 @@ def main(cfg: DictConfig) -> Trainer:
         device_train_batch_size,
     )
     if mosaicMlLogger:
-        RunEventsCallback.data_validated(mosaicMlLogger, len(train_loader.dataset))
+        RunEventsCallback.data_validated(mosaicMlLogger)
 
     ## Evaluation
     print('Building eval loader...')

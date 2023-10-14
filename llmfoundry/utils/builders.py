@@ -14,8 +14,9 @@ from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
-                              TensorboardLogger, WandBLogger, MosaicMLLogger)
-from composer.loggers.mosaicml_logger import MOSAICML_ACCESS_TOKEN_ENV_VAR, MOSAICML_PLATFORM_ENV_VAR
+                              MosaicMLLogger, TensorboardLogger, WandBLogger)
+from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
+                                              MOSAICML_PLATFORM_ENV_VAR)
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ComposerScheduler,
                                       ConstantWithWarmupScheduler,
@@ -120,7 +121,9 @@ def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
         return MLFlowLogger(**kwargs)
     elif name == 'inmemory':
         return InMemoryLogger(**kwargs)
-    elif name == 'mosaicml' and os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower() == 'true' and os.environ.get(
+    elif name == 'mosaicml' and os.environ.get(
+            MOSAICML_PLATFORM_ENV_VAR,
+            'false').lower() == 'true' and os.environ.get(
                 MOSAICML_ACCESS_TOKEN_ENV_VAR) is not None:
         return MosaicMLLogger(**kwargs)
     else:

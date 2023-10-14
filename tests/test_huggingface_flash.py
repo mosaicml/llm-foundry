@@ -12,7 +12,7 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.hf.hf_fsdp import rgetattr
-from llmfoundry.models.layers.attention import is_flash_v1_installed
+from llmfoundry.models.layers.attention import is_flash_v1_installed, is_flash_v2_installed
 from llmfoundry.utils.builders import build_tokenizer
 
 # Before importing any transformers models, we need to disable transformers flash attention if
@@ -110,8 +110,9 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('model', ['llama2', 'mistral'])
-def test_flash2(model_name: str):
+@pytest.mark.parametrize('model_name', ['llama2', 'mistral'])
+@pytest.mark.parametrize('use_flash_attention_2', [True, False])
+def test_flash2(model_name: str, use_flash_attention_2: bool):
     if model_name == 'llama2':
         if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
             pytest.skip(
@@ -120,7 +121,6 @@ def test_flash2(model_name: str):
         model_cfg = {
             'name': 'hf_causal_lm',
             'pretrained_model_name_or_path': 'meta-llama/Llama-2-7b-hf',
-            'use_flash_attention_2': True,
             'config_overrides': {
                 'num_hidden_layers': 2,
                 'intermediate_size': 64,
@@ -129,10 +129,14 @@ def test_flash2(model_name: str):
             'pretrained': False,
             'init_device': 'cpu',
         }
+
+        if use_flash_attention_2:
+            model_cfg['use_flash_attention_2'] = True
+
         tokenizer_name = 'meta-llama/Llama-2-7b-hf'
         from transformers.models.llama.modeling_llama import \
-            LlamaFlashAttention2
-        flash_attn_class = LlamaFlashAttention2
+            LlamaFlashAttention2, LlamaAttention
+        flash_attn_class = LlamaFlashAttention2 if is_flash_v2_installed() else LlamaAttention
         attention_layers_attr = 'model.model.layers'
         attention_attr = 'self_attn'
     elif model_name == 'mistral':
@@ -150,8 +154,8 @@ def test_flash2(model_name: str):
 
         tokenizer_name = 'mistralai/Mistral-7B-v0.1'
         from transformers.models.mistral.modeling_mistral import \
-            MistralFlashAttention2
-        flash_attn_class = MistralFlashAttention2
+            MistralFlashAttention2, MistralAttention
+        flash_attn_class = MistralFlashAttention2 if is_flash_v2_installed() else MistralAttention
         attention_layers_attr = 'model.model.layers'
         attention_attr = 'self_attn'
     else:
@@ -168,7 +172,7 @@ def test_flash2(model_name: str):
     model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg, tokenizer)
 
     # check that it actually used flash attention 2
-    assert model.model.config._flash_attn_2_enabled
+    assert model.model.config._flash_attn_2_enabled if is_flash_v2_installed() else not model.model.config._flash_attn_2_enabled
     attention_layer = rgetattr(
         rgetattr(model, attention_layers_attr)[0], attention_attr)
     assert isinstance(attention_layer, flash_attn_class)
@@ -177,7 +181,6 @@ def test_flash2(model_name: str):
                                 return_tensors='pt',
                                 padding=True)
     tokenized_input['labels'] = tokenized_input['input_ids'].clone()
-    print(tokenized_input)
 
     tokenized_input = {k: v.cuda() for k, v in tokenized_input.items()}
     model.to('cuda')

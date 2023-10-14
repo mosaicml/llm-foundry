@@ -541,6 +541,14 @@ class GroupedQueryAttention(nn.Module):
             dim=2,
         )
 
+        key_padding_mask = attention_mask
+
+        if self.qk_ln:
+            # Applying layernorm to qk
+            dtype = query.dtype
+            query = self.q_ln(query).to(dtype)
+            key = self.k_ln(key).to(dtype)
+
         if rotary_emb_w_offset_info is not None:
             query = query.view(*(query.shape[:-1]), -1, self.head_dim)
             key = key.view(*(key.shape[:-1]), -1, self.head_dim)
@@ -558,14 +566,6 @@ class GroupedQueryAttention(nn.Module):
             query = query.reshape(*(query.shape[:-2]), self.d_model)
             key = key.reshape(*(key.shape[:-2]),
                               self.kv_n_heads * self.head_dim)
-
-        key_padding_mask = attention_mask
-
-        if self.qk_ln:
-            # Applying layernorm to qk
-            dtype = query.dtype
-            query = self.q_ln(query).to(dtype)
-            key = self.k_ln(key).to(dtype)
 
         context, attn_weights, past_key_value = self.attn_fn(
             query,

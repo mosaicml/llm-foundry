@@ -94,14 +94,26 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             # load the model config
             trust_remote_code = om_model_config.get('trust_remote_code', True)
             use_auth_token = om_model_config.get('use_auth_token', False)
-            use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
-                                                        is_flash_v2_installed())
+            use_flash_attention_2 = om_model_config.get('use_flash_attention_2', is_flash_v2_installed())
+            if use_flash_attention_2 and not is_flash_v2_installed():
+                raise ValueError(
+                    'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. ' +
+                    'Please install flash_attn==2.3.2`.'
+                )
+
             config = AutoConfig.from_pretrained(
                 om_model_config.pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
-                use_flash_attention_2=use_flash_attention_2,
             )
+
+            # This is not how you are supposed to set this, but transformers currently only
+            # supports enabling flash attention 2 when using the from_pretrained API.
+            # We need to support it for both from_pretrained and from_config, so we have to
+            # set the private attribute here. This will just skip all of transformers'
+            # validation logic that it is ok to use flash attention 2, so we replicate 
+            # the most importance piece (is it installed) above.
+            config._flash_attn_2_enabled=use_flash_attention_2
 
             # set config overrides
             for k, v in om_model_config.get('config_overrides', {}).items():

@@ -175,7 +175,7 @@ def test_flash2(model_name: str, use_flash_attention_2: bool):
 
     error_context = pytest.raises(
         ValueError,
-        match='use_flash_attention_2 is set to True') if is_flash_v1_installed(
+        match='use_flash_attention_2 is set to True') if not is_flash_v2_installed(
         ) and use_flash_attention_2 else contextlib.nullcontext()
 
     with error_context:

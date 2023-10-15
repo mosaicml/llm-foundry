@@ -378,7 +378,7 @@ if __name__ == '__main__':
     tokenizer_kwargs = {'model_max_length': args.max_seq_len}
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
-    loader = build_text_dataloader(cfg, tokenizer, device_batch_size)
+    loader = build_text_dataloader(cfg, tokenizer, device_batch_size).dataloader
     assert isinstance(loader.dataset, StreamingTextDataset)
     tokenizer = loader.dataset.tokenizer
 

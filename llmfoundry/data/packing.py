@@ -377,7 +377,7 @@ if __name__ == '__main__':
     dataloader_cfg.dataset.packing_ratio = None
     dataloader_cfg.dataset.max_leftovers_to_keep = None
     train_dataloader = build_dataloader(dataloader_cfg, tokenizer,
-                                        max(raw_batch_sizes) * 100)
+                                        max(raw_batch_sizes) * 100).dataloader
 
     # Get a bunch of raw examples
     big_batch = next(iter(train_dataloader))

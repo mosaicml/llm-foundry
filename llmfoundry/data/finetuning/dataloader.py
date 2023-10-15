@@ -449,7 +449,7 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     device_batch_size = 2
-    dataloader = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+    dataloader = build_finetuning_dataloader(cfg, tokenizer, device_batch_size).dataloader
 
     packing = cfg.dataset.get('packing_ratio') is not None
 

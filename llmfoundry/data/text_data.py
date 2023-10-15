@@ -379,6 +379,7 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     loader = build_text_dataloader(cfg, tokenizer, device_batch_size).dataloader
+    assert isinstance(loader, DataLoader)
     assert isinstance(loader.dataset, StreamingTextDataset)
     tokenizer = loader.dataset.tokenizer
 

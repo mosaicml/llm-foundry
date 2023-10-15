@@ -307,6 +307,15 @@ def build_text_dataloader(
 
 
 def get_tokens_per_batch_func(pad_token_id: int) -> Callable[[Batch], int]:
+    """Returns a callable that counts the number of tokens in a batch.
+
+    Args:
+        pad_token_id (int): The id of the padding token.
+
+    Returns:
+        Callable[[Batch], int]: A callable that counts the number of tokens in a batch.
+    """
+
     def get_num_samples_in_batch(batch: Batch) -> int:
         if not isinstance(batch, Mapping) or 'input_ids' not in batch:
             raise ValueError(

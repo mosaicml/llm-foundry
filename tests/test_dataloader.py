@@ -292,7 +292,8 @@ def test_finetuning_dataloader(decoder_only_format: bool,
     else:
         expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
 
-    loader = build_finetuning_dataloader(cfg, tokenizer, device_batch_size).dataloader
+    loader = build_finetuning_dataloader(cfg, tokenizer,
+                                         device_batch_size).dataloader
     batch_ix = 0
     for batch in loader:
         for k in expected_keys:
@@ -546,7 +547,8 @@ def test_malformed_data(
                                       match='Unable to tokenize example')
 
     with error_context:
-        dl = build_finetuning_dataloader(cfg, tokenizer, device_batch_size).dataloader
+        dl = build_finetuning_dataloader(cfg, tokenizer,
+                                         device_batch_size).dataloader
 
     if not add_bad_data_error:
         # +5 because we added samples with just bos/eos in each of prompt/response

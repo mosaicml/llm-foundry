@@ -325,7 +325,7 @@ def get_tokens_per_batch_func(pad_token_id: int) -> Callable[[Batch], int]:
          # Count number of non padding tokens in batch
         input_ids_tokens = int(torch.sum(batch['input_ids'] != pad_token_id).item())
 
-        # for encoder decoder models only
+        # For encoder decoder models only
         decoder_input_ids_tokens = 0
         if 'decoder_input_ids' in batch:
             decoder_input_ids_tokens = int(torch.sum(batch['decoder_input_ids'] != pad_token_id).item())

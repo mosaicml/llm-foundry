@@ -567,7 +567,8 @@ def test_malformed_data(
 @pytest.mark.parametrize('padding_side', ['left', 'right'])
 @pytest.mark.parametrize('add_decoder_input_ids', [True, False])
 def test_token_counting_func(pad_token_id: int, batch_size: int,
-                             model_max_length: int, padding_side: str, add_decoder_input_ids: bool):
+                             model_max_length: int, padding_side: str,
+                             add_decoder_input_ids: bool):
     gptt = transformers.AutoTokenizer.from_pretrained('gpt2')
     gptt.pad_token_id = pad_token_id
     gptt.model_max_length = model_max_length
@@ -590,7 +591,9 @@ def test_token_counting_func(pad_token_id: int, batch_size: int,
             decoder_batch_strings.append(' '.join(['hello'] * sample_length))
             decoder_expected_token_count += sample_length
             expected_token_count += sample_length
-        batch_tokenized['decoder_input_ids'] = gptt(decoder_batch_strings, padding=True, return_tensors='pt')['input_ids']
+        batch_tokenized['decoder_input_ids'] = gptt(
+            decoder_batch_strings, padding=True,
+            return_tensors='pt')['input_ids']
 
     token_counting_func = get_tokens_per_batch_func(pad_token_id)
 
@@ -599,8 +602,9 @@ def test_token_counting_func(pad_token_id: int, batch_size: int,
     assert actual_token_count == expected_token_count
 
 
-@pytest.mark.parametrize('dataloader_type',
-                         ['finetuning-hf', 'finetuning-streaming', 'denoising', 'text'])
+@pytest.mark.parametrize(
+    'dataloader_type',
+    ['finetuning-hf', 'finetuning-streaming', 'denoising', 'text'])
 @pytest.mark.parametrize('pad_token_id', [100, None])
 @pytest.mark.parametrize('batch_size', [1, 8])
 @pytest.mark.parametrize('model_max_length', [1024])
@@ -626,9 +630,10 @@ def test_token_counting_func_dataloader_setting(
     batch_tokenized = gptt(batch_strings,
                            padding=True if pad_token_id is not None else False,
                            return_tensors='pt')
-    
+
     if dataloader_type == 'denoising':
-        batch_tokenized['decoder_input_ids'] = batch_tokenized['input_ids'].clone()
+        batch_tokenized['decoder_input_ids'] = batch_tokenized[
+            'input_ids'].clone()
         expected_token_count *= 2
 
     common_args = {

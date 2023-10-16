@@ -355,7 +355,7 @@ def build_text_denoising_dataloader(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-) -> DataLoader[Dict]:
+) -> DataSpec:
     """Constructor function for a Mixture of Denoisers dataloader.
 
     This function constructs a dataloader that can be used to train an

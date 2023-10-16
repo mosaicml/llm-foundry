@@ -387,7 +387,7 @@ class _DummyModule(nn.Module):
     def __init__(self, device: str, dtype: torch.dtype):
         super().__init__()
         self.linear0 = nn.Linear(4, 3, device=device, dtype=dtype)
-        self.linear1 = nn.Linear(3, 4, device=device, dtype=dtype)
+        self.linear1 = nn.Linear(3, 5, device=device, dtype=dtype)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type:ignore
         return self.linear1(self.linear0(x))
@@ -416,7 +416,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
 
     torch.cuda.set_device(f'cuda:{os.environ["RANK"]}')  # needed for fsdp
     if not dist.is_initialized():
-        dist.init_process_group()
+        dist.init_process_group(backend='nccl')
     assert dist.get_world_size() >= 2, 'Misconfigured test run!'
 
     mod = FSDP(_DummyModule(device=device, dtype=dtype))
@@ -460,7 +460,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
 
     # load state dict into the new optimizer
     opt_state_dict_slice = FSDP.optim_state_dict_to_load(
-        opt_state_dict, mod_new, opt_new)
+        optim_state_dict=opt_state_dict, model=mod_new, optim=opt_new)
     opt_new.load_state_dict(opt_state_dict_slice)
 
     new_opt_state_dict = FSDP.optim_state_dict(mod_new, opt_new)
@@ -481,7 +481,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
 
         assert mom_orig.shape == mom_new.shape
         assert mom_orig.dtype == mom_new.dtype
-        if use_errors:
+        if use_errors and (dtype != torch.float32):
             errs_orig = d_orig['errors']
             errs_new = d_new['errors']
             assert errs_orig.shape == errs_new.shape

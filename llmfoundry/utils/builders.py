@@ -15,9 +15,7 @@ from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
-                              MosaicMLLogger, TensorboardLogger, WandBLogger)
-from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
+                              TensorboardLogger, WandBLogger)
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ComposerScheduler,
                                       ConstantWithWarmupScheduler,
@@ -29,10 +27,10 @@ from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
-                                  GlobalLRScaling, HuggingFaceCheckpointer,
-                                  LayerFreezing, MonolithicCheckpointSaver,
-                                  RunEventsCallback, ScheduledGarbageCollector)
+from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
+                                  HuggingFaceCheckpointer, LayerFreezing,
+                                  MonolithicCheckpointSaver,
+                                  ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
@@ -120,8 +118,6 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
         return EarlyStopper(**kwargs)
     elif name == 'hf_checkpointer':
         return HuggingFaceCheckpointer(**kwargs)
-    elif name == 'run_events':
-        return RunEventsCallback(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
@@ -137,11 +133,6 @@ def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
         return MLFlowLogger(**kwargs)
     elif name == 'inmemory':
         return InMemoryLogger(**kwargs)
-    elif name == 'mosaicml' and os.environ.get(
-            MOSAICML_PLATFORM_ENV_VAR,
-            'false').lower() == 'true' and os.environ.get(
-                MOSAICML_ACCESS_TOKEN_ENV_VAR) is not None:
-        return MosaicMLLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 

@@ -11,7 +11,6 @@ try:
         MonolithicCheckpointSaver
     from llmfoundry.callbacks.resumption_callbacks import (GlobalLRScaling,
                                                            LayerFreezing)
-    from llmfoundry.callbacks.run_events_callback import RunEventsCallback
     from llmfoundry.callbacks.scheduled_gc_callback import \
         ScheduledGarbageCollector
 except ImportError as e:
@@ -20,7 +19,13 @@ except ImportError as e:
     ) from e
 
 __all__ = [
-    'FDiffMetrics', 'Generate', 'MonolithicCheckpointSaver', 'GlobalLRScaling',
-    'LayerFreezing', 'ScheduledGarbageCollector', 'EvalGauntlet',
-    'ModelGauntlet', 'HuggingFaceCheckpointer', 'RunEventsCallback'
+    'FDiffMetrics',
+    'Generate',
+    'MonolithicCheckpointSaver',
+    'GlobalLRScaling',
+    'LayerFreezing',
+    'ScheduledGarbageCollector',
+    'EvalGauntlet',
+    'ModelGauntlet',
+    'HuggingFaceCheckpointer',
 ]

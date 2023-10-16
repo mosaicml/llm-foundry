@@ -4,6 +4,7 @@ import copy
 import logging
 import os
 import sys
+import time
 import warnings
 from typing import Any, Dict, List, Optional, Union
 
@@ -12,6 +13,8 @@ from composer import Trainer
 from composer.core import Evaluator
 from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
+from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
+                                              MOSAICML_PLATFORM_ENV_VAR)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -20,7 +23,6 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
-from llmfoundry.callbacks.run_events_callback import RunEventsCallback
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_data_and_gauntlet,
@@ -451,15 +453,20 @@ def main(cfg: DictConfig) -> Trainer:
     scheduler = build_scheduler(scheduler_name, scheduler_config)
 
     # Loggers
-    if not logger_configs:
-        loggers = None
-    else:
-        loggers = [
-            build_logger(str(name), logger_cfg)
-            for name, logger_cfg in logger_configs.items()
-        ]
-        mosaicMlLogger = next(
-            (x for x in loggers if isinstance(x, MosaicMLLogger)), None)
+    loggers = [
+        build_logger(str(name), logger_cfg)
+        for name, logger_cfg in logger_configs.items()
+    ] if logger_configs else None
+
+    # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
+    mosaicml_logger = None
+    if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
+    ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
+        mosaicml_logger = MosaicMLLogger()
+        if loggers and not any(isinstance(x, MosaicMLLogger) for x in loggers):
+            loggers.append(mosaicml_logger)
+        else:
+            loggers = [mosaicml_logger]
 
     # Callbacks
     callbacks: List[Callback] = [
@@ -480,8 +487,9 @@ def main(cfg: DictConfig) -> Trainer:
         tokenizer,
         device_train_batch_size,
     )
-    if mosaicMlLogger:
-        RunEventsCallback.data_validated(mosaicMlLogger)
+
+    if mosaicml_logger is not None:
+        mosaicml_logger.log_metrics({'data_validated': time.time()})
 
     ## Evaluation
     print('Building eval loader...')

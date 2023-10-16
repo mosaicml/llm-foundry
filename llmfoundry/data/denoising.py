@@ -17,7 +17,8 @@ from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.packing import BinPackWrapper
-from llmfoundry.data.text_data import StreamingTextDataset
+from llmfoundry.data.text_data import (StreamingTextDataset,
+                                       get_tokens_per_batch_func)
 from llmfoundry.models import utils
 
 __all__ = ['MixtureOfDenoisersCollator', 'build_text_denoising_dataloader']
@@ -354,7 +355,7 @@ def build_text_denoising_dataloader(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-) -> DataSpec:
+) -> DataLoader[Dict]:
     """Constructor function for a Mixture of Denoisers dataloader.
 
     This function constructs a dataloader that can be used to train an
@@ -519,7 +520,10 @@ def build_text_denoising_dataloader(
         timeout=cfg.get('timeout', 0),
     )
 
-    return DataSpec(dataloader=dl)
+    token_counting_func = get_tokens_per_batch_func(
+        pad_token_id=tokenizer.pad_token_id)
+
+    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 
 
 def noise_token_sequence(
@@ -872,9 +876,7 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_name=tokenizer_name,
                                 tokenizer_kwargs=tokenizer_kwargs)
 
-    loader = build_text_denoising_dataloader(cfg, tokenizer,
-                                             device_batch_size).dataloader
-    assert isinstance(loader, DataLoader)
+    loader = build_text_denoising_dataloader(cfg, tokenizer, device_batch_size)
     assert isinstance(loader.dataset, StreamingTextDataset)
 
     print(f'\n\nTRUNCATING TO: {loader.dataset.max_seq_len}\n\n')

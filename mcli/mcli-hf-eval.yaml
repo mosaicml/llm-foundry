@@ -40,7 +40,7 @@ parameters:
     model:
       name: hf_causal_lm
       pretrained_model_name_or_path: mosaicml/mpt-30b-instruct
-      init_device: cpu
+      init_device: mixed
       pretrained: true
       use_auth_token: false
 

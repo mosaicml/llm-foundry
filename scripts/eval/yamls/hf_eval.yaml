@@ -3,7 +3,7 @@ seed: 1
 precision: fp32
 
 # If you are using one model, put it here:
-model_name_or_path: EleutherAI/gpt-neo-125m
+model_name_or_path: mosaicml/mpt-7b-instruct
 # otherwise, write a block for each model you want to test in the `models` section
 
 models:
@@ -12,7 +12,7 @@ models:
   model:
     name: hf_causal_lm
     pretrained_model_name_or_path: ${model_name_or_path}
-    init_device: mixed
+    init_device: cpu
     pretrained: true
   tokenizer:
     name: ${model_name_or_path}
@@ -34,14 +34,14 @@ models:
 #       model_max_length: ${max_seq_len}
 
 
-device_eval_batch_size: 4
+device_eval_batch_size: 1
 
 # FSDP config for model sharding
-fsdp_config:
-  sharding_strategy: FULL_SHARD
-  mixed_precision: FULL
-  forward_prefetch: True
-  limit_all_gathers: True
+# fsdp_config:
+#   sharding_strategy: FULL_SHARD
+#   mixed_precision: FULL
+#   forward_prefetch: True
+#   limit_all_gathers: True
 
-icl_tasks: 'eval/yamls/tasks.yaml'
-model_gauntlet: 'eval/yamls/model_gauntlet.yaml'
+icl_tasks: 'eval/yamls/coding_tasks.yaml'
+eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'

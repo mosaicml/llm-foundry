@@ -82,9 +82,9 @@ class EvalGauntlet(Callback):
             raise Exception(
                 'Only use accuracy rescaling in conjunction with subtracting random baseline accuracy.'
             )
-
+        
         self.categories = categories
-        self.category_names = [conf.get('name', '') for conf in self.categories]
+        self.category_names = set(conf.get('name', '') for conf in self.categories)
         self.weighting = Weighting[weighting]
         self.subtract_random_baseline = subtract_random_baseline
         self.rescale_accuracy = rescale_accuracy

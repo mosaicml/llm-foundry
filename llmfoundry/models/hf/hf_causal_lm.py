@@ -10,6 +10,7 @@ from typing import Mapping, Union
 # required for loading a python model into composer
 import transformers
 from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
+                                  InContextLearningCodeExecutionPredictionAccuracy,
                                   InContextLearningLMAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
                                   InContextLearningMCExpectedCalibrationError,
@@ -73,6 +74,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
             InContextLearningCodeEvalAccuracy(),
+            InContextLearningCodeExecutionPredictionAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError()
         ]

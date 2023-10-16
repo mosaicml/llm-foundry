@@ -117,7 +117,6 @@ def evaluate_model(
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
-
     evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
         icl_tasks, eval_gauntlet_config, tokenizer, device_eval_batch_size,
         max_seq_len, icl_subset_num_batches)
@@ -147,7 +146,7 @@ def evaluate_model(
         eval_gauntlet_df = pd.DataFrame(
             columns=['model_name'] +
             [avg for avg in eval_gauntlet_callback.averages] +
-            [t.name for t in eval_gauntlet_callback.categories])
+            [name for name in eval_gauntlet_callback.category_names])
 
     load_path = model_cfg.get('load_path', None)
     if model_cfg.model.name == 'mpt_causal_lm' and load_path is None:
@@ -316,8 +315,7 @@ def main(cfg: DictConfig):
             row = {'model_name': model_cfg['model_name']}
             row.update(
                 {k.split('/')[-1]: v for k, v in composite_scores.items()})
-            eval_gauntlet_df = pd.concat(
-                [eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
+            eval_gauntlet_df = pd.concat([eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
 
             print(f'Printing gauntlet results for all models')
 

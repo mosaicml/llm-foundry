@@ -879,6 +879,7 @@ if __name__ == '__main__':
     loader = build_text_denoising_dataloader(cfg, tokenizer,
                                              device_batch_size).dataloader
     assert isinstance(loader.dataset, StreamingTextDataset)
+    assert isinstance(loader, DataLoader)
 
     print(f'\n\nTRUNCATING TO: {loader.dataset.max_seq_len}\n\n')
 

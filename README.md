@@ -220,7 +220,7 @@ composer train/train.py \
   eval_interval=0 \
   save_folder=mpt-125m
 
-# To iterate on training on CPU run command (dev only): 
+# To iterate on training on CPU run command (dev only):
 composer train/train.py \
   train/yamls/pretrain/mpt-125m-cpu.yaml \
   data_local=my-copy-c4 \

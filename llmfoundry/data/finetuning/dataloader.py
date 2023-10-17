@@ -378,7 +378,6 @@ def _maybe_apply_bin_packing(
         target_batch_size=device_batch_size,
         max_seq_len=dataset_cfg.max_seq_len,
         pad_token_id=tokenizer.pad_token_id,
-        padding_side=tokenizer.padding_side,
     )
 
     return hf_datasets.IterableDataset.from_generator(bpd)

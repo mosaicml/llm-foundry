@@ -20,42 +20,38 @@ class BinPackDataset(IterableDataset):
         target_batch_size: int,
         max_seq_len: int,
         pad_token_id: int,
-        padding_side: Literal['left', 'right'],
     ):
         self.dataset = dataset
         self.packing_ratio = int(packing_ratio)
         self.out_size = int(target_batch_size)
         self.max_seq_len = int(max_seq_len)
         self.pad_token_id = int(pad_token_id)
-        self.padding_side = padding_side
         self.collator = BinPackCollator(
             lambda x: x, 
             target_batch_size=self.out_size, 
             max_seq_len=max_seq_len, 
             pad_token_id=pad_token_id, 
-            padding_side=padding_side,
             max_leftover_bins_to_keep=None # Keep all leftovers.
         )
-
-    def __call__(self) -> Iterable:
+    def __iter__(self) -> Iterable:
         examples = []
         for example in self.dataset:
             examples.append(example)
-
             if len(examples) == self.packing_ratio * self.out_size:
                 packed_examples = self.collator(examples)
+                print('len packed examples', len(packed_examples))
                 for packed_example in packed_examples:
                     yield packed_example
                 examples = []
-        
+        # Finish the last batch
         packed_examples = self.collator(examples)
         for packed_example in packed_examples:
             yield packed_example
         examples = []
-        print('leftovers!', len(self.collator._leftover_bins))
+
         # Iterate over leftovers.
-        # for _, leftover in self.collator._leftover_bins:
-        #     yield leftover
+        for _, leftover in self.collator._leftover_bins:
+            yield leftover
 
 class BinPackCollator:
     """Utility collator for packing to reduce padding."""
@@ -65,13 +61,11 @@ class BinPackCollator:
                  target_batch_size: int,
                  max_seq_len: int,
                  pad_token_id: int,
-                 padding_side: Literal['left', 'right'],
                  max_leftover_bins_to_keep: Optional[int] = None):
         self.base_collator = collator
         self.out_size = int(target_batch_size)
         self.max_seq_len = int(max_seq_len)
         self.pad_token_id = int(pad_token_id)
-        self.padding_side = padding_side
 
         if self.out_size <= 0:
             raise ValueError(f'{target_batch_size=} must be >0.')
@@ -125,8 +119,6 @@ class BinPackCollator:
         if self.max_leftover_bins_to_keep is not None:
             leftover_bins = leftover_bins[:self.max_leftover_bins_to_keep]
         self._leftover_bins = leftover_bins
-
-
         return packed_examples
 
 
@@ -242,42 +234,6 @@ def first_fit_bin_packing(
     #  - leftover bins
     return packed_examples[:num_bins], sum(
         bin_sizes[:num_bins]), sum(sizes), sorted_bins[num_bins:]
-
-
-# def repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
-#           pad_token_id: int, padding_side: str) -> Dict[str, torch.Tensor]:
-
-#     def pad_tensor(tensor: torch.Tensor, pad_value: int):
-#         if len(tensor) == max_seq_len:
-#             return tensor
-#         t = torch.full((max_seq_len,),
-#                        pad_value,
-#                        dtype=tensor.dtype,
-#                        device=tensor.device)
-#         if padding_side == 'left':
-#             t[-len(tensor):] = tensor
-#         elif padding_side == 'right':
-#             t[:len(tensor)] = tensor
-#         else:
-#             raise ValueError(f'Unknown {padding_side=}')
-#         return t
-
-#     pad_vals = {
-#         'input_ids': pad_token_id,
-#         'labels': -100,
-#         'attention_mask': 0,
-#         'bidirectional_mask': 0,
-#         'sequence_id': -1,
-#     }
-#     keys = packed_examples[0].keys()
-#     batch = {}
-#     for key in keys:
-#         batch[key] = torch.stack([
-#             pad_tensor(example[key], pad_vals[key])
-#             for example in packed_examples
-#         ])
-#     return batch
-
 
 def auto_packing_ratio(dataloader_cfg: DictConfig,
                        tokenizer: PreTrainedTokenizerBase,

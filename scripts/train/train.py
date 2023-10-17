@@ -5,13 +5,14 @@ import logging
 import os
 import sys
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from composer import Trainer
 from composer.core import Evaluator
 from composer.core.callback import Callback
-from composer.profiler import TraceHandler, JSONTraceHandler, Profiler, cyclic_schedule
+from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
+                               cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -466,7 +467,8 @@ def main(cfg: DictConfig) -> Trainer:
         profiler_trace_cfg: Optional[Dict] = profiler_cfg.pop(
             'json_trace_handler', None)
         if profiler_trace_cfg:
-            profiler_trace_handlers.append(JSONTraceHandler(**profiler_trace_cfg))
+            profiler_trace_handlers.append(
+                JSONTraceHandler(**profiler_trace_cfg))
         profiler = Profiler(**profiler_cfg,
                             trace_handlers=profiler_trace_handlers,
                             schedule=profiler_schedule)

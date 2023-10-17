@@ -222,7 +222,7 @@ composer train/train.py \
 
 # To iterate on training on CPU run command (dev only): 
 composer train/train.py \
-  train/yamls/pretrain/mpt-125m-cpu-dev.yaml \
+  train/yamls/pretrain/mpt-125m-cpu.yaml \
   data_local=my-copy-c4 \
   train_loader.dataset.split=train_small \
   eval_loader.dataset.split=val_small \

@@ -220,6 +220,16 @@ composer train/train.py \
   eval_interval=0 \
   save_folder=mpt-125m
 
+# To iterate on training on CPU run command (dev only): 
+composer train/train.py \
+  train/yamls/pretrain/mpt-125m-cpu-dev.yaml \
+  data_local=my-copy-c4 \
+  train_loader.dataset.split=train_small \
+  eval_loader.dataset.split=val_small \
+  max_duration=10ba \
+  eval_interval=0 \
+  save_folder=mpt-125m
+
 # Convert the model to HuggingFace format
 python inference/convert_composer_to_hf.py \
   --composer_path mpt-125m/ep0-ba10-rank0.pt \

@@ -42,8 +42,17 @@ class BinPackDataset(IterableDataset):
         examples = []
         for example in self.dataset:
             examples.append(example)
+            print(len(example['input_ids']))
+
             if len(examples) == self.packing_ratio:
                 print(example)
+                keys = examples[0].keys()
+                batch = {}
+                for key in keys:
+                    batch[key] = torch.stack([
+                        torch.tensor(example[key])
+                        for example in examples
+                    ])
                 yield self.collator(examples)
                 examples = []
         
@@ -112,12 +121,7 @@ class BinPackCollator:
     def __call__(
             self,
             examples: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
-
-        print('before examples', examples)
         batch = self.base_collator(examples)
-
-        print('after examples', examples)
-
         assert 'attention_mask' in batch
         assert 'input_ids' in batch
 
@@ -194,6 +198,8 @@ def first_fit_bin_packing(
     max_bin_size: int, existing_bins: List[Tuple[int, Dict[str, torch.Tensor]]]
 ) -> Tuple[List[Dict[str, torch.Tensor]], int, int, List[Tuple[int, Dict[
         str, torch.Tensor]]]]:
+
+    print('first fit bin packing', examples[0]['input_ids'].shape)
 
     # Will contain tuples (bin_size_size, packed_example)
     bins: List[Tuple[int, Dict[str, torch.Tensor]]] = existing_bins
@@ -333,9 +339,9 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     Returns:
         A packing ratio that minimizes padding while maintaining zero waste.
     """
-    min_ratio = 1
-    max_ratio = 10
-    num_packing_ratios = 20
+    min_ratio = 2
+    max_ratio = 2
+    num_packing_ratios = 1
     profiling_results = profile_packing(dataloader_cfg, tokenizer, min_ratio,
                                         max_ratio, num_packing_ratios,
                                         device_batch_size)
@@ -347,6 +353,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     while i < len(profiling_results) and waste == 0:
         packing_ratio, _, waste = profiling_results[i]
         i += 1
+    # packing_ratio = 2
     return packing_ratio
 
 

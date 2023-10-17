@@ -91,11 +91,11 @@ def test_rotation_scaling_factor_1(device: str, dtype: torch.dtype,
     assert allclose_helper(cos * cos + sin * sin, torch.ones_like(cos))
 
     if tensor_type == 'query':
-        x, _ = apply_rotary_pos_emb(x, z, cos, sin, pos)
-        y, _ = apply_rotary_pos_emb(y, z, cos, sin, pos)
+        x, _ = apply_rotary_pos_emb(x, z, cos, sin, pos, dim_heads_index=2)
+        y, _ = apply_rotary_pos_emb(y, z, cos, sin, pos, dim_heads_index=2)
     elif tensor_type == 'key':
-        _, x = apply_rotary_pos_emb(z, x, cos, sin, pos)
-        _, y = apply_rotary_pos_emb(z, y, cos, sin, pos)
+        _, x = apply_rotary_pos_emb(z, x, cos, sin, pos, dim_heads_index=2)
+        _, y = apply_rotary_pos_emb(z, y, cos, sin, pos, dim_heads_index=2)
 
     assert allclose_helper(x[..., :rope_head_dim // 2], y[...,
                                                           rope_head_dim // 2:])

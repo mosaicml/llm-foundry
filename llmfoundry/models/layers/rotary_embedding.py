@@ -130,11 +130,14 @@ def rotate_half(x: torch.Tensor):
 
 
 # Copied from transformers.models.gpt_neox.modeling_gpt_neox.apply_rotary_pos_emb
-def apply_rotary_pos_emb(q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor,
-                         sin: torch.Tensor, position_ids: torch.Tensor):
-    cos = cos[position_ids].unsqueeze(
-        -2)  # [seq_len, dim] -> [batch_size, seq_len, 1, head_dim]
-    sin = sin[position_ids].unsqueeze(-2)
+def apply_rotary_pos_emb(q: torch.Tensor,
+                         k: torch.Tensor,
+                         cos: torch.Tensor,
+                         sin: torch.Tensor,
+                         position_ids: torch.Tensor,
+                         dim_heads_index: int = 1):
+    cos = cos[position_ids].unsqueeze(dim_heads_index)
+    sin = sin[position_ids].unsqueeze(dim_heads_index)
     q_embed = (q * cos) + (rotate_half(q) * sin)
     k_embed = (k * cos) + (rotate_half(k) * sin)
     return q_embed, k_embed

@@ -107,6 +107,41 @@ callbacks:
   memory_monitor: {}
   runtime_estimator: {}
 
+loggers:
+  s3: {bucket_uri: s3://mosaicml-internal-checkpoints-shared/ }
+
+# Profiler
+profiler:
+  sys_prof_cpu: false
+  sys_prof_memory: false
+  sys_prof_disk: false
+  sys_prof_net: false
+  sys_prof_stats_thread_interval_seconds: 1_000_000_000_000
+  torch_prof_folder: '{run_name}/torch_traces'
+  torch_prof_filename: 'rank{rank}.batch{batch}.pt.trace.json'
+  torch_prof_remote_file_name:  'chuck/{run_name}/traces/ep{epoch}-ba{batch}-rank{rank}.json'
+  torch_prof_overwrite: true
+  torch_prof_use_gzip: false
+  torch_prof_record_shapes: true
+  torch_prof_profile_memory: true
+  torch_prof_with_stack: true
+  torch_prof_with_flops: true
+  torch_prof_num_traces_to_keep: -1  # -1 means keep all traces
+  schedule:
+    skip_first: 1
+    wait: 0
+    warmup: 1
+    active: 1
+    repeat: 1
+  # json_trace_handler:
+  #   folder: '{run_name}/composer_traces'
+  #   filename: 'ep{epoch}-ba{batch}-rank{rank}.json'
+  #   remote_file_name: 's3://mosaicml-internal-checkpoints-shared/chuck/{run_name}/traces/ep{epoch}-ba{batch}-rank{rank}.json'
+  #   merged_trace_filename: 'merged_trace.json'
+  #   merged_trace_remote_file_name: '{run_name}/traces/merged_trace.json'
+  #   overwrite: true
+  #   num_traces_to_keep: -1
+
 # Checkpoint to local filesystem or remote object store
 # save_interval: 500ba
 save_overwrite: true

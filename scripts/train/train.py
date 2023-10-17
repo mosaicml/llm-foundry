@@ -459,11 +459,8 @@ def main(cfg: DictConfig) -> Trainer:
     profiler: Optional[Profiler] = None
     profiler_cfg = cfg.get('profiler', None)
     if profiler_cfg:
-        profiler_schedule: Optional[Callable] = None
-        profiler_schedule_cfg: Optional[Dict] = profiler_cfg.pop(
-            'schedule', None)
-        if profiler_schedule_cfg:
-            profiler_schedule = cyclic_schedule(**profiler_schedule_cfg)
+        profiler_schedule_cfg: Dict = profiler_cfg.pop('schedule')
+        profiler_schedule = cyclic_schedule(**profiler_schedule_cfg)
         # Only support json trace handler
         profiler_trace_handlers: List[TraceHandler] = []
         profiler_trace_cfg: Optional[Dict] = profiler_cfg.pop(

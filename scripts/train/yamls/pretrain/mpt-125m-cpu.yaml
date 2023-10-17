@@ -71,7 +71,7 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 10ba # ~ 2.5B tokens
+max_duration: 10ba
 eval_interval: 5ba
 eval_first: false
 eval_subset_num_batches: 5
@@ -111,7 +111,6 @@ callbacks:
 #   wandb: {}
 
 # Profiler
-# https://pytorch.org/docs/stable/profiler.html
 profiler:
   sys_prof_cpu: true
   sys_prof_memory: true

@@ -595,7 +595,8 @@ def test_token_counting_func(pad_token_id: int, batch_size: int,
             decoder_batch_strings, padding=True,
             return_tensors='pt')['input_ids']
 
-    token_counting_func = get_tokens_per_batch_func(pad_token_id)
+    token_counting_func = get_tokens_per_batch_func(
+        pad_token_id, decoder_only=not add_decoder_input_ids)
 
     actual_token_count = token_counting_func(batch_tokenized)
 

@@ -38,7 +38,6 @@ class BinPackDataset(IterableDataset):
         )
 
     def __call__(self) -> Iterable:
-
         examples = []
         for example in self.dataset:
             examples.append(example)
@@ -48,13 +47,15 @@ class BinPackDataset(IterableDataset):
                 for packed_example in packed_examples:
                     yield packed_example
                 examples = []
-
-        for example in examples:
-            yield example
-
+        
+        packed_examples = self.collator(examples)
+        for packed_example in packed_examples:
+            yield packed_example
+        examples = []
+        print('leftovers!', len(self.collator._leftover_bins))
         # Iterate over leftovers.
-        for _, leftover in self.collator._leftover_bins:
-            yield leftover
+        # for _, leftover in self.collator._leftover_bins:
+        #     yield leftover
 
 class BinPackCollator:
     """Utility collator for packing to reduce padding."""
@@ -116,6 +117,7 @@ class BinPackCollator:
             max_bin_size=self.max_seq_len,
             existing_bins=self._leftover_bins,
         )
+        print('leftovers', len(leftover_bins))
         self.n_packed_tokens += n_packed_tokens
         self.n_total_tokens += n_total_tokens
         self.n_packed_examples += self.out_size
@@ -304,7 +306,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     # while i < len(profiling_results) and waste == 0:
     #     packing_ratio, _, waste = profiling_results[i]
     #     i += 1
-    packing_ratio = 2
+    packing_ratio = 15
     return packing_ratio
 
 

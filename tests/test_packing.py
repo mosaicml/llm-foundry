@@ -2,9 +2,11 @@ from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 
 from llmfoundry.utils.builders import build_tokenizer
 from omegaconf import DictConfig
+from composer.utils import reproducibility
 
 
 def test_auto_packing():
+    reproducibility.seed_all(17)
     dataloader_cfg = DictConfig({
         'name': 'finetuning',
         'dataset': {
@@ -14,7 +16,7 @@ def test_auto_packing():
             'allow_pad_trimming': False,
             'decoder_only_format': True,
             'packing_ratio': 'auto',
-            'shuffle': True,
+            'shuffle': False,
         },
         'drop_last': False,
         'num_workers': 1,
@@ -38,7 +40,7 @@ def test_auto_packing():
             'max_seq_len': 1024,
             'allow_pad_trimming': False,
             'decoder_only_format': True,
-            'shuffle': True,
+            'shuffle': False,
         },
         'drop_last': False,
         'num_workers': 1,

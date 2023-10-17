@@ -6,6 +6,7 @@ from typing import Tuple, Union
 
 import datasets as hf_datasets
 import torch
+from composer.core.data_spec import DataSpec
 from composer.utils import dist, get_file, parse_uri
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
@@ -14,6 +15,7 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.tasks import dataset_constructor
 from llmfoundry.data.packing import BinPackWrapper
+from llmfoundry.data.text_data import get_tokens_per_batch_func
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ _HF_IGNORE_INDEX = -100
 
 def build_finetuning_dataloader(cfg: DictConfig,
                                 tokenizer: PreTrainedTokenizerBase,
-                                device_batch_size: int) -> DataLoader:
+                                device_batch_size: int) -> DataSpec:
     """Builds a finetuning dataloader for training or evaluating.
 
     The underlying dataset can be built through one of two code paths:
@@ -143,7 +145,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
         collate_fn, dataloader_batch_size = _build_collate_fn(
             cfg.dataset, tokenizer, device_batch_size)
 
-        return DataLoader(
+        dl = DataLoader(
             dataset,
             collate_fn=collate_fn,
             batch_size=dataloader_batch_size,
@@ -193,7 +195,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
                     )
 
         assert dataset is not None
-        return DataLoader(
+        dl = DataLoader(
             dataset,
             collate_fn=collate_fn,
             batch_size=dataloader_batch_size,
@@ -207,6 +209,11 @@ def build_finetuning_dataloader(cfg: DictConfig,
             persistent_workers=cfg.get('persistent_workers', True),
             timeout=cfg.get('timeout', 0),
         )
+
+    token_counting_func = get_tokens_per_batch_func(
+        pad_token_id=tokenizer.pad_token_id)
+
+    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 
 
 def _validate_config(dataset_cfg: DictConfig) -> None:
@@ -442,7 +449,8 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     device_batch_size = 2
-    dataloader = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+    dataloader = build_finetuning_dataloader(cfg, tokenizer,
+                                             device_batch_size).dataloader
 
     packing = cfg.dataset.get('packing_ratio') is not None
 

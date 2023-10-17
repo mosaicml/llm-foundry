@@ -456,6 +456,7 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         # initialize the past key values cache if it should be used
+        presents = () if use_cache else None
         if use_cache and past_key_values is None:
             past_key_values = [() for _ in range(self.config.n_layers)
                               ]  # type: ignore
@@ -468,7 +469,7 @@ class MPTModel(MPTPreTrainedModel):
                 all_hidden_states = all_hidden_states + (x,)
             past_key_value = (past_key_values[b_idx]
                               if past_key_values is not None else None)
-            x, attn_weights, past_key_value = block(
+            x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
@@ -477,8 +478,8 @@ class MPTModel(MPTPreTrainedModel):
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
             )
-            if past_key_values is not None:
-                past_key_values[b_idx] = past_key_value
+            if presents is not None:
+                presents += (present,)
 
             if output_attentions:
                 assert all_self_attns is not None  # pyright
@@ -493,7 +494,7 @@ class MPTModel(MPTPreTrainedModel):
 
         return BaseModelOutputWithPast(
             last_hidden_state=x,
-            past_key_values=past_key_values,
+            past_key_values=presents,
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )

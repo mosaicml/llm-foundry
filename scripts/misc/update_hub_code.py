@@ -29,7 +29,7 @@ _ALL_MODELS = [
 
 
 def main(hf_repos_for_upload: List[str]):
-    if len(hf_repos_for_upload) == 0 and hf_repos_for_upload == ['all']:
+    if len(hf_repos_for_upload) == 1 and hf_repos_for_upload == ['all']:
         hf_repos_for_upload = _ALL_MODELS
 
     current_datetime = datetime.now()

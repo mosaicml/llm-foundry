@@ -78,21 +78,18 @@ def _rotary_embedding(config: MPTConfig):
     if config.attn_config['rope_scaling']['type'] == 'no_scaling':
         return RotaryEmbedding(rope_head_dim,
                                max_position_embeddings=config.max_seq_len,
-                               base=config.attn_config['rope_theta'],
-                               device=config.init_device)
+                               base=config.attn_config['rope_theta'])
     elif config.attn_config['rope_scaling']['type'] == 'linear':
         return LinearScalingRotaryEmbedding(
             rope_head_dim,
             max_position_embeddings=config.max_seq_len,
             base=config.attn_config['rope_theta'],
-            device=config.init_device,
             scaling_factor=config.attn_config['rope_scaling']['factor'])
     elif config.attn_config['rope_scaling']['type'] == 'dynamic':
         return DynamicNTKScalingRotaryEmbedding(
             rope_head_dim,
             max_position_embeddings=config.max_seq_len,
             base=config.attn_config['rope_theta'],
-            device=config.init_device,
             scaling_factor=config.attn_config['rope_scaling']['factor'])
 
 

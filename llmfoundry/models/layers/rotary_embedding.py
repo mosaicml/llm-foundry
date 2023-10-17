@@ -7,8 +7,11 @@ import torch
 # Code modified from https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py
 class RotaryEmbedding(torch.nn.Module):
 
-    def __init__(self, dim: int, max_position_embeddings: int, base: int,
-                 device: torch.device):
+    def __init__(self,
+                 dim: int,
+                 max_position_embeddings: int,
+                 base: int,
+                 device=None):
         super().__init__()
 
         self.dim = dim
@@ -60,8 +63,12 @@ class LinearScalingRotaryEmbedding(RotaryEmbedding):
     Credits to the Reddit user /u/kaiokendev
     """
 
-    def __init__(self, dim: int, max_position_embeddings: int, base: int,
-                 device: torch.device, scaling_factor: float):
+    def __init__(self,
+                 dim: int,
+                 max_position_embeddings: int,
+                 base: int,
+                 scaling_factor: float,
+                 device=None):
         self.scaling_factor = scaling_factor
         super().__init__(dim, max_position_embeddings, base, device)
 
@@ -90,8 +97,12 @@ class DynamicNTKScalingRotaryEmbedding(RotaryEmbedding):
     Credits to the Reddit users /u/bloc97 and /u/emozilla
     """
 
-    def __init__(self, dim: int, max_position_embeddings: int, base: int,
-                 device: torch.device, scaling_factor: float):
+    def __init__(self,
+                 dim: int,
+                 max_position_embeddings: int,
+                 base: int,
+                 scaling_factor: float,
+                 device=None):
         self.scaling_factor = scaling_factor
         super().__init__(dim, max_position_embeddings, base, device)
 

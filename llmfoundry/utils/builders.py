@@ -16,6 +16,7 @@ from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
                               TensorboardLogger, WandBLogger)
+from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ComposerScheduler,
                                       ConstantWithWarmupScheduler,
@@ -133,6 +134,8 @@ def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
         return MLFlowLogger(**kwargs)
     elif name == 'inmemory':
         return InMemoryLogger(**kwargs)
+    elif name == 's3':
+        return RemoteUploaderDownloader(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 

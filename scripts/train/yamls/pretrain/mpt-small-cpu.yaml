@@ -107,13 +107,10 @@ callbacks:
   memory_monitor: {}
   runtime_estimator: {}
 
-loggers:
-  s3: {bucket_uri: s3://mosaicml-internal-checkpoints-shared/ }
-
 # Checkpoint to local filesystem or remote object store
-# save_interval: 500ba
 save_overwrite: true
 save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+# save_interval: 500ba
 # save_folder: ./{run_name}/checkpoints
 # save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
 

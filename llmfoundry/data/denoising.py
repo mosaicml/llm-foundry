@@ -10,13 +10,15 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
+from composer.core.data_spec import DataSpec
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.packing import BinPackWrapper
-from llmfoundry.data.text_data import StreamingTextDataset
+from llmfoundry.data.text_data import (StreamingTextDataset,
+                                       get_tokens_per_batch_func)
 from llmfoundry.models import utils
 
 __all__ = ['MixtureOfDenoisersCollator', 'build_text_denoising_dataloader']
@@ -353,7 +355,7 @@ def build_text_denoising_dataloader(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-) -> DataLoader[Dict]:
+) -> DataSpec:
     """Constructor function for a Mixture of Denoisers dataloader.
 
     This function constructs a dataloader that can be used to train an
@@ -506,7 +508,7 @@ def build_text_denoising_dataloader(
             'but cfg.dataset.packing_ratio has not been set. Please set ' +\
             'the latter to turn on packing or remove the former from the config.')
 
-    return DataLoader(
+    dl = DataLoader(
         dataset,
         collate_fn=collate_fn,
         batch_size=device_batch_size,
@@ -517,6 +519,12 @@ def build_text_denoising_dataloader(
         persistent_workers=cfg.get('persistent_workers', False),
         timeout=cfg.get('timeout', 0),
     )
+
+    token_counting_func = get_tokens_per_batch_func(
+        pad_token_id=tokenizer.pad_token_id,
+        decoder_only=cfg.mixture_of_denoisers.decoder_only_format)
+
+    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 
 
 def noise_token_sequence(
@@ -869,7 +877,9 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_name=tokenizer_name,
                                 tokenizer_kwargs=tokenizer_kwargs)
 
-    loader = build_text_denoising_dataloader(cfg, tokenizer, device_batch_size)
+    loader = build_text_denoising_dataloader(cfg, tokenizer,
+                                             device_batch_size).dataloader
+    assert isinstance(loader, DataLoader)
     assert isinstance(loader.dataset, StreamingTextDataset)
 
     print(f'\n\nTRUNCATING TO: {loader.dataset.max_seq_len}\n\n')

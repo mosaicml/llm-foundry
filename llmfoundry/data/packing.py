@@ -2,15 +2,55 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
+from torch.utils.data import IterableDataset
 
 
-class BinPackWrapper:
+class BinPackDataset(IterableDataset):
+    """An IterableDataset that returns packed examples."""
+    def __init__(
+        self,
+        dataset: IterableDataset,
+        packing_ratio: int,
+        target_batch_size: int,
+        max_seq_len: int,
+        pad_token_id: int,
+        padding_side: Literal['left', 'right'],
+    ):
+        self.dataset = dataset
+        self.packing_ratio = packing_ratio
+        self.out_size = int(target_batch_size)
+        self.max_seq_len = int(max_seq_len)
+        self.pad_token_id = int(pad_token_id)
+        self.padding_side = padding_side
+        self.collator = BinPackCollator(
+            lambda x: x, 
+            target_batch_size=target_batch_size, 
+            max_seq_len=max_seq_len, 
+            pad_token_id=pad_token_id, 
+            padding_side=padding_side,
+            max_leftover_bins_to_keep=None # Keep all leftovers.
+        )
+
+    def __iter__(self) -> Iterable:
+        for i in range(0, len(self.dataset), self.packing_ratio): # does len(IterableDataset) always work?
+            examples = self.dataset[i:i + self.packing_ratio]
+
+            if n_examples == self.packing_ratio:
+                n_examples = 0
+                self.collator(examples)
+
+        # Iterate over leftovers.
+        for _, leftover in self.collator._leftover_bins:
+            padded_leftover = repad([leftover], self.max_seq_len, self.pad_token_id, self.padding_side)
+            yield padded_leftover
+
+class BinPackCollator:
     """Utility collator for packing to reduce padding."""
 
     def __init__(self,
@@ -33,13 +73,13 @@ class BinPackWrapper:
         if self.pad_token_id < 0:
             raise ValueError(f'{pad_token_id=} must be >=0.')
 
-        if max_leftover_bins_to_keep is None:
-            self.max_leftover_bins_to_keep = int(10 * self.out_size)
-        elif max_leftover_bins_to_keep < 0:
-            raise ValueError(
-                f'{max_leftover_bins_to_keep=} must be >=0 or None.')
-        else:
-            self.max_leftover_bins_to_keep = int(max_leftover_bins_to_keep)
+        self.max_leftover_bins_to_keep = max_leftover_bins_to_keep
+        if max_leftover_bins_to_keep is not None:
+            if max_leftover_bins_to_keep < 0:
+                raise ValueError(
+                    f'{max_leftover_bins_to_keep=} must be >=0 or None.')
+            else:
+                self.max_leftover_bins_to_keep = int(max_leftover_bins_to_keep)
 
         self.n_packed_tokens = 0
         self.n_total_tokens = 0
@@ -90,7 +130,10 @@ class BinPackWrapper:
         self.n_packed_tokens += n_packed_tokens
         self.n_total_tokens += n_total_tokens
         self.n_packed_examples += self.out_size
-        self._leftover_bins = leftover_bins[:self.max_leftover_bins_to_keep]
+
+        if self.max_leftover_bins_to_keep is not None:
+            leftover_bins = leftover_bins[:self.max_leftover_bins_to_keep]
+        self._leftover_bins = leftover_bins
 
         # Re-pad to max_seq_len and batch
         batch = repad(packed_examples,
@@ -274,8 +317,8 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
         A packing ratio that minimizes padding while maintaining zero waste.
     """
     min_ratio = 1
-    max_ratio = 20
-    num_packing_ratios = 10
+    max_ratio = 10
+    num_packing_ratios = 20
     profiling_results = profile_packing(dataloader_cfg, tokenizer, min_ratio,
                                         max_ratio, num_packing_ratios,
                                         device_batch_size)
@@ -363,13 +406,13 @@ def profile_packing(dataloader_cfg: DictConfig,
         return batches
 
     def profile(raw_batch_size: int) -> Tuple[float, float]:
-        packer = BinPackWrapper(
+        packer = BinPackCollator(
             collator=lambda x: x,
             target_batch_size=device_batch_size,
             max_seq_len=dataloader_cfg.dataset.max_seq_len,
             pad_token_id=0,  # <-- Doesn't need to be correct for profiling
             padding_side='left',  # <-- Doesn't need to be correct for profiling
-            max_leftover_bins_to_keep=max_leftovers_to_keep)
+            max_leftover_bins_to_keep=dataloader_cfg.dataset.max_leftovers_to_keep)
 
         # Simulate feeding the packing collator a bunch of data
         for batch in split_big_batch(raw_batch_size):

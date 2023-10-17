@@ -15,7 +15,7 @@ from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.data.packing import BinPackWrapper
+from llmfoundry.data.packing import BinPackCollator
 from llmfoundry.data.text_data import StreamingTextDataset
 from llmfoundry.models import utils
 
@@ -490,7 +490,7 @@ def build_text_denoising_dataloader(
             raise NotImplementedError(
                 'On-the-fly packing is currently only supported for decoder-only formats.'
             )
-        collate_fn = BinPackWrapper(
+        collate_fn = BinPackCollator(
             collator=collate_fn,
             target_batch_size=device_batch_size,
             max_seq_len=cfg.dataset.max_seq_len,

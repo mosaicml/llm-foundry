@@ -12,10 +12,10 @@ import torch.nn as nn
 from einops import rearrange
 from packaging import version
 from torch import nn
-from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
 
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
+from llmfoundry.models.layers.rotary_embedding import apply_rotary_pos_emb
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
@@ -552,8 +552,6 @@ class GroupedQueryAttention(nn.Module):
         if rotary_emb_w_offset_info is not None:
             query = query.view(*(query.shape[:-1]), -1, self.head_dim)
             key = key.view(*(key.shape[:-1]), -1, self.head_dim)
-            query = query.transpose(1, 2)
-            key = key.transpose(1, 2)
 
             rotary_emb = rotary_emb_w_offset_info['rotary_emb']
             seq_len = rotary_emb_w_offset_info['seq_len']
@@ -561,11 +559,8 @@ class GroupedQueryAttention(nn.Module):
             (cos, sin) = rotary_emb(query, seq_len)
             query, key = apply_rotary_pos_emb(query, key, cos, sin, pos)
 
-            query = query.transpose(1, 2)
-            key = key.transpose(1, 2)
-            query = query.reshape(*(query.shape[:-2]), self.d_model)
-            key = key.reshape(*(key.shape[:-2]),
-                              self.kv_n_heads * self.head_dim)
+            query = query.view(*(query.shape[:-2]), self.d_model)
+            key = key.view(*(key.shape[:-2]), self.kv_n_heads * self.head_dim)
 
         context, attn_weights, past_key_value = self.attn_fn(
             query,

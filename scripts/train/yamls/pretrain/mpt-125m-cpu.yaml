@@ -128,11 +128,11 @@ profiler:
   torch_prof_with_flops: true
   torch_prof_num_traces_to_keep: -1  # -1 means keep all traces
   schedule:
-    skip_first: 1
-    wait: 0
-    warmup: 1
-    active: 4
-    repeat: 1
+    skip_first: 3
+    wait: 2
+    warmup: 2
+    active: 1
+    repeat: 1 
   json_trace_handler:
     folder: '{run_name}/composer_traces'
     filename: 'ep{epoch}-ba{batch}-rank{rank}.json'
@@ -141,11 +141,12 @@ profiler:
     merged_trace_remote_file_name: '{run_name}/traces/merged_trace.json'
     overwrite: true
     num_traces_to_keep: -1
+
 # Checkpoint to local filesystem or remote object store
-# save_interval: 500ba
 save_overwrite: true
 save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
-# save_folder: ./{run_name}/checkpoints
+save_interval: 5ba
+save_folder: ./{run_name}/checkpoints
 # save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
 
 # Load from local filesystem or remote object store

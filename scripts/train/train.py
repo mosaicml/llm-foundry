@@ -11,7 +11,7 @@ import torch
 from composer import Trainer
 from composer.core import Evaluator
 from composer.core.callback import Callback
-from composer.profiler import JSONTraceHandler, Profiler, cyclic_schedule
+from composer.profiler import TraceHandler, JSONTraceHandler, Profiler, cyclic_schedule
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -465,13 +465,13 @@ def main(cfg: DictConfig) -> Trainer:
         if profiler_schedule_cfg:
             profiler_schedule = cyclic_schedule(**profiler_schedule_cfg)
         # Only support json trace handler
-        profiler_trace_handler: Optional[JSONTraceHandler] = None
+        profiler_trace_handlers: List[TraceHandler] = []
         profiler_trace_cfg: Optional[Dict] = profiler_cfg.pop(
             'json_trace_handler', None)
         if profiler_trace_cfg:
-            profiler_trace_handler = JSONTraceHandler(**profiler_trace_cfg)
+            profiler_trace_handlers.append(JSONTraceHandler(**profiler_trace_cfg))
         profiler = Profiler(**profiler_cfg,
-                            trace_handlers=[profiler_trace_handler],
+                            trace_handlers=profiler_trace_handlers,
                             schedule=profiler_schedule)
 
     # Callbacks

@@ -23,7 +23,7 @@ class BinPackDataset(IterableDataset):
         padding_side: Literal['left', 'right'],
     ):
         self.dataset = dataset
-        self.packing_ratio = packing_ratio
+        self.packing_ratio = int(packing_ratio)
         self.out_size = int(target_batch_size)
         self.max_seq_len = int(max_seq_len)
         self.pad_token_id = int(pad_token_id)
@@ -37,13 +37,26 @@ class BinPackDataset(IterableDataset):
             max_leftover_bins_to_keep=None # Keep all leftovers.
         )
 
-    def __iter__(self) -> Iterable:
-        for i in range(0, len(self.dataset), self.packing_ratio): # does len(IterableDataset) always work?
-            examples = self.dataset[i:i + self.packing_ratio]
+    def __call__(self) -> Iterable:
 
-            if n_examples == self.packing_ratio:
-                n_examples = 0
-                self.collator(examples)
+        examples = []
+        for example in self.dataset:
+            examples.append(example)
+            if len(examples) == self.packing_ratio:
+                print(example)
+                yield self.collator(examples)
+                examples = []
+        
+        for example in examples:
+            yield example
+
+
+        # for i in range(0, len(self.dataset), self.packing_ratio): # does len(IterableDataset) always work?
+        #     examples = self.dataset[i:i + self.packing_ratio]
+
+        #     if n_examples == self.packing_ratio:
+        #         n_examples = 0
+        #         self.collator(examples)
 
         # Iterate over leftovers.
         for _, leftover in self.collator._leftover_bins:
@@ -99,7 +112,11 @@ class BinPackCollator:
     def __call__(
             self,
             examples: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+
+        print('before examples', examples)
         batch = self.base_collator(examples)
+
+        print('after examples', examples)
 
         assert 'attention_mask' in batch
         assert 'input_ids' in batch

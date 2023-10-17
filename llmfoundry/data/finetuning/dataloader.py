@@ -372,7 +372,7 @@ def _maybe_apply_bin_packing(
             'On-the-fly packing is currently only supported for decoder-only formats.'
         )
 
-    return BinPackDataset(
+    bpd = BinPackDataset(
         dataset,
         packing_ratio,
         target_batch_size=device_batch_size,
@@ -380,6 +380,8 @@ def _maybe_apply_bin_packing(
         pad_token_id=tokenizer.pad_token_id,
         padding_side=tokenizer.padding_side,
     )
+
+    return hf_datasets.IterableDataset.from_generator(bpd)
     
 def _build_collate_fn(
     dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,

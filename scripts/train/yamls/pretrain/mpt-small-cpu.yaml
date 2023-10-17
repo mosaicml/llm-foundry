@@ -107,46 +107,11 @@ callbacks:
   memory_monitor: {}
   runtime_estimator: {}
 
-# loggers:
-#   wandb: {}
-
-# Profiler
-profiler:
-  sys_prof_cpu: true
-  sys_prof_memory: true
-  sys_prof_disk: true
-  sys_prof_net: true
-  sys_prof_stats_thread_interval_seconds: 0.5
-  torch_prof_folder: '{run_name}/torch_traces'
-  torch_prof_filename: 'rank{rank}.batch{batch}.pt.trace.json'
-  torch_prof_remote_file_name: '{run_name}/torch_traces/rank{rank}.batch{batch}.pt.trace.json'
-  torch_prof_overwrite: true
-  torch_prof_use_gzip: false
-  torch_prof_record_shapes: true
-  torch_prof_profile_memory: true
-  torch_prof_with_stack: true
-  torch_prof_with_flops: true
-  torch_prof_num_traces_to_keep: -1  # -1 means keep all traces
-  schedule:
-    skip_first: 3
-    wait: 2
-    warmup: 2
-    active: 1
-    repeat: 1 
-  json_trace_handler:
-    folder: '{run_name}/composer_traces'
-    filename: 'ep{epoch}-ba{batch}-rank{rank}.json'
-    remote_file_name: '{run_name}/traces/ep{epoch}-ba{batch}-rank{rank}.json'
-    merged_trace_filename: 'merged_trace.json'
-    merged_trace_remote_file_name: '{run_name}/traces/merged_trace.json'
-    overwrite: true
-    num_traces_to_keep: -1
-
 # Checkpoint to local filesystem or remote object store
+# save_interval: 500ba
 save_overwrite: true
 save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
-save_interval: 5ba
-save_folder: ./{run_name}/checkpoints
+# save_folder: ./{run_name}/checkpoints
 # save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
 
 # Load from local filesystem or remote object store

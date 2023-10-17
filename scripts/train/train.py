@@ -458,14 +458,13 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Profiling
     profiler: Optional[Profiler] = None
-    profiler_cfg = cfg.get('profiler', None)
+    profiler_cfg: Optional[DictConfig] = pop_config(cfg, 'profiler', must_exist=False, convert=False, default_value=None)
     if profiler_cfg:
-        profiler_schedule_cfg: Dict = profiler_cfg.pop('schedule')
+        profiler_schedule_cfg: Dict = pop_config(profiler_cfg, 'schedule', must_exist=True, convert=True)
         profiler_schedule = cyclic_schedule(**profiler_schedule_cfg)
         # Only support json trace handler
         profiler_trace_handlers: List[TraceHandler] = []
-        profiler_trace_cfg: Optional[Dict] = profiler_cfg.pop(
-            'json_trace_handler', None)
+        profiler_trace_cfg: Optional[Dict] = pop_config(profiler_cfg, 'json_trace_handler', must_exist=False, default_value=None, convert=True)
         if profiler_trace_cfg:
             profiler_trace_handlers.append(
                 JSONTraceHandler(**profiler_trace_cfg))

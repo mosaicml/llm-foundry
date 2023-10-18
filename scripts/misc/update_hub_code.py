@@ -14,8 +14,24 @@ from llmfoundry import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
+_ALL_MODELS = [
+    'mosaicml/mpt-7b',
+    'mosaicml/mpt-7b-instruct',
+    'mosaicml/mpt-7b-chat',
+    'mosaicml/mpt-30b',
+    'mosaicml/mpt-30b-chat',
+    'mosaicml/mpt-30b-instruct',
+    'mosaicml/mpt-7b-8k',
+    'mosaicml/mpt-7b-8k-instruct',
+    'mosaicml/mpt-7b-8k-chat',
+    'mosaicml/mpt-7b-storywriter',
+]
+
 
 def main(hf_repos_for_upload: List[str]):
+    if len(hf_repos_for_upload) == 1 and hf_repos_for_upload[0] == 'all':
+        hf_repos_for_upload = _ALL_MODELS
+
     current_datetime = datetime.now()
     formatted_datetime = current_datetime.strftime('%B %d, %Y %H:%M:%S')
 
@@ -61,7 +77,7 @@ def main(hf_repos_for_upload: List[str]):
                 create_pr=True,
             )
 
-            print(f'PR opened: {result}')
+            print(f'PR opened: {result}\n')
 
 
 if __name__ == '__main__':

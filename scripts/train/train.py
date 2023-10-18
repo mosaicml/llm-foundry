@@ -383,6 +383,10 @@ def main(cfg: DictConfig) -> Trainer:
                                          'load_weights_only',
                                          must_exist=False,
                                          default_value=False)
+    load_strict_model_weights: bool = pop_config(cfg,
+                                                 'load_strict_model_weights',
+                                                 must_exist=False,
+                                                 default_value=True)
     load_ignore_keys: Optional[List[str]] = pop_config(cfg,
                                                        'load_ignore_keys',
                                                        must_exist=False,
@@ -397,9 +401,12 @@ def main(cfg: DictConfig) -> Trainer:
         and save_folder is not None \
         and not save_overwrite \
         and not save_weights_only:
+        autoresume_default = True
+
+    if cfg.get('autoresume') is None and autoresume_default:
         print('As run_name, save_folder, and save_latest_filename are set, \
                 changing autoresume default to True...')
-        autoresume_default = True
+
     autoresume: bool = pop_config(cfg,
                                   'autoresume',
                                   must_exist=False,
@@ -568,6 +575,7 @@ def main(cfg: DictConfig) -> Trainer:
         save_weights_only=save_weights_only,
         load_path=load_path,
         load_weights_only=load_weights_only,
+        load_strict_model_weights=load_strict_model_weights,
         load_ignore_keys=load_ignore_keys,
         autoresume=autoresume,
         python_log_level=python_log_level,

@@ -158,7 +158,7 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     else:
         hfu_w_attn = mfu_w_attn
 
-    model_tflop = f"{float((3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / gpus): .6E}"
+    model_tflop = int((3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / gpus / 1e12)
     # New things that we're testing for
     image = run.image
     # compile_fullg = run.submitted_config.parameters['compile_config']['fullgraph']

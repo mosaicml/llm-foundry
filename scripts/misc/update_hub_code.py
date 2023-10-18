@@ -77,8 +77,7 @@ def main(hf_repos_for_upload: List[str]):
                 create_pr=True,
             )
 
-            print(f'PR opened: {result}')
-            print()
+            print(f'PR opened: {result}\n')
 
 
 if __name__ == '__main__':

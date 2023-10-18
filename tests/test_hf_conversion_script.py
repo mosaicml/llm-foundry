@@ -5,8 +5,10 @@ import math
 import os
 import pathlib
 import sys
+from unittest.mock import MagicMock
 
 from composer import Trainer
+from composer.loggers import MLFlowLogger
 from composer.utils import dist, get_device
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
@@ -17,7 +19,7 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 import shutil
 from argparse import Namespace
-from typing import cast
+from typing import Optional, cast
 
 import pytest
 import torch
@@ -148,6 +150,23 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
     # so we remove it
     expected_model_config_dict.pop('_name_or_path')
     new_model_config_dict.pop('_name_or_path')
+
+    # Special case a couple of differences that correctly occur when saving MPT to huggingface format
+    # checkpoint
+    architectures_1 = expected_model_config_dict.pop('architectures', None)
+    architectures_2 = new_model_config_dict.pop('architectures', None)
+    if architectures_1 != architectures_2:
+        assert architectures_1 is None and architectures_2 == ['MPTForCausalLM']
+
+    auto_map_1 = expected_model_config_dict.pop('auto_map', None)
+    auto_map_2 = new_model_config_dict.pop('auto_map', None)
+    if auto_map_1 != auto_map_2:
+        assert auto_map_1 == {'AutoConfig': 'configuration_mpt.MPTConfig'}
+        assert auto_map_2 == {
+            'AutoConfig': 'configuration_mpt.MPTConfig',
+            'AutoModelForCausalLM': 'modeling_mpt.MPTForCausalLM'
+        }
+
     assert expected_model_config_dict == new_model_config_dict
     assert all(
         torch.equal(p1.cpu(), p2.cpu())
@@ -183,9 +202,11 @@ def test_callback_inits_with_defaults():
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize('model', ['mpt', 'neo', 'llama2'])
-@pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded'])
+@pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
+@pytest.mark.parametrize('log_to_mlflow', [True, False])
 def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
-                                         fsdp_state_dict_type: str):
+                                         fsdp_state_dict_type: Optional[str],
+                                         log_to_mlflow: bool):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
@@ -203,6 +224,8 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=f'{huggingface_save_interval_batches}ba',
         precision=precision_str,
+        mlflow_registered_model_name='dummy-registered-name'
+        if log_to_mlflow else None,
     )
 
     # get small version of each model
@@ -324,19 +347,34 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)
 
+    mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
+    mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
+    mlflow_logger_mock.save_model = MagicMock()
+    mlflow_logger_mock.register_model = MagicMock()
+    mlflow_logger_mock.model_registry_prefix = ''
     trainer = Trainer(
         model=original_model,
         device='gpu',
-        fsdp_config=fsdp_config,
+        fsdp_config=fsdp_config if fsdp_state_dict_type is not None else None,
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=f'{save_interval_batches}ba',
         max_duration=f'{max_duration_batches}ba',
         callbacks=[checkpointer_callback],
+        loggers=[mlflow_logger_mock] if log_to_mlflow else [],
         optimizers=optimizer,
         save_latest_filename=None,
     )
     trainer.fit()
+
+    if dist.get_global_rank() == 0:
+        assert mlflow_logger_mock.save_model.call_count == (1 if log_to_mlflow
+                                                            else 0)
+        assert mlflow_logger_mock.register_model.call_count == (
+            1 if log_to_mlflow else 0)
+    else:
+        assert mlflow_logger_mock.log_model.call_count == 0
+        assert mlflow_logger_mock.register_model.call_count == 0
 
     # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
@@ -390,8 +428,10 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                 trust_remote_code=True,
             )
 
-            check_hf_model_equivalence(trainer.state.model.model.to(precision),
-                                       loaded_model)
+            check_hf_model_equivalence(
+                trainer.state.model.model.to(precision) if fsdp_state_dict_type
+                is not None else trainer.state.model.module.model.to(precision),
+                loaded_model)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
     delete_transformers_cache()

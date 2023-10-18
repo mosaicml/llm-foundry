@@ -135,9 +135,6 @@ Our microbatching engine enables microbatch sizes that do not divde Global Batch
 |  1b | 32768 | 8 | h100_80gb | 17.55 | 17.55 |  3.472285 | 1 | 4 | 32 | 3 | 100643 | 12580 | 1048576 | amp_fp8 | DEFAULT | FULL_SHARD | False | False | 1378865152 |
 |  1b | 8192 | 8 | h100_80gb | 20.71 | 20.71 |  4.098371 | 2 | 4 | 64 | 31 | 256087 | 32010 | 524288 | amp_fp8 | DEFAULT | FULL_SHARD | False | False | 1328533504 |
 |  1b | 512 | 8 | h100_80gb | 29.06 | 29.06 |  5.750972 | 56 | 4 | 1792 | 1098 | 562523 | 70315 | 917504 | amp_fp8 | DEFAULT | FULL_SHARD | False | False | 1312804864 |
-|  350m | 32768 | 8 | h100_80gb | 14.8 | 14.8 |  2.929891 | 1 | 4 | 32 | 5 | 195516 | 24439 | 1048576 | amp_fp8 | DEFAULT | FULL_SHARD | False | False | 387442688 |
-|  350m | 16384 | 8 | h100_80gb | 15.31 | 15.31 |  3.029027 | 2 | 4 | 64 | 20 | 343435 | 42929 | 1048576 | amp_fp8 | DEFAULT | FULL_SHARD | False | False | 370665472 |
-|  350m | 512 | 8 | h100_80gb | 17.77 | 17.77 |  3.516870 | 56 | 4 | 1792 | 2412 | 1235360 | 154420 | 917504 | amp_fp8 | DEFAULT | FULL_SHARD | False | False | 354412544 |
 
 ## A100 80GB with 1600 Gbps node-node interconnect (RoCE)
 

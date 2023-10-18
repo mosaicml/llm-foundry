@@ -50,6 +50,8 @@ def get_runs(args: argparse.Namespace):
     def sort_key(r: msdk.Run):
         model_name = r.name.split('-')[2]
         num_gpu = r.gpus
+        gpu_type = r.gpu_type
+        model_precision = r.submitted_config.parameters['precision']
         if model_name[-1] == 'm':
             model_name_size = 1e6
         elif model_name[-1] == 'b':
@@ -58,8 +60,10 @@ def get_runs(args: argparse.Namespace):
             print(model_name)
             raise ValueError
         model_size = int(model_name[:-1])
-        return (r.image, model_name_size, model_size, r.submitted_config.parameters['max_seq_len'],
+        return (gpu_type, model_precision, model_name_size, model_size, r.submitted_config.parameters['max_seq_len'],
                 num_gpu, r.submitted_config.parameters['global_train_batch_size'])
+    unique_runs = {sort_key(i):i for i in runs}
+    runs = [unique_runs[r] for r in unique_runs]
     runs.sort(reverse=True, key=sort_key)
 
     return runs
@@ -100,7 +104,7 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     if 'a100' in gpu_type:
         gpu_type = 'a100'
     GPU_AVAILABLE_FLOPS = GPU_FLOP_DICT[gpu_type][run.submitted_config.parameters['precision']]
-    
+
     gpu_type = run.gpu_type
     fsdp_config = run.submitted_config.parameters['fsdp_config']
 
@@ -154,6 +158,7 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     else:
         hfu_w_attn = mfu_w_attn
 
+    model_tflop = f"{float((3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / gpus): .6E}"
     # New things that we're testing for
     image = run.image
     # compile_fullg = run.submitted_config.parameters['compile_config']['fullgraph']
@@ -172,6 +177,8 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
             round(mfu_w_attn * 100, 2),
         'HFU':
             round(hfu_w_attn * 100, 2),
+        'Model TFLOP':
+            model_tflop,
         'MicroBatchSize':
             micro_batchsize,
         'GradAccum':
@@ -198,14 +205,6 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
             str(fsdp_config['activation_cpu_offload']),
         'NumParams':
             n_params,
-        'Image':
-            image,
-        # 'Compile Mode':
-        #     compile_mode,
-        # 'Compile Fullgraph':
-        #     compile_fullg,
-        # 'Compile Dynamic':
-        #     compile_dynamic,
     }
 
 

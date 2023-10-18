@@ -142,7 +142,7 @@ Our microbatching engine enables microbatch sizes that do not divde Global Batch
 ## A100 80GB with 1600 Gbps node-node interconnect (RoCE)
 
 |  Model | SeqLen (T) | # GPUs | GPU | MFU | HFU | Model TFLOP | MicroBatchSize | GradAccum | GlobalBatchSize | Throughput (S/s) | Throughput (T/s) | Throughput (T/s/GPU) | GlobalBatchSize (T) | Precision | MP Mode | Sharding Strategy | Activation Checkpointing | Activation CPUOffload | NumParams |
-|  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+|  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 |  70b | 2048 | 64 | a100_80gb | 53.33 | 71.1 | 1.663896E+16 | 8 | 4 | 2048 | 12 | 26274 | 410 | 4194304 | bf16 | PURE | FULL_SHARD | True | False | 64862437376 |
 |  70b | 2048 | 32 | a100_80gb | 48.56 | 64.75 | 1.515072E+16 | 2 | 16 | 1024 | 5 | 11962 | 373 | 2097152 | bf16 | PURE | FULL_SHARD | True | False | 64862437376 |
 |  30b | 8192 | 8 | a100_80gb | 39.38 | 52.5 |  1.228583E+14 | 1 | 21 | 168 | 0 | 4594 | 574 | 1376256 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 30019254272 |

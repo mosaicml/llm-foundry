@@ -1,29 +1,36 @@
-from typing import Any, Callable, Dict
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
+from typing import Any, Callable
+
+from composer.devices import Device
 from omegaconf import DictConfig
 from pytest import fixture
-from composer.devices import Device
-
-from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from transformers import PreTrainedTokenizerBase
 
+from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
+from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_tokenizer
 
-from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 
-from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
-
-
-def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase, device: Device):
+def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase,
+                 device: Device):
     model = COMPOSER_MODEL_REGISTRY[config.name](config, tokenizer)
     model = device.module_to_device(model)
     return model
+
 
 @fixture
 def mpt_tokenizer():
     return build_tokenizer('EleutherAI/gpt-neox-20b', {})
 
+
 @fixture
-def build_mpt(mpt_tokenizer: PreTrainedTokenizerBase) -> Callable[..., ComposerMPTCausalLM]:
+def build_mpt(
+    mpt_tokenizer: PreTrainedTokenizerBase
+) -> Callable[..., ComposerMPTCausalLM]:
+
     def build(device: Device, **kwargs: Any) -> ComposerMPTCausalLM:
         config = DictConfig({
             'name': 'mpt_causal_lm',
@@ -36,16 +43,21 @@ def build_mpt(mpt_tokenizer: PreTrainedTokenizerBase) -> Callable[..., ComposerM
         model = _build_model(config, mpt_tokenizer, device)
         assert isinstance(model, ComposerMPTCausalLM)
         return model
+
     return build
 
+
 @fixture
-def build_hf_mpt(mpt_tokenizer: PreTrainedTokenizerBase) -> Callable[..., ComposerHFCausalLM]:
-    def build(device: Device, **kwargs: Dict[str, Any]) -> Callable[..., ComposerHFCausalLM]:
+def build_hf_mpt(
+    mpt_tokenizer: PreTrainedTokenizerBase
+) -> Callable[..., ComposerHFCausalLM]:
+
+    def build(device: Device, **kwargs: Any) -> ComposerHFCausalLM:
         config_overrides = {
-                'd_model': 128,
-                'n_heads': 4,
-                'n_layers': 2,
-                'expansion_ratio': 2,
+            'd_model': 128,
+            'n_heads': 4,
+            'n_layers': 2,
+            'expansion_ratio': 2,
         }
         config_overrides.update(kwargs)
         config = DictConfig({
@@ -57,4 +69,5 @@ def build_hf_mpt(mpt_tokenizer: PreTrainedTokenizerBase) -> Callable[..., Compos
         model = _build_model(config, mpt_tokenizer, device)
         assert isinstance(model, ComposerHFCausalLM)
         return model
+
     return build

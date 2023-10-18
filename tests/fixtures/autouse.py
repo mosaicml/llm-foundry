@@ -1,7 +1,11 @@
-import pytest
-from composer.utils import reproducibility, dist, get_device
-import torch
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import gc
+
+import pytest
+import torch
+from composer.utils import dist, get_device, reproducibility
 
 
 @pytest.fixture(autouse=True)
@@ -12,7 +16,8 @@ def initialize_dist(request: pytest.FixtureRequest):
     world_size = request.node.get_closest_marker('world_size', _default).args[0]
     gpu = request.node.get_closest_marker('gpu')
     if world_size > 1:
-     dist.initialize_dist(get_device('gpu' if gpu is not None else 'cpu'))
+        dist.initialize_dist(get_device('gpu' if gpu is not None else 'cpu'))
+
 
 @pytest.fixture(autouse=True)
 def clear_cuda_cache(request: pytest.FixtureRequest):
@@ -21,6 +26,7 @@ def clear_cuda_cache(request: pytest.FixtureRequest):
     if marker is not None and torch.cuda.is_available():
         torch.cuda.empty_cache()
         gc.collect()  # Only gc on GPU tests as it 2x slows down CPU tests
+
 
 @pytest.fixture(autouse=True)
 def seed_all():

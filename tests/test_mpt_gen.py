@@ -4,20 +4,19 @@
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 from unittest.mock import Mock, patch
-from composer import Trainer
-from transformers import PreTrainedTokenizerBase
 
 import pytest
 import torch
+from composer import Trainer
+from composer.callbacks import Generate as ComposerGenerate
 from composer.core.precision import get_precision_context
 from composer.utils import dist, get_device
-from torch.utils.data import DataLoader
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+from torch.utils.data import DataLoader
+from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM, MPTForCausalLM
-
-from composer.callbacks import Generate as ComposerGenerate
-
+from llmfoundry.models.mpt.modeling_mpt import (ComposerMPTCausalLM,
+                                                MPTForCausalLM)
 
 EOS_TOKEN_ID = 0
 
@@ -59,8 +58,8 @@ class MockMPTForCausalLM(MPTForCausalLM):
 @pytest.mark.parametrize('use_alibi', [True, False])
 @patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
        new=MockMPTForCausalLM)
-def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool, 
-                                build_mpt: Callable[..., ComposerMPTCausalLM], 
+def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
+                                build_mpt: Callable[..., ComposerMPTCausalLM],
                                 mpt_tokenizer: PreTrainedTokenizerBase):
     """Tests mpt generation with mutiple gpus.
 
@@ -68,11 +67,14 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
     """
     device = get_device('gpu')
 
-    model = build_mpt(device, attn_config={
+    model = build_mpt(
+        device,
+        attn_config={
             'attn_impl': attn_impl,
             'attn_uses_sequence_id': False,
             'alibi': use_alibi
-        },)
+        },
+    )
     model.eval()
 
     model.model = FSDP(model.model)
@@ -84,9 +86,10 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
                            eos_token_id=EOS_TOKEN_ID,
                            use_cache=True,
                            synced_gpus=True)
-        
+
+
 @pytest.mark.gpu
-def test_mpt_generate_callback(tmpdir: Path, 
+def test_mpt_generate_callback(tmpdir: Path,
                                build_mpt: Callable[..., ComposerMPTCausalLM],
                                tiny_ft_dataloader: DataLoader):
     device = get_device('gpu')

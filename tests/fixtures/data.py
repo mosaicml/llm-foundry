@@ -1,13 +1,17 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 from pathlib import Path
+
 from omegaconf import DictConfig
 from pytest import fixture
-
-from transformers import PreTrainedTokenizerBase
-from tests.data_utils import make_tiny_ft_dataset
 from torch.utils.data import DataLoader
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
+from tests.data_utils import make_tiny_ft_dataset
+
 
 @fixture
 def tiny_ft_dataset_path(tmp_path: Path, dataset_size: int = 4) -> str:
@@ -18,9 +22,12 @@ def tiny_ft_dataset_path(tmp_path: Path, dataset_size: int = 4) -> str:
     make_tiny_ft_dataset(path=tiny_dataset_file, size=dataset_size)
     return tiny_dataset_path
 
+
 @fixture
-def tiny_ft_dataloader(tiny_ft_dataset_path: str, mpt_tokenizer: PreTrainedTokenizerBase, 
-                       max_seq_len: int = 128, device_batch_size: int = 1) -> DataLoader:
+def tiny_ft_dataloader(tiny_ft_dataset_path: str,
+                       mpt_tokenizer: PreTrainedTokenizerBase,
+                       max_seq_len: int = 128,
+                       device_batch_size: int = 1) -> DataLoader:
     dataloader_cfg = DictConfig({
         'name': 'finetuning',
         'dataset': {

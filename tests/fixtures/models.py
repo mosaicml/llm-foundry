@@ -1,5 +1,4 @@
-from typing import Any, Callable, Dict, Optional, Union
-from composer import ComposerModel
+from typing import Any, Callable, Dict
 from omegaconf import DictConfig
 from pytest import fixture
 from composer.devices import Device

@@ -11,16 +11,12 @@ import pytest
 import torch
 from composer.core.precision import get_precision_context
 from composer.utils import dist, get_device
-from omegaconf import DictConfig
+from torch.utils.data import DataLoader
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM, MPTForCausalLM
-from llmfoundry.utils import build_tokenizer
 
-from tests.data_utils import make_tiny_ft_dataset
 from composer.callbacks import Generate as ComposerGenerate
-from llmfoundry.data.finetuning import build_finetuning_dataloader
-from tests.data_utils import make_tiny_ft_dataset
 
 
 EOS_TOKEN_ID = 0
@@ -92,36 +88,8 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
 @pytest.mark.gpu
 def test_mpt_generate_callback(tmpdir: Path, 
                                build_mpt: Callable[..., ComposerMPTCausalLM],
-                               mpt_tokenizer: PreTrainedTokenizerBase):
+                               tiny_ft_dataloader: DataLoader):
     device = get_device('gpu')
-    max_seq_len = 128
-
-    # testing dataset and dataloader
-    dataset_size = 5
-
-    tiny_dataset_path = tmpdir / 'test-ift-data-small'
-    tiny_dataset_path.mkdir()
-    tiny_dataset_file = tiny_dataset_path / 'train.jsonl'
-    make_tiny_ft_dataset(path=str(tiny_dataset_file), size=dataset_size)
-
-    dataloader_cfg = DictConfig({
-        'name': 'finetuning',
-        'dataset': {
-            'hf_name': str(tiny_dataset_path),
-            'split': 'train',
-            'max_seq_len': max_seq_len,
-            'decoder_only_format': True,
-            'allow_pad_trimming': False,
-            'packing_ratio': None,
-            'shuffle': True,
-        },
-        'drop_last': False,
-        'num_workers': 4,
-        'pin_memory': False,
-        'prefetch_factor': 2,
-        'persistent_workers': False,
-        'timeout': 0
-    })
 
     # build mpt model
     model = build_mpt(device)
@@ -143,16 +111,9 @@ def test_mpt_generate_callback(tmpdir: Path,
     generate.generate = Mock(wraps=generate.generate, autospec=True)
 
     # build trainer
-    device_batch_size = 1
-    train_dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        mpt_tokenizer,
-        device_batch_size,
-    )
-
     trainer = Trainer(
         model=model,
-        train_dataloader=train_dataloader,
+        train_dataloader=tiny_ft_dataloader,
         device=device,
         max_duration=f'{gen_interval}ba',
         callbacks=[generate],

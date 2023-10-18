@@ -20,6 +20,7 @@ reproducibility.configure_deterministic_mode()
 pytest_plugins = [
     'tests.fixtures.autouse',
     'tests.fixtures.models',
+    'tests.fixtures.data',
 ]
 
 

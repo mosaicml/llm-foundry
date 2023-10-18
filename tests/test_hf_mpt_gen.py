@@ -5,12 +5,8 @@ from typing import Any, Callable, Dict
 
 import pytest
 from composer.core.precision import get_precision_context
-from composer.utils import get_device, reproducibility
-from omegaconf import DictConfig
-from omegaconf import OmegaConf as om
+from composer.utils import get_device
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils import build_tokenizer
 
 from transformers import PreTrainedTokenizerBase
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
@@ -21,7 +17,8 @@ from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
 @pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
 def test_init_hfhub_mpt(device: str, attn_impl: str, 
                         build_hf_mpt: Callable[..., ComposerHFCausalLM], 
-                        mpt_tokenizer: PreTrainedTokenizerBase):
+                        mpt_tokenizer: PreTrainedTokenizerBase,
+    ):
     if device == 'cpu' and attn_impl == 'triton':
         pytest.skip(f'{attn_impl=} not implemented for {device=}.')
     composer_device = get_device(device)
@@ -45,5 +42,8 @@ def test_init_hfhub_mpt(device: str, attn_impl: str,
             max_new_tokens=10,
         )
 
-def test_init_hfhub_mpt_cpu():
-    test_init_hfhub_mpt(device='cpu', attn_impl='torch')
+def test_init_hfhub_mpt_cpu(
+        build_hf_mpt: Callable[..., ComposerHFCausalLM], 
+        mpt_tokenizer: PreTrainedTokenizerBase,
+):
+    test_init_hfhub_mpt(device='cpu', attn_impl='torch', build_hf_mpt=build_hf_mpt, mpt_tokenizer=mpt_tokenizer)

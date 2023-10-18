@@ -212,4 +212,3 @@ python submit_benchmarks.py --project $PROJECT -m 760m.yaml -g 8 --microbatch_si
 python submit_benchmarks.py --project $PROJECT -m   1b.yaml -g 8 --microbatch_size   1 --accum  2 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_80gb --cluster $CLUSTER_80GB -s 16 16 --RUN --fsdp_config_activation_checkpointing true
 python submit_benchmarks.py --project $PROJECT -m   3b.yaml -g 8 --microbatch_size   1 --accum  2 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_80gb --cluster $CLUSTER_80GB -s 16 16 --RUN
 python submit_benchmarks.py --project $PROJECT -m   7b.yaml -g 8 --microbatch_size   1 --accum  2 --image $IMAGE --git_commit $GIT_COMMIT --gpu_type a100_80gb --cluster $CLUSTER_80GB -s 16 16 --RUN
-

@@ -8,7 +8,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import requests
 import yaml
 from mcli.models.run_config import SchedulingConfig
-from mcli.sdk import RunConfig, create_run, get_clusters, follow_run_logs
+from mcli.sdk import RunConfig, create_run, get_clusters
+
 
 def _get_cluster_info():
     clusters = get_clusters()
@@ -34,6 +35,7 @@ def str_to_bool(value: Union[bool, str]):
     elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
         return True
     raise ValueError(f'{value} is not a valid boolean value')
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -183,8 +185,12 @@ def parse_args():
 
     parser.add_argument('--priority', type=str, default='lowest')
 
-    parser.add_argument('--torch_compile_fullgraph', type=str_to_bool, default=None)
-    parser.add_argument('--torch_compile_dynamic', type=str_to_bool, default=None)
+    parser.add_argument('--torch_compile_fullgraph',
+                        type=str_to_bool,
+                        default=None)
+    parser.add_argument('--torch_compile_dynamic',
+                        type=str_to_bool,
+                        default=None)
     parser.add_argument('--torch_compile_mode', type=str, default=None)
     parser.add_argument('--torch_compile', type=str_to_bool, default=False)
     parser.add_argument('--RUN',
@@ -283,8 +289,7 @@ def mod_parameters(parameters: Dict[str, Any],
                    torch_compile_fullgraph: Optional[bool] = None,
                    torch_compile_dynamic: Optional[bool] = None,
                    torch_compile_mode: Optional[str] = None,
-                   torch_compile: bool = False
-                   ):
+                   torch_compile: bool = False):
     if run_name:
         parameters['run_name'] = run_name
     if data_remote is not None:
@@ -295,7 +300,8 @@ def mod_parameters(parameters: Dict[str, Any],
             'data_remote']
 
         parameters['data_local'] = '/tmp/c4'
-        parameters['train_loader']['dataset']['local'] = parameters['data_local']
+        parameters['train_loader']['dataset']['local'] = parameters[
+            'data_local']
         parameters['eval_loader']['dataset']['local'] = parameters['data_local']
     else:
         parameters['train_loader']['dataset'][
@@ -308,7 +314,7 @@ def mod_parameters(parameters: Dict[str, Any],
 
     parameters['model']['attn_config']['attn_impl'] = args.attn_impl
 
-    parameters['model']['norm_type'] = "low_precision_layernorm"
+    parameters['model']['norm_type'] = 'low_precision_layernorm'
 
     # Pad vocab size to multiple of N for A100 perf
     if pad_vocab_multiple:
@@ -338,17 +344,23 @@ def mod_parameters(parameters: Dict[str, Any],
     parameters['precision'] = precision
     parameters['fsdp_config']['mixed_precision'] = fsdp_config_mixed_precision
     if fsdp_config_activation_checkpointing is not None:
-        parameters['fsdp_config']['activation_checkpointing'] = fsdp_config_activation_checkpointing
+        parameters['fsdp_config'][
+            'activation_checkpointing'] = fsdp_config_activation_checkpointing
     if fsdp_config_shard_strategy is not None:
-        parameters['fsdp_config']['sharding_strategy'] = fsdp_config_shard_strategy
+        parameters['fsdp_config'][
+            'sharding_strategy'] = fsdp_config_shard_strategy
     if fsdp_config_limit_all_gathers is not None:
-        parameters['fsdp_config']['limit_all_gathers'] = fsdp_config_limit_all_gathers
+        parameters['fsdp_config'][
+            'limit_all_gathers'] = fsdp_config_limit_all_gathers
     if fsdp_config_forward_prefetch is not None:
-        parameters['fsdp_config']['forward_prefetch'] = fsdp_config_forward_prefetch
+        parameters['fsdp_config'][
+            'forward_prefetch'] = fsdp_config_forward_prefetch
     if fsdp_config_backward_prefetch is not None:
-        parameters['fsdp_config']['backward_prefetch'] = fsdp_config_backward_prefetch
+        parameters['fsdp_config'][
+            'backward_prefetch'] = fsdp_config_backward_prefetch
     if activation_cpu_offload is not None:
-        parameters['fsdp_config']['activation_cpu_offload'] = activation_cpu_offload
+        parameters['fsdp_config'][
+            'activation_cpu_offload'] = activation_cpu_offload
     # parameters['fsdp_config']['verbose'] = True
     parameters['compile_config'] = {} if torch_compile else None
 
@@ -394,25 +406,23 @@ def get_integrations(project: str,
 def run_config(config: Tuple[str, int, int, str, str, int, str],
                args: argparse.Namespace):
     model_yaml, max_seq_len, global_train_batch_size, cluster, gpu_type, gpu_num, precision = config
-    integrations = [
-        {
-         'integration_type': 'git_repo',
-         'git_repo': 'crinard/llm-foundry',
-         'git_branch': 'add_attns',
-         'pip_install': '-e .[gpu]',
-        }, {
-            'integration_type': 'wandb',
-            'entity': 'mosaic-ml',
-            'project': args.project
-        }
-    ]
+    integrations = [{
+        'integration_type': 'git_repo',
+        'git_repo': 'crinard/llm-foundry',
+        'git_branch': 'add_attns',
+        'pip_install': '-e .[gpu]',
+    }, {
+        'integration_type': 'wandb',
+        'entity': 'mosaic-ml',
+        'project': args.project
+    }]
 
-    command = ""
-    if 'nightly' in args.image: # Fix older composer deps. TODO: this should be removed once mvpatel2000/composer.git@784f50be7fa8617ed562704c0207316ca2284e71 is merged
+    command = ''
+    if 'nightly' in args.image:  # Fix older composer deps. TODO: this should be removed once mvpatel2000/composer.git@784f50be7fa8617ed562704c0207316ca2284e71 is merged
         command += """pip install -U git+https://github.com/mvpatel2000/composer.git@784f50be7fa8617ed562704c0207316ca2284e71
         pip uninstall torch==2.0.1 --yes
-        pip install --no-cache-dir --pre --index-url https://download.pytorch.org/whl/nightly/cu121 torch==2.1.0.dev20230821+cu121"""  
-    if gpu_type == 'h100_80gb' and 'fp8' in precision: # Required for flash-attn and FP8 training
+        pip install --no-cache-dir --pre --index-url https://download.pytorch.org/whl/nightly/cu121 torch==2.1.0.dev20230821+cu121"""
+    if gpu_type == 'h100_80gb' and 'fp8' in precision:  # Required for flash-attn and FP8 training
         command += f"""
         pip install flash-attn==1.0.7 --no-build-isolation
         pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
@@ -432,7 +442,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
             composer train/train.py /mnt/config/parameters.yaml
             """
 
-    path = os.path.join('../yamls/pretrain', "mpt-" + model_yaml)
+    path = os.path.join('../yamls/pretrain', 'mpt-' + model_yaml)
     parameters = get_parameters(path)
 
     model_name = '-'.join(model_yaml.split('.')[-2].split('/')[-2:]).replace(
@@ -455,8 +465,9 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         parameters,
         max_seq_len,
         global_train_batch_size,
-        "amp_" + precision,
-        fsdp_config_activation_checkpointing=args.fsdp_config_activation_checkpointing,
+        'amp_' + precision,
+        fsdp_config_activation_checkpointing=args.
+        fsdp_config_activation_checkpointing,
         fsdp_config_limit_all_gathers=args.fsdp_config_limit_all_gathers,
         fsdp_config_shard_strategy=args.fsdp_config_shard_strategy,
         fsdp_config_forward_prefetch=args.fsdp_config_forward_prefetch,
@@ -467,13 +478,12 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         microbatch_size=microbatch_size,
         wandb=args.wandb,
         pad_vocab_multiple=args.pad_vocab_multiple,
-        torch_compile_fullgraph = args.torch_compile_fullgraph,
-        torch_compile_dynamic = args.torch_compile_dynamic,
-        torch_compile_mode = args.torch_compile_mode,
-        torch_compile = args.torch_compile
-        )
-    if args.torch_compile: 
-        assert(parameters['model']['attn_config']['attn_impl'] != 'triton')
+        torch_compile_fullgraph=args.torch_compile_fullgraph,
+        torch_compile_dynamic=args.torch_compile_dynamic,
+        torch_compile_mode=args.torch_compile_mode,
+        torch_compile=args.torch_compile)
+    if args.torch_compile:
+        assert (parameters['model']['attn_config']['attn_impl'] != 'triton')
     if gpu_type == 'h100_80gb' and precision == 'fp8':
         parameters['model']['fc_type'] = 'te'
     # Create run config mcli sdk/api
@@ -485,7 +495,8 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
                        integrations=integrations,
                        command=command,
                        parameters=parameters,
-                       scheduling=SchedulingConfig(priority=args.priority, resumable=True))
+                       scheduling=SchedulingConfig(priority=args.priority,
+                                                   resumable=True))
     if args.RUN:
         # Create the run from a config
         run = create_run(config)

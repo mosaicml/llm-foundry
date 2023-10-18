@@ -5,9 +5,12 @@ import argparse
 import csv
 import math
 from typing import Any, Dict, List, Union
-from composer.callbacks.speed_monitor import GPU_AVAILABLE_FLOPS as GPU_FLOP_DICT
+
+from composer.callbacks.speed_monitor import \
+    GPU_AVAILABLE_FLOPS as GPU_FLOP_DICT
 
 from mcli import sdk as msdk
+
 
 def str_to_bool(value: Union[bool, str]):
     # helper fn
@@ -44,9 +47,14 @@ def parse_args():
 
 
 def get_runs(args: argparse.Namespace):
-    runs = [r for r in msdk.get_runs(include_details=True) if args.project in r.name.split('-')[0] and r.status == msdk.RunStatus("COMPLETED")]
+    runs = [
+        r for r in msdk.get_runs(include_details=True)
+        if args.project in r.name.split('-')[0] and
+        r.status == msdk.RunStatus('COMPLETED')
+    ]
     for filter in args.filters:
         runs = [r for r in runs if filter in r.name]
+
     def sort_key(r: msdk.Run):
         model_name = r.name.split('-')[2]
         num_gpu = r.gpus
@@ -60,9 +68,11 @@ def get_runs(args: argparse.Namespace):
             print(model_name)
             raise ValueError
         model_size = int(model_name[:-1])
-        return (gpu_type, model_precision, model_name_size, model_size, r.submitted_config.parameters['max_seq_len'],
-                num_gpu, r.submitted_config.parameters['global_train_batch_size'])
-    unique_runs = {sort_key(i):i for i in runs}
+        return (gpu_type, model_precision, model_name_size, model_size,
+                r.submitted_config.parameters['max_seq_len'], num_gpu,
+                r.submitted_config.parameters['global_train_batch_size'])
+
+    unique_runs = {sort_key(i): i for i in runs}
     runs = [unique_runs[r] for r in unique_runs]
     runs.sort(reverse=True, key=sort_key)
 
@@ -83,7 +93,7 @@ def filter_runs(runs: List[msdk.Run]):
 
     pop_runs = []
     for run in runs:
-        if run.status != msdk.RunStatus("COMPLETED"):
+        if run.status != msdk.RunStatus('COMPLETED'):
             print(f'run {run.name} has run status {run.status}')
             pop_runs.append(run)
     for run in pop_runs:
@@ -99,17 +109,19 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     gpus = run.gpus
     gpu_type = run.gpu_type
 
-    if 'h100'in gpu_type:
+    if 'h100' in gpu_type:
         gpu_type = 'h100-sxm'
     if 'a100' in gpu_type:
         gpu_type = 'a100'
-    GPU_AVAILABLE_FLOPS = GPU_FLOP_DICT[gpu_type][run.submitted_config.parameters['precision']]
+    GPU_AVAILABLE_FLOPS = GPU_FLOP_DICT[gpu_type][
+        run.submitted_config.parameters['precision']]
 
     gpu_type = run.gpu_type
     fsdp_config = run.submitted_config.parameters['fsdp_config']
 
     seq_len = run.submitted_config.parameters['max_seq_len']
-    global_train_batch_size = run.submitted_config.parameters['global_train_batch_size']
+    global_train_batch_size = run.submitted_config.parameters[
+        'global_train_batch_size']
     activation_checkpointing = fsdp_config['activation_checkpointing']
 
     logs = msdk.get_run_logs(run)
@@ -158,12 +170,9 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     else:
         hfu_w_attn = mfu_w_attn
 
-    model_tflop = int((3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / gpus / 1e12)
-    # New things that we're testing for
-    image = run.image
-    # compile_fullg = run.submitted_config.parameters['compile_config']['fullgraph']
-    # compile_dynamic = run.submitted_config.parameters['compile_config']['dynamic']
-    # compile_mode = run.submitted_config.parameters['compile_config']['mode']
+    model_tflop = int(
+        (3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / gpus / 1e12)
+
     return {
         'Model':
             model_name,

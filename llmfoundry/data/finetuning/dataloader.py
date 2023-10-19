@@ -13,7 +13,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.tasks import dataset_constructor
-from llmfoundry.data.packing import BinPackWrapper, auto_packing_ratio
+from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 
 log = logging.getLogger(__name__)
 
@@ -357,7 +357,7 @@ def _build_hf_dataset_from_remote(
 def _build_collate_fn(
     dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int
-) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackWrapper], int]:
+) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
     dataset_cfg = dataloader_cfg.dataset
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,
@@ -389,7 +389,7 @@ def _build_collate_fn(
             'On-the-fly packing is currently only supported for decoder-only formats.'
         )
 
-    collate_fn = BinPackWrapper(
+    collate_fn = BinPackCollator(
         collator=collate_fn,
         target_batch_size=device_batch_size,
         max_seq_len=dataset_cfg.max_seq_len,

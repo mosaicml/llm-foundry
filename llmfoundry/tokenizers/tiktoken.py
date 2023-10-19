@@ -68,6 +68,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 'You need to specify either model_name or encoding_name.')
 
         self.add_bos_token = add_bos_token
+        self.add_eos_token = add_eos_token
 
         super().__init__(model_name=model_name,
                          encoding_name=encoding_name,

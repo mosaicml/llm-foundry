@@ -134,7 +134,7 @@ eval_gauntlet:
       random_baseline: 0.25
     - name: aqua
       num_fewshot: 3
-      random_baseline: 0.20
+      random_baseline: 0.0
     - name: gsm8k
       num_fewshot: 3
       random_baseline: 0.0
@@ -143,10 +143,10 @@ eval_gauntlet:
       random_baseline: 0
     - name: agi_eval_sat_math
       num_fewshot: 3
-      random_baseline: 0.25
+      random_baseline: 0.0
     - name: agi_eval_lsat_ar
       num_fewshot: 3
-      random_baseline: 0.2
+      random_baseline: 0.25
   - name: reading_comprehension
     benchmarks:
     - name: pubmed_qa_labeled
@@ -166,10 +166,10 @@ eval_gauntlet:
       random_baseline: 0.0
     - name: agi_eval_lsat_rc
       num_fewshot: 3
-      random_baseline: 0.20
+      random_baseline: 0.25
     - name: agi_eval_lsat_lr
       num_fewshot: 3
-      random_baseline: 0.20
+      random_baseline: 0.25
     - name: agi_eval_sat_en
       num_fewshot: 3
       random_baseline: 0.25

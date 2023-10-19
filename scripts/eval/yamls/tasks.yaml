@@ -167,8 +167,7 @@ icl_tasks:
   label: agi_eval_lsat_ar
   dataset_uri: eval/local_data/symbolic_problem_solving/agi_eval_lsat_ar.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [3]
-  icl_task_type: language_modeling
-  continuation_delimiter: "\nA: " # this separates questions from answers
+  icl_task_type: multiple_choice
 -
   label: bigbench_cs_algorithms
   dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_cs_algorithms.jsonl
@@ -224,14 +223,12 @@ icl_tasks:
   label: agi_eval_lsat_rc
   dataset_uri: eval/local_data/reading_comprehension/agi_eval_lsat_rc.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [3]
-  icl_task_type: language_modeling
-  continuation_delimiter: "\nA: " # this separates questions from answers
+  icl_task_type: multiple_choice
 -
   label: agi_eval_lsat_lr
   dataset_uri: eval/local_data/reading_comprehension/agi_eval_lsat_lr.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [3]
-  icl_task_type: language_modeling
-  continuation_delimiter: "\nA: " # this separates questions from answers
+  icl_task_type: multiple_choice
 -
   label: coqa
   dataset_uri: eval/local_data/reading_comprehension/coqa.jsonl # ADD YOUR OWN DATASET URI
@@ -252,9 +249,7 @@ icl_tasks:
   label: agi_eval_sat_en
   dataset_uri: eval/local_data/reading_comprehension/agi_eval_sat_en.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [3]
-  icl_task_type: question_answering
-  cot_delimiter: ' #### '
-  continuation_delimiter: "\nA: Let's think step by step. "
+  icl_task_type: multiple_choice
 -
   label: winogender_mc_female
   dataset_uri: eval/local_data/safety/winogender_mc_female.jsonl # ADD YOUR OWN DATASET URI
@@ -277,11 +272,19 @@ icl_tasks:
   icl_task_type: multiple_choice
   has_categories: true
 -
+  label: human_eval_execution_prediction
+  dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [3]
+  pass_at_k: 1
+  num_beams: 10
+  batch_size: 1
+  icl_task_type: code_execution_prediction
+-
   label: human_eval
   dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 10
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -289,7 +292,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/processed_human_eval_cpp.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 10
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -297,7 +300,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 10
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -305,7 +308,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/human_eval_return_simple.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 10
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -313,7 +316,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/human_eval_return_complex.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 10
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -321,7 +324,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/human_eval-0.25.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 10
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -329,7 +332,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/human_eval-0.5.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 10
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -337,14 +340,6 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/human_eval-0.75.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 10
   batch_size: 1
   icl_task_type: code_evaluation
--
-  label: human_eval_execution_prediction
-  dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [3]
-  pass_at_k: 1
-  num_beams: 20
-  batch_size: 1
-  icl_task_type: code_execution_prediction

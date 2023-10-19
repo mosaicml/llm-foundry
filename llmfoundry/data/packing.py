@@ -284,7 +284,6 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
         if waste > 0:
             break
         prev_packing_ratio = packing_ratio
-    print('packing ratio!', packing_ratio)
     return prev_packing_ratio
 
 

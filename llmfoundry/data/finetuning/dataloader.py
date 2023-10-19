@@ -6,6 +6,7 @@ from typing import Tuple, Union
 
 import datasets as hf_datasets
 import torch
+from composer.core.data_spec import DataSpec
 from composer.utils import dist, get_file, parse_uri
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
@@ -14,6 +15,7 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.tasks import dataset_constructor
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
+from llmfoundry.data.text_data import get_tokens_per_batch_func
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ _HF_IGNORE_INDEX = -100
 
 def build_finetuning_dataloader(cfg: DictConfig,
                                 tokenizer: PreTrainedTokenizerBase,
-                                device_batch_size: int) -> DataLoader:
+                                device_batch_size: int) -> DataSpec:
     """Builds a finetuning dataloader for training or evaluating.
 
     The underlying dataset can be built through one of two code paths:
@@ -143,7 +145,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
         collate_fn, dataloader_batch_size = _build_collate_fn(
             cfg, tokenizer, device_batch_size)
 
-        return DataLoader(
+        dl = DataLoader(
             dataset,
             collate_fn=collate_fn,
             batch_size=dataloader_batch_size,
@@ -193,7 +195,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
                     )
 
         assert dataset is not None
-        return DataLoader(
+        dl = DataLoader(
             dataset,
             collate_fn=collate_fn,
             batch_size=dataloader_batch_size,
@@ -207,6 +209,11 @@ def build_finetuning_dataloader(cfg: DictConfig,
             persistent_workers=cfg.get('persistent_workers', True),
             timeout=cfg.get('timeout', 0),
         )
+
+    token_counting_func = get_tokens_per_batch_func(
+        pad_token_id=tokenizer.pad_token_id)
+
+    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 
 
 def _validate_config(dataset_cfg: DictConfig) -> None:
@@ -293,11 +300,14 @@ def _build_hf_dataset_from_remote(
         FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.
     """
     supported_extensions = ['jsonl', 'csv', 'parquet']
+    # HF datasets does not support a split with dashes, so we replace dashes
+    # with underscores in the destination split.
+    destination_split = cfg.dataset.split.replace('-', '_')
     finetune_dir = os.path.join(
         os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
         'downloaded_finetuning',
-        cfg.dataset.split if cfg.dataset.split != 'data' else 'data_not',
+        destination_split if destination_split != 'data' else 'data_not',
     )
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in supported_extensions:
@@ -306,10 +316,12 @@ def _build_hf_dataset_from_remote(
             os.path.abspath(
                 os.path.join(
                     finetune_dir, 'data',
-                    f'{cfg.dataset.split}-00000-of-00001.{extension}')))
+                    f'{destination_split}-00000-of-00001.{extension}')))
+
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file
-        signal_file_path = os.path.join(finetune_dir, '.the_eagle_has_landed')
+        signal_file_path = os.path.join(
+            finetune_dir, f'.node_{dist.get_node_rank()}_local_rank0_completed')
         if dist.get_local_rank() == 0:
             try:
                 get_file(path=name, destination=destination, overwrite=True)
@@ -442,7 +454,8 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     device_batch_size = 2
-    dataloader = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+    dataloader = build_finetuning_dataloader(cfg, tokenizer,
+                                             device_batch_size).dataloader
 
     packing = cfg.dataset.get('packing_ratio') is not None
 

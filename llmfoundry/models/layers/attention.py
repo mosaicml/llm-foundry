@@ -5,7 +5,7 @@
 
 import math
 import warnings
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -15,6 +15,22 @@ from torch import nn
 
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
+
+
+def is_flash_v2_installed():
+    try:
+        import flash_attn as flash_attn
+    except:
+        return False
+    return version.parse(flash_attn.__version__) >= version.parse('2.0.0')
+
+
+def is_flash_v1_installed():
+    try:
+        import flash_attn as flash_attn
+    except:
+        return False
+    return version.parse(flash_attn.__version__) < version.parse('2.0.0')
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
@@ -29,6 +45,23 @@ def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
         else:
             return False
     return original_is_causal
+
+
+def repeat_kv_for_gqa(hidden: torch.Tensor, n_rep: int) -> torch.Tensor:
+    """Perform repeat of kv heads along a particular dimension.
+
+    hidden.shape expected to be: (batch size, seq len, kv_n_heads, head_dim)
+    n_rep: amount of repetitions of kv_n_heads
+    Unlike torch.repeat_interleave, this function avoids allocating new memory.
+    """
+    if n_rep == 1:
+        return hidden
+
+    b, s, kv_n_heads, d = hidden.shape
+
+    hidden = hidden[:, :, :, None, :].expand(b, s, kv_n_heads, n_rep, d)
+
+    return hidden.reshape(b, s, kv_n_heads * n_rep, d)
 
 
 def scaled_multihead_dot_product_attention(
@@ -84,8 +117,11 @@ def scaled_multihead_dot_product_attention(
 
     # grouped query case
     if kv_n_heads > 1 and kv_n_heads < n_heads:
-        k = k.repeat_interleave(n_heads // kv_n_heads, dim=1)
-        v = v.repeat_interleave(n_heads // kv_n_heads, dim=1)
+        # necessary to do a transpose to swap (b h s d) -> (b s h d) for repeat_kv_for_gqa function
+        k = repeat_kv_for_gqa(k.transpose(1, 2),
+                              n_heads // kv_n_heads).transpose(1, 2)
+        v = repeat_kv_for_gqa(v.transpose(1, 2),
+                              n_heads // kv_n_heads).transpose(1, 2)
 
     if softmax_scale is None:
         softmax_scale = 1 / math.sqrt(d)
@@ -177,7 +213,8 @@ def flash_attn_fn(
     try:
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
     except:
-        raise RuntimeError('Please install flash-attn==1.0.3.post0')
+        raise RuntimeError(
+            'Please install flash-attn==1.0.9 or flash-attn==2.3.2')
 
     check_valid_inputs(query, key, value)
 
@@ -243,27 +280,50 @@ def flash_attn_fn(
     elif kv_n_heads < n_heads:
         # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
         # We repeat each kv head by the group size number to use the underlying MHA kernels
-        # done along the head dimension = 1
-        key_unpad = key_unpad.repeat_interleave(n_heads // kv_n_heads, dim=1)
-        value_unpad = value_unpad.repeat_interleave(n_heads // kv_n_heads,
-                                                    dim=1)
+
+        # since repeat_kv_for_gqa expects input dims of (b, s, kv_n_heads, d)
+        # we use .view to modify {key, value}_unpad appropriately
+
+        key_unpad = repeat_kv_for_gqa(
+            key_unpad.view(batch_size, seqlen, kv_n_heads, -1),
+            n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
+        value_unpad = repeat_kv_for_gqa(
+            value_unpad.view(batch_size, seqlen, kv_n_heads, -1),
+            n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
 
     dropout_p = dropout_p if training else 0.0
 
     reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
 
-    output_unpad = flash_attn_interface.flash_attn_unpadded_func(
-        query_unpad,
-        key_unpad,
-        value_unpad,
-        cu_seqlens_q,
-        cu_seqlens_k,
-        max_seqlen_q,
-        max_seqlen_k,
-        dropout_p,
-        softmax_scale=softmax_scale,
-        causal=reset_is_causal,
-        return_attn_probs=needs_weights)
+    if is_flash_v1_installed():
+        output_unpad = flash_attn_interface.flash_attn_unpadded_func(
+            q=query_unpad,
+            k=key_unpad,
+            v=value_unpad,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_k=max_seqlen_k,
+            dropout_p=dropout_p,
+            softmax_scale=softmax_scale,
+            causal=reset_is_causal,
+            return_attn_probs=needs_weights)
+    elif is_flash_v2_installed():
+        output_unpad = flash_attn_interface.flash_attn_varlen_func(
+            q=query_unpad,
+            k=key_unpad,
+            v=value_unpad,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_k=max_seqlen_k,
+            dropout_p=dropout_p,
+            softmax_scale=softmax_scale,
+            causal=reset_is_causal,
+            return_attn_probs=needs_weights)
+    else:
+        raise RuntimeError(
+            'flash-attn==1.0.9 or flash-attn==2.3.2 is required.')
 
     output = bert_padding.pad_input(
         rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,
@@ -295,7 +355,7 @@ def triton_flash_attn_fn(
         if version.parse(torch.__version__) < version.parse('2.0.0'):
             _installed = True
             # if torch1.13.1 revert to using triton flash attn from HazyResearch
-            # with flash-attn==1.0.3.post0 and triton==2.0.0.dev20221202
+            # with flash-attn==1.0.9 and triton==2.0.0.dev20221202
             try:
                 from flash_attn.flash_attn_triton import flash_attn_func
             except:
@@ -383,9 +443,8 @@ def triton_flash_attn_fn(
     elif kv_n_heads < n_heads:
         # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
         # We repeat each kv head by the group size number to use the underlying MHA kernels
-        # done along dim = 2, unlike the implementation for flash and torch attn
-        key = key.repeat_interleave(n_heads // kv_n_heads, dim=2)
-        value = value.repeat_interleave(n_heads // kv_n_heads, dim=2)
+        key = repeat_kv_for_gqa(key, n_heads // kv_n_heads)
+        value = repeat_kv_for_gqa(value, n_heads // kv_n_heads)
 
     reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
     attn_output = flash_attn_func(  # type: ignore
@@ -419,6 +478,7 @@ class GroupedQueryAttention(nn.Module):
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
+        bias: bool = True,
     ):
         super().__init__()
 
@@ -450,7 +510,9 @@ class GroupedQueryAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
 
-        fc_kwargs = {}
+        fc_kwargs: dict[str, Any] = {
+            'bias': bias,
+        }
         if fc_type != 'te':
             fc_kwargs['device'] = device
         self.Wqkv = FC_CLASS_REGISTRY[fc_type](
@@ -557,6 +619,7 @@ class MultiheadAttention(GroupedQueryAttention):
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
+        bias: bool = True,
     ):
         super().__init__(
             d_model=d_model,
@@ -569,7 +632,9 @@ class MultiheadAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
-            device=device)
+            device=device,
+            bias=bias,
+        )
 
 
 class MultiQueryAttention(GroupedQueryAttention):
@@ -591,6 +656,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
+        bias: bool = True,
     ):
         super().__init__(
             d_model=d_model,
@@ -603,7 +669,9 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
-            device=device)
+            device=device,
+            bias=bias,
+        )
 
 
 def attn_bias_shape(

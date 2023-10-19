@@ -14,7 +14,8 @@ from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.metrics import (InContextLearningLMAccuracy,
+from composer.metrics import (InContextLearningCodeEvalAccuracy,
+                              InContextLearningLMAccuracy,
                               InContextLearningLMExpectedCalibrationError,
                               InContextLearningMCExpectedCalibrationError,
                               InContextLearningMultipleChoiceAccuracy,
@@ -149,6 +150,11 @@ class MPTModel(MPTPreTrainedModel):
                         module.bias, nn.Parameter):
                     log.info(f'Removing bias ({module.bias}) from {module}.')
                     module.register_parameter('bias', None)
+
+                # For transformer engine
+                if hasattr(module, 'use_bias'):
+                    log.info(f'Setting use_bias=False for {module}.')
+                    module.use_bias = False
 
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
@@ -416,6 +422,7 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         # initialize the past key values cache if it should be used
+        presents = () if use_cache else None
         if use_cache and past_key_values is None:
             past_key_values = [() for _ in range(self.config.n_layers)
                               ]  # type: ignore
@@ -428,7 +435,7 @@ class MPTModel(MPTPreTrainedModel):
                 all_hidden_states = all_hidden_states + (x,)
             past_key_value = (past_key_values[b_idx]
                               if past_key_values is not None else None)
-            x, attn_weights, past_key_value = block(
+            x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
@@ -436,8 +443,8 @@ class MPTModel(MPTPreTrainedModel):
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
             )
-            if past_key_values is not None:
-                past_key_values[b_idx] = past_key_value
+            if presents is not None:
+                presents += (present,)
 
             if output_attentions:
                 assert all_self_attns is not None  # pyright
@@ -452,7 +459,7 @@ class MPTModel(MPTPreTrainedModel):
 
         return BaseModelOutputWithPast(
             last_hidden_state=x,
-            past_key_values=past_key_values,
+            past_key_values=presents,
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )
@@ -688,13 +695,16 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         hf_config = MPTConfig.from_dict(resolved_om_model_config)
         model = MPTForCausalLM(hf_config)
 
-        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
+        use_train_metrics = om_model_config.get('use_train_metrics', True)
+        train_metrics = [LanguageCrossEntropy(),
+                         LanguagePerplexity()] if use_train_metrics else []
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
+            InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError(),
         ]

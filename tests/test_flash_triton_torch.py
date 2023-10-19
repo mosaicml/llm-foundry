@@ -5,12 +5,10 @@ import pytest
 import torch
 from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
-from transformers.models.llama.modeling_llama import \
-    LlamaDynamicNTKScalingRotaryEmbedding as DynamicNTKScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaLinearScalingRotaryEmbedding as LinearScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaRotaryEmbedding as RotaryEmbedding
+
+from llmfoundry.models.layers.rotary_embedding import (
+    DynamicNTKScalingRotaryEmbedding, LinearScalingRotaryEmbedding,
+    RotaryEmbedding)
 
 
 def allclose_helper(t0: torch.Tensor,
@@ -131,21 +129,21 @@ def test_attn_impl(attn_impl_0: str,
             return RotaryEmbedding(rope_head_dim,
                                    max_position_embeddings=s,
                                    base=pos_emb_config['rope_theta'],
-                                   device='cpu')
+                                   device=device)
         elif pos_emb_config['rope_scaling']['type'] == 'linear':
             return LinearScalingRotaryEmbedding(
                 rope_head_dim,
                 max_position_embeddings=s,
                 base=pos_emb_config['rope_theta'],
                 scaling_factor=pos_emb_config['rope_scaling']['factor'],
-                device='cpu')
+                device=device)
         elif pos_emb_config['rope_scaling']['type'] == 'dynamic':
             return DynamicNTKScalingRotaryEmbedding(
                 rope_head_dim,
                 max_position_embeddings=s,
                 base=pos_emb_config['rope_theta'],
                 scaling_factor=pos_emb_config['rope_scaling']['factor'],
-                device='cpu')
+                device=device)
         else:
             raise ValueError(
                 'rope_scaling.type should be one no_scaling, linear, or dynamic'

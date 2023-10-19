@@ -228,14 +228,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
         if token_ids_1 is None:
             return bos_token_id + ([0] * len(token_ids_0)) + eos_token_id
-        return (
-            bos_token_id
-            + ([0] * len(token_ids_0))
-            + eos_token_id
-            + bos_token_id
-            + ([0] * len(token_ids_1))
-            + eos_token_id
-        )
+        return (bos_token_id + ([0] * len(token_ids_0)) + eos_token_id +
+                bos_token_id + ([0] * len(token_ids_1)) + eos_token_id)
 
     def create_token_type_ids_from_sequences(
             self,

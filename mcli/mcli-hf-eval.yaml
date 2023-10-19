@@ -13,10 +13,10 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: mpt-code-eval
-gpu_num: 8
-gpu_type: a100_80gb
-cluster:  r1z1 # replace with your cluster here!
+run_name: mpt-gauntlet-v0.1
+gpu_num: 16
+gpu_type: a100_40gb
+cluster:  r7z2 # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
@@ -30,16 +30,16 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-30b-instruct
+    model_name: mosaicml/mpt-7b-instruct
     # Tokenizer
     tokenizer:
-      name: mosaicml/mpt-30b-instruct
+      name: mosaicml/mpt-7b-instruct
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-30b-instruct
+      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
       init_device: mixed
       pretrained: true
       use_auth_token: false
@@ -51,5 +51,5 @@ parameters:
     forward_prefetch: True
     limit_all_gathers: True
 
-  icl_tasks: 'eval/yamls/coding_tasks.yaml'
+  icl_tasks: 'eval/yamls/tasks.yaml'
   eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'

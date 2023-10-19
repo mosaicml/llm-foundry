@@ -2,13 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
-
 
 class BinPackWrapper:
     """Utility collator for packing to reduce padding."""
@@ -281,20 +280,19 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
                                         device_batch_size)
 
     # Obtain the maximum packing_ratio/minimum padding that has no waste.
-    i = 0
-    waste = 0
-    packing_ratio = 1
-    while i < len(profiling_results) and waste == 0:
-        packing_ratio, _, waste = profiling_results[i]
-        i += 1
-    return packing_ratio
+    prev_packing_ratio = 1
+    for packing_ratio, _, waste in profiling_results:
+        if waste > 0:
+            break
+        prev_packing_ratio = packing_ratio
+    return prev_packing_ratio
 
 
 def profile_packing(dataloader_cfg: DictConfig,
                     tokenizer: PreTrainedTokenizerBase, min_ratio: float,
                     max_ratio: float, num_packing_ratios: int,
-                    device_batch_size: int):
-    """Profile packing.
+                    device_batch_size: int) -> Iterable[Tuple[float, float, float]]:
+    """Generator function that profiles example packing across packing ratios.
 
     Args:
         dataloader_cfg (DictConfig): The dataloader configuration for profiling.
@@ -305,13 +303,11 @@ def profile_packing(dataloader_cfg: DictConfig,
         device_batch_size (int): The size of the batches (number of examples) per device.
 
     Returns:
-        A list of tuples of packing ratio, padding, and waste.
+        An iterable of tuples of packing ratio, padding, and waste.
     """
     import copy
+    from llmfoundry.data.dataloader import build_dataloader
 
-    from llmfoundry import (build_finetuning_dataloader,
-                            build_text_denoising_dataloader)
-    from llmfoundry.data import build_text_dataloader
 
     # Turn off packing for the dataloader (we want raw, pre-packed examples)
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
@@ -333,20 +329,7 @@ def profile_packing(dataloader_cfg: DictConfig,
 
     n_profile_examples = max(raw_batch_sizes) * 100
 
-    def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
-        if cfg.name == 'text':
-            return build_text_dataloader(cfg, tokenizer, n_profile_examples)
-        elif cfg.name == 'text_denoising':
-            return build_text_denoising_dataloader(cfg, tokenizer,
-                                                   n_profile_examples)
-        elif cfg.name == 'finetuning':
-            return build_finetuning_dataloader(cfg, tokenizer,
-                                               n_profile_examples)
-        else:
-            raise ValueError(
-                f'Not sure how to build dataloader with config: {cfg}')
-
-    train_dataloader = build_dataloader(dataloader_cfg, tokenizer)
+    train_dataloader = build_dataloader(dataloader_cfg, tokenizer, n_profile_examples)
 
     # Get a bunch of raw examples
     big_batch = next(iter(train_dataloader))
@@ -369,7 +352,7 @@ def profile_packing(dataloader_cfg: DictConfig,
             max_seq_len=dataloader_cfg.dataset.max_seq_len,
             pad_token_id=0,  # <-- Doesn't need to be correct for profiling
             padding_side='left',  # <-- Doesn't need to be correct for profiling
-            max_leftover_bins_to_keep=max_leftovers_to_keep)
+            max_leftover_bins_to_keep=dataloader_cfg.dataset.max_leftovers_to_keep)
 
         # Simulate feeding the packing collator a bunch of data
         for batch in split_big_batch(raw_batch_size):
@@ -382,11 +365,9 @@ def profile_packing(dataloader_cfg: DictConfig,
         waste_percent = 100 * packer.waste
         return padding_percent, waste_percent
 
-    results = []
     for packing_ratio, raw_batch_size in zip(packing_ratios, raw_batch_sizes):
         padding, waste = profile(raw_batch_size)
-        results.append((packing_ratio, padding, waste))
-    return results
+        yield (packing_ratio, padding, waste)
 
 
 if __name__ == '__main__':

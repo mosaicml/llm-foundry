@@ -7,7 +7,7 @@ import shutil
 import sys
 import tempfile
 from argparse import Namespace
-from typing import Optional
+from typing import Any, Optional
 
 import pytest
 import torch
@@ -243,10 +243,10 @@ def test_denoising_dataloader(decoder_only_format: bool, pretokenize: bool,
 
 @pytest.mark.parametrize('decoder_only_format', [True, False])
 @pytest.mark.parametrize('allow_pad_trimming', [True, False])
-@pytest.mark.parametrize('packing_ratio', [10.0, None])
+@pytest.mark.parametrize('packing_ratio', [10.0, None, 'auto'])
 def test_finetuning_dataloader(decoder_only_format: bool,
                                allow_pad_trimming: bool,
-                               packing_ratio: Optional[float]):
+                               packing_ratio: Optional[Any]):
     # Use the datasets just built in the last test
     tokenizer_name = 'gpt2' if decoder_only_format else 't5-base'
     max_seq_len = 2048 if decoder_only_format else 1024

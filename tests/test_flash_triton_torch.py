@@ -145,7 +145,6 @@ def test_attn_impl(attn_impl_0: str,
                 max_position_embeddings=s,
                 base=pos_emb_config['rope_theta'],
                 scaling_factor=pos_emb_config['rope_scaling']['factor'],
-                max_position_embeddings=s,
                 device='cpu')
         else:
             raise ValueError(

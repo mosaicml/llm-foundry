@@ -185,14 +185,6 @@ def parse_args():
 
     parser.add_argument('--priority', type=str, default='lowest')
 
-    parser.add_argument('--torch_compile_fullgraph',
-                        type=str_to_bool,
-                        default=None)
-    parser.add_argument('--torch_compile_dynamic',
-                        type=str_to_bool,
-                        default=None)
-    parser.add_argument('--torch_compile_mode', type=str, default=None)
-    parser.add_argument('--torch_compile', type=str_to_bool, default=False)
     parser.add_argument('--RUN',
                         type=str_to_bool,
                         nargs='?',
@@ -268,28 +260,26 @@ def get_valid_gpu_lim(cluster: str, gpu_type: str):
     raise ValueError
 
 
-def mod_parameters(parameters: Dict[str, Any],
-                   max_seq_len: int,
-                   global_train_batch_size: int,
-                   precision: str,
-                   fsdp_config_mixed_precision: str = 'DEFAULT',
-                   fsdp_config_activation_checkpointing: Optional[bool] = None,
-                   fsdp_config_shard_strategy: Optional[str] = None,
-                   fsdp_config_forward_prefetch: Optional[bool] = None,
-                   fsdp_config_backward_prefetch: Optional[str] = None,
-                   fsdp_config_limit_all_gathers: Optional[bool] = None,
-                   activation_cpu_offload: Optional[bool] = None,
-                   run_name: str = '',
-                   data_remote: Optional[str] = None,
-                   max_duration: str = '30ba',
-                   eval_interval: int = 0,
-                   microbatch_size: Optional[Union[int, str]] = None,
-                   wandb: bool = True,
-                   pad_vocab_multiple: Optional[int] = None,
-                   torch_compile_fullgraph: Optional[bool] = None,
-                   torch_compile_dynamic: Optional[bool] = None,
-                   torch_compile_mode: Optional[str] = None,
-                   torch_compile: bool = False):
+def mod_parameters(
+    parameters: Dict[str, Any],
+    max_seq_len: int,
+    global_train_batch_size: int,
+    precision: str,
+    fsdp_config_mixed_precision: str = 'DEFAULT',
+    fsdp_config_activation_checkpointing: Optional[bool] = None,
+    fsdp_config_shard_strategy: Optional[str] = None,
+    fsdp_config_forward_prefetch: Optional[bool] = None,
+    fsdp_config_backward_prefetch: Optional[str] = None,
+    fsdp_config_limit_all_gathers: Optional[bool] = None,
+    activation_cpu_offload: Optional[bool] = None,
+    run_name: str = '',
+    data_remote: Optional[str] = None,
+    max_duration: str = '30ba',
+    eval_interval: int = 0,
+    microbatch_size: Optional[Union[int, str]] = None,
+    wandb: bool = True,
+    pad_vocab_multiple: Optional[int] = None,
+):
     if run_name:
         parameters['run_name'] = run_name
     if data_remote is not None:
@@ -361,7 +351,6 @@ def mod_parameters(parameters: Dict[str, Any],
     if activation_cpu_offload is not None:
         parameters['fsdp_config'][
             'activation_cpu_offload'] = activation_cpu_offload
-    parameters['compile_config'] = {} if torch_compile else None
 
     if wandb:
         # add wandb
@@ -476,13 +465,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         microbatch_size=microbatch_size,
         wandb=args.wandb,
         pad_vocab_multiple=args.pad_vocab_multiple,
-        torch_compile_fullgraph=args.torch_compile_fullgraph,
-        torch_compile_dynamic=args.torch_compile_dynamic,
-        torch_compile_mode=args.torch_compile_mode,
-        torch_compile=args.torch_compile)
-    if args.torch_compile and (parameters['model']['attn_config']['attn_impl']
-                               == 'triton'):
-        raise ValueError(f'Cannot use torch compile with attn_impl=triton.')
+    )
     if gpu_type == 'h100_80gb' and precision == 'fp8':
         parameters['model']['fc_type'] = 'te'
     # Create run config mcli sdk/api

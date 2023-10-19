@@ -2,11 +2,8 @@
 
 PROJECT="tput"
 GIT_COMMIT="v0.0.4"
-IMAGE="mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04"
-# IMAGE="mosaicml/pytorch:2.1.0_cu121-nightly20230827-python3.10-ubuntu20.04"
-CLUSTER_40GB=r1z1
-CLUSTER_80GB=r1z1
-CLUSTER_H100=r9z1
+IMAGE="mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04"
+CLUSTER_40GB= # TODO
 
 for PRECISION in fp8 bf16
 do

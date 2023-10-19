@@ -361,7 +361,6 @@ def mod_parameters(parameters: Dict[str, Any],
     if activation_cpu_offload is not None:
         parameters['fsdp_config'][
             'activation_cpu_offload'] = activation_cpu_offload
-    # parameters['fsdp_config']['verbose'] = True
     parameters['compile_config'] = {} if torch_compile else None
 
     if wandb:
@@ -406,22 +405,21 @@ def get_integrations(project: str,
 def run_config(config: Tuple[str, int, int, str, str, int, str],
                args: argparse.Namespace):
     model_yaml, max_seq_len, global_train_batch_size, cluster, gpu_type, gpu_num, precision = config
-    integrations = [{
-        'integration_type': 'git_repo',
-        'git_repo': 'crinard/llm-foundry',
-        'git_branch': 'add_attns',
-        'pip_install': '-e .[gpu]',
-    }, {
-        'integration_type': 'wandb',
-        'entity': 'mosaic-ml',
-        'project': args.project
-    }]
+    integrations = [
+        {
+            'integration_type': 'git_repo',
+            'git_repo': 'mosaicml/llm-foundry',
+            'git_branch': 'v0.3.0',
+            'pip_install': '-e .[gpu]',
+        },
+        {
+            'integration_type': 'wandb',
+            'entity': 'mosaic-ml',
+            'project': args.project
+        },
+    ]
 
     command = ''
-    if 'nightly' in args.image:  # Fix older composer deps. TODO: this should be removed once mvpatel2000/composer.git@784f50be7fa8617ed562704c0207316ca2284e71 is merged
-        command += """pip install -U git+https://github.com/mvpatel2000/composer.git@784f50be7fa8617ed562704c0207316ca2284e71
-        pip uninstall torch==2.0.1 --yes
-        pip install --no-cache-dir --pre --index-url https://download.pytorch.org/whl/nightly/cu121 torch==2.1.0.dev20230821+cu121"""
     if gpu_type == 'h100_80gb' and 'fp8' in precision:  # Required for flash-attn and FP8 training
         command += f"""
         pip install flash-attn==1.0.7 --no-build-isolation
@@ -482,8 +480,9 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         torch_compile_dynamic=args.torch_compile_dynamic,
         torch_compile_mode=args.torch_compile_mode,
         torch_compile=args.torch_compile)
-    if args.torch_compile:
-        assert (parameters['model']['attn_config']['attn_impl'] != 'triton')
+    if args.torch_compile and (parameters['model']['attn_config']['attn_impl']
+                               == 'triton'):
+        raise ValueError(f'Cannot use torch compile with attn_impl=triton.')
     if gpu_type == 'h100_80gb' and precision == 'fp8':
         parameters['model']['fc_type'] = 'te'
     # Create run config mcli sdk/api

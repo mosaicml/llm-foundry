@@ -307,6 +307,9 @@ def profile_packing(dataloader_cfg: DictConfig,
     import copy
     from llmfoundry.data.dataloader import build_dataloader
 
+    max_seq_len = dataloader_cfg.dataset.get('max_seq_len')
+    max_leftovers_to_keep = dataloader_cfg.dataset.get('max_leftovers_to_keep', None)
+
     # Turn off packing for the dataloader (we want raw, pre-packed examples)
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
     dataloader_cfg.dataset.packing_ratio = None
@@ -347,10 +350,10 @@ def profile_packing(dataloader_cfg: DictConfig,
         packer = BinPackCollator(
             collator=lambda x: x,
             target_batch_size=device_batch_size,
-            max_seq_len=dataloader_cfg.dataset.max_seq_len,
+            max_seq_len=max_seq_len,
             pad_token_id=0,  # <-- Doesn't need to be correct for profiling
             padding_side='left',  # <-- Doesn't need to be correct for profiling
-            max_leftover_bins_to_keep=dataloader_cfg.dataset.max_leftovers_to_keep)
+            max_leftover_bins_to_keep=max_leftovers_to_keep)
 
         # Simulate feeding the packing collator a bunch of data
         for batch in split_big_batch(raw_batch_size):

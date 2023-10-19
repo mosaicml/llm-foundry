@@ -76,21 +76,28 @@ log = logging.getLogger(__name__)
 def _rotary_embedding(config: MPTConfig):
     rope_head_dim = config.d_model // config.n_heads
     if config.attn_config['rope_scaling']['type'] == 'no_scaling':
-        return RotaryEmbedding(rope_head_dim,
-                               max_position_embeddings=config.max_seq_len,
-                               base=config.attn_config['rope_theta'])
+        return RotaryEmbedding(
+            rope_head_dim,
+            max_position_embeddings=config.max_seq_len,
+            base=config.attn_config['rope_theta'],
+            device='cpu'
+        )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
     elif config.attn_config['rope_scaling']['type'] == 'linear':
         return LinearScalingRotaryEmbedding(
             rope_head_dim,
             max_position_embeddings=config.max_seq_len,
             base=config.attn_config['rope_theta'],
-            scaling_factor=config.attn_config['rope_scaling']['factor'])
+            scaling_factor=config.attn_config['rope_scaling']['factor'],
+            device='cpu'
+        )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
     elif config.attn_config['rope_scaling']['type'] == 'dynamic':
         return DynamicNTKScalingRotaryEmbedding(
             rope_head_dim,
             max_position_embeddings=config.max_seq_len,
             base=config.attn_config['rope_theta'],
-            scaling_factor=config.attn_config['rope_scaling']['factor'])
+            scaling_factor=config.attn_config['rope_scaling']['factor'],
+            device='cpu'
+        )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
 
 
 class MPTPreTrainedModel(PreTrainedModel):
@@ -146,6 +153,10 @@ class MPTModel(MPTPreTrainedModel):
         ])
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
+        self.rope = config.attn_config['rope']
+        if self.rope:
+            self.rotary_embedding = _rotary_embedding(config)
+
         if config.init_device != 'meta':
             log.info(
                 f'We recommend using config.init_device="meta" with Composer + FSDP for faster initialization.'
@@ -166,10 +177,6 @@ class MPTModel(MPTPreTrainedModel):
             causal=self.is_causal,
             use_sequence_id=self.attn_uses_sequence_id,
         )
-
-        self.rope = config.attn_config['rope']
-        if self.rope:
-            self.rotary_embedding = _rotary_embedding(config)
 
         if config.no_bias:
             for module in self.modules():

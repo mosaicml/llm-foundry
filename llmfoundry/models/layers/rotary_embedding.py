@@ -1,17 +1,16 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Union
+
 import torch
 
 
 # Code modified from https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py
 class RotaryEmbedding(torch.nn.Module):
 
-    def __init__(self,
-                 dim: int,
-                 max_position_embeddings: int,
-                 base: int,
-                 device=None):
+    def __init__(self, dim: int, max_position_embeddings: int, base: int,
+                 device: Union[str, torch.device]):
         super().__init__()
 
         self.dim = dim
@@ -23,16 +22,17 @@ class RotaryEmbedding(torch.nn.Module):
 
         self.max_seq_len_cached = self.max_position_embeddings
         # Build here to make `torch.jit.trace` work.
-        self._set_cos_sin_cache(seq_len=max_position_embeddings,
-                                device=self.inv_freq.device,
-                                dtype=torch.get_default_dtype())
+        self._set_cos_sin_cache(
+            seq_len=max_position_embeddings,
+            device=self.inv_freq.device,  # type: ignore
+            dtype=torch.get_default_dtype())  # type: ignore
 
-    def _set_cos_sin_cache(self, seq_len: int, device: torch.device,
+    def _set_cos_sin_cache(self, seq_len: int, device: Union[str, torch.device],
                            dtype: torch.dtype):
         self.max_seq_len_cached = seq_len
         t = torch.arange(self.max_seq_len_cached,
                          device=device,
-                         dtype=self.inv_freq.dtype)
+                         dtype=self.inv_freq.dtype)  # type: ignore
 
         freqs = torch.einsum('i,j->ij', t, self.inv_freq)
         # Different from paper, but it uses a different permutation in order to obtain the same calculation
@@ -44,16 +44,16 @@ class RotaryEmbedding(torch.nn.Module):
                              emb.sin().to(dtype),
                              persistent=False)
 
-    def forward(self, x: torch.tensor, seq_len: int):
+    def forward(self, x: torch.Tensor, seq_len: int):
         # x: [bs, num_attention_heads, seq_len, head_size]
         if seq_len > self.max_seq_len_cached:
             self._set_cos_sin_cache(seq_len=seq_len,
                                     device=x.device,
-                                    dtype=x.dtype)
+                                    dtype=x.dtype)  # type: ignore
 
         return (
-            self.cos_cached[:seq_len].to(dtype=x.dtype),
-            self.sin_cached[:seq_len].to(dtype=x.dtype),
+            self.cos_cached[:seq_len].to(dtype=x.dtype),  # type: ignore
+            self.sin_cached[:seq_len].to(dtype=x.dtype),  # type: ignore
         )
 
 
@@ -63,21 +63,17 @@ class LinearScalingRotaryEmbedding(RotaryEmbedding):
     Credits to the Reddit user /u/kaiokendev
     """
 
-    def __init__(self,
-                 dim: int,
-                 max_position_embeddings: int,
-                 base: int,
-                 scaling_factor: float,
-                 device=None):
+    def __init__(self, dim: int, max_position_embeddings: int, base: int,
+                 scaling_factor: float, device: Union[str, torch.device]):
         self.scaling_factor = scaling_factor
         super().__init__(dim, max_position_embeddings, base, device)
 
-    def _set_cos_sin_cache(self, seq_len: int, device: torch.device,
+    def _set_cos_sin_cache(self, seq_len: int, device: Union[str, torch.device],
                            dtype: torch.dtype):
         self.max_seq_len_cached = seq_len
         t = torch.arange(self.max_seq_len_cached,
                          device=device,
-                         dtype=self.inv_freq.dtype)
+                         dtype=self.inv_freq.dtype)  # type: ignore
         t = t / self.scaling_factor
 
         freqs = torch.einsum('i,j->ij', t, self.inv_freq)
@@ -97,16 +93,12 @@ class DynamicNTKScalingRotaryEmbedding(RotaryEmbedding):
     Credits to the Reddit users /u/bloc97 and /u/emozilla
     """
 
-    def __init__(self,
-                 dim: int,
-                 max_position_embeddings: int,
-                 base: int,
-                 scaling_factor: float,
-                 device=None):
+    def __init__(self, dim: int, max_position_embeddings: int, base: int,
+                 scaling_factor: float, device: Union[str, torch.device]):
         self.scaling_factor = scaling_factor
         super().__init__(dim, max_position_embeddings, base, device)
 
-    def _set_cos_sin_cache(self, seq_len: int, device: torch.device,
+    def _set_cos_sin_cache(self, seq_len: int, device: Union[str, torch.device],
                            dtype: torch.dtype):
         self.max_seq_len_cached = seq_len
 
@@ -120,7 +112,7 @@ class DynamicNTKScalingRotaryEmbedding(RotaryEmbedding):
 
         t = torch.arange(self.max_seq_len_cached,
                          device=device,
-                         dtype=self.inv_freq.dtype)
+                         dtype=self.inv_freq.dtype)  # type: ignore
 
         freqs = torch.einsum('i,j->ij', t, self.inv_freq)
         # Different from paper, but it uses a different permutation in order to obtain the same calculation

@@ -129,18 +129,24 @@ def test_attn_impl(attn_impl_0: str,
     def gen_rotary_emb():
         if pos_emb_config['rope_scaling']['type'] == 'no_scaling':
             return RotaryEmbedding(rope_head_dim,
-                                   base=pos_emb_config['rope_theta'])
+                                   max_position_embeddings=s,
+                                   base=pos_emb_config['rope_theta'],
+                                   device='cpu')
         elif pos_emb_config['rope_scaling']['type'] == 'linear':
             return LinearScalingRotaryEmbedding(
                 rope_head_dim,
+                max_position_embeddings=s,
                 base=pos_emb_config['rope_theta'],
-                scaling_factor=pos_emb_config['rope_scaling']['factor'])
+                scaling_factor=pos_emb_config['rope_scaling']['factor'],
+                device='cpu')
         elif pos_emb_config['rope_scaling']['type'] == 'dynamic':
             return DynamicNTKScalingRotaryEmbedding(
                 rope_head_dim,
+                max_position_embeddings=s,
                 base=pos_emb_config['rope_theta'],
                 scaling_factor=pos_emb_config['rope_scaling']['factor'],
-                max_position_embeddings=s)
+                max_position_embeddings=s,
+                device='cpu')
         else:
             raise ValueError(
                 'rope_scaling.type should be one no_scaling, linear, or dynamic'

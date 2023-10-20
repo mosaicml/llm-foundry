@@ -293,7 +293,7 @@ class MPTModel(MPTPreTrainedModel):
 
     def forward(
         self,
-        input_ids: torch.LongTensor,
+        input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         prefix_mask: Optional[torch.ByteTensor] = None,
@@ -350,21 +350,23 @@ class MPTModel(MPTPreTrainedModel):
                     'This input will be ignored. If you want the model to use `sequence_id`, set attn_uses_sequence_id to True.'
                 )
 
-        S = input_ids.size(1)
-
-        assert (
-            S <= self.config.max_seq_len
-        ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
-
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError(
                 'You cannot specify both input_ids and inputs_embeds.')
         elif input_ids is not None:
+            S = input_ids.size(1)
             tok_emb = self.wte(input_ids)
+            input_device = input_ids.device
         elif inputs_embeds is not None:
+            S = inputs_embeds.size(1)
             tok_emb = inputs_embeds
+            input_device = inputs_embeds.device
         else:
             raise ValueError('You must specify input_ids or inputs_embeds')
+
+        assert (
+            S <= self.config.max_seq_len
+        ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
         if self.learned_pos_emb:
             past_position = 0
@@ -392,7 +394,7 @@ class MPTModel(MPTPreTrainedModel):
                 past_position,
                 S + past_position,
                 dtype=torch.long,
-                device=input_ids.device,
+                device=input_device,
             ).unsqueeze(0)
             if attention_mask is not None:
                 # adjust the position indices to account for padding tokens
@@ -561,31 +563,18 @@ class MPTForCausalLM(MPTPreTrainedModel):
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError(
                 'You cannot specify both input_ids and inputs_embeds.')
-        elif inputs_embeds is not None:
-            # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-            outputs = self.transformer(
-                inputs_embeds=inputs_embeds,
-                past_key_values=past_key_values,
-                attention_mask=attention_mask,
-                prefix_mask=prefix_mask,
-                sequence_id=sequence_id,
-                return_dict=return_dict,
-                output_attentions=output_attentions,
-                output_hidden_states=output_hidden_states,
-                use_cache=use_cache,
-            )
-        else:
-            outputs = self.transformer(
-                input_ids=input_ids,
-                past_key_values=past_key_values,
-                attention_mask=attention_mask,
-                prefix_mask=prefix_mask,
-                sequence_id=sequence_id,
-                return_dict=return_dict,
-                output_attentions=output_attentions,
-                output_hidden_states=output_hidden_states,
-                use_cache=use_cache,
-            )
+        outputs = self.transformer(
+            input_ids=input_ids,
+            inputs_embeds=inputs_embeds,
+            past_key_values=past_key_values,
+            attention_mask=attention_mask,
+            prefix_mask=prefix_mask,
+            sequence_id=sequence_id,
+            return_dict=return_dict,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            use_cache=use_cache,
+        )
 
         # move outputs to same device as weights for token embedding
         # needed to support HF `device_map`
@@ -772,7 +761,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             add_bidirectional_mask_if_missing(batch)
         # Note: prefix_mask is only used if model.prefix_lm is True
         return self.model(
-            input_ids=batch['input_ids'],
+            input_ids=batch.get('input_ids', None),
             attention_mask=batch.get('attention_mask', None),
             prefix_mask=batch.get('bidirectional_mask', None),
             sequence_id=batch.get('sequence_id', None),

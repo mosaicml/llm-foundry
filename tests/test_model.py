@@ -97,13 +97,20 @@ def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     return test_cfg, model, optimizer
 
 
-def gen_random_batch(batch_size: int, test_cfg: Union[DictConfig, ListConfig]):
+def gen_random_batch(batch_size: int,
+                     test_cfg: Union[DictConfig, ListConfig],
+                     inputs_embeds: bool = False):
     # generate input batch of random data, suitable for a Causal or Prefix LM
     batch = {}
-    batch['input_ids'] = torch.randint(
-        low=0,
-        high=test_cfg.model.vocab_size,
-        size=(batch_size, test_cfg.max_seq_len)).to(test_cfg.device)
+    if inputs_embeds:
+        batch['inputs_embeds'] = torch.randn(batch_size, test_cfg.max_seq_len,
+                                             test_cfg.model.d_model).to(
+                                                 test_cfg.device)
+    else:
+        batch['input_ids'] = torch.randint(
+            low=0,
+            high=test_cfg.model.vocab_size,
+            size=(batch_size, test_cfg.max_seq_len)).to(test_cfg.device)
     batch['labels'] = torch.randint(low=0,
                                     high=test_cfg.model.vocab_size,
                                     size=(batch_size, test_cfg.max_seq_len)).to(
@@ -143,6 +150,22 @@ def test_full_forward_and_backward(batch_size: int = 2):
 
     assert batch['input_ids'].shape == torch.Size(
         [batch_size, test_cfg.max_seq_len])
+    model.train()
+    original_params = next(model.parameters()).clone().data
+    outputs = model(batch)
+    loss = model.loss(outputs, batch)
+    loss.backward()
+    optimizer.step()
+    updated_params = next(model.parameters()).clone().data
+    assert not torch.equal(original_params, updated_params)
+
+
+def test_full_forward_and_backward_with_inputs_embeds(batch_size: int = 2):
+    test_cfg, model, optimizer = get_objs(
+        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+
+    batch = gen_random_batch(batch_size, test_cfg, inputs_embeds=True)
+
     model.train()
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)

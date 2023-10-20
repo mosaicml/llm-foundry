@@ -15,6 +15,8 @@ from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
 from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
                                               MOSAICML_PLATFORM_ENV_VAR)
+from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
+                               cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -387,10 +389,18 @@ def main(cfg: DictConfig) -> Trainer:
                                          'load_weights_only',
                                          must_exist=False,
                                          default_value=False)
+    load_strict_model_weights: bool = pop_config(cfg,
+                                                 'load_strict_model_weights',
+                                                 must_exist=False,
+                                                 default_value=True)
     load_ignore_keys: Optional[List[str]] = pop_config(cfg,
                                                        'load_ignore_keys',
                                                        must_exist=False,
                                                        default_value=None)
+    compile_config: Optional[Dict[str, Any]] = pop_config(cfg,
+                                                          'compile_config',
+                                                          must_exist=False,
+                                                          default_value=None)
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
     if logged_cfg.get('run_name', None) is not None \
@@ -467,6 +477,33 @@ def main(cfg: DictConfig) -> Trainer:
             loggers.append(mosaicml_logger)
         else:
             loggers = [mosaicml_logger]
+
+    # Profiling
+    profiler: Optional[Profiler] = None
+    profiler_cfg: Optional[DictConfig] = pop_config(cfg,
+                                                    'profiler',
+                                                    must_exist=False,
+                                                    convert=False,
+                                                    default_value=None)
+    if profiler_cfg:
+        profiler_schedule_cfg: Dict = pop_config(profiler_cfg,
+                                                 'schedule',
+                                                 must_exist=True,
+                                                 convert=True)
+        profiler_schedule = cyclic_schedule(**profiler_schedule_cfg)
+        # Only support json trace handler
+        profiler_trace_handlers: List[TraceHandler] = []
+        profiler_trace_cfg: Optional[Dict] = pop_config(profiler_cfg,
+                                                        'json_trace_handler',
+                                                        must_exist=False,
+                                                        default_value=None,
+                                                        convert=True)
+        if profiler_trace_cfg:
+            profiler_trace_handlers.append(
+                JSONTraceHandler(**profiler_trace_cfg))
+        profiler = Profiler(**profiler_cfg,
+                            trace_handlers=profiler_trace_handlers,
+                            schedule=profiler_schedule)
 
     # Callbacks
     callbacks: List[Callback] = [
@@ -585,10 +622,13 @@ def main(cfg: DictConfig) -> Trainer:
         save_weights_only=save_weights_only,
         load_path=load_path,
         load_weights_only=load_weights_only,
+        load_strict_model_weights=load_strict_model_weights,
         load_ignore_keys=load_ignore_keys,
         autoresume=autoresume,
         python_log_level=python_log_level,
         dist_timeout=dist_timeout,
+        profiler=profiler,
+        compile_config=compile_config,
     )
 
     print('Logging config')

@@ -23,8 +23,8 @@ def test_rotation_scaling_factor_1(device: str, dtype: torch.dtype,
                                    rope_scaling_type: str, tensor_type: str):
     """Checks all the rotation embedding techniques (with scaling factor 1)
     
-    Checks that the rotations produced by the techniques is correct, for
-    both query and key tensors.
+    Checks that the rotations produced by all the techniques are correct,
+    for both the query and key tensors.
     """
     from llmfoundry.models.layers.rotary_embedding import (
         DynamicNTKScalingRotaryEmbedding, LinearScalingRotaryEmbedding,

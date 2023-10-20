@@ -14,9 +14,9 @@ from composer.core import Evaluator
 from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
 from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
+                                              MOSAICML_PLATFORM_ENV_VAR,)
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
-                               cyclic_schedule)
+                               cyclic_schedule,)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -24,15 +24,15 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM, build_finetuning_dataloader,
-                        build_text_denoising_dataloader)
+                        build_text_denoising_dataloader,)
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_data_and_gauntlet,
                                        build_logger, build_optimizer,
-                                       build_scheduler, build_tokenizer)
+                                       build_scheduler, build_tokenizer,)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
-                                           update_batch_size_info)
+                                           update_batch_size_info,)
 
 
 def validate_config(cfg: DictConfig):
@@ -45,7 +45,7 @@ def validate_config(cfg: DictConfig):
                 if loader.label is None:
                     raise ValueError(
                         'When specifying multiple evaluation datasets, each one must include the \
-                            `label` attribute.')
+                            `label` attribute.'                                                                                                                                                                                            )
                 loaders.append(loader)
         else:
             loaders.append(eval_loader)
@@ -463,20 +463,17 @@ def main(cfg: DictConfig) -> Trainer:
     scheduler = build_scheduler(scheduler_name, scheduler_config)
 
     # Loggers
-    loggers = [
-        build_logger(str(name), logger_cfg)
-        for name, logger_cfg in logger_configs.items()
-    ] if logger_configs else None
+    loggers = [ build_logger(str(name), logger_cfg) for name, logger_cfg in logger_configs.items() ] if logger_configs else []
 
-    # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
-    mosaicml_logger = None
     if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
     ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
-        mosaicml_logger = MosaicMLLogger()
-        if loggers and not any(isinstance(x, MosaicMLLogger) for x in loggers):
+        # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
+        mosaicml_logger = next((
+            logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
+                               None)
+        if mosaicml_logger is None:
+            mosaicml_logger = MosaicMLLogger()
             loggers.append(mosaicml_logger)
-        else:
-            loggers = [mosaicml_logger]
 
     # Profiling
     profiler: Optional[Profiler] = None

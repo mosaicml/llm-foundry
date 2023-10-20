@@ -13,6 +13,7 @@ def allclose_helper(t0: torch.Tensor,
     return torch.allclose(t0, t1, rtol=rtol, atol=atol)
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize('device', ['cpu', 'cuda'])
 @pytest.mark.parametrize('dtype', [torch.float32, torch.bfloat16])
 @pytest.mark.parametrize('rope_scaling_type',

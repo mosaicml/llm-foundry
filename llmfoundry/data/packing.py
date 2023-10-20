@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
+from composer import DataSpec
 
 import numpy as np
 import torch
@@ -330,7 +331,8 @@ def profile_packing(dataloader_cfg: DictConfig,
 
     n_profile_examples = max(raw_batch_sizes) * 100
 
-    train_dataloader = build_dataloader(dataloader_cfg, tokenizer, n_profile_examples)
+    train_dataspec = build_dataloader(dataloader_cfg, tokenizer, n_profile_examples)
+    train_dataloader = train_dataspec.dataloader
 
     # Get a bunch of raw examples
     big_batch = next(iter(train_dataloader))

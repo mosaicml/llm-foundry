@@ -3,6 +3,7 @@
 
 """Dataloader builder utilities."""
 
+from composer import DataSpec
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
 
@@ -14,7 +15,15 @@ from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 
 
 def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-                     device_batch_size: int):
+                     device_batch_size: int) -> DataSpec:
+    """Builds a dataloader from a config.
+
+    Args:
+        cfg (DictConfig): An omegaconf dictionary used to configure the loader.
+        tokenizer (PreTrainedTokenizerBase): The tokenizer that the model will use.
+        device_batch_size (int): The size of the batches (number of examples)
+            that the dataloader will produce.
+    """
     if cfg.name == 'text':
         return build_text_dataloader(
             cfg,

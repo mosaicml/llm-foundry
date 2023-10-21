@@ -139,7 +139,7 @@ Our microbatching engine enables microbatch sizes that do not divde Global Batch
 ## A100 80GB with 1600 Gbps node-node interconnect (RoCE)
 
 |  Model | SeqLen (T) | # GPUs | GPU | MFU | HFU | Model TFLOP | MicroBatchSize | GradAccum | GlobalBatchSize | Throughput (S/s) | Throughput (T/s) | Throughput (T/s/GPU) | GlobalBatchSize (T) | Precision | MP Mode | Sharding Strategy | Activation Checkpointing | Activation CPUOffload | NumParams |
-|  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+|  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 |  70b | 2048 | 64 | a100_80gb | 53.33 | 71.1 | 166 | 8 | 4 | 2048 | 12 | 26274 | 410 | 4194304 | bf16 | PURE | FULL_SHARD | True | False | 64862437376 |
 |  70b | 2048 | 32 | a100_80gb | 48.56 | 64.75 | 151 | 2 | 16 | 1024 | 5 | 11962 | 373 | 2097152 | bf16 | PURE | FULL_SHARD | True | False | 64862437376 |
 |  30b | 8192 | 8 | a100_80gb | 39.38 | 52.5 | 122 | 1 | 21 | 168 | 0 | 4594 | 574 | 1376256 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 30019254272 |
@@ -205,7 +205,7 @@ Our microbatching engine enables microbatch sizes that do not divde Global Batch
 ## A100 40GB with 1600 Gbps node-node interconnect (RoCE)
 
 |  Model | SeqLen (T) | # GPUs | GPU | MFU | HFU | Model TFLOP| MicroBatchSize | GradAccum | GlobalBatchSize | Throughput (S/s) | Throughput (T/s) | Throughput (T/s/GPU) | GlobalBatchSize (T) | Precision | MP Mode | Sharding Strategy | Activation Checkpointing | Activation CPUOffload | NumParams |
-|  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+|  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 |  70b | 2048 | 128 | a100_40gb | 48.91 | 65.21 | 152 | 4 | 1 | 512 | 23 | 48194 | 376 | 1048576 | bf16 | PURE | FULL_SHARD | True | False | 64862437376 |
 |  70b | 2048 | 64 | a100_40gb | 35.87 | 47.82 | 111 | 2 | 1 | 128 | 8 | 17672 | 276 | 262144 | bf16 | PURE | FULL_SHARD | True | False | 64862437376 |
 |  30b | 2048 | 128 | a100_40gb | 52.25 | 69.66 | 163 | 6 | 1 | 768 | 54 | 110803 | 865 | 1572864 | bf16 | PURE | FULL_SHARD | True | False | 29975214080 |

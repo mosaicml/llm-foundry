@@ -1,3 +1,7 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
+"""Script to profile example packing."""
 from typing import Any, Dict
 
 from llmfoundry.data.packing import profile_packing

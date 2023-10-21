@@ -86,7 +86,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
                     packing.
                     Select `packing_ratio` **carefully** based on the dataset
                     statistics, `max_seq_len`, and tolerance for discarding samples!
-                    The packing code in `../packing.py` provides a script that can help
+                    `scripts/misc/profile_packing.py` is a script that can help
                     you choose the best `packing_ratio`.
             cfg.dataset.shuffle (bool): Whether to shuffle the dataset.
             ___
@@ -106,7 +106,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
         A pytorch dataloader
 
     Note:
-        You can run the script inside `../packing.py` to quickly test the
+        You can run the script inside `scripts/misc/profile_packing.py` to quickly test the
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """

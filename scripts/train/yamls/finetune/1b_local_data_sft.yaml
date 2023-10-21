@@ -49,7 +49,7 @@ train_loader: &train_loader
     allow_pad_trimming: false
     decoder_only_format: true
     shuffle: true
-    # # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
+    # # Use `python llmfoundry/scripts/misc/profile_packing.py --yaml-path /path/to/this/yaml/ ...`
     # # to profile this run's optimal packing_ratio as it depends on GPU count,
     # # batch size, sequence length
     # packing_ratio:

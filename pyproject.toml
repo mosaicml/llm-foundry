@@ -26,7 +26,7 @@ exclude = ['env-**', 'venv*', '**/flash_attn_triton.py']
 ignore = ['llmfoundry/models/layers/flash_attn_triton.py']
 stubPath = ""  # suppress useless 'stubPath is not a valid directory' errors
 
-reportUnnecessaryIsInstance = "warning"
+reportUnnecessaryIsInstance = "none" # it is ok to do this for clarity or safety
 reportMissingTypeStubs = "none"
 reportIncompatibleMethodOverride = "none"
 reportIncompatibleVariableOverride = "error"

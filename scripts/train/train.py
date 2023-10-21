@@ -1,14 +1,22 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import copy
+import logging
 import os
 import sys
+import time
 import warnings
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from composer import Trainer
 from composer.core import Evaluator
+from composer.core.callback import Callback
+from composer.loggers import MosaicMLLogger
+from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
+                                              MOSAICML_PLATFORM_ENV_VAR)
+from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
+                               cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -18,9 +26,9 @@ from llmfoundry import (COMPOSER_MODEL_REGISTRY, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
-                                       build_icl_evaluators, build_logger,
-                                       build_optimizer, build_scheduler,
-                                       build_tokenizer)
+                                       build_icl_data_and_gauntlet,
+                                       build_logger, build_optimizer,
+                                       build_scheduler, build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
@@ -30,7 +38,16 @@ def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""
     loaders = [cfg.train_loader]
     if 'eval_loader' in cfg:
-        loaders.append(cfg.eval_loader)
+        eval_loader = cfg.eval_loader
+        if isinstance(eval_loader, ListConfig):
+            for loader in eval_loader:
+                if loader.label is None:
+                    raise ValueError(
+                        'When specifying multiple evaluation datasets, each one must include the \
+                            `label` attribute.')
+                loaders.append(loader)
+        else:
+            loaders.append(eval_loader)
     for loader in loaders:
         if loader.name == 'text':
             if cfg.model.name in ['hf_prefix_lm', 'hf_t5']:
@@ -88,40 +105,12 @@ def validate_config(cfg: DictConfig):
             '`te.LayerNormMLP` requires has issues with torch._dynamo. ' +
             'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.'
         )
-        torch._dynamo.config.suppress_errors = True  # type: ignore
+        torch._dynamo.config.suppress_errors = True  # type: ignore (third-party)
 
-    # Validate lora config within the same function
-    lora_config = cfg.model.get('lora', None)
-    if lora_config is not None and isinstance(lora_config, (dict, DictConfig)):
-        args = lora_config.get('args', None)
-        if args is not None and isinstance(args, (dict, DictConfig)):
-            r = args.get('r', None)
-            if r is None or not isinstance(r, int):
-                raise ValueError('lora r must be an integer')
-
-            lora_alpha = args.get('lora_alpha', None)
-            if lora_alpha is None or not isinstance(lora_alpha, (float, int)):
-                raise ValueError('lora_alpha must be a float/int')
-
-            target_modules = args.get('target_modules', None)
-            if target_modules is None or not isinstance(target_modules,
-                                                        (list, ListConfig)):
-                raise ValueError('target_modules must be a list')
-            elif len(target_modules) == 0:
-                raise ValueError('target_modules is an empty list')
-            else:
-                for module in target_modules:
-                    if not isinstance(module, str):
-                        raise ValueError(
-                            'target_modules must be a list of strings')
-            lora_dropout = args.get('lora_dropout', None)
-            if lora_dropout is None or not isinstance(lora_dropout, float):
-                raise ValueError('lora_dropout must be a float')
-
-            task_type = args.get('task_type', None)
-            if task_type is None or not isinstance(task_type, str):
-                raise ValueError('task_type must be a string')
-            print('=' * 20 + 'LoRa is enabled!' + '=' * 20)
+    if cfg.model.get('load_in_8bit', False):
+        raise ValueError(
+            '`load_in_8bit` is only supported for evaluation rather than training.'
+        )
 
 
 def build_composer_model(model_cfg: DictConfig,
@@ -160,7 +149,7 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
-def main(cfg: DictConfig):
+def main(cfg: DictConfig) -> Trainer:
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
         action='ignore',
@@ -201,31 +190,58 @@ def main(cfg: DictConfig):
 
     # Mandatory model training configs
     model_config: DictConfig = pop_config(cfg, 'model', must_exist=True)
-    tokenizer_config: DictConfig = pop_config(cfg, 'tokenizer', must_exist=True)
-    optimizer_config: DictConfig = pop_config(cfg, 'optimizer', must_exist=True)
-    scheduler_config: DictConfig = pop_config(cfg, 'scheduler', must_exist=True)
+    tokenizer_config: Dict[str, Any] = pop_config(cfg,
+                                                  'tokenizer',
+                                                  must_exist=True,
+                                                  convert=True)
+    optimizer_config: Dict[str, Any] = pop_config(cfg,
+                                                  'optimizer',
+                                                  must_exist=True,
+                                                  convert=True)
+    scheduler_config: Dict[str, Any] = pop_config(cfg,
+                                                  'scheduler',
+                                                  must_exist=True,
+                                                  convert=True)
     train_loader_config: DictConfig = pop_config(cfg,
                                                  'train_loader',
                                                  must_exist=True)
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_dict_config: Optional[DictConfig] = pop_config(cfg,
-                                                        'fsdp_config',
-                                                        must_exist=False,
-                                                        default_value=None)
-    fsdp_config: Optional[Dict] = om.to_container(
-        fsdp_dict_config
-    ) if fsdp_dict_config is not None else None  # type: ignore
+    fsdp_config: Optional[Dict[str, Any]] = pop_config(cfg,
+                                                       'fsdp_config',
+                                                       must_exist=False,
+                                                       default_value=None,
+                                                       convert=True)
 
-    eval_loader_config: Optional[DictConfig] = pop_config(cfg,
-                                                          'eval_loader',
-                                                          must_exist=False,
-                                                          default_value=None)
-    icl_tasks_config: Optional[ListConfig] = pop_config(cfg,
+    eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(
+        cfg, 'eval_loader', must_exist=False, default_value=None)
+    icl_tasks_config: Optional[Union[ListConfig,
+                                     str]] = pop_config(cfg,
                                                         'icl_tasks',
                                                         must_exist=False,
                                                         default_value=None)
-
+    eval_gauntlet_config: Optional[Union[DictConfig,
+                                         str]] = pop_config(cfg,
+                                                            'eval_gauntlet',
+                                                            must_exist=False,
+                                                            default_value=None)
+    if eval_gauntlet_config is None:
+        eval_gauntlet_config = pop_config(cfg,
+                                          'model_gauntlet',
+                                          must_exist=False,
+                                          default_value=None)
+        if eval_gauntlet_config is not None:
+            print(
+                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`'
+            )
+    icl_subset_num_batches: Optional[int] = pop_config(cfg,
+                                                       'icl_subset_num_batches',
+                                                       must_exist=False,
+                                                       default_value=None)
+    icl_seq_len: Optional[int] = pop_config(cfg,
+                                            'icl_seq_len',
+                                            must_exist=False,
+                                            default_value=None)
     # Optional logging, evaluation and callback configs
     logger_configs: Optional[DictConfig] = pop_config(cfg,
                                                       'loggers',
@@ -297,10 +313,10 @@ def main(cfg: DictConfig):
                                       'log_to_console',
                                       must_exist=False,
                                       default_value=True)
-    python_log_level: str = pop_config(cfg,
-                                       'python_log_level',
-                                       must_exist=False,
-                                       default_value='debug')
+    python_log_level: Optional[str] = pop_config(cfg,
+                                                 'python_log_level',
+                                                 must_exist=False,
+                                                 default_value='debug')
     console_log_interval: Union[int, str] = pop_config(cfg,
                                                        'console_log_interval',
                                                        must_exist=False,
@@ -326,19 +342,30 @@ def main(cfg: DictConfig):
                                          'load_weights_only',
                                          must_exist=False,
                                          default_value=False)
+    load_strict_model_weights: bool = pop_config(cfg,
+                                                 'load_strict_model_weights',
+                                                 must_exist=False,
+                                                 default_value=True)
     load_ignore_keys: Optional[List[str]] = pop_config(cfg,
                                                        'load_ignore_keys',
                                                        must_exist=False,
                                                        default_value=None)
+    compile_config: Optional[Dict[str, Any]] = pop_config(cfg,
+                                                          'compile_config',
+                                                          must_exist=False,
+                                                          default_value=None)
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
     if logged_cfg.get('run_name', None) is not None \
         and save_folder is not None \
         and not save_overwrite \
         and not save_weights_only:
+        autoresume_default = True
+
+    if cfg.get('autoresume') is None and autoresume_default:
         print('As run_name, save_folder, and save_latest_filename are set, \
                 changing autoresume default to True...')
-        autoresume_default = True
+
     autoresume: bool = pop_config(cfg,
                                   'autoresume',
                                   must_exist=False,
@@ -365,21 +392,83 @@ def main(cfg: DictConfig):
             'FSDP is not applicable for single-GPU training. Reverting to DDP.')
         fsdp_config = None
 
+    # set logging level
+    if python_log_level is not None:
+        logging.basicConfig(
+            # Example of format string
+            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
+
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
 
     # Build tokenizer
-    tokenizer = build_tokenizer(tokenizer_config)
+    tokenizer_name = tokenizer_config['name']
+    tokenizer_kwargs = tokenizer_config.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
-    # Build Model
-    with init_context:
-        print('Initializing model...')
-        model = build_composer_model(model_config, tokenizer)
+    # Scheduler
+    scheduler_name: str = scheduler_config.pop('name')
+    scheduler = build_scheduler(scheduler_name, scheduler_config)
 
-    # Log number of parameters
-    n_params = sum(p.numel() for p in model.parameters())
-    logged_cfg.update({'n_params': n_params})
+    # Loggers
+    loggers = [
+        build_logger(str(name), logger_cfg)
+        for name, logger_cfg in logger_configs.items()
+    ] if logger_configs else []
+
+    mosaicml_logger = next(
+        (logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
+        None)
+    if mosaicml_logger is None:
+        if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
+        ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
+            # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
+            mosaicml_logger = MosaicMLLogger()
+            loggers.append(mosaicml_logger)
+
+    # Profiling
+    profiler: Optional[Profiler] = None
+    profiler_cfg: Optional[DictConfig] = pop_config(cfg,
+                                                    'profiler',
+                                                    must_exist=False,
+                                                    convert=False,
+                                                    default_value=None)
+    if profiler_cfg:
+        profiler_schedule_cfg: Dict = pop_config(profiler_cfg,
+                                                 'schedule',
+                                                 must_exist=True,
+                                                 convert=True)
+        profiler_schedule = cyclic_schedule(**profiler_schedule_cfg)
+        # Only support json trace handler
+        profiler_trace_handlers: List[TraceHandler] = []
+        profiler_trace_cfg: Optional[Dict] = pop_config(profiler_cfg,
+                                                        'json_trace_handler',
+                                                        must_exist=False,
+                                                        default_value=None,
+                                                        convert=True)
+        if profiler_trace_cfg:
+            profiler_trace_handlers.append(
+                JSONTraceHandler(**profiler_trace_cfg))
+        profiler = Profiler(**profiler_cfg,
+                            trace_handlers=profiler_trace_handlers,
+                            schedule=profiler_schedule)
+
+    # Callbacks
+    callbacks: List[Callback] = [
+        build_callback(str(name), callback_cfg)
+        for name, callback_cfg in callback_configs.items()
+    ] if callback_configs else []
+
+    # Algorithms
+    algorithms = [
+        build_algorithm(str(name), algorithm_cfg)
+        for name, algorithm_cfg in algorithm_configs.items()
+    ] if algorithm_configs else None
 
     # Dataloaders
     print('Building train loader...')
@@ -389,48 +478,65 @@ def main(cfg: DictConfig):
         device_train_batch_size,
     )
 
+    if mosaicml_logger is not None:
+        mosaicml_logger.log_metrics({'data_validated': time.time()})
+
     ## Evaluation
     print('Building eval loader...')
     evaluators = []
+    eval_loaders = []
     if eval_loader_config is not None:
-        assert model.train_metrics is not None
-        eval_dataloader = build_dataloader(eval_loader_config, tokenizer,
-                                           device_eval_batch_size)
-        eval_metric_names = list(model.train_metrics.keys())
-        eval_loader = Evaluator(label='eval',
-                                dataloader=eval_dataloader,
-                                metric_names=eval_metric_names)
-        evaluators.append(eval_loader)
+        is_multi_eval = isinstance(eval_loader_config, ListConfig)
+        eval_configs = eval_loader_config if is_multi_eval else [
+            eval_loader_config
+        ]
+        for eval_config in eval_configs:
+            eval_dataloader = build_dataloader(eval_config, tokenizer,
+                                               device_eval_batch_size)
+            eval_loader = Evaluator(
+                label=f'eval/{eval_config.label}' if is_multi_eval else 'eval',
+                dataloader=eval_dataloader,
+                metric_names=[],  # we will add these after model is created
+            )
+            eval_loaders.append(eval_loader)
+
+    eval_gauntlet_callback = None
 
     if icl_tasks_config is not None:
-        icl_evaluators, _ = build_icl_evaluators(icl_tasks_config, tokenizer,
-                                                 max_seq_len,
-                                                 device_eval_batch_size)
+        icl_evaluators, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
+            icl_tasks_config, eval_gauntlet_config, tokenizer,
+            device_eval_batch_size, icl_seq_len if icl_seq_len else max_seq_len,
+            icl_subset_num_batches)
         evaluators.extend(icl_evaluators)
 
+    if eval_gauntlet_callback is not None:
+        callbacks.append(eval_gauntlet_callback)
+
+    # Build Model
+    print('Initializing model...')
+    with init_context:
+        model = build_composer_model(model_config, tokenizer)
+
+        if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
+            model = model.to(dtype=torch.bfloat16)
+        elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
+            model = model.to(dtype=torch.float16)
+
+    # Log number of parameters
+    n_params = sum(p.numel() for p in model.parameters())
+    logged_cfg.update({'n_params': n_params})
+
     # Optimizer
-    optimizer = build_optimizer(optimizer_config, model)
+    optimizer_name: str = optimizer_config.pop('name')
+    optimizer = build_optimizer(model, optimizer_name, optimizer_config)
 
-    # Scheduler
-    scheduler = build_scheduler(scheduler_config)
-
-    # Loggers
-    loggers = [
-        build_logger(str(name), logger_cfg)
-        for name, logger_cfg in logger_configs.items()
-    ] if logger_configs else None
-
-    # Callbacks
-    callbacks = [
-        build_callback(str(name), callback_cfg)
-        for name, callback_cfg in callback_configs.items()
-    ] if callback_configs else None
-
-    # Algorithms
-    algorithms = [
-        build_algorithm(str(name), algorithm_cfg)
-        for name, algorithm_cfg in algorithm_configs.items()
-    ] if algorithm_configs else None
+    # Now add the eval metrics
+    if eval_loader_config is not None:
+        assert model.train_metrics is not None
+        eval_metric_names = list(model.train_metrics.keys())
+        for eval_loader in eval_loaders:
+            eval_loader.metric_names = eval_metric_names
+            evaluators.insert(0, eval_loader)  # Put the base eval_loaders first
 
     # Build the Trainer
     print('Building trainer...')
@@ -453,7 +559,7 @@ def main(cfg: DictConfig):
         precision=precision,
         algorithms=algorithms,
         device_train_microbatch_size=device_train_microbatch_size,
-        fsdp_config=fsdp_config,  # type: ignore
+        fsdp_config=fsdp_config,
         save_folder=save_folder,
         save_filename=save_filename,
         save_latest_filename=save_latest_filename,
@@ -463,10 +569,13 @@ def main(cfg: DictConfig):
         save_weights_only=save_weights_only,
         load_path=load_path,
         load_weights_only=load_weights_only,
+        load_strict_model_weights=load_strict_model_weights,
         load_ignore_keys=load_ignore_keys,
         autoresume=autoresume,
         python_log_level=python_log_level,
         dist_timeout=dist_timeout,
+        profiler=profiler,
+        compile_config=compile_config,
     )
 
     print('Logging config')
@@ -481,6 +590,7 @@ def main(cfg: DictConfig):
     trainer.fit()
 
     print('Done.')
+    return trainer
 
 
 if __name__ == '__main__':
@@ -489,5 +599,6 @@ if __name__ == '__main__':
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
+    om.resolve(cfg)
     assert isinstance(cfg, DictConfig)
     main(cfg)

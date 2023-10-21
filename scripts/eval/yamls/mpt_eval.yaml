@@ -1,8 +1,7 @@
-max_seq_len: 2048
+max_seq_len: 1024
 tokenizer_name: EleutherAI/gpt-neox-20b
 seed: 1
 precision: amp_fp16
-
 
 models:
 -
@@ -14,7 +13,8 @@ models:
       model_max_length: ${max_seq_len}
   model:
     name: mpt_causal_lm
-    init_device: meta
+    init_device: mixed
+    # Set the below model parameters to match the checkpoint specified with load_path
     d_model: 768
     n_heads: 12
     n_layers: 12
@@ -24,7 +24,7 @@ models:
     attn_config:
       attn_impl: triton
 
-load_path: # Add your (optional) Composer checkpoint path here!
+  load_path: # Add your non-optional Composer checkpoint path here! (must not be empty)
 
 device_eval_batch_size: 16
 
@@ -32,11 +32,13 @@ device_eval_batch_size: 16
 fsdp_config:
   sharding_strategy: FULL_SHARD
   mixed_precision: FULL
+  forward_prefetch: True
+  limit_all_gathers: True
 
 icl_tasks:
 -
   label: jeopardy
-  dataset_uri: eval/local_data/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   icl_task_type: language_modeling
   continuation_delimiter: "\nAnswer: " # this separates questions from answers

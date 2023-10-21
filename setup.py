@@ -47,12 +47,13 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,mlflow]>=0.15.0,<0.16',
+    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.16.4,<0.17',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
-    'transformers>=4.31,<4.32',
-    'mosaicml-streaming>=0.5.1,<0.6',
-    'torch>=1.13.1,<=2.0.1',
-    'datasets==2.10.1',
+    'transformers>=4.33,<4.34',
+    'mosaicml-streaming>=0.6,<0.7',
+    'torch>=1.13.1,<2.1.1',
+    'datasets>=2.14.5,<2.15',
+    'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
     'einops==0.5.0',
     'omegaconf>=2.2.3,<3',
@@ -63,6 +64,8 @@ install_requires = [
     'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
+    'boto3>=1.21.45,<2',
+    'huggingface-hub>=0.17.0,<1.0',
 ]
 
 extra_deps = {}
@@ -79,13 +82,20 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.15.0,<0.16',
+    'mosaicml[tensorboard]>=0.16.1,<0.17',
 ]
 
 extra_deps['gpu'] = [
-    'flash-attn==v1.0.3.post0',
+    'flash-attn==1.0.9',
+    'mosaicml-turbo==0.0.4',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy',
+    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
+]
+extra_deps['gpu-flash2'] = [
+    'flash-attn==2.3.2',
+    'mosaicml-turbo==0.0.4',
+    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
+    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v2.3.2#subdirectory=csrc/xentropy',
 ]
 
 extra_deps['peft'] = [
@@ -97,7 +107,16 @@ extra_deps['peft'] = [
     'peft==0.4.0',
 ]
 
-extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
+extra_deps['openai'] = [
+    'openai==0.27.8',
+    'tiktoken==0.4.0',
+]
+extra_deps['all-cpu'] = set(
+    dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
+extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
+                        if key != 'gpu-flash2')
+extra_deps['all-flash2'] = set(
+    dep for key, deps in extra_deps.items() for dep in deps if key != 'gpu')
 
 setup(
     name=_PACKAGE_NAME,

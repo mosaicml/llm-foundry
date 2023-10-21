@@ -93,8 +93,10 @@ If you have success/failure using LLM Foundry on other systems, please let us kn
 |---------------------------|------------------|--------------|-------------------------------|
 | A100-40GB/80GB            | 1.13.1           | 11.7         | :white_check_mark: Supported  |
 | A100-40GB/80GB            | 2.0.1            | 11.7, 11.8   | :white_check_mark: Supported  |
+| A100-40GB/80GB            | 2.1.0            | 11.8, 12.1   | :white_check_mark: Supported  |
 | H100-80GB                 | 1.13.1           | 11.7         | :x: Not Supported             |
 | H100-80GB                 | 2.0.1            | 11.8         | :white_check_mark: Supported  |
+| H100-80GB                 | 2.1.0            | 12.1         | :white_check_mark: Supported  |
 | A10-24GB                  | 1.13.1           | 11.7         | :construction: In Progress    |
 | A10-24GB                  | 2.0.1            | 11.7, 11.8   | :construction: In Progress    |
 | MI250                     | 2.0.1            | ROCm 5.4     | :construction: In Progress    |
@@ -113,8 +115,11 @@ You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117
 |-------------------------------------------------------------|----------------|--------------|-------------------------------------|
 | `mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04`      | 1.13.1         | 11.7         | No                                  |
 | `mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04`       | 2.0.1          | 11.8         | No                                  |
+| `mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04`       | 2.1.0          | 12.1         | No                                  |
 | `mosaicml/llm-foundry:1.13.1_cu117-latest`                  | 1.13.1         | 11.7         | Yes                                 |
 | `mosaicml/llm-foundry:2.0.1_cu118-latest`                   | 2.0.1          | 11.8         | Yes                                 |
+| `mosaicml/llm-foundry:2.1.0_cu121-latest`                   | 2.1.0          | 12.1         | Yes (flash attention v1)            |
+| `mosaicml/llm-foundry:2.1.0_cu121_flash2-latest`            | 2.1.0          | 12.1         | Yes (flash attention v2)            |
 
 
 # Installation

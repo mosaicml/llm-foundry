@@ -17,7 +17,7 @@ sys.path.append(repo_dir)
 from scripts.eval.eval import main  # noqa: E402
 
 
-class TestEvalYAMLInputs:
+class TestHuggingFaceEvalYAMLInputs:
     """Validate and tests error handling for the input YAML file."""
 
     @pytest.fixture
@@ -55,7 +55,7 @@ class TestEvalYAMLInputs:
             'run_name',
             'num_retries',
             'loggers',
-            'model_gauntlet',
+            'eval_gauntlet',
             'fsdp_config',
         ]
         old_cfg = copy.deepcopy(cfg)
@@ -72,3 +72,33 @@ class TestEvalYAMLInputs:
                            str(warning.message) for warning in warning_list)
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
+
+
+class TestMPTEvalYAMLInputs:
+
+    @pytest.fixture
+    def cfg(self) -> DictConfig:
+        """Create YAML cfg fixture for testing purposes."""
+        conf_path: str = os.path.join(repo_dir,
+                                      'scripts/eval/yamls/mpt_eval.yaml')
+        with open(conf_path, 'r', encoding='utf-8') as config:
+            test_cfg = om.load(config)
+
+        test_cfg.icl_tasks[0].dataset_uri = os.path.join(
+            repo_dir, 'scripts', test_cfg.icl_tasks[0].dataset_uri)
+
+        # make tests use cpu initialized transformer models only
+        test_cfg.models[0].model.init_device = 'cpu'
+        test_cfg.models[0].model.attn_config.attn_impl = 'torch'
+        test_cfg.models[0].model.loss_fn = 'torch_crossentropy'
+        test_cfg.precision = 'fp32'
+        assert isinstance(test_cfg, DictConfig)
+        return test_cfg
+
+    def test_empty_load_path_raises_error(self, cfg: DictConfig) -> None:
+        """Check that empty load paths for mpt models raise an error."""
+        error_string = 'MPT causal LMs require a load_path to the checkpoint for model evaluation.' \
+            + ' Please check your yaml and the model_cfg to ensure that load_path is set.'
+        cfg.models[0].load_path = None
+        with pytest.raises(ValueError, match=error_string):
+            main(cfg)

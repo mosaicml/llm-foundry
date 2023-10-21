@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import tempfile
 from copy import deepcopy
 from pathlib import Path
@@ -11,11 +12,42 @@ import torch
 from composer.utils import reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import AutoConfig, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
+
+
+def test_remote_code_false_mpt(
+        conf_path: str = 'scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml'):
+    with open(conf_path) as f:
+        test_cfg = om.load(f)
+
+    test_cfg.model.pretrained = False
+    test_cfg.model.config_overrides = {'n_layers': 2}
+    test_cfg.model.trust_remote_code = False
+
+    # Build Model
+    # For fast initialization, use `meta` device
+    print('Initializing model...')
+    device = 'cpu'
+    test_cfg.model.init_device = device
+    test_cfg.device = device
+    test_cfg.precision = 'fp16'
+
+    tokenizer_cfg: Dict[str,
+                        Any] = om.to_container(test_cfg.tokenizer,
+                                               resolve=True)  # type: ignore
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+
+    with pytest.raises(
+            ValueError,
+            match='trust_remote_code must be set to True for MPT models.'):
+        _ = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
+                                                         tokenizer)
 
 
 @pytest.mark.parametrize('model_cfg_overrides', [
@@ -54,7 +86,8 @@ def test_hf_config_override(
     model_cfg_overrides: Dict[str, Any],
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
 ):
-    AutoConfig.register('mpt', MPTConfig)
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
 
     with open(conf_path) as f:
@@ -71,7 +104,12 @@ def test_hf_config_override(
     test_cfg.precision = 'fp16'
     test_cfg.model.attn_config = {'attn_impl': 'torch', 'alibi': True}
 
-    tokenizer = build_tokenizer(test_cfg.tokenizer)
+    tokenizer_cfg: Dict[str,
+                        Any] = om.to_container(test_cfg.tokenizer,
+                                               resolve=True)  # type: ignore
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
     model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
                                                          tokenizer)
 
@@ -102,3 +140,30 @@ def test_hf_config_override(
                 assert getattr(hf_model.config, k)[_k] == _v
         else:
             assert getattr(hf_model.config, k) == v
+
+
+@pytest.mark.skipif('HUGGING_FACE_HUB_TOKEN' not in os.environ,
+                    reason='CI does not have access to llama2')
+def test_rope_scaling_override():
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': 'meta-llama/Llama-2-7b-hf',
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+            'rope_scaling': {
+                'type': 'dynamic',
+                'factor': 0.5
+            }
+        },
+        'use_auth_token': True,
+        'pretrained': False,
+        'init_device': 'cpu',
+    }
+    model_cfg = om.create(model_cfg)
+
+    model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer=None)
+    # This would error if the config isn't parsed into a proper dictionary
+    model.get_metadata()
+    assert model.config.rope_scaling == {'type': 'dynamic', 'factor': 0.5}

@@ -10,13 +10,15 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
+from composer.core.data_spec import DataSpec
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.packing import BinPackWrapper
-from llmfoundry.data.text_data import StreamingTextDataset
+from llmfoundry.data.text_data import (StreamingTextDataset,
+                                       get_tokens_per_batch_func)
 from llmfoundry.models import utils
 
 __all__ = ['MixtureOfDenoisersCollator', 'build_text_denoising_dataloader']
@@ -269,11 +271,11 @@ class MixtureOfDenoisersCollator:
                 '`span_mean_lengths_and_ratios` and/or `sequence_mask_ratios`.')
 
     @property
-    def smallest_max_raw_length(self):
+    def smallest_max_raw_length(self) -> int:
         return int(self._smallest_max_raw_length)
 
     @property
-    def largest_max_raw_length(self):
+    def largest_max_raw_length(self) -> int:
         return int(self._largest_max_raw_length)
 
     def __call__(self, examples: List[Dict[str,
@@ -353,7 +355,7 @@ def build_text_denoising_dataloader(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-) -> DataLoader[Dict]:
+) -> DataSpec:
     """Constructor function for a Mixture of Denoisers dataloader.
 
     This function constructs a dataloader that can be used to train an
@@ -506,7 +508,7 @@ def build_text_denoising_dataloader(
             'but cfg.dataset.packing_ratio has not been set. Please set ' +\
             'the latter to turn on packing or remove the former from the config.')
 
-    return DataLoader(
+    dl = DataLoader(
         dataset,
         collate_fn=collate_fn,
         batch_size=device_batch_size,
@@ -517,6 +519,12 @@ def build_text_denoising_dataloader(
         persistent_workers=cfg.get('persistent_workers', False),
         timeout=cfg.get('timeout', 0),
     )
+
+    token_counting_func = get_tokens_per_batch_func(
+        pad_token_id=tokenizer.pad_token_id,
+        decoder_only=cfg.mixture_of_denoisers.decoder_only_format)
+
+    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 
 
 def noise_token_sequence(
@@ -613,7 +621,8 @@ def noise_token_sequence(
 
 def _get_max_starting_length(max_length: int, mask_ratio: float,
                              mean_span_length: float, n_prefix_tokens: int,
-                             decoder_only_format: bool, context_eos: bool):
+                             decoder_only_format: bool,
+                             context_eos: bool) -> int:
     """Get max num raw tokens that will fit max_length."""
 
     def sequence_stats(length: int):
@@ -677,8 +686,7 @@ def _sample_mask_array(length: int, mask_ratio: float,
         """
         span_markers = np.less(np.arange(total_tokens - 1), num_spans -
                                1)[np.random.permutation(total_tokens - 1)]
-        span_start_indicator = np.concatenate([[0],
-                                               span_markers])  # type: ignore
+        span_start_indicator = np.concatenate([np.array([0]), span_markers])
         span_id = np.cumsum(span_start_indicator).reshape(-1, 1)
         spans = np.arange(num_spans).reshape(1, -1)
         span_lengths = np.sum(span_id == spans, axis=0)
@@ -715,13 +723,13 @@ def _apply_mask(tokens: Union[torch.Tensor, Sequence[int], np.ndarray],
 
         # Ensure there's an end-of-sentence token at the end
         if ensure_eos and (noised_tokens[-1] != eos_token_id):
-            noised_tokens = np.concatenate([noised_tokens,
-                                            [eos_token_id]])  # type: ignore
+            noised_tokens = np.concatenate(
+                [noised_tokens, np.array([eos_token_id])])
 
         return noised_tokens
 
     # Masking at previous token
-    prev_token_mask = np.concatenate([[0], mask[:-1]])  # type: ignore
+    prev_token_mask = np.concatenate([np.array([0]), mask[:-1]])
 
     # Decompose mask into start-of-span mask and non-start-of-span mask
     start_of_noise_span_token = np.logical_and(mask,
@@ -740,8 +748,8 @@ def _apply_mask(tokens: Union[torch.Tensor, Sequence[int], np.ndarray],
 
     # Ensure there's an end-of-sentence token at the end
     if ensure_eos and (noised_tokens[-1] != eos_token_id):
-        noised_tokens = np.concatenate([noised_tokens,
-                                        [eos_token_id]])  # type: ignore
+        noised_tokens = np.concatenate(
+            [noised_tokens, np.array([eos_token_id])])
     return noised_tokens
 
 
@@ -864,15 +872,14 @@ if __name__ == '__main__':
     cfg = om.create(cfg)
     device_batch_size = 2
 
-    tokenizer_cfg = {
-        'name': 'EleutherAI/gpt-neox-20b' if decoder_only else 't5-base',
-        'kwargs': {}
-    }
-    tokenizer_cfg['kwargs'] = {'model_max_length': cfg.dataset.max_seq_len}
-    tokenizer_cfg = om.create(tokenizer_cfg)
-    tokenizer = build_tokenizer(tokenizer_cfg)
+    tokenizer_name = 'EleutherAI/gpt-neox-20b' if decoder_only else 't5-base'
+    tokenizer_kwargs = {'model_max_length': cfg.dataset.max_seq_len}
+    tokenizer = build_tokenizer(tokenizer_name=tokenizer_name,
+                                tokenizer_kwargs=tokenizer_kwargs)
 
-    loader = build_text_denoising_dataloader(cfg, tokenizer, device_batch_size)
+    loader = build_text_denoising_dataloader(cfg, tokenizer,
+                                             device_batch_size).dataloader
+    assert isinstance(loader, DataLoader)
     assert isinstance(loader.dataset, StreamingTextDataset)
 
     print(f'\n\nTRUNCATING TO: {loader.dataset.max_seq_len}\n\n')

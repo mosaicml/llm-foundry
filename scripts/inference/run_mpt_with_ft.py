@@ -466,9 +466,14 @@ def main():
             gpt_generate_fn()
         torch.cuda.synchronize()
         time_elapsed = timeit.default_timer() - time
-        print(
-            f'[INFO] MPT time costs: {time_elapsed * 1000 / measurement_iterations:.2f} ms'
-        )
+        if rank == 0:
+            print(f'[INFO] MPT time costs:')
+            print(
+                'model_name, gpu_type, gpu_count, batch_size, input_tokens, output_tokens, latency_ms'
+            )
+            print(
+                f'{ckpt_config.get("gpt", "model_name")}, {torch.cuda.get_device_name().replace(" ", "-")}, {torch.cuda.device_count()}, {batch_size}, {args.input_len}, {args.output_len}, {time_elapsed * 1000 / measurement_iterations:.2f}'
+            )
 
 
 if __name__ == '__main__':

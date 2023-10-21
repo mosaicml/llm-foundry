@@ -1,6 +1,6 @@
 # In-context learning (ICL) evaluation
 
-This folder contains the MosaicML LLM evaluation suite. It is a [blazingly fast](https://www.mosaicml.com/blog/llm-evaluation-for-icl), multi-GPU-enabled ICL evaluation suite with native [FSDP](https://pytorch.org/docs/stable/fsdp.html) compatibility with any model on the HuggingFace hub and any PyTorch model that implements the [`ComposerModel` interface](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.ComposerModel.html#composermodel). We also include collection of ICL datasets we refer to as our [Model Gauntlet](https://github.com/mosaicml/llm-foundry/blob/scripts/eval/local_data/MODEL_GAUNTLET.md) organized into 6 broad categories of competency that we expect good foundation models to have.
+This folder contains the MosaicML LLM evaluation suite. It is a [blazingly fast](https://www.mosaicml.com/blog/llm-evaluation-for-icl), multi-GPU-enabled ICL evaluation suite with native [FSDP](https://pytorch.org/docs/stable/fsdp.html) compatibility with any model on the HuggingFace hub and any PyTorch model that implements the [`ComposerModel` interface](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.ComposerModel.html#composermodel). We also include collection of ICL datasets we refer to as our [Model Gauntlet](https://github.com/mosaicml/llm-foundry/blob/scripts/eval/local_data/eval_gauntlet.md) organized into 6 broad categories of competency that we expect good foundation models to have.
 
 You can evaluate a model by preparing an evaluation YAML following the format of the examples in the [`scripts/eval/yamls` directory](https://github.com/mosaicml/llm-foundry/tree/main/scripts/eval/yamls).
 
@@ -8,7 +8,9 @@ You can evaluate a model by preparing an evaluation YAML following the format of
 
 ## Quickstart
 
-To run a full evaluation on a model, you would need to install this repo and then run the following commands:
+### Offline evaluation
+
+To run offline evaluation, download this repo and run the following commands:
 
 <!--pytest.mark.skip-->
 ```bash
@@ -16,7 +18,7 @@ cd llm-foundry/scripts
 composer eval/eval.py eval/yamls/hf_eval.yaml
 ```
 
-This will run a large eval suite, including our Model Gauntlet, on `EleutherAI/gpt-neo-125m`. You can update the model in that YAML file, or create your own, or override the values in the YAML with CLI args, such as:
+This will run `EleutherAI/gpt-neo-125m` through the MosaicML Eval Gauntlet, a diverse evaluation suite consisting of over 30 benchmarks. You can update the configuration directly in the `hf_eval.yaml` YAML file, or override the values in the YAML with CLI args, such as:
 
 <!--pytest.mark.skip-->
 ```bash
@@ -25,12 +27,29 @@ composer eval/eval.py eval/yamls/hf_eval.yaml \
     model_name_or_path=mosaicml/mpt-7b
 ```
 
+You can also modify the specific benchmarks executed and their formatting by modifying the contents of `tasks.yaml` and you can modify the choice of composite scores and the set of tasks they consist of by modifying `eval_gauntlet.yaml`.
+
+
+### Evaluation during training
+To run evaluation during training, download this repo, follow the instructions in `scripts/train/README.md` to perform single node pre-training and run the following commands
+
+<!--pytest.mark.skip-->
+```bash
+cd llm-foundry/scripts/train
+composer train.py yamls/pretrain/mpt-125m_eval.yaml train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
+```
+You can also modify the specific benchmarks executed and their formatting by modifying the contents of `tasks.yaml` and you can modify the choice of composite scores and the set of tasks they consist of by modifying `eval_gauntlet.yaml`. You can also choose to either run the full evaluation or run on a subset number of batches per benchmark by setting `icl_subset_num_batches`.
+
 ----
+## In-depth walkthrough
 
-## Offline evaluation
+ICL evaluation can be done offline via the `scripts/eval/eval.py` or during training via `scripts/train/train.py`.
 
-You can run the evaluation script on a model checkpoint via `composer eval/eval.py YOUR_YAML` from the `scripts` directory or launch it on the MosaicML platform using a an MCLI YAML following the format of [`llm-foundry/mcli/mcli-1b-eval.yaml`](https://github.com/mosaicml/llm-foundry/blob/main/mcli/mcli-1b-eval.yaml).
-Your YAML must have a config section entitled `icl_tasks`, this can either be a list of dictionaries of the form
+In order to do ICL evaluation you must specify a set of benchmarks you'd like to run via the `icl_tasks` key in your eval/training config. `icl_tasks` can either consist of config, or it can be a file path pointing to a locally accessible YAML config (see `scripts/eval/yamls/tasks.yaml` for an example).
+
+
+#### ICL task YAML format
+Your YAML must have a config section entitled `icl_tasks` specifying the benchmarks to evaluate againts, this can either be a list of dictionaries of the form
 
 ```jsx
 icl_tasks:
@@ -59,9 +78,66 @@ example_delimiter: "\n"
 prompt_string: ''
 ```
 
-## Evaluation during training
+#### Eval gauntlet YAML format
+Your YAML may optionally have a config section entitled eval\_gauntlet specifying how to aggregate the results (if absent, only the individual benchmark accuracies will be reported). After the tasks listed in the `icl_tasks` config are evaluated, the eval script will use the `eval_gauntlet` config, if specified, to aggregate the individual benchmarks into composite scores.
 
-You can also add ICL evaluation to your training runs by adding an `icl_tasks` config to your training config at the same depth as the `model` subconfig.
+
+An `eval_gauntlet` config  must specify the list of categories you'd like to generate composite scores for, as well as the list of benchmarks to be included in each category. For each category you need to list the name and the `num_fewshot`. These two values must exactly match the values specified in the `icl_tasks` config. Additionally you must specify the random baseline accuracy for each benchmark.
+
+There are also three flags indicating how to perform the aggregation:
+1. `weighting` can either be `EQUAL` (all tasks are weighted equally), `SAMPLE_SZ` (tasks are weighted proportional to the size of the dataset), or `LOG_SAMPLE_SZ` (tasks are weighted proportional to the logarithm of the dataset size).
+2. `subtract_random_baseline` can either be `true` or `false`. If `true` we will subtract the random baseline accuracy from the final accuracy before averaging, otherwise it will be averaged in as is.
+3. `rescale_accuracy` can either be `true` or `false`. If `true` (and if `subtract_random_baseline` was also `true`), the accuracy will be rescaled to be <= 1 before averaging.
+
+An example config is below:
+```jsx
+eval_gauntlet:
+  weighting: EQUAL
+  subtract_random_baseline: true
+  rescale_accuracy: true
+  categories:
+  - name: world_knowledge
+    benchmarks:
+    - name: jeopardy
+      num_fewshot: 10
+      random_baseline: 0
+    - name: mmlu
+      num_fewshot: 10
+      random_baseline: 0.25
+  - name: language_understanding
+    benchmarks:
+    - name: lambada_openai
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: hellaswag
+      num_fewshot: 10
+      random_baseline: 0.25
+```
+
+You can either specify your `eval_gauntlet` config directly in your eval/train YAML or via a local path pointing to a YAML containing an `eval_gauntlet` config.
+
+
+### Offline evaluation
+
+You can run the evaluation script on a model checkpoint via `composer eval/eval.py YOUR_YAML` from the `scripts` directory or launch it on the MosaicML platform using a an MCLI YAML following the format of [`llm-foundry/mcli/mcli-1b-eval.yaml`](https://github.com/mosaicml/llm-foundry/blob/main/mcli/mcli-1b-eval.yaml).
+
+You can use the default `icl_tasks` and `eval_gauntlet` configs or specify your own following the instructions above.
+
+### Evaluation during training
+
+You can use ICL evaluation during training by taking an ordinary training YAML and adding an `icl_tasks` and `eval_gauntlet` config. You should also specify `icl_seq_len` in your training YAML and you can optionally run a truncated version of eval on a random subset of each benchmark by specifying a value for `icl_subset_num_batches`
+
+An example is given below:
+```
+  icl_tasks: eval/yamls/tasks.yaml # or use tasks_light.yaml
+  icl_subset_num_batches: 100 # -1, or omit this key entirely, to evaluate on all batches
+  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+  icl_seq_len: 1024
+```
+
+For training, we recommend you do not run the full eval gauntlet. Instead either use the `tasks_light.yaml` which is a subset of the full gauntlet benchmarks, or set `icl_subset_num_batches` to a small number O(100) which will only run each benchmark on a random sample of `icl_subset_num_batches` batches.
+
+You can use the default `icl_tasks` and `eval_gauntlet` configs or specify your own following the instructions above.
 
 ----
 
@@ -77,12 +153,13 @@ This document explains the ICL formats compatible with [Composer](https://github
 
 ## Supported ICL formats
 
-Composer currently supports four ICL formats
+Composer currently supports five ICL formats:
 
-1. [InContextLearningQATaskDataset](https://github.com/mosaicml/composer/blob/v0.14.0/composer/datasets/in_context_learning_evaluation.py#L92-L253)
-2. [InContextLearningLMTaskDataset](https://github.com/mosaicml/composer/blob/v0.14.0/composer/datasets/in_context_learning_evaluation.py#L256-L402)
-3. [InContextLearningMultipleChoiceTaskDataset](https://github.com/mosaicml/composer/blob/v0.14.0/composer/datasets/in_context_learning_evaluation.py#L405-L599)
-4. [InContextLearningSchemaTaskDataset](https://github.com/mosaicml/composer/blob/v0.14.0/composer/datasets/in_context_learning_evaluation.py#L602-L773)
+1. [InContextLearningQATaskDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L103)
+2. [InContextLearningLMTaskDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L293)
+3. [InContextLearningMultipleChoiceTaskDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L444)
+4. [InContextLearningSchemaTaskDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L676)
+5. [InContextLearningCodeEvalDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L852)
 
 ----
 
@@ -270,6 +347,30 @@ Below is a YAML section that works with the Winograd dataset in [`scripts/eval/l
     continuation_delimiter: ' ' # this separates questions from answers
 >
 
+
+----
+
+### InContextLearningCodeEvalDataset
+
+The ICL CodeEvalDataset takes a prompt, and, working with the NLP metric [InContextLearningCodeEvalAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningCodeEvalAccuracy.html), generates code which gets run against the supplied tests, as in HumanEval ([Evaluating Large Language Models Trained on Code](https://arxiv.org/abs/2107.03374)) and MBPP ([Program Synthesis with Large Language Models](https://arxiv.org/abs/2108.07732)). This generation involves many decoding steps, so can take longer per sample than other ICL tasks. An example datum:
+
+```json
+{"task_id": "JavaScript/2", "prompt": "/* Given a positive floating point number, it can be decomposed into\n  and integer part (largest integer smaller than given number) and decimals\n  (leftover part always smaller than 1).\n\n  Return the decimal part of the number.\n  >>> truncateNumber(3.5)\n  0.5\n  */\nconst truncateNumber = (number) => {\n", "canonical_solution": "  return number % 1.0;\n}\n\n", "test": "const testTruncateNumber = () => {\n  console.assert(truncateNumber(3.5) === 0.5)\n\n  console.assert(Math.abs(truncateNumber(1.33) - 0.33) < 1e-6)\n\n  console.assert(Math.abs(truncateNumber(123.456 - 0.456) < 1e-6))\n}\n\ntestTruncateNumber()\n", "entry_point": "truncateNumber", "test_inputs": ["3.5", "1.33", "123.456"], "test_outputs": ["0.5", "0.33", "0.456"], "language": "javascript"}
+```
+
+Required keys for each datum:
+
+* `prompt: str`
+* `test: str`
+* `entry_point: str`
+* `test_inputs: List[str]`
+* `test_outputs: List[str]`
+* `language: str`
+
+Code evaluation can happen locally (insecure) or inside an AWS Lambda function sandbox. This is controlled by setting the environment variable `CODE_EVAL_DEVICE` to `LOCAL` or `LAMBDA`. If set to `LAMBDA`, you must also provide `CODE_EVAL_URL` and `CODE_EVAL_APIKEY` to query the API gateway in the AWS Sandbox.
+
+----
+
 ### Build your own dataset (BYOD)
 Building a dataset compatible with our eval suite is very easy if it fits with one of the four supported task types. Simply choose the appropriate task type (LM, MC, QA, or Schema) and process each dataset into a jsonl format in which each row has the format described above.
 
@@ -369,3 +470,5 @@ def prep_dataset(out_file):
 When formatting samples, `prompt_string` is prepended to the beginning, then `num_fewshot` examples from the dataset are concatenated. Each few shot example is formatted with the context/continuation of each being separated by `continuation_delimiter`, then each example is separated from the others by the `example_delimiter`. Finally, we append the context/query/question/context options of the current sample to be evaluated and the `continuation_delimiter`.
 
 Thus the structure of each question's preamble is `prompt | few shot examples | context | continuation delimiter`. The continuation (aka choices for MC) is then tokenized separately and the tokens of the preamble and tokens of the continuation are concatenated. It is important to note that if the continuation delimiter has a trailing space, it is stripped and instead prepended to the continuation. Furthermore, if the continuation does not have a leading space, one will be prepended.
+
+----

@@ -23,6 +23,7 @@ try:
     from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
                                        MPTForCausalLM, MPTModel,
                                        MPTPreTrainedModel)
+    from llmfoundry.tokenizers import TiktokenTokenizerWrapper
 
 except ImportError as e:
     try:
@@ -64,6 +65,7 @@ __all__ = [
     'build_alibi_bias',
     'optim',
     'utils',
+    'TiktokenTokenizerWrapper',
 ]
 
-__version__ = '0.2.0'
+__version__ = '0.3.0'

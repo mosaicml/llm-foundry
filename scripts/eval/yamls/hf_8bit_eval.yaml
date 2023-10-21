@@ -1,0 +1,25 @@
+max_seq_len: 1024
+seed: 1
+precision: amp_fp16
+
+model_name_or_path: bigscience/bloom-1b7
+
+models:
+-
+  model_name: ${model_name_or_path}
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: ${model_name_or_path}
+    init_device: mixed
+    pretrained: true
+    load_in_8bit: true
+  tokenizer:
+    name: ${model_name_or_path}
+    kwargs:
+      model_max_length: ${max_seq_len}
+
+device_eval_batch_size: 4
+
+# With load_in_8bit, do not specify fsdp_config
+
+icl_tasks: 'eval/yamls/tasks_light.yaml'

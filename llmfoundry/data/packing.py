@@ -323,6 +323,8 @@ def profile_packing(dataloader_cfg: DictConfig,
     dataloader_cfg.dataset.packing_ratio = None
     dataloader_cfg.dataset.max_leftovers_to_keep = None
     dataloader_cfg.drop_last = False
+    dataloader_cfg.num_workers = 0
+    dataloader_cfg.prefetch_factor = None
 
     # Determine the packing_ratio values we'll try
     packing_ratios, raw_batch_sizes = [], []

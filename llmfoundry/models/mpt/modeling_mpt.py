@@ -23,6 +23,7 @@ from composer.metrics import (InContextLearningCodeEvalAccuracy,
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
+from flash_attn.layers.rotary import RotaryEmbedding as FlashRotaryEmbedding
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
@@ -75,29 +76,39 @@ log = logging.getLogger(__name__)
 
 def _rotary_embedding(config: MPTConfig):
     rope_head_dim = config.d_model // config.n_heads
-    if config.attn_config['rope_scaling']['type'] == 'no_scaling':
-        return RotaryEmbedding(
-            rope_head_dim,
-            max_position_embeddings=config.max_seq_len,
-            base=config.attn_config['rope_theta'],
-            device='cpu'
-        )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
-    elif config.attn_config['rope_scaling']['type'] == 'linear':
-        return LinearScalingRotaryEmbedding(
-            rope_head_dim,
-            max_position_embeddings=config.max_seq_len,
-            base=config.attn_config['rope_theta'],
-            scaling_factor=config.attn_config['rope_scaling']['factor'],
-            device='cpu'
-        )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
-    elif config.attn_config['rope_scaling']['type'] == 'dynamic':
-        return DynamicNTKScalingRotaryEmbedding(
-            rope_head_dim,
-            max_position_embeddings=config.max_seq_len,
-            base=config.attn_config['rope_theta'],
-            scaling_factor=config.attn_config['rope_scaling']['factor'],
-            device='cpu'
-        )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
+    if config.attn_config['rope_imp'] == 'flash':
+        return FlashRotaryEmbedding(
+                dim=rope_head_dim,
+                base=config.attn_config['rope_theta'],
+                interleaved=False,
+                scale_base=None, # "If scale_base is not None, this implements XPos. A recommended value for scale_base is 512." (Source: https://github.com/Dao-AILab/flash-attention/blob/02ac572f3ffc4f402e4183aaa6824b45859d3ed3/flash_attn/layers/rotary.py#L312C1-L314C110)
+                pos_idx_in_fp32=False, # if True, the position indices [0.0, ..., seqlen - 1] are in fp32, otherwise they might be in lower precision. bf16 rounds position 1995 to 2000, for example, which leads to them having the same positional embedding
+                device='cpu',
+            )
+    elif config.attn_config['rope_imp'] == 'hf_llama':
+        if config.attn_config['rope_scaling']['type'] == 'no_scaling':
+            return RotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=config.max_seq_len,
+                base=config.attn_config['rope_theta'],
+                device='cpu'
+            )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
+        elif config.attn_config['rope_scaling']['type'] == 'linear':
+            return LinearScalingRotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=config.max_seq_len,
+                base=config.attn_config['rope_theta'],
+                scaling_factor=config.attn_config['rope_scaling']['factor'],
+                device='cpu'
+            )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
+        elif config.attn_config['rope_scaling']['type'] == 'dynamic':
+            return DynamicNTKScalingRotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=config.max_seq_len,
+                base=config.attn_config['rope_theta'],
+                scaling_factor=config.attn_config['rope_scaling']['factor'],
+                device='cpu'
+            )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
 
 
 class MPTPreTrainedModel(PreTrainedModel):
@@ -154,7 +165,9 @@ class MPTModel(MPTPreTrainedModel):
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         self.rope = config.attn_config['rope']
+        self.rope_imp = None
         if self.rope:
+            self.rope_imp = config.attn_config['rope_imp']
             self.rotary_embedding = _rotary_embedding(config)
 
         if config.init_device != 'meta':
@@ -395,7 +408,7 @@ class MPTModel(MPTPreTrainedModel):
             S <= self.config.max_seq_len
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
-        rotary_emb_w_offset_info = None
+        rotary_emb_w_meta_info = None
         x = self.wte(input_ids)
         if self.learned_pos_emb or self.rope:
             past_position = 0
@@ -420,24 +433,30 @@ class MPTModel(MPTPreTrainedModel):
                     +
                     f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
                 )
-            pos = torch.arange(
-                past_position,
-                S + past_position,
-                dtype=torch.long,
-                device=input_ids.device,
-            ).unsqueeze(0)
-            if attention_mask is not None:
-                # adjust the position indices to account for padding tokens
-                pos = torch.clamp(
-                    pos - torch.cumsum((~attention_mask).to(torch.int32),
-                                       dim=1)[:, past_position:],
-                    min=0,
-                )
+            pos = 0
+            if self.learned_pos_emb or (self.rope and self.rope_imp == 'hf_llama'):
+                pos = torch.arange(
+                    past_position,
+                    S + past_position,
+                    dtype=torch.long,
+                    device=input_ids.device,
+                ).unsqueeze(0)
+                if attention_mask is not None:
+                    # adjust the position indices to account for padding tokens
+                    pos = torch.clamp(
+                        pos - torch.cumsum((~attention_mask).to(torch.int32),
+                                        dim=1)[:, past_position:],
+                        min=0,
+                    )
+            elif (self.rope and self.rope_imp == 'flash'):
+                pos = past_position
+
             if self.rope:
-                rotary_emb_w_offset_info = {
+                rotary_emb_w_meta_info = {
                     'rotary_emb': self.rotary_embedding,
                     'pos': pos,
-                    'seq_len': S + past_position
+                    'seq_len': S + past_position,
+                    'imp': self.rope_imp,
                 }
             if self.learned_pos_emb:
                 x = x + self.wpe(pos)
@@ -477,7 +496,7 @@ class MPTModel(MPTPreTrainedModel):
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
-                rotary_emb_w_offset_info=rotary_emb_w_offset_info,
+                rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),

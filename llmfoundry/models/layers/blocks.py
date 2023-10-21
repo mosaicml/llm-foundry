@@ -42,6 +42,7 @@ class MPTBlock(nn.Module):
                 'alibi': False,
                 'alibi_bias_max': 8,
                 'rope': False,
+                'rope_imp': 'hf_llama',
                 'rope_theta': 10000,
                 'rope_scaling': {
                     'type': 'no_scaling',
@@ -69,6 +70,7 @@ class MPTBlock(nn.Module):
             'attn_uses_sequence_id',
             'alibi_bias_max',
             'rope',
+            'rope_imp',
             'rope_theta',
             'rope_scaling',
         }
@@ -106,7 +108,7 @@ class MPTBlock(nn.Module):
         x: torch.Tensor,
         past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
-        rotary_emb_w_offset_info: Optional[Dict] = None,
+        rotary_emb_w_meta_info: Optional[Dict] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         is_causal: bool = True,
         output_attentions: bool = False,
@@ -117,7 +119,7 @@ class MPTBlock(nn.Module):
             a,
             past_key_value=past_key_value,
             attn_bias=attn_bias,
-            rotary_emb_w_offset_info=rotary_emb_w_offset_info,
+            rotary_emb_w_meta_info=rotary_emb_w_meta_info,
             attention_mask=attention_mask,
             is_causal=is_causal,
             needs_weights=output_attentions,

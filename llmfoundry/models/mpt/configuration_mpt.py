@@ -20,6 +20,7 @@ attn_config_defaults: Dict = {
     'alibi': False,
     'alibi_bias_max': 8,
     'rope': False,
+    'rope_imp': 'hf_llama',
     'rope_theta': 10000,
     'rope_scaling': {
         'type': 'no_scaling',
@@ -101,6 +102,7 @@ class MPTConfig(PretrainedConfig):
                 alibi (bool): Whether to use the alibi bias instead of position embeddings.
                 alibi_bias_max (int): The maximum value of the alibi bias.
                 rope (bool): Whether to use rotary positional embeddings.
+                rope_imp (str): The implementation of rope to use. One of 'hf_llama' or 'flash'.
                 rope_theta (int): The base frequency for rope.
                 rope_scaling (Dict): A dictionary used to configure rope's scaling behavior (when scaling beyond the training length)
                     type (str): Can be one of 'no_scaling', 'linear', or 'dynamic'. 'no_scaling' uses the default implementation for rotary embeddings, 'linear' uses linear scaling as proposed by the Reddit user /u/kaiokendev, and 'dynamic' uses Dynamic NTK scaling as proposed by the Reddit users /u/bloc97 and /u/emozilla.
@@ -247,6 +249,12 @@ class MPTConfig(PretrainedConfig):
                     + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
                     'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
                 )
+        if self.attn_config['rope_imp'] not in [
+                'hf_llama', 'flash'
+        ]:
+            raise ValueError(
+                'rope_imp should be either "hf_llama", or "flash".'
+            )
         if self.attn_config['rope_scaling']['type'] not in [
                 'no_scaling', 'linear', 'dynamic'
         ]:

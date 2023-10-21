@@ -10,7 +10,7 @@ from llmfoundry.utils.builders import build_tokenizer
 
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 
-from composer.utils import reproducibility
+from composer.utils import reproducibility, dist
 
 def _data_to_batch(data: List[int], max_seq_len: int, pad_token_id: int) -> Dict[str, torch.Tensor]:
     """Helper function to create a proper batch of data."""
@@ -100,6 +100,28 @@ def test_auto_packing(profile_packing: Mock):
     ) # Dummy values, profiling results are already set.
 
     # auto packing ratio should choose 2 because packing ratio is maximized while waste is 0.
+    assert packing_ratio == 2
+
+@pytest.mark.world_size(2)
+@pytest.mark.gpu
+@patch('llmfoundry.data.packing.profile_packing')
+def test_dist_auto_packing(profile_packing: Mock):
+    """Tests that auto packing works with world size > 1."""
+    dist.initialize_dist('gpu')
+
+    # List of tuples of packing_ratio, padding, waste, sorted by packing ratio
+    if dist.get_global_rank() == 0:
+        profile_packing.return_value = [(1, .9, 0), (2, .8, 0), (3, .7, 0)] # should pick 3
+    else:
+        profile_packing.return_value = [(1, .9, 0), (2, .8, 0), (3, .7, .5)] # should pick 2
+
+    packing_ratio = auto_packing_ratio(
+        dataloader_cfg=DictConfig({'dataset': {'max_seq_len': 2048 }}), 
+        tokenizer=None, 
+        device_batch_size=1,
+    ) # Dummy values, profiling results are already set.
+
+    # auto packing ratio should choose 2 because it's the minimum between ranks.
     assert packing_ratio == 2
 
 @pytest.mark.parametrize('packing_ratio', ['auto', 2.0])

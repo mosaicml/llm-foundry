@@ -272,6 +272,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     Returns:
         A packing ratio that minimizes padding while maintaining zero waste.
     """
+    from composer.utils import dist, get_device
     min_ratio = 1
     max_ratio = dataloader_cfg.dataset.max_seq_len / 100
     num_packing_ratios = 20
@@ -280,13 +281,19 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
                                         device_batch_size)
 
     # Obtain the maximum packing_ratio/minimum padding that has no waste.
-    prev_packing_ratio = 1
-    for packing_ratio, _, waste in profiling_results:
+    packing_ratio = 1
+    for packing_ratio_candidate, _, waste in profiling_results:
         if waste > 0:
             break
-        prev_packing_ratio = packing_ratio
-    return prev_packing_ratio
-
+        packing_ratio = packing_ratio_candidate
+    
+    # Select the minimum packing ratio across all ranks.
+    if dist.is_available() and dist.is_initialized():
+        device = get_device('gpu')
+        packing_ratio_tensor = device.tensor_to_device(torch.tensor(packing_ratio))
+        dist.all_reduce(packing_ratio_tensor, reduce_operation='MIN')
+        packing_ratio = packing_ratio_tensor.item()
+    return packing_ratio
 
 def profile_packing(dataloader_cfg: DictConfig,
                     tokenizer: PreTrainedTokenizerBase, min_ratio: float,

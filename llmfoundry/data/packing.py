@@ -288,7 +288,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
         packing_ratio = packing_ratio_candidate
     
     # Select the minimum packing ratio across all ranks.
-    if dist.is_available() and dist.is_initialized():
+    if torch.cuda.is_available() and dist.is_available() and dist.is_initialized():
         device = get_device('gpu')
         packing_ratio_tensor = device.tensor_to_device(torch.tensor(packing_ratio))
         dist.all_reduce(packing_ratio_tensor, reduce_operation='MIN')

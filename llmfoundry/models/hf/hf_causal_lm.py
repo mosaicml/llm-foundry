@@ -113,6 +113,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             # set the private attribute here. This will just skip all of transformers'
             # validation logic that it is ok to use flash attention 2, so we replicate
             # the most importance piece (is it installed) above.
+            # https://github.com/huggingface/transformers/issues/26878
             config._flash_attn_2_enabled = use_flash_attention_2
 
             # set config overrides

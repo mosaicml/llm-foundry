@@ -135,8 +135,7 @@ def test_flash2(model_name: str, use_flash_attention_2: bool):
         tokenizer_name = 'meta-llama/Llama-2-7b-hf'
         from transformers.models.llama.modeling_llama import (
             LlamaAttention, LlamaFlashAttention2)
-        flash_attn_class = LlamaFlashAttention2 if is_flash_v2_installed(
-        ) else LlamaAttention
+        flash_attn_class = LlamaFlashAttention2 if use_flash_attention_2 else LlamaAttention
         attention_layers_attr = 'model.model.layers'
         attention_attr = 'self_attn'
     elif model_name == 'mistral':
@@ -154,8 +153,7 @@ def test_flash2(model_name: str, use_flash_attention_2: bool):
         tokenizer_name = 'mistralai/Mistral-7B-v0.1'
         from transformers.models.mistral.modeling_mistral import (
             MistralAttention, MistralFlashAttention2)
-        flash_attn_class = MistralFlashAttention2 if is_flash_v2_installed(
-        ) else MistralAttention
+        flash_attn_class = MistralFlashAttention2 if use_flash_attention_2 else MistralAttention
         attention_layers_attr = 'model.model.layers'
         attention_attr = 'self_attn'
     else:

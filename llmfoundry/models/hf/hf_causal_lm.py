@@ -111,10 +111,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             # supports enabling flash attention 2 when using the from_pretrained API.
             # We need to support it for both from_pretrained and from_config, so we have to
             # set the private attribute here. This will just skip all of transformers'
-            # validation logic that it is ok to use flash attention 2, so we replicate
-            # the most importance piece (is it installed) above.
+            # validation logic that it is ok to use flash attention 2, so we check
+            # whether it is installed above, and whether the chosen config supports it here.
             # https://github.com/huggingface/transformers/issues/26878
-            config._flash_attn_2_enabled = use_flash_attention_2
+            config._flash_attn_2_enabled = use_flash_attention_2 and config._supports_flash_attn_2
 
             # set config overrides
             for k, v in om_model_config.get('config_overrides', {}).items():

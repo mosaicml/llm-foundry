@@ -5,15 +5,15 @@ This README walks through pretraining and finetuning a large language model usin
 #### Table of Contents
 1. [Part 1: LLM Pretraining](#llmpretraining)
    1. [Installation](#installation)
-   2. [Dataset Preparation](#datasetpreparation)
-   3. [How to start single and multi-node pretraining](#howtostartpretraining)
-2. [Part 2: LLM Finetuning](#llmfinetuning)
+   1. [Dataset Preparation](#datasetpreparation)
+   1. [How to start single and multi-node pretraining](#howtostartpretraining)
+1. [Part 2: LLM Finetuning](#llmfinetuning)
    1. [Using a dataset on the HuggingFace Hub](#hfdataset)
-   2. [Using a local dataset](#localdataset)
-   3. [Using a StreamingDataset (MDS) formatted dataset locally or in an object store](#mdsdataset)
-3. [Using Flash Attention](#flashattention)
-3. [FAQ: How many GPUs do I need to train a LLM?](#howmandygpus)
-4. [FAQ: Optimizing Performance](#optimizingperformance)
+   1. [Using a local dataset](#localdataset)
+   1. [Using a StreamingDataset (MDS) formatted dataset locally or in an object store](#mdsdataset)
+1. [Using Flash Attention](#flashattention)
+1. [FAQ: How many GPUs do I need to train a LLM?](#howmandygpus)
+1. [FAQ: Optimizing Performance](#optimizingperformance)
 
 # Part 1: LLM Pretraining <a name="llmpretraining"></a>
 
@@ -367,7 +367,7 @@ For any HuggingFace model that supports Flash Attention (e.g. Llama and Mistral)
 ```yaml
 model:
     name: hf_causal_lm
-    use_flash_attention_2: True # Will be automatically set to True if Flash Attention V2 is installed
+    use_flash_attention_2: True # Will be automatically set to True if Flash Attention V2 is installed and the model supports it
     ...
 ```
 HuggingFace models currently only support Flash Attention V2.

@@ -434,6 +434,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                 loaded_model)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
+    dist.barrier()
     delete_transformers_cache()
 
 

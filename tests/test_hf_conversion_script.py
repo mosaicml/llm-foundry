@@ -141,10 +141,12 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
     # Additional special tokens do not match between original tokenizer and loaded tokenizer due to transformers
     # constructor differences
     additional_special_tokens_1 = {
-        t if isinstance(t, str) else t.content for t in tokenizer1.__dict__.pop('_additional_special_tokens', [])
+        t if isinstance(t, str) else t.content
+        for t in tokenizer1.__dict__.pop('_additional_special_tokens', [])
     }
     additional_special_tokens_2 = {
-        t if isinstance(t, str) else t.content for t in tokenizer2.__dict__.pop('_additional_special_tokens', [])
+        t if isinstance(t, str) else t.content
+        for t in tokenizer2.__dict__.pop('_additional_special_tokens', [])
     }
     # Also pop it out of init_kwargs
     tokenizer1.__dict__['init_kwargs'].pop('additional_special_tokens', None)
@@ -152,8 +154,9 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
     tokenizer1.__dict__['init_kwargs'].pop('added_tokens_decoder', None)
     tokenizer2.__dict__['init_kwargs'].pop('added_tokens_decoder', None)
     # If the additional special tokens are the same (or a subset of each other), or if one of them is empty, then we are good
-    assert additional_special_tokens_1.issubset(additional_special_tokens_2) or additional_special_tokens_2.issubset(
-        additional_special_tokens_1)
+    assert additional_special_tokens_1.issubset(
+        additional_special_tokens_2) or additional_special_tokens_2.issubset(
+            additional_special_tokens_1)
 
     # The special token attributes may be strings or they may be AddedToken objects, so we just check string values
     # First check that they have the same attrs

@@ -95,7 +95,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             trust_remote_code = om_model_config.get('trust_remote_code', True)
             use_auth_token = om_model_config.get('use_auth_token', False)
             use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
-                                                        is_flash_v2_installed())
+                                                        False)
             if use_flash_attention_2 and not is_flash_v2_installed():
                 raise ValueError(
                     'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
@@ -114,7 +114,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             # validation logic that it is ok to use flash attention 2, so we check
             # whether it is installed above, and whether the chosen config supports it here.
             # https://github.com/huggingface/transformers/issues/26878
-            config._flash_attn_2_enabled = use_flash_attention_2 and config._supports_flash_attn_2
+            config._flash_attn_2_enabled = use_flash_attention_2
 
             # set config overrides
             for k, v in om_model_config.get('config_overrides', {}).items():

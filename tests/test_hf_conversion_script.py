@@ -174,6 +174,10 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
 
 
 def delete_transformers_cache():
+    # Only delete the files on local rank 0, otherwise race conditions are created
+    if not dist.get_local_rank() == 0:
+        return
+
     hf_cache_home = os.path.expanduser(
         os.getenv(
             'HF_HOME',
@@ -434,6 +438,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                 loaded_model)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
+    dist.barrier()
     delete_transformers_cache()
 
 

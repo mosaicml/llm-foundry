@@ -125,7 +125,6 @@ class MPTModel(MPTPreTrainedModel):
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         self.rope = config.attn_config['rope']
-        breakpoint()
         if self.rope:
             self.rotary_embedding = FlashRotaryEmbedding(
                 dim=config.d_model // config.n_heads,

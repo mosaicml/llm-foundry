@@ -1,0 +1,40 @@
+eval_gauntlet:
+  weighting: EQUAL
+  subtract_random_baseline: true
+  rescale_accuracy: true
+  averages:
+    core_average:
+    - 2k
+    - 4k
+    - 8k
+  categories:
+  - name: 2k
+    benchmarks:
+    - name: wikiqa_beginning_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: wikiqa_middle_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: wikiqa_end_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_beginning_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_middle_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_end_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_beginning_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_end_2k
+      num_fewshot: 0
+      random_baseline: 0
+ 

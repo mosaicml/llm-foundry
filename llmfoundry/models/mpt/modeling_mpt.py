@@ -562,7 +562,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
         outputs = self.transformer(
             input_ids=input_ids,
-            inputs_embeds=inputs_embeds,
             past_key_values=past_key_values,
             attention_mask=attention_mask,
             prefix_mask=prefix_mask,
@@ -571,6 +570,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             use_cache=use_cache,
+            inputs_embeds=inputs_embeds,
         )
 
         # move outputs to same device as weights for token embedding

@@ -70,6 +70,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
+
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
     base_model_prefix = 'model'
@@ -130,10 +131,11 @@ class MPTModel(MPTPreTrainedModel):
                 dim=config.d_model // config.n_heads,
                 base=config.attn_config['rope_theta'],
                 interleaved=False,
-                scale_base=config.attn_config['xpos_scale_base'] if (config.attn_config['rope_type']=='xpos') else None,
-                pos_idx_in_fp32=config.attn_config['rope_pos_idx_in_fp32'], # if True, the position indices [0.0, ..., seqlen - 1] are in fp32, otherwise they might be in lower precision. bf16 rounds position 1995 to 2000, for example, which leads to them having the same positional embedding
+                scale_base=config.attn_config['xpos_scale_base'] if
+                (config.attn_config['rope_type'] == 'xpos') else None,
+                pos_idx_in_fp32=config.attn_config['rope_pos_idx_in_fp32'],
                 device='cpu',
-                )
+            )
 
         if config.init_device != 'meta':
             log.info(
@@ -410,7 +412,7 @@ class MPTModel(MPTPreTrainedModel):
                     # adjust the position indices to account for padding tokens
                     pos = torch.clamp(
                         pos - torch.cumsum((~attention_mask).to(torch.int32),
-                                        dim=1)[:, past_position:],
+                                           dim=1)[:, past_position:],
                         min=0,
                     )
             elif self.rope:

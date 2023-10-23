@@ -102,7 +102,7 @@ class MPTConfig(PretrainedConfig):
                 rope (bool): Whether to use rotary positional embeddings.
                 rope_type (str): The type of rope to use. Options: 'original', 'xpos'
                 rope_theta (int): The base frequency for rope.
-                rope_pos_idx_in_fp32 (bool): Whether to use fp32 as the dtype for rope positional indices.
+                rope_pos_idx_in_fp32 (bool): If True, the position indices [0.0, ..., seqlen - 1] are in fp32, otherwise they might be in lower precision. A consequence could be, for example, that bf16 rounds position 1995 to 2000, which leads to them having the same positional embedding.
                 xpos_scale_base (float): The scale base for XPos.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
@@ -218,9 +218,10 @@ class MPTConfig(PretrainedConfig):
             raise NotImplementedError(
                 'attn_uses_sequence_id only implemented with torch and triton attention.'
             )
-        if self.attn_config['rope'] and (self.attn_config['rope_type'] not in ['original', 'xpos']):
+        if self.attn_config['rope'] and (self.attn_config['rope_type']
+                                         not in ['original', 'xpos']):
             raise NotImplementedError(
-                'rope_type must be one of "original" or "xpos".')                 
+                'rope_type must be one of "original" or "xpos".')
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
                 'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!'

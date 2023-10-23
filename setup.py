@@ -48,7 +48,7 @@ classifiers = [
 
 install_requires = [
     'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.16.4,<0.17',
-    'accelerate>=0.20,<0.21',  # for HF inference `device_map`
+    'accelerate>=0.21,<0.22',  # for HF inference `device_map`
     'transformers>=4.33,<4.34',
     'mosaicml-streaming>=0.6,<0.7',
     'torch>=1.13.1,<2.1.1',
@@ -99,12 +99,12 @@ extra_deps['gpu-flash2'] = [
 ]
 
 extra_deps['peft'] = [
-    'loralib==0.1.1',  # lora core
+    # 'loralib==0.1.1',  # lora core # Not in use because of Peft
     # 'bitsandbytes==0.39.1',  # 8bit, removed for debug 30B
-    'scipy>=1.10.0,<=1.11.0',  # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
+    # 'scipy>=1.10.0,<=1.11.0',  # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
     # TODO: pin peft when it stabilizes.
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'peft==0.4.0',
+    'peft>=0.5,<0.6',
 ]
 
 extra_deps['openai'] = [

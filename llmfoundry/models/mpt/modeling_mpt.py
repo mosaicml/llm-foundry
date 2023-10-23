@@ -39,9 +39,6 @@ from llmfoundry.models.layers.ffn import \
 from llmfoundry.models.layers.ffn import MPTMLP as MPTMLP
 from llmfoundry.models.layers.ffn import build_ffn as build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-from llmfoundry.models.layers.rotary_embedding import (
-    DynamicNTKScalingRotaryEmbedding, LinearScalingRotaryEmbedding,
-    RotaryEmbedding)
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
 # NOTE: All utils are imported directly even if unused so that
@@ -72,44 +69,6 @@ except:
 import logging
 
 log = logging.getLogger(__name__)
-
-
-def _rotary_embedding(config: MPTConfig):
-    rope_head_dim = config.d_model // config.n_heads
-    if config.attn_config['rope_imp'] == 'flash':
-        return FlashRotaryEmbedding(
-                dim=rope_head_dim,
-                base=config.attn_config['rope_theta'],
-                interleaved=False,
-                scale_base=None, # "If scale_base is not None, this implements XPos. A recommended value for scale_base is 512." (Source: https://github.com/Dao-AILab/flash-attention/blob/02ac572f3ffc4f402e4183aaa6824b45859d3ed3/flash_attn/layers/rotary.py#L312C1-L314C110)
-                pos_idx_in_fp32=False, # if True, the position indices [0.0, ..., seqlen - 1] are in fp32, otherwise they might be in lower precision. bf16 rounds position 1995 to 2000, for example, which leads to them having the same positional embedding
-                device='cpu',
-            )
-    elif config.attn_config['rope_imp'] == 'hf_llama':
-        if config.attn_config['rope_scaling']['type'] == 'no_scaling':
-            return RotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=config.max_seq_len,
-                base=config.attn_config['rope_theta'],
-                device='cpu'
-            )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
-        elif config.attn_config['rope_scaling']['type'] == 'linear':
-            return LinearScalingRotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=config.max_seq_len,
-                base=config.attn_config['rope_theta'],
-                scaling_factor=config.attn_config['rope_scaling']['factor'],
-                device='cpu'
-            )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
-        elif config.attn_config['rope_scaling']['type'] == 'dynamic':
-            return DynamicNTKScalingRotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=config.max_seq_len,
-                base=config.attn_config['rope_theta'],
-                scaling_factor=config.attn_config['rope_scaling']['factor'],
-                device='cpu'
-            )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
-
 
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
@@ -165,10 +124,16 @@ class MPTModel(MPTPreTrainedModel):
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         self.rope = config.attn_config['rope']
-        self.rope_imp = None
+        breakpoint()
         if self.rope:
-            self.rope_imp = config.attn_config['rope_imp']
-            self.rotary_embedding = _rotary_embedding(config)
+            self.rotary_embedding = FlashRotaryEmbedding(
+                dim=config.d_model // config.n_heads,
+                base=config.attn_config['rope_theta'],
+                interleaved=False,
+                scale_base=config.attn_config['xpos_scale_base'] if (config.attn_config['rope_type']=='xpos') else None,
+                pos_idx_in_fp32=config.attn_config['rope_pos_idx_in_fp32'], # if True, the position indices [0.0, ..., seqlen - 1] are in fp32, otherwise they might be in lower precision. bf16 rounds position 1995 to 2000, for example, which leads to them having the same positional embedding
+                device='cpu',
+                )
 
         if config.init_device != 'meta':
             log.info(
@@ -434,7 +399,7 @@ class MPTModel(MPTPreTrainedModel):
                     f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
                 )
             pos = 0
-            if self.learned_pos_emb or (self.rope and self.rope_imp == 'hf_llama'):
+            if self.learned_pos_emb:
                 pos = torch.arange(
                     past_position,
                     S + past_position,
@@ -448,7 +413,7 @@ class MPTModel(MPTPreTrainedModel):
                                         dim=1)[:, past_position:],
                         min=0,
                     )
-            elif (self.rope and self.rope_imp == 'flash'):
+            elif self.rope:
                 pos = past_position
 
             if self.rope:
@@ -456,7 +421,6 @@ class MPTModel(MPTPreTrainedModel):
                     'rotary_emb': self.rotary_embedding,
                     'pos': pos,
                     'seq_len': S + past_position,
-                    'imp': self.rope_imp,
                 }
             if self.learned_pos_emb:
                 x = x + self.wpe(pos)

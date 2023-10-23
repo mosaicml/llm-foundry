@@ -20,12 +20,10 @@ attn_config_defaults: Dict = {
     'alibi': False,
     'alibi_bias_max': 8,
     'rope': False,
-    'rope_imp': 'hf_llama',
+    'rope_type': 'original',
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'no_scaling',
-        'factor': 1.0
-    }
+    'rope_pos_idx_in_fp32': False,
+    'xpos_scale_base': 512,
 }
 
 ffn_config_defaults: Dict = {
@@ -102,11 +100,10 @@ class MPTConfig(PretrainedConfig):
                 alibi (bool): Whether to use the alibi bias instead of position embeddings.
                 alibi_bias_max (int): The maximum value of the alibi bias.
                 rope (bool): Whether to use rotary positional embeddings.
-                rope_imp (str): The implementation of rope to use. One of 'hf_llama' or 'flash'.
+                rope_type (str): The type of rope to use. Options: 'original', 'xpos'
                 rope_theta (int): The base frequency for rope.
-                rope_scaling (Dict): A dictionary used to configure rope's scaling behavior (when scaling beyond the training length)
-                    type (str): Can be one of 'no_scaling', 'linear', or 'dynamic'. 'no_scaling' uses the default implementation for rotary embeddings, 'linear' uses linear scaling as proposed by the Reddit user /u/kaiokendev, and 'dynamic' uses Dynamic NTK scaling as proposed by the Reddit users /u/bloc97 and /u/emozilla.
-                    factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling.type.
+                rope_pos_idx_in_fp32 (bool): Whether to use fp32 as the dtype for rope positional indices.
+                xpos_scale_base (float): The scale base for XPos.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
                 ffn_type (str): type of ffn to use. Options: mptmlp, te_ln_mlp
@@ -221,6 +218,9 @@ class MPTConfig(PretrainedConfig):
             raise NotImplementedError(
                 'attn_uses_sequence_id only implemented with torch and triton attention.'
             )
+        if self.attn_config['rope'] and (self.attn_config['rope_type'] not in ['original', 'xpos']):
+            raise NotImplementedError(
+                'rope_type must be one of "original" or "xpos".')                 
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
                 'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!'
@@ -249,18 +249,6 @@ class MPTConfig(PretrainedConfig):
                     + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
                     'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
                 )
-        if self.attn_config['rope_imp'] not in [
-                'hf_llama', 'flash'
-        ]:
-            raise ValueError(
-                'rope_imp should be either "hf_llama", or "flash".'
-            )
-        if self.attn_config['rope_scaling']['type'] not in [
-                'no_scaling', 'linear', 'dynamic'
-        ]:
-            raise ValueError(
-                'rope_scaling.type should be one of "no_scaling", "linear" or "dynamic".'
-            )
         if self.ffn_config['ffn_type'] == 'mptmlp':
             self.ffn_config['fc_type'] = self.fc_type
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':

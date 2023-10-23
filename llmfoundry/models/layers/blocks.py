@@ -42,12 +42,10 @@ class MPTBlock(nn.Module):
                 'alibi': False,
                 'alibi_bias_max': 8,
                 'rope': False,
-                'rope_imp': 'hf_llama',
+                'rope_type': 'original',
                 'rope_theta': 10000,
-                'rope_scaling': {
-                    'type': 'no_scaling',
-                    'factor': 1.0
-                }
+                'rope_pos_idx_in_fp32': False,
+                'xpos_scale_base': 512,
             }
 
         if ffn_config is None:
@@ -70,9 +68,10 @@ class MPTBlock(nn.Module):
             'attn_uses_sequence_id',
             'alibi_bias_max',
             'rope',
-            'rope_imp',
+            'rope_type',
             'rope_theta',
-            'rope_scaling',
+            'rope_pos_idx_in_fp32',
+            'xpos_scale_base',
         }
         attn_config_subset_for_attn_class = {
             k: v

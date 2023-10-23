@@ -15,7 +15,6 @@ from torch import nn
 
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-from llmfoundry.models.layers.rotary_embedding import apply_rotary_pos_emb
 
 
 def is_flash_v2_installed():
@@ -586,27 +585,13 @@ class GroupedQueryAttention(nn.Module):
         if rotary_emb_w_meta_info is not None:
             query = query.view(*(query.shape[:-1]), -1, self.head_dim)
             key = key.view(*(key.shape[:-1]), -1, self.head_dim)
+            value = value.view(*(value.shape[:-1]), -1, self.head_dim)
 
-            rotary_emb = rotary_emb_w_meta_info['rotary_emb']
-            seq_len = rotary_emb_w_meta_info['seq_len']
-            pos = rotary_emb_w_meta_info['pos']
-            if rotary_emb_w_meta_info['imp'] == 'hf_llama':
-                (cos, sin) = rotary_emb(query, seq_len)
-                query, key = apply_rotary_pos_emb(query,
-                                                key,
-                                                cos,
-                                                sin,
-                                                pos,
-                                                dim_heads_index=2)
-            elif rotary_emb_w_meta_info['imp'] == 'flash':
-                value = value.view(*(value.shape[:-1]), -1, self.head_dim)
-
-                kv = torch.stack([key, value], dim=2)
-                query, kv = rotary_emb(query, kv, seqlen_offset=pos, max_seqlen=seq_len)
-                [key, value] = torch.unbind(kv, dim=2)
-                
-                value = value.view(*(value.shape[:-2]), self.kv_n_heads * self.head_dim)
-
+            kv = torch.stack([key, value], dim=2)
+            query, kv = rotary_emb_w_meta_info['rotary_emb'](query, kv, seqlen_offset=rotary_emb_w_meta_info['pos'], max_seqlen=rotary_emb_w_meta_info['seq_len'])
+            [key, value] = torch.unbind(kv, dim=2)
+            
+            value = value.view(*(value.shape[:-2]), self.kv_n_heads * self.head_dim)
             query = query.view(*(query.shape[:-2]), self.d_model)
             key = key.view(*(key.shape[:-2]), self.kv_n_heads * self.head_dim)
 

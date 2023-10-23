@@ -560,9 +560,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
         use_cache = (use_cache
                      if use_cache is not None else self.config.use_cache)
 
-        if input_ids is not None and inputs_embeds is not None:
-            raise ValueError(
-                'You cannot specify both input_ids and inputs_embeds.')
         outputs = self.transformer(
             input_ids=input_ids,
             inputs_embeds=inputs_embeds,

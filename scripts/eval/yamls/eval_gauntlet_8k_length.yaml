@@ -10,15 +10,6 @@ eval_gauntlet:
   categories:
   - name: 2k
     benchmarks:
-    - name: wikiqa_beginning_2k
-      num_fewshot: 0
-      random_baseline: 0
-    - name: wikiqa_middle_2k
-      num_fewshot: 0
-      random_baseline: 0
-    - name: wikiqa_end_2k
-      num_fewshot: 0
-      random_baseline: 0
     - name: hotpotqa_beginning_2k
       num_fewshot: 0
       random_baseline: 0
@@ -28,13 +19,63 @@ eval_gauntlet:
     - name: hotpotqa_end_2k
       num_fewshot: 0
       random_baseline: 0
-    - name: kv_beginning_2k
+    - name: kv_pairs_beginning_2k
       num_fewshot: 0
       random_baseline: 0
-    - name: kv_pairs_2k
+    - name: kv_pairs_middle_2k
       num_fewshot: 0
       random_baseline: 0
-    - name: kv_end_2k
+    - name: kv_pairs_end_2k
       num_fewshot: 0
       random_baseline: 0
+    - name: wikiqa_2k
+      num_fewshot: 0
+      random_baseline: 0
+  - name: 4k 
+    benchmarks:
+    - name: hotpotqa_beginning_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_middle_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_end_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_beginning_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_middle_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_end_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: wikiqa_4k
+      num_fewshot: 0
+      random_baseline: 0
+  - name: 8k 
+    benchmarks:
+    - name: hotpotqa_beginning_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_middle_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_end_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_beginning_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_middle_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_end_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: wikiqa_8k
+      num_fewshot: 0
+      random_baseline: 0
+ 
  

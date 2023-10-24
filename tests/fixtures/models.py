@@ -27,7 +27,7 @@ def mpt_tokenizer():
 
 
 @fixture
-def build_mpt(
+def build_tiny_mpt(
     mpt_tokenizer: PreTrainedTokenizerBase
 ) -> Callable[..., ComposerMPTCausalLM]:
 
@@ -48,7 +48,7 @@ def build_mpt(
 
 
 @fixture
-def build_hf_mpt(
+def build_tiny_hf_mpt(
     mpt_tokenizer: PreTrainedTokenizerBase
 ) -> Callable[..., ComposerHFCausalLM]:
 

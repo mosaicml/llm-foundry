@@ -17,14 +17,14 @@ from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
 def test_init_hfhub_mpt(
     device: str,
     attn_impl: str,
-    build_hf_mpt: Callable[..., ComposerHFCausalLM],
+    build_tiny_hf_mpt: Callable[..., ComposerHFCausalLM],
     mpt_tokenizer: PreTrainedTokenizerBase,
 ):
     if device == 'cpu' and attn_impl == 'triton':
         pytest.skip(f'{attn_impl=} not implemented for {device=}.')
     composer_device = get_device(device)
 
-    model = build_hf_mpt(composer_device,
+    model = build_tiny_hf_mpt(composer_device,
                          attn_config={
                              'attn_impl': attn_impl,
                              'attn_uses_sequence_id': False,

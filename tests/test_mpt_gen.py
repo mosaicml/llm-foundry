@@ -59,7 +59,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
 @patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
        new=MockMPTForCausalLM)
 def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
-                                build_mpt: Callable[..., ComposerMPTCausalLM],
+                                build_tiny_mpt: Callable[..., ComposerMPTCausalLM],
                                 mpt_tokenizer: PreTrainedTokenizerBase):
     """Tests mpt generation with mutiple gpus.
 
@@ -67,7 +67,7 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
     """
     device = get_device('gpu')
 
-    model = build_mpt(
+    model = build_tiny_mpt(
         device,
         attn_config={
             'attn_impl': attn_impl,
@@ -89,13 +89,12 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
 
 
 @pytest.mark.gpu
-def test_mpt_generate_callback(tmpdir: Path,
-                               build_mpt: Callable[..., ComposerMPTCausalLM],
+def test_mpt_generate_callback(build_tiny_mpt: Callable[..., ComposerMPTCausalLM],
                                tiny_ft_dataloader: DataLoader):
     device = get_device('gpu')
 
     # build mpt model
-    model = build_mpt(device)
+    model = build_tiny_mpt(device)
 
     # generate callback
     prompts = [

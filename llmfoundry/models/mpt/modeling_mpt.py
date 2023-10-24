@@ -8,6 +8,7 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 import math
 import warnings
+from functools import cached_property, partial
 from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
                     Union)
 
@@ -22,9 +23,17 @@ from composer.metrics import (InContextLearningCodeEvalAccuracy,
                               InContextLearningQAAccuracy)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
-from composer.utils import dist
+from composer.utils import dist, get_device
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from torch.distributed._tensor import (DeviceMesh, Shard, distribute_module,
+                                       distribute_tensor)
+from torch.distributed.tensor.parallel import (ColwiseParallel, RowwiseParallel,
+                                               make_input_replicate_1d,
+                                               make_sharded_output_tensor,
+                                               parallelize_module)
+from torch.distributed.tensor.parallel._utils import _create_1d_device_mesh
+from torch.distributed.tensor.parallel.fsdp import enable_2d_with_fsdp
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.modeling_outputs import (BaseModelOutputWithPast,
                                            CausalLMOutputWithPast)
@@ -75,6 +84,47 @@ class MPTPreTrainedModel(PreTrainedModel):
     base_model_prefix = 'model'
     _no_split_modules = ['MPTBlock']
 
+def rearrange_tensor(t: torch.Tensor, n_devices: int, d_model: int,
+                     head_dim: int, kv_n_heads: int):
+    # Split output dim into three chunks: query proj. weights, key proj. weights, value proj. weights
+    # The Wqkv projection is a (n_heads * head_dim + 2 * kv_n_heads * head_dim, d_model)-dim tensor.
+    # The projection Wqkv(x) in the attention module will eventually be split into
+    # Q, K, V tensors with the split (n_heads * head_dim, kv_n_heads * head_dim, kv_n_heads * head_dim).
+    # As a result, each device should have a 1/n_devices fraction of the rows of each chunk responsible for a projection
+    # in order for numerical equivalence.
+    t_chunks = torch.split(
+        t, [d_model, kv_n_heads * head_dim, kv_n_heads * head_dim], dim=0)
+
+    # For each chunk, split d_model (dim=0) into n_devices chunks
+    # this ends up sampling a 1/n_devices fraction of the rows for each chunk
+    sub_chunks = [
+        torch.chunk(chunk, chunks=n_devices, dim=0) for chunk in t_chunks
+    ]
+
+    # concatenate the q, k, v chunks for each device
+    new_chunks = [
+        torch.cat([sub_chunk[i]
+                   for sub_chunk in sub_chunks], dim=0)
+        for i in range(n_devices)
+    ]
+
+    return torch.cat(new_chunks, dim=0)
+
+
+def shard_qkv(
+    mod_name: str,
+    mod: nn.Module,
+    mesh: DeviceMesh,
+    d_model: int,
+    head_dim: int,
+    kv_n_heads: int,
+):
+    placement = [Shard(0)]
+    rearr_weight = rearrange_tensor(mod.weight, mesh.size(), d_model, head_dim,
+                                    kv_n_heads)
+    rearr_weight_param = torch.nn.Parameter(rearr_weight)
+    mod.weight = torch.nn.Parameter(
+        distribute_tensor(rearr_weight_param, mesh, placement))
 
 class MPTModel(MPTPreTrainedModel):
 
@@ -83,6 +133,8 @@ class MPTModel(MPTPreTrainedModel):
         super().__init__(config)
 
         self.attn_impl = config.attn_config['attn_impl']
+        self.tensor_parallel_qkvo = config.attn_config['tensor_parallel_qkvo']
+        self.tp_world_size = config.attn_config['tp_world_size']
         self.prefix_lm = config.attn_config['prefix_lm']
         self.attn_uses_sequence_id = config.attn_config['attn_uses_sequence_id']
         self.alibi = config.attn_config['alibi']
@@ -128,6 +180,72 @@ class MPTModel(MPTPreTrainedModel):
                 f'We recommend using config.init_device="meta" with Composer + FSDP for faster initialization.'
             )
             self.apply(self.param_init_fn)
+        
+        if self.tensor_parallel_qkvo:
+            device_type = 'cuda' if get_device(None).name == 'gpu' else 'cpu'
+            world_size = dist.get_world_size()
+            node_count = world_size // dist.get_local_world_size()
+            # Configures intranode tensor parallelism
+            twod_mesh = DeviceMesh(
+                device_type=device_type,
+                mesh=torch.arange(0, world_size).view(node_count, -1),
+                mesh_dim_names=['ep', 'tp'],
+            )
+            new_blocks = nn.ModuleList()
+            torch.set_printoptions(profile='full', sci_mode=False)
+            for block in self.blocks:
+                qkv_module = block.get_submodule('attn.Wqkv')
+                oned_mesh = _create_1d_device_mesh(twod_mesh, tp_mesh_dim=1)
+
+                kv_n_heads = config.n_heads
+                if config.attn_config['attn_type'] == 'grouped_query_attention':
+                    kv_n_heads = config.attn_config['kv_n_heads']
+                elif config.attn_config['attn_type'] == 'multiquery_attention':
+                    raise NotImplementedError(
+                        'Tensor parallel currently does not work for multiquery attention.'
+                    )
+
+                # Megatron trick:
+                #   Shard qkv module column wise
+                #   Shard output projection row wise
+                # Note: since PyTorch does not support interleaved sharding yet, we need to
+                # manually rearrange the weight tensors since the QKV projection is fused.
+                distribute_module(
+                    qkv_module,
+                    oned_mesh,
+                    partition_fn=partial(shard_qkv,
+                                         d_model=config.d_model,
+                                         head_dim=config.d_model //
+                                         config.n_heads,
+                                         kv_n_heads=kv_n_heads),
+                    input_fn=make_input_replicate_1d,
+                    output_fn=make_sharded_output_tensor,
+                )
+
+                block = parallelize_module(
+                    module=block,
+                    device_mesh=twod_mesh,
+                    parallelize_plan={
+                        'attn.out_proj': RowwiseParallel(),
+                    },
+                    tp_mesh_dim=1,
+                )
+
+                # Call to parallelize_module moves params to gpu if they are cpu params.
+                # Move them back to cpu so that FSDP wrapping sees all params on cpu.
+                # Othewise FSDP wrapping fails as it sees some params on cpu and others on gpu.
+                assert config.init_device == 'cpu'
+                if config.init_device == 'cpu':
+                    block = block.to('cpu')
+                new_blocks.append(block)
+            self.blocks = new_blocks
+            print('Tensor parallelism initialized...')
+
+            # This call is needed to register the hooks to be compatible with FSDP
+            if not enable_2d_with_fsdp():
+                raise RuntimeError(
+                    'Failed to enable 2D parallelism with FSDP. Please check your environment.'
+                )
 
         self.is_causal = not self.prefix_lm
 

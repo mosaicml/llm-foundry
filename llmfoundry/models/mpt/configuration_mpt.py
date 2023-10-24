@@ -14,6 +14,8 @@ attn_config_defaults: Dict = {
     'attn_impl': 'triton',
     'qk_ln': False,
     'clip_qkv': None,
+    'tensor_parallel_qkvo': False,
+    'tp_world_size': None,
     'softmax_scale': None,
     'prefix_lm': False,
     'attn_uses_sequence_id': False,
@@ -83,6 +85,8 @@ class MPTConfig(PretrainedConfig):
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
                 clip_qkv (Optional[float]): If not None, clip the queries, keys, and values in the attention layer to
                     this value.
+                tensor_parallel_qkvo (bool): Whether to implement tensor parallel attention projections
+                tp_world_size (Optional[Int]): Must be set if tensor_parallel_qkvo is True. The number of GPUs to use for tensor parallelism.
                 softmax_scale (Optional[float]): If not None, scale the softmax in the attention layer by this value. If None,
                     use the default scale of ``1/sqrt(d_keys)``.
                 prefix_lm (Optional[bool]): Whether the model should operate as a Prefix LM. This requires passing an

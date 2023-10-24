@@ -79,6 +79,8 @@ def scaled_multihead_dot_product_attention(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
+    tensor_parallel_qkvo: bool = False,
+    tp_world_size: Optional[int] = None,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
 
@@ -95,9 +97,19 @@ def scaled_multihead_dot_product_attention(
             ))
         kv_n_heads = n_heads
 
-    q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
-    k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
-    v = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
+    if tensor_parallel_qkvo:
+        assert tp_world_size is not None
+        q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads // tp_world_size)
+        k = rearrange(key,
+                      'b s (h d) -> b h d s',
+                      h=kv_n_heads // tp_world_size)
+        v = rearrange(value,
+                      'b s (h d) -> b h s d',
+                      h=kv_n_heads // tp_world_size)
+    else:
+        q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
+        k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
+        v = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
     if past_key_value is not None:
         # attn_impl: flash & triton use kernels which expect input shape [b, s, h, d_head].
@@ -346,6 +358,9 @@ def triton_flash_attn_fn(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
+    tensor_parallel_qkvo: bool = False,
+    tp_world_size: Optional[int] = None,
+
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
@@ -429,9 +444,21 @@ def triton_flash_attn_fn(
             ~key_padding_mask.view((b_size, 1, 1, s_k)),
             torch.finfo(query.dtype).min)
 
-    query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
-    key = rearrange(key, 'b s (h d) -> b s h d', h=kv_n_heads)
-    value = rearrange(value, 'b s (h d) -> b s h d', h=kv_n_heads)
+    if tensor_parallel_qkvo:
+        assert tp_world_size is not None
+        query = rearrange(query,
+                          'b s (h d) -> b s h d',
+                          h=n_heads // tp_world_size)
+        key = rearrange(key,
+                        'b s (h d) -> b s h d',
+                        h=kv_n_heads // tp_world_size)
+        value = rearrange(value,
+                          'b s (h d) -> b s h d',
+                          h=kv_n_heads // tp_world_size)
+    else:
+        query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
+        key = rearrange(key, 'b s (h d) -> b s h d', h=kv_n_heads)
+        value = rearrange(value, 'b s (h d) -> b s h d', h=kv_n_heads)
 
     # multi-query case
     if kv_n_heads == 1:
@@ -473,6 +500,8 @@ class GroupedQueryAttention(nn.Module):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        tensor_parallel_qkvo: bool = False,
+        tp_world_size: Optional[int] = None,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -485,6 +514,9 @@ class GroupedQueryAttention(nn.Module):
         self.attn_impl = attn_impl
         self.clip_qkv = clip_qkv
         self.qk_ln = qk_ln
+
+        self.tensor_parallel_qkvo = tensor_parallel_qkvo
+        self.tp_world_size = tp_world_size
 
         self.d_model = d_model
         self.n_heads = n_heads
@@ -564,14 +596,26 @@ class GroupedQueryAttention(nn.Module):
         if self.clip_qkv:
             qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
-        query, key, value = qkv.split(
-            [
-                self.d_model,
-                self.kv_n_heads * self.head_dim,
-                self.kv_n_heads * self.head_dim,
-            ],
-            dim=2,
-        )
+        if self.tensor_parallel_qkvo:
+            # If tensor parallelism is used, each of the QKV tensors gets a
+            # 1 / tp_world_size fraction of the original split.
+            query, key, value = qkv.split(
+                [
+                    self.d_model // self.tp_world_size,
+                    self.kv_n_heads * self.head_dim // self.tp_world_size,
+                    self.kv_n_heads * self.head_dim // self.tp_world_size,
+                ],
+                dim=2,
+            )
+        else:
+            query, key, value = qkv.split(
+                [
+                    self.d_model,
+                    self.kv_n_heads * self.head_dim,
+                    self.kv_n_heads * self.head_dim,
+                ],
+                dim=2,
+            )
 
         key_padding_mask = attention_mask
 
@@ -595,6 +639,8 @@ class GroupedQueryAttention(nn.Module):
             dropout_p=self.attn_dropout_p,
             training=self.training,
             needs_weights=needs_weights,
+            tensor_parallel_qkvo=self.tensor_parallel_qkvo,
+            tp_world_size=self.tp_world_size,
         )
 
         return self.out_proj(context), attn_weights, past_key_value
@@ -614,6 +660,8 @@ class MultiheadAttention(GroupedQueryAttention):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        tensor_parallel_qkvo: bool = False,
+        tp_world_size: Optional[int] = None,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -627,7 +675,11 @@ class MultiheadAttention(GroupedQueryAttention):
             kv_n_heads=n_heads,  # for MHA, same # heads as kv groups
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
+            tensor_parallel_qkvo=tensor_parallel_qkvo,
+            tp_world_size=tp_world_size,
             qk_ln=qk_ln,
+            tensor_parallel_qkvo=tensor_parallel_qkvo,
+            tp_world_size=tp_world_size,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
@@ -651,6 +703,8 @@ class MultiQueryAttention(GroupedQueryAttention):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        tensor_parallel_qkvo: bool = False,
+        tp_world_size: Optional[int] = None,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -665,6 +719,8 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
+            tensor_parallel_qkvo=tensor_parallel_qkvo,
+            tp_world_size=tp_world_size,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,

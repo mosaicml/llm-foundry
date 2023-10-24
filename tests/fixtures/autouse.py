@@ -27,8 +27,11 @@ def clear_cuda_cache(request: pytest.FixtureRequest):
         torch.cuda.empty_cache()
         gc.collect()  # Only gc on GPU tests as it 2x slows down CPU tests
 
+@pytest.fixture
+def random_seed() -> int:
+    return 17
 
 @pytest.fixture(autouse=True)
-def seed_all():
+def seed_all(random_seed: int):
     """Sets the seed for reproducibility."""
-    reproducibility.seed_all(17)
+    reproducibility.seed_all(random_seed)

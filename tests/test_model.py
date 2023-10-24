@@ -56,8 +56,6 @@ def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
         message='Torchmetrics v0.9 introduced a new argument class property')
     test_cfg = get_config(conf_path=conf_path)
 
-    reproducibility.seed_all(test_cfg.seed)
-
     # Read FSDP Config as a dict
     fsdp_config = test_cfg.get('fsdp_config', None)
     fsdp_config = om.to_container(fsdp_config,
@@ -316,7 +314,6 @@ def test_determinism(attn_impl: str, precision: torch.dtype):
         pytest.skip(
             'This test requires CUDA to be available in order to run with bfloat16 precision.'
         )
-    reproducibility.seed_all(1111)
 
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
@@ -393,8 +390,6 @@ def test_loss_fn():
         'name': 'baseline_',
         'init_std': 0.02,
     }
-
-    reproducibility.seed_all(test_cfg.get('global_seed', 42))
 
     tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
@@ -537,7 +532,6 @@ def test_forward_with_padding(attention_impl: str, device: str, alibi: bool):
     if alibi and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
-    reproducibility.seed_all(1234)
     composer_device = get_device(device)
 
     hf_config = MPTConfig(
@@ -716,7 +710,6 @@ def test_generate(attention_impl: str, device: str, alibi: bool):
     if alibi and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
-    reproducibility.seed_all(1234)
     composer_device = get_device(device)
 
     hf_config = MPTConfig(
@@ -776,14 +769,12 @@ def test_generate(attention_impl: str, device: str, alibi: bool):
                                           use_cache=False)
         assert batched_generation.shape == (2, 6 + 5)
 
-        reproducibility.seed_all(1234)
         generation_with_left_padding = mpt.generate(
             input_ids=left_padding_input_ids,
             attention_mask=left_padding_attention_mask,
             max_new_tokens=5,
             use_cache=False)
         assert generation_with_left_padding.shape == (2, 6 + 5)
-        reproducibility.seed_all(1234)
         generation_with_no_padding = mpt.generate(
             input_ids=no_padding_input_ids,
             attention_mask=no_padding_attention_mask,
@@ -1007,14 +998,12 @@ def test_forward_with_cache(attn_impl: str, device: str, alibi: bool):
             'init_std': 0.02,
         },
     )
-    reproducibility.seed_all(1234)
     mpt = MPTForCausalLM(hf_config)
     mpt = composer_device.module_to_device(mpt)
     mpt.eval()
 
     with get_precision_context('amp_bf16' if composer_device.name ==
                                'gpu' else 'fp32'):
-        reproducibility.seed_all(1234)
         first_input_ids = torch.tensor([[11274, 16390, 11]])
         first_input_ids = composer_device.tensor_to_device(first_input_ids)
         first_attention_mask = torch.tensor([[1, 1, 1]]).bool()
@@ -1040,7 +1029,6 @@ def test_forward_with_cache(attn_impl: str, device: str, alibi: bool):
             assert all(past_key_value[1].shape == (1, 3, 128)
                        for past_key_value in first_output.past_key_values)
 
-        reproducibility.seed_all(1234)
         second_input_ids = torch.tensor([[11274, 16390, 11, 11274]])
         second_input_ids = composer_device.tensor_to_device(second_input_ids)
         second_attention_mask = torch.tensor([[1, 1, 1, 1]]).bool()
@@ -1070,7 +1058,6 @@ def test_forward_with_cache(attn_impl: str, device: str, alibi: bool):
             assert all(past_key_value[1].shape == (1, 4, 128)
                        for past_key_value in second_output.past_key_values)
 
-        reproducibility.seed_all(1234)
         # pass through the first four tokens without the key-value cache
         full_output = mpt(second_input_ids,
                           attention_mask=second_attention_mask)
@@ -1205,7 +1192,6 @@ def test_model_to(attention_impl: str, alibi: bool):
             'init_std': 0.02,
         },
     )
-    reproducibility.seed_all(1234)
     mpt = MPTForCausalLM(hf_config)
     mpt = mpt.bfloat16()
     mpt = mpt.to('cuda')
@@ -1318,14 +1304,12 @@ def test_forward_with_output_attentions_and_output_hidden_states(
             'init_std': 0.02,
         },
     )
-    reproducibility.seed_all(1234)
     mpt = MPTForCausalLM(hf_config)
     mpt = composer_device.module_to_device(mpt)
     mpt.eval()
 
     with get_precision_context('amp_bf16' if composer_device.name ==
                                'gpu' else 'fp32'):
-        reproducibility.seed_all(1234)
         input_ids = torch.tensor([[11274, 16390, 11]])
         input_ids = composer_device.tensor_to_device(input_ids)
         attention_mask = torch.tensor([[1, 1, 1]]).bool()

@@ -19,7 +19,7 @@ from llmfoundry.models.layers.llama_attention_monkeypatch import (
     'model_name', ['meta-llama/Llama-2-7b-hf', 'meta-llama/Llama-2-70b-hf'])
 @pytest.mark.gpu
 def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
-                           model_name: str):
+                           model_name: str, random_seed: int):
     if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
         pytest.skip(
             'The CI cluster does not have access to the Llama models, so skip this test.'
@@ -50,12 +50,10 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
 
     llama_config = transformers.AutoConfig.from_pretrained(model_name,
                                                            use_auth_token=True)
-
-    reproducibility.seed_all(42)
     attention = LlamaAttention(config=llama_config,)
     attention.to(dtype=dtype, device=device)
 
-    rng = torch.Generator(device=device).manual_seed(42)
+    rng = torch.Generator(device=device).manual_seed(random_seed)
     hidden_states = torch.randn(batch_size,
                                 sequence_length,
                                 model_dim,
@@ -77,7 +75,6 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
         use_cache=False,
     )
 
-    reproducibility.seed_all(42)
     LlamaAttention.forward = patch_fn
     attention = LlamaAttention(config=llama_config,)
     attention.to(dtype=dtype, device=device)

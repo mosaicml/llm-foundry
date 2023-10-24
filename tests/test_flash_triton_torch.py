@@ -39,8 +39,6 @@ def test_attn_impl(attn_impl_0: str,
     if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'):
         pytest.xfail('flash attn does not support alibi')
 
-    reproducibility.seed_all(7)
-
     cfg = om.create({
         'attn_impl': 'flash',
         'd_model': 128,
@@ -134,8 +132,6 @@ def test_attn_impl(attn_impl_0: str,
 def test_vs_mha(attn_impl: str, device: str = 'cuda'):
     """Compare diff attn_impl to torch.nn.MultiheadAttention."""
     from llmfoundry.models.layers import attention
-
-    reproducibility.seed_all(17)
 
     cfg = om.create({
         'attn_impl': attn_impl,
@@ -234,8 +230,6 @@ def test_grouped_attention_heads(attn_impl: str,
     """Ensure grouped_query_attention runs w/ diff n_heads & kv_n_heads."""
     from llmfoundry.models.layers import attention
 
-    reproducibility.seed_all(17)
-
     cfg = om.create({
         'attn_impl': attn_impl,
         'd_model': 256,
@@ -272,8 +266,6 @@ def test_grouped_attention_heads(attn_impl: str,
 def test_grouped_query_invalid_heads(attn_impl: str, device: str = 'cuda'):
     """Check indivisble combinations of grouped_query_attention."""
     from llmfoundry.models.layers import attention
-
-    reproducibility.seed_all(17)
 
     cfg = om.create({
         'attn_impl': attn_impl,

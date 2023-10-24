@@ -52,9 +52,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     batch_size = 2  # set batch size
     device = 'cuda'  # set decive
 
-    # ensure reproducibility
-    seed = 17
-    reproducibility.seed_all(seed)  # set seed
+
 
     # get hf gpt2 cfg
     hf_cfg = om.create({
@@ -154,11 +152,9 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
 
     # UTIL: can be used to verify that models are not the same at init
     with torch.autocast(device_type='cuda', dtype=torch.float16):
-        torch.manual_seed(seed)
         hf_model_fwd = hf_model(batch)['logits']
         if kpm is not None:
             hf_model_fwd *= kpm
-        torch.manual_seed(seed)
         model_fwd = model(batch).logits
         if kpm is not None:
             model_fwd *= kpm
@@ -208,11 +204,9 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     model.load_state_dict(_hf_model_statedict)
 
     with torch.autocast(device_type=device, dtype=torch.float16):
-        torch.manual_seed(seed)
         hf_model_fwd = hf_model(batch)['logits']
         if kpm is not None:
             hf_model_fwd *= kpm
-        torch.manual_seed(seed)
         model_fwd = model(batch).logits
         if kpm is not None:
             model_fwd *= kpm

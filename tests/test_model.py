@@ -1125,7 +1125,6 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str,
         # check that the outputs are the same with or without padding
         if pos_emb_config[
                 'rope']:  # RoPE uses bf16 precision, which causes some differences between the outputs of padded and unpadded inputs.
-            breakpoint()
             torch.testing.assert_close(
                 second_output_no_padding.logits,
                 second_output_padding.logits[:, -1, :].unsqueeze(1),

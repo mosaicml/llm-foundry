@@ -42,8 +42,6 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
             'The CI cluster does not have access to the Llama models, so skip this test.'
         )
 
-    # original_forward = LlamaAttention.forward
-
     device = 'cuda:0'
     sequence_length = 4096
     model_dim = 4096 if '7b' in model_name else 8192
@@ -96,7 +94,6 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
 
     reproducibility.seed_all(42)
     with patch.object(LlamaAttention, 'forward', new=patch_fn):
-        # LlamaAttention.forward = patch_fn
         attention = LlamaAttention(config=llama_config,)
         attention.to(dtype=dtype, device=device)
         new_output, _, _ = attention(
@@ -106,9 +103,6 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
             past_key_value=None,
             use_cache=False,
         )
-
-        # # Reset the forward function so patches don't persist
-        # LlamaAttention.forward = original_forward
 
     assert torch.allclose(attn_output, new_output, atol=atol, rtol=rtol)
 

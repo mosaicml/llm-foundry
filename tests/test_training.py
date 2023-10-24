@@ -167,14 +167,14 @@ def test_train_gauntlet(set_correct_cwd: Any, tmp_path: pathlib.Path):
     inmemorylogger = trainer.logger.destinations[
         0]  # pyright: ignore [reportGeneralTypeIssues]
     assert isinstance(inmemorylogger, InMemoryLogger)
-    assert 'icl/metrics/eval_gauntlet/average' in inmemorylogger.data.keys()
-    assert isinstance(inmemorylogger.data['icl/metrics/eval_gauntlet/average'],
+    assert 'icl/metrics/eval_gauntlet/default_average' in inmemorylogger.data.keys()
+    assert isinstance(inmemorylogger.data['icl/metrics/eval_gauntlet/default_average'],
                       list)
-    assert len(inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1]) > 0
+    assert len(inmemorylogger.data['icl/metrics/eval_gauntlet/default_average'][-1]) > 0
     assert isinstance(
-        inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1], tuple)
+        inmemorylogger.data['icl/metrics/eval_gauntlet/default_average'][-1], tuple)
 
-    assert inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1][-1] == 0
+    assert inmemorylogger.data['icl/metrics/eval_gauntlet/default_average'][-1][-1] == 0
 
 
 def test_train_multi_eval(set_correct_cwd: Any, tmp_path: pathlib.Path):

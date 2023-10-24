@@ -24,6 +24,14 @@ class Weighting(Enum):
 
 def calculate_named_averages(average_names: Dict[str, list],
                              category_scores: Dict[str, float]):
+    """Calculates the named averages based off the raw category scores.
+
+    For each named average, take a simple average of all the category scores associated with that named average.
+
+    Args:
+        average_names (dict[str, list]):  Contains a mapping of named averages to which category scores that average should consist of.
+        category_scores (dict[str, float]): Contains the raw scores corresponding to each category.
+    """
     average_scores = {}
     for avg_name, category_list in average_names.items():
         composite_subset = {
@@ -31,9 +39,11 @@ def calculate_named_averages(average_names: Dict[str, list],
             for category, score in category_scores.items()
             if category in category_list
         }
-        average_scores[avg_name] = sum(composite_subset.values()) / len(
-            composite_subset.values()) if len(
-                composite_subset.values()) > 0 else 0
+        if len(composite_subset.values()) > 0:
+            average_scores[avg_name] = sum(composite_subset.values()) / len(
+                composite_subset.values())
+        else:
+            average_scores[avg_name] = 0
 
     return average_scores
 
@@ -47,7 +57,7 @@ class EvalGauntlet(Callback):
     Args:
         logger_keys (list): These are the exact keys that the individual benchmark metrics will be
                             logged under in the logger after eval
-        tasks (dict): This contains the list of categories, as well as the subtasks within them, the
+        categories (dict): This contains the list of categories, as well as the subtasks within them, the
                       random baseline accuracy of each subtask, and the number of fewshot examples
                       used for the task. See `llmfoundry/scripts/eval/yamls/eval_gauntlet.yaml` to see the structure.
         weighting (Weighting): The weighting scheme used to balance different tasks within each category.
@@ -59,7 +69,7 @@ class EvalGauntlet(Callback):
         rescale_accuracy (bool): Flag determining whether to rescale the accuracy on each benchmark
                                  by (1-random_baseline_accuracy) before aggregating. Using this ensures that all benchmarks max out at 1.0.
         benchmark_sizes (Optional[dict]): Optional data on benchmark sizes, used when not relying on equal weighting.
-        averages (Optional[dict]): Optional specification on how to which categories to average together and the name under which to report each average.
+        averages (Optional[dict]): Optional dictionary specifying a mapping from a average names to lists of categories used produce each named average.
     """
 
     def __init__(self,
@@ -84,7 +94,7 @@ class EvalGauntlet(Callback):
             )
 
         self.categories = categories
-        self.category_names = [conf.get('name', '') for conf in self.categories]
+        self.category_names = [conf.get('name') for conf in self.categories]
         self.weighting = Weighting[weighting]
         self.subtract_random_baseline = subtract_random_baseline
         self.rescale_accuracy = rescale_accuracy
@@ -114,10 +124,10 @@ class EvalGauntlet(Callback):
 
         self.averages = {}
         if averages is not None:
-            self.averages = dict(averages)
+            self.averages = averages
         else:
             # if no averages spec provided, simply average everything
-            self.averages['global_average'] = self.category_names
+            self.averages['default_average'] = self.category_names
 
         for avg_name in self.averages:
             if avg_name in self.category_names:

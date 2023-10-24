@@ -57,7 +57,16 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         self.model_name = model_name
         self.encoding_name = encoding_name
 
-        if self.model_name is not None:
+        if self.model_name == 'gpt-4-chatml':
+            # this is the gpt-4 tokenizer with two additional special tokens
+            from tiktoken_ext.openai_public import cl100k_base
+
+            encoding_kwargs = cl100k_base()
+            encoding_kwargs['name'] = encoding_kwargs['name'].replace('base', 'chat')
+            encoding_kwargs['special_tokens']['<|im_start|>'] = 100261
+            encoding_kwargs['special_tokens']['<|im_end|>'] = 100262
+            self.encoding = tiktoken.Encoding(**encoding_kwargs)
+        elif self.model_name is not None:
             self.encoding = tiktoken.encoding_for_model(  # type: ignore (thirdParty)
                 self.model_name)
         elif self.encoding_name is not None:

@@ -572,7 +572,7 @@ def test_forward_with_padding(attention_impl: str, device: str,
     alibi = pos_emb_config['alibi']
     if alibi and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
-    
+
     rope = pos_emb_config['rope']
     if rope and device == 'cpu':
         pytest.skip(f'rope only implemented for gpus.')
@@ -663,15 +663,16 @@ def test_forward_with_padding(attention_impl: str, device: str,
                              attention_mask=batched_attention_mask).logits
 
         # check that right padding and left padding produce the same output
-        if rope:##########################################
+        if rope:  # RoPE uses bf16 precision, which causes some differences between the outputs of padded and unpadded inputs.
             assert torch.allclose(right_padding_output[0, :3],
                                   left_padding_output[0, 3:],
                                   rtol=1e-2,
                                   atol=1e-2)
         else:
-            assert torch.allclose(right_padding_output[0, :3],
-                                left_padding_output[0, 3:],
-                                atol=1e-6 if attention_impl == 'torch' else 1e-8)
+            assert torch.allclose(
+                right_padding_output[0, :3],
+                left_padding_output[0, 3:],
+                atol=1e-6 if attention_impl == 'torch' else 1e-8)
         if not (alibi or rope):
             # check that right padding and middle padding produce the same output
             # Note: alibi not implemented for middle padding.
@@ -680,16 +681,17 @@ def test_forward_with_padding(attention_impl: str, device: str,
                 middle_padding_output[0, [0, 1, 5]],
                 atol=1e-6 if attention_impl == 'torch' else 1e-8)
         # check that right padding and right padding in a batch produce the same output
-        
-        if rope:##########################################
+
+        if rope:  # RoPE uses bf16 precision, which causes some differences between the outputs of padded and unpadded inputs.
             assert torch.allclose(right_padding_output[0, :3],
                                   left_padding_output[0, 3:],
                                   rtol=1e-2,
                                   atol=1e-2)
         else:
-            assert torch.allclose(right_padding_output[0, :3],
-                              batched_output[0, :3],
-                              atol=1e-6 if attention_impl == 'torch' else 1e-8)
+            assert torch.allclose(
+                right_padding_output[0, :3],
+                batched_output[0, :3],
+                atol=1e-6 if attention_impl == 'torch' else 1e-8)
         if not (alibi or rope):
             # check that middle padding and middle padding in a batch produce the same output
             # Note: alibi not implemented for middle padding.
@@ -757,8 +759,7 @@ def test_advanced_mask_building(attention_impl: str):
 @pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),
                                                    ('flash', 'gpu'),
                                                    ('triton', 'gpu'),
-                                                   ('torch', 'gpu')
-                                                   ])
+                                                   ('torch', 'gpu')])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
     'rope': False
@@ -803,7 +804,7 @@ def test_generate(attention_impl: str, device: str, pos_emb_config: dict):
         )
     if pos_emb_config['alibi'] and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
-    
+
     if pos_emb_config['rope'] and device == 'cpu':
         pytest.skip(f'rope only implemented for gpus.')
 
@@ -990,6 +991,7 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
 
     check_hf_model_equivalence(mpt, mpt2)
 
+
 @pytest.mark.parametrize('attn_impl,device', [
     ('torch', 'cpu'),
     ('flash', 'gpu'),
@@ -1031,7 +1033,8 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
     'rope_pos_idx_in_fp32': True,
     'xpos_scale_base': 512,
 }])
-def test_forward_with_cache_and_padding(attn_impl: str, device: str, pos_emb_config: dict):
+def test_forward_with_cache_and_padding(attn_impl: str, device: str,
+                                        pos_emb_config: dict):
     # Tests that the result is the same with or without padding when using kv caching
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
@@ -1067,11 +1070,14 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str, pos_emb_con
     mpt = MPTForCausalLM(hf_config)
     mpt = composer_device.module_to_device(mpt)
     mpt.eval()
-    with get_precision_context('amp_bf16' if composer_device.name == 'gpu' else 'fp32'):
+    with get_precision_context('amp_bf16' if composer_device.name ==
+                               'gpu' else 'fp32'):
         first_input_ids_no_padding = torch.tensor([[11274, 16390, 11]])
-        first_input_ids_no_padding = composer_device.tensor_to_device(first_input_ids_no_padding)
+        first_input_ids_no_padding = composer_device.tensor_to_device(
+            first_input_ids_no_padding)
         first_attention_mask_no_padding = torch.tensor([[1, 1, 1]]).bool()
-        first_attention_mask_no_padding = composer_device.tensor_to_device(first_attention_mask_no_padding)
+        first_attention_mask_no_padding = composer_device.tensor_to_device(
+            first_attention_mask_no_padding)
 
         # start with passing the first three tokens through (no padding)
         first_output_no_padding = mpt(
@@ -1079,9 +1085,11 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str, pos_emb_con
             attention_mask=first_attention_mask_no_padding)
 
         second_input_ids_no_padding = torch.tensor([[11274, 16390, 11, 11274]])
-        second_input_ids_no_padding = composer_device.tensor_to_device(second_input_ids_no_padding)
+        second_input_ids_no_padding = composer_device.tensor_to_device(
+            second_input_ids_no_padding)
         second_attention_mask_no_padding = torch.tensor([[1, 1, 1, 1]]).bool()
-        second_attention_mask_no_padding = composer_device.tensor_to_device(second_attention_mask_no_padding)
+        second_attention_mask_no_padding = composer_device.tensor_to_device(
+            second_attention_mask_no_padding)
 
         # pass through the fourth token by itself, using the key-value cache (no padding)
         second_output_no_padding = mpt(
@@ -1090,18 +1098,23 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str, pos_emb_con
             past_key_values=first_output_no_padding.past_key_values)
 
         first_input_ids_padding = torch.tensor([[50256, 11274, 16390, 11]])
-        first_input_ids_padding = composer_device.tensor_to_device(first_input_ids_padding)
+        first_input_ids_padding = composer_device.tensor_to_device(
+            first_input_ids_padding)
         first_attention_mask_padding = torch.tensor([[0, 1, 1, 1]]).bool()
-        first_attention_mask_padding = composer_device.tensor_to_device(first_attention_mask_padding)
+        first_attention_mask_padding = composer_device.tensor_to_device(
+            first_attention_mask_padding)
 
         # start with passing the first three tokens through (with left padding)
         first_output_padding = mpt(first_input_ids_padding,
-                                attention_mask=first_attention_mask_padding)
+                                   attention_mask=first_attention_mask_padding)
 
-        second_input_ids_padding = torch.tensor([[50256, 11274, 16390, 11, 11274]])
-        second_input_ids_padding = composer_device.tensor_to_device(second_input_ids_padding)
+        second_input_ids_padding = torch.tensor(
+            [[50256, 11274, 16390, 11, 11274]])
+        second_input_ids_padding = composer_device.tensor_to_device(
+            second_input_ids_padding)
         second_attention_mask_padding = torch.tensor([[0, 1, 1, 1, 1]]).bool()
-        second_attention_mask_padding = composer_device.tensor_to_device(second_attention_mask_padding)
+        second_attention_mask_padding = composer_device.tensor_to_device(
+            second_attention_mask_padding)
 
         # pass through the fourth token by itself, using the key-value cache (with left padding)
         second_output_padding = mpt(
@@ -1110,18 +1123,20 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str, pos_emb_con
             past_key_values=first_output_padding.past_key_values)
 
         # check that the outputs are the same with or without padding
-        if pos_emb_config['rope']: ##########################################
-            torch.testing.assert_close(second_output_no_padding.logits,
-                        second_output_padding.logits[:,
-                                                        -1, :].unsqueeze(1),
-                        atol=1e-2,
-                        rtol=1e-6)
+        if pos_emb_config[
+                'rope']:  # RoPE uses bf16 precision, which causes some differences between the outputs of padded and unpadded inputs.
+            breakpoint()
+            torch.testing.assert_close(
+                second_output_no_padding.logits,
+                second_output_padding.logits[:, -1, :].unsqueeze(1),
+                atol=1e-2,
+                rtol=1e-6)
         else:
-            torch.testing.assert_close(second_output_no_padding.logits,
-                                    second_output_padding.logits[:,
-                                                                    -1, :].unsqueeze(1),
-                                    atol=1e-6,
-                                    rtol=1e-6)
+            torch.testing.assert_close(
+                second_output_no_padding.logits,
+                second_output_padding.logits[:, -1, :].unsqueeze(1),
+                atol=1e-6,
+                rtol=1e-6)
 
 
 @pytest.mark.parametrize('attn_impl,device', [
@@ -1174,7 +1189,7 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
         )
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
-    
+
     if pos_emb_config['rope'] and device == 'cpu':
         pytest.skip(f'rope only implemented for gpus.')
 
@@ -1358,6 +1373,7 @@ def test_generate_with_past_kv(pos_emb_config: dict):
         assert kwargs['past_key_values'][0][0].shape == (1, 3,
                                                          hf_config.d_model)
 
+
 @pytest.mark.parametrize('attn_impl,device', [
     ('torch', 'cpu'),
     ('flash', 'gpu'),
@@ -1410,16 +1426,17 @@ def test_generate_with_past_kv(pos_emb_config: dict):
     'rope_pos_idx_in_fp32': True,
     'xpos_scale_base': 512,
 }])
-def test_generation_kwargs_dont_crash(attn_impl: str, device: str, generation_kwargs: Dict[str, Any],
+def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
+                                      generation_kwargs: Dict[str, Any],
                                       pos_emb_config: dict):
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
-    
+
     if pos_emb_config['rope'] and device == 'cpu':
         pytest.skip(f'rope only implemented for gpus.')
-    
+    reproducibility.seed_all(1234)
     composer_device = get_device(device)
-    if device=='gpu':
+    if device == 'gpu':  # Switch deteminism off
         torch.use_deterministic_algorithms(False)
     hf_config = MPTConfig(
         init_device='cpu',
@@ -1441,18 +1458,20 @@ def test_generation_kwargs_dont_crash(attn_impl: str, device: str, generation_kw
     mpt.eval()
 
     with get_precision_context('amp_bf16' if composer_device.name ==
-                            'gpu' else 'fp32'):
+                               'gpu' else 'fp32'):
         # no padding in the input
         no_padding_input_ids = torch.tensor([[11274, 16390, 11]])
-        no_padding_input_ids = composer_device.tensor_to_device(no_padding_input_ids)
+        no_padding_input_ids = composer_device.tensor_to_device(
+            no_padding_input_ids)
         no_padding_attention_mask = torch.tensor([[1, 1, 1]])
-        no_padding_attention_mask = composer_device.tensor_to_device(no_padding_attention_mask)
+        no_padding_attention_mask = composer_device.tensor_to_device(
+            no_padding_attention_mask)
 
         _ = mpt.generate(input_ids=no_padding_input_ids,
-                        attention_mask=no_padding_attention_mask,
-                        **generation_kwargs)
-    if device=='gpu':
-        torch.use_deterministic_algorithms(True)
+                         attention_mask=no_padding_attention_mask,
+                         **generation_kwargs)
+    if device == 'gpu':  # Switch deteminism back on
+        reproducibility.configure_deterministic_mode()  #
 
 
 @pytest.mark.gpu

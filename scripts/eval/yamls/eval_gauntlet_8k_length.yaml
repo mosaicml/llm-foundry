@@ -72,5 +72,3 @@ eval_gauntlet:
     - name: wikiqa_8k
       num_fewshot: 0
       random_baseline: 0
- 
- 

@@ -112,13 +112,6 @@ icl_tasks:
   num_fewshot: [10]
   icl_task_type: multiple_choice
 -
-  label: bigbench_strategy_qa_cot
-  dataset_uri: eval/local_data/commonsense_reasoning/bigbench_strategy_qa_cot.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [3]
-  icl_task_type: question_answering
-  cot_delimiter: " The answer is "
-  continuation_delimiter: "Let's think step by step. "
--
   label: lambada_openai
   dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
   num_fewshot: [0]

@@ -54,10 +54,10 @@ eval_gauntlet:
       num_fewshot: 0
       random_baseline: 0.5
     - name: siqa
-      num_fewshot: 0
+      num_fewshot: 10
       random_baseline: 0.5
     - name: commonsense_qa
-      num_fewshot: 0
+      num_fewshot: 10
       random_baseline: 0.25
     - name: piqa
       num_fewshot: 10
@@ -74,9 +74,6 @@ eval_gauntlet:
     - name: bigbench_strategy_qa
       num_fewshot: 10
       random_baseline: 0.5
-    - name: bigbench_strategy_qa_cot
-      num_fewshot: 3
-      random_baseline: 0.0
   - name: language_understanding
     benchmarks:
     - name: lambada_openai

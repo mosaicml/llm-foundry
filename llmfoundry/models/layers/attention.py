@@ -588,10 +588,15 @@ class GroupedQueryAttention(nn.Module):
             value = value.view(*(value.shape[:-1]), -1, self.head_dim)
 
             kv = torch.stack([key, value], dim=2)
-            query, kv = rotary_emb_w_offset_info['rotary_embedding'](query, kv, seqlen_offset=rotary_emb_w_offset_info['seqlen_offset'], max_seqlen=rotary_emb_w_offset_info['max_seqlen'])
+            query, kv = rotary_emb_w_offset_info['rotary_embedding'](
+                query,
+                kv,
+                seqlen_offset=rotary_emb_w_offset_info['seqlen_offset'],
+                max_seqlen=rotary_emb_w_offset_info['max_seqlen'])
             [key, value] = torch.unbind(kv, dim=2)
-            
-            value = value.view(*(value.shape[:-2]), self.kv_n_heads * self.head_dim)
+
+            value = value.view(*(value.shape[:-2]),
+                               self.kv_n_heads * self.head_dim)
             query = query.view(*(query.shape[:-2]), self.d_model)
             key = key.view(*(key.shape[:-2]), self.kv_n_heads * self.head_dim)
 

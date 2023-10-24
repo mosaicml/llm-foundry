@@ -218,6 +218,7 @@ def main(cfg: DictConfig) -> Trainer:
             'PYTORCH_CUDA_ALLOC_CONF'] = f'max_split_size_mb:{max_split_size_mb}'
 
     # Set CUDA lazy loading
+    # This can save a bit of memory if not all modules are needed
     cuda_load_lazy: bool = cfg.pop('cuda_load_lazy', True)
     if cuda_load_lazy:
         os.environ['CUDA_MODULE_LOADING'] = 'LAZY'

@@ -6,7 +6,7 @@ import pathlib
 import shutil
 import sys
 from argparse import Namespace
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 from composer.loggers import InMemoryLogger
@@ -113,10 +113,11 @@ def set_correct_cwd():
     if os.getcwd().endswith('llm-foundry/scripts'):
         os.chdir('..')
 
-@pytest.mark.parametrize('averages', [
-    {"core_average": ["language_understanding_lite"]}, None
-])
-def test_train_gauntlet(averages, set_correct_cwd: Any, tmp_path: pathlib.Path):
+
+@pytest.mark.parametrize('averages', [{
+    'core_average': ['language_understanding_lite']
+}, None])
+def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any, tmp_path: pathlib.Path):
     """Test training run with a small dataset."""
     dataset_name = create_c4_dataset_xsmall(tmp_path)
     test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
@@ -173,16 +174,19 @@ def test_train_gauntlet(averages, set_correct_cwd: Any, tmp_path: pathlib.Path):
         0]  # pyright: ignore [reportGeneralTypeIssues]
     assert isinstance(inmemorylogger, InMemoryLogger)
 
-
     category_name = 'default_average' if averages is None else 'core_average'
-    assert f'icl/metrics/eval_gauntlet/{category_name}' in inmemorylogger.data.keys()
-    assert isinstance(inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'],
-                      list)
-    assert len(inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'][-1]) > 0
+    assert f'icl/metrics/eval_gauntlet/{category_name}' in inmemorylogger.data.keys(
+    )
     assert isinstance(
-        inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'][-1], tuple)
+        inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'], list)
+    assert len(inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}']
+               [-1]) > 0
+    assert isinstance(
+        inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'][-1],
+        tuple)
 
-    assert inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'][-1][-1] == 0
+    assert inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'][
+        -1][-1] == 0
 
 
 def test_train_multi_eval(set_correct_cwd: Any, tmp_path: pathlib.Path):

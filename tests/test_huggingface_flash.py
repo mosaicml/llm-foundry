@@ -3,6 +3,7 @@
 
 import contextlib
 import os
+from unittest.mock import patch
 
 import pytest
 import torch
@@ -41,7 +42,7 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
             'The CI cluster does not have access to the Llama models, so skip this test.'
         )
 
-    original_forward = LlamaAttention.forward
+    # original_forward = LlamaAttention.forward
 
     device = 'cuda:0'
     sequence_length = 4096
@@ -94,19 +95,20 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
     )
 
     reproducibility.seed_all(42)
-    LlamaAttention.forward = patch_fn
-    attention = LlamaAttention(config=llama_config,)
-    attention.to(dtype=dtype, device=device)
-    new_output, _, _ = attention(
-        hidden_states=hidden_states,
-        attention_mask=causal_mask if explicit_mask else None,
-        position_ids=None,
-        past_key_value=None,
-        use_cache=False,
-    )
+    with patch.object(LlamaAttention, 'forward', new=patch_fn):
+        # LlamaAttention.forward = patch_fn
+        attention = LlamaAttention(config=llama_config,)
+        attention.to(dtype=dtype, device=device)
+        new_output, _, _ = attention(
+            hidden_states=hidden_states,
+            attention_mask=causal_mask if explicit_mask else None,
+            position_ids=None,
+            past_key_value=None,
+            use_cache=False,
+        )
 
-    # Reset the forward function so patches don't persist
-    LlamaAttention.forward = original_forward
+        # # Reset the forward function so patches don't persist
+        # LlamaAttention.forward = original_forward
 
     assert torch.allclose(attn_output, new_output, atol=atol, rtol=rtol)
 

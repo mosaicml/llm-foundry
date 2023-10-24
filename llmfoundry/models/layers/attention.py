@@ -675,8 +675,6 @@ class MultiheadAttention(GroupedQueryAttention):
             kv_n_heads=n_heads,  # for MHA, same # heads as kv groups
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
-            tensor_parallel_qkvo=tensor_parallel_qkvo,
-            tp_world_size=tp_world_size,
             qk_ln=qk_ln,
             tensor_parallel_qkvo=tensor_parallel_qkvo,
             tp_world_size=tp_world_size,

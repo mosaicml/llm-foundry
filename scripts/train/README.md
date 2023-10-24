@@ -375,7 +375,8 @@ HuggingFace models currently only support Flash Attention V2.
 For Llama specifically, we have another option if you would like to use the Triton implementation of Flash Attention. You can specify this in your YAML like so:
 ```yaml
 model:
-    name: llama
+    name: hf_causal_lm
+    pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
     attention_patch_type: triton
     ...
 ```

@@ -3,13 +3,14 @@
 
 import logging
 import os
+import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from composer import algorithms
-from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
-                                OptimizerMonitor, RuntimeEstimator,
-                                SpeedMonitor)
+from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
+                                MemoryMonitor, OptimizerMonitor,
+                                RuntimeEstimator, SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -26,12 +27,13 @@ from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
-                                  GlobalLRScaling, HuggingFaceCheckpointer,
-                                  LayerFreezing, MonolithicCheckpointSaver,
+from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
+                                  HuggingFaceCheckpointer, LayerFreezing,
+                                  MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
+from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
 log = logging.getLogger(__name__)
@@ -89,7 +91,21 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
             'log_optimizer_metrics', True),)
     elif name == 'generate_callback':
         prompts = kwargs.pop('prompts')
-        return Generate(prompts=list(prompts), **kwargs)
+        interval = kwargs.pop('interval', None)
+        # Generate callback used to be batch_log_interval, so this is for backwards compatibility
+        if interval is None:
+            batch_log_interval: str = kwargs.pop('batch_log_interval', '')
+            if batch_log_interval:
+                interval = f'{batch_log_interval}ba'
+                warnings.warn(
+                    ('generate_callback.batch_log_interval is deprecated and will be removed in a future release.'
+                     f'Please use interval: {interval}'),
+                    DeprecationWarning,
+                )
+            else:
+                raise KeyError(
+                    '"interval" must be specified with generate callback')
+        return Generate(prompts=list(prompts), interval=interval, **kwargs)
     elif name == 'global_lr_scaling':
         return GlobalLRScaling(**kwargs)
     elif name == 'layer_freezing':
@@ -158,6 +174,8 @@ def build_scheduler(name: str,
         return ConstantWithWarmupScheduler(**scheduler_config)
     elif name == 'cosine_with_warmup':
         return CosineAnnealingWithWarmupScheduler(**scheduler_config)
+    elif name == 'inv_sqrt_with_warmup':
+        return InverseSquareRootWithWarmupScheduler(**scheduler_config)
     elif name == 'linear_decay_with_warmup':
         return LinearWithWarmupScheduler(**scheduler_config)
     else:

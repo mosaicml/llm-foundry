@@ -1,9 +1,11 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import copy
+import gc
 import logging
 import os
 import sys
+import time
 import warnings
 from typing import Any, Dict, List, Optional, Union
 
@@ -11,6 +13,11 @@ import torch
 from composer import Trainer
 from composer.core import Evaluator
 from composer.core.callback import Callback
+from composer.loggers import MosaicMLLogger
+from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
+                                              MOSAICML_PLATFORM_ENV_VAR)
+from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
+                               cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -210,6 +217,12 @@ def main(cfg: DictConfig) -> Trainer:
         os.environ[
             'PYTORCH_CUDA_ALLOC_CONF'] = f'max_split_size_mb:{max_split_size_mb}'
 
+    # Set CUDA lazy loading
+    # This can save a bit of memory if not all modules are needed
+    cuda_load_lazy: bool = cfg.pop('cuda_load_lazy', True)
+    if cuda_load_lazy:
+        os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
+
     # Set seed first
     seed: int = pop_config(cfg, 'seed', must_exist=True)
     reproducibility.seed_all(seed)
@@ -383,10 +396,18 @@ def main(cfg: DictConfig) -> Trainer:
                                          'load_weights_only',
                                          must_exist=False,
                                          default_value=False)
+    load_strict_model_weights: bool = pop_config(cfg,
+                                                 'load_strict_model_weights',
+                                                 must_exist=False,
+                                                 default_value=True)
     load_ignore_keys: Optional[List[str]] = pop_config(cfg,
                                                        'load_ignore_keys',
                                                        must_exist=False,
                                                        default_value=None)
+    compile_config: Optional[Dict[str, Any]] = pop_config(cfg,
+                                                          'compile_config',
+                                                          must_exist=False,
+                                                          default_value=None)
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
     if logged_cfg.get('run_name', None) is not None \
@@ -452,7 +473,44 @@ def main(cfg: DictConfig) -> Trainer:
     loggers = [
         build_logger(str(name), logger_cfg)
         for name, logger_cfg in logger_configs.items()
-    ] if logger_configs else None
+    ] if logger_configs else []
+
+    mosaicml_logger = next(
+        (logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
+        None)
+    if mosaicml_logger is None:
+        if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
+        ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
+            # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
+            mosaicml_logger = MosaicMLLogger()
+            loggers.append(mosaicml_logger)
+
+    # Profiling
+    profiler: Optional[Profiler] = None
+    profiler_cfg: Optional[DictConfig] = pop_config(cfg,
+                                                    'profiler',
+                                                    must_exist=False,
+                                                    convert=False,
+                                                    default_value=None)
+    if profiler_cfg:
+        profiler_schedule_cfg: Dict = pop_config(profiler_cfg,
+                                                 'schedule',
+                                                 must_exist=True,
+                                                 convert=True)
+        profiler_schedule = cyclic_schedule(**profiler_schedule_cfg)
+        # Only support json trace handler
+        profiler_trace_handlers: List[TraceHandler] = []
+        profiler_trace_cfg: Optional[Dict] = pop_config(profiler_cfg,
+                                                        'json_trace_handler',
+                                                        must_exist=False,
+                                                        default_value=None,
+                                                        convert=True)
+        if profiler_trace_cfg:
+            profiler_trace_handlers.append(
+                JSONTraceHandler(**profiler_trace_cfg))
+        profiler = Profiler(**profiler_cfg,
+                            trace_handlers=profiler_trace_handlers,
+                            schedule=profiler_schedule)
 
     # Callbacks
     callbacks: List[Callback] = [
@@ -473,6 +531,10 @@ def main(cfg: DictConfig) -> Trainer:
         tokenizer,
         device_train_batch_size,
     )
+
+    if mosaicml_logger is not None:
+        mosaicml_logger.log_metrics({'data_validated': time.time()})
+
     ## Evaluation
     print('Building eval loader...')
     evaluators = []
@@ -567,15 +629,19 @@ def main(cfg: DictConfig) -> Trainer:
         save_weights_only=save_weights_only,
         load_path=load_path,
         load_weights_only=load_weights_only,
+        load_strict_model_weights=load_strict_model_weights,
         load_ignore_keys=load_ignore_keys,
         autoresume=autoresume,
         python_log_level=python_log_level,
         dist_timeout=dist_timeout,
+        profiler=profiler,
+        compile_config=compile_config,
     )
 
     print('Logging config')
     log_config(logged_cfg)
     torch.cuda.empty_cache()
+    gc.collect()
 
     # Eval first if requested
     if eval_first and trainer.state.timestamp.batch.value == 0:

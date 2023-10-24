@@ -25,8 +25,7 @@ from transformers import (AutoConfig, AutoModelForCausalLM,
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
-from llmfoundry.models.layers.llama_attention_monkeypatch import \
-    get_llama_attention_patch_fn
+from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 
 try:
@@ -97,11 +96,27 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             # load the model config
             trust_remote_code = om_model_config.get('trust_remote_code', True)
             use_auth_token = om_model_config.get('use_auth_token', False)
+            use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
+                                                        False)
+            if use_flash_attention_2 and not is_flash_v2_installed():
+                raise ValueError(
+                    'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
+                    + 'Please install flash_attn==2.3.2`.')
+
             config = AutoConfig.from_pretrained(
                 om_model_config.pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
             )
+
+            # This is not how you are supposed to set this, but transformers currently only
+            # supports enabling flash attention 2 when using the from_pretrained API.
+            # We need to support it for both from_pretrained and from_config, so we have to
+            # set the private attribute here. This will just skip all of transformers'
+            # validation logic that it is ok to use flash attention 2, so we check
+            # whether it is installed above, and whether the chosen config supports it here.
+            # https://github.com/huggingface/transformers/issues/26878
+            config._flash_attn_2_enabled = use_flash_attention_2
 
             # set config overrides
             for k, v in om_model_config.get('config_overrides', {}).items():
@@ -202,6 +217,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 )
                 from transformers.models.llama.modeling_llama import \
                     LlamaAttention
+
+                from llmfoundry.models.layers.llama_attention_monkeypatch import \
+                    get_llama_attention_patch_fn
                 LlamaAttention.forward = get_llama_attention_patch_fn(
                     attention_patch_type)
                 model.config.use_cache = False

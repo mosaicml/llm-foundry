@@ -8,7 +8,6 @@ import shutil
 import sys
 import tempfile
 from argparse import Namespace
-
 from typing import Any, Optional
 from unittest.mock import MagicMock
 

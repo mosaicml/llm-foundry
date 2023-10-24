@@ -7,11 +7,9 @@ from composer import DataSpec
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.data.text_data import build_text_dataloader
-
 from llmfoundry.data.denoising import build_text_denoising_dataloader
-
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
+from llmfoundry.data.text_data import build_text_dataloader
 
 
 def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,

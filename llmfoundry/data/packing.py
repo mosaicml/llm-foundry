@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
-from composer import DataSpec
 
 import numpy as np
 import torch
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
+
 
 class BinPackCollator:
     """Utility collator for packing to reduce padding."""
@@ -57,9 +57,11 @@ class BinPackCollator:
 
     def __call__(
             self,
-            examples: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+            examples: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
+        return self.pack(batch)
 
+    def pack(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         assert 'attention_mask' in batch
         assert 'input_ids' in batch
 
@@ -93,14 +95,14 @@ class BinPackCollator:
 
         # Re-pad to max_seq_len and batch
         batch = _repad(packed_examples,
-                      max_seq_len=self.max_seq_len,
-                      pad_token_id=self.pad_token_id,
-                      padding_side=self.padding_side)
+                       max_seq_len=self.max_seq_len,
+                       pad_token_id=self.pad_token_id,
+                       padding_side=self.padding_side)
         return batch
 
 
 def _extract_trim_batch_idx(batch: Dict[str, torch.Tensor],
-                           idx: int) -> Tuple[int, Dict[str, torch.Tensor]]:
+                            idx: int) -> Tuple[int, Dict[str, torch.Tensor]]:
     example = {k: v[idx] for k, v in batch.items()}
 
     keep = example['attention_mask'] == 1
@@ -225,7 +227,7 @@ def _first_fit_bin_packing(
 
 
 def _repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
-          pad_token_id: int, padding_side: str) -> Dict[str, torch.Tensor]:
+           pad_token_id: int, padding_side: str) -> Dict[str, torch.Tensor]:
 
     def pad_tensor(tensor: torch.Tensor, pad_value: int):
         if len(tensor) == max_seq_len:
@@ -286,19 +288,22 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
         if waste > 0:
             break
         packing_ratio = packing_ratio_candidate
-    
+
     # Select the minimum packing ratio across all ranks.
-    if torch.cuda.is_available() and dist.is_available() and dist.is_initialized():
+    if torch.cuda.is_available() and dist.is_available(
+    ) and dist.is_initialized():
         device = get_device('gpu')
-        packing_ratio_tensor = device.tensor_to_device(torch.tensor(packing_ratio))
+        packing_ratio_tensor = device.tensor_to_device(
+            torch.tensor(packing_ratio))
         dist.all_reduce(packing_ratio_tensor, reduce_operation='MIN')
         packing_ratio = packing_ratio_tensor.item()
     return packing_ratio
 
-def profile_packing(dataloader_cfg: DictConfig,
-                    tokenizer: PreTrainedTokenizerBase, min_ratio: float,
-                    max_ratio: float, num_packing_ratios: int,
-                    device_batch_size: int) -> Iterable[Tuple[float, float, float]]:
+
+def profile_packing(
+        dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+        min_ratio: float, max_ratio: float, num_packing_ratios: int,
+        device_batch_size: int) -> Iterable[Tuple[float, float, float]]:
     """Generator function that profiles example packing across packing ratios.
 
     Args:
@@ -313,10 +318,12 @@ def profile_packing(dataloader_cfg: DictConfig,
         An iterable of tuples of packing ratio, padding, and waste.
     """
     import copy
+
     from llmfoundry.data.dataloader import build_dataloader
 
     max_seq_len = dataloader_cfg.dataset.get('max_seq_len')
-    max_leftovers_to_keep = dataloader_cfg.dataset.get('max_leftovers_to_keep', None)
+    max_leftovers_to_keep = dataloader_cfg.dataset.get('max_leftovers_to_keep',
+                                                       None)
 
     # Turn off packing for the dataloader (we want raw, pre-packed examples)
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
@@ -340,7 +347,8 @@ def profile_packing(dataloader_cfg: DictConfig,
 
     n_profile_examples = max(raw_batch_sizes) * 100
 
-    train_dataspec = build_dataloader(dataloader_cfg, tokenizer, n_profile_examples)
+    train_dataspec = build_dataloader(dataloader_cfg, tokenizer,
+                                      n_profile_examples)
     train_dataloader = train_dataspec.dataloader
 
     # Get a bunch of raw examples
@@ -370,7 +378,7 @@ def profile_packing(dataloader_cfg: DictConfig,
         for batch in split_big_batch(raw_batch_size):
             if batch['input_ids'].shape[0] < device_batch_size:
                 continue
-            _ = packer(batch)
+            _ = packer.pack(batch)
 
         # Return the padding / waste stats over that bunch of data
         padding_percent = 100 * (1 - packer.efficiency)

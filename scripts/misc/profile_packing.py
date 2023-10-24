@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Script to profile example packing."""
+import os
 from typing import Any, Dict
 
 from llmfoundry.data.packing import profile_packing
-
 
 if __name__ == '__main__':
     from argparse import ArgumentParser, Namespace

@@ -24,6 +24,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM)
+from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_data_and_gauntlet,
                                        build_logger, build_optimizer,
@@ -31,8 +32,6 @@ from llmfoundry.utils.builders import (build_algorithm, build_callback,
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
-
-from llmfoundry.data.dataloader import build_dataloader
 
 
 def validate_config(cfg: DictConfig):
@@ -166,6 +165,7 @@ def print_trainable_parameters(model: torch.nn.Module) -> None:
     print(
         f'trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}'
     )
+
 
 def main(cfg: DictConfig) -> Trainer:
     # Filter deprecation warning from torch internal usage

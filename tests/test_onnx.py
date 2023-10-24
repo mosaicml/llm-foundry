@@ -4,7 +4,6 @@
 import pathlib
 
 import torch
-from composer.utils import reproducibility
 from transformers import AutoModelForCausalLM
 
 from llmfoundry import MPTConfig, MPTForCausalLM

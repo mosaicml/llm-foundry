@@ -5,7 +5,6 @@ from typing import Optional
 
 import pytest
 import torch
-from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
@@ -51,8 +50,6 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     conf_path = 'scripts/train/yamls/pretrain/mpt-125m.yaml'  # set cfg path
     batch_size = 2  # set batch size
     device = 'cuda'  # set decive
-
-
 
     # get hf gpt2 cfg
     hf_cfg = om.create({

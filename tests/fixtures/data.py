@@ -47,8 +47,11 @@ def tiny_ft_dataloader(tiny_ft_dataset_path: str,
         'timeout': 0
     })
 
-    return build_finetuning_dataloader(
+    dataloader = build_finetuning_dataloader(
         dataloader_cfg,
         mpt_tokenizer,
         device_batch_size,
-    )
+    ).dataloader
+
+    assert isinstance(dataloader, DataLoader)
+    return dataloader

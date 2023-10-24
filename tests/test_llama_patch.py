@@ -6,7 +6,6 @@ import os
 import pytest
 import torch
 import transformers
-from composer.utils import reproducibility
 from transformers.models.llama.modeling_llama import LlamaAttention
 
 from llmfoundry.models.layers.llama_attention_monkeypatch import (

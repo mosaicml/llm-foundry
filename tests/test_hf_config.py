@@ -9,7 +9,6 @@ from typing import Any, Dict, Mapping
 
 import pytest
 import torch
-from composer.utils import reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import AutoModelForCausalLM

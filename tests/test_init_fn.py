@@ -8,7 +8,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import pytest
 import torch
-from composer.utils import reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch import nn

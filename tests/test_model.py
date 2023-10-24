@@ -16,7 +16,7 @@ from accelerate import init_empty_weights
 from composer.core.precision import Precision, get_precision_context
 from composer.optim import DecoupledAdamW
 from composer.trainer.dist_strategy import prepare_fsdp_module
-from composer.utils import dist, get_device, reproducibility
+from composer.utils import dist, get_device
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import (AutoModelForCausalLM, AutoTokenizer, PreTrainedModel,

@@ -3,7 +3,6 @@
 
 import pytest
 import torch
-from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
 
 

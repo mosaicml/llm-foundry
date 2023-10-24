@@ -31,7 +31,7 @@ You can also modify the specific benchmarks executed and their formatting by mod
 
 
 ### Evaluation during training
-To run evaluatio during training, download this repo, follow the instructions in `scripts/train/README.md` to perform single node pre-training and run the following commands
+To run evaluation during training, download this repo, follow the instructions in `scripts/train/README.md` to perform single node pre-training and run the following commands
 
 <!--pytest.mark.skip-->
 ```bash
@@ -45,7 +45,7 @@ You can also modify the specific benchmarks executed and their formatting by mod
 
 ICL evaluation can be done offline via the `scripts/eval/eval.py` or during training via `scripts/train/train.py`.
 
-In order to do ICL evaluation you must specify a set of benchmarks you'd like to run via the `icl_tasks` key in your eval/training config. `icl_tasks` can either consist of config, or it can be a file path pointing to a locally accessible YAML config (see `scripts/eval/yamls/icl_tasks.yaml` for an example).
+In order to do ICL evaluation you must specify a set of benchmarks you'd like to run via the `icl_tasks` key in your eval/training config. `icl_tasks` can either consist of config, or it can be a file path pointing to a locally accessible YAML config (see `scripts/eval/yamls/tasks.yaml` for an example).
 
 
 #### ICL task YAML format

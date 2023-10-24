@@ -45,14 +45,19 @@ MODEL_ENCODING_NAME_PARAMETRIZATION = [
 
 
 def get_tokenizers_for_testing(
-    model_name: Optional[str], encoding_name: Optional[str],
-    tmp_path: pathlib.Path
+    model_name: Optional[str],
+    encoding_name: Optional[str],
+    tmp_path: pathlib.Path,
+    add_bos_token: bool = False,
+    add_eos_token: bool = False
 ) -> Tuple[TiktokenTokenizerWrapper, TiktokenTokenizerWrapper, 'Encoding']:
     tiktoken = pytest.importorskip('tiktoken')
 
     # Construction
     wrapped_tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
-                                                 encoding_name=encoding_name)
+                                                 encoding_name=encoding_name,
+                                                 add_bos_token=add_bos_token,
+                                                 add_eos_token=add_eos_token)
     if model_name is not None:
         original_tokenizer = tiktoken.encoding_for_model(model_name)
     else:
@@ -201,3 +206,29 @@ def test_tiktoken_save_from_pretrained(model_name: Optional[str],
         model_name, encoding_name, tmp_path)
     check_hf_tokenizer_equivalence(wrapped_tokenizer,
                                    reloaded_wrapped_tokenizer)
+
+
+@pytest.mark.parametrize('model_name,encoding_name',
+                         MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_tiktoken_encode_plus(model_name: Optional[str],
+                              encoding_name: Optional[str],
+                              tmp_path: pathlib.Path):
+    # Testing encode_plus which optionally wrap encodes with bos and eos tokens
+    wrapped_tokenizer, _, _ = get_tokenizers_for_testing(model_name,
+                                                         encoding_name,
+                                                         tmp_path,
+                                                         add_bos_token=True,
+                                                         add_eos_token=True)
+
+    for test_string in TEST_STRINGS:
+        encoded_outputs = wrapped_tokenizer.encode_plus(
+            test_string,
+            add_special_tokens=True,
+            return_special_tokens_mask=True)
+        encoded_input_ids = encoded_outputs.input_ids
+        assert encoded_input_ids[0] == wrapped_tokenizer.bos_token_id
+        assert encoded_input_ids[-1] == wrapped_tokenizer.eos_token_id
+
+        encoded_special_mask = encoded_outputs.special_tokens_mask
+        assert encoded_special_mask[0] == 1
+        assert encoded_special_mask[-1] == 1

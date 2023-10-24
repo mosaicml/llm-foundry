@@ -23,7 +23,7 @@ from composer.metrics import (InContextLearningCodeEvalAccuracy,
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
-from flash_attn.layers.rotary import RotaryEmbedding as FlashRotaryEmbedding
+from flash_attn.layers.rotary import RotaryEmbedding
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
@@ -126,7 +126,7 @@ class MPTModel(MPTPreTrainedModel):
 
         self.rope = config.attn_config['rope']
         if self.rope:
-            self.rotary_embedding = FlashRotaryEmbedding(
+            self.rotary_embedding = RotaryEmbedding(
                 dim=config.d_model // config.n_heads,
                 base=config.attn_config['rope_theta'],
                 interleaved=False,
@@ -374,7 +374,7 @@ class MPTModel(MPTPreTrainedModel):
             S <= self.config.max_seq_len
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
-        rotary_emb_w_meta_info = None
+        rotary_emb_w_offset_info = None
         x = self.wte(input_ids)
         if self.learned_pos_emb or self.rope:
             past_position = 0
@@ -399,7 +399,7 @@ class MPTModel(MPTPreTrainedModel):
                     +
                     f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
                 )
-            pos = 0
+
             if self.learned_pos_emb:
                 pos = torch.arange(
                     past_position,
@@ -414,17 +414,14 @@ class MPTModel(MPTPreTrainedModel):
                                            dim=1)[:, past_position:],
                         min=0,
                     )
-            elif self.rope:
-                pos = past_position
+                x = x + self.wpe(pos)
 
             if self.rope:
-                rotary_emb_w_meta_info = {
-                    'rotary_emb': self.rotary_embedding,
-                    'pos': pos,
-                    'seq_len': S + past_position,
-                }
-            if self.learned_pos_emb:
-                x = x + self.wpe(pos)
+                rotary_emb_w_offset_info = {
+                    'rotary_embedding': self.rotary_embedding,
+                    'seqlen_offset': past_position,
+                    'max_seqlen': S + past_position,
+                }                
 
         if self.embedding_fraction == 1:
             x = self.emb_drop(x)
@@ -461,7 +458,7 @@ class MPTModel(MPTPreTrainedModel):
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
-                rotary_emb_w_meta_info=rotary_emb_w_meta_info,
+                rotary_emb_w_offset_info=rotary_emb_w_offset_info,
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),

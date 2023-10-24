@@ -6,9 +6,7 @@ import torch
 from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
 
-from llmfoundry.models.layers.rotary_embedding import (
-    DynamicNTKScalingRotaryEmbedding, LinearScalingRotaryEmbedding,
-    RotaryEmbedding)
+from flash_attn.layers.rotary import RotaryEmbedding
 
 
 def allclose_helper(t0: torch.Tensor,
@@ -32,27 +30,31 @@ def allclose_helper(t0: torch.Tensor,
 }, {
     'alibi': False,
     'rope': True,
+    'rope_type': 'original',
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'no_scaling',
-        'factor': 1.0
-    }
+    'rope_pos_idx_in_fp32': False,
+    'xpos_scale_base': 512,
 }, {
     'alibi': False,
     'rope': True,
+    'rope_type': 'xpos',
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'linear',
-        'factor': 1.0
-    }
+    'rope_pos_idx_in_fp32': False,
+    'xpos_scale_base': 512,
 }, {
     'alibi': False,
     'rope': True,
+    'rope_type': 'original',
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'dynamic',
-        'factor': 1.0
-    }
+    'rope_pos_idx_in_fp32': True,
+    'xpos_scale_base': 512,
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_type': 'xpos',
+    'rope_theta': 10000,
+    'rope_pos_idx_in_fp32': True,
+    'xpos_scale_base': 512,
 }])
 @pytest.mark.parametrize(
     'attn_type',
@@ -88,7 +90,6 @@ def test_attn_impl(attn_impl_0: str,
 
     n, s, f = 2, 16, cfg.d_model
     assert cfg.d_model % cfg.n_heads == 0
-    rope_head_dim = cfg.d_model // cfg.n_heads
     if attn_type == 'grouped_query_attention':
         cfg.kv_n_heads = 2
 
@@ -124,31 +125,6 @@ def test_attn_impl(attn_impl_0: str,
 
         return attn_bias
 
-    def gen_rotary_emb():
-        if pos_emb_config['rope_scaling']['type'] == 'no_scaling':
-            return RotaryEmbedding(rope_head_dim,
-                                   max_position_embeddings=s,
-                                   base=pos_emb_config['rope_theta'],
-                                   device=device)
-        elif pos_emb_config['rope_scaling']['type'] == 'linear':
-            return LinearScalingRotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=s,
-                base=pos_emb_config['rope_theta'],
-                scaling_factor=pos_emb_config['rope_scaling']['factor'],
-                device=device)
-        elif pos_emb_config['rope_scaling']['type'] == 'dynamic':
-            return DynamicNTKScalingRotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=s,
-                base=pos_emb_config['rope_theta'],
-                scaling_factor=pos_emb_config['rope_scaling']['factor'],
-                device=device)
-        else:
-            raise ValueError(
-                'rope_scaling.type should be one no_scaling, linear, or dynamic'
-            )
-
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()
     x0.requires_grad = True
@@ -156,20 +132,21 @@ def test_attn_impl(attn_impl_0: str,
 
     with torch.autocast(x0.device.type):
         attn_bias = gen_bias(attn0.attn_impl)
-        pos = torch.arange(s).unsqueeze(0).to(device=device)
-        # adjust the position indices to account for padding tokens
-        pos = torch.clamp(
-            pos - torch.cumsum((~attention_mask).to(torch.int32), dim=1),
-            min=0,
-        )
 
         rotary_emb_w_offset_info = None
         if rope:
-            rotary_emb = gen_rotary_emb().to(device)
+            rotary_embedding = RotaryEmbedding(
+                dim=cfg.d_model // cfg.n_heads,
+                base=pos_emb_config['rope_theta'],
+                interleaved=False,
+                scale_base=pos_emb_config['xpos_scale_base'] if (pos_emb_config['rope_type'] == 'xpos') else None,
+                pos_idx_in_fp32=pos_emb_config['rope_pos_idx_in_fp32'],
+                device='cpu'
+                ).to(device)
             rotary_emb_w_offset_info = {
-                'rotary_emb': rotary_emb,
-                'pos': pos,
-                'seq_len': s
+                'rotary_embedding': rotary_embedding,
+                'seqlen_offset': 0,
+                'max_seqlen': s
             }
         y0, _, _ = attn0(x0,
                          past_key_value=None,

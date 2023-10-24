@@ -555,7 +555,7 @@ class GroupedQueryAttention(nn.Module):
         past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
-        rotary_emb_w_meta_info: Optional[dict] = None,
+        rotary_emb_w_offset_info: Optional[dict] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
@@ -582,13 +582,13 @@ class GroupedQueryAttention(nn.Module):
             query = self.q_ln(query).to(dtype)
             key = self.k_ln(key).to(dtype)
 
-        if rotary_emb_w_meta_info is not None:
+        if rotary_emb_w_offset_info is not None:
             query = query.view(*(query.shape[:-1]), -1, self.head_dim)
             key = key.view(*(key.shape[:-1]), -1, self.head_dim)
             value = value.view(*(value.shape[:-1]), -1, self.head_dim)
 
             kv = torch.stack([key, value], dim=2)
-            query, kv = rotary_emb_w_meta_info['rotary_emb'](query, kv, seqlen_offset=rotary_emb_w_meta_info['pos'], max_seqlen=rotary_emb_w_meta_info['seq_len'])
+            query, kv = rotary_emb_w_offset_info['rotary_embedding'](query, kv, seqlen_offset=rotary_emb_w_offset_info['seqlen_offset'], max_seqlen=rotary_emb_w_offset_info['max_seqlen'])
             [key, value] = torch.unbind(kv, dim=2)
             
             value = value.view(*(value.shape[:-2]), self.kv_n_heads * self.head_dim)

@@ -32,8 +32,10 @@ from llmfoundry.models.utils import init_empty_weights
 try:
     from peft import PeftModel, LoraConfig, get_peft_model
     model_types = PeftModel, transformers.PreTrainedModel
+    _peft_installed = True
 
 except ImportError:
+    _peft_installed = False
     model_types = transformers.PreTrainedModel,
 
 __all__ = ['ComposerHFCausalLM']
@@ -42,7 +44,7 @@ log = logging.getLogger(__name__)
 
 def print_trainable_parameters(model: nn.Module) -> None:
     # Prints the number of trainable parameters in the model.
-    if PeftModel not in model_types:
+    if not _peft_installed:
         raise ImportError('PEFT not installed. Run pip install -e ".[gpu,peft]"')
     trainable_params = 0
     all_param = 0
@@ -241,7 +243,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         # if om_model_config includes lora and peft is installed, add lora modules
         lora_cfg = om_model_config.get("lora", None)
         if lora_cfg is not None:
-            if PeftModel not in model_types:
+            if not _peft_installed:
                 raise ImportError(
                     'cfg.model.lora is given but PEFT not installed. Run pip install -e ".[gpu,peft]"'
                 )

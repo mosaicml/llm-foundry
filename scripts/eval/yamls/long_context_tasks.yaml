@@ -1,0 +1,106 @@
+icl_tasks:
+-
+  label: kv_pairs_beginning_2k
+  dataset_uri: eval/local_data/long_context/kv_pairs_beginning_len_2048.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: kv_pairs_middle_2k
+  dataset_uri: eval/local_data/long_context/kv_pairs_middle_len_2048.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: kv_pairs_end_2k
+  dataset_uri: eval/local_data/long_context/kv_pairs_end_len_2048.jsonl 
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: kv_pairs_beginning_4k
+  dataset_uri: eval/local_data/long_context/kv_pairs_beginning_len_4096.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: kv_pairs_middle_4k
+  dataset_uri: eval/local_data/long_context/kv_pairs_middle_len_4096.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: kv_pairs_end_4k
+  dataset_uri: eval/local_data/long_context/kv_pairs_end_len_4096.jsonl 
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: kv_pairs_beginning_8k
+  dataset_uri: eval/local_data/long_context/kv_pairs_beginning_len_8192.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: kv_pairs_middle_8k
+  dataset_uri: eval/local_data/long_context/kv_pairs_middle_len_8192.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: kv_pairs_end_8k
+  dataset_uri: eval/local_data/long_context/kv_pairs_end_len_8192.jsonl 
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: wikiqa_2k 
+  dataset_uri: eval/local_data/long_context/wikiqa_2k.jsonl 
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: wikiqa_4k
+  dataset_uri: eval/local_data/long_context/wikiqa_4k.jsonl 
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: wikiqa_8k
+  dataset_uri: eval/local_data/long_context/wikiqa_8k.jsonl 
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_2k
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_context_len_2048_tokenizer_gpt-4_total_examples_500.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_2k
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_context_len_2048_tokenizer_gpt-4_total_examples_500.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_end_2k
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_context_len_2048_tokenizer_gpt-4_total_examples_500.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_4k
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_context_len_4096_tokenizer_gpt-4_total_examples_500.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_4k
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_context_len_4096_tokenizer_gpt-4_total_examples_500.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_end_4k
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_context_len_4096_tokenizer_gpt-4_total_examples_500.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_8k
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_context_len_8192_tokenizer_gpt-4_total_examples_500.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_8k
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_context_len_8192_tokenizer_gpt-4_total_examples_500.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_end_8k
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_context_len_8192_tokenizer_gpt-4_total_examples_500.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering

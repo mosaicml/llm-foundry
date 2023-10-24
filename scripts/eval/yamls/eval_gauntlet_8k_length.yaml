@@ -2,11 +2,6 @@ eval_gauntlet:
   weighting: EQUAL
   subtract_random_baseline: true
   rescale_accuracy: true
-  averages:
-    core_average:
-    - 2k
-    - 4k
-    - 8k
   categories:
   - name: 2k
     benchmarks:

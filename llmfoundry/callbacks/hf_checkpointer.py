@@ -4,11 +4,11 @@
 import contextlib
 import copy
 import logging
+import math
 import os
 import tempfile
 from pathlib import Path
 from typing import Optional, Union
-import math
 
 import torch
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -238,8 +238,11 @@ class HuggingFaceCheckpointer(Callback):
                 # we need a special case to identify we are on the last batch and should write the mlflow checkpoint
                 is_last_batch = False
                 if self.save_interval.unit == TimeUnit.DURATION and self.save_interval.value == 1 and state.max_duration.unit == TimeUnit.EPOCH:
-                    is_last_batch = int(state.timestamp.batch) % math.ceil(state.max_duration.value * state.dataloader_len) == 0
-                if self.mlflow_registered_model_name is not None and ((elapsed_duration is not None and elapsed_duration >= 1.0) or is_last_batch):
+                    is_last_batch = int(state.timestamp.batch) % math.ceil(
+                        state.max_duration.value * state.dataloader_len) == 0
+                if self.mlflow_registered_model_name is not None and (
+                    (elapsed_duration is not None and
+                     elapsed_duration >= 1.0) or is_last_batch):
                     components = {'model': new_model_instance}
                     if original_tokenizer is not None:
                         components['tokenizer'] = original_tokenizer

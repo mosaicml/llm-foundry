@@ -251,13 +251,14 @@ def test_callback_inits_with_defaults():
 @pytest.mark.parametrize('model', ['mpt', 'neo', 'llama2'])
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
 @pytest.mark.parametrize('log_to_mlflow', [True, False])
-@pytest.mark.parametrize('hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints', [('3ba', '2ba', '7ba', 3, 4), ('1dur', '2ba', '1ep', 1, 4)])
+@pytest.mark.parametrize(
+    'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
+    [('3ba', '2ba', '7ba', 3, 4), ('1dur', '2ba', '1ep', 1, 4)])
 def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                                          fsdp_state_dict_type: Optional[str],
                                          log_to_mlflow: bool,
                                          hf_save_interval: str,
-                                         save_interval: str,
-                                         max_duration: str,
+                                         save_interval: str, max_duration: str,
                                          expected_hf_checkpoints: int,
                                          expected_normal_checkpoints: int):
     delete_transformers_cache()
@@ -269,7 +270,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     dataset_size = 14
     precision_str = 'bfloat16'
     precision = torch.bfloat16
-    batches_per_epoch = math.ceil(dataset_size / (device_batch_size*2))
+    batches_per_epoch = math.ceil(dataset_size / (device_batch_size * 2))
 
     checkpointer_callback = HuggingFaceCheckpointer(
         save_folder=os.path.join(tmp_path, 'checkpoints'),

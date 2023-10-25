@@ -3,7 +3,6 @@
 
 from typing import Any, Callable
 
-from composer.devices import Device
 from omegaconf import DictConfig
 from pytest import fixture
 from transformers import PreTrainedTokenizerBase
@@ -14,10 +13,8 @@ from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_tokenizer
 
 
-def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase,
-                 device: Device):
+def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase):
     model = COMPOSER_MODEL_REGISTRY[config.name](config, tokenizer)
-    model = device.module_to_device(model)
     return model
 
 
@@ -31,7 +28,7 @@ def build_tiny_mpt(
     mpt_tokenizer: PreTrainedTokenizerBase
 ) -> Callable[..., ComposerMPTCausalLM]:
 
-    def build(device: Device, **kwargs: Any) -> ComposerMPTCausalLM:
+    def build(**kwargs: Any) -> ComposerMPTCausalLM:
         config = DictConfig({
             'name': 'mpt_causal_lm',
             'd_model': 128,
@@ -40,7 +37,7 @@ def build_tiny_mpt(
             'expansion_ratio': 2,
         })
         config.update(kwargs)
-        model = _build_model(config, mpt_tokenizer, device)
+        model = _build_model(config, mpt_tokenizer)
         assert isinstance(model, ComposerMPTCausalLM)
         return model
 
@@ -52,7 +49,7 @@ def build_tiny_hf_mpt(
     mpt_tokenizer: PreTrainedTokenizerBase
 ) -> Callable[..., ComposerHFCausalLM]:
 
-    def build(device: Device, **kwargs: Any) -> ComposerHFCausalLM:
+    def build(**kwargs: Any) -> ComposerHFCausalLM:
         config_overrides = {
             'd_model': 128,
             'n_heads': 4,
@@ -66,7 +63,7 @@ def build_tiny_hf_mpt(
             'pretrained': False,
             'config_overrides': config_overrides,
         })
-        model = _build_model(config, mpt_tokenizer, device)
+        model = _build_model(config, mpt_tokenizer)
         assert isinstance(model, ComposerHFCausalLM)
         return model
 

@@ -68,13 +68,14 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
     device = get_device('gpu')
 
     model = build_tiny_mpt(
-        device,
         attn_config={
             'attn_impl': attn_impl,
             'attn_uses_sequence_id': False,
             'alibi': use_alibi
         },
     )
+    model = device.module_to_device(model)
+
     model.eval()
 
     model.model = FSDP(model.model)
@@ -95,7 +96,8 @@ def test_mpt_generate_callback(build_tiny_mpt: Callable[...,
     device = get_device('gpu')
 
     # build mpt model
-    model = build_tiny_mpt(device)
+    model = build_tiny_mpt()
+    model = device.module_to_device(model)
 
     # generate callback
     prompts = [

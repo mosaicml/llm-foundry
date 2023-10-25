@@ -24,14 +24,13 @@ def test_init_hfhub_mpt(
         pytest.skip(f'{attn_impl=} not implemented for {device=}.')
     composer_device = get_device(device)
 
-    model = build_tiny_hf_mpt(composer_device,
-                              attn_config={
-                                  'attn_impl': attn_impl,
-                                  'attn_uses_sequence_id': False,
-                              })
+    model = build_tiny_hf_mpt(attn_config={
+                             'attn_impl': attn_impl,
+                             'attn_uses_sequence_id': False,
+                         })
+    model = composer_device.module_to_device(model)
 
     model.eval()
-    model = composer_device.module_to_device(model)
 
     with get_precision_context('amp_bf16' if composer_device.name ==
                                'gpu' else 'fp32'):

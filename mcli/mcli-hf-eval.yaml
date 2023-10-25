@@ -14,7 +14,7 @@ command: |
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: mpt-gauntlet-v0.1
-gpu_num: 16
+gpu_num: 32
 gpu_type: a100_40gb
 cluster:  r7z2 # replace with your cluster here!
 
@@ -30,19 +30,20 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: mosaicml/mpt-30b-instruct
     # Tokenizer
     tokenizer:
-      name: mosaicml/mpt-7b-instruct
+      name:  mosaicml/mpt-30b-instruct
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path:  mosaicml/mpt-30b-instruct
       init_device: mixed
       pretrained: true
       use_auth_token: false
+      
 
   # FSDP config for model sharding
   fsdp_config:

@@ -250,7 +250,7 @@ icl_tasks:
   icl_task_type: multiple_choice
 -
   label: winogender_mc_male
-  dataset_uri: eval/local_data/safety/winogender_mc_female.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/safety/winogender_mc_male.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: multiple_choice
 -

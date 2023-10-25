@@ -46,13 +46,21 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             the quantization is causing any convergence issues. Because
             quantization is only supported for CUDA parameters, attempting to
             update a non-CUDA tensor will raise an error.
-        error_correction: If True, float16 and bfloat16 parameters will be
-            given an extra state variable, "errors." This tensor will be
-            of the same shape as the parameter but of dtype uint8. This
-            auxiliary variable is used to better approximate float32 updates
-            by retaining information across optimizer steps.
+        error_bits: If nonzero, float16 and bfloat16 parameters will be
+            given an extra state variable, "errors." This auxiliary variable
+            is used to better approximate float32 updates by retaining
+            information across optimizer steps. This tensor will be
+            of the same size as the parameter but of dtype uint8 or int16,
+            depending on whether 8 or 16 error correction bits are being
+            used. To work around torch API limitations, this tensor will
+            be viewed as having the same dtype as the associated parameter
+            when not in use, however. If set to -1, each parameter will be
+            given enough bits of error correction to recover the semantics
+            of f32 master weights.
 
     Raises:
+        ValueError - If the learning rate, weight decay, or either beta
+            value is negative, or if either beta value is above 1.0.
         NotImplementedError - If any of `quantize`, `compress_state_dict`,
             or `error_correction` are `True` and either a) there is no CUDA
             device, or b) step() is executed on a non-CUDA parameter.
@@ -65,7 +73,7 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                  weight_decay: float = 0,
                  quantize: bool = True,
                  compress_state_dict: bool = False,
-                 error_correction: bool = False,
+                 error_bits: int = 0,
                  _fused: bool = True):  # XXX this flag is mostly for testing...
 
         if lr < 0.0:
@@ -79,21 +87,25 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
         if not 0.0 <= weight_decay:
             raise ValueError(
                 'Invalid weight_decay value: {}'.format(weight_decay))
+        _VALID_ERROR_BITS = (-1, 0, 8, 16)
+        if error_bits not in _VALID_ERROR_BITS:
+            raise ValueError(f'Error_bits must be one of {_VALID_ERROR_BITS};' +
+                            f' got {error_bits}')
 
         if not torch.cuda.is_available():
             needs_cuda = ' requires a CUDA device.'
             if quantize:
                 raise NotImplementedError('Quantization' + needs_cuda)
-            if error_correction:
+            if error_bits != 0:
                 raise NotImplementedError('Error correction' + needs_cuda)
             if compress_state_dict:
                 raise NotImplementedError('Quantized state dict' + needs_cuda)
 
         _fused = _fused and quantize
         self._quantize = quantize
-        self._error_correction = error_correction
+        self._error_bits = error_bits
         self._compress_state_dict = compress_state_dict
-
+        self._errors = None
         defaults = {
             'lr': lr,
             'initial_lr': lr,
@@ -113,7 +125,6 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
         for group in self.param_groups:
             for p in group['params']:
                 self.step_param(p, group)
-
         return loss
 
     def step_param(self, p: torch.Tensor, hparams: Dict[str, Any]) -> None:
@@ -130,21 +141,29 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             mom = torch.zeros_like(p)
             state['exp_avg'] = _MaybeQuantizedTensor(
                 mom, try_quantize=self._quantize)
-        need_errs = (p.dtype != torch.float32) and self._error_correction
+        need_errs = (p.dtype != torch.float32) and self._error_bits != 0
         if state.get('errors') is None and need_errs:
             numel = p.numel()
-            numel += numel % 2  # ensure even number of bytes
-            errors = torch.zeros(numel, dtype=torch.uint8, device=p.device)
-            # as of torch 2.1, FSDP can't shard ints for no reason
-            state['errors'] = errors.view(torch.bfloat16)
+            if self._error_bits == 8:
+                numel += numel % 2
+                errors = torch.zeros(numel, dtype=torch.uint8, device=p.device)
+                # as of torch 2.1, FSDP can't shard ints for no reason
+            else:  # 16 error correction bits.
+                errors = torch.zeros(numel, dtype=torch.int16, device=p.device)
+            state['errors'] = errors.view(p.dtype)
+
         decay_factor = hparams['weight_decay']
         decay_factor *= hparams['lr'] / hparams['initial_lr']
         errors: Optional[torch.Tensor] = None
         if 'errors' in state:
             errors = state['errors']
             assert errors is not None  # pyright
-            errors = errors.view(dtype=torch.uint8)
-            errors = errors[:p.numel()].view(p.shape)  # strip padding + reshape
+            if self._error_bits == 8:
+                errors = errors.view(
+                    torch.uint8)[:p.numel()]  # strip padding + reshape
+            else:
+                errors = errors.view(dtype=torch.int16)
+            errors = errors.view(p.shape)
         _lion8b_step(momentums=state['exp_avg'],
                      weights=p,
                      grads=p.grad,
@@ -175,8 +194,11 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                 # we need to cast back to the correct dtype since optimizer
                 # load_state_dict casts to param dtype for fp params; see
                 # https://github.com/pytorch/pytorch/blob/a25eee1d77d93079614fab3ea4ac66e64fb2343b/torch/optim/optimizer.py#L626C7-L626C7 # noqa
-                errs = param_state['errors'].to(dtype=torch.uint8).view(
-                    torch.bfloat16)
+                if self._error_bits == 8:
+                    errs = param_state['errors'].to(
+                        torch.uint8).view(dtype=torch.bfloat16)
+                else:
+                    errs = param_state['errors']
                 new_state['errors'] = errs
             opt_state[param_id] = new_state
         super().__setstate__(state)
@@ -205,8 +227,9 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             if 'errors' in param_state:
                 # fsdp apparently needs the states to be the same shape
                 # as the params
-                param_state['errors'] = param_state['errors'].view(
-                    torch.uint8).to(dtype=torch.bfloat16)
+                if self._error_bits == 8:
+                    param_state['errors'] = param_state['errors'].view(
+                        torch.uint8).to(torch.bfloat16)
             opt_state[param_id] = param_state
         return d
 
@@ -354,6 +377,10 @@ def lion8b_step_fused(grads: torch.Tensor,
     f16, bf16, f32 = torch.float16, torch.bfloat16, torch.float32
 
     use_errors = (errors is not None) and (weights.dtype in (f16, bf16))
+    if use_errors:
+        assert errors is not None  # pyright
+        if errors.dtype not in [torch.uint8, torch.int16]:
+            raise ValueError("expected errors to have type uint8 or int16")
     orig_shape = weights.shape
 
     # ------------------------------------------------ wall of error checking
@@ -368,7 +395,8 @@ def lion8b_step_fused(grads: torch.Tensor,
                                          ('param', weights, (f16, bf16, f32)),
                                          ('momentum', momentums, [torch.int8]),
                                          ('scales', scales, [f16]),
-                                         ('errors', errors, [torch.uint8])]:
+                                         ('errors', errors,
+                                          [torch.uint8, torch.int16])]:
         if name == 'errors' and not use_errors:
             continue
         if not tensor.is_cuda:
@@ -419,7 +447,9 @@ def _lion8b_step(grads: torch.Tensor,
     if fused and not momentums.is_quantized():
         raise NotImplementedError(
             'Fused LION step only implemented with quantization.')
-
+    if errors is not None:
+        if errors.dtype not in [torch.uint8, torch.int16]:
+            raise ValueError("Errors needs to be uint8 or int16")
     if momentums.is_quantized() and fused:
         assert momentums.quantized is not None  # pyright
         assert momentums.scales is not None  # pyright

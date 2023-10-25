@@ -24,23 +24,24 @@ else:
     LocalOptimStateDictConfig = MagicMock()
     ShardedOptimStateDictConfig = MagicMock()
 
-from llmfoundry.optim import DecoupledLionW_8bit as Lion8bit
+# from llmfoundry.optim import DecoupledLionW_8bit as Lion8bit
+from turbo.lion8b import DecoupledLionW_8bit as Lion8bit
 
 warnings.filterwarnings('ignore')
 
 _MANY_PARAM_SHAPES = [(1, 1), (1, 2), (17, 23), (64, 32)]
 _FLOAT_DTYPES = [torch.bfloat16, torch.float16, torch.float32]
-
+_ERROR_DTYPES = [torch.uint8, torch.int16]
 np.set_printoptions(linewidth=160, formatter={'float': lambda f: f'{f:5.3f}'})
 
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('N,D', _MANY_PARAM_SHAPES)
 @pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
-@pytest.mark.parametrize('fused,use_errors', [(False, False), (True, False),
-                                              (True, True)])
+@pytest.mark.parametrize('fused, error_bits', [(False, 0), (True, 0), (True, 8),
+                                               (True, 16)])
 def test_modifies_weights_and_momentums(N: int, D: int, dtype: torch.dtype,
-                                        fused: bool, use_errors: bool) -> None:
+                                        fused: bool, error_bits: int) -> None:
     device = 'cuda'
     torch.manual_seed(123)
     X = torch.randn((N, D), device=device, requires_grad=False, dtype=dtype)
@@ -52,7 +53,7 @@ def test_modifies_weights_and_momentums(N: int, D: int, dtype: torch.dtype,
                    _fused=fused,
                    betas=(.75, .75),
                    weight_decay=.2,
-                   error_correction=use_errors)
+                   error_bits=error_bits)
 
     Y = X @ W
     loss = Y.sum()
@@ -84,12 +85,12 @@ def test_modifies_weights_and_momentums(N: int, D: int, dtype: torch.dtype,
                                           ('cuda', torch.float16),
                                           ('cuda', torch.float32)])
 @pytest.mark.parametrize('weight_decay', [0, .1])
-@pytest.mark.parametrize('fused,use_errors', [(False, False), (True, False),
-                                              (True, True)])
+@pytest.mark.parametrize('fused, error_bits', [(False, 0), (True, 0), (True, 8),
+                                               (True, 16)])
 def test_changes_with_zero_grads(N: int, D: int, device: str,
                                  dtype: torch.dtype, weight_decay: float,
-                                 fused: bool, use_errors: bool) -> None:
-    if (device == 'cpu') and (fused or use_errors):
+                                 fused: bool, error_bits: int) -> None:
+    if (device == 'cpu') and (fused or error_bits > 0):
         return
 
     torch.manual_seed(123)
@@ -101,7 +102,7 @@ def test_changes_with_zero_grads(N: int, D: int, device: str,
                    betas=(.5, .5),
                    quantize=(device != 'cpu'),
                    weight_decay=weight_decay,
-                   error_correction=use_errors)
+                   error_bits=error_bits)
 
     zeros_grad = torch.zeros_like(W)
     for _ in range(5):
@@ -126,11 +127,11 @@ def test_changes_with_zero_grads(N: int, D: int, device: str,
                                           ('cuda', torch.bfloat16),
                                           ('cuda', torch.float16),
                                           ('cuda', torch.float32)])
-@pytest.mark.parametrize('fused,use_errors', [(False, False), (True, False),
-                                              (True, True)])
+@pytest.mark.parametrize('fused,error_bits', [(False, 0), (True, 0), (True, 8),
+                                              (True, 16)])
 def test_descends(N: int, D: int, device: str, dtype: torch.dtype, fused: bool,
-                  use_errors: bool) -> None:
-    if (device == 'cpu') and (fused or use_errors):
+                  error_bits: int) -> None:
+    if (device == 'cpu') and (fused or error_bits > 0):
         return
     torch.manual_seed(123)
     X = torch.randn((N, D), device=device, requires_grad=False, dtype=dtype)
@@ -142,7 +143,7 @@ def test_descends(N: int, D: int, device: str, dtype: torch.dtype, fused: bool,
                    betas=(.5, .5),
                    quantize=(device != 'cpu'),
                    _fused=fused,
-                   error_correction=use_errors)
+                   error_bits=error_bits)
 
     prev_loss = np.inf
     prev_momentum = None
@@ -232,7 +233,7 @@ def test_lion8b_fused_unfused_unquantized_same(w_init: str, grad_strategy: str,
     opt_uq = Lion8bit([W_uq], quantize=False, **kwargs)
     opt_uf = Lion8bit([W_uf], _fused=False, **kwargs)
     opt_fq = Lion8bit([W_fq], _fused=True, **kwargs)
-    opt_fqe = Lion8bit([W_fqe], _fused=True, error_correction=True, **kwargs)
+    opt_fqe = Lion8bit([W_fqe], _fused=True, error_bits=8, **kwargs)
     opt_sgd = torch.optim.SGD([W_sgd], lr=lr)
 
     W_list = [W_true, W_uq, W_uf, W_fq, W_fqe, W_sgd]
@@ -325,9 +326,9 @@ def test_lion8b_fused_unfused_unquantized_same(w_init: str, grad_strategy: str,
 @pytest.mark.parametrize('device', ['cpu', 'cuda'])
 @pytest.mark.parametrize('quantized_state', [False, True])
 @pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
-@pytest.mark.parametrize('use_errors', [False, True])
+@pytest.mark.parametrize('error_bits', [0, 8, 16])
 def test_state_dict_save_load(device: str, quantized_state: bool,
-                              dtype: torch.dtype, use_errors: bool):
+                              dtype: torch.dtype, error_bits: int):
     torch.manual_seed(123)
     params = []
     for shape in _MANY_PARAM_SHAPES:
@@ -338,7 +339,7 @@ def test_state_dict_save_load(device: str, quantized_state: bool,
     # create optimizer and have it step so that state gets populated
     opt = Lion8bit(params,
                    compress_state_dict=quantized_state,
-                   error_correction=use_errors)
+                   error_bits=error_bits)
     if device == 'cpu':
         with pytest.raises(NotImplementedError):
             opt.step()
@@ -351,9 +352,8 @@ def test_state_dict_save_load(device: str, quantized_state: bool,
     state_dict = opt.state_dict()
     opt_new = Lion8bit(params,
                        compress_state_dict=quantized_state,
-                       error_correction=use_errors)
+                       error_bits=error_bits)
     opt_new.load_state_dict(state_dict)
-
     for p in params:
         d_orig = opt.state[p]
         d_new = opt_new.state[p]
@@ -378,8 +378,12 @@ def test_state_dict_save_load(device: str, quantized_state: bool,
                                    mom_new.materialize(),
                                    atol=1. / (2 * 127),
                                    rtol=np.inf)
-        if use_errors and (dtype != torch.float32):
-            torch.testing.assert_close(d_orig['errors'], d_new['errors'])
+        if error_bits == 8 and (dtype != torch.float32):
+            torch.testing.assert_close(d_orig['errors'].view(dtype=torch.uint8),
+                                       d_new['errors'].view(dtype=torch.uint8))
+        if error_bits == 16 and (dtype != torch.float32):
+            torch.testing.assert_close(d_orig['errors'].view(dtype=torch.int16),
+                                       d_new['errors'].view(dtype=torch.int16))
 
 
 class _DummyModule(nn.Module):
@@ -403,10 +407,10 @@ _LOCAL_STATE = fsdp.StateDictType.LOCAL_STATE_DICT
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('dtype', _FLOAT_DTYPES)
-@pytest.mark.parametrize('use_errors', [False, True])
+@pytest.mark.parametrize('error_bits', [0, 8, 16])
 @pytest.mark.parametrize('state_sharding',
                          [_FULL_STATE, _SHARDED_STATE, _LOCAL_STATE])
-def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
+def test_fsdp_save_load(dtype: torch.dtype, error_bits: int,
                         state_sharding: fsdp.StateDictType):
     device = 'cuda'
     if torch.cuda.device_count() < 2:
@@ -429,7 +433,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
         p.grad = torch.rand_like(p)
 
     # create optimizer and have it step so that state gets populated
-    opt = Lion8bit(mod.parameters(), error_correction=use_errors)
+    opt = Lion8bit(mod.parameters(), error_bits=error_bits)
     opt.step()
     opt.zero_grad()
 
@@ -455,7 +459,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
 
     # make a new model and optimizer
     mod_new = FSDP(_DummyModule(device=device, dtype=dtype))
-    opt_new = Lion8bit(mod_new.parameters(), error_correction=use_errors)
+    opt_new = Lion8bit(mod_new.parameters(), error_bits=error_bits)
     _set_state_dict_type(mod_new)
 
     # load state dict into the new optimizer
@@ -481,7 +485,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
 
         assert mom_orig.shape == mom_new.shape
         assert mom_orig.dtype == mom_new.dtype
-        if use_errors and (dtype != torch.float32):
+        if error_bits > 0 and (dtype != torch.float32):
             errs_orig = d_orig['errors']
             errs_new = d_new['errors']
             assert errs_orig.shape == errs_new.shape
@@ -494,7 +498,7 @@ def test_fsdp_save_load(dtype: torch.dtype, use_errors: bool,
         # to f32 and we convert back to bf16, possibly with different rounding
         torch.testing.assert_close(mom_orig, mom_new)
         # errors not bit-for-bit identical because scales get upcast too
-        if use_errors and (dtype != torch.float32):
+        if error_bits > 0 and (dtype != torch.float32):
             torch.testing.assert_close(d_orig['errors'], d_new['errors'])
 
 
@@ -515,15 +519,15 @@ def test_fused_as_fast_as_unfused(N: int,
 
         times = {}
         kwargs = {'weight_decay': .01}
-        combos = [(True, False), (True, True), (False, False), ('NA', False)]
-        for fused, use_errors in combos:
+        combos = [(True, 0), (True, 8), (True, 16), (False, 0), ('NA', 0)]
+        for fused, error_bits in combos:
             if fused == 'NA':
                 opt = Lion8bit(
                     [W], quantize=False,
                     **kwargs)  # type:ignore (reportGeneralTypeIssues)
             else:
                 opt = Lion8bit(
-                    [W], _fused=fused, error_correction=use_errors,
+                    [W], _fused=fused, error_bits=8,
                     **kwargs)  # type:ignore (reportGeneralTypeIssues)
             for _ in range(3):
                 opt.step()  # warmup iters
@@ -534,7 +538,7 @@ def test_fused_as_fast_as_unfused(N: int,
             torch.cuda.synchronize()
             t_end = time.time()
             dur = (t_end - t_start) / num_iters
-            if use_errors:
+            if error_bits > 8:
                 times['ecc'] = dur
             else:
                 times[fused] = dur
@@ -560,3 +564,74 @@ def test_fused_as_fast_as_unfused(N: int,
                 raise e
         times = _time_kernels(N, D, min_elems_traversed)
         it += 1
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('N,D', [(256, 256)])
+@pytest.mark.parametrize('num_passes', [20, 100])
+@pytest.mark.parametrize('_dtype', [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize('lr', [1e-4, 1e-5])
+def test_full_precision_matches_regular_lion(N: int, D: int, num_passes: int,
+                                             lr: float, _dtype):
+    device = 'cuda'
+
+    input_tensor = torch.randn(N, D, dtype=_dtype, device=device)
+    input_tensor_ref = torch.randn(N, D, dtype=torch.float32, device=device)
+    target_tensor = torch.randn(N, 1, dtype=_dtype, device=device)
+    target_tensor_ref = torch.randn(N, D, dtype=torch.float32,
+                                    device=device)  # ref tensors in f32.
+    n = target_tensor.size(1)
+    model1 = torch.nn.Linear(D, n, dtype=_dtype, device=device)
+    model2 = torch.nn.Linear(D, n, dtype=_dtype, device=device)
+    model3 = torch.nn.Linear(D, n, dtype=_dtype, device=device)
+
+    model_ref = torch.nn.Linear(D, n, dtype=torch.float32, device=device)
+    # Ensure models start from the same initial state
+    model1.load_state_dict(model_ref.state_dict())
+    model2.load_state_dict(model_ref.state_dict())
+    model3.load_state_dict(model_ref.state_dict())
+
+    # Define a simple loss function for testing
+    criterion = torch.nn.MSELoss()
+    opt1 = Lion8bit(model1.parameters(),
+                    lr=lr,
+                    _fused=True,
+                    quantize=True,
+                    error_bits=0)
+    opt2 = Lion8bit(model2.parameters(), lr=lr, quantize=False, error_bits=8)
+    opt3 = Lion8bit(model3.parameters(), lr=lr, quantize=False, error_bits=16)
+    opt_ref = Lion8bit(model_ref.parameters(),
+                       lr=lr)  # Test against Lion8bit on 32bit weights
+
+    models = [(model1, opt1), (model2, opt2), (model3, opt3),
+              (model_ref, opt_ref)]
+
+    # Forward and backward passes
+    for _ in range(num_passes):
+        for m, opt in models:
+            if opt is opt_ref:
+                o = m(input_tensor_ref)
+                l = criterion(o, target_tensor_ref)
+            else:
+                o = m(input_tensor)
+                l = criterion(o, target_tensor)
+            l.backward()
+            opt.step()
+            opt.zero_grad()
+
+    # Check if both model weights and biases are the same as with full precision
+    diff_not_corrected = 0.0
+    diff_err_corrected = 0.0
+    diff_full_corrected = 0.0
+    for p1, p2 in zip(model1.parameters(), model_ref.parameters()):
+        p1 = p1.to(dtype=torch.float32)
+        diff_not_corrected += torch.abs(p1 - p2).sum()
+    for p1, p2 in zip(model2.parameters(), model_ref.parameters()):
+        p1 = p1.to(dtype=torch.float32)
+        diff_err_corrected += torch.abs(p1 - p2).sum()
+    for p1, p2 in zip(model3.parameters(), model_ref.parameters()):
+        p1 = p1.to(dtype=torch.float32)
+        diff_full_corrected += torch.abs(p1 - p2).sum()
+    assert (diff_err_corrected - 1e-3
+            <= diff_not_corrected)  # allow small diff over whole matrix
+    assert (diff_full_corrected - 1e-3 <= diff_err_corrected)

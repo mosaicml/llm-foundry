@@ -12,6 +12,7 @@ import torch.nn as nn
 from einops import rearrange
 from packaging import version
 from torch import nn
+from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
 
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
@@ -555,7 +556,7 @@ class GroupedQueryAttention(nn.Module):
         past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
-        rotary_emb_w_offset_info: Optional[dict] = None,
+        rotary_emb_w_meta_info: Optional[dict] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
@@ -582,23 +583,42 @@ class GroupedQueryAttention(nn.Module):
             query = self.q_ln(query).to(dtype)
             key = self.k_ln(key).to(dtype)
 
-        if rotary_emb_w_offset_info is not None:
+        if rotary_emb_w_meta_info is not None:
+            rotary_emb = rotary_emb_w_meta_info['rotary_emb']
+            seq_len = rotary_emb_w_meta_info['seq_len']
+            offset_info = rotary_emb_w_meta_info['offset_info']
+
             query = query.view(*(query.shape[:-1]), -1, self.head_dim)
             key = key.view(*(key.shape[:-1]), -1, self.head_dim)
-            value = value.view(*(value.shape[:-1]), -1, self.head_dim)
 
-            kv = torch.stack([key, value], dim=2)
-            query, kv = rotary_emb_w_offset_info['rotary_embedding'](
-                query,
-                kv,
-                seqlen_offset=rotary_emb_w_offset_info['seqlen_offset'],
-                max_seqlen=rotary_emb_w_offset_info['max_seqlen'])
-            [key, value] = torch.unbind(kv, dim=2)
+            if rotary_emb_w_meta_info['imp'] == 'dail':
+                value = value.view(*(value.shape[:-1]), -1, self.head_dim)
 
-            value = value.view(*(value.shape[:-2]),
+                kv = torch.stack([key, value], dim=2)
+                query, kv = rotary_emb(query,
+                                       kv,
+                                       seqlen_offset=offset_info,
+                                       max_seqlen=seq_len)
+                [key, value] = torch.unbind(kv, dim=2)
+
+                value = value.view(*(value.shape[:-2]),
+                                   self.kv_n_heads * self.head_dim)
+                query = query.view(*(query.shape[:-2]), self.d_model)
+                key = key.view(*(key.shape[:-2]),
                                self.kv_n_heads * self.head_dim)
-            query = query.view(*(query.shape[:-2]), self.d_model)
-            key = key.view(*(key.shape[:-2]), self.kv_n_heads * self.head_dim)
+            elif rotary_emb_w_meta_info['imp'] == 'hf_llama':
+                (cos, sin) = rotary_emb(value, seq_len)
+                query = query.transpose(1, 2)
+                key = key.transpose(1, 2)
+                query, key = apply_rotary_pos_emb(query, key, cos, sin,
+                                                  offset_info)
+                query = query.transpose(1, 2)
+                key = key.transpose(1, 2)
+                breakpoint(
+                )  # Check if reshape is needed below or we can just use tensor.view
+                query = query.reshape(*(query.shape[:-2]), self.d_model)
+                key = key.reshape(*(key.shape[:-2]),
+                                  self.kv_n_heads * self.head_dim)
 
         context, attn_weights, past_key_value = self.attn_fn(
             query,

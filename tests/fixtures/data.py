@@ -11,6 +11,8 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 from tests.data_utils import make_tiny_ft_dataset
 
+from composer.utils import dist
+
 
 @fixture
 def tiny_ft_dataset_path(tmp_path: Path, dataset_size: int = 4) -> Path:
@@ -18,7 +20,8 @@ def tiny_ft_dataset_path(tmp_path: Path, dataset_size: int = 4) -> Path:
     tiny_dataset_path = tmp_path / 'test-ift-data-small'
     tiny_dataset_path.mkdir(exist_ok=True)
     tiny_dataset_file = tiny_dataset_path / 'train.jsonl'
-    make_tiny_ft_dataset(path=str(tiny_dataset_file), size=dataset_size)
+    if dist.get_world_size() == 1 or dist.get_global_rank() == 0:
+        make_tiny_ft_dataset(path=str(tiny_dataset_file), size=dataset_size)
     return tiny_dataset_path
 
 

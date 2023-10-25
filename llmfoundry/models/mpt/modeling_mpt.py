@@ -30,11 +30,11 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.modeling_outputs import (BaseModelOutputWithPast,
                                            CausalLMOutputWithPast)
 from transformers.models.llama.modeling_llama import \
-    DynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
+    LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
 from transformers.models.llama.modeling_llama import \
-    LinearScalingRotaryEmbedding as HFLinearScalingRotaryEmbedding
+    LlamaLinearScalingRotaryEmbedding as HFLinearScalingRotaryEmbedding
 from transformers.models.llama.modeling_llama import \
-    RotaryEmbedding as HFRotaryEmbedding
+    LlamaRotaryEmbedding as HFRotaryEmbedding
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
@@ -89,7 +89,7 @@ def _rotary_embedding(config: MPTConfig):
                 == 'xpos') else None,
             pos_idx_in_fp32=config.attn_config['rope_dail_config']
             ['pos_idx_in_fp32'],
-            device='cpu',
+            device='cpu', # FSDP does not materialize modules with meta buffers, hence device is set to cpu
         )
     elif config.attn_config['rope_imp'] == 'hf':
         if config.attn_config['rope_hf_config']['type'] == 'no_scaling':
@@ -97,24 +97,24 @@ def _rotary_embedding(config: MPTConfig):
                 rope_head_dim,
                 max_position_embeddings=config.max_seq_len,
                 base=config.attn_config['rope_theta'],
-                device='cpu'
-            )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
+                device='cpu' # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
         elif config.attn_config['rope_hf_config']['type'] == 'linear':
             return HFLinearScalingRotaryEmbedding(
                 rope_head_dim,
                 max_position_embeddings=config.max_seq_len,
                 base=config.attn_config['rope_theta'],
                 scaling_factor=config.attn_config['rope_hf_config']['factor'],
-                device='cpu'
-            )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
+                device='cpu' # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
         elif config.attn_config['rope_hf_config']['type'] == 'dynamic':
             return HFDynamicNTKScalingRotaryEmbedding(
                 rope_head_dim,
                 max_position_embeddings=config.max_seq_len,
                 base=config.attn_config['rope_theta'],
                 scaling_factor=config.attn_config['rope_hf_config']['factor'],
-                device='cpu'
-            )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
+                device='cpu' # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
 
 
 class MPTPreTrainedModel(PreTrainedModel):

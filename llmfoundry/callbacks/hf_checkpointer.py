@@ -8,9 +8,10 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Optional, Union
+import math
 
 import torch
-from composer.core import Callback, Event, State, Time
+from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
 from composer.loggers import Logger, MLFlowLogger
 from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
@@ -83,6 +84,13 @@ class HuggingFaceCheckpointer(Callback):
 
         self.huggingface_folder_name_fstr = os.path.join(
             'huggingface', huggingface_folder_name)
+
+        if isinstance(save_interval, str):
+            save_interval = Time.from_timestring(save_interval)
+        if isinstance(save_interval, int):
+            save_interval = Time(save_interval, TimeUnit.EPOCH)
+
+        self.save_interval = save_interval
         self.check_interval = create_interval_scheduler(
             save_interval, include_end_of_training=True)
         self.upload_to_object_store = (self.backend != '')
@@ -225,7 +233,13 @@ class HuggingFaceCheckpointer(Callback):
                         )
 
                 elapsed_duration = state.get_elapsed_duration()
-                if self.mlflow_registered_model_name is not None and elapsed_duration is not None and elapsed_duration >= 1.0:
+
+                # If the save interval is specified as 1dur, and the max duration is in epoch units
+                # we need a special case to identify we are on the last batch and should write the mlflow checkpoint
+                is_last_batch = False
+                if self.save_interval.unit == TimeUnit.DURATION and self.save_interval.value == 1 and state.max_duration.unit == TimeUnit.EPOCH:
+                    is_last_batch = int(state.timestamp.batch) % math.ceil(state.max_duration.value * state.dataloader_len) == 0
+                if self.mlflow_registered_model_name is not None and ((elapsed_duration is not None and elapsed_duration >= 1.0) or is_last_batch):
                     components = {'model': new_model_instance}
                     if original_tokenizer is not None:
                         components['tokenizer'] = original_tokenizer

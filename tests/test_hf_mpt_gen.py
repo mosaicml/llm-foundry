@@ -43,10 +43,10 @@ def test_init_hfhub_mpt(
 
 
 def test_init_hfhub_mpt_cpu(
-    build_hf_mpt: Callable[..., ComposerHFCausalLM],
+    build_tiny_hf_mpt: Callable[..., ComposerHFCausalLM],
     mpt_tokenizer: PreTrainedTokenizerBase,
 ):
     test_init_hfhub_mpt(device='cpu',
                         attn_impl='torch',
-                        build_hf_mpt=build_hf_mpt,
+                        build_hf_mpt=build_tiny_hf_mpt,
                         mpt_tokenizer=mpt_tokenizer)

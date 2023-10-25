@@ -67,13 +67,11 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
     """
     device = get_device('gpu')
 
-    model = build_tiny_mpt(
-        attn_config={
-            'attn_impl': attn_impl,
-            'attn_uses_sequence_id': False,
-            'alibi': use_alibi
-        },
-    )
+    model = build_tiny_mpt(attn_config={
+        'attn_impl': attn_impl,
+        'attn_uses_sequence_id': False,
+        'alibi': use_alibi
+    },)
     model = device.module_to_device(model)
 
     model.eval()

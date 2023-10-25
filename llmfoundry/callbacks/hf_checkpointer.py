@@ -239,6 +239,7 @@ class HuggingFaceCheckpointer(Callback):
                 is_last_batch = False
                 assert state.max_duration is not None  # for pyright
                 if self.save_interval.unit == TimeUnit.DURATION and self.save_interval.value == 1 and state.max_duration.unit == TimeUnit.EPOCH:
+                    assert state.dataloader_len is not None  # for pyright
                     is_last_batch = int(state.timestamp.batch) % math.ceil(
                         state.max_duration.value * state.dataloader_len) == 0
                 if self.mlflow_registered_model_name is not None and (

@@ -136,6 +136,21 @@ class HuggingFaceCheckpointer(Callback):
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
                     '5GB')
 
+    def _is_last_batch(self, state: State):
+        elapsed_duration = state.get_elapsed_duration()
+        if elapsed_duration is not None and elapsed_duration >= 1.0:
+            return True
+
+        assert state.max_duration is not None  # for pyright
+        # If the save interval is specified as 1dur, and the max duration is in epoch units
+        # we need a special case to identify we are on the last batch and should write the mlflow checkpoint
+        if self.save_interval.unit == TimeUnit.DURATION and self.save_interval.value == 1 and state.max_duration.unit == TimeUnit.EPOCH:
+            assert state.dataloader_len is not None  # for pyright
+            return int(state.timestamp.batch) % math.ceil(
+                state.max_duration.value * state.dataloader_len) == 0
+
+        return False
+
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
 
@@ -232,19 +247,8 @@ class HuggingFaceCheckpointer(Callback):
                             overwrite=self.overwrite,
                         )
 
-                elapsed_duration = state.get_elapsed_duration()
-
-                # If the save interval is specified as 1dur, and the max duration is in epoch units
-                # we need a special case to identify we are on the last batch and should write the mlflow checkpoint
-                is_last_batch = False
-                assert state.max_duration is not None  # for pyright
-                if self.save_interval.unit == TimeUnit.DURATION and self.save_interval.value == 1 and state.max_duration.unit == TimeUnit.EPOCH:
-                    assert state.dataloader_len is not None  # for pyright
-                    is_last_batch = int(state.timestamp.batch) % math.ceil(
-                        state.max_duration.value * state.dataloader_len) == 0
-                if self.mlflow_registered_model_name is not None and (
-                    (elapsed_duration is not None and
-                     elapsed_duration >= 1.0) or is_last_batch):
+                if self.mlflow_registered_model_name and self._is_last_batch(
+                        state):
                     components = {'model': new_model_instance}
                     if original_tokenizer is not None:
                         components['tokenizer'] = original_tokenizer

@@ -25,10 +25,10 @@ def test_init_hfhub_mpt(
     composer_device = get_device(device)
 
     model = build_tiny_hf_mpt(composer_device,
-                         attn_config={
-                             'attn_impl': attn_impl,
-                             'attn_uses_sequence_id': False,
-                         })
+                              attn_config={
+                                  'attn_impl': attn_impl,
+                                  'attn_uses_sequence_id': False,
+                              })
 
     model.eval()
     model = composer_device.module_to_device(model)
@@ -48,5 +48,5 @@ def test_init_hfhub_mpt_cpu(
 ):
     test_init_hfhub_mpt(device='cpu',
                         attn_impl='torch',
-                        build_hf_mpt=build_tiny_hf_mpt,
+                        build_tiny_hf_mpt=build_tiny_hf_mpt,
                         mpt_tokenizer=mpt_tokenizer)

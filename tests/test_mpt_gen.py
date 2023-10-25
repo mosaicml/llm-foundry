@@ -1,7 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 from unittest.mock import Mock, patch
 
@@ -59,7 +58,8 @@ class MockMPTForCausalLM(MPTForCausalLM):
 @patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
        new=MockMPTForCausalLM)
 def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
-                                build_tiny_mpt: Callable[..., ComposerMPTCausalLM],
+                                build_tiny_mpt: Callable[...,
+                                                         ComposerMPTCausalLM],
                                 mpt_tokenizer: PreTrainedTokenizerBase):
     """Tests mpt generation with mutiple gpus.
 
@@ -89,7 +89,8 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
 
 
 @pytest.mark.gpu
-def test_mpt_generate_callback(build_tiny_mpt: Callable[..., ComposerMPTCausalLM],
+def test_mpt_generate_callback(build_tiny_mpt: Callable[...,
+                                                        ComposerMPTCausalLM],
                                tiny_ft_dataloader: DataLoader):
     device = get_device('gpu')
 

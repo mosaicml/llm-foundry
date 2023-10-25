@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from pathlib import Path
 import sys
 from argparse import Namespace
+from pathlib import Path
 
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))

@@ -3,6 +3,7 @@
 
 from pathlib import Path
 
+from composer.utils import dist
 from omegaconf import DictConfig
 from pytest import fixture
 from torch.utils.data import DataLoader
@@ -10,8 +11,6 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 from tests.data_utils import make_tiny_ft_dataset
-
-from composer.utils import dist
 
 
 @fixture

@@ -4,7 +4,6 @@
 import pytest
 import torch
 from composer.core.precision import get_precision_context
-from composer.utils import reproducibility
 from flash_attn.layers.rotary import RotaryEmbedding as DAILRotaryEmbedding
 from omegaconf import OmegaConf as om
 from transformers.models.llama.modeling_llama import \
@@ -78,8 +77,6 @@ def test_rope_dail_vs_hf(clip_qkv: bool,
             raise ValueError(f'Invalid rope_imp: {pos_emb_config["rope_imp"]}')
 
     from llmfoundry.models.layers import attention
-
-    reproducibility.seed_all(7)
 
     cfg = om.create({
         'attn_impl': 'flash',

@@ -16,7 +16,7 @@ from accelerate import init_empty_weights
 from composer.core.precision import Precision, get_precision_context
 from composer.optim import DecoupledAdamW
 from composer.trainer.dist_strategy import prepare_fsdp_module
-from composer.utils import dist, get_device
+from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import (AutoModelForCausalLM, AutoTokenizer, PreTrainedModel,
@@ -1433,7 +1433,6 @@ def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
             'rope_imp'] == 'dail' and device == 'cpu':
         pytest.skip(
             f'dail implementation of rope is only implemented for gpus.')
-    reproducibility.seed_all(1234)
     composer_device = get_device(device)
     if device == 'gpu':  # Switch deteminism off
         torch.use_deterministic_algorithms(False)

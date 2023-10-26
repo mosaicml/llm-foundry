@@ -89,7 +89,8 @@ def _rotary_embedding(config: MPTConfig):
                 == 'xpos') else None,
             pos_idx_in_fp32=config.attn_config['rope_dail_config']
             ['pos_idx_in_fp32'],
-            device='cpu', # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            device=
+            'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
         )
     elif config.attn_config['rope_imp'] == 'hf':
         if config.attn_config['rope_hf_config']['type'] == 'no_scaling':
@@ -97,7 +98,8 @@ def _rotary_embedding(config: MPTConfig):
                 rope_head_dim,
                 max_position_embeddings=config.max_seq_len,
                 base=config.attn_config['rope_theta'],
-                device='cpu' # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
             )
         elif config.attn_config['rope_hf_config']['type'] == 'linear':
             return HFLinearScalingRotaryEmbedding(
@@ -105,7 +107,8 @@ def _rotary_embedding(config: MPTConfig):
                 max_position_embeddings=config.max_seq_len,
                 base=config.attn_config['rope_theta'],
                 scaling_factor=config.attn_config['rope_hf_config']['factor'],
-                device='cpu' # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
             )
         elif config.attn_config['rope_hf_config']['type'] == 'dynamic':
             return HFDynamicNTKScalingRotaryEmbedding(
@@ -113,7 +116,8 @@ def _rotary_embedding(config: MPTConfig):
                 max_position_embeddings=config.max_seq_len,
                 base=config.attn_config['rope_theta'],
                 scaling_factor=config.attn_config['rope_hf_config']['factor'],
-                device='cpu' # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
             )
 
 
@@ -459,14 +463,14 @@ class MPTModel(MPTPreTrainedModel):
                 elif self.rope and self.rope_imp == 'hf':
                     rotary_emb_w_meta_info = {
                         'imp': self.rope_imp,
-                        'rotary_embedding': self.rotary_embedding,
+                        'rotary_emb': self.rotary_embedding,
                         'offset_info': pos,
                         'seq_len': S + past_position,
                     }
             elif self.rope and self.rope_imp == 'dail':
                 rotary_emb_w_meta_info = {
                     'imp': self.rope_imp,
-                    'rotary_embedding': self.rotary_embedding,
+                    'rotary_emb': self.rotary_embedding,
                     'offset_info': past_position,
                     'seq_len': S + past_position,
                 }

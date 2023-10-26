@@ -603,10 +603,7 @@ class GroupedQueryAttention(nn.Module):
 
                 value = value.view(*(value.shape[:-2]),
                                    self.kv_n_heads * self.head_dim)
-                query = query.view(*(query.shape[:-2]), self.d_model)
-                key = key.view(*(key.shape[:-2]),
-                               self.kv_n_heads * self.head_dim)
-            elif rotary_emb_w_meta_info['imp'] == 'hf_llama':
+            elif rotary_emb_w_meta_info['imp'] == 'hf':
                 (cos, sin) = rotary_emb(value, seq_len)
                 query = query.transpose(1, 2)
                 key = key.transpose(1, 2)
@@ -614,11 +611,9 @@ class GroupedQueryAttention(nn.Module):
                                                   offset_info)
                 query = query.transpose(1, 2)
                 key = key.transpose(1, 2)
-                breakpoint(
-                )  # Check if reshape is needed below or we can just use tensor.view
-                query = query.reshape(*(query.shape[:-2]), self.d_model)
-                key = key.reshape(*(key.shape[:-2]),
-                                  self.kv_n_heads * self.head_dim)
+
+            query = query.view(*(query.shape[:-2]), self.d_model)
+            key = key.view(*(key.shape[:-2]), self.kv_n_heads * self.head_dim)
 
         context, attn_weights, past_key_value = self.attn_fn(
             query,

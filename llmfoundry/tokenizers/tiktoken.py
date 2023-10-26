@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -95,6 +96,12 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         Note: This function does not work properly due to difference in assumptions between tiktoken and Hugging Face tokenizers.
         Most uses do not need to use get_vocab, so this is not a priority to fix.
         """
+        warnings.warn(
+            'get_vocab does not work properly with TiktokenTokenizerWrapper. Please do not rely on it being perfectly correct.'
+            +
+            ' It will be called once init just to get the size of the vocab inside the base class.'
+        )
+
         vocab = {}
         for i in range(self.vocab_size):
             try:

@@ -104,3 +104,138 @@ icl_tasks:
   dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_context_len_8192_tokenizer_gpt-4_total_examples_500.jsonl
   num_fewshot: [0]
   icl_task_type: question_answering
+-
+  label: hotpotqa_end_2048_3_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_3_shot_context_len_2048_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_end_2048_5_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_5_shot_context_len_2048_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_end_8192_1_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_1_shot_context_len_8192_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_2048_1_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_1_shot_context_len_2048_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_8192_5_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_5_shot_context_len_8192_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_8192_5_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_5_shot_context_len_8192_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_2048_1_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_1_shot_context_len_2048_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_8192_3_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_3_shot_context_len_8192_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_8192_3_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_3_shot_context_len_8192_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_4096_1_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_1_shot_context_len_4096_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_4096_1_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_1_shot_context_len_4096_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_end_4096_3_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_3_shot_context_len_4096_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_end_4096_5_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_5_shot_context_len_4096_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_end_8192_3_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_3_shot_context_len_8192_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_end_8192_5_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_5_shot_context_len_8192_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_end_2048_1_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_1_shot_context_len_2048_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_2048_5_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_5_shot_context_len_2048_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_8192_1_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_1_shot_context_len_8192_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_8192_1_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_1_shot_context_len_8192_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_2048_5_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_5_shot_context_len_2048_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_2048_3_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_3_shot_context_len_2048_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_2048_3_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_3_shot_context_len_2048_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_4096_5_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_5_shot_context_len_4096_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_4096_5_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_5_shot_context_len_4096_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_middle_4096_3_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_middle_3_shot_context_len_4096_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_beginning_4096_3_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_beginning_3_shot_context_len_4096_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+-
+  label: hotpotqa_end_4096_1_shot
+  dataset_uri: eval/local_data/long_context/hotpot_train_v1.1_end_1_shot_context_len_4096_tokenizer_gpt-4_total_examples_2000.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering

@@ -21,10 +21,16 @@ attn_config_defaults: Dict = {
     'alibi_bias_max': 8,
     'rope': False,
     'rope_theta': 10000,
-    'rope_scaling': {
+    'rope_imp': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
         'type': 'no_scaling',
-        'factor': 1.0
-    }
+        'factor': 1.0,
+    },
 }
 
 ffn_config_defaults: Dict = {
@@ -102,7 +108,12 @@ class MPTConfig(PretrainedConfig):
                 alibi_bias_max (int): The maximum value of the alibi bias.
                 rope (bool): Whether to use rotary positional embeddings.
                 rope_theta (int): The base frequency for rope.
-                rope_scaling (Dict): A dictionary used to configure rope's scaling behavior (when scaling beyond the training length)
+                rope_imp (str): The implementation of rope to use. One of 'hf' (to use the implementation from https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py) or 'dail' (to use the implementation from https://github.com/Dao-AILab/flash-attention/blob/main/flash_attn/layers/rotary.py).
+                rope_dail_config (Dict): The configuration for the dail implementation of rope.
+                    type (str): The type of rotary position embedding to use. Options: 'original' (for https://arxiv.org/pdf/2104.09864.pdf), 'xpos' (for https://arxiv.org/pdf/2212.10554.pdf).
+                    pos_idx_in_fp32 (bool): If True, the position indices [0, ..., seqlen - 1] are in fp32, otherwise they might be in lower precision. A consequence could be, for example, that bf16 rounds position 1995 to 2000, which leads to them having the same positional embedding.
+                    xpos_scale_base (float): The scale base for XPos (if using XPos).
+                rope_hf_config (Dict): A dictionary used to configure rope's scaling behavior (when scaling beyond the training length).
                     type (str): Can be one of 'no_scaling', 'linear', or 'dynamic'. 'no_scaling' uses the default implementation for rotary embeddings, 'linear' uses linear scaling as proposed by the Reddit user /u/kaiokendev, and 'dynamic' uses Dynamic NTK scaling as proposed by the Reddit users /u/bloc97 and /u/emozilla.
                     factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling.type.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
@@ -219,6 +230,26 @@ class MPTConfig(PretrainedConfig):
             raise NotImplementedError(
                 'attn_uses_sequence_id only implemented with torch and triton attention.'
             )
+        if self.attn_config['rope'] and (self.attn_config['rope_imp']
+                                         not in ['dail', 'hf']):
+            raise ValueError(
+                'If rope is being used then rope_imp should be either "dail", or "hf".'
+            )
+        if self.attn_config['rope'] and (
+                self.attn_config['rope_imp']
+                == 'hf') and self.attn_config['rope_hf_config']['type'] not in [
+                    'no_scaling', 'linear', 'dynamic'
+                ]:
+            raise ValueError(
+                'If using hf implementation of rope, the type should be one of "no_scaling", "linear" or "dynamic".'
+            )
+        if self.attn_config['rope'] and (
+                self.attn_config['rope_imp']
+                == 'dail') and (self.attn_config['rope_dail_config']['type']
+                                not in ['original', 'xpos']):
+            raise NotImplementedError(
+                'If using dail implementation of rope, the type should be one of "original" or "xpos".'
+            )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
                 'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!'
@@ -247,12 +278,6 @@ class MPTConfig(PretrainedConfig):
                     + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
                     'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
                 )
-        if self.attn_config['rope_scaling']['type'] not in [
-                'no_scaling', 'linear', 'dynamic'
-        ]:
-            raise ValueError(
-                'rope_scaling.type should be one of "no_scaling", "linear" or "dynamic".'
-            )
         if self.ffn_config['ffn_type'] == 'mptmlp':
             self.ffn_config['fc_type'] = self.fc_type
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':

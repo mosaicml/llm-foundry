@@ -537,26 +537,30 @@ def test_mpt_creation(norm_type: str, no_bias: bool):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
+    'rope_imp': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
         'type': 'no_scaling',
-        'factor': 1.0
-    }
+        'factor': 1.0,
+    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'linear',
-        'factor': 1.0
-    }
-}, {
-    'alibi': False,
-    'rope': True,
-    'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'dynamic',
-        'factor': 1.0
-    }
+    'rope_imp': 'hf',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
 }])
 def test_forward_with_padding(attention_impl: str, device: str,
                               pos_emb_config: dict):
@@ -568,6 +572,11 @@ def test_forward_with_padding(attention_impl: str, device: str,
     alibi = pos_emb_config['alibi']
     if alibi and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
+
+    rope = pos_emb_config['rope']
+    if rope and pos_emb_config['rope_imp'] == 'dail' and device == 'cpu':
+        pytest.skip(
+            f'dail implementation of rope is only implemented for gpus.')
 
     reproducibility.seed_all(1234)
     composer_device = get_device(device)
@@ -655,10 +664,18 @@ def test_forward_with_padding(attention_impl: str, device: str,
                              attention_mask=batched_attention_mask).logits
 
         # check that right padding and left padding produce the same output
-        assert torch.allclose(right_padding_output[0, :3],
-                              left_padding_output[0, 3:],
-                              atol=1e-6 if attention_impl == 'torch' else 1e-8)
-        if not alibi:
+        if rope and pos_emb_config[
+                'rope_imp'] == 'dail':  # dail implementation of rope uses bf16 precision and hence the rotations have small numerical errors. This causes some differences between the outputs of padded and unpadded inputs.
+            assert torch.allclose(right_padding_output[0, :3],
+                                  left_padding_output[0, 3:],
+                                  rtol=1e-2,
+                                  atol=1e-2)
+        else:
+            assert torch.allclose(
+                right_padding_output[0, :3],
+                left_padding_output[0, 3:],
+                atol=1e-6 if attention_impl == 'torch' else 1e-8)
+        if not (alibi or rope):
             # check that right padding and middle padding produce the same output
             # Note: alibi not implemented for middle padding.
             assert torch.allclose(
@@ -666,10 +683,19 @@ def test_forward_with_padding(attention_impl: str, device: str,
                 middle_padding_output[0, [0, 1, 5]],
                 atol=1e-6 if attention_impl == 'torch' else 1e-8)
         # check that right padding and right padding in a batch produce the same output
-        assert torch.allclose(right_padding_output[0, :3],
-                              batched_output[0, :3],
-                              atol=1e-6 if attention_impl == 'torch' else 1e-8)
-        if not alibi:
+
+        if rope and pos_emb_config[
+                'rope_imp'] == 'dail':  # dail implementation of rope uses bf16 precision and hence the rotations have small numerical errors. This causes some differences between the outputs of padded and unpadded inputs.
+            assert torch.allclose(right_padding_output[0, :3],
+                                  left_padding_output[0, 3:],
+                                  rtol=1e-2,
+                                  atol=1e-2)
+        else:
+            assert torch.allclose(
+                right_padding_output[0, :3],
+                batched_output[0, :3],
+                atol=1e-6 if attention_impl == 'torch' else 1e-8)
+        if not (alibi or rope):
             # check that middle padding and middle padding in a batch produce the same output
             # Note: alibi not implemented for middle padding.
             assert torch.allclose(
@@ -747,26 +773,30 @@ def test_advanced_mask_building(attention_impl: str):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
+    'rope_imp': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
         'type': 'no_scaling',
-        'factor': 1.0
-    }
+        'factor': 1.0,
+    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'linear',
-        'factor': 1.0
-    }
-}, {
-    'alibi': False,
-    'rope': True,
-    'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'dynamic',
-        'factor': 1.0
-    }
+    'rope_imp': 'hf',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
 }])
 def test_generate(attention_impl: str, device: str, pos_emb_config: dict):
     # Test that generate works, and produces the same output with or without
@@ -777,6 +807,11 @@ def test_generate(attention_impl: str, device: str, pos_emb_config: dict):
         )
     if pos_emb_config['alibi'] and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
+
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_imp'] == 'dail' and device == 'cpu':
+        pytest.skip(
+            f'dail implementation of rope is only implemented for gpus.')
 
     reproducibility.seed_all(1234)
     composer_device = get_device(device)
@@ -962,6 +997,12 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
     check_hf_model_equivalence(mpt, mpt2)
 
 
+@pytest.mark.parametrize('attn_impl,device', [
+    ('torch', 'cpu'),
+    ('flash', 'gpu'),
+    ('triton', 'gpu'),
+    ('torch', 'gpu'),
+])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
     'rope': False
@@ -972,29 +1013,47 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
+    'rope_imp': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
         'type': 'no_scaling',
-        'factor': 1.0
-    }
+        'factor': 1.0,
+    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'linear',
-        'factor': 1.0
-    }
-}, {
-    'alibi': False,
-    'rope': True,
-    'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'dynamic',
-        'factor': 1.0
-    }
+    'rope_imp': 'hf',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
 }])
-def test_forward_with_cache_and_padding(pos_emb_config: dict):
+def test_forward_with_cache_and_padding(attn_impl: str, device: str,
+                                        pos_emb_config: dict):
     # Tests that the result is the same with or without padding when using kv caching
+    if not torch.cuda.is_available() and device == 'gpu':
+        pytest.skip(
+            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
+        )
+    if pos_emb_config['alibi'] and attn_impl == 'flash':
+        pytest.skip(f'alibi only implemented with torch and triton attention.')
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_imp'] == 'dail' and device == 'cpu':
+        pytest.skip(
+            f'dail implementation of rope is only implemented for gpus.')
+
+    composer_device = get_device(device)
+
     hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
@@ -1005,7 +1064,7 @@ def test_forward_with_cache_and_padding(pos_emb_config: dict):
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
-            'attn_impl': 'torch',
+            'attn_impl': attn_impl,
             **pos_emb_config,
         },
         use_cache=True,
@@ -1016,47 +1075,74 @@ def test_forward_with_cache_and_padding(pos_emb_config: dict):
     )
 
     mpt = MPTForCausalLM(hf_config)
+    mpt = composer_device.module_to_device(mpt)
     mpt.eval()
+    with get_precision_context('amp_bf16' if composer_device.name ==
+                               'gpu' else 'fp32'):
+        first_input_ids_no_padding = torch.tensor([[11274, 16390, 11]])
+        first_input_ids_no_padding = composer_device.tensor_to_device(
+            first_input_ids_no_padding)
+        first_attention_mask_no_padding = torch.tensor([[1, 1, 1]]).bool()
+        first_attention_mask_no_padding = composer_device.tensor_to_device(
+            first_attention_mask_no_padding)
 
-    first_input_ids_no_padding = torch.tensor([[11274, 16390, 11]])
-    first_attention_mask_no_padding = torch.tensor([[1, 1, 1]]).bool()
+        # start with passing the first three tokens through (no padding)
+        first_output_no_padding = mpt(
+            first_input_ids_no_padding,
+            attention_mask=first_attention_mask_no_padding)
 
-    # start with passing the first three tokens through (no padding)
-    first_output_no_padding = mpt(
-        first_input_ids_no_padding,
-        attention_mask=first_attention_mask_no_padding)
+        second_input_ids_no_padding = torch.tensor([[11274, 16390, 11, 11274]])
+        second_input_ids_no_padding = composer_device.tensor_to_device(
+            second_input_ids_no_padding)
+        second_attention_mask_no_padding = torch.tensor([[1, 1, 1, 1]]).bool()
+        second_attention_mask_no_padding = composer_device.tensor_to_device(
+            second_attention_mask_no_padding)
 
-    second_input_ids_no_padding = torch.tensor([[11274, 16390, 11, 11274]])
-    second_attention_mask_no_padding = torch.tensor([[1, 1, 1, 1]]).bool()
+        # pass through the fourth token by itself, using the key-value cache (no padding)
+        second_output_no_padding = mpt(
+            second_input_ids_no_padding[:, -1].unsqueeze(-1),
+            attention_mask=second_attention_mask_no_padding,
+            past_key_values=first_output_no_padding.past_key_values)
 
-    # pass through the fourth token by itself, using the key-value cache (no padding)
-    second_output_no_padding = mpt(
-        second_input_ids_no_padding[:, -1].unsqueeze(-1),
-        attention_mask=second_attention_mask_no_padding,
-        past_key_values=first_output_no_padding.past_key_values)
+        first_input_ids_padding = torch.tensor([[50256, 11274, 16390, 11]])
+        first_input_ids_padding = composer_device.tensor_to_device(
+            first_input_ids_padding)
+        first_attention_mask_padding = torch.tensor([[0, 1, 1, 1]]).bool()
+        first_attention_mask_padding = composer_device.tensor_to_device(
+            first_attention_mask_padding)
 
-    first_input_ids_padding = torch.tensor([[50256, 11274, 16390, 11]])
-    first_attention_mask_padding = torch.tensor([[0, 1, 1, 1]]).bool()
+        # start with passing the first three tokens through (with left padding)
+        first_output_padding = mpt(first_input_ids_padding,
+                                   attention_mask=first_attention_mask_padding)
 
-    # start with passing the first three tokens through (with left padding)
-    first_output_padding = mpt(first_input_ids_padding,
-                               attention_mask=first_attention_mask_padding)
+        second_input_ids_padding = torch.tensor(
+            [[50256, 11274, 16390, 11, 11274]])
+        second_input_ids_padding = composer_device.tensor_to_device(
+            second_input_ids_padding)
+        second_attention_mask_padding = torch.tensor([[0, 1, 1, 1, 1]]).bool()
+        second_attention_mask_padding = composer_device.tensor_to_device(
+            second_attention_mask_padding)
 
-    second_input_ids_padding = torch.tensor([[50256, 11274, 16390, 11, 11274]])
-    second_attention_mask_padding = torch.tensor([[0, 1, 1, 1, 1]]).bool()
+        # pass through the fourth token by itself, using the key-value cache (with left padding)
+        second_output_padding = mpt(
+            second_input_ids_padding[:, -1].unsqueeze(-1),
+            attention_mask=second_attention_mask_padding,
+            past_key_values=first_output_padding.past_key_values)
 
-    # pass through the fourth token by itself, using the key-value cache (with left padding)
-    second_output_padding = mpt(
-        second_input_ids_padding[:, -1].unsqueeze(-1),
-        attention_mask=second_attention_mask_padding,
-        past_key_values=first_output_padding.past_key_values)
-
-    # check that the outputs are the same with or without padding
-    torch.testing.assert_close(second_output_no_padding.logits,
-                               second_output_padding.logits[:,
-                                                            -1, :].unsqueeze(1),
-                               atol=1e-6,
-                               rtol=1e-6)
+        # check that the outputs are the same with or without padding
+        if pos_emb_config['rope'] and pos_emb_config[
+                'rope_imp'] == 'dail':  # dail implementation of rope uses bf16 precision and hence the rotations have small numerical errors. This causes some differences between the outputs of padded and unpadded inputs.
+            torch.testing.assert_close(
+                second_output_no_padding.logits,
+                second_output_padding.logits[:, -1, :].unsqueeze(1),
+                atol=1e-2,
+                rtol=1e-6)
+        else:
+            torch.testing.assert_close(
+                second_output_no_padding.logits,
+                second_output_padding.logits[:, -1, :].unsqueeze(1),
+                atol=1e-6,
+                rtol=1e-6)
 
 
 @pytest.mark.parametrize('attn_impl,device', [
@@ -1075,26 +1161,30 @@ def test_forward_with_cache_and_padding(pos_emb_config: dict):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
+    'rope_imp': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
         'type': 'no_scaling',
-        'factor': 1.0
-    }
+        'factor': 1.0,
+    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'linear',
-        'factor': 1.0
-    }
-}, {
-    'alibi': False,
-    'rope': True,
-    'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'dynamic',
-        'factor': 1.0
-    }
+    'rope_imp': 'hf',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
 }])
 def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
     # Test that model forward with and without the key-value cache produces the
@@ -1105,6 +1195,11 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
         )
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
+
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_imp'] == 'dail' and device == 'cpu':
+        pytest.skip(
+            f'dail implementation of rope is only implemented for gpus.')
 
     composer_device = get_device(device)
 
@@ -1214,26 +1309,30 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
+    'rope_imp': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
         'type': 'no_scaling',
-        'factor': 1.0
-    }
+        'factor': 1.0,
+    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'linear',
-        'factor': 1.0
-    }
-}, {
-    'alibi': False,
-    'rope': True,
-    'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'dynamic',
-        'factor': 1.0
-    }
+    'rope_imp': 'hf',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
 }])
 def test_generate_with_past_kv(pos_emb_config: dict):
     hf_config = MPTConfig(
@@ -1283,6 +1382,12 @@ def test_generate_with_past_kv(pos_emb_config: dict):
                                                          hf_config.d_model)
 
 
+@pytest.mark.parametrize('attn_impl,device', [
+    ('torch', 'cpu'),
+    ('flash', 'gpu'),
+    ('triton', 'gpu'),
+    ('torch', 'gpu'),
+])
 @pytest.mark.parametrize('generation_kwargs', [{
     'max_new_tokens': 2,
     'num_beams': 4
@@ -1304,29 +1409,45 @@ def test_generate_with_past_kv(pos_emb_config: dict):
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
+    'rope_imp': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
         'type': 'no_scaling',
-        'factor': 1.0
-    }
+        'factor': 1.0,
+    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'linear',
-        'factor': 1.0
-    }
-}, {
-    'alibi': False,
-    'rope': True,
-    'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'dynamic',
-        'factor': 1.0
-    }
+    'rope_imp': 'hf',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
 }])
-def test_generation_kwargs_dont_crash(generation_kwargs: Dict[str, Any],
+def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
+                                      generation_kwargs: Dict[str, Any],
                                       pos_emb_config: dict):
+    if pos_emb_config['alibi'] and attn_impl == 'flash':
+        pytest.skip(f'alibi only implemented with torch and triton attention.')
+
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_imp'] == 'dail' and device == 'cpu':
+        pytest.skip(
+            f'dail implementation of rope is only implemented for gpus.')
+    reproducibility.seed_all(1234)
+    composer_device = get_device(device)
+    if device == 'gpu':  # Switch deteminism off
+        torch.use_deterministic_algorithms(False)
     hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
@@ -1337,21 +1458,30 @@ def test_generation_kwargs_dont_crash(generation_kwargs: Dict[str, Any],
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
-            'attn_impl': 'torch',
+            'attn_impl': attn_impl,
             **pos_emb_config,
         },
         use_cache=True,
     )
     mpt = MPTForCausalLM(hf_config)
+    mpt = composer_device.module_to_device(mpt)
     mpt.eval()
 
-    # no padding in the input
-    no_padding_input_ids = torch.tensor([[11274, 16390, 11]])
-    no_padding_attention_mask = torch.tensor([[1, 1, 1]])
+    with get_precision_context('amp_bf16' if composer_device.name ==
+                               'gpu' else 'fp32'):
+        # no padding in the input
+        no_padding_input_ids = torch.tensor([[11274, 16390, 11]])
+        no_padding_input_ids = composer_device.tensor_to_device(
+            no_padding_input_ids)
+        no_padding_attention_mask = torch.tensor([[1, 1, 1]])
+        no_padding_attention_mask = composer_device.tensor_to_device(
+            no_padding_attention_mask)
 
-    _ = mpt.generate(input_ids=no_padding_input_ids,
-                     attention_mask=no_padding_attention_mask,
-                     **generation_kwargs)
+        _ = mpt.generate(input_ids=no_padding_input_ids,
+                         attention_mask=no_padding_attention_mask,
+                         **generation_kwargs)
+    if device == 'gpu':  # Switch deteminism back on
+        reproducibility.configure_deterministic_mode()
 
 
 @pytest.mark.gpu
@@ -1366,26 +1496,30 @@ def test_generation_kwargs_dont_crash(generation_kwargs: Dict[str, Any],
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
+    'rope_imp': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
         'type': 'no_scaling',
-        'factor': 1.0
-    }
+        'factor': 1.0,
+    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'linear',
-        'factor': 1.0
-    }
-}, {
-    'alibi': False,
-    'rope': True,
-    'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'dynamic',
-        'factor': 1.0
-    }
+    'rope_imp': 'hf',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
 }])
 def test_model_to(attention_impl: str, pos_emb_config: dict):
     # test that moving the model to diff devices and dtypes in diff ways does not break the model
@@ -1433,7 +1567,7 @@ def test_model_to(attention_impl: str, pos_emb_config: dict):
     mpt = mpt.to('cpu')
 
     # verify the model still works
-    if attention_impl == 'torch':
+    if attention_impl == 'torch' and (not pos_emb_config['rope']):
         with torch.autocast('cpu', dtype=torch.bfloat16, enabled=True):
             _ = mpt(input_ids.to('cpu'),
                     attention_mask=attention_mask.to('cpu'))
@@ -1450,7 +1584,7 @@ def test_model_to(attention_impl: str, pos_emb_config: dict):
     mpt = mpt.float()
 
     # verify the model still works
-    if attention_impl == 'torch':
+    if attention_impl == 'torch' and (not pos_emb_config['rope']):
         _ = mpt(input_ids.to('cpu'), attention_mask=attention_mask.to('cpu'))
 
     mpt = mpt.half()
@@ -1497,26 +1631,30 @@ def test_alibi_vs_hf():
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
+    'rope_imp': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
         'type': 'no_scaling',
-        'factor': 1.0
-    }
+        'factor': 1.0,
+    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'linear',
-        'factor': 1.0
-    }
-}, {
-    'alibi': False,
-    'rope': True,
-    'rope_theta': 10000,
-    'rope_scaling': {
-        'type': 'dynamic',
-        'factor': 1.0
-    }
+    'rope_imp': 'hf',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
 }])
 @pytest.mark.parametrize('output_attentions', [True, False])
 @pytest.mark.parametrize('output_hidden_states', [True, False])
@@ -1532,6 +1670,10 @@ def test_forward_with_output_attentions_and_output_hidden_states(
         pytest.skip(f'alibi only implemented with torch and triton attention.')
     if output_attentions and attn_impl in ['flash', 'triton']:
         pytest.skip(f'output_attentions only implemented with torch attention.')
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_imp'] == 'dail' and device == 'cpu':
+        pytest.skip(
+            f'dail implementation of rope is only implemented for gpus.')
 
     composer_device = get_device(device)
 

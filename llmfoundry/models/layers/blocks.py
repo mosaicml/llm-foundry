@@ -43,10 +43,16 @@ class MPTBlock(nn.Module):
                 'alibi_bias_max': 8,
                 'rope': False,
                 'rope_theta': 10000,
-                'rope_scaling': {
+                'rope_imp': 'dail',
+                'rope_dail_config': {
+                    'type': 'original',
+                    'pos_idx_in_fp32': True,
+                    'xpos_scale_base': 512,
+                },
+                'rope_hf_config': {
                     'type': 'no_scaling',
-                    'factor': 1.0
-                }
+                    'factor': 1.0,
+                },
             }
 
         if ffn_config is None:
@@ -63,14 +69,9 @@ class MPTBlock(nn.Module):
 
         # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         args_to_exclude_in_attn_class = {
-            'attn_type',
-            'prefix_lm',
-            'alibi',
-            'attn_uses_sequence_id',
-            'alibi_bias_max',
-            'rope',
-            'rope_theta',
-            'rope_scaling',
+            'attn_type', 'prefix_lm', 'alibi', 'attn_uses_sequence_id',
+            'alibi_bias_max', 'rope', 'rope_theta', 'rope_imp',
+            'rope_dail_config', 'rope_hf_config'
         }
         attn_config_subset_for_attn_class = {
             k: v
@@ -106,7 +107,7 @@ class MPTBlock(nn.Module):
         x: torch.Tensor,
         past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
-        rotary_emb_w_offset_info: Optional[Dict] = None,
+        rotary_emb_w_meta_info: Optional[Dict] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         is_causal: bool = True,
         output_attentions: bool = False,
@@ -117,7 +118,7 @@ class MPTBlock(nn.Module):
             a,
             past_key_value=past_key_value,
             attn_bias=attn_bias,
-            rotary_emb_w_offset_info=rotary_emb_w_offset_info,
+            rotary_emb_w_meta_info=rotary_emb_w_meta_info,
             attention_mask=attention_mask,
             is_causal=is_causal,
             needs_weights=output_attentions,

@@ -23,11 +23,18 @@ from composer.metrics import (InContextLearningCodeEvalAccuracy,
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
+from flash_attn.layers.rotary import RotaryEmbedding as DAILRotaryEmbedding
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.modeling_outputs import (BaseModelOutputWithPast,
                                            CausalLMOutputWithPast)
+from transformers.models.llama.modeling_llama import \
+    LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import \
+    LlamaLinearScalingRotaryEmbedding as HFLinearScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import \
+    LlamaRotaryEmbedding as HFRotaryEmbedding
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
@@ -38,9 +45,6 @@ from llmfoundry.models.layers.ffn import \
 from llmfoundry.models.layers.ffn import MPTMLP as MPTMLP
 from llmfoundry.models.layers.ffn import build_ffn as build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-from llmfoundry.models.layers.rotary_embedding import (
-    DynamicNTKScalingRotaryEmbedding, LinearScalingRotaryEmbedding,
-    RotaryEmbedding)
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
 # NOTE: All utils are imported directly even if unused so that
@@ -75,29 +79,46 @@ log = logging.getLogger(__name__)
 
 def _rotary_embedding(config: MPTConfig):
     rope_head_dim = config.d_model // config.n_heads
-    if config.attn_config['rope_scaling']['type'] == 'no_scaling':
-        return RotaryEmbedding(
-            rope_head_dim,
-            max_position_embeddings=config.max_seq_len,
+    if config.attn_config['rope_imp'] == 'dail':
+        return DAILRotaryEmbedding(
+            dim=rope_head_dim,
             base=config.attn_config['rope_theta'],
-            device='cpu'
-        )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
-    elif config.attn_config['rope_scaling']['type'] == 'linear':
-        return LinearScalingRotaryEmbedding(
-            rope_head_dim,
-            max_position_embeddings=config.max_seq_len,
-            base=config.attn_config['rope_theta'],
-            scaling_factor=config.attn_config['rope_scaling']['factor'],
-            device='cpu'
-        )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
-    elif config.attn_config['rope_scaling']['type'] == 'dynamic':
-        return DynamicNTKScalingRotaryEmbedding(
-            rope_head_dim,
-            max_position_embeddings=config.max_seq_len,
-            base=config.attn_config['rope_theta'],
-            scaling_factor=config.attn_config['rope_scaling']['factor'],
-            device='cpu'
-        )  # FSDP does not materialize modules with no parameters, hence if we create meta buffers in rotary embeddings, they will not be materialized
+            interleaved=False,
+            scale_base=config.attn_config['rope_dail_config']['xpos_scale_base']
+            if (config.attn_config['rope_dail_config']['type']
+                == 'xpos') else None,
+            pos_idx_in_fp32=config.attn_config['rope_dail_config']
+            ['pos_idx_in_fp32'],
+            device=
+            'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+        )
+    elif config.attn_config['rope_imp'] == 'hf':
+        if config.attn_config['rope_hf_config']['type'] == 'no_scaling':
+            return HFRotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=config.max_seq_len,
+                base=config.attn_config['rope_theta'],
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
+        elif config.attn_config['rope_hf_config']['type'] == 'linear':
+            return HFLinearScalingRotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=config.max_seq_len,
+                base=config.attn_config['rope_theta'],
+                scaling_factor=config.attn_config['rope_hf_config']['factor'],
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
+        elif config.attn_config['rope_hf_config']['type'] == 'dynamic':
+            return HFDynamicNTKScalingRotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=config.max_seq_len,
+                base=config.attn_config['rope_theta'],
+                scaling_factor=config.attn_config['rope_hf_config']['factor'],
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
 
 
 class MPTPreTrainedModel(PreTrainedModel):
@@ -154,7 +175,9 @@ class MPTModel(MPTPreTrainedModel):
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         self.rope = config.attn_config['rope']
+        self.rope_imp = None
         if self.rope:
+            self.rope_imp = config.attn_config['rope_imp']
             self.rotary_embedding = _rotary_embedding(config)
 
         if config.init_device != 'meta':
@@ -395,7 +418,7 @@ class MPTModel(MPTPreTrainedModel):
             S <= self.config.max_seq_len
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
-        rotary_emb_w_offset_info = None
+        rotary_emb_w_meta_info = None
         x = self.wte(input_ids)
         if self.learned_pos_emb or self.rope:
             past_position = 0
@@ -420,27 +443,37 @@ class MPTModel(MPTPreTrainedModel):
                     +
                     f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
                 )
-            pos = torch.arange(
-                past_position,
-                S + past_position,
-                dtype=torch.long,
-                device=input_ids.device,
-            ).unsqueeze(0)
-            if attention_mask is not None:
-                # adjust the position indices to account for padding tokens
-                pos = torch.clamp(
-                    pos - torch.cumsum((~attention_mask).to(torch.int32),
-                                       dim=1)[:, past_position:],
-                    min=0,
-                )
-            if self.rope:
-                rotary_emb_w_offset_info = {
+
+            if self.learned_pos_emb or (self.rope and self.rope_imp == 'hf'):
+                pos = torch.arange(
+                    past_position,
+                    S + past_position,
+                    dtype=torch.long,
+                    device=input_ids.device,
+                ).unsqueeze(0)
+                if attention_mask is not None:
+                    # adjust the position indices to account for padding tokens
+                    pos = torch.clamp(
+                        pos - torch.cumsum((~attention_mask).to(torch.int32),
+                                           dim=1)[:, past_position:],
+                        min=0,
+                    )
+                if self.learned_pos_emb:
+                    x = x + self.wpe(pos)
+                elif self.rope and self.rope_imp == 'hf':
+                    rotary_emb_w_meta_info = {
+                        'imp': self.rope_imp,
+                        'rotary_emb': self.rotary_embedding,
+                        'offset_info': pos,
+                        'seq_len': S + past_position,
+                    }
+            elif self.rope and self.rope_imp == 'dail':
+                rotary_emb_w_meta_info = {
+                    'imp': self.rope_imp,
                     'rotary_emb': self.rotary_embedding,
-                    'pos': pos,
-                    'seq_len': S + past_position
+                    'offset_info': past_position,
+                    'seq_len': S + past_position,
                 }
-            if self.learned_pos_emb:
-                x = x + self.wpe(pos)
 
         if self.embedding_fraction == 1:
             x = self.emb_drop(x)
@@ -477,7 +510,7 @@ class MPTModel(MPTPreTrainedModel):
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
-                rotary_emb_w_offset_info=rotary_emb_w_offset_info,
+                rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),

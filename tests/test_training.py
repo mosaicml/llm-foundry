@@ -117,7 +117,8 @@ def set_correct_cwd():
 @pytest.mark.parametrize('averages', [{
     'core_average': ['language_understanding_lite']
 }, None])
-def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any, tmp_path: pathlib.Path):
+def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
+                        tmp_path: pathlib.Path):
     """Test training run with a small dataset."""
     dataset_name = create_c4_dataset_xsmall(tmp_path)
     test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')

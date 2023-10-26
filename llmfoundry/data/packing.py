@@ -261,6 +261,8 @@ def repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
 
 
 if __name__ == '__main__':
+    import multiprocessing as mp
+    import platform
     from argparse import ArgumentParser, Namespace
 
     from omegaconf import OmegaConf as om
@@ -269,6 +271,14 @@ if __name__ == '__main__':
                             build_text_denoising_dataloader)
     from llmfoundry.data import build_text_dataloader
     from llmfoundry.utils import build_tokenizer
+
+
+    if platform.system() != 'Linux':
+        # the default start method is 'fork' on Linux, but 'spawn' on macOS and Windows
+        # When a child process is generated with fork, the variable is inherited instead of pickled/unpickled.
+        # But when a child process is generated with spawn, then the arguments are sent through pickling/unpickling.
+        # This is a problem for the tiktoken tokenizer, which is not picklable.
+        mp.set_start_method('fork', force=True)
 
     def parse_args() -> Namespace:
         """Parse commandline arguments."""

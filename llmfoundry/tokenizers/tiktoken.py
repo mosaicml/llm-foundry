@@ -155,7 +155,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         """
         if isinstance(ids, int):
             if ids in self.added_tokens_decoder:
-                return self.added_tokens_decoder[ids]
+                return str(self.added_tokens_decoder[ids])
 
             return self._convert_id_to_token(ids)
 
@@ -171,7 +171,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             if index in self.added_tokens_decoder:
                 tokens.append(self.encoding.decode(current_stream))
                 current_stream = []
-                tokens.append(self.added_tokens_decoder[index])
+                tokens.append(str(self.added_tokens_decoder[index]))
             else:
                 current_stream.append(index)
 

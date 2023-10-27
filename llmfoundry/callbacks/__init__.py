@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 try:
+    from llmfoundry.callbacks.async_eval_callback import AsyncEval
     from llmfoundry.callbacks.eval_gauntlet_callback import EvalGauntlet
     from llmfoundry.callbacks.fdiff_callback import FDiffMetrics
     from llmfoundry.callbacks.generate_callback import Generate
@@ -28,4 +29,5 @@ __all__ = [
     'EvalGauntlet',
     'ModelGauntlet',
     'HuggingFaceCheckpointer',
+    'AsyncEval',
 ]

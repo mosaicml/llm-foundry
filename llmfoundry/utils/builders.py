@@ -27,9 +27,9 @@ from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
-                                  HuggingFaceCheckpointer, LayerFreezing,
-                                  MonolithicCheckpointSaver,
+from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
+                                  GlobalLRScaling, HuggingFaceCheckpointer,
+                                  LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
@@ -118,6 +118,8 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
         return EarlyStopper(**kwargs)
     elif name == 'hf_checkpointer':
         return HuggingFaceCheckpointer(**kwargs)
+    elif name == 'async_eval':
+        return AsyncEval(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

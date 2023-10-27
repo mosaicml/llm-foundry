@@ -518,6 +518,9 @@ def main(cfg: DictConfig) -> Trainer:
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
 
+    use_async_eval = any(
+        isinstance(callback, Evaluator.Async) for callback in callbacks)
+
     # Algorithms
     algorithms = [
         build_algorithm(str(name), algorithm_cfg)
@@ -556,14 +559,14 @@ def main(cfg: DictConfig) -> Trainer:
 
     eval_gauntlet_callback = None
 
-    if icl_tasks_config is not None:
+    if icl_tasks_config is not None and not use_async_eval:
         icl_evaluators, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
             icl_tasks_config, eval_gauntlet_config, tokenizer,
             device_eval_batch_size, icl_seq_len if icl_seq_len else max_seq_len,
             icl_subset_num_batches)
         evaluators.extend(icl_evaluators)
 
-    if eval_gauntlet_callback is not None:
+    if eval_gauntlet_callback is not None and not use_async_eval:
         callbacks.append(eval_gauntlet_callback)
 
     # Build Model

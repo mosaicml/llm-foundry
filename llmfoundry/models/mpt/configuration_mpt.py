@@ -8,8 +8,6 @@ from typing import Any, Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
-from llmfoundry.models.layers.attention import is_flash_v2_installed
-
 attn_config_defaults: Dict = {
     'attn_type': 'multihead_attention',
     'attn_pdrop': 0.0,
@@ -245,18 +243,19 @@ class MPTConfig(PretrainedConfig):
             raise ValueError(
                 'If using hf implementation of rope, the type should be one of "no_scaling", "linear" or "dynamic".'
             )
-        if self.attn_config['rope'] and (self.attn_config['rope_imp'] == 'dail'
-                                        ) and (not is_flash_v2_installed()):
-            raise NotImplementedError(
-                'If using the dail implementation of rope, flash-attention 2 should be installed. Please install flash_attn==2.3.2`.'
-            )
-        if self.attn_config['rope'] and (
-                self.attn_config['rope_imp']
-                == 'dail') and (self.attn_config['rope_dail_config']['type']
-                                not in ['original', 'xpos']):
-            raise ValueError(
-                'If using the dail implementation of rope, the type should be one of "original" or "xpos".'
-            )
+        if self.attn_config['rope'] and (self.attn_config['rope_imp']
+                                         == 'dail'):
+            from llmfoundry.models.layers.attention import is_flash_v2_installed
+            if not is_flash_v2_installed():
+                raise NotImplementedError(
+                    'If using the dail implementation of rope, flash-attention 2 should be installed. Please install flash_attn==2.3.2`.'
+                )
+            if self.attn_config['rope_dail_config']['type'] not in [
+                    'original', 'xpos'
+            ]:
+                raise ValueError(
+                    'If using the dail implementation of rope, the type should be one of "original" or "xpos".'
+                )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
                 'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!'

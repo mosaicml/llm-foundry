@@ -52,7 +52,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
         # Workaround to make tiktokenizer picklable.
         # https://github.com/huggingface/datasets/issues/5536#issuecomment-1682309347
-        # There an open PR from HF to add this to tiktoken: https://github.com/openai/tiktoken/pull/181
+        # There is an open PR from HF to add this to tiktoken: https://github.com/openai/tiktoken/pull/181
         import copyreg
         import functools
 

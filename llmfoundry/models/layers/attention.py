@@ -15,22 +15,8 @@ from torch import nn
 
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-
-
-def is_flash_v2_installed():
-    try:
-        import flash_attn as flash_attn
-    except:
-        return False
-    return version.parse(flash_attn.__version__) >= version.parse('2.0.0')
-
-
-def is_flash_v1_installed():
-    try:
-        import flash_attn as flash_attn
-    except:
-        return False
-    return version.parse(flash_attn.__version__) < version.parse('2.0.0')
+from llmfoundry.models.utils.flash_attn_checker import (is_flash_v1_installed,
+                                                        is_flash_v2_installed)
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,

@@ -24,8 +24,8 @@ from transformers import (AutoConfig, AutoModelForCausalLM,
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
-from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.models.utils.flash_attn_checker import is_flash_v2_installed
 
 try:
     from peft.peft_model import PeftModel

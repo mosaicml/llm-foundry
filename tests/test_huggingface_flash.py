@@ -14,8 +14,8 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.hf.hf_fsdp import rgetattr
-from llmfoundry.models.layers.attention import (is_flash_v1_installed,
-                                                is_flash_v2_installed)
+from llmfoundry.models.utils.flash_attn_checker import (is_flash_v1_installed,
+                                                        is_flash_v2_installed)
 from llmfoundry.utils.builders import build_tokenizer
 
 # Before importing any transformers models, we need to disable transformers flash attention if

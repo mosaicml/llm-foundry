@@ -9,8 +9,6 @@ import warnings
 from typing import Any, Dict, Union, cast
 from unittest import mock
 
-from llmfoundry.models.layers.attention import is_flash_v2_installed
-
 import pytest
 import torch
 import torch.nn as nn
@@ -31,6 +29,7 @@ from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         ComposerHFPrefixLM)
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
+from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
@@ -571,7 +570,8 @@ def test_forward_with_padding(attention_impl: str, device: str,
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     rope = pos_emb_config['rope']
-    if rope and pos_emb_config['rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
+    if rope and pos_emb_config['rope_imp'] == 'dail' and (
+            device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 
@@ -806,8 +806,8 @@ def test_generate(attention_impl: str, device: str, pos_emb_config: dict):
     if pos_emb_config['alibi'] and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
-    if pos_emb_config['rope'] and pos_emb_config[
-            'rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
+    if pos_emb_config['rope'] and pos_emb_config['rope_imp'] == 'dail' and (
+            device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 
@@ -1042,8 +1042,8 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str,
         )
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
-    if pos_emb_config['rope'] and pos_emb_config[
-            'rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
+    if pos_emb_config['rope'] and pos_emb_config['rope_imp'] == 'dail' and (
+            device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 
@@ -1191,8 +1191,8 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
-    if pos_emb_config['rope'] and pos_emb_config[
-            'rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
+    if pos_emb_config['rope'] and pos_emb_config['rope_imp'] == 'dail' and (
+            device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 
@@ -1428,11 +1428,15 @@ def test_generate_with_past_kv(pos_emb_config: dict):
 def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
                                       generation_kwargs: Dict[str, Any],
                                       pos_emb_config: dict):
+    if not torch.cuda.is_available() and device == 'gpu':
+        pytest.skip(
+            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
+        )
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
-    if pos_emb_config['rope'] and pos_emb_config[
-            'rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
+    if pos_emb_config['rope'] and pos_emb_config['rope_imp'] == 'dail' and (
+            device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
     composer_device = get_device(device)
@@ -1659,8 +1663,8 @@ def test_forward_with_output_attentions_and_output_hidden_states(
         pytest.skip(f'alibi only implemented with torch and triton attention.')
     if output_attentions and attn_impl in ['flash', 'triton']:
         pytest.skip(f'output_attentions only implemented with torch attention.')
-    if pos_emb_config['rope'] and pos_emb_config[
-            'rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
+    if pos_emb_config['rope'] and pos_emb_config['rope_imp'] == 'dail' and (
+            device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 

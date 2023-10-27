@@ -47,9 +47,9 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.16.3,<0.17',
+    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.16.4,<0.17',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
-    'transformers>=4.33,<4.34',
+    'transformers>=4.34.1,<4.35',
     'mosaicml-streaming>=0.6,<0.7',
     'torch>=1.13.1,<2.1.1',
     'datasets>=2.14.5,<2.15',
@@ -91,6 +91,12 @@ extra_deps['gpu'] = [
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
 ]
+extra_deps['gpu-flash2'] = [
+    'flash-attn==2.3.2',
+    'mosaicml-turbo==0.0.4',
+    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
+    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v2.3.2#subdirectory=csrc/xentropy',
+]
 
 extra_deps['peft'] = [
     'loralib==0.1.1',  # lora core
@@ -107,7 +113,11 @@ extra_deps['openai'] = [
 ]
 extra_deps['all-cpu'] = set(
     dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
-extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
+extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
+                        if key not in {'gpu-flash2', 'all-cpu'})
+extra_deps['all-flash2'] = set(dep for key, deps in extra_deps.items()
+                               for dep in deps
+                               if key not in {'gpu', 'all', 'all-cpu'})
 
 setup(
     name=_PACKAGE_NAME,

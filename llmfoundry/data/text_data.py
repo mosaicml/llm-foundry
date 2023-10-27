@@ -11,6 +11,8 @@ from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
 import numpy as np
 import torch
 import transformers
+from composer.core.data_spec import DataSpec
+from composer.core.types import Batch
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
@@ -237,7 +239,7 @@ def build_text_dataloader(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-) -> DataLoader:
+) -> DataSpec:
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
     if cfg.dataset.get('group_method', None) is not None:
         raise NotImplementedError(
@@ -281,7 +283,7 @@ def build_text_dataloader(
             eos_token_id=eos_token_id,
             bos_token_id=bos_token_id)
 
-    return DataLoader(
+    dl = DataLoader(
         dataset,
         collate_fn=collate_fn,
         batch_size=device_batch_size,
@@ -292,6 +294,58 @@ def build_text_dataloader(
         persistent_workers=cfg.get('persistent_workers', True),
         timeout=cfg.get('timeout', 0),
     )
+
+    # If we pretokenized, we may not have padding, in which case the
+    # tokenizer may not have a pad_token_id. In this case, we can
+    # just use the default token counting function. This is correct
+    # because we do not support training on pretokenized data with padding,
+    # and if tokenizing on the fly, we require that the tokenizer has a pad token.
+    token_counting_func = None
+    if tokenizer.pad_token_id is not None:
+        token_counting_func = get_tokens_per_batch_func(
+            pad_token_id=tokenizer.pad_token_id)
+
+    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
+
+
+def get_tokens_per_batch_func(pad_token_id: int,
+                              decoder_only: bool = True
+                             ) -> Callable[[Batch], int]:
+    """Returns a callable that counts the number of tokens in a batch.
+
+    Args:
+        pad_token_id (int): The id of the padding token.
+        decoder_only (bool, optional): Whether to expect the batch to just contain ``input_ids`` (decoder only)
+            or to also contain ``decoder_input_ids`` (encoder decoder). Defaults to ``True``.
+
+    Returns:
+        Callable[[Batch], int]: A callable that counts the number of tokens in a batch.
+    """
+
+    def get_num_samples_in_batch(batch: Batch) -> int:
+        if not isinstance(batch, Mapping) or 'input_ids' not in batch:
+            raise ValueError(
+                'get_tokens_per_batch_func() requires a batch with an input_ids key'
+            )
+
+        if not decoder_only and 'decoder_input_ids' not in batch:
+            raise ValueError(
+                'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_input_ids key'
+            )
+
+        # Count number of non padding tokens in batch
+        input_ids_tokens = int(
+            torch.sum(batch['input_ids'] != pad_token_id).item())
+
+        # For encoder decoder models only
+        decoder_input_ids_tokens = 0
+        if not decoder_only:
+            decoder_input_ids_tokens = int(
+                torch.sum(batch['decoder_input_ids'] != pad_token_id).item())
+
+        return input_ids_tokens + decoder_input_ids_tokens
+
+    return get_num_samples_in_batch
 
 
 # Helpful to test if your dataloader is working locally
@@ -353,7 +407,8 @@ if __name__ == '__main__':
     tokenizer_kwargs = {'model_max_length': args.max_seq_len}
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
-    loader = build_text_dataloader(cfg, tokenizer, device_batch_size)
+    loader = build_text_dataloader(cfg, tokenizer, device_batch_size).dataloader
+    assert isinstance(loader, DataLoader)
     assert isinstance(loader.dataset, StreamingTextDataset)
     tokenizer = loader.dataset.tokenizer
 

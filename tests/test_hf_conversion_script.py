@@ -5,8 +5,10 @@ import math
 import os
 import pathlib
 import sys
+from unittest.mock import MagicMock
 
 from composer import Trainer
+from composer.loggers import MLFlowLogger
 from composer.utils import dist, get_device
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
@@ -17,7 +19,7 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 import shutil
 from argparse import Namespace
-from typing import cast
+from typing import Optional, cast
 
 import pytest
 import torch
@@ -136,6 +138,49 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
     tokenizer1.__dict__['init_kwargs'].pop('auto_map', None)
     tokenizer2.__dict__['init_kwargs'].pop('auto_map', None)
 
+    # Additional special tokens do not match between original tokenizer and loaded tokenizer due to transformers
+    # constructor differences
+    additional_special_tokens_1 = {
+        t if isinstance(t, str) else t.content
+        for t in tokenizer1.__dict__.pop('_additional_special_tokens', [])
+    }
+    additional_special_tokens_2 = {
+        t if isinstance(t, str) else t.content
+        for t in tokenizer2.__dict__.pop('_additional_special_tokens', [])
+    }
+    # Also pop it out of init_kwargs
+    tokenizer1.__dict__['init_kwargs'].pop('additional_special_tokens', None)
+    tokenizer2.__dict__['init_kwargs'].pop('additional_special_tokens', None)
+    tokenizer1.__dict__['init_kwargs'].pop('added_tokens_decoder', None)
+    tokenizer2.__dict__['init_kwargs'].pop('added_tokens_decoder', None)
+    # If the additional special tokens are the same (or a subset of each other), or if one of them is empty, then we are good
+    assert additional_special_tokens_1.issubset(
+        additional_special_tokens_2) or additional_special_tokens_2.issubset(
+            additional_special_tokens_1)
+
+    # The special token attributes may be strings or they may be AddedToken objects, so we just check string values
+    # First check that they have the same attrs
+    assert tokenizer1.SPECIAL_TOKENS_ATTRIBUTES == tokenizer2.SPECIAL_TOKENS_ATTRIBUTES
+    # Then check that the values are the same
+    for special_token_attr in tokenizer1.SPECIAL_TOKENS_ATTRIBUTES:
+        # Skip additional_special_tokens because we already checked it above
+        if special_token_attr == 'additional_special_tokens':
+            continue
+
+        # The init_kwargs can change between the original tokenizer and the loaded tokenizer,
+        # so we just pop them
+        tokenizer1.__dict__['init_kwargs'].pop(special_token_attr, None)
+        tokenizer2.__dict__['init_kwargs'].pop(special_token_attr, None)
+
+        attr1 = tokenizer1.__dict__.pop('_' + special_token_attr, None)
+        attr2 = tokenizer2.__dict__.pop('_' + special_token_attr, None)
+        if attr1 is None and attr2 is None:
+            continue
+
+        attr_value1 = attr1 if isinstance(attr1, str) else attr1.content
+        attr_value2 = attr2 if isinstance(attr2, str) else attr2.content
+        assert attr_value1 == attr_value2
+
     assert tokenizer1.__dict__ == tokenizer2.__dict__
 
 
@@ -148,6 +193,23 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
     # so we remove it
     expected_model_config_dict.pop('_name_or_path')
     new_model_config_dict.pop('_name_or_path')
+
+    # Special case a couple of differences that correctly occur when saving MPT to huggingface format
+    # checkpoint
+    architectures_1 = expected_model_config_dict.pop('architectures', None)
+    architectures_2 = new_model_config_dict.pop('architectures', None)
+    if architectures_1 != architectures_2:
+        assert architectures_1 is None and architectures_2 == ['MPTForCausalLM']
+
+    auto_map_1 = expected_model_config_dict.pop('auto_map', None)
+    auto_map_2 = new_model_config_dict.pop('auto_map', None)
+    if auto_map_1 != auto_map_2:
+        assert auto_map_1 == {'AutoConfig': 'configuration_mpt.MPTConfig'}
+        assert auto_map_2 == {
+            'AutoConfig': 'configuration_mpt.MPTConfig',
+            'AutoModelForCausalLM': 'modeling_mpt.MPTForCausalLM'
+        }
+
     assert expected_model_config_dict == new_model_config_dict
     assert all(
         torch.equal(p1.cpu(), p2.cpu())
@@ -155,6 +217,10 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
 
 
 def delete_transformers_cache():
+    # Only delete the files on local rank 0, otherwise race conditions are created
+    if not dist.get_local_rank() == 0:
+        return
+
     hf_cache_home = os.path.expanduser(
         os.getenv(
             'HF_HOME',
@@ -183,26 +249,35 @@ def test_callback_inits_with_defaults():
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize('model', ['mpt', 'neo', 'llama2'])
-@pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded'])
+@pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
+@pytest.mark.parametrize('log_to_mlflow', [True, False])
+@pytest.mark.parametrize(
+    'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
+    [('3ba', '2ba', '7ba', 3, 4), ('1dur', '2ba', '1ep', 1, 4)])
 def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
-                                         fsdp_state_dict_type: str):
+                                         fsdp_state_dict_type: Optional[str],
+                                         log_to_mlflow: bool,
+                                         hf_save_interval: str,
+                                         save_interval: str, max_duration: str,
+                                         expected_hf_checkpoints: int,
+                                         expected_normal_checkpoints: int):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
 
     max_seq_len = 16
-    save_interval_batches = 2
-    huggingface_save_interval_batches = 3
     device_batch_size = 1
     dataset_size = 14
-    max_duration_batches = 7
     precision_str = 'bfloat16'
     precision = torch.bfloat16
+    batches_per_epoch = math.ceil(dataset_size / (device_batch_size * 2))
 
     checkpointer_callback = HuggingFaceCheckpointer(
         save_folder=os.path.join(tmp_path, 'checkpoints'),
-        save_interval=f'{huggingface_save_interval_batches}ba',
+        save_interval=hf_save_interval,
         precision=precision_str,
+        mlflow_registered_model_name='dummy-registered-name'
+        if log_to_mlflow else None,
     )
 
     # get small version of each model
@@ -324,19 +399,34 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)
 
+    mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
+    mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
+    mlflow_logger_mock.save_model = MagicMock()
+    mlflow_logger_mock.register_model = MagicMock()
+    mlflow_logger_mock.model_registry_prefix = ''
     trainer = Trainer(
         model=original_model,
         device='gpu',
-        fsdp_config=fsdp_config,
+        fsdp_config=fsdp_config if fsdp_state_dict_type is not None else None,
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
-        save_interval=f'{save_interval_batches}ba',
-        max_duration=f'{max_duration_batches}ba',
+        save_interval=save_interval,
+        max_duration=max_duration,
         callbacks=[checkpointer_callback],
+        loggers=[mlflow_logger_mock] if log_to_mlflow else [],
         optimizers=optimizer,
         save_latest_filename=None,
     )
     trainer.fit()
+
+    if dist.get_global_rank() == 0:
+        assert mlflow_logger_mock.save_model.call_count == (1 if log_to_mlflow
+                                                            else 0)
+        assert mlflow_logger_mock.register_model.call_count == (
+            1 if log_to_mlflow else 0)
+    else:
+        assert mlflow_logger_mock.log_model.call_count == 0
+        assert mlflow_logger_mock.register_model.call_count == 0
 
     # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
@@ -357,15 +447,13 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                 name for name in os.listdir(
                     os.path.join(tmp_path, 'checkpoints', 'huggingface'))
             ]
-            assert len(normal_checkpoints) == math.ceil(max_duration_batches /
-                                                        save_interval_batches)
-            assert len(huggingface_checkpoints) == math.ceil(
-                max_duration_batches / huggingface_save_interval_batches)
+            assert len(normal_checkpoints) == expected_normal_checkpoints
+            assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
             # Load the last huggingface checkpoint
             loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
                 os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                             f'ba{max_duration_batches}'),
+                             f'ba{batches_per_epoch}'),
                 trust_remote_code=True,
             )
 
@@ -386,14 +474,17 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
 
             loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
                 os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                             f'ba{max_duration_batches}'),
+                             f'ba{batches_per_epoch}'),
                 trust_remote_code=True,
             )
 
-            check_hf_model_equivalence(trainer.state.model.model.to(precision),
-                                       loaded_model)
+            check_hf_model_equivalence(
+                trainer.state.model.model.to(precision) if fsdp_state_dict_type
+                is not None else trainer.state.model.module.model.to(precision),
+                loaded_model)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
+    dist.barrier()
     delete_transformers_cache()
 
 

@@ -56,8 +56,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         import copyreg
         import functools
 
-        def pickle_Encoding(enc: tiktoken.core.Encoding):
-            return (functools.partial(tiktoken.core.Encoding,
+        def pickle_Encoding(enc: tiktoken.Encoding):
+            return (functools.partial(tiktoken.Encoding,
                                       enc.name,
                                       pat_str=enc._pat_str,
                                       mergeable_ranks=enc._mergeable_ranks,

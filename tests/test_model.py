@@ -1331,7 +1331,8 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
         'factor': 1.0,
     },
 }])
-def test_generate_with_past_kv(attn_impl: str, device: str, pos_emb_config: dict):
+def test_generate_with_past_kv(attn_impl: str, device: str,
+                               pos_emb_config: dict):
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
@@ -1341,10 +1342,10 @@ def test_generate_with_past_kv(attn_impl: str, device: str, pos_emb_config: dict
     if pos_emb_config['rope'] and pos_emb_config['rope_imp'] == 'dail' and (
             device != 'gpu' or not is_flash_v2_installed()):
         pytest.skip(
-            f'dail implementation of rope requires gpu and flash attention 2.') 
+            f'dail implementation of rope requires gpu and flash attention 2.')
 
     composer_device = get_device(device)
-    
+
     hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
@@ -1373,20 +1374,21 @@ def test_generate_with_past_kv(attn_impl: str, device: str, pos_emb_config: dict
     no_padding_input_ids = composer_device.tensor_to_device(
         no_padding_input_ids)
     no_padding_attention_mask = torch.tensor([[1, 1, 1]])
-    no_padding_attention_mask = composer_device.tensor_to_device(no_padding_attention_mask)
+    no_padding_attention_mask = composer_device.tensor_to_device(
+        no_padding_attention_mask)
 
     with get_precision_context('amp_bf16' if composer_device.name ==
-                            'gpu' else 'fp32'):
+                               'gpu' else 'fp32'):
         with mock.patch.object(MPTForCausalLM, 'forward',
-                            autospec=True) as forward_mocked:
+                               autospec=True) as forward_mocked:
             forward_mocked.return_value = CausalLMOutputWithPast(
                 logits=torch.randn((1, 3, hf_config.vocab_size)),
                 past_key_values=[(torch.randn(1, 3, hf_config.d_model),
-                                torch.randn(1, 3, hf_config.d_model))
-                                for _ in range(hf_config.n_layers)])
+                                  torch.randn(1, 3, hf_config.d_model))
+                                 for _ in range(hf_config.n_layers)])
             _ = mpt.generate(input_ids=no_padding_input_ids,
-                            attention_mask=no_padding_attention_mask,
-                            max_new_tokens=2)
+                             attention_mask=no_padding_attention_mask,
+                             max_new_tokens=2)
 
             assert forward_mocked.call_count == 2
             _, _, kwargs = forward_mocked.mock_calls[0]
@@ -1395,7 +1397,7 @@ def test_generate_with_past_kv(attn_impl: str, device: str, pos_emb_config: dict
             assert kwargs['past_key_values'] is not None
             assert len(kwargs['past_key_values']) == hf_config.n_layers
             assert kwargs['past_key_values'][0][0].shape == (1, 3,
-                                                            hf_config.d_model)
+                                                             hf_config.d_model)
 
 
 @pytest.mark.parametrize('attn_impl,device', [
@@ -1548,10 +1550,10 @@ def test_model_to(attention_impl: str, pos_emb_config: dict):
         )
     if pos_emb_config['alibi'] and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
-    
-    if pos_emb_config['rope'] and pos_emb_config['rope_imp'] == 'dail' and  not is_flash_v2_installed():
-        pytest.skip(
-            f'dail implementation of rope requires flash attention 2.')
+
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_imp'] == 'dail' and not is_flash_v2_installed():
+        pytest.skip(f'dail implementation of rope requires flash attention 2.')
 
     hf_config = MPTConfig(
         init_device='cpu',
@@ -1589,7 +1591,8 @@ def test_model_to(attention_impl: str, pos_emb_config: dict):
     mpt = mpt.to('cpu')
 
     # verify the model still works
-    if attention_impl == 'torch' and (not pos_emb_config['rope']):
+    if attention_impl == 'torch' and not (pos_emb_config['rope'] and
+                                          pos_emb_config['rope_imp'] == 'dail'):
         with torch.autocast('cpu', dtype=torch.bfloat16, enabled=True):
             _ = mpt(input_ids.to('cpu'),
                     attention_mask=attention_mask.to('cpu'))
@@ -1606,7 +1609,8 @@ def test_model_to(attention_impl: str, pos_emb_config: dict):
     mpt = mpt.float()
 
     # verify the model still works
-    if attention_impl == 'torch' and (not pos_emb_config['rope']):
+    if attention_impl == 'torch' and not (pos_emb_config['rope'] and
+                                          pos_emb_config['rope_imp'] == 'dail'):
         _ = mpt(input_ids.to('cpu'), attention_mask=attention_mask.to('cpu'))
 
     mpt = mpt.half()

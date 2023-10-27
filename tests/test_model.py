@@ -9,6 +9,16 @@ import warnings
 from typing import Any, Dict, Union, cast
 from unittest import mock
 
+import transformers
+
+from llmfoundry.models.layers.attention import is_flash_v1_installed
+
+# Before importing any transformers models, we need to disable transformers flash attention if
+# we are in an environment with flash attention version <2. Transformers hard errors on a not properly
+# gated import otherwise.
+if is_flash_v1_installed():
+    transformers.utils.is_flash_attn_available = lambda: False
+
 import pytest
 import torch
 import torch.nn as nn

@@ -15,7 +15,7 @@ command: |
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: mpt-gauntlet-v0.1
 gpu_num: 32
-gpu_type: a100_40gb
+gpu_type: a100_80gb
 cluster:  r7z2 # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest

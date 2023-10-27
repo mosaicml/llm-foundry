@@ -3,7 +3,7 @@ seed: 1
 precision: fp32
 
 # If you are using one model, put it here:
-model_name_or_path: mosaicml/mpt-7b-instruct
+model_name_or_path: EleutherAI/gpt-neo-125m
 # otherwise, write a block for each model you want to test in the `models` section
 
 models:
@@ -34,7 +34,7 @@ models:
 #       model_max_length: ${max_seq_len}
 
 
-device_eval_batch_size: 1
+device_eval_batch_size: 4
 
 # FSDP config for model sharding
 # fsdp_config:

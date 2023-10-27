@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import omegaconf as om
 import pytest
@@ -53,7 +53,10 @@ class MockLogger(Logger):
         self.inmemorylogger.log_metrics(metrics)
 
 
-def test_gauntlet_callback():
+@pytest.mark.parametrize('averages', [{
+    'core_average': ['world_knowledge', 'language_understanding']
+}, None])
+def test_gauntlet_callback(averages: Optional[dict]):
     icl_task_config = om.OmegaConf.create("""
             - label: jeopardy_small
               dataset_uri: eval/local_data/world_knowledge/jeopardy_small.jsonl # ADD YOUR OWN DATASET URI
@@ -87,6 +90,9 @@ def test_gauntlet_callback():
           """)
     assert isinstance(eval_gauntlet_config, om.DictConfig) or isinstance(
         eval_gauntlet_config, str)
+
+    if averages is not None:
+        eval_gauntlet_config.averages = averages
     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
 
     # test loading functionality
@@ -106,4 +112,9 @@ def test_gauntlet_callback():
         name = f'icl/metrics/eval_gauntlet/{category}'
         assert result[name] == pytest.approx(0.25)
 
-    assert result['icl/metrics/eval_gauntlet/average'] == pytest.approx(0.25)
+    if averages is None:
+        assert result[
+            'icl/metrics/eval_gauntlet/default_average'] == pytest.approx(0.25)
+    else:
+        assert result[
+            'icl/metrics/eval_gauntlet/core_average'] == pytest.approx(0.25)

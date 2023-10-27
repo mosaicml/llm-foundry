@@ -15,7 +15,7 @@ from torch import nn
 
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-from llmfoundry.models.utils.flash_attn_checker import (is_flash_v1_installed,
+from llmfoundry.utils.flash_attn_checker import (is_flash_v1_installed,
                                                         is_flash_v2_installed)
 
 

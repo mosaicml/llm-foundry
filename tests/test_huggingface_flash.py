@@ -14,7 +14,7 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.hf.hf_fsdp import rgetattr
-from llmfoundry.models.utils.flash_attn_checker import (is_flash_v1_installed,
+from llmfoundry.utils.flash_attn_checker import (is_flash_v1_installed,
                                                         is_flash_v2_installed)
 from llmfoundry.utils.builders import build_tokenizer
 

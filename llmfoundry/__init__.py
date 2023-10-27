@@ -4,15 +4,15 @@
 import torch
 
 try:
+    from llmfoundry import optim, utils
+    
     # Before importing any transformers models, we need to disable transformers flash attention if
     # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
     # gated import otherwise.
-    import transformers
-
-    from llmfoundry.models.utils.flash_attn_checker import is_flash_v1_installed
+    from llmfoundry.utils.flash_attn_checker import is_flash_v1_installed
     if is_flash_v1_installed():
+        import transformers
         transformers.utils.is_flash_attn_available = lambda: False
-    from llmfoundry import optim, utils
     from llmfoundry.data import (ConcatTokensDataset,
                                  MixtureOfDenoisersCollator, NoConcatDataset,
                                  Seq2SeqFinetuningCollator,

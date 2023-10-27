@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import functools
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -48,6 +49,18 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         except:
             raise ImportError(
                 'You need to install tiktoken to use TiktokenTokenizerWrapper.')
+        
+        # Workaround to make tiktokenizer picklable.
+        # https://github.com/huggingface/datasets/issues/5536#issuecomment-1682309347
+        # There an open PR from HF to add this to tiktoken: https://github.com/openai/tiktoken/pull/181
+        import copyreg
+        def pickle_Encoding(enc: tiktoken.core.Encoding):
+            return (functools.partial(tiktoken.core.Encoding, 
+                                      enc.name, pat_str=enc._pat_str, 
+                                      mergeable_ranks=enc._mergeable_ranks, 
+                                      special_tokens=enc._special_tokens), ())
+        copyreg.pickle(tiktoken.core.Encoding, pickle_Encoding)
+
 
         if model_name is not None and encoding_name is not None:
             raise ValueError(

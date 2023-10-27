@@ -3,18 +3,10 @@
 
 import pytest
 import torch
+from omegaconf import OmegaConf as om
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-
-if is_flash_v2_installed():
-    from flash_attn.layers.rotary import RotaryEmbedding as DAILRotaryEmbedding
-from omegaconf import OmegaConf as om
-from transformers.models.llama.modeling_llama import \
-    LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaLinearScalingRotaryEmbedding as HFLinearScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaRotaryEmbedding as HFRotaryEmbedding
+from tests.test_rope_dail_vs_hf import gen_rotary_embedding
 
 
 def allclose_helper(t0: torch.Tensor,
@@ -85,10 +77,9 @@ def test_attn_impl(attn_impl_0: str,
     if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'):
         pytest.xfail('flash attn does not support alibi')
 
-    if rope and (pos_emb_config['rope_imp']=='dail') and (not is_flash_v2_installed()):
-        pytest.skip(
-            'dail implementation of rope requires flash attention 2.'
-        )
+    if rope and (pos_emb_config['rope_imp']
+                 == 'dail') and (not is_flash_v2_installed()):
+        pytest.skip('dail implementation of rope requires flash attention 2.')
 
     cfg = om.create({
         'attn_impl': 'flash',
@@ -135,55 +126,6 @@ def test_attn_impl(attn_impl_0: str,
             )
 
         return attn_bias
-
-    def gen_rotary_embedding(rope_head_dim: int, pos_emb_config: dict,
-                             max_seq_len: int):
-        if pos_emb_config['rope_imp'] == 'dail':
-            return DAILRotaryEmbedding(
-                dim=rope_head_dim,
-                base=pos_emb_config['rope_theta'],
-                interleaved=False,
-                scale_base=pos_emb_config['rope_dail_config']['xpos_scale_base']
-                if (pos_emb_config['rope_dail_config']['type']
-                    == 'xpos') else None,
-                pos_idx_in_fp32=pos_emb_config['rope_dail_config']
-                ['pos_idx_in_fp32'],
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-            )
-        elif pos_emb_config['rope_imp'] == 'hf':
-            if pos_emb_config['rope_hf_config']['type'] == 'no_scaling':
-                return HFRotaryEmbedding(
-                    rope_head_dim,
-                    max_position_embeddings=max_seq_len,
-                    base=pos_emb_config['rope_theta'],
-                    device=
-                    'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-                )
-            elif pos_emb_config['rope_hf_config']['type'] == 'linear':
-                return HFLinearScalingRotaryEmbedding(
-                    rope_head_dim,
-                    max_position_embeddings=max_seq_len,
-                    base=pos_emb_config['rope_theta'],
-                    scaling_factor=pos_emb_config['rope_hf_config']['factor'],
-                    device=
-                    'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-                )
-            elif pos_emb_config['rope_hf_config']['type'] == 'dynamic':
-                return HFDynamicNTKScalingRotaryEmbedding(
-                    rope_head_dim,
-                    max_position_embeddings=max_seq_len,
-                    base=pos_emb_config['rope_theta'],
-                    scaling_factor=pos_emb_config['rope_hf_config']['factor'],
-                    device=
-                    'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-                )
-            else:
-                raise ValueError(
-                    f'Invalid scaling type: {pos_emb_config["rope_hf_config"]["type"]}'
-                )
-        else:
-            raise ValueError(f'Invalid rope_imp: {pos_emb_config["rope_imp"]}')
 
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()

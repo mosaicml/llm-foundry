@@ -18,6 +18,55 @@ from transformers.models.llama.modeling_llama import \
     LlamaRotaryEmbedding as HFRotaryEmbedding
 
 
+def gen_rotary_embedding(rope_head_dim: int, pos_emb_config: dict,
+                         max_seq_len: int):
+    if pos_emb_config['rope_imp'] == 'dail':
+        return DAILRotaryEmbedding(
+            dim=rope_head_dim,
+            base=pos_emb_config['rope_theta'],
+            interleaved=False,
+            scale_base=pos_emb_config['rope_dail_config']['xpos_scale_base'] if
+            (pos_emb_config['rope_dail_config']['type'] == 'xpos') else None,
+            pos_idx_in_fp32=pos_emb_config['rope_dail_config']
+            ['pos_idx_in_fp32'],
+            device=
+            'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+        )
+    elif pos_emb_config['rope_imp'] == 'hf':
+        if pos_emb_config['rope_hf_config']['type'] == 'no_scaling':
+            return HFRotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=max_seq_len,
+                base=pos_emb_config['rope_theta'],
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
+        elif pos_emb_config['rope_hf_config']['type'] == 'linear':
+            return HFLinearScalingRotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=max_seq_len,
+                base=pos_emb_config['rope_theta'],
+                scaling_factor=pos_emb_config['rope_hf_config']['factor'],
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
+        elif pos_emb_config['rope_hf_config']['type'] == 'dynamic':
+            return HFDynamicNTKScalingRotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=max_seq_len,
+                base=pos_emb_config['rope_theta'],
+                scaling_factor=pos_emb_config['rope_hf_config']['factor'],
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
+        else:
+            raise ValueError(
+                f'Invalid scaling type: {pos_emb_config["rope_hf_config"]["type"]}'
+            )
+    else:
+        raise ValueError(f'Invalid rope_imp: {pos_emb_config["rope_imp"]}')
+
+
 @pytest.mark.gpu
 @pytest.mark.parametrize('clip_qkv', [True, False])
 @pytest.mark.parametrize('qk_ln', [True, False])
@@ -30,60 +79,9 @@ def test_rope_dail_vs_hf(clip_qkv: bool,
                          attn_type: str,
                          seq_len: int,
                          device: str = 'cuda'):
-    if not is_flash_v2_installed():
-        pytest.skip(
-            'dail implementation of rope requires flash attention 2.'
-        )
-
     # compare rope rotations for the dail vs hf implementations
-    def gen_rotary_embedding(rope_head_dim: int, pos_emb_config: dict,
-                             max_seq_len: int):
-        if pos_emb_config['rope_imp'] == 'dail':
-            return DAILRotaryEmbedding(
-                dim=rope_head_dim,
-                base=pos_emb_config['rope_theta'],
-                interleaved=False,
-                scale_base=pos_emb_config['rope_dail_config']['xpos_scale_base']
-                if (pos_emb_config['rope_dail_config']['type']
-                    == 'xpos') else None,
-                pos_idx_in_fp32=pos_emb_config['rope_dail_config']
-                ['pos_idx_in_fp32'],
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-            )
-        elif pos_emb_config['rope_imp'] == 'hf':
-            if pos_emb_config['rope_hf_config']['type'] == 'no_scaling':
-                return HFRotaryEmbedding(
-                    rope_head_dim,
-                    max_position_embeddings=max_seq_len,
-                    base=pos_emb_config['rope_theta'],
-                    device=
-                    'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-                )
-            elif pos_emb_config['rope_hf_config']['type'] == 'linear':
-                return HFLinearScalingRotaryEmbedding(
-                    rope_head_dim,
-                    max_position_embeddings=max_seq_len,
-                    base=pos_emb_config['rope_theta'],
-                    scaling_factor=pos_emb_config['rope_hf_config']['factor'],
-                    device=
-                    'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-                )
-            elif pos_emb_config['rope_hf_config']['type'] == 'dynamic':
-                return HFDynamicNTKScalingRotaryEmbedding(
-                    rope_head_dim,
-                    max_position_embeddings=max_seq_len,
-                    base=pos_emb_config['rope_theta'],
-                    scaling_factor=pos_emb_config['rope_hf_config']['factor'],
-                    device=
-                    'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-                )
-            else:
-                raise ValueError(
-                    f'Invalid scaling type: {pos_emb_config["rope_hf_config"]["type"]}'
-                )
-        else:
-            raise ValueError(f'Invalid rope_imp: {pos_emb_config["rope_imp"]}')
+    if not is_flash_v2_installed():
+        pytest.skip('dail implementation of rope requires flash attention 2.')
 
     from llmfoundry.models.layers import attention
 

@@ -611,10 +611,12 @@ class GroupedQueryAttention(nn.Module):
                                    self.kv_n_heads * self.head_dim)
             elif rotary_emb_w_meta_info['imp'] == 'hf':
                 (cos, sin) = rotary_emb(value, seq_len)
+                # The following two transposes should be removed once the transformers library allows for the specification of the dimension for heads in the call to apply_rotary_pos_emb
                 query = query.transpose(1, 2)
                 key = key.transpose(1, 2)
                 query, key = apply_rotary_pos_emb(query, key, cos, sin,
                                                   offset_info)
+                # The following two transposes should be removed once the transformers library allows for the specification of the dimension for heads in the call to apply_rotary_pos_emb
                 query = query.transpose(1, 2)
                 key = key.transpose(1, 2)
 

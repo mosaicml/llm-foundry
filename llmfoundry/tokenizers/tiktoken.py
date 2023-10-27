@@ -1,7 +1,10 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+
 import functools
+import warnings
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -27,7 +30,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                  eos_token: Optional[str] = '<|endoftext|>',
                  bos_token: Optional[str] = '<|endoftext|>',
                  pad_token: Optional[str] = None,
-                 **kwargs: Dict[str, Any]):
+                 **kwargs: Any):
         """Constructor creates a tiktoken tokenizer to use as the underlying.
 
         tokenizer.
@@ -103,7 +106,17 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         return False
 
     def get_vocab(self) -> Dict[str, int]:
-        """Returns vocab as a dict."""
+        """Returns vocab as a dict.
+
+        Note: This function does not work properly due to difference in assumptions between tiktoken and Hugging Face tokenizers.
+        Most uses do not need to use get_vocab, so this is not a priority to fix.
+        """
+        warnings.warn(
+            'get_vocab does not work properly with TiktokenTokenizerWrapper. Please do not rely on it being perfectly correct.'
+            +
+            ' It will be called once init just to get the size of the vocab inside the base class.'
+        )
+
         vocab = {}
         for i in range(self.vocab_size):
             try:
@@ -113,6 +126,24 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 vocab[self.encoding.decode([i])] = i
             except KeyError:
                 pass
+
+        # As far as I can tell, we don't require get_vocab to completely work,
+        # but when using additional_special_tokens, Hugging Face determines the next
+        # token index to add with len(self.get_vocab()) so we need the _size_ of this dictionary to be correct.
+        extra_id_index = 0
+        candidate_extra_id = f'<extra_id_{extra_id_index}>'
+        indices_to_fill_in = {i for i in range(self.vocab_size)} - set(
+            vocab.values())
+
+        # Add enough indices to make get_vocab() the right length
+        for index_to_add in indices_to_fill_in:
+            # Make sure we don't overwrite a token that already exists
+            while candidate_extra_id in vocab:
+                extra_id_index += 1
+                candidate_extra_id = f'<extra_id_{extra_id_index}>'
+
+            # Get an index to add and add the item
+            vocab[candidate_extra_id] = index_to_add
 
         return vocab
 

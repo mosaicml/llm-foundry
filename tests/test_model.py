@@ -1548,6 +1548,10 @@ def test_model_to(attention_impl: str, pos_emb_config: dict):
         )
     if pos_emb_config['alibi'] and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
+    
+    if pos_emb_config['rope'] and pos_emb_config['rope_imp'] == 'dail' and  not is_flash_v2_installed():
+        pytest.skip(
+            f'dail implementation of rope requires flash attention 2.')
 
     hf_config = MPTConfig(
         init_device='cpu',

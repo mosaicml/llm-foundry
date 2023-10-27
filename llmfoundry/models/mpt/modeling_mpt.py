@@ -23,7 +23,12 @@ from composer.metrics import (InContextLearningCodeEvalAccuracy,
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
-from flash_attn.layers.rotary import RotaryEmbedding as DAILRotaryEmbedding
+
+from llmfoundry.models.layers.attention import is_flash_v2_installed
+
+if is_flash_v2_installed():
+    from flash_attn.layers.rotary import RotaryEmbedding as DAILRotaryEmbedding
+
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedModel, PreTrainedTokenizerBase

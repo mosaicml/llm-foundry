@@ -32,6 +32,7 @@ def is_flash_v1_installed():
         return False
     return version.parse(flash_attn.__version__) < version.parse('2.0.0')
 
+
 if is_flash_v1_installed():
     import transformers
     transformers.utils.is_flash_attn_available = lambda: False

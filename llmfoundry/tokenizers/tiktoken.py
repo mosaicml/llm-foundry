@@ -63,7 +63,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                                       mergeable_ranks=enc._mergeable_ranks,
                                       special_tokens=enc._special_tokens), ())
 
-        copyreg.pickle(tiktoken.core.Encoding, pickle_Encoding)
+        copyreg.pickle(tiktoken.Encoding, pickle_Encoding)
 
         if model_name is not None and encoding_name is not None:
             raise ValueError(

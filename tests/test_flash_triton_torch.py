@@ -5,7 +5,8 @@ import pytest
 import torch
 import transformers
 
-from llmfoundry.models.layers.attention import is_flash_v1_installed
+from llmfoundry.models.layers.attention import (is_flash_v1_installed,
+                                                is_flash_v2_installed)
 
 # Before importing any transformers models, we need to disable transformers flash attention if
 # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
@@ -13,7 +14,8 @@ from llmfoundry.models.layers.attention import is_flash_v1_installed
 if is_flash_v1_installed():
     transformers.utils.is_flash_attn_available = lambda: False
 
-from flash_attn.layers.rotary import RotaryEmbedding as DAILRotaryEmbedding
+if is_flash_v2_installed():
+    from flash_attn.layers.rotary import RotaryEmbedding as DAILRotaryEmbedding
 from omegaconf import OmegaConf as om
 from transformers.models.llama.modeling_llama import \
     LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
@@ -90,6 +92,11 @@ def test_attn_impl(attn_impl_0: str,
     rope = pos_emb_config['rope']
     if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'):
         pytest.xfail('flash attn does not support alibi')
+
+    if rope and (pos_emb_config['rope_imp']=='dail') and (not is_flash_v2_installed()):
+        pytest.skip(
+            'dail implementation of rope requires flash attention 2.'
+        )
 
     cfg = om.create({
         'attn_impl': 'flash',

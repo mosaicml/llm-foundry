@@ -11,7 +11,8 @@ from unittest import mock
 
 import transformers
 
-from llmfoundry.models.layers.attention import is_flash_v1_installed
+from llmfoundry.models.layers.attention import (is_flash_v1_installed,
+                                                is_flash_v2_installed)
 
 # Before importing any transformers models, we need to disable transformers flash attention if
 # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
@@ -579,9 +580,9 @@ def test_forward_with_padding(attention_impl: str, device: str,
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     rope = pos_emb_config['rope']
-    if rope and pos_emb_config['rope_imp'] == 'dail' and device == 'cpu':
+    if rope and pos_emb_config['rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
-            f'dail implementation of rope is only implemented for gpus.')
+            f'dail implementation of rope requires gpu and flash attention 2.')
 
     composer_device = get_device(device)
 
@@ -815,9 +816,9 @@ def test_generate(attention_impl: str, device: str, pos_emb_config: dict):
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     if pos_emb_config['rope'] and pos_emb_config[
-            'rope_imp'] == 'dail' and device == 'cpu':
+            'rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
-            f'dail implementation of rope is only implemented for gpus.')
+            f'dail implementation of rope requires gpu and flash attention 2.')
 
     composer_device = get_device(device)
 
@@ -1051,9 +1052,9 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str,
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
     if pos_emb_config['rope'] and pos_emb_config[
-            'rope_imp'] == 'dail' and device == 'cpu':
+            'rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
-            f'dail implementation of rope is only implemented for gpus.')
+            f'dail implementation of rope requires gpu and flash attention 2.')
 
     composer_device = get_device(device)
 
@@ -1200,9 +1201,9 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     if pos_emb_config['rope'] and pos_emb_config[
-            'rope_imp'] == 'dail' and device == 'cpu':
+            'rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
-            f'dail implementation of rope is only implemented for gpus.')
+            f'dail implementation of rope requires gpu and flash attention 2.')
 
     composer_device = get_device(device)
 
@@ -1440,9 +1441,9 @@ def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     if pos_emb_config['rope'] and pos_emb_config[
-            'rope_imp'] == 'dail' and device == 'cpu':
+            'rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
-            f'dail implementation of rope is only implemented for gpus.')
+            f'dail implementation of rope requires gpu and flash attention 2.')
     composer_device = get_device(device)
     if device == 'gpu':  # Switch deteminism off
         torch.use_deterministic_algorithms(False)
@@ -1668,9 +1669,9 @@ def test_forward_with_output_attentions_and_output_hidden_states(
     if output_attentions and attn_impl in ['flash', 'triton']:
         pytest.skip(f'output_attentions only implemented with torch attention.')
     if pos_emb_config['rope'] and pos_emb_config[
-            'rope_imp'] == 'dail' and device == 'cpu':
+            'rope_imp'] == 'dail' and (device == 'cpu' or not is_flash_v2_installed()):
         pytest.skip(
-            f'dail implementation of rope is only implemented for gpus.')
+            f'dail implementation of rope requires gpu and flash attention 2.')
 
     composer_device = get_device(device)
 

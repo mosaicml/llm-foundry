@@ -6,7 +6,8 @@ import torch
 import transformers
 from composer.core.precision import get_precision_context
 
-from llmfoundry.models.layers.attention import is_flash_v1_installed
+from llmfoundry.models.layers.attention import (is_flash_v1_installed,
+                                                is_flash_v2_installed)
 
 # Before importing any transformers models, we need to disable transformers flash attention if
 # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
@@ -14,7 +15,8 @@ from llmfoundry.models.layers.attention import is_flash_v1_installed
 if is_flash_v1_installed():
     transformers.utils.is_flash_attn_available = lambda: False
 
-from flash_attn.layers.rotary import RotaryEmbedding as DAILRotaryEmbedding
+if is_flash_v2_installed():
+    from flash_attn.layers.rotary import RotaryEmbedding as DAILRotaryEmbedding
 from omegaconf import OmegaConf as om
 from transformers.models.llama.modeling_llama import \
     LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
@@ -36,6 +38,11 @@ def test_rope_dail_vs_hf(clip_qkv: bool,
                          attn_type: str,
                          seq_len: int,
                          device: str = 'cuda'):
+    if not is_flash_v2_installed():
+        pytest.skip(
+            'dail implementation of rope requires flash attention 2.'
+        )
+
     # compare rope rotations for the dail vs hf implementations
     def gen_rotary_embedding(rope_head_dim: int, pos_emb_config: dict,
                              max_seq_len: int):

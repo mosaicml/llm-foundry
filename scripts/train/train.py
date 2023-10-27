@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import copy
+import gc
 import logging
 import os
 import sys
@@ -215,6 +216,12 @@ def main(cfg: DictConfig) -> Trainer:
     if max_split_size_mb is not None:
         os.environ[
             'PYTORCH_CUDA_ALLOC_CONF'] = f'max_split_size_mb:{max_split_size_mb}'
+
+    # Set CUDA lazy loading
+    # This can save a bit of memory if not all modules are needed
+    cuda_load_lazy: bool = cfg.pop('cuda_load_lazy', False)
+    if cuda_load_lazy:
+        os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
 
     # Set seed first
     seed: int = pop_config(cfg, 'seed', must_exist=True)
@@ -634,6 +641,7 @@ def main(cfg: DictConfig) -> Trainer:
     print('Logging config')
     log_config(logged_cfg)
     torch.cuda.empty_cache()
+    gc.collect()
 
     # Eval first if requested
     if eval_first and trainer.state.timestamp.batch.value == 0:

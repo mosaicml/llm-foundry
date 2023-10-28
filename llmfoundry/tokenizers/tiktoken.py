@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -21,11 +22,12 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                  model_name: Optional[str] = None,
                  encoding_name: Optional[str] = None,
                  add_bos_token: bool = False,
+                 add_eos_token: bool = False,
                  unk_token: Optional[str] = '<|endoftext|>',
                  eos_token: Optional[str] = '<|endoftext|>',
                  bos_token: Optional[str] = '<|endoftext|>',
                  pad_token: Optional[str] = None,
-                 **kwargs: Dict[str, Any]):
+                 **kwargs: Any):
         """Constructor creates a tiktoken tokenizer to use as the underlying.
 
         tokenizer.
@@ -36,6 +38,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             encoding_name (Optional[str], optional): The name of the encoding to load from tiktoken. Defaults to None.
                 Either model_name or encoding_name must be set, but not both.
             add_bos_token (bool, optional): Whether to add bos tokens. Defaults to False.
+            add_eos_token (bool, optional): Whether to add eos tokens. Defaults to False.
             unk_token (Optional[str], optional): The unk token. Defaults to '<|endoftext|>'.
             eos_token (Optional[str], optional): The eos token. Defaults to '<|endoftext|>'.
             bos_token (Optional[str], optional): The bos token. Defaults to '<|endoftext|>'.
@@ -66,10 +69,12 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 'You need to specify either model_name or encoding_name.')
 
         self.add_bos_token = add_bos_token
+        self.add_eos_token = add_eos_token
 
         super().__init__(model_name=model_name,
                          encoding_name=encoding_name,
                          add_bos_token=add_bos_token,
+                         add_eos_token=add_eos_token,
                          unk_token=unk_token,
                          eos_token=eos_token,
                          bos_token=bos_token,
@@ -86,7 +91,17 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         return False
 
     def get_vocab(self) -> Dict[str, int]:
-        """Returns vocab as a dict."""
+        """Returns vocab as a dict.
+
+        Note: This function does not work properly due to difference in assumptions between tiktoken and Hugging Face tokenizers.
+        Most uses do not need to use get_vocab, so this is not a priority to fix.
+        """
+        warnings.warn(
+            'get_vocab does not work properly with TiktokenTokenizerWrapper. Please do not rely on it being perfectly correct.'
+            +
+            ' It will be called once init just to get the size of the vocab inside the base class.'
+        )
+
         vocab = {}
         for i in range(self.vocab_size):
             try:
@@ -96,6 +111,24 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 vocab[self.encoding.decode([i])] = i
             except KeyError:
                 pass
+
+        # As far as I can tell, we don't require get_vocab to completely work,
+        # but when using additional_special_tokens, Hugging Face determines the next
+        # token index to add with len(self.get_vocab()) so we need the _size_ of this dictionary to be correct.
+        extra_id_index = 0
+        candidate_extra_id = f'<extra_id_{extra_id_index}>'
+        indices_to_fill_in = {i for i in range(self.vocab_size)} - set(
+            vocab.values())
+
+        # Add enough indices to make get_vocab() the right length
+        for index_to_add in indices_to_fill_in:
+            # Make sure we don't overwrite a token that already exists
+            while candidate_extra_id in vocab:
+                extra_id_index += 1
+                candidate_extra_id = f'<extra_id_{extra_id_index}>'
+
+            # Get an index to add and add the item
+            vocab[candidate_extra_id] = index_to_add
 
         return vocab
 
@@ -151,7 +184,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         """
         if isinstance(ids, int):
             if ids in self.added_tokens_decoder:
-                return self.added_tokens_decoder[ids]
+                return str(self.added_tokens_decoder[ids])
 
             return self._convert_id_to_token(ids)
 
@@ -167,7 +200,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             if index in self.added_tokens_decoder:
                 tokens.append(self.encoding.decode(current_stream))
                 current_stream = []
-                tokens.append(self.added_tokens_decoder[index])
+                tokens.append(str(self.added_tokens_decoder[index]))
             else:
                 current_stream.append(index)
 
@@ -179,17 +212,15 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             self,
             token_ids_0: List[int],
             token_ids_1: Optional[List[int]] = None) -> List[int]:
-        if self.add_bos_token:
-            bos_token_ids = [self.bos_token_id]
-        else:
-            bos_token_ids = []
+        bos_token_id = [self.bos_token_id] if self.add_bos_token else []
+        eos_token_id = [self.eos_token_id] if self.add_eos_token else []
 
-        output = bos_token_ids + token_ids_0
+        output = bos_token_id + token_ids_0 + eos_token_id
 
-        if token_ids_1 is None:
-            return output
+        if token_ids_1 is not None:
+            output = output + bos_token_id + token_ids_1 + eos_token_id
 
-        return output + bos_token_ids + token_ids_1
+        return output
 
     def get_special_tokens_mask(
             self,
@@ -221,15 +252,13 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 token_ids_1=token_ids_1,
                 already_has_special_tokens=True)
 
-        if not self.add_bos_token:
-            return super().get_special_tokens_mask(
-                token_ids_0=token_ids_0,
-                token_ids_1=token_ids_1,
-                already_has_special_tokens=False)
+        bos_token_id = [1] if self.add_bos_token else []
+        eos_token_id = [1] if self.add_eos_token else []
 
         if token_ids_1 is None:
-            return [1] + ([0] * len(token_ids_0))
-        return [1] + ([0] * len(token_ids_0)) + [1] + ([0] * len(token_ids_1))
+            return bos_token_id + ([0] * len(token_ids_0)) + eos_token_id
+        return (bos_token_id + ([0] * len(token_ids_0)) + eos_token_id +
+                bos_token_id + ([0] * len(token_ids_1)) + eos_token_id)
 
     def create_token_type_ids_from_sequences(
             self,

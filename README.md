@@ -228,7 +228,7 @@ python inference/convert_composer_to_hf.py \
   # --hf_repo_for_upload user-org/repo-name
 
 # Evaluate the model on a subset of tasks
-python eval/eval.py \
+composer eval/eval.py \
   eval/yamls/hf_eval.yaml \
   icl_tasks=eval/yamls/copa.yaml \
   model_name_or_path=mpt-125m-hf

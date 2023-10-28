@@ -194,7 +194,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Set CUDA lazy loading
     # This can save a bit of memory if not all modules are needed
-    cuda_load_lazy: bool = cfg.pop('cuda_load_lazy', True)
+    cuda_load_lazy: bool = cfg.pop('cuda_load_lazy', False)
     if cuda_load_lazy:
         os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
 

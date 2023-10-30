@@ -240,40 +240,40 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
             z_loss = om_model_config.get('z_loss', 0.0)
 
-        # if om_model_config includes lora and peft is installed, add lora modules
-        lora_cfg = om_model_config.get("lora", None)
-        if lora_cfg is not None:
-            if not _peft_installed:
-                raise ImportError(
-                    'cfg.model.lora is given but PEFT not installed. Run pip install -e ".[gpu,peft]"'
-                )
-
-            validate_lora_config(lora_cfg)
-
-            print("Building Lora config...")
-            lora_cfg = LoraConfig(**lora_cfg)
-            print("Lora config built.")
-            print("Adding Lora modules...")
-            model = get_peft_model(model, lora_cfg)
-            print("Lora modules added.")
-            print_trainable_parameters(model)
-
-            attention_patch_type = om_model_config.get('attention_patch_type',
-                                                       None)
-            if attention_patch_type is not None:
-                if model.config.model_type != 'llama':
-                    raise ValueError(
-                        f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
+            # if om_model_config includes lora and peft is installed, add lora modules
+            lora_cfg = om_model_config.get("lora", None)
+            if lora_cfg is not None:
+                if not _peft_installed:
+                    raise ImportError(
+                        'cfg.model.lora is given but PEFT not installed. Run pip install -e ".[gpu,peft]"'
                     )
 
-                log.debug(
-                    f'Patching llama attention with {attention_patch_type} attention'
-                )
-                from transformers.models.llama.modeling_llama import \
-                    LlamaAttention
-                LlamaAttention.forward = get_llama_attention_patch_fn(
-                    attention_patch_type)
-                model.config.use_cache = False
+                validate_lora_config(lora_cfg)
+
+                print("Building Lora config...")
+                lora_cfg = LoraConfig(**lora_cfg)
+                print("Lora config built.")
+                print("Adding Lora modules...")
+                model = get_peft_model(model, lora_cfg)
+                print("Lora modules added.")
+                print_trainable_parameters(model)
+
+                attention_patch_type = om_model_config.get('attention_patch_type',
+                                                           None)
+                if attention_patch_type is not None:
+                    if model.config.model_type != 'llama':
+                        raise ValueError(
+                            f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
+                        )
+
+                    log.debug(
+                        f'Patching llama attention with {attention_patch_type} attention'
+                    )
+                    from transformers.models.llama.modeling_llama import \
+                        LlamaAttention
+                    LlamaAttention.forward = get_llama_attention_patch_fn(
+                        attention_patch_type)
+                    model.config.use_cache = False
 
         # elif the model is either a PeftModel or a PreTrainedModel
         elif isinstance(om_model_config, model_types):

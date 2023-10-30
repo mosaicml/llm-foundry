@@ -3,7 +3,6 @@
 
 import contextlib
 import os
-from unittest import mock
 from unittest.mock import patch
 
 import pytest
@@ -11,7 +10,8 @@ import torch
 import transformers
 from composer.core.precision import get_precision_context
 from composer.utils import reproducibility
-from omegaconf import DictConfig, OmegaConf as om
+from omegaconf import DictConfig
+from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.hf.hf_fsdp import rgetattr
@@ -107,6 +107,7 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
 
     assert torch.allclose(attn_output, new_output, atol=atol, rtol=rtol)
 
+
 @pytest.mark.gpu
 @pytest.mark.parametrize('patch', ['triton', 'torch'])
 def test_attn_patch_integration(patch: str):
@@ -114,10 +115,9 @@ def test_attn_patch_integration(patch: str):
         pytest.skip(
             'The CI cluster does not have access to the Llama models, so skip this test.'
         )
-        
+
     # Save the original attention function to restore at the end of the test.
-    from transformers.models.llama.modeling_llama import \
-                    LlamaAttention
+    from transformers.models.llama.modeling_llama import LlamaAttention
     original_attn = LlamaAttention.forward
 
     name = 'meta-llama/Llama-2-7b-hf'
@@ -133,15 +133,15 @@ def test_attn_patch_integration(patch: str):
         'init_device': 'cpu',
         'attention_patch_type': patch
     })
-    
+
     tokenizer = build_tokenizer(name, tokenizer_kwargs={})
     tokenizer.pad_token = tokenizer.eos_token
 
     model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg, tokenizer)
 
     tokenized_input = tokenizer(['Hello world blah blah', 'Goodbye world'],
-                                    return_tensors='pt',
-                                    padding=True)
+                                return_tensors='pt',
+                                padding=True)
     tokenized_input['labels'] = tokenized_input['input_ids'].clone()
 
     tokenized_input = {k: v.cuda() for k, v in tokenized_input.items()}
@@ -152,9 +152,10 @@ def test_attn_patch_integration(patch: str):
         outputs = model(tokenized_input)
         loss = outputs.loss
         loss.backward()
-    
+
     # Ensure the patch does not persist beyond this test.
     LlamaAttention.forward = original_attn
+
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('model_name', ['llama2', 'mistral'])

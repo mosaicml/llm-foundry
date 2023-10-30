@@ -25,7 +25,7 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, PreTrainedModel,
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
+from llmfoundry import COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
 from llmfoundry.models.layers.blocks import MPTBlock
@@ -435,6 +435,32 @@ def test_loss_fn():
             assert p1.data.shape == p2.data.shape
             assert p1.data.allclose(p2.data, rtol=1e-5,
                                     atol=1e-4), f'differed at step {i}'
+
+
+def test_opt_wrapping():
+    conf = {
+        'model': {
+            'name': 'hf_causal_lm',
+            'pretrained_model_name_or_path': 'facebook/opt-125m',
+            'pretrained': 'false'
+        },
+        'tokenizer': {
+            'name': 'facebook/opt-125m'
+        }
+    }
+    config = DictConfig(conf)
+
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
+    tokenizer = build_tokenizer(config.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
+
+    model = ComposerHFCausalLM(config.model, tokenizer)
+
+    # check that all the modules we except are blocked from FSDP wrapping
+    assert not model.model.model._fsdp_wrap
+    assert not model.model.model.decoder._fsdp_wrap
+    assert not model.model.model.decoder.embed_tokens._fsdp_wrap
+    assert not model.model.lm_head._fsdp_wrap
 
 
 @pytest.mark.parametrize('norm_type', NORM_CLASS_REGISTRY.keys())

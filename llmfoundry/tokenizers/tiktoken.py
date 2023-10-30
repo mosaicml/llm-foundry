@@ -55,19 +55,20 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         # There is an open PR from HF to add this to tiktoken: https://github.com/openai/tiktoken/pull/181
         import copyreg
         import functools
+        from tiktoken import Encoding
 
-        def pickle_Encoding(enc: tiktoken.Encoding): # type: ignore (thirdParty)
-            return (functools.partial(tiktoken.Encoding, # type: ignore (thirdParty)
+        def pickle_Encoding(enc: Encoding):
+            return (functools.partial(Encoding,
                                       enc.name,
                                       pat_str=enc._pat_str,
                                       mergeable_ranks=enc._mergeable_ranks,
                                       special_tokens=enc._special_tokens), ())
 
-        copyreg.pickle(tiktoken.Encoding, pickle_Encoding) # type: ignore (thirdParty)
+        copyreg.pickle(Encoding, pickle_Encoding)
 
         if model_name is not None and encoding_name is not None:
             raise ValueError(
-                'You need to specify either model_name or encoding_name, not both.' # type: ignore (thirdParty)
+                'You need to specify either model_name or encoding_name, not both.'
             )
 
         self.model_name = model_name

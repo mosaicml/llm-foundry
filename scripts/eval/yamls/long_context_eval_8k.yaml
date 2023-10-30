@@ -1,0 +1,27 @@
+max_seq_len: 8192
+seed: 1
+precision: amp_bf16
+
+models:
+-
+  model_name: mosaicml/mpt-7b-chat-8k
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: mosaicml/mpt-7b-chat-8k
+    pretrained: true
+    attn_config:
+      attn_impl: triton
+  tokenizer:
+    name: mosaicml/mpt-7b-chat-8k
+    kwargs:
+      model_max_length: ${max_seq_len}
+
+device_eval_batch_size: 1 
+
+# FSDP config for model sharding
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: FULL
+
+icl_tasks: 'eval/yamls/long_context_tasks.yaml'
+eval_gauntlet: 'eval/yamls/eval_gauntlet_8k_section.yaml'

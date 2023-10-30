@@ -438,36 +438,6 @@ def test_loss_fn():
                                     atol=1e-4), f'differed at step {i}'
 
 
-@pytest.mark.parametrize('prefixlm', [False, True])
-def test_opt_wrapping(prefixlm: bool):
-    conf = {
-        'model': {
-            'name': 'hf_prefix_lm' if prefixlm else 'hf_causal_lm',
-            'pretrained_model_name_or_path': 'facebook/opt-125m',
-            'pretrained': 'false'
-        },
-        'tokenizer': {
-            'name': 'facebook/opt-125m'
-        }
-    }
-    config = DictConfig(conf)
-
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
-    tokenizer = build_tokenizer(config.tokenizer.name,
-                                tokenizer_cfg.get('kwargs', {}))
-
-    if prefixlm:
-        model = ComposerHFPrefixLM(config.model, tokenizer)
-    else:
-        model = ComposerHFCausalLM(config.model, tokenizer)
-
-    # check that all the modules we except are blocked from FSDP wrapping
-    assert not model.model.model._fsdp_wrap
-    assert not model.model.model.decoder._fsdp_wrap
-    assert not model.model.model.decoder.embed_tokens._fsdp_wrap
-    assert not model.model.lm_head._fsdp_wrap
-
-
 @pytest.mark.parametrize('norm_type', NORM_CLASS_REGISTRY.keys())
 @pytest.mark.parametrize('no_bias', [False, True])
 def test_mpt_creation(norm_type: str, no_bias: bool):

@@ -18,8 +18,7 @@ from typing import Any, List, MutableMapping, Optional, Tuple, Union
 import torch
 from transformers.models.bloom.modeling_bloom import (
     BaseModelOutputWithPastAndCrossAttentions, BloomForCausalLM, BloomModel,
-    CausalLMOutputWithCrossAttentions, CrossEntropyLoss)
-from transformers.models.bloom.modeling_bloom import logging
+    CausalLMOutputWithCrossAttentions, CrossEntropyLoss, logging)
 from transformers.models.gpt2.modeling_gpt2 import GPT2LMHeadModel
 from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoForCausalLM
 from transformers.models.gpt_neox.modeling_gpt_neox import GPTNeoXForCausalLM
@@ -38,12 +37,12 @@ _SUPPORTED_GPT_MODELS = (
 CAUSAL_GPT_TYPES = Union[GPT2LMHeadModel, GPTJForCausalLM, GPTNeoForCausalLM,
                          GPTNeoXForCausalLM,]
 
-def _make_causal_mask_opt(
-    input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
-):
-    """
-    Make causal mask used for bi-directional self-attention.
-    """
+
+def _make_causal_mask_opt(input_ids_shape: Tuple[int, int],
+                          dtype: torch.dtype,
+                          device: torch.device,
+                          past_key_values_length: int = 0):
+    """Make causal mask used for bi-directional self-attention."""
     bsz, tgt_len = input_ids_shape
     mask = torch.full((tgt_len, tgt_len), torch.finfo(dtype).min, device=device)
     mask_cond = torch.arange(mask.size(-1), device=device)
@@ -51,31 +50,43 @@ def _make_causal_mask_opt(
     mask = mask.to(dtype)
 
     if past_key_values_length > 0:
-        mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
-    return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+        mask = torch.cat([
+            torch.zeros(
+                tgt_len, past_key_values_length, dtype=dtype, device=device),
+            mask
+        ],
+                         dim=-1)
+    return mask[None, None, :, :].expand(bsz, 1, tgt_len,
+                                         tgt_len + past_key_values_length)
 
 
-def _expand_mask_opt(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
-    """
-    Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+def _expand_mask_opt(mask: torch.Tensor,
+                     dtype: torch.dtype,
+                     tgt_len: Optional[int] = None):
+    """Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len,
+
+    src_seq_len]`.
     """
     bsz, src_len = mask.size()
     tgt_len = tgt_len if tgt_len is not None else src_len
 
-    expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+    expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len,
+                                                  src_len).to(dtype)
 
     inverted_mask = 1.0 - expanded_mask
 
-    return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+    return inverted_mask.masked_fill(inverted_mask.to(torch.bool),
+                                     torch.finfo(dtype).min)
 
-def _make_causal_mask_bloom(
-    input_ids_shape: torch.Size, device: torch.device, past_key_values_length: int
-) -> torch.BoolTensor:
-    """
-    Make causal mask used for self-attention.
-    """
+
+def _make_causal_mask_bloom(input_ids_shape: Tuple[int,
+                                                   int], device: torch.device,
+                            past_key_values_length: int) -> torch.Tensor:
+    """Make causal mask used for self-attention."""
     batch_size, target_length = input_ids_shape
-    mask = torch.empty((target_length, target_length + past_key_values_length), dtype=torch.bool, device=device)
+    mask = torch.empty((target_length, target_length + past_key_values_length),
+                       dtype=torch.bool,
+                       device=device)
     # ONNX doesn't support `torch.Tensor.triu` properly, thus we use this workaround
     seq_ids = torch.arange(target_length, device=device)
     mask[:, past_key_values_length:] = seq_ids[:, None] < seq_ids[None, :]
@@ -83,19 +94,22 @@ def _make_causal_mask_bloom(
     if past_key_values_length > 0:
         mask[:, :past_key_values_length] = False
 
-    expanded_mask = mask[None, None, :, :].expand(batch_size, 1, target_length, target_length + past_key_values_length)
+    expanded_mask = mask[None, None, :, :].expand(
+        batch_size, 1, target_length, target_length + past_key_values_length)
     return expanded_mask
 
 
-def _expand_mask_bloom(mask: torch.Tensor, tgt_length: int) -> torch.BoolTensor:
-    """
-    Expands attention_mask from `[batch_size, src_length]` to `[batch_size, 1, tgt_length, src_length]`.
+def _expand_mask_bloom(mask: torch.Tensor, tgt_length: int) -> torch.Tensor:
+    """Expands attention_mask from `[batch_size, src_length]` to `[batch_size,
+
+    1, tgt_length, src_length]`.
     """
     batch_size, src_length = mask.shape
     tgt_length = tgt_length if tgt_length is not None else src_length
 
     expanded_mask = ~(mask[:, None, None, :].to(torch.bool))
     return expanded_mask.expand(batch_size, 1, tgt_length, src_length)
+
 
 def _convert_gpt_causal_lm_to_prefix_lm(
         model: CAUSAL_GPT_TYPES) -> CAUSAL_GPT_TYPES:
@@ -296,7 +310,7 @@ def _convert_bloom_causal_lm_to_prefix_lm(
         bidirectional_mask: Optional[torch.Tensor],
         input_shape: Tuple[int, int],
         past_key_values_length: int,
-    ) -> torch.BoolTensor:
+    ) -> torch.Tensor:
         # create causal mask
         # [batch_size, seq_length] -> [batch_size, 1, tgt_length, src_length]
         combined_attention_mask = None
@@ -731,6 +745,7 @@ def _convert_opt_causal_lm_to_prefix_lm(
                 combined_attention_mask = _make_causal_mask_opt(
                     input_shape,
                     inputs_embeds.dtype,
+                    device=inputs_embeds.device,
                     past_key_values_length=past_key_values_length).to(
                         inputs_embeds.device)
 

@@ -56,18 +56,18 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         import copyreg
         import functools
 
-        def pickle_Encoding(enc: tiktoken.Encoding):
-            return (functools.partial(tiktoken.Encoding,
+        def pickle_Encoding(enc: tiktoken.Encoding): # type: ignore (thirdParty)
+            return (functools.partial(tiktoken.Encoding, # type: ignore (thirdParty)
                                       enc.name,
                                       pat_str=enc._pat_str,
                                       mergeable_ranks=enc._mergeable_ranks,
                                       special_tokens=enc._special_tokens), ())
 
-        copyreg.pickle(tiktoken.Encoding, pickle_Encoding)
+        copyreg.pickle(tiktoken.Encoding, pickle_Encoding) # type: ignore (thirdParty)
 
         if model_name is not None and encoding_name is not None:
             raise ValueError(
-                'You need to specify either model_name or encoding_name, not both.'
+                'You need to specify either model_name or encoding_name, not both.' # type: ignore (thirdParty)
             )
 
         self.model_name = model_name

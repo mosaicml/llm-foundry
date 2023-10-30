@@ -148,7 +148,7 @@ def test_attn_patch_integration(patch: str):
     model.to('cuda')
 
     with get_precision_context('amp_bf16'):
-        # We're just testing that flash attention 2 runs okay
+        # We're just testing that the attention patch runs okay
         outputs = model(tokenized_input)
         loss = outputs.loss
         loss.backward()

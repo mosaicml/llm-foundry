@@ -10,7 +10,7 @@ import torch
 import transformers
 from composer.core.precision import get_precision_context
 from composer.utils import reproducibility
-from omegaconf import OmegaConf as om
+from omegaconf import DictConfig, OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.hf.hf_fsdp import rgetattr
@@ -106,6 +106,45 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
 
     assert torch.allclose(attn_output, new_output, atol=atol, rtol=rtol)
 
+@pytest.mark.gpu
+@pytest.mark.parametrize('patch', ['triton', 'torch'])
+def test_attn_patch_integration(patch: str):
+    if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
+        pytest.skip(
+            'The CI cluster does not have access to the Llama models, so skip this test.'
+        )
+    name = 'meta-llama/Llama-2-7b-hf'
+    model_cfg = DictConfig({
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': name,
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'intermediate_size': 64,
+        },
+        'use_auth_token': True,
+        'pretrained': False,
+        'init_device': 'cpu',
+        'attention_patch_type': patch
+    })
+    
+    tokenizer = build_tokenizer(name, tokenizer_kwargs={})
+    tokenizer.pad_token = tokenizer.eos_token
+
+    model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg, tokenizer)
+
+    tokenized_input = tokenizer(['Hello world blah blah', 'Goodbye world'],
+                                    return_tensors='pt',
+                                    padding=True)
+    tokenized_input['labels'] = tokenized_input['input_ids'].clone()
+
+    tokenized_input = {k: v.cuda() for k, v in tokenized_input.items()}
+    model.to('cuda')
+
+    with get_precision_context('amp_bf16'):
+        # We're just testing that flash attention 2 runs okay
+        outputs = model(tokenized_input)
+        loss = outputs.loss
+        loss.backward()
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('model_name', ['llama2', 'mistral'])

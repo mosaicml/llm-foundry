@@ -211,8 +211,10 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
                       lora_model_type):  # we have built a LoraModel
             if model_block is not None:  # for pyright
                 for name, module in model_block.named_modules():
-                    if 'lora' in name:  # peft adds modules named with lora
-                        module._fsdp_wrap = True
+                    if 'lora' in name and 'default' in name:
+                        for _ in module.parameters():
+                            module._fsdp_wrap = True
+                            continue
 
     # FSDP Wrap and Activation Checkpoint every model block
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)

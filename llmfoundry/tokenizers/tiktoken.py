@@ -55,7 +55,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         # There is an open PR from HF to add this to tiktoken: https://github.com/openai/tiktoken/pull/181
         import copyreg
         import functools
-        from tiktoken import Encoding
+        from tiktoken import Encoding # type: ignore (thirdParty)
 
         def pickle_Encoding(enc: Encoding):
             return (functools.partial(Encoding,

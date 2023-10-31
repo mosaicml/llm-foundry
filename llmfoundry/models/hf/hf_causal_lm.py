@@ -281,17 +281,17 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                         f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
                     )
 
-            log.debug(
-                f'Patching llama attention with {attention_patch_type} attention'
-            )
-            from transformers.models.llama.modeling_llama import \
-                LlamaAttention
+                log.debug(
+                    f'Patching llama attention with {attention_patch_type} attention'
+                )
+                from transformers.models.llama.modeling_llama import \
+                    LlamaAttention
 
-            from llmfoundry.models.layers.llama_attention_monkeypatch import \
-                get_llama_attention_patch_fn
-            LlamaAttention.forward = get_llama_attention_patch_fn(
-                attention_patch_type)
-            model.config.use_cache = False
+                from llmfoundry.models.layers.llama_attention_monkeypatch import \
+                    get_llama_attention_patch_fn
+                LlamaAttention.forward = get_llama_attention_patch_fn(
+                    attention_patch_type)
+                model.config.use_cache = False
 
         # elif the model is either a PeftModel or a PreTrainedModel
         elif isinstance(om_model_config, model_types):

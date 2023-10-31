@@ -9,7 +9,6 @@ from typing import Any, Dict, Mapping
 
 import pytest
 import torch
-from composer.utils import reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import AutoModelForCausalLM
@@ -92,8 +91,6 @@ def test_hf_config_override(
 
     with open(conf_path) as f:
         test_cfg = om.load(f)
-
-    reproducibility.seed_all(test_cfg.seed)
 
     # Build Model
     # For fast initialization, use `meta` device

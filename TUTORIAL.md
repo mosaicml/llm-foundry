@@ -83,7 +83,7 @@ The Trainer is a pytorch-native object that composes your model, dataset(s), opt
 Spending some time understanding the Composer Trainer is a great way to form a deeper understanding of what the train and eval scripts are doing under the hood.
 
 Composer also comes packaged with the `composer` launcher.
-If you go through our docs, you'll notice that we instruct you to launch the train script (`scripts/train/train.py`) and eval script (`scripts/eval/eval.py`) using the launcher, like so,
+If you go through our docs, you'll notice that we instruct you to launch the training script (`scripts/train/train.py`) and eval script (`scripts/eval/eval.py`) using the launcher, like so,
 
 <!--pytest.mark.skip-->
 ```bash
@@ -96,7 +96,7 @@ The `composer` launcher puts all your GPUs to work by launching the script on a 
 ### StreamingDataset
 
 The training script contains logic for building a few different types of dataloaders used for different training tasks.
-Each of these dataloaders are built to work with **streaming datasets**.
+Each of these dataloaders is built to work with **streaming datasets**.
 There are a number of benefits that come from using streaming datasets, from fast, deterministic resumption to easily loading from a mixture of streams at once.
 
 The scripts in `scripts/data_prep/` are your one-stop-shop for converting a local dataset or a dataset on the Hugging Face Hub to our streaming MDS format.
@@ -193,7 +193,7 @@ We address two possible versions of “finetuning” here. For both, you’ll wa
 
 ### Supervised FineTuning and Instruction FineTuning
 
-`scripts/train/` already includes some resources for supervised finetuning. If that’s what you’re interestested in check out
+`scripts/train/` already includes some resources for supervised finetuning. If that’s what you’re interested in check out
 
 1. [**LLM Finetuning from a Local Dataset: A Concrete Example**](https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/finetune_example/README.md)
 2. [The YAML which should replicate the process of creating MPT-7B-Instruct from MPT-7b](https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml) — You can point this at your own dataset by [following these instructions](https://github.com/mosaicml/llm-foundry/blob/main/scripts/train/README.md#Usage)
@@ -243,7 +243,7 @@ After you're done training, you probably want to convert your Composer checkpoin
 > **Note**
 > Pretraining for 10s of billions of tokens is a large job even for a smaller model; you’ll want multiple A100s for this example.
 
-It is conceivable that you would like to train a model *with the same architecture* as a model available in HuggingFace `transformers` but without using those same weights; for example, if you have a large amount of proprietary data, or want to change something about the model that is hard to change after the fact. So, as an example, let’s say you want a version of `gpt2`  but with longer sequence length, say 2048. Using the MPT architecture would give us Flash Attention and ALiBi, allowing us to go much longer; but for this example we stick with 2048. And of course, let’s use 150 tokens/parameter, which is the ratio that MPT-7B used, getting us to 17.55B tokens for our 117M param model.
+It is conceivable that you would like to train a model *with the same architecture* as a model available in HuggingFace `transformers` but without using those same weights; for example, if you have a large amount of proprietary data, or want to change something about the model that is hard to change after the fact. So, as an example, let’s say you want a version of `gpt2`  but with a longer sequence length, say 2048. Using the MPT architecture would give us Flash Attention and ALiBi, allowing us to go much longer; but for this example we stick with 2048. And of course, let’s use 150 tokens/parameter, which is the ratio that MPT-7B used, getting us to 17.55B tokens for our 117M param model.
 
 The first step to training from scratch is to get your pretraining data prepared.  Following [the data preparation README](https://github.com/mosaicml/llm-foundry/blob/main/scripts/data_prep/README.md), we convert C4 as follows:
 
@@ -309,25 +309,25 @@ The purpose of this section is probably pretty self-evident. You’ve got questi
 
 - **Long answer:** In NLP, Softmax Attention operates on a sequence. It is an all to all graph operation where, during training, the memory complexity is quadratic with respect to the length of the sequence. Furthermore, on GPUs, naive implementations of Softmax Attention are bandwidth (BW) limited.
 [Rabe et al. (2021)](https://arxiv.org/abs/2112.05682) and [Dao et al. (2022)](https://arxiv.org/abs/2205.14135) showed that fusing all operations in Softmax Attention can make the operation much less BW limited.
-Furthermore, integrating a recompuation schema decreases the sequence length memory complexity from *quadratic* to *linear*, thereby supporting much longer sequence lengths.
+Furthermore, integrating a recomputation schema decreases the sequence length memory complexity from *quadratic* to *linear*, thereby supporting much longer sequence lengths.
 
   - Setting `attn_config.attn_impl=torch` enables a naive Softmax Attention written using base torch operations.
   - Setting `attn_config.attn_impl=flash` enables Flash Attention [implemented by Dao et al in the HazyResearch repo using CUDA](https://github.com/HazyResearch/flash-attention). This will have linear memory complexity (enabling larger batch sizes) and will run much faster.
-  - Setting `attn_config.attn_impl=triton` enables a Flash Attention [implemented using Triton](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py). In our experiance, `triton` is slightly faster than `flash`.
+  - Setting `attn_config.attn_impl=triton` enables a Flash Attention [implemented using Triton](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py). In our experience, `triton` is slightly faster than `flash`.
 
-<!-- In NLP, Softmax Attention operates on a sequence. It is an all to all graph operation where, durring training, the memory complexity is quadratic with respect to the length of the sequence. Furthermore, on GPUs, naive implementations of Softmax Attention are BW limited.
+<!-- In NLP, Softmax Attention operates on a sequence. It is an all to all graph operation where, during training, the memory complexity is quadratic with respect to the length of the sequence. Furthermore, on GPUs, naive implementations of Softmax Attention are BW limited.
 [Rabe et al. (2021)](https://arxiv.org/abs/2112.05682) and [Dao et al. (2022)](https://arxiv.org/abs/2205.14135) noted that fusing all operations in Softmax Attention can make the operation much less BW limited.
-Furthermore, integrating a recompuation schema decreases the sequence length memory complexity from quadratic to linear enabling practitioners to train transformer networks using much longer sequence lengths.
+Furthermore, integrating a recomputation schema decreases the sequence length memory complexity from quadratic to linear enabling practitioners to train transformer networks using much longer sequence lengths.
 
 Setting `attn_config.attn_impl=torch` enables a naive Softmax Attention written using base torch operations.
 Setting `attn_config.attn_impl=flash` enables flash attention [implemented by Dao et al in the HazyResearch repo using CUDA](https://github.com/HazyResearch/flash-attention). This will have linear memory complexity (enabling larger batch sizes) and will run much faster.
-Setting `attn_config.attn_impl=triton` enables a flash attention [implemented using Triton](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py). In our experiance, `triton` is slightly faster than `flash`.
+Setting `attn_config.attn_impl=triton` enables a flash attention [implemented using Triton](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py). In our experience, `triton` is slightly faster than `flash`.
 The majority of our training setups use `triton`. -->
 
 #### Limitations
 - For training, `torch` uses a lot of memory and is slow.
-- `flash` and `triton` cannot return attention weights and therefore cannot be used with methods which require it.
-- `flash` cannot accept an attention bias and therefore cannot be used with methods which require it such as ALiBi.
+- `flash` and `triton` cannot return attention weights and therefore cannot be used with methods that require it.
+- `flash` cannot accept an attention bias and therefore cannot be used with methods that require it such as ALiBi.
 
 #### What is `triton-pre-mlir`?
 - Torch2 installs and requires a specific version of [Triton](https://openai.com/research/triton).
@@ -397,7 +397,7 @@ model:
 ```
 enables [TransformerEngine's LayerNormMLP](https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/api/pytorch.html#transformer_engine.pytorch.LayerNormMLP) layer which enables sequence parallelism if configured correctly.
 
-WARNING: `state_dicts` generated with `ffn_type: te_ln_mlp` will NOT directly map to `state_dicts` generated using the default network configurations. We do not have control over how `te.LayerNormMLP` is implemented and therefore cannot reasily reconcile it with the default implementation (or any other implementation).
+WARNING: `state_dicts` generated with `ffn_type: te_ln_mlp` will NOT directly map to `state_dicts` generated using the default network configurations. We do not have control over how `te.LayerNormMLP` is implemented and therefore cannot readily reconcile it with the default implementation (or any other implementation).
 
 ### How expensive is it to build LLMs?
 - Check out our blog post [GPT3-Quality for <$500k](https://www.mosaicml.com/blog/gpt-3-quality-for-500k) for guidance on LLM training times and costs.

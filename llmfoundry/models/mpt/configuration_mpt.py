@@ -189,7 +189,8 @@ class MPTConfig(PretrainedConfig):
             if k not in config:
                 config[k] = v
             elif isinstance(v, dict):
-                config[k] = self._set_config_defaults(config[k], v)
+                config[k] = self._set_config_defaults(
+                    config[k] if (config[k] is not None) else {}, v)
         return config
 
     def _validate_config(self) -> None:

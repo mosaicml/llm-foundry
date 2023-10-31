@@ -347,7 +347,7 @@ class DatasetConstructor:
             dataset_mapper,
             batched=False,
             remove_columns=columns_to_remove,
-            num_proc=num_cpus_to_use),
+            num_proc=num_cpus_to_use,
         )
         prompt_length_filtered_dataset = tokenized_dataset.filter(
             lambda example: len(example['input_ids']) < max_seq_len,

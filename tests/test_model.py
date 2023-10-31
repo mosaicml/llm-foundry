@@ -539,20 +539,11 @@ def test_mpt_creation(norm_type: str, no_bias: bool):
         'pos_idx_in_fp32': True,
         'xpos_scale_base': 512,
     },
-    'rope_hf_config': {
-        'type': 'no_scaling',
-        'factor': 1.0,
-    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
     'rope_imp': 'hf',
-    'rope_dail_config': {
-        'type': 'original',
-        'pos_idx_in_fp32': True,
-        'xpos_scale_base': 512,
-    },
     'rope_hf_config': {
         'type': 'no_scaling',
         'factor': 1.0,
@@ -777,20 +768,11 @@ def test_advanced_mask_building(attention_impl: str):
         'pos_idx_in_fp32': True,
         'xpos_scale_base': 512,
     },
-    'rope_hf_config': {
-        'type': 'no_scaling',
-        'factor': 1.0,
-    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
     'rope_imp': 'hf',
-    'rope_dail_config': {
-        'type': 'original',
-        'pos_idx_in_fp32': True,
-        'xpos_scale_base': 512,
-    },
     'rope_hf_config': {
         'type': 'no_scaling',
         'factor': 1.0,
@@ -1014,20 +996,11 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
         'pos_idx_in_fp32': True,
         'xpos_scale_base': 512,
     },
-    'rope_hf_config': {
-        'type': 'no_scaling',
-        'factor': 1.0,
-    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
     'rope_imp': 'hf',
-    'rope_dail_config': {
-        'type': 'original',
-        'pos_idx_in_fp32': True,
-        'xpos_scale_base': 512,
-    },
     'rope_hf_config': {
         'type': 'no_scaling',
         'factor': 1.0,
@@ -1162,20 +1135,11 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str,
         'pos_idx_in_fp32': True,
         'xpos_scale_base': 512,
     },
-    'rope_hf_config': {
-        'type': 'no_scaling',
-        'factor': 1.0,
-    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
     'rope_imp': 'hf',
-    'rope_dail_config': {
-        'type': 'original',
-        'pos_idx_in_fp32': True,
-        'xpos_scale_base': 512,
-    },
     'rope_hf_config': {
         'type': 'no_scaling',
         'factor': 1.0,
@@ -1312,20 +1276,11 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
         'pos_idx_in_fp32': True,
         'xpos_scale_base': 512,
     },
-    'rope_hf_config': {
-        'type': 'no_scaling',
-        'factor': 1.0,
-    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
     'rope_imp': 'hf',
-    'rope_dail_config': {
-        'type': 'original',
-        'pos_idx_in_fp32': True,
-        'xpos_scale_base': 512,
-    },
     'rope_hf_config': {
         'type': 'no_scaling',
         'factor': 1.0,
@@ -1433,20 +1388,11 @@ def test_generate_with_past_kv(attn_impl: str, device: str,
         'pos_idx_in_fp32': True,
         'xpos_scale_base': 512,
     },
-    'rope_hf_config': {
-        'type': 'no_scaling',
-        'factor': 1.0,
-    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
     'rope_imp': 'hf',
-    'rope_dail_config': {
-        'type': 'original',
-        'pos_idx_in_fp32': True,
-        'xpos_scale_base': 512,
-    },
     'rope_hf_config': {
         'type': 'no_scaling',
         'factor': 1.0,
@@ -1523,20 +1469,11 @@ def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
         'pos_idx_in_fp32': True,
         'xpos_scale_base': 512,
     },
-    'rope_hf_config': {
-        'type': 'no_scaling',
-        'factor': 1.0,
-    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
     'rope_imp': 'hf',
-    'rope_dail_config': {
-        'type': 'original',
-        'pos_idx_in_fp32': True,
-        'xpos_scale_base': 512,
-    },
     'rope_hf_config': {
         'type': 'no_scaling',
         'factor': 1.0,
@@ -1663,20 +1600,11 @@ def test_alibi_vs_hf():
         'pos_idx_in_fp32': True,
         'xpos_scale_base': 512,
     },
-    'rope_hf_config': {
-        'type': 'no_scaling',
-        'factor': 1.0,
-    },
 }, {
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
     'rope_imp': 'hf',
-    'rope_dail_config': {
-        'type': 'original',
-        'pos_idx_in_fp32': True,
-        'xpos_scale_base': 512,
-    },
     'rope_hf_config': {
         'type': 'no_scaling',
         'factor': 1.0,

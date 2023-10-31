@@ -49,7 +49,7 @@ classifiers = [
 install_requires = [
     'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.16.4,<0.17',
     'accelerate>=0.21,<0.22',  # for HF inference `device_map`
-    'transformers>=4.33,<4.34',
+    'transformers>=4.34.1,<4.35',
     'mosaicml-streaming>=0.6,<0.7',
     'torch>=1.13.1,<2.1.1',
     'datasets>=2.14.5,<2.15',
@@ -114,9 +114,10 @@ extra_deps['openai'] = [
 extra_deps['all-cpu'] = set(
     dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
 extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
-                        if key != 'gpu-flash2')
-extra_deps['all-flash2'] = set(
-    dep for key, deps in extra_deps.items() for dep in deps if key != 'gpu')
+                        if key not in {'gpu-flash2', 'all-cpu'})
+extra_deps['all-flash2'] = set(dep for key, deps in extra_deps.items()
+                               for dep in deps
+                               if key not in {'gpu', 'all', 'all-cpu'})
 
 setup(
     name=_PACKAGE_NAME,

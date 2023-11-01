@@ -2,6 +2,9 @@
 
 TODO(jerry): Add better logging throughout
 TODO(jerry): Track download metrics
+
+Copyright 2022 MosaicML LLM Foundry authors
+SPDX-License-Identifier: Apache-2.0
 """
 import os
 import sys
@@ -10,8 +13,8 @@ import time
 import argparse
 from typing import Optional
 from http import HTTPStatus
-from bs4 import BeautifulSoup
 
+from bs4 import BeautifulSoup
 import huggingface_hub as hf_hub
 import requests
 
@@ -72,7 +75,7 @@ def download_from_hf_hub(
     else:
         raise ValueError(
             f"No supported model weights found in repo {repo_id}."
-            "Please make sure the repo contains either safetensors or pytorch weights."
+            + " Please make sure the repo contains either safetensors or pytorch weights."
         )
 
     download_start = time.time()

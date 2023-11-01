@@ -1,0 +1,43 @@
+eos_token_id: 0 
+tokenizer_name: tiktoken
+max_seq_len: 2048
+global_seed: 17
+run_name: tiktoken
+models:
+-
+  model_name: mpt_causal_lm
+  tokenizer:
+    name: tiktoken
+    kwargs:
+      model_name: gpt-4
+  load_path: /tmp/model/tessa/uniform2/uniform-dup-sd-1116/ep0-ba24796.pt
+  model:
+    name: mpt_causal_lm
+    init_device: meta
+    d_model: 2560
+    n_heads: 32
+    n_layers: 32
+    expansion_ratio: 4
+    vocab_size: 100352
+    tokenizer_name: tiktoken
+    max_seq_len: 2048
+    no_bias: True
+    norm_type: low_precision_layernorm
+    
+device_eval_batch_size: 4
+dist_timeout: 60000
+fsdp_config:
+  mixed_precision: PURE
+  sharding_strategy: FULL_SHARD
+  activation_checkpointing: true
+  activation_checkpointing_reentrant: false
+  activation_cpu_offload: false
+  limit_all_gathers: true
+  sync_module_states: true
+  verbose: false
+eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+icl_tasks: eval/yamls/tasks.yaml
+
+
+precision: amp_bf16
+seed: 1

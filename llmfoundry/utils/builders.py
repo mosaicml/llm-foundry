@@ -207,6 +207,9 @@ def build_tokenizer(
     return tokenizer
 
 def prep_hf_dataset(icl_cfg: ListConfig):
+    """
+    Temporary hack to read HF datasets while the composer PR is still WIP
+    """
     hf_dataset_uri = icl_cfg.dataset_uri.replace("hf://", "")
     dataset_args = icl_cfg.hf_vars
     if "split" not in dataset_args:
@@ -215,8 +218,9 @@ def prep_hf_dataset(icl_cfg: ListConfig):
     # TODO: should I use tmp here?
     output_filepath = icl_cfg.dataset_uri.replace("hf://", "/tmp/").replace("/", "_") + '_'.join([str(dataset_arg) for dataset_arg in dataset_args.values()]) + '.jsonl'
     if os.path.isfile(output_filepath):
-        print("Output file already exists, skipping dataset processing and saving")
+        print(f"Output file already exists for {icl_cfg.label}, skipping dataset processing and saving")
     else:
+        print(f"Processing {icl_cfg.label}")
         dataset = hf_datasets.load_dataset(hf_dataset_uri, **dataset_args)
         dataset = dataset.map(lambda example: {
             "context": ''.join([example[col] for col in icl_cfg.hf_cols['inputs']]),
@@ -314,7 +318,6 @@ def build_icl_evaluators(
             if "hf://" in icl_cfg.dataset_uri:
                 new_uri = prep_hf_dataset(icl_cfg)
                 icl_cfg.dataset_uri = new_uri
-
 
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,

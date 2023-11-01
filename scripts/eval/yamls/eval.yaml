@@ -27,14 +27,15 @@ models:
 device_eval_batch_size: 4
 dist_timeout: 60000
 fsdp_config:
-  mixed_precision: PURE
-  sharding_strategy: FULL_SHARD
-  activation_checkpointing: true
+  sharding_strategy: SHARD_GRAD_OP
+  mixed_precision: FULL
+  activation_checkpointing: false
   activation_checkpointing_reentrant: false
   activation_cpu_offload: false
   limit_all_gathers: true
-  sync_module_states: true
   verbose: false
+  state_dict_type: sharded
+  use_orig_params: false
 eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
 icl_tasks: eval/yamls/tasks.yaml
 

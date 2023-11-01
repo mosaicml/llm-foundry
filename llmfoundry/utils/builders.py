@@ -7,6 +7,8 @@ import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
+import datasets as hf_datasets
+import json
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, OptimizerMonitor,
@@ -204,6 +206,28 @@ def build_tokenizer(
 
     return tokenizer
 
+def prep_hf_dataset(icl_cfg: ListConfig):
+    hf_dataset_uri = icl_cfg.dataset_uri.replace("hf://", "")
+    dataset_args = icl_cfg.hf_vars
+    if "split" not in dataset_args:
+        dataset_args["split"] = "test"
+    
+    # TODO: should I use tmp here?
+    output_filepath = icl_cfg.dataset_uri.replace("hf://", "/tmp/").replace("/", "_") + '_'.join([str(dataset_arg) for dataset_arg in dataset_args.values()]) + '.jsonl'
+    if os.path.isfile(output_filepath):
+        print("Output file already exists, skipping dataset processing and saving")
+    else:
+        dataset = hf_datasets.load_dataset(hf_dataset_uri, **dataset_args)
+        dataset = dataset.map(lambda example: {
+            "context": ''.join([example[col] for col in icl_cfg.hf_cols['inputs']]),
+            "answer": ''.join([example[col] for col in icl_cfg.hf_cols['outputs']])}
+            )
+        with open(output_filepath, 'w') as outfile:
+            for entry in dataset:
+                json.dump(entry, outfile)
+                outfile.write('\n') 
+    return output_filepath
+
 
 def build_icl_evaluators(
     icl_tasks: Union[str, ListConfig],
@@ -269,6 +293,7 @@ def build_icl_evaluators(
         if 'num_beams' not in icl_cfg:
             icl_cfg.num_beams = 20
 
+
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
         _validate_cfg(icl_cfg)
@@ -285,6 +310,11 @@ def build_icl_evaluators(
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
                 os.remove(destination_path)
             dist.barrier()
+
+            if "hf://" in icl_cfg.dataset_uri:
+                new_uri = prep_hf_dataset(icl_cfg)
+                icl_cfg.dataset_uri = new_uri
+
 
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,

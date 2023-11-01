@@ -1,0 +1,90 @@
+icl_tasks:
+# Unimplemented LEval tasks:
+# 'coursera', 'quality', 'tpo', 'sci_fi', 'codeU', 'gov_report_summ', 'meeting_summ', 'news_summ', 'paper_assistant', 'patent_summ', 'review_summ', 'tv_show_summ'
+-
+  label: gsm100
+  dataset_uri: hf://L4NLP/LEval
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  hf_vars: 
+    name: gsm100 
+  hf_cols:
+    inputs: ["inputs", "instructions"]
+    outputs: ["answer"] 
+-
+  label: legal_contract_qa
+  dataset_uri: hf://L4NLP/LEval
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  hf_vars: 
+    name: legal_contract_qa 
+  hf_cols:
+    pivot_col: input
+    inputs: ["instructions"]
+    outputs: ["outputs"] 
+-
+  label: financial_qa
+  dataset_uri: hf://L4NLP/LEval
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  hf_vars: 
+    name: financial_qa
+  hf_cols:
+    pivot_col: input
+    inputs: ["instructions"]
+    outputs: ["outputs"] 
+-
+  label: multidoc_qa
+  dataset_uri: hf://L4NLP/LEval
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  hf_vars: 
+    name: multidoc_qa
+  hf_cols:
+    pivot_col: input
+    inputs: ["instructions"]
+    outputs: ["outputs"] 
+-
+  label: scientific_qa
+  dataset_uri: hf://L4NLP/LEval
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  hf_vars: 
+    name: scientific_qa 
+  hf_cols:
+    pivot_col: input
+    inputs: ["instructions"]
+    outputs: ["outputs"] 
+-
+  label: narrative_qa
+  dataset_uri: hf://L4NLP/LEval
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  hf_vars: 
+    name: scientific_qa
+  hf_cols:
+    pivot_col: input
+    inputs: ["instructions"]
+    outputs: ["outputs"] 
+-
+  label: natural_question 
+  dataset_uri: hf://L4NLP/LEval
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  hf_vars: 
+    name: natural_question 
+  hf_cols:
+    pivot_col: input
+    inputs: ["instructions"]
+    outputs: ["outputs"] 
+-
+  label: topic_retrieval_longchat 
+  dataset_uri: hf://L4NLP/LEval
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  hf_vars: 
+    name: topic_retrieval_longchat  
+  hf_cols:
+    pivot_col: input
+    inputs: ["instructions"]
+    outputs: ["outputs"] 

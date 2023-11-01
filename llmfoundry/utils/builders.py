@@ -222,10 +222,28 @@ def prep_hf_dataset(icl_cfg: ListConfig):
     else:
         print(f"Processing {icl_cfg.label}")
         dataset = hf_datasets.load_dataset(hf_dataset_uri, **dataset_args)
-        dataset = dataset.map(lambda example: {
-            "context": ''.join([example[col] for col in icl_cfg.hf_cols['inputs']]),
-            "answer": ''.join([example[col] for col in icl_cfg.hf_cols['outputs']])}
+        if "pivot_col" in icl_cfg.hf_cols:
+            def _augment_data(examples):
+                outputs = []
+                contexts = []
+                for i, doc in enumerate(examples[icl_cfg.hf_cols["pivot_col"]]):
+                    for j in range(len(examples[icl_cfg.hf_cols["inputs"][0]][i])):
+                        instruction = ''.join([examples[input_col][i][j] for input_col in icl_cfg.hf_cols["inputs"]])
+                        contexts.append(doc + "\n" + instruction)
+                        outputs.append(''.join([examples[output_col][i][j] for output_col in icl_cfg.hf_cols['outputs']]))
+                return {"context": contexts, "answer": outputs}
+            dataset = dataset.map(
+                _augment_data,
+                batched=True,
+                remove_columns=dataset.column_names,
+                batch_size=1000
             )
+        else:
+            dataset = dataset.map(lambda example: {
+                    "context": ''.join([example[col] for col in icl_cfg.hf_cols['inputs']]),
+                    "answer": ''.join([example[col] for col in icl_cfg.hf_cols['outputs']])
+                }
+                )
         with open(output_filepath, 'w') as outfile:
             for entry in dataset:
                 json.dump(entry, outfile)

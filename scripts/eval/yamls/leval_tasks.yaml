@@ -61,7 +61,7 @@ icl_tasks:
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
-    name: scientific_qa
+    name: narrative_qa
   hf_cols:
     pivot_col: input
     inputs: ["instructions"]

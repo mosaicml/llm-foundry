@@ -50,6 +50,23 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             raise ImportError(
                 'You need to install tiktoken to use TiktokenTokenizerWrapper.')
 
+        # Workaround to make tiktokenizer picklable.
+        # https://github.com/huggingface/datasets/issues/5536#issuecomment-1682309347
+        # There is an open PR from HF to add this to tiktoken: https://github.com/openai/tiktoken/pull/181
+        import copyreg
+        import functools
+
+        from tiktoken import Encoding  # type: ignore (thirdParty)
+
+        def pickle_Encoding(enc: Encoding):
+            return (functools.partial(Encoding,
+                                      enc.name,
+                                      pat_str=enc._pat_str,
+                                      mergeable_ranks=enc._mergeable_ranks,
+                                      special_tokens=enc._special_tokens), ())
+
+        copyreg.pickle(Encoding, pickle_Encoding)
+
         if model_name is not None and encoding_name is not None:
             raise ValueError(
                 'You need to specify either model_name or encoding_name, not both.'

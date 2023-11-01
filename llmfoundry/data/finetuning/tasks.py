@@ -339,14 +339,20 @@ class DatasetConstructor:
                 example = preprocessing_fn(example)
             return _tokenize_formatted_example(example, tokenizer)
 
+        detected_cpu_count = os.cpu_count() or 1
+        num_cpus_to_use = max(1, detected_cpu_count - 4)
+
         columns_to_remove = list(dataset[0].keys())
         tokenized_dataset = dataset.map(
             dataset_mapper,
             batched=False,
             remove_columns=columns_to_remove,
+            num_proc=num_cpus_to_use,
         )
         prompt_length_filtered_dataset = tokenized_dataset.filter(
-            lambda example: len(example['input_ids']) < max_seq_len)
+            lambda example: len(example['input_ids']) < max_seq_len,
+            num_proc=num_cpus_to_use,
+        )
 
         examples_removed = len(tokenized_dataset) - len(
             prompt_length_filtered_dataset)

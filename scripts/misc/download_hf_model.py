@@ -149,7 +149,7 @@ def _recursive_download(
 
     # If the URL is a directory, the response should be an HTML directory listing that we can parse for additional links
     # to download.
-    child_links = _extract_links_from_html(response.content)
+    child_links = _extract_links_from_html(response.content.decode())
     for child_link in child_links:
         _recursive_download(
             session, base_url, f"{path}/{child_link}", save_dir, ignore_cert=ignore_cert

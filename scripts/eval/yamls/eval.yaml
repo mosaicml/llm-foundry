@@ -12,17 +12,34 @@ models:
       model_name: gpt-4
   load_path: /tmp/model/tessa/uniform2/uniform-dup-sd-1116/ep0-ba24796.pt
   model:
+    
     name: mpt_causal_lm
     init_device: meta
     d_model: 2560
     n_heads: 32
     n_layers: 32
     expansion_ratio: 4
+    max_seq_len: ${max_seq_len}
     vocab_size: 100352
-    tokenizer_name: tiktoken
-    max_seq_len: 2048
-    no_bias: True
+    tokenizer_name: ${tokenizer_name}
+    #loss_fn: torch_crossentropy # Necessary for cuda 12 image
+    attn_config:
+      attn_impl: triton
+      alibi: true
+      clip_qkv: 6
+      attn_uses_sequence_id: true
+      attn_pdrop: 0
+
     norm_type: low_precision_layernorm
+    no_bias: true
+
+    emb_pdrop: 0
+    resid_pdrop: 0
+
+    init_config:
+      init_nonlinearity: relu
+      name: kaiming_normal_
+
     
 device_eval_batch_size: 4
 dist_timeout: 60000

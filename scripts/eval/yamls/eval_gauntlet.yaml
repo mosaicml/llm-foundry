@@ -130,9 +130,9 @@ eval_gauntlet:
     - name: bigbench_understanding_fables
       num_fewshot: 10
       random_baseline: 0.25
-    # - name: boolq
-    #   num_fewshot: 10
-    #   random_baseline: 0.5
+    - name: boolq
+      num_fewshot: 10
+      random_baseline: 0.5
   # - name: programming
   #   benchmarks:
   #   - name: human_eval

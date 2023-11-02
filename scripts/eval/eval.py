@@ -176,7 +176,6 @@ def evaluate_model(
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     a = time.time()
-    breakpoint()
     trainer.eval(eval_dataloader=evaluators)
     if torch.cuda.is_available():
         torch.cuda.synchronize()

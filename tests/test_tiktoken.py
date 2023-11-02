@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pathlib
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import pytest
 import transformers
@@ -49,15 +49,18 @@ def get_tokenizers_for_testing(
     encoding_name: Optional[str],
     tmp_path: pathlib.Path,
     add_bos_token: bool = False,
-    add_eos_token: bool = False
+    add_eos_token: bool = False,
+    additional_special_tokens: Optional[List[str]] = None,
 ) -> Tuple[TiktokenTokenizerWrapper, TiktokenTokenizerWrapper, 'Encoding']:
     tiktoken = pytest.importorskip('tiktoken')
 
     # Construction
-    wrapped_tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
-                                                 encoding_name=encoding_name,
-                                                 add_bos_token=add_bos_token,
-                                                 add_eos_token=add_eos_token)
+    wrapped_tokenizer = TiktokenTokenizerWrapper(
+        model_name=model_name,
+        encoding_name=encoding_name,
+        add_bos_token=add_bos_token,
+        add_eos_token=add_eos_token,
+        additional_special_tokens=additional_special_tokens)
     if model_name is not None:
         original_tokenizer = tiktoken.encoding_for_model(model_name)
     else:
@@ -176,6 +179,10 @@ def test_tiktoken_vocab(model_name: Optional[str], encoding_name: Optional[str],
 
     didnt_match = []
     for key, value in wrapped_vocab.items():
+        # Skip checking the extra ids we pad the vocab with
+        if key.startswith('<extra_id') and key.endswith('>'):
+            continue
+
         if original_tokenizer.encode(key, allowed_special='all') == [value]:
             continue
         else:
@@ -232,3 +239,23 @@ def test_tiktoken_encode_plus(model_name: Optional[str],
         encoded_special_mask = encoded_outputs.special_tokens_mask
         assert encoded_special_mask[0] == 1
         assert encoded_special_mask[-1] == 1
+
+
+@pytest.mark.parametrize('model_name,encoding_name',
+                         MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_additional_special_tokens(model_name: Optional[str],
+                                   encoding_name: Optional[str],
+                                   tmp_path: pathlib.Path):
+    special_token_to_add = '<|im_start|>'
+    wrapped_tokenizer, _, _ = get_tokenizers_for_testing(
+        model_name,
+        encoding_name,
+        tmp_path,
+        add_bos_token=False,
+        add_eos_token=False,
+        additional_special_tokens=[special_token_to_add])
+    encoded_outputs = wrapped_tokenizer(special_token_to_add +
+                                        ' hello')['input_ids']
+
+    assert encoded_outputs[0] == wrapped_tokenizer.vocab_size
+    assert len(encoded_outputs) == 2

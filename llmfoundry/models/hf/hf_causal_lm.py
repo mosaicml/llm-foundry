@@ -162,7 +162,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 with init_empty_weights(include_buffers=False):
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore', UserWarning)
-                        _ = AutoModelForCausalLM.from_pretrained(
+                        AutoModelForCausalLM.from_pretrained(
                             om_model_config.pretrained_model_name_or_path,
                             trust_remote_code=trust_remote_code,
                             use_auth_token=use_auth_token,

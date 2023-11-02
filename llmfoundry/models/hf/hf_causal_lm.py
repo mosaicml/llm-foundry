@@ -168,6 +168,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                             use_auth_token=use_auth_token,
                             config=config,
                         )
+            
+            dist.barrier()
 
             # initialize the model on the correct device
             if resolved_init_device == 'cpu':

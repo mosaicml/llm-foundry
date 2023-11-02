@@ -146,7 +146,7 @@ def evaluate_model(
         eval_gauntlet_df = pd.DataFrame(
             columns=['model_name'] +
             [avg for avg in eval_gauntlet_callback.averages] +
-            [name for name in eval_gauntlet_callback.category_names])
+            [t.name for t in eval_gauntlet_callback.categories])
 
     load_path = model_cfg.get('load_path', None)
     if model_cfg.model.name == 'mpt_causal_lm' and load_path is None:
@@ -316,7 +316,9 @@ def main(cfg: DictConfig):
             row = {'model_name': model_cfg['model_name']}
             row.update(
                 {k.split('/')[-1]: v for k, v in composite_scores.items()})
-            eval_gauntlet_df = pd.concat([eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
+
+            eval_gauntlet_df = pd.concat(
+                [eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
 
             print(f'Printing gauntlet results for all models')
 

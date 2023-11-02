@@ -5,7 +5,7 @@ import math
 import os
 import pathlib
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from composer import Trainer
 from composer.loggers import MLFlowLogger
@@ -251,25 +251,31 @@ def test_callback_inits_with_defaults():
 @pytest.mark.parametrize('model', ['mpt', 'neo', 'llama2'])
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
 @pytest.mark.parametrize('log_to_mlflow', [True, False])
+@pytest.mark.parametrize(
+    'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
+    [('3ba', '2ba', '7ba', 3, 4), ('1dur', '2ba', '1ep', 1, 4)])
+@patch('os.cpu_count', MagicMock(return_value=None))
 def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                                          fsdp_state_dict_type: Optional[str],
-                                         log_to_mlflow: bool):
+                                         log_to_mlflow: bool,
+                                         hf_save_interval: str,
+                                         save_interval: str, max_duration: str,
+                                         expected_hf_checkpoints: int,
+                                         expected_normal_checkpoints: int):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
 
     max_seq_len = 16
-    save_interval_batches = 2
-    huggingface_save_interval_batches = 3
     device_batch_size = 1
     dataset_size = 14
-    max_duration_batches = 7
     precision_str = 'bfloat16'
     precision = torch.bfloat16
+    batches_per_epoch = math.ceil(dataset_size / (device_batch_size * 2))
 
     checkpointer_callback = HuggingFaceCheckpointer(
         save_folder=os.path.join(tmp_path, 'checkpoints'),
-        save_interval=f'{huggingface_save_interval_batches}ba',
+        save_interval=hf_save_interval,
         precision=precision_str,
         mlflow_registered_model_name='dummy-registered-name'
         if log_to_mlflow else None,
@@ -405,8 +411,8 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         fsdp_config=fsdp_config if fsdp_state_dict_type is not None else None,
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
-        save_interval=f'{save_interval_batches}ba',
-        max_duration=f'{max_duration_batches}ba',
+        save_interval=save_interval,
+        max_duration=max_duration,
         callbacks=[checkpointer_callback],
         loggers=[mlflow_logger_mock] if log_to_mlflow else [],
         optimizers=optimizer,
@@ -442,15 +448,13 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                 name for name in os.listdir(
                     os.path.join(tmp_path, 'checkpoints', 'huggingface'))
             ]
-            assert len(normal_checkpoints) == math.ceil(max_duration_batches /
-                                                        save_interval_batches)
-            assert len(huggingface_checkpoints) == math.ceil(
-                max_duration_batches / huggingface_save_interval_batches)
+            assert len(normal_checkpoints) == expected_normal_checkpoints
+            assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
             # Load the last huggingface checkpoint
             loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
                 os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                             f'ba{max_duration_batches}'),
+                             f'ba{batches_per_epoch}'),
                 trust_remote_code=True,
             )
 
@@ -471,7 +475,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
 
             loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
                 os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                             f'ba{max_duration_batches}'),
+                             f'ba{batches_per_epoch}'),
                 trust_remote_code=True,
             )
 

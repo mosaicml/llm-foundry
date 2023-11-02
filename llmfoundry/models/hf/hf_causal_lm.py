@@ -5,6 +5,7 @@
 
 import logging
 import os
+import warnings
 from typing import Mapping, Union
 
 # required for loading a python model into composer
@@ -159,12 +160,14 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
             if dist.get_local_rank() == 0:
                 with init_empty_weights(include_buffers=False):
-                    _ = AutoModelForCausalLM.from_pretrained(
-                        om_model_config.pretrained_model_name_or_path,
-                        trust_remote_code=trust_remote_code,
-                        use_auth_token=use_auth_token,
-                        config=config,
-                    )
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore', UserWarning)
+                        _ = AutoModelForCausalLM.from_pretrained(
+                            om_model_config.pretrained_model_name_or_path,
+                            trust_remote_code=trust_remote_code,
+                            use_auth_token=use_auth_token,
+                            config=config,
+                        )
 
             # initialize the model on the correct device
             if resolved_init_device == 'cpu':

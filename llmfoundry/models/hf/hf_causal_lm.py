@@ -157,6 +157,15 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             if dist.get_local_rank() != 0 and init_device == 'mixed':
                 om_model_config.pretrained = False
 
+            if dist.get_local_rank() == 0:
+                with init_empty_weights(include_buffers=False):
+                    _ = AutoModelForCausalLM.from_pretrained(
+                        om_model_config.pretrained_model_name_or_path,
+                        trust_remote_code=trust_remote_code,
+                        use_auth_token=use_auth_token,
+                        config=config,
+                    )
+
             # initialize the model on the correct device
             if resolved_init_device == 'cpu':
                 if om_model_config.pretrained:

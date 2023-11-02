@@ -74,20 +74,26 @@ def build_finetuning_dataloader(cfg: DictConfig,
             cfg.dataset.allow_pad_trimming (bool, optional): Whether to allow
                 the collator to trim padding. See :class:`Seq2SeqFinetuningCollator`
                 docstring for details. Default: ``False``.
-            cfg.dataset.packing_ratio (float, optional): If provided, this invokes
-                a collator wrapper that packs `device_batch_size*packing_ratio`
-                raw examples into `device_batch_size` packed examples. This helps
+            cfg.dataset.packing_ratio (Optional[float, Literal['auto']]): If provided, this invokes
+                a collator wrapper that packs device_batch_size*packing_ratio
+                raw examples into device_batch_size packed examples. This helps
                 minimize padding while preserving sequence integrity.
                 This adds `sequence_id` to the batch, which indicates which unique
                 sequence each token belongs to.
+
+                If set to 'auto', packing_ratio is profiled and the highest observed packing ratio with
+                zero waste is selected.
+                In practice, this may result in > 0 waste because profiling is done on only a portion
+                of the dataset.
+
                 Note: Using this feature will not change device_batch_size but it
                     will determine the number of raw examples consumed by the dataloader
                     per batch. Some examples may be discarded if they do not fit when
                     packing.
-                    Select `packing_ratio` **carefully** based on the dataset
-                    statistics, `max_seq_len`, and tolerance for discarding samples!
-                    `scripts/misc/profile_packing.py` is a script that can help
-                    you choose the best `packing_ratio`.
+                    Select packing_ratio **carefully** based on the dataset
+                    statistics, max_seq_len, and tolerance for discarding samples!
+                    The script `scripts/misc/profile_packing.py` can help
+                    you choose the best packing_ratio.
             cfg.dataset.shuffle (bool): Whether to shuffle the dataset.
             ___
             See :class:`StreamingFinetuningDataset` for info on other standard config

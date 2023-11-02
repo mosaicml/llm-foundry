@@ -3,7 +3,7 @@
 
 """Script to profile example packing."""
 import os
-from typing import Any, Dict
+from typing import Dict
 
 from llmfoundry.data.packing import profile_packing
 
@@ -40,7 +40,7 @@ if __name__ == '__main__':
         parser.add_argument(
             '--num-packing-ratios',
             type=int,
-            default=10,
+            default=20,
             help=
             'Number of packing_ratio values (spaced between `min` and `max) to try.'
         )
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     if not isinstance(resolved_tokenizer_cfg, Dict):
         raise ValueError(
             'tokenizer config needs to be resolved by omegaconf into a Dict.')
-    tokenizer_cfg: Dict[Any, Any] = resolved_tokenizer_cfg
+    tokenizer_cfg = resolved_tokenizer_cfg
 
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})

@@ -375,12 +375,18 @@ def build_text_denoising_dataloader(
             cfg.dataset.max_seq_len (int): The maximum length of sequences
                 in the batch. See :class:`MixtureOfDenoisersCollator` docstring
                 for details.
-            cfg.dataset.packing_ratio (float, optional): If provided, this invokes
+            cfg.dataset.packing_ratio (Optional[float, Literal['auto']]): If provided, this invokes
                 a collator wrapper that packs device_batch_size*packing_ratio
                 raw examples into device_batch_size packed examples. This helps
                 minimize padding while preserving sequence integrity.
                 This adds `sequence_id` to the batch, which indicates which unique
                 sequence each token belongs to.
+
+                If set to 'auto', packing_ratio is profiled and the highest observed packing ratio with
+                zero waste is selected.
+                In practice, this may result in > 0 waste because profiling is done on only a portion
+                of the dataset.
+
                 Note: Using this feature will not change device_batch_size but it
                     will determine the number of raw examples consumed by the dataloader
                     per batch. Some examples may be discarded if they do not fit when

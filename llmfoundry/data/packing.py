@@ -263,13 +263,24 @@ def _repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
 
 def auto_packing_ratio(dataloader_cfg: DictConfig,
                        tokenizer: PreTrainedTokenizerBase,
-                       device_batch_size: int):
+                       device_batch_size: int,
+                       num_packing_ratios: int = 20) -> int:
     """Find a packing ratio that minimizes padding with zero waste.
+
+    By packing examples, we can increase training efficiency, training on more data with less batches.
+    However, in practice, the selected packing_ratio may produce some waste because profiling is done on only
+    a subset of the dataset.
+
+    We select a min_ratio of 1 and a max_ratio that is the max_seq_len / 100, and profile up to
+    num_packing_ratios packing ratios between min_ratio and max_ratio, inclusive.
+    When a packing_ratio is found with non-zero waste is found, we stop and select the previous ratio,
+    which has zero waste.
 
     Args:
         dataloader_cfg (DictConfig): The dataloader configuration for profiling.
         tokenizer (PreTrainedTokenizerBase): The tokenizer for profiling.
         device_batch_size (int): The size of the batches (number of examples) per device.
+        num_packing_ratio (int): The number of packing ratios to try.
 
     Returns:
         A packing ratio that minimizes padding while maintaining zero waste.
@@ -277,12 +288,12 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     from composer.utils import dist, get_device
     min_ratio = 1
     max_ratio = dataloader_cfg.dataset.max_seq_len / 100
-    num_packing_ratios = 20
     profiling_results = profile_packing(dataloader_cfg, tokenizer, min_ratio,
                                         max_ratio, num_packing_ratios,
                                         device_batch_size)
 
     # Obtain the maximum packing_ratio/minimum padding that has no waste.
+    # profiling_results are sorted from smallest to largest packing_ratio.
     packing_ratio = 1
     for packing_ratio_candidate, _, waste in profiling_results:
         if waste > 0:
@@ -290,9 +301,8 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
         packing_ratio = packing_ratio_candidate
 
     # Select the minimum packing ratio across all ranks.
-    if torch.cuda.is_available() and dist.is_available(
-    ) and dist.is_initialized():
-        device = get_device('gpu')
+    if dist.is_available() and dist.is_initialized():
+        device = get_device(None)
         packing_ratio_tensor = device.tensor_to_device(
             torch.tensor(packing_ratio))
         dist.all_reduce(packing_ratio_tensor, reduce_operation='MIN')
@@ -315,7 +325,7 @@ def profile_packing(
         device_batch_size (int): The size of the batches (number of examples) per device.
 
     Returns:
-        An iterable of tuples of packing ratio, padding, and waste.
+        An iterable of tuples of packing ratio, padding, and waste, sorted by smallest to largest packing ratio.
     """
     import copy
 
@@ -388,3 +398,108 @@ def profile_packing(
     for packing_ratio, raw_batch_size in zip(packing_ratios, raw_batch_sizes):
         padding, waste = profile(raw_batch_size)
         yield (packing_ratio, padding, waste)
+
+
+if __name__ == '__main__':
+
+    import warnings
+
+    warnings.warn(
+        DeprecationWarning(
+            'Please use scripts/misc/profile_packing.py to profile packing.' +
+            'This script will be removed in later releases.'))
+
+    import os
+    from argparse import ArgumentParser, Namespace
+
+    from omegaconf import OmegaConf as om
+
+    from llmfoundry.utils import build_tokenizer
+
+    def parse_args() -> Namespace:
+        """Parse commandline arguments."""
+        parser = ArgumentParser(
+            description=
+            'Profile packing_ratio choices for a particular workload.')
+        parser.add_argument(
+            '--yaml-path',
+            type=str,
+            required=True,
+            help='Path to the YAML that defines the workload to profile.')
+        parser.add_argument('--num-devices',
+                            type=int,
+                            default=None,
+                            help='How many devices your run will use.')
+        parser.add_argument('--min',
+                            type=float,
+                            required=True,
+                            help='Smallest packing_ratio to test. Must be >=1.')
+        parser.add_argument(
+            '--max',
+            type=float,
+            required=True,
+            help='Largest packing_ratio to test. Must be larger than `min`.')
+        parser.add_argument(
+            '--num-packing-ratios',
+            type=int,
+            default=20,
+            help=
+            'Number of packing_ratio values (spaced between `min` and `max) to try.'
+        )
+
+        args = parser.parse_args()
+
+        if not os.path.isfile(args.yaml_path):
+            raise FileNotFoundError(
+                '`yaml_path` does not correspond to any existing file.')
+        if args.num_devices < 1:
+            raise ValueError('`num_devices` must be a positive integer.')
+        if args.min < 1.0:
+            raise ValueError('`min` must be >=1.0.')
+        if args.max < args.min:
+            raise ValueError('`max` cannot be less than `min`.')
+        if args.num_packing_ratios < 1:
+            raise ValueError('`num_packing_ratios` must be a positive integer.')
+        return args
+
+    args = parse_args()
+
+    with open(args.yaml_path) as f:
+        cfg = om.load(f)
+    if 'parameters' in cfg:
+        cfg = om.to_container(cfg.parameters)
+        cfg = om.create(cfg)
+    device_batch_size = cfg.global_train_batch_size // args.num_devices
+
+    # Fetch a bunch of raw examples once, which we'll re-use
+    if 'train_loader' not in cfg:
+        raise ValueError('config must define train_loader')
+    dataloader_cfg = cfg.train_loader
+
+    max_leftovers_to_keep = dataloader_cfg.dataset.get('max_leftovers_to_keep',
+                                                       None)
+
+    # build tokenizer
+    if 'tokenizer' not in cfg:
+        raise ValueError('config must define tokenizer')
+
+    resolved_tokenizer_cfg = om.to_container(cfg.tokenizer, resolve=True)
+    if not isinstance(resolved_tokenizer_cfg, Dict):
+        raise ValueError(
+            'tokenizer config needs to be resolved by omegaconf into a Dict.')
+    tokenizer_cfg = resolved_tokenizer_cfg
+
+    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+
+    results = profile_packing(dataloader_cfg, tokenizer, args.min, args.max,
+                              args.num_packing_ratios, device_batch_size)
+
+    header = '\n\n\n packing_ratio | % PADDING | % WASTE'
+    fstr = '        {:5.1f}  |  {:5.2f}%   | {:6.2f}%'
+
+    print(header)
+    print('-' * len(header))
+    for packing_ratio, padding, waste in results:
+        print(fstr.format(packing_ratio, padding, waste))

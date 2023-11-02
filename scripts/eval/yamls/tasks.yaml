@@ -167,20 +167,20 @@ icl_tasks:
   dataset_uri: eval/local_data/reading_comprehension/bigbench_understanding_fables.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: multiple_choice
--
-  label: boolq
-  dataset_uri: eval/local_data/reading_comprehension/boolq.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [10]
-  icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
--
-  label: human_eval
-  dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0]
-  pass_at_k: 1
-  num_beams: 20
-  batch_size: 1
-  icl_task_type: code_evaluation
+# -
+#   label: boolq
+#   dataset_uri: eval/local_data/reading_comprehension/boolq.jsonl # ADD YOUR OWN DATASET URI
+#   num_fewshot: [10]
+#   icl_task_type: multiple_choice
+#   continuation_delimiter: "\nAnswer: " # this separates questions from answers
+# -
+#   label: human_eval
+#   dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
+#   num_fewshot: [0]
+#   pass_at_k: 1
+#   num_beams: 20
+#   batch_size: 1
+#   icl_task_type: code_evaluation
 -
   label: human_eval_cpp
   dataset_uri: eval/local_data/programming/processed_human_eval_cpp.jsonl # ADD YOUR OWN DATASET URI

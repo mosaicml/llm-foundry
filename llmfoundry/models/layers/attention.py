@@ -17,12 +17,12 @@ from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
-def is_flash_v2_installed():
+def is_flash_v2_installed(v2_version: str = '2.0.0'):
     try:
         import flash_attn as flash_attn
     except:
         return False
-    return version.parse(flash_attn.__version__) >= version.parse('2.0.0')
+    return version.parse(flash_attn.__version__) >= version.parse(v2_version)
 
 
 def is_flash_v1_installed():

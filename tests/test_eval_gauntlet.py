@@ -112,7 +112,6 @@ def test_gauntlet_callback(averages: Optional[dict]):
         name = f'icl/metrics/eval_gauntlet/{category}'
         assert result[name] == pytest.approx(0.25)
 
-
     if averages is None:
         assert result[
             'icl/metrics/eval_gauntlet/default_average'] == pytest.approx(0.25)

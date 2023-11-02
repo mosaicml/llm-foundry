@@ -24,7 +24,7 @@ models:
     vocab_size: 50368
     attn_config:
       attn_impl: triton
-  
+
 device_eval_batch_size: 4
 
 # FSDP config for model sharding

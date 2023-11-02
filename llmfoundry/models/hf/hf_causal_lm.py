@@ -9,14 +9,13 @@ from typing import Mapping, Union
 
 # required for loading a python model into composer
 import transformers
-from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
-                                  InContextLearningCodeExecutionPredictionAccuracy,
-                                  InContextLearningLMAccuracy,
-                                  InContextLearningLMExpectedCalibrationError,
-                                  InContextLearningMCExpectedCalibrationError,
-                                  InContextLearningMultipleChoiceAccuracy,
-                                  InContextLearningQAAccuracy,
-                                  LanguageCrossEntropy, LanguagePerplexity)
+from composer.metrics.nlp import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningCodeExecutionPredictionAccuracy,
+    InContextLearningLMAccuracy, InContextLearningLMExpectedCalibrationError,
+    InContextLearningMCExpectedCalibrationError,
+    InContextLearningMultipleChoiceAccuracy, InContextLearningQAAccuracy,
+    LanguageCrossEntropy, LanguagePerplexity)
 from composer.utils import dist
 from omegaconf import DictConfig
 from torch import nn

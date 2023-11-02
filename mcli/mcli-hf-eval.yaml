@@ -14,9 +14,9 @@ command: |
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: mpt-gauntlet-v0.1
-gpu_num: 32
+gpu_num: 8
 gpu_type: a100_80gb
-cluster:  r7z2 # replace with your cluster here!
+cluster:  r1z1 # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
@@ -30,21 +30,64 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-30b-instruct
+    model_name: mosaicml/mpt-7b-instruct
     # Tokenizer
     tokenizer:
-      name:  mosaicml/mpt-30b-instruct
+      name: mosaicml/mpt-7b-instruct
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path:  mosaicml/mpt-30b-instruct
+      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
       init_device: mixed
       pretrained: true
       use_auth_token: false
-      
-      
+  -
+    model_name: mistralai/Mistral-7B-v0.1
+    # Tokenizer
+    tokenizer:
+      name: mistralai/Mistral-7B-v0.1
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: mistralai/Mistral-7B-v0.1
+      init_device: mixed
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: codellama/CodeLlama-7b-Instruct-hf
+    # Tokenizer
+    tokenizer:
+      name: codellama/CodeLlama-7b-Instruct-hf
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: codellama/CodeLlama-7b-Instruct-hf
+      init_device: mixed
+      pretrained: true
+      use_auth_token: false
+  -
+    model_name: tiiuae/falcon-7b-instruct
+    # Tokenizer
+    tokenizer:
+      name: tiiuae/falcon-7b-instruct
+      kwargs:
+        model_max_length: ${max_seq_len}
+
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: tiiuae/falcon-7b-instruct
+      init_device: mixed
+      pretrained: true
+      use_auth_token: false
+      config_overrides:
+        tie_word_embeddings: false
+
 
   # FSDP config for model sharding
   fsdp_config:

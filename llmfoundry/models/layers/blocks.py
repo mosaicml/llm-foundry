@@ -12,6 +12,31 @@ from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
+attn_config_defaults: Dict = {
+    'attn_type': 'multihead_attention',
+    'attn_pdrop': 0.0,
+    'attn_impl': 'triton',
+    'qk_ln': False,
+    'clip_qkv': None,
+    'softmax_scale': None,
+    'prefix_lm': False,
+    'attn_uses_sequence_id': False,
+    'alibi': False,
+    'alibi_bias_max': 8,
+    'rope': False,
+    'rope_theta': 10000,
+    'rope_impl': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
+}
+
 
 class MPTBlock(nn.Module):
 
@@ -30,30 +55,7 @@ class MPTBlock(nn.Module):
         **kwargs: Any,
     ):
         if attn_config is None:
-            attn_config = {
-                'attn_type': 'multihead_attention',
-                'attn_pdrop': 0.0,
-                'attn_impl': 'triton',
-                'qk_ln': False,
-                'clip_qkv': None,
-                'softmax_scale': None,
-                'prefix_lm': False,
-                'attn_uses_sequence_id': False,
-                'alibi': False,
-                'alibi_bias_max': 8,
-                'rope': False,
-                'rope_theta': 10000,
-                'rope_imp': 'dail',
-                'rope_dail_config': {
-                    'type': 'original',
-                    'pos_idx_in_fp32': True,
-                    'xpos_scale_base': 512,
-                },
-                'rope_hf_config': {
-                    'type': 'no_scaling',
-                    'factor': 1.0,
-                },
-            }
+            attn_config = attn_config_defaults
 
         if ffn_config is None:
             ffn_config = {
@@ -70,7 +72,7 @@ class MPTBlock(nn.Module):
         # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         args_to_exclude_in_attn_class = {
             'attn_type', 'prefix_lm', 'alibi', 'attn_uses_sequence_id',
-            'alibi_bias_max', 'rope', 'rope_theta', 'rope_imp',
+            'alibi_bias_max', 'rope', 'rope_theta', 'rope_impl',
             'rope_dail_config', 'rope_hf_config'
         }
         attn_config_subset_for_attn_class = {

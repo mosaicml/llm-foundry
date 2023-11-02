@@ -8,30 +8,7 @@ from typing import Any, Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
-attn_config_defaults: Dict = {
-    'attn_type': 'multihead_attention',
-    'attn_pdrop': 0.0,
-    'attn_impl': 'triton',
-    'qk_ln': False,
-    'clip_qkv': None,
-    'softmax_scale': None,
-    'prefix_lm': False,
-    'attn_uses_sequence_id': False,
-    'alibi': False,
-    'alibi_bias_max': 8,
-    'rope': False,
-    'rope_theta': 10000,
-    'rope_imp': 'dail',
-    'rope_dail_config': {
-        'type': 'original',
-        'pos_idx_in_fp32': True,
-        'xpos_scale_base': 512,
-    },
-    'rope_hf_config': {
-        'type': 'no_scaling',
-        'factor': 1.0,
-    },
-}
+from llmfoundry.models.layers.blocks import attn_config_defaults
 
 ffn_config_defaults: Dict = {
     'ffn_type': 'mptmlp',
@@ -108,7 +85,7 @@ class MPTConfig(PretrainedConfig):
                 alibi_bias_max (int): The maximum value of the alibi bias.
                 rope (bool): Whether to use rotary positional embeddings.
                 rope_theta (int): The base frequency for rope.
-                rope_imp (str): The implementation of rope to use. One of 'hf' (to use the implementation from https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py) or 'dail' (to use the implementation from https://github.com/Dao-AILab/flash-attention/blob/main/flash_attn/layers/rotary.py).
+                rope_impl (str): The implementation of rope to use. One of 'hf' (to use the implementation from https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py) or 'dail' (to use the implementation from https://github.com/Dao-AILab/flash-attention/blob/main/flash_attn/layers/rotary.py).
                 rope_dail_config (Dict): The configuration for the dail implementation of rope.
                     type (str): The type of rotary position embedding to use. Options: 'original' (for https://arxiv.org/pdf/2104.09864.pdf), 'xpos' (for https://arxiv.org/pdf/2212.10554.pdf).
                     pos_idx_in_fp32 (bool): If True, the position indices [0, ..., seqlen - 1] are in fp32, otherwise they might be in lower precision. A consequence could be, for example, that bf16 rounds position 1995 to 2000, which leads to them having the same positional embedding.
@@ -189,6 +166,7 @@ class MPTConfig(PretrainedConfig):
             if k not in config:
                 config[k] = v
             elif isinstance(v, dict):
+                # recursively set default values for any sub-dicts
                 config[k] = self._set_config_defaults(
                     config[k] if (config[k] is not None) else {}, v)
         return config
@@ -233,13 +211,13 @@ class MPTConfig(PretrainedConfig):
             raise NotImplementedError(
                 'attn_uses_sequence_id only implemented with torch and triton attention.'
             )
-        if self.attn_config['rope'] and (self.attn_config['rope_imp']
+        if self.attn_config['rope'] and (self.attn_config['rope_impl']
                                          not in ['dail', 'hf']):
             raise ValueError(
-                'If rope is being used then rope_imp should be either "dail", or "hf".'
+                'If rope is being used then rope_impl should be either "dail", or "hf".'
             )
         if self.attn_config['rope'] and (
-                self.attn_config['rope_imp']
+                self.attn_config['rope_impl']
                 == 'hf') and self.attn_config['rope_hf_config']['type'] not in [
                     'no_scaling', 'linear', 'dynamic'
                 ]:
@@ -247,7 +225,7 @@ class MPTConfig(PretrainedConfig):
                 'If using hf implementation of rope, the type should be one of "no_scaling", "linear" or "dynamic".'
             )
         if self.attn_config['rope'] and (
-                self.attn_config['rope_imp']
+                self.attn_config['rope_impl']
                 == 'dail') and (self.attn_config['rope_dail_config']['type']
                                 not in ['original', 'xpos']):
             raise ValueError(

@@ -20,7 +20,7 @@ from transformers.models.llama.modeling_llama import \
 
 def gen_rotary_embedding(rope_head_dim: int, pos_emb_config: dict,
                          max_seq_len: int):
-    if pos_emb_config['rope_imp'] == 'dail':
+    if pos_emb_config['rope_impl'] == 'dail':
         return DAILRotaryEmbedding(
             dim=rope_head_dim,
             base=pos_emb_config['rope_theta'],
@@ -32,7 +32,7 @@ def gen_rotary_embedding(rope_head_dim: int, pos_emb_config: dict,
             device=
             'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
         )
-    elif pos_emb_config['rope_imp'] == 'hf':
+    elif pos_emb_config['rope_impl'] == 'hf':
         if pos_emb_config['rope_hf_config']['type'] == 'no_scaling':
             return HFRotaryEmbedding(
                 rope_head_dim,
@@ -64,7 +64,7 @@ def gen_rotary_embedding(rope_head_dim: int, pos_emb_config: dict,
                 f'Invalid scaling type: {pos_emb_config["rope_hf_config"]["type"]}'
             )
     else:
-        raise ValueError(f'Invalid rope_imp: {pos_emb_config["rope_imp"]}')
+        raise ValueError(f'Invalid rope_impl: {pos_emb_config["rope_impl"]}')
 
 
 @pytest.mark.gpu
@@ -112,7 +112,7 @@ def test_rope_dail_vs_hf(clip_qkv: bool,
     with get_precision_context('amp_bf16'):
         dail_rope_config = {
             'rope_theta': 10000,
-            'rope_imp': 'dail',
+            'rope_impl': 'dail',
             'rope_dail_config': {
                 'type': 'original',
                 'pos_idx_in_fp32': True,
@@ -121,7 +121,7 @@ def test_rope_dail_vs_hf(clip_qkv: bool,
         }
         hf_rope_config = {
             'rope_theta': 10000,
-            'rope_imp': 'hf',
+            'rope_impl': 'hf',
             'rope_hf_config': {
                 'type': 'no_scaling',
                 'factor': 1.0,

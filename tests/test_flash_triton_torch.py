@@ -31,7 +31,7 @@ def allclose_helper(t0: torch.Tensor,
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_imp': 'dail',
+    'rope_impl': 'dail',
     'rope_dail_config': {
         'type': 'original',
         'pos_idx_in_fp32': True,
@@ -41,7 +41,7 @@ def allclose_helper(t0: torch.Tensor,
     'alibi': False,
     'rope': True,
     'rope_theta': 10000,
-    'rope_imp': 'hf',
+    'rope_impl': 'hf',
     'rope_hf_config': {
         'type': 'no_scaling',
         'factor': 1.0,
@@ -68,7 +68,7 @@ def test_attn_impl(attn_impl_0: str,
     if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'):
         pytest.xfail('flash attn does not support alibi')
 
-    if rope and (pos_emb_config['rope_imp']
+    if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):
         pytest.skip('dail implementation of rope requires flash attention 2.')
 
@@ -140,11 +140,11 @@ def test_attn_impl(attn_impl_0: str,
             )
             rotary_emb_w_meta_info = {
                 'imp':
-                    pos_emb_config['rope_imp'],
+                    pos_emb_config['rope_impl'],
                 'rotary_emb':
                     rotary_embedding,
                 'offset_info':
-                    pos if (pos_emb_config['rope_imp'] == 'hf') else 0,
+                    pos if (pos_emb_config['rope_impl'] == 'hf') else 0,
                 'seq_len':
                     s,
             }

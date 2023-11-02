@@ -86,45 +86,44 @@ import logging
 log = logging.getLogger(__name__)
 
 
-def _rotary_embedding(config: MPTConfig):
-    rope_head_dim = config.d_model // config.n_heads
-    if config.attn_config['rope_imp'] == 'dail':
+def _rotary_embedding(rope_head_dim: int, rope_impl: str, rope_theta: int,
+                      rope_dail_config: dict, rope_hf_config: dict,
+                      max_seq_len: int):
+    if rope_impl == 'dail':
         return DAILRotaryEmbedding(
             dim=rope_head_dim,
-            base=config.attn_config['rope_theta'],
+            base=rope_theta,
             interleaved=False,
-            scale_base=config.attn_config['rope_dail_config']['xpos_scale_base']
-            if (config.attn_config['rope_dail_config']['type']
-                == 'xpos') else None,
-            pos_idx_in_fp32=config.attn_config['rope_dail_config']
-            ['pos_idx_in_fp32'],
+            scale_base=rope_dail_config['xpos_scale_base'] if
+            (rope_dail_config['type'] == 'xpos') else None,
+            pos_idx_in_fp32=rope_dail_config['pos_idx_in_fp32'],
             device=
             'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
         )
-    elif config.attn_config['rope_imp'] == 'hf':
-        if config.attn_config['rope_hf_config']['type'] == 'no_scaling':
+    elif rope_impl == 'hf':
+        if rope_hf_config['type'] == 'no_scaling':
             return HFRotaryEmbedding(
                 rope_head_dim,
-                max_position_embeddings=config.max_seq_len,
-                base=config.attn_config['rope_theta'],
+                max_position_embeddings=max_seq_len,
+                base=rope_theta,
                 device=
                 'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
             )
-        elif config.attn_config['rope_hf_config']['type'] == 'linear':
+        elif rope_hf_config['type'] == 'linear':
             return HFLinearScalingRotaryEmbedding(
                 rope_head_dim,
-                max_position_embeddings=config.max_seq_len,
-                base=config.attn_config['rope_theta'],
-                scaling_factor=config.attn_config['rope_hf_config']['factor'],
+                max_position_embeddings=max_seq_len,
+                base=rope_theta,
+                scaling_factor=rope_hf_config['factor'],
                 device=
                 'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
             )
-        elif config.attn_config['rope_hf_config']['type'] == 'dynamic':
+        elif rope_hf_config['type'] == 'dynamic':
             return HFDynamicNTKScalingRotaryEmbedding(
                 rope_head_dim,
-                max_position_embeddings=config.max_seq_len,
-                base=config.attn_config['rope_theta'],
-                scaling_factor=config.attn_config['rope_hf_config']['factor'],
+                max_position_embeddings=max_seq_len,
+                base=rope_theta,
+                scaling_factor=rope_hf_config['factor'],
                 device=
                 'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
             )
@@ -184,10 +183,16 @@ class MPTModel(MPTPreTrainedModel):
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         self.rope = config.attn_config['rope']
-        self.rope_imp = None
+        self.rope_impl = None
         if self.rope:
-            self.rope_imp = config.attn_config['rope_imp']
-            self.rotary_embedding = _rotary_embedding(config)
+            self.rope_impl = config.attn_config['rope_impl']
+            self.rotary_embedding = _rotary_embedding(
+                rope_head_dim=config.d_model // config.n_heads,
+                rope_impl=self.rope_impl,
+                rope_theta=config.attn_config['rope_theta'],
+                rope_dail_config=config.attn_config['rope_dail_config'],
+                rope_hf_config=config.attn_config['rope_hf_config'],
+                max_seq_len=self.config.max_seq_len)
 
         if config.init_device != 'meta':
             log.info(
@@ -453,7 +458,7 @@ class MPTModel(MPTPreTrainedModel):
                     f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
                 )
 
-            if self.learned_pos_emb or (self.rope and self.rope_imp == 'hf'):
+            if self.learned_pos_emb or (self.rope and self.rope_impl == 'hf'):
                 pos = torch.arange(
                     past_position,
                     S + past_position,
@@ -469,16 +474,16 @@ class MPTModel(MPTPreTrainedModel):
                     )
                 if self.learned_pos_emb:
                     x = x + self.wpe(pos)
-                elif self.rope and self.rope_imp == 'hf':
+                elif self.rope and self.rope_impl == 'hf':
                     rotary_emb_w_meta_info = {
-                        'imp': self.rope_imp,
+                        'imp': self.rope_impl,
                         'rotary_emb': self.rotary_embedding,
                         'offset_info': pos,
                         'seq_len': S + past_position,
                     }
-            elif self.rope and self.rope_imp == 'dail':
+            elif self.rope and self.rope_impl == 'dail':
                 rotary_emb_w_meta_info = {
-                    'imp': self.rope_imp,
+                    'imp': self.rope_impl,
                     'rotary_emb': self.rotary_embedding,
                     'offset_info': past_position,
                     'seq_len': S + past_position,

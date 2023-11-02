@@ -33,6 +33,9 @@ def is_flash_v1_installed():
     return version.parse(flash_attn.__version__) < version.parse('2.0.0')
 
 
+# Before importing any transformers models, we need to disable transformers flash attention if
+# we are in an environment with flash attention version <2. Transformers hard errors on a not properly
+# gated import otherwise.
 if is_flash_v1_installed():
     import transformers
     transformers.utils.is_flash_attn_available = lambda: False
@@ -593,12 +596,14 @@ class GroupedQueryAttention(nn.Module):
             rotary_emb = rotary_emb_w_meta_info['rotary_emb']
             seq_len = rotary_emb_w_meta_info['seq_len']
             offset_info = rotary_emb_w_meta_info['offset_info']
-
-            query = query.view(*(query.shape[:-1]), -1, self.head_dim)
-            key = key.view(*(key.shape[:-1]), -1, self.head_dim)
+            assert query.shape[:2] == key.shape[:2]
+            assert query.shape[:2] == key.shape[:2]
+            bsz, seqlen = query.shape[:2]
+            query = query.view(bsz, seqlen, -1, self.head_dim)
+            key = key.view(bsz, seqlen, -1, self.head_dim)
 
             if rotary_emb_w_meta_info['imp'] == 'dail':
-                value = value.view(*(value.shape[:-1]), -1, self.head_dim)
+                value = value.view(bsz, seqlen, -1, self.head_dim)
 
                 kv = torch.stack([key, value], dim=2)
                 query, kv = rotary_emb(query,
@@ -607,8 +612,7 @@ class GroupedQueryAttention(nn.Module):
                                        max_seqlen=seq_len)
                 [key, value] = torch.unbind(kv, dim=2)
 
-                value = value.view(*(value.shape[:-2]),
-                                   self.kv_n_heads * self.head_dim)
+                value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
             elif rotary_emb_w_meta_info['imp'] == 'hf':
                 (cos, sin) = rotary_emb(value, seq_len)
                 # The following two transposes should be removed once the transformers library allows for the specification of the dimension for heads in the call to apply_rotary_pos_emb
@@ -620,8 +624,8 @@ class GroupedQueryAttention(nn.Module):
                 query = query.transpose(1, 2)
                 key = key.transpose(1, 2)
 
-            query = query.view(*(query.shape[:-2]), self.d_model)
-            key = key.view(*(key.shape[:-2]), self.kv_n_heads * self.head_dim)
+            query = query.view(bsz, seqlen, self.d_model)
+            key = key.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
 
         context, attn_weights, past_key_value = self.attn_fn(
             query,

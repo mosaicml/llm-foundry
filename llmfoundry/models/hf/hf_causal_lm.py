@@ -158,7 +158,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             if dist.get_local_rank() != 0 and init_device == 'mixed':
                 om_model_config.pretrained = False
 
-            if dist.get_local_rank() == 0:
+            if dist.get_local_rank() == 0 and os.path.isdir(om_model_config.pretrained_model_name_or_path):
                 with init_empty_weights(include_buffers=False):
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore', UserWarning)

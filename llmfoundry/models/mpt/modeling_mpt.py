@@ -86,9 +86,9 @@ import logging
 log = logging.getLogger(__name__)
 
 
-def _rotary_embedding(rope_head_dim: int, rope_impl: str, rope_theta: int,
-                      rope_dail_config: dict, rope_hf_config: dict,
-                      max_seq_len: int):
+def gen_rotary_embedding(rope_head_dim: int, rope_impl: str, rope_theta: int,
+                         rope_dail_config: dict, rope_hf_config: dict,
+                         max_seq_len: int):
     if rope_impl == 'dail':
         return DAILRotaryEmbedding(
             dim=rope_head_dim,
@@ -127,6 +127,7 @@ def _rotary_embedding(rope_head_dim: int, rope_impl: str, rope_theta: int,
                 device=
                 'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
             )
+    raise ValueError('rope_impl needs to be either dail or hf')
 
 
 class MPTPreTrainedModel(PreTrainedModel):
@@ -186,7 +187,7 @@ class MPTModel(MPTPreTrainedModel):
         self.rope_impl = None
         if self.rope:
             self.rope_impl = config.attn_config['rope_impl']
-            self.rotary_embedding = _rotary_embedding(
+            self.rotary_embedding = gen_rotary_embedding(
                 rope_head_dim=config.d_model // config.n_heads,
                 rope_impl=self.rope_impl,
                 rope_theta=config.attn_config['rope_theta'],

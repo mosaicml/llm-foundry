@@ -6,7 +6,7 @@ import torch
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-from tests.test_rope_dail_vs_hf import gen_rotary_embedding
+from llmfoundry.models.mpt.modeling_mpt import gen_rotary_embedding
 
 
 def allclose_helper(t0: torch.Tensor,
@@ -130,7 +130,10 @@ def test_attn_impl(attn_impl_0: str,
         if rope:
             rotary_embedding = gen_rotary_embedding(
                 rope_head_dim=cfg.d_model // cfg.n_heads,
-                pos_emb_config=pos_emb_config,
+                rope_impl=pos_emb_config['rope_impl'],
+                rope_theta=pos_emb_config['rope_theta'],
+                rope_dail_config=pos_emb_config.get('rope_dail_config', {}),
+                rope_hf_config=pos_emb_config.get('rope_hf_config', {}),
                 max_seq_len=s).to(device)
             pos = torch.arange(s).unsqueeze(0).to(device=device)
             # adjust the position indices to account for padding tokens

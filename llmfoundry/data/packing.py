@@ -273,7 +273,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
 
     We select a min_ratio of 1 and a max_ratio that is the max_seq_len / 100, and profile up to
     num_packing_ratios packing ratios between min_ratio and max_ratio, inclusive.
-    When a packing_ratio is found with non-zero waste is found, we stop and select the previous ratio,
+    When a packing_ratio with non-zero waste is found, we stop and select the previous ratio,
     which has zero waste.
 
     Args:

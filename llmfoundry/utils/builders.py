@@ -239,10 +239,11 @@ def prep_hf_dataset(icl_cfg: ListConfig):
                 batch_size=1000
             )
         else:
-            dataset = dataset.map(lambda example: {
-                    "context": ''.join([example[col] for col in icl_cfg.hf_cols['inputs']]),
-                    "answer": ''.join([example[col] for col in icl_cfg.hf_cols['outputs']])
-                }
+            dataset = dataset.map(
+                    lambda example: {
+                        "context": ''.join([str(example[col]) for col in icl_cfg.hf_cols['inputs']]),
+                        "answer": ''.join([str(example[col]) for col in icl_cfg.hf_cols['outputs']])
+                    }
                 )
         with open(output_filepath, 'w') as outfile:
             for entry in dataset:

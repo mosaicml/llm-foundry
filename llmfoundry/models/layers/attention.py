@@ -18,6 +18,7 @@ from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
 def is_flash_v2_installed(v2_version: str = '2.0.0'):
+    assert version.parse(v2_version) >= version.parse('2.0.0')
     try:
         import flash_attn as flash_attn
     except:
@@ -597,7 +598,7 @@ class GroupedQueryAttention(nn.Module):
             seq_len = rotary_emb_w_meta_info['seq_len']
             offset_info = rotary_emb_w_meta_info['offset_info']
             assert query.shape[:2] == key.shape[:2]
-            assert query.shape[:2] == key.shape[:2]
+            assert query.shape[:2] == value.shape[:2]
             bsz, seqlen = query.shape[:2]
             query = query.view(bsz, seqlen, -1, self.head_dim)
             key = key.view(bsz, seqlen, -1, self.head_dim)

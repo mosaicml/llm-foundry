@@ -264,7 +264,7 @@ def _repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
 def auto_packing_ratio(dataloader_cfg: DictConfig,
                        tokenizer: PreTrainedTokenizerBase,
                        device_batch_size: int,
-                       num_packing_ratios: int = 20) -> int:
+                       num_packing_ratios: int = 20) -> float:
     """Find a packing ratio that minimizes padding with zero waste.
 
     By packing examples, we can increase training efficiency, training on more data with less batches.
@@ -285,7 +285,13 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     Returns:
         A packing ratio that minimizes padding while maintaining zero waste.
     """
-    from composer.utils import dist, get_device
+    from composer.utils import dist, get_device, reproducibility
+
+    # Stash the rng state to restore later.
+    rng_state = reproducibility.get_rng_state()
+    # Set the seed so that auto packing is deterministic.
+    reproducibility.seed_all(0)
+
     min_ratio = 1
     max_ratio = dataloader_cfg.dataset.max_seq_len / 100
     profiling_results = profile_packing(dataloader_cfg, tokenizer, min_ratio,
@@ -307,6 +313,10 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
             torch.tensor(packing_ratio))
         dist.all_reduce(packing_ratio_tensor, reduce_operation='MIN')
         packing_ratio = packing_ratio_tensor.item()
+
+    # Restore rng state.
+    reproducibility.load_rng_state(rng_state)
+
     return packing_ratio
 
 

@@ -74,9 +74,6 @@ if __name__ == '__main__':
         raise ValueError('config must define train_loader')
     dataloader_cfg = cfg.train_loader
 
-    max_leftovers_to_keep = dataloader_cfg.dataset.get('max_leftovers_to_keep',
-                                                       None)
-
     # build tokenizer
     if 'tokenizer' not in cfg:
         raise ValueError('config must define tokenizer')

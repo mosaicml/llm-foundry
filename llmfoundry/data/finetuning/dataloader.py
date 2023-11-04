@@ -377,16 +377,19 @@ def _build_collate_fn(
     device_batch_size: int
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
     dataset_cfg = dataloader_cfg.dataset
+    max_seq_len = dataset_cfg.max_seq_len
+
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,
-        max_seq_len=dataset_cfg.max_seq_len,
+        max_seq_len=max_seq_len,
         decoder_only_format=dataset_cfg.decoder_only_format,
         allow_pad_trimming=dataset_cfg.get('allow_pad_trimming', False),
     )
 
     packing_ratio = dataset_cfg.get('packing_ratio')
+    max_leftover_bins_to_keep = dataset_cfg.get('max_leftover_bins_to_keep')
     if packing_ratio is None:
-        if dataset_cfg.get('max_leftover_bins_to_keep') is not None:
+        if max_leftover_bins_to_keep is not None:
             raise ValueError(
                 'dataset.max_leftover_bins_to_keep has been defined, ' +\
                 'but dataset.packing_ratio has not been set. Please set ' +\
@@ -410,10 +413,10 @@ def _build_collate_fn(
     collate_fn = BinPackCollator(
         collator=collate_fn,
         target_batch_size=device_batch_size,
-        max_seq_len=dataset_cfg.max_seq_len,
+        max_seq_len=max_seq_len,
         pad_token_id=tokenizer.pad_token_id,
         padding_side=tokenizer.padding_side,
-        max_leftover_bins_to_keep=dataset_cfg.get('max_leftover_bins_to_keep'),
+        max_leftover_bins_to_keep=max_leftover_bins_to_keep,
     )
     n_examples_to_pack = int(device_batch_size * packing_ratio)
     return collate_fn, n_examples_to_pack

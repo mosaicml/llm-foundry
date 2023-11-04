@@ -32,13 +32,10 @@ class BinPackCollator:
         if self.pad_token_id < 0:
             raise ValueError(f'{pad_token_id=} must be >=0.')
 
-        if max_leftover_bins_to_keep is None:
-            self.max_leftover_bins_to_keep = int(10 * self.out_size)
-        elif max_leftover_bins_to_keep < 0:
+        if max_leftover_bins_to_keep is not None and max_leftover_bins_to_keep < 0:
             raise ValueError(
                 f'{max_leftover_bins_to_keep=} must be >=0 or None.')
-        else:
-            self.max_leftover_bins_to_keep = int(max_leftover_bins_to_keep)
+        self.max_leftover_bins_to_keep = max_leftover_bins_to_keep
 
         self.n_packed_tokens = 0
         self.n_total_tokens = 0
@@ -348,7 +345,6 @@ def profile_packing(
     # Turn off packing for the dataloader (we want raw, pre-packed examples)
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
     dataloader_cfg.dataset.packing_ratio = None
-    dataloader_cfg.dataset.max_leftovers_to_keep = None
     dataloader_cfg.drop_last = False
     dataloader_cfg.num_workers = 0
     dataloader_cfg.prefetch_factor = None
@@ -485,9 +481,6 @@ if __name__ == '__main__':
     if 'train_loader' not in cfg:
         raise ValueError('config must define train_loader')
     dataloader_cfg = cfg.train_loader
-
-    max_leftovers_to_keep = dataloader_cfg.dataset.get('max_leftovers_to_keep',
-                                                       None)
 
     # build tokenizer
     if 'tokenizer' not in cfg:

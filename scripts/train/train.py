@@ -408,9 +408,8 @@ def main(cfg: DictConfig) -> Trainer:
                                                           'compile_config',
                                                           must_exist=False,
                                                           default_value=None)
-    mosaicml_metadata: Optional[Dict[str,
-                                     str]] = pop_config(cfg,
-                                                        'mosaicml_metadata',
+    metadata: Optional[Dict[str, str]] = pop_config(cfg,
+                                                        'metadata',
                                                         must_exist=False,
                                                         default_value=None,
                                                         convert=True)
@@ -491,14 +490,11 @@ def main(cfg: DictConfig) -> Trainer:
             mosaicml_logger = MosaicMLLogger()
             loggers.append(mosaicml_logger)
 
-    if mosaicml_metadata is not None:
-        if mosaicml_logger is None:
-            raise ValueError(
-                'mosaicml_metadata was provided but no MosaicML logger was found.'
-                +
-                ' mosaicml_metadata can only be used on the MosaicML platform.')
-        mosaicml_logger.log_metrics(mosaicml_metadata)
-        mosaicml_logger._flush_metadata(force_flush=True)
+    if metadata is not None:
+        logged_cfg.update(metadata, merge=True)
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_metrics(mosaicml_metadata)
+            mosaicml_logger._flush_metadata(force_flush=True)
 
     # Profiling
     profiler: Optional[Profiler] = None

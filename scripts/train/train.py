@@ -409,10 +409,10 @@ def main(cfg: DictConfig) -> Trainer:
                                                           must_exist=False,
                                                           default_value=None)
     metadata: Optional[Dict[str, str]] = pop_config(cfg,
-                                                        'metadata',
-                                                        must_exist=False,
-                                                        default_value=None,
-                                                        convert=True)
+                                                    'metadata',
+                                                    must_exist=False,
+                                                    default_value=None,
+                                                    convert=True)
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
     if logged_cfg.get('run_name', None) is not None \
@@ -493,7 +493,7 @@ def main(cfg: DictConfig) -> Trainer:
     if metadata is not None:
         logged_cfg.update(metadata, merge=True)
         if mosaicml_logger is not None:
-            mosaicml_logger.log_metrics(mosaicml_metadata)
+            mosaicml_logger.log_metrics(metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
 
     # Profiling

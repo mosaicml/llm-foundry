@@ -597,13 +597,11 @@ class GroupedQueryAttention(nn.Module):
             rotary_emb = rotary_emb_w_meta_info['rotary_emb']
             seq_len = rotary_emb_w_meta_info['seq_len']
             offset_info = rotary_emb_w_meta_info['offset_info']
-            assert query.shape[:2] == key.shape[:2]
-            assert query.shape[:2] == value.shape[:2]
             bsz, seqlen = query.shape[:2]
             query = query.view(bsz, seqlen, -1, self.head_dim)
             key = key.view(bsz, seqlen, -1, self.head_dim)
 
-            if rotary_emb_w_meta_info['imp'] == 'dail':
+            if rotary_emb_w_meta_info['impl'] == 'dail':
                 value = value.view(bsz, seqlen, -1, self.head_dim)
 
                 kv = torch.stack([key, value], dim=2)
@@ -614,7 +612,7 @@ class GroupedQueryAttention(nn.Module):
                 [key, value] = torch.unbind(kv, dim=2)
 
                 value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
-            elif rotary_emb_w_meta_info['imp'] == 'hf':
+            elif rotary_emb_w_meta_info['impl'] == 'hf':
                 (cos, sin) = rotary_emb(value, seq_len)
                 # The following two transposes should be removed once the transformers library allows for the specification of the dimension for heads in the call to apply_rotary_pos_emb
                 query = query.transpose(1, 2)

@@ -142,7 +142,7 @@ def test_attn_impl(attn_impl_0: str,
                 min=0,
             )
             rotary_emb_w_meta_info = {
-                'imp':
+                'impl':
                     pos_emb_config['rope_impl'],
                 'rotary_emb':
                     rotary_embedding,

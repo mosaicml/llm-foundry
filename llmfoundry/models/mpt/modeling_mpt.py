@@ -477,14 +477,14 @@ class MPTModel(MPTPreTrainedModel):
                     x = x + self.wpe(pos)
                 elif self.rope and self.rope_impl == 'hf':
                     rotary_emb_w_meta_info = {
-                        'imp': self.rope_impl,
+                        'impl': self.rope_impl,
                         'rotary_emb': self.rotary_embedding,
                         'offset_info': pos,
                         'seq_len': S + past_position,
                     }
             elif self.rope and self.rope_impl == 'dail':
                 rotary_emb_w_meta_info = {
-                    'imp': self.rope_impl,
+                    'impl': self.rope_impl,
                     'rotary_emb': self.rotary_embedding,
                     'offset_info': past_position,
                     'seq_len': S + past_position,

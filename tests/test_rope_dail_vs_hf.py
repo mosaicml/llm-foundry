@@ -79,7 +79,7 @@ def test_rope_dail_vs_hf(clip_qkv: bool,
             rope_hf_config={},
             max_seq_len=seq_len).to('cuda')
         dail_rope_w_meta_info = {
-            'imp': 'dail',
+            'impl': 'dail',
             'rotary_emb': dail_rope,
             'offset_info': 0,
             'seq_len': seq_len,
@@ -99,7 +99,7 @@ def test_rope_dail_vs_hf(clip_qkv: bool,
             min=0,
         )
         hf_rope_w_meta_info = {
-            'imp': 'hf',
+            'impl': 'hf',
             'rotary_emb': hf_rope,
             'offset_info': pos,
             'seq_len': seq_len,

@@ -33,9 +33,6 @@ def download_from_hf_hub(
 ):
     """Downloads the model weights and suppporting files/metadata from a Hugging Face Hub model repo.
 
-    Only supports models stored in Safetensors and PyTorch formats for now. If both formats are available, only the
-    Safetensors weights will be downloaded unless `prefer_safetensors` is set to False.
-
     Args:
         repo_id (str): The Hugging Face Hub repo ID.
         save_dir (str, optional): The path to the directory where the model files will be downloaded. If `None`, reads
@@ -44,6 +41,10 @@ def download_from_hf_hub(
             available. Defaults to True.
         token (str, optional): The HuggingFace API token. If not provided, the token will be read from the
             `HUGGING_FACE_HUB_TOKEN` environment variable.
+
+    Note:
+        Only supports models stored in Safetensors and PyTorch formats for now. If both formats are available, only the
+        Safetensors weights will be downloaded unless `prefer_safetensors` is set to False.
     """
     repo_files = set(hf_hub.list_repo_files(repo_id))
 
@@ -112,6 +113,7 @@ def _recursive_download(
         ignore_cert (bool): Whether or not to ignore the validity of the SSL certificate of the remote server.
             Defaults to False.
             WARNING: Setting this to true is *not* secure, as no certificate verification will be performed.
+
     Raises:
         PermissionError: If the remote server returns a 401 Unauthorized status code.
         RuntimeError: If the remote server returns a status code other than 200 OK or 401 Unauthorized.
@@ -159,18 +161,12 @@ def download_from_cache_server(
 ):
     """Downloads Hugging Face model files from a file server that mirrors the Hugging Face Hub cache structure.
 
-    This function will attempt to download all of the blob files from `<cache_base_url>/<formatted_model_name>/blobs/`
-    on the remote cache file server, where `formatted_model_name` is equal to `models/<model_name>` with all slashes
-    replaced with `--`.
-
-    It only downloads the blobs in order to avoid downloading model files twice due to the symlink structure of the
-    Hugging Face cache.
-    For details on the cache structure: https://huggingface.co/docs/huggingface_hub/guides/manage-cache
-
     Args:
         model_name: The name of the model to download. This should be the same as the repository ID in the Hugging Face
             Hub.
-        cache_base_url: The base URL of the cache file server.
+        cache_base_url: The base URL of the cache file server. This function will attempt to download all of the blob
+            files from `<cache_base_url>/<formatted_model_name>/blobs/`, where `formatted_model_name` is equal to
+            `models/<model_name>` with all slashes replaced with `--`.
         save_dir: The directory to save the downloaded files to.
         token: The Hugging Face API token. If not provided, the token will be read from the `HUGGING_FACE_HUB_TOKEN`
             environment variable.
@@ -183,6 +179,10 @@ def download_from_cache_server(
         session.headers.update({'Authorization': f'Bearer {token}'})
 
         download_start = time.time()
+
+        # Only downloads the blobs in order to avoid downloading model files twice due to the
+        # symlnks in the Hugging Face cache structure:
+        # https://huggingface.co/docs/huggingface_hub/guides/manage-cache
         _recursive_download(
             session,
             cache_base_url,

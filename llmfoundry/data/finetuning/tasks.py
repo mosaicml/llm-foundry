@@ -38,6 +38,7 @@ import warnings
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import datasets as hf_datasets
+from composer.utils import dist
 from omegaconf import DictConfig
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
@@ -340,7 +341,9 @@ class DatasetConstructor:
             return _tokenize_formatted_example(example, tokenizer)
 
         detected_cpu_count = os.cpu_count() or 1
-        num_cpus_to_use = max(1, detected_cpu_count - 4)
+        detected_cpus_with_margin = detected_cpu_count - 4
+        cpus_per_rank = detected_cpus_with_margin // dist.get_world_size()
+        num_cpus_to_use = max(1, cpus_per_rank)
 
         columns_to_remove = list(dataset[0].keys())
         tokenized_dataset = dataset.map(

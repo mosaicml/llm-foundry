@@ -66,6 +66,7 @@ install_requires = [
     'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
     'boto3>=1.21.45,<2',
     'huggingface-hub>=0.17.0,<1.0',
+    'beautifulsoup4>=4.12.2,<5',  # required for model download utils
 ]
 
 extra_deps = {}

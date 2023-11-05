@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 def download_from_hf_hub(
     repo_id: str,
-    save_dir: str = None,
+    save_dir: Optional[str] = None,
     prefer_safetensors: bool = True,
     token: Optional[str] = None,
 ):

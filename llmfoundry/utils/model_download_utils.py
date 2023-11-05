@@ -31,7 +31,10 @@ def download_from_hf_hub(
     prefer_safetensors: bool = True,
     token: Optional[str] = None,
 ):
-    """Downloads the model weights and suppporting files/metadata from a Hugging Face Hub model repo.
+    """Downloads model files from a Hugging Face Hub model repo.
+
+    Only supports models stored in Safetensors and PyTorch formats for now. If both formats are available, only the
+    Safetensors weights will be downloaded unless `prefer_safetensors` is set to False.
 
     Args:
         repo_id (str): The Hugging Face Hub repo ID.
@@ -41,10 +44,6 @@ def download_from_hf_hub(
             available. Defaults to True.
         token (str, optional): The HuggingFace API token. If not provided, the token will be read from the
             `HUGGING_FACE_HUB_TOKEN` environment variable.
-
-    Note:
-        Only supports models stored in Safetensors and PyTorch formats for now. If both formats are available, only the
-        Safetensors weights will be downloaded unless `prefer_safetensors` is set to False.
     """
     repo_files = set(hf_hub.list_repo_files(repo_id))
 
@@ -102,7 +101,7 @@ def _recursive_download(
     save_dir: str,
     ignore_cert: bool = False,
 ):
-    """Downloads all files from a directory on a remote server, including subdirectories.
+    """Downloads all files/subdirectories from a directory on a remote server.
 
     Args:
         session: A requests.Session through which to make requests to the remote server.
@@ -159,7 +158,10 @@ def download_from_cache_server(
     token: Optional[str] = None,
     ignore_cert: bool = False,
 ):
-    """Downloads Hugging Face model files from a file server that mirrors the Hugging Face Hub cache structure.
+    """Downloads Hugging Face models from a mirror file server.
+
+    The file server is expected to store the files in the same structure as the Hugging Face cache
+    structure. See https://huggingface.co/docs/huggingface_hub/guides/manage-cache.
 
     Args:
         model_name: The name of the model to download. This should be the same as the repository ID in the Hugging Face
@@ -182,7 +184,6 @@ def download_from_cache_server(
 
         # Only downloads the blobs in order to avoid downloading model files twice due to the
         # symlnks in the Hugging Face cache structure:
-        # https://huggingface.co/docs/huggingface_hub/guides/manage-cache
         _recursive_download(
             session,
             cache_base_url,

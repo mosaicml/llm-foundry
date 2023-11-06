@@ -1,27 +1,22 @@
-"""Utility functions for downloading models.
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
-Copyright 2022 MosaicML LLM Foundry authors
-SPDX-License-Identifier: Apache-2.0
-"""
-from typing import Optional
-
+"""Utility functions for downloading models."""
 import copy
-from http import HTTPStatus
 import logging
 import os
 import time
+from http import HTTPStatus
+from typing import Optional
 from urllib.parse import urljoin
 
-from bs4 import BeautifulSoup
 import huggingface_hub as hf_hub
 import requests
 import tenacity
-from transformers.utils import (
-    WEIGHTS_NAME as PYTORCH_WEIGHTS_NAME,
-    WEIGHTS_INDEX_NAME as PYTORCH_WEIGHTS_INDEX_NAME,
-    SAFE_WEIGHTS_NAME,
-    SAFE_WEIGHTS_INDEX_NAME,
-)
+from bs4 import BeautifulSoup
+from transformers.utils import SAFE_WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_NAME
+from transformers.utils import WEIGHTS_INDEX_NAME as PYTORCH_WEIGHTS_INDEX_NAME
+from transformers.utils import WEIGHTS_NAME as PYTORCH_WEIGHTS_NAME
 
 DEFAULT_IGNORE_PATTERNS = [
     '*.ckpt',
@@ -34,12 +29,10 @@ SAFE_WEIGHTS_PATTERN = 'model*.safetensors*'
 log = logging.getLogger(__name__)
 
 
-@tenacity.retry(
-    retry=tenacity.retry_if_not_exception_type(
-        (ValueError, hf_hub.utils.RepositoryNotFoundError)),
-    stop=tenacity.stop_after_attempt(3),
-    wait=tenacity.wait_exponential(min=1, max=10)
-)
+@tenacity.retry(retry=tenacity.retry_if_not_exception_type(
+    (ValueError, hf_hub.utils.RepositoryNotFoundError)),
+                stop=tenacity.stop_after_attempt(3),
+                wait=tenacity.wait_exponential(min=1, max=10))
 def download_from_hf_hub(
     repo_id: str,
     save_dir: Optional[str] = None,
@@ -69,21 +62,21 @@ def download_from_hf_hub(
     # Ignore TensorFlow, TensorFlow 2, and Flax weights as they are not supported by Composer.
     ignore_patterns = copy.deepcopy(DEFAULT_IGNORE_PATTERNS)
 
-    safetensors_available = (
-        SAFE_WEIGHTS_NAME in repo_files or SAFE_WEIGHTS_INDEX_NAME in repo_files
-    )
-    pytorch_available = (
-        PYTORCH_WEIGHTS_NAME in repo_files or PYTORCH_WEIGHTS_INDEX_NAME in repo_files
-    )
+    safetensors_available = (SAFE_WEIGHTS_NAME in repo_files or
+                             SAFE_WEIGHTS_INDEX_NAME in repo_files)
+    pytorch_available = (PYTORCH_WEIGHTS_NAME in repo_files or
+                         PYTORCH_WEIGHTS_INDEX_NAME in repo_files)
 
     if safetensors_available and pytorch_available:
         if prefer_safetensors:
             log.info(
-                'Safetensors available and preferred. Excluding pytorch weights.')
+                'Safetensors available and preferred. Excluding pytorch weights.'
+            )
             ignore_patterns.append(PYTORCH_WEIGHTS_PATTERN)
         else:
             log.info(
-                'Pytorch available and preferred. Excluding safetensors weights.')
+                'Pytorch available and preferred. Excluding safetensors weights.'
+            )
             ignore_patterns.append(SAFE_WEIGHTS_PATTERN)
     elif safetensors_available:
         log.info('Only safetensors available. Ignoring weights preference.')
@@ -91,14 +84,15 @@ def download_from_hf_hub(
         log.info('Only pytorch available. Ignoring weights preference.')
     else:
         raise ValueError(
-            f'No supported model weights found in repo {repo_id}.'
-            + ' Please make sure the repo contains either safetensors or pytorch weights.'
+            f'No supported model weights found in repo {repo_id}.' +
+            ' Please make sure the repo contains either safetensors or pytorch weights.'
         )
 
     download_start = time.time()
-    hf_hub.snapshot_download(
-        repo_id, cache_dir=save_dir, ignore_patterns=ignore_patterns, token=token
-    )
+    hf_hub.snapshot_download(repo_id,
+                             cache_dir=save_dir,
+                             ignore_patterns=ignore_patterns,
+                             token=token)
     download_duration = time.time() - download_start
     log.info(
         f'Downloaded model {repo_id} from Hugging Face Hub in {download_duration} seconds'
@@ -176,16 +170,17 @@ def _recursive_download(
     # to download.
     child_links = _extract_links_from_html(response.content.decode())
     for child_link in child_links:
-        _recursive_download(
-            session, base_url, urljoin(path, child_link), save_dir, ignore_cert=ignore_cert
-        )
+        _recursive_download(session,
+                            base_url,
+                            urljoin(path, child_link),
+                            save_dir,
+                            ignore_cert=ignore_cert)
 
 
-@tenacity.retry(
-    retry=tenacity.retry_if_not_exception_type((PermissionError, ValueError)),
-    stop=tenacity.stop_after_attempt(3),
-    wait=tenacity.wait_exponential(min=1, max=10)
-)
+@tenacity.retry(retry=tenacity.retry_if_not_exception_type(
+    (PermissionError, ValueError)),
+                stop=tenacity.stop_after_attempt(3),
+                wait=tenacity.wait_exponential(min=1, max=10))
 def download_from_cache_server(
     model_name: str,
     cache_base_url: str,

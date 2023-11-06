@@ -11,8 +11,8 @@ try:
     from llmfoundry.utils.config_utils import (calculate_batch_size_info,
                                                log_config, pop_config,
                                                update_batch_size_info)
-    from llmfoundry.utils.model_download_utils import (download_from_cache_server,
-                                                       download_from_hf_hub)
+    from llmfoundry.utils.model_download_utils import (
+        download_from_cache_server, download_from_hf_hub)
 except ImportError as e:
     raise ImportError(
         'Please make sure to pip install . to get requirements for llm-foundry.'

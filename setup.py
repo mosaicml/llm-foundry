@@ -83,6 +83,10 @@ extra_deps['dev'] = [
     'hf_transfer==0.1.3',
 ]
 
+extra_deps['databricks'] = [
+    'mosaicml[databricks]',
+]
+
 extra_deps['tensorboard'] = [
     'mosaicml[tensorboard]>=0.16.1,<0.17',
 ]

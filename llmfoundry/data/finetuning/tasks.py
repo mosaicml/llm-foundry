@@ -372,12 +372,16 @@ class DatasetConstructor:
                 f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
             )
 
+        pad_token_id = tokenizer.pad_token_id
         empty_examples_dropped_dataset = prompt_length_filtered_dataset.filter(
             lambda example: len(example['input_ids']) > 0 and len(example[
-                'labels']) > 0 and any(token_id != tokenizer.pad_token_id
+                'labels']) > 0 and any(token_id != pad_token_id
                                        for token_id in example['labels']),
             num_proc=num_cpus_to_use,
             desc='Filtering out empty examples')
+
+        log.debug("Done tokenizing and filtering examples.")
+
         empty_examples_removed = len(prompt_length_filtered_dataset) - len(
             empty_examples_dropped_dataset)
         if empty_examples_removed > 0:

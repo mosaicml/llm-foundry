@@ -5,6 +5,7 @@
 
 import logging
 import os
+import warnings
 from typing import Mapping, Union
 
 # required for loading a python model into composer
@@ -156,6 +157,24 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             # Rank 0 will still be pretrained, and distribute the weights appropriately
             if dist.get_local_rank() != 0 and init_device == 'mixed':
                 om_model_config.pretrained = False
+
+            # If the HuggingFace model is coming from a local folder, Hugging Face copies the modules into the
+            # transformers modules cache. On particular systems, this operation seems to cause contention between
+            # the different processes. To avoid this contention, we first create the model (on meta device) on local rank
+            # zero. This will set up the transformers model cache and avoid the future contention.
+            if dist.get_local_rank() == 0 and os.path.isdir(
+                    om_model_config.pretrained_model_name_or_path):
+                with init_empty_weights(include_buffers=False):
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore', UserWarning)
+                        AutoModelForCausalLM.from_pretrained(
+                            om_model_config.pretrained_model_name_or_path,
+                            trust_remote_code=trust_remote_code,
+                            use_auth_token=use_auth_token,
+                            config=config,
+                        )
+
+            dist.barrier()
 
             # initialize the model on the correct device
             if resolved_init_device == 'cpu':

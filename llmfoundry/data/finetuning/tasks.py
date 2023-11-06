@@ -344,7 +344,7 @@ class DatasetConstructor:
         detected_cpus_with_margin = detected_cpu_count - 4
         num_cpus_to_use = max(1, detected_cpus_with_margin)
 
-        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed'
+        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
 
         if dist.get_local_rank() != 0:
             with dist.local_rank_zero_download_and_wait(signal_file_path):
@@ -386,7 +386,7 @@ class DatasetConstructor:
 
         if dist.get_local_rank() == 0:
             with open(signal_file_path, 'wb') as f:
-                f.write(b'local_rank0_completed_download')
+                f.write(b'local_rank0_completed_data_prep')
 
             dist.barrier()
             os.remove(signal_file_path)

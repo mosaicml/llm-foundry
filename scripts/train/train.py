@@ -383,6 +383,12 @@ def main(cfg: DictConfig) -> Trainer:
                                                           'compile_config',
                                                           must_exist=False,
                                                           default_value=None)
+    metadata: Optional[Dict[str, str]] = pop_config(cfg,
+                                                    'metadata',
+                                                    must_exist=False,
+                                                    default_value=None,
+                                                    convert=True)
+
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
     if logged_cfg.get('run_name', None) is not None \
@@ -459,6 +465,14 @@ def main(cfg: DictConfig) -> Trainer:
             # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
             mosaicml_logger = MosaicMLLogger()
             loggers.append(mosaicml_logger)
+
+    if metadata is not None:
+        # Flatten the metadata for logging
+        logged_cfg.pop('metadata', None)
+        logged_cfg.update(metadata, merge=True)
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_metrics(metadata)
+            mosaicml_logger._flush_metadata(force_flush=True)
 
     # Profiling
     profiler: Optional[Profiler] = None

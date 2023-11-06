@@ -3,6 +3,7 @@
 Copyright 2022 MosaicML LLM Foundry authors
 SPDX-License-Identifier: Apache-2.0
 """
+import copy
 import logging
 import os
 import time
@@ -20,10 +21,16 @@ from transformers.utils import (
     SAFE_WEIGHTS_INDEX_NAME,
 )
 
+DEFAULT_IGNORE_PATTERNS = [
+    '*.ckpt',
+    '*.h5',
+    '*.msgpack',
+]
 PYTORCH_WEIGHTS_PATTERN = 'pytorch_model*.bin*'
 SAFE_WEIGHTS_PATTERN = 'model*.safetensors*'
 
 log = logging.getLogger(__name__)
+
 
 def download_from_hf_hub(
     repo_id: str,
@@ -48,22 +55,28 @@ def download_from_hf_hub(
     repo_files = set(hf_hub.list_repo_files(repo_id))
 
     # Ignore TensorFlow, TensorFlow 2, and Flax weights as they are not supported by Composer.
-    ignore_patterns = [
-        '*.ckpt',
-        '*.h5',
-        '*.msgpack',
-    ]
+    ignore_patterns = copy.deepcopy(DEFAULT_IGNORE_PATTERNS)
 
-    if (
+    safetensors_available = (
         SAFE_WEIGHTS_NAME in repo_files or SAFE_WEIGHTS_INDEX_NAME in repo_files
-    ) and prefer_safetensors:
-        log.info('Safetensors found and preferred. Excluding pytorch files')
-        ignore_patterns.append(PYTORCH_WEIGHTS_PATTERN)
-    elif PYTORCH_WEIGHTS_NAME in repo_files or PYTORCH_WEIGHTS_INDEX_NAME in repo_files:
-        log.info(
-            'Safetensors not found or prefer_safetensors is False. Excluding safetensors files'
-        )
-        ignore_patterns.append(SAFE_WEIGHTS_PATTERN)
+    )
+    pytorch_available = (
+        PYTORCH_WEIGHTS_NAME in repo_files or PYTORCH_WEIGHTS_INDEX_NAME in repo_files
+    )
+
+    if safetensors_available and pytorch_available:
+        if prefer_safetensors:
+            log.info(
+                'Safetensors available and preferred. Excluding pytorch weights.')
+            ignore_patterns.append(PYTORCH_WEIGHTS_PATTERN)
+        else:
+            log.info(
+                'Pytorch available and preferred. Excluding safetensors weights.')
+            ignore_patterns.append(SAFE_WEIGHTS_PATTERN)
+    elif safetensors_available:
+        log.info('Only safetensors available. Ignoring weights preference.')
+    elif pytorch_available:
+        log.info('Only pytorch available. Ignoring weights preference.')
     else:
         raise ValueError(
             f'No supported model weights found in repo {repo_id}.'
@@ -187,7 +200,8 @@ def download_from_cache_server(
         _recursive_download(
             session,
             cache_base_url,
-            f'{formatted_model_name}/blobs/',  # Trailing slash to indicate directory
+            # Trailing slash to indicate directory
+            f'{formatted_model_name}/blobs/',
             save_dir,
             ignore_cert=ignore_cert,
         )

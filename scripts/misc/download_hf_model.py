@@ -25,8 +25,10 @@ if __name__ == '__main__':
     argparser.add_argument(
         '--download-from', type=str, choices=['hf', 'cache'], default='hf'
     )
-    argparser.add_argument('--token', type=str, default=os.getenv(HF_TOKEN_ENV_VAR))
-    argparser.add_argument('--save-dir', type=str, default=HUGGINGFACE_HUB_CACHE)
+    argparser.add_argument('--token', type=str,
+                           default=os.getenv(HF_TOKEN_ENV_VAR))
+    argparser.add_argument('--save-dir', type=str,
+                           default=HUGGINGFACE_HUB_CACHE)
     argparser.add_argument('--cache-url', type=str, default=None)
     argparser.add_argument('--ignore-cert', action='store_true', default=False)
     argparser.add_argument(
@@ -38,7 +40,8 @@ if __name__ == '__main__':
 
     args = argparser.parse_args(sys.argv[1:])
     if args.download_from == 'hf':
-        download_from_hf_hub(args.model, save_dir=args.save_dir, token=args.token)
+        download_from_hf_hub(
+            args.model, save_dir=args.save_dir, token=args.token)
     else:
         try:
             download_from_cache_server(

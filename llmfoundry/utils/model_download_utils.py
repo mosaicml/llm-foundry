@@ -15,6 +15,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 import huggingface_hub as hf_hub
 import requests
+import tenacity
 from transformers.utils import (
     WEIGHTS_NAME as PYTORCH_WEIGHTS_NAME,
     WEIGHTS_INDEX_NAME as PYTORCH_WEIGHTS_INDEX_NAME,
@@ -33,6 +34,12 @@ SAFE_WEIGHTS_PATTERN = 'model*.safetensors*'
 log = logging.getLogger(__name__)
 
 
+@tenacity.retry(
+    retry=tenacity.retry_if_not_exception_type(
+        (ValueError, hf_hub.utils.RepositoryNotFoundError)),
+    stop=tenacity.stop_after_attempt(3),
+    wait=tenacity.wait_exponential(min=1, max=10)
+)
 def download_from_hf_hub(
     repo_id: str,
     save_dir: Optional[str] = None,
@@ -52,6 +59,10 @@ def download_from_hf_hub(
             available. Defaults to True.
         token (str, optional): The HuggingFace API token. If not provided, the token will be read from the
             `HUGGING_FACE_HUB_TOKEN` environment variable.
+
+    Raises:
+        RepositoryNotFoundError: If the model repo doesn't exist or the token is unauthorized.
+        ValueError: If the model repo doesn't contain any supported model weights.
     """
     repo_files = set(hf_hub.list_repo_files(repo_id))
 
@@ -129,6 +140,7 @@ def _recursive_download(
 
     Raises:
         PermissionError: If the remote server returns a 401 Unauthorized status code.
+        ValueError: If the remote server returns a 404 Not Found status code.
         RuntimeError: If the remote server returns a status code other than 200 OK or 401 Unauthorized.
     """
 
@@ -138,6 +150,10 @@ def _recursive_download(
     if response.status_code == HTTPStatus.UNAUTHORIZED:
         raise PermissionError(
             f'Not authorized to download file from {url}. Received status code {response.status_code}. '
+        )
+    elif response.status_code == HTTPStatus.NOT_FOUND:
+        raise ValueError(
+            f'Could not find file at {url}. Received status code {response.status_code}'
         )
     elif response.status_code != HTTPStatus.OK:
         raise RuntimeError(
@@ -166,6 +182,11 @@ def _recursive_download(
         )
 
 
+@tenacity.retry(
+    retry=tenacity.retry_if_not_exception_type((PermissionError, ValueError)),
+    stop=tenacity.stop_after_attempt(3),
+    wait=tenacity.wait_exponential(min=1, max=10)
+)
 def download_from_cache_server(
     model_name: str,
     cache_base_url: str,

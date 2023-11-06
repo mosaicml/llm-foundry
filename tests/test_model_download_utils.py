@@ -10,19 +10,26 @@ import unittest.mock as mock
 from unittest.mock import MagicMock
 from urllib.parse import urljoin
 
+from huggingface_hub.utils import RepositoryNotFoundError
 import pytest
+import tenacity
+from transformers.utils import (
+    WEIGHTS_NAME as PYTORCH_WEIGHTS_NAME,
+    WEIGHTS_INDEX_NAME as PYTORCH_WEIGHTS_INDEX_NAME,
+    SAFE_WEIGHTS_NAME,
+    SAFE_WEIGHTS_INDEX_NAME,
+)
 
 from llmfoundry.utils.model_download_utils import (
     download_from_cache_server,
     download_from_hf_hub,
-    PYTORCH_WEIGHTS_NAME,
-    PYTORCH_WEIGHTS_INDEX_NAME,
-    SAFE_WEIGHTS_NAME,
-    SAFE_WEIGHTS_INDEX_NAME,
     DEFAULT_IGNORE_PATTERNS,
     PYTORCH_WEIGHTS_PATTERN,
     SAFE_WEIGHTS_PATTERN
 )
+
+
+# ======================== download_from_hf_hub tests ========================
 
 
 @pytest.mark.parametrize(['prefer_safetensors', 'repo_files', 'expected_ignore_patterns'], [
@@ -129,6 +136,32 @@ def test_download_from_hf_hub_no_weights(
     mock_snapshot_download.assert_not_called()
 
 
+@pytest.mark.parametrize(['exception', 'expected_attempts'], [
+    [requests.exceptions.RequestException(), 3],
+    [RepositoryNotFoundError(''), 1],
+    [ValueError(), 1],
+])
+@mock.patch('tenacity.nap.time.sleep')
+@mock.patch('huggingface_hub.snapshot_download')
+@mock.patch('huggingface_hub.list_repo_files')
+def test_download_from_hf_hub_retry(
+    mock_list_repo_files: MagicMock,
+    mock_snapshot_download: MagicMock,
+    mock_sleep: MagicMock,  # so the retry wait doesn't actually wait
+    exception: BaseException,
+    expected_attempts: int,
+):
+    mock_list_repo_files.return_value = [SAFE_WEIGHTS_INDEX_NAME]
+    mock_snapshot_download.side_effect = exception
+
+    with pytest.raises((tenacity.RetryError, exception.__class__)):
+        download_from_hf_hub('test_repo_id')
+
+    assert mock_snapshot_download.call_count == expected_attempts
+
+
+# ======================== download_from_cache_server tests ========================
+
 ROOT_HTML = b"""
 <!DOCTYPE html>
 <html>
@@ -200,3 +233,22 @@ def test_download_from_cache_server_unauthorized(mock_get: MagicMock):
     mock_get.return_value = MagicMock(status_code=HTTPStatus.UNAUTHORIZED)
     with pytest.raises(PermissionError):
         download_from_cache_server(model_name, cache_url, save_dir)
+
+
+@pytest.mark.parametrize(['exception', 'expected_attempts'], [
+    [requests.exceptions.RequestException(), 3],
+    [PermissionError(), 1],
+    [ValueError(), 1],
+])
+@mock.patch('tenacity.nap.time.sleep')
+@mock.patch('llmfoundry.utils.model_download_utils._recursive_download')
+def test_download_from_cache_server_retry(
+    mock_recursive_download: MagicMock,
+    mock_sleep: MagicMock,  # so the retry wait doesn't actually wait
+    exception: BaseException,
+    expected_attempts: int,
+):
+    mock_recursive_download.side_effect = exception
+
+    with pytest.raises((tenacity.RetryError, exception.__class__)):
+        download_from_cache_server('model', 'cache_url', 'save_dir')

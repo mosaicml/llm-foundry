@@ -333,6 +333,13 @@ class DatasetConstructor:
             preprocessing_fn = self.get_preprocessing_fn_from_str(
                 proto_preprocessing_fn, dataset_name)
 
+        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
+
+        if dist.get_local_rank() != 0:
+            log.debug("Waiting for local_rank 0 to finish data prep")
+            with dist.local_rank_zero_download_and_wait(signal_file_path):
+                dist.barrier()
+
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 
         def dataset_mapper(example: Dict):
@@ -343,13 +350,6 @@ class DatasetConstructor:
         detected_cpu_count = os.cpu_count() or 1
         detected_cpus_with_margin = detected_cpu_count - 8
         num_cpus_to_use = max(1, detected_cpus_with_margin)
-
-        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
-
-        if dist.get_local_rank() != 0:
-            log.debug("Waiting for local_rank 0 to finish data prep")
-            with dist.local_rank_zero_download_and_wait(signal_file_path):
-                dist.barrier()
 
         columns_to_remove = list(dataset[0].keys())
         tokenized_dataset = dataset.map(

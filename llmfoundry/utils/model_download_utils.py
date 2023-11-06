@@ -143,7 +143,6 @@ def _recursive_download(
         ValueError: If the remote server returns a 404 Not Found status code.
         RuntimeError: If the remote server returns a status code other than 200 OK or 401 Unauthorized.
     """
-
     url = urljoin(base_url, path)
     response = session.get(url, verify=(not ignore_cert))
 

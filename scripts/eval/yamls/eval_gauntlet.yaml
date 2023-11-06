@@ -260,6 +260,6 @@ eval_gauntlet:
       random_baseline: 0
   # - name: programming_lite
   #   benchmarks:
-    # - name: human_eval
-    #   num_fewshot: 0
-    #   random_baseline: 0.0
+  # - name: human_eval
+  #   num_fewshot: 0
+  #   random_baseline: 0.0

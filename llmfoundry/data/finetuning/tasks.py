@@ -341,7 +341,7 @@ class DatasetConstructor:
             return _tokenize_formatted_example(example, tokenizer)
 
         detected_cpu_count = os.cpu_count() or 1
-        detected_cpus_with_margin = detected_cpu_count - 4
+        detected_cpus_with_margin = detected_cpu_count - 8
         num_cpus_to_use = max(1, detected_cpus_with_margin)
 
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'

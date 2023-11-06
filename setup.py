@@ -66,6 +66,8 @@ install_requires = [
     'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
     'boto3>=1.21.45,<2',
     'huggingface-hub>=0.17.0,<1.0',
+    'beautifulsoup4>=4.12.2,<5',  # required for model download utils
+    'tenacity>=8.2.3,<9',
 ]
 
 extra_deps = {}
@@ -101,7 +103,8 @@ extra_deps['gpu-flash2'] = [
 extra_deps['peft'] = [
     'loralib==0.1.1',  # lora core
     'bitsandbytes==0.39.1',  # 8bit
-    'scipy>=1.10.0,<=1.11.0',  # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
+    # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
+    'scipy>=1.10.0,<=1.11.0',
     # TODO: pin peft when it stabilizes.
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'peft==0.4.0',

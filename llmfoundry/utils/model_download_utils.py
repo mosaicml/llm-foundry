@@ -3,13 +3,13 @@
 Copyright 2022 MosaicML LLM Foundry authors
 SPDX-License-Identifier: Apache-2.0
 """
+from typing import Optional
+
 import copy
+from http import HTTPStatus
 import logging
 import os
 import time
-
-from typing import Optional
-from http import HTTPStatus
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup

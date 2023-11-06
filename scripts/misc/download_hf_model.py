@@ -3,17 +3,17 @@
 Copyright 2022 MosaicML LLM Foundry authors
 SPDX-License-Identifier: Apache-2.0
 """
+import argparse
 import logging
 import os
 import sys
 
-import argparse
+from huggingface_hub.constants import HUGGINGFACE_HUB_CACHE
 
 from llmfoundry.utils.model_download_utils import (
     download_from_cache_server,
     download_from_hf_hub,
 )
-from huggingface_hub.constants import HUGGINGFACE_HUB_CACHE
 
 HF_TOKEN_ENV_VAR = 'HUGGING_FACE_HUB_TOKEN'
 

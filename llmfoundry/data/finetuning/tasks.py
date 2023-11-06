@@ -380,7 +380,7 @@ class DatasetConstructor:
             num_proc=num_cpus_to_use,
             desc='Filtering out empty examples')
 
-        log.debug("Done tokenizing and filtering examples.")
+        log.debug('Done tokenizing and filtering examples.')
 
         empty_examples_removed = len(prompt_length_filtered_dataset) - len(
             empty_examples_dropped_dataset)

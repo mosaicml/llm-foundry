@@ -8,18 +8,16 @@ from typing import Any, Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
-attn_config_defaults: Dict = {
-    'attn_type': 'multihead_attention',
-    'attn_pdrop': 0.0,
-    'attn_impl': 'triton',
-    'qk_ln': False,
-    'clip_qkv': None,
-    'softmax_scale': None,
-    'prefix_lm': False,
-    'attn_uses_sequence_id': False,
-    'alibi': False,
-    'alibi_bias_max': 8,
-}
+from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.blocks import attn_config_defaults
+
+# NOTE: All utils are imported directly even if unused so that
+# HuggingFace can detect all the needed files to copy into its modules folder.
+# Otherwise, certain modules are missing.
+# isort: off
+from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY  # type: ignore (see note)
+from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
+from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY  # type: ignore (see note)
 
 ffn_config_defaults: Dict = {
     'ffn_type': 'mptmlp',
@@ -94,6 +92,16 @@ class MPTConfig(PretrainedConfig):
                     Defaults to ``False`` meaning any provided `sequence_id` will be ignored.
                 alibi (bool): Whether to use the alibi bias instead of position embeddings.
                 alibi_bias_max (int): The maximum value of the alibi bias.
+                rope (bool): Whether to use rotary positional embeddings.
+                rope_theta (int): The base frequency for rope.
+                rope_impl (str): The implementation of rope to use. One of 'hf' (to use the implementation from https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py) or 'dail' (to use the implementation from https://github.com/Dao-AILab/flash-attention/blob/main/flash_attn/layers/rotary.py).
+                rope_dail_config (Dict): The configuration for the dail implementation of rope.
+                    type (str): The type of rotary position embedding to use. Options: 'original' (for https://arxiv.org/pdf/2104.09864.pdf), 'xpos' (for https://arxiv.org/pdf/2212.10554.pdf).
+                    pos_idx_in_fp32 (bool): If True, the position indices [0, ..., seqlen - 1] are in fp32, otherwise they might be in lower precision. A consequence could be, for example, that bf16 rounds position 1995 to 2000, which leads to them having the same positional embedding.
+                    xpos_scale_base (float): The scale base for XPos (if using XPos).
+                rope_hf_config (Dict): A dictionary used to configure rope's scaling behavior (when scaling beyond the training length).
+                    type (str): Can be one of 'no_scaling', 'linear', or 'dynamic'. 'no_scaling' uses the default implementation for rotary embeddings, 'linear' uses linear scaling as proposed by the Reddit user /u/kaiokendev, and 'dynamic' uses Dynamic NTK scaling as proposed by the Reddit users /u/bloc97 and /u/emozilla.
+                    factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling.type.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
                 ffn_type (str): type of ffn to use. Options: mptmlp, te_ln_mlp
@@ -150,10 +158,12 @@ class MPTConfig(PretrainedConfig):
             del kwargs['name']
         if 'loss_fn' in kwargs:
             del kwargs['loss_fn']
-        if self.attn_config.get('alibi', False):
+        if self.attn_config.get('alibi', False) or self.attn_config.get(
+                'rope', False):
             self.learned_pos_emb = False
             warnings.warn(
-                f'alibi is turned on, setting `learned_pos_emb` to `False.`')
+                f'alibi or rope is turned on, setting `learned_pos_emb` to `False.`'
+            )
         super().__init__(**kwargs)
 
         self._validate_config()
@@ -164,6 +174,10 @@ class MPTConfig(PretrainedConfig):
         for k, v in config_defaults.items():
             if k not in config:
                 config[k] = v
+            elif isinstance(v, dict):
+                # recursively set default values for any sub-dicts
+                config[k] = self._set_config_defaults(
+                    config[k] if (config[k] is not None) else {}, v)
         return config
 
     def _validate_config(self) -> None:
@@ -206,6 +220,31 @@ class MPTConfig(PretrainedConfig):
             raise NotImplementedError(
                 'attn_uses_sequence_id only implemented with torch and triton attention.'
             )
+        if self.attn_config['rope'] and (self.attn_config['rope_impl']
+                                         not in ['dail', 'hf']):
+            raise ValueError(
+                'If rope is being used then rope_impl should be either "dail", or "hf".'
+            )
+        if self.attn_config['rope'] and (
+                self.attn_config['rope_impl']
+                == 'hf') and self.attn_config['rope_hf_config']['type'] not in [
+                    'no_scaling', 'linear', 'dynamic'
+                ]:
+            raise ValueError(
+                'If using hf implementation of rope, the type should be one of "no_scaling", "linear" or "dynamic".'
+            )
+        if self.attn_config['rope'] and (self.attn_config['rope_impl']
+                                         == 'dail'):
+            if self.attn_config['rope_dail_config']['type'] not in [
+                    'original', 'xpos'
+            ]:
+                raise ValueError(
+                    'If using the dail implementation of rope, the type should be one of "original" or "xpos".'
+                )
+            if not is_flash_v2_installed(v2_version='2.0.1'):
+                raise ImportError(
+                    'If using the dail implementation of rope, the flash_attn library v2.0.1 or higher must be installed. Please check the instructions at https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md#what-kinds-of-positional-embeddings-does-llm-foundry-support'
+                )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
                 'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!'
@@ -217,9 +256,10 @@ class MPTConfig(PretrainedConfig):
             )
         if self.init_config.get('name', None) is None:
             raise ValueError(f"{self.init_config=} 'name' needs to be set.")
-        if not self.learned_pos_emb and not self.attn_config['alibi']:
+        if not (self.learned_pos_emb or self.attn_config['alibi'] or
+                self.attn_config['rope']):
             warnings.warn(
-                f'Positional information not being provided to the model using either learned_pos_emb or alibi.'
+                f'Positional information not being provided to the model using either learned_pos_emb or alibi or rope.'
             )
         if self.fc_type == 'te' or self.ffn_config['ffn_type'] == 'te_ln_mlp':
             try:

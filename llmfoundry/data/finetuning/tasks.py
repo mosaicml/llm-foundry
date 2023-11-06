@@ -342,7 +342,7 @@ class DatasetConstructor:
 
         detected_cpu_count = os.cpu_count() or 1
         detected_cpus_with_margin = detected_cpu_count - 4
-        cpus_per_rank = detected_cpus_with_margin // dist.get_world_size()
+        cpus_per_rank = detected_cpus_with_margin // dist.get_local_world_size()
         num_cpus_to_use = max(1, cpus_per_rank)
 
         columns_to_remove = list(dataset[0].keys())

@@ -351,10 +351,12 @@ class DatasetConstructor:
             batched=False,
             remove_columns=columns_to_remove,
             num_proc=num_cpus_to_use,
+            desc='Tokenizing dataset',
         )
         prompt_length_filtered_dataset = tokenized_dataset.filter(
             lambda example: len(example['input_ids']) < max_seq_len,
             num_proc=num_cpus_to_use,
+            desc='Filtering out long prompts',
         )
 
         examples_removed = len(tokenized_dataset) - len(
@@ -368,7 +370,8 @@ class DatasetConstructor:
             lambda example: len(example['input_ids']) > 0 and len(example[
                 'labels']) > 0 and any(token_id != tokenizer.pad_token_id
                                        for token_id in example['labels']),
-            num_proc=num_cpus_to_use)
+            num_proc=num_cpus_to_use,
+            desc='Filtering out empty examples')
         empty_examples_removed = len(prompt_length_filtered_dataset) - len(
             empty_examples_dropped_dataset)
         if empty_examples_removed > 0:

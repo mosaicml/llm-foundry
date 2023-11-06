@@ -347,6 +347,7 @@ class DatasetConstructor:
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
 
         if dist.get_local_rank() != 0:
+            log.debug("Waiting for local_rank 0 to finish data prep")
             with dist.local_rank_zero_download_and_wait(signal_file_path):
                 dist.barrier()
 
@@ -385,12 +386,14 @@ class DatasetConstructor:
                 + 'or the response was only padding tokens.')
 
         if dist.get_local_rank() == 0:
+            log.debug("Local rank 0 finished data prep")
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_data_prep')
 
             dist.barrier()
             os.remove(signal_file_path)
 
+        log.debug("All ranks finished data prep")
         return empty_examples_dropped_dataset
 
     def build_from_streaming(self, *args: Any,

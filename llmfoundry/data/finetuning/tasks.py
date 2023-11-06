@@ -338,7 +338,7 @@ class DatasetConstructor:
         if dist.get_local_rank() != 0:
             log.debug('Waiting for local_rank 0 to finish data prep')
             with dist.local_rank_zero_download_and_wait(signal_file_path):
-                dist.barrier()
+                pass
 
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 
@@ -394,7 +394,9 @@ class DatasetConstructor:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_data_prep')
 
-            dist.barrier()
+        dist.barrier()
+
+        if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
 
         log.debug('All ranks finished data prep')

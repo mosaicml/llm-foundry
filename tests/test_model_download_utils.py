@@ -1,10 +1,14 @@
 # Copyright 2023 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List
+from typing import Any, Dict, List
 
+from http import HTTPStatus
+import os
+import requests
 import unittest.mock as mock
 from unittest.mock import MagicMock
+from urllib.parse import urljoin
 
 import pytest
 
@@ -123,3 +127,76 @@ def test_download_from_hf_hub_no_weights(
         download_from_hf_hub(test_repo_id)
 
     mock_snapshot_download.assert_not_called()
+
+
+ROOT_HTML = b"""
+<!DOCTYPE html>
+<html>
+<body>
+    <ul>
+        <li><a href="file1">file1</a></li>
+        <li><a href="folder/">folder/</a></li>
+    </ul>
+</body>
+</html>
+"""
+
+SUBFOLDER_HTML = b"""
+<!DOCTYPE html>
+<html>
+<body>
+    <ul>
+        <li><a href="file2">file2</a></li>
+    </ul>
+</body>
+</html>
+"""
+
+
+@mock.patch.object(requests.Session, 'get')
+@mock.patch('os.makedirs')
+@mock.patch('builtins.open')
+def test_download_from_cache_server(
+    mock_open: MagicMock,
+    mock_makedirs: MagicMock,
+    mock_get: MagicMock
+):
+    cache_url = 'https://cache.com/'
+    model_name = 'model'
+    formatted_model_name = 'models--model'
+    save_dir = 'save_dir/'
+
+    mock_open.return_value = MagicMock()
+
+    def _server_response(url: str, **kwargs: Dict[str, Any]):
+        if url == urljoin(cache_url, f'{formatted_model_name}/blobs/'):
+            return MagicMock(status_code=HTTPStatus.OK, content=ROOT_HTML)
+        if url == urljoin(cache_url, f'{formatted_model_name}/blobs/file1'):
+            return MagicMock(status_code=HTTPStatus.OK)
+        elif url == urljoin(cache_url, f'{formatted_model_name}/blobs/folder/'):
+            return MagicMock(status_code=HTTPStatus.OK, content=SUBFOLDER_HTML)
+        elif url == urljoin(cache_url, f'{formatted_model_name}/blobs/folder/file2'):
+            return MagicMock(status_code=HTTPStatus.OK)
+        else:
+            return MagicMock(status_code=HTTPStatus.NOT_FOUND)
+
+    mock_get.side_effect = _server_response
+    download_from_cache_server(model_name, cache_url, 'save_dir/')
+
+    mock_open.assert_has_calls([
+        mock.call(os.path.join(
+            save_dir, formatted_model_name, 'blobs/file1'), 'wb'),
+        mock.call(os.path.join(save_dir, formatted_model_name,
+                  'blobs/folder/file2'), 'wb'),
+    ], any_order=True)
+
+
+@mock.patch.object(requests.Session, 'get')
+def test_download_from_cache_server_unauthorized(mock_get: MagicMock):
+    cache_url = 'https://cache.com/'
+    model_name = 'model'
+    save_dir = 'save_dir/'
+
+    mock_get.return_value = MagicMock(status_code=HTTPStatus.UNAUTHORIZED)
+    with pytest.raises(PermissionError):
+        download_from_cache_server(model_name, cache_url, save_dir)

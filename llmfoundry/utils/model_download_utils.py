@@ -10,6 +10,7 @@ import time
 
 from typing import Optional
 from http import HTTPStatus
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 import huggingface_hub as hf_hub
@@ -130,7 +131,8 @@ def _recursive_download(
         PermissionError: If the remote server returns a 401 Unauthorized status code.
         RuntimeError: If the remote server returns a status code other than 200 OK or 401 Unauthorized.
     """
-    url = f'{base_url}/{path}'
+
+    url = urljoin(base_url, path)
     response = session.get(url, verify=(not ignore_cert))
 
     if response.status_code == HTTPStatus.UNAUTHORIZED:
@@ -144,7 +146,7 @@ def _recursive_download(
 
     # Assume that the URL points to a file if it does not end with a slash.
     if not path.endswith('/'):
-        save_path = f'{save_dir}/{path}'
+        save_path = os.path.join(save_dir, path)
         parent_dir = os.path.dirname(save_path)
         if not os.path.exists(parent_dir):
             os.makedirs(parent_dir)
@@ -160,7 +162,7 @@ def _recursive_download(
     child_links = _extract_links_from_html(response.content.decode())
     for child_link in child_links:
         _recursive_download(
-            session, base_url, f'{path}/{child_link}', save_dir, ignore_cert=ignore_cert
+            session, base_url, urljoin(path, child_link), save_dir, ignore_cert=ignore_cert
         )
 
 

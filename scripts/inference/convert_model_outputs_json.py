@@ -14,7 +14,7 @@ def convert_txt_to_eval_json(file_name, store_path=None):
             '### End of prompt-response pair ###\n')
         # now for every prompt response pair, split based on '### Response:\n'
         for pair in prompt_response_pair[:-1]:
-            prompt_response = pair.split('### Response:', 1)
+            prompt_response = pair.split('### Response:\n\n', 1)
             # from the first element of the list, split based on '### Instruction:\n'
             instruction = prompt_response[0].split('### Instruction:\n')[1]
             lima_test_prompts.append(instruction)

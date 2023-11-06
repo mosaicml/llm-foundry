@@ -342,8 +342,13 @@ class DatasetConstructor:
 
         detected_cpu_count = os.cpu_count() or 1
         detected_cpus_with_margin = detected_cpu_count - 4
-        cpus_per_rank = detected_cpus_with_margin // dist.get_local_world_size()
-        num_cpus_to_use = max(1, cpus_per_rank)
+        num_cpus_to_use = max(1, detected_cpus_with_margin)
+
+        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed'
+
+        if dist.get_local_rank() != 0:
+            with dist.local_rank_zero_download_and_wait(signal_file_path):
+                dist.barrier()
 
         columns_to_remove = list(dataset[0].keys())
         tokenized_dataset = dataset.map(
@@ -378,6 +383,13 @@ class DatasetConstructor:
             warnings.warn(
                 f'Dropped {empty_examples_removed} examples where the prompt or response was empty, '
                 + 'or the response was only padding tokens.')
+
+        if dist.get_local_rank() == 0:
+            with open(signal_file_path, 'wb') as f:
+                f.write(b'local_rank0_completed_download')
+
+            dist.barrier()
+            os.remove(signal_file_path)
 
         return empty_examples_dropped_dataset
 

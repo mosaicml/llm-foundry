@@ -15,7 +15,9 @@ from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
 from composer.loggers import Logger, MLFlowLogger
 from composer.models import HuggingFaceModel
-from composer.utils import dist, format_name_with_dist_and_time, parse_uri, maybe_create_remote_uploader_downloader_from_uri
+from composer.utils import (dist, format_name_with_dist_and_time,
+                            maybe_create_remote_uploader_downloader_from_uri,
+                            parse_uri)
 from composer.utils.misc import create_interval_scheduler
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 

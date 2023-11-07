@@ -41,19 +41,24 @@ __all__ = ['ComposerHFCausalLM']
 
 log = logging.getLogger(__name__)
 
-def print_trainable_parameters(model: nn.Module) -> None:
+def print_trainable_parameters(model: nn.Module): # -> None:
     # Prints the number of trainable parameters in the model.
     if not _peft_installed:
         raise ImportError('PEFT not installed. Run pip install -e ".[gpu,peft]"')
     trainable_params = 0
-    all_param = 0
+    all_params = 0
     for _, param in model.named_parameters():
-        all_param += param.numel()
+        all_params += param.numel()
         if param.requires_grad:
             trainable_params += param.numel()
     print(
-        f"trainable params: {trainable_params:,d} || all params: {all_param:,d} || trainable%: {100 * trainable_params / all_param:.3g}"
+        f"trainable params: {trainable_params:,d} || all params: {all_params:,d} || trainable%: {100 * trainable_params / all_params:.3g}"
     )
+
+    return {
+        'trainable': trainable_params,
+        'all_params': all_params,
+    }
 
 def validate_lora_config(lora_cfg: DictConfig):
     for arg in ['r', 'lora_alpha', 'lora_dropout', 'target_modules', 'task_type']:
@@ -256,21 +261,28 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             z_loss = om_model_config.get('z_loss', 0.0)
 
             # if om_model_config includes lora and peft is installed, add lora modules
-            lora_cfg = om_model_config.get("lora", None)
-            if lora_cfg is not None:
+            peft_cfg = om_model_config.get("peft", None)
+            if peft_cfg is not None:
                 if not _peft_installed:
                     raise ImportError(
                         'cfg.model.lora is given but PEFT not installed. Run pip install -e ".[gpu,peft]"'
                     )
+                if (name := peft_cfg['name']) != 'lora':
+                    raise NotImplementedError(f"Unsupported Peft technique {name}")
 
-                validate_lora_config(lora_cfg)
+                if peft_cfg['name'] == 'lora':
+                    peft_cfg.pop('name')
+                    lora_cfg = peft_cfg
 
-                print("Building Lora config...")
-                lora_cfg = LoraConfig(**lora_cfg)
-                print("Lora config built.")
-                print("Adding Lora modules...")
-                model = get_peft_model(model, lora_cfg)
-                print("Lora modules added.")
+                    validate_lora_config(lora_cfg)
+
+                    print("Building Lora config...")
+                    lora_cfg = LoraConfig(**lora_cfg)
+                    print("Lora config built.")
+                    print("Adding Lora modules...")
+                    model = get_peft_model(model, lora_cfg)
+                    print("Lora modules added.")
+
                 print_trainable_parameters(model)
 
             attention_patch_type = om_model_config.get('attention_patch_type',

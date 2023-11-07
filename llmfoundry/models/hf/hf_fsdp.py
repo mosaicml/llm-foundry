@@ -211,6 +211,8 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
                       lora_model_type):  # we have built a LoraModel
             if model_block is not None:  # for pyright
                 for name, module in model_block.named_modules():
+                    # We only wrap the "default" adapter
+                    # TODO: better handling of the LoRA modules
                     if 'lora' in name and 'default' in name:
                         for _ in module.parameters():
                             module._fsdp_wrap = True

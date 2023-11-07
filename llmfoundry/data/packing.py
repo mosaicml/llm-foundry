@@ -348,6 +348,7 @@ def profile_packing(
     dataloader_cfg.drop_last = False
     dataloader_cfg.num_workers = 0
     dataloader_cfg.prefetch_factor = None
+    dataloader_cfg.persistent_workers = False
 
     # Determine the packing_ratio values we'll try
     packing_ratios, raw_batch_sizes = [], []

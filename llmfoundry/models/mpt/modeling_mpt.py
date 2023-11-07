@@ -710,9 +710,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
         if not hasattr(self.config, 'activation_checkpointing_target'):
             return isinstance(module, MPTBlock)
         act_ckpt_str = self.config.activation_checkpointing_target
-        act_ckpt_lst = act_ckpt_str.replace(' ', '').split(',')
-        if act_ckpt_lst:
-            if 'MPTBlock' in act_ckpt_lst or 'mptblock' in act_ckpt_lst:
+        act_ckpt_list = act_ckpt_str.replace(' ', '').split(',')
+        if act_ckpt_list:
+            if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
                 act_ckpt_lst = ['MPTBlock']
             for mod_name in act_ckpt_lst:
                 if mod_name.lower() == 'mptblock':
@@ -724,6 +724,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 elif mod_name in NORM_CLASS_REGISTRY:
                     mod_type = NORM_CLASS_REGISTRY[mod_name]
                 else:
+                    warnings.warn(
+                        f'module name specified in activation_checkpointing_target ({mod_name}) not recognized, available options are names in ATTN_CLASS_REGISTRY, FFN_CLASS_REGISTRY, NORM_CLASS_REGISTRY, or MPTBlock.'
+                    )
                     continue
                 return isinstance(module, mod_type)
 

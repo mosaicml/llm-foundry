@@ -9,6 +9,8 @@ from llmfoundry.data.finetuning import (Seq2SeqFinetuningCollator,
                                         build_finetuning_dataloader)
 from llmfoundry.data.text_data import (StreamingTextDataset,
                                        build_text_dataloader)
+from llmfoundry.data.contrastive_pairs import build_pairs_dataloader # JP: added
+
 
 __all__ = [
     'MixtureOfDenoisersCollator',
@@ -20,4 +22,5 @@ __all__ = [
     'NoConcatDataset',
     'ConcatTokensDataset',
     'build_dataloader',
+    'build_pairs_dataloader',
 ]

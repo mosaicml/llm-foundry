@@ -14,7 +14,8 @@ try:
                                  MixtureOfDenoisersCollator, NoConcatDataset,
                                  Seq2SeqFinetuningCollator,
                                  build_finetuning_dataloader,
-                                 build_text_denoising_dataloader)
+                                 build_text_denoising_dataloader,
+                                 build_pairs_dataloader) # JP: added
     from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                       ComposerHFT5)
     from llmfoundry.models.layers.attention import (
@@ -46,6 +47,7 @@ except ImportError as e:
 __all__ = [
     'build_text_denoising_dataloader',
     'build_finetuning_dataloader',
+    'build_pairs_dataloader', # JP: added
     'MixtureOfDenoisersCollator',
     'Seq2SeqFinetuningCollator',
     'MPTBlock',

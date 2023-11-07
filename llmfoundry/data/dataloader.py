@@ -10,6 +10,7 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry.data.denoising import build_text_denoising_dataloader
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 from llmfoundry.data.text_data import build_text_dataloader
+from llmfoundry.data.contrastive_pairs import build_pairs_dataloader # JP: added
 
 
 def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
@@ -40,5 +41,10 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
             tokenizer,
             device_batch_size,
         )
+    elif cfg.name == 'contrastive_pairs':
+        return build_pairs_dataloader(
+            cfg, 
+            tokenizer, 
+            device_batch_size)
     else:
         raise ValueError(f'Not sure how to build dataloader with config: {cfg}')

@@ -399,12 +399,11 @@ def _build_collate_fn(
     if packing_ratio == 'auto':
         packing_ratio = auto_packing_ratio(dataloader_cfg, tokenizer,
                                            device_batch_size)
-    
+
     if isinstance(packing_ratio, str):
         raise ValueError(
             'dataset.packing_ratio must be a float or "auto", but it was set to '
-            + f'{packing_ratio}.'
-        )
+            + f'{packing_ratio}.')
 
     log.info(f'Using packing ratio {packing_ratio}')
 

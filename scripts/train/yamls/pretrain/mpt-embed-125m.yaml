@@ -22,7 +22,7 @@ model:
   n_layers: 12
   expansion_ratio: 4
   max_seq_len: ${max_seq_len}
-  vocab_size: 50368
+  vocab_size: 30528 # was 50368
   attn_config:
     attn_impl: triton # could also be flash attention
 

@@ -406,6 +406,8 @@ def _build_collate_fn(
             + f'{packing_ratio}.'
         )
 
+    log.info(f'Using packing ratio {packing_ratio}')
+
     if packing_ratio == 1.0:
         return collate_fn, device_batch_size
     elif packing_ratio < 1.0:

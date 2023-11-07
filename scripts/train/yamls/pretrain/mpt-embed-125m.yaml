@@ -16,6 +16,7 @@ model:
   name: mpt_contrastive_lm # JP: added, this creates a ComposerMPTContrastiveLM model
   # temperature for contrastive loss
   temperature: 0.01 # JP: added
+  is_causal: false # JP: added, small change to MPTCausalLM
   init_device: meta
   d_model: 768
   n_heads: 12
@@ -25,6 +26,7 @@ model:
   vocab_size: 30528 # was 50368
   attn_config:
     attn_impl: triton # could also be flash attention
+  # TO DO: SET ATTENTION MASK TO NOT BE CAUSAL
 
 # Tokenizer
 tokenizer:

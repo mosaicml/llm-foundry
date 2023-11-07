@@ -130,6 +130,9 @@ class MPTModel(MPTPreTrainedModel):
             self.apply(self.param_init_fn)
 
         self.is_causal = not self.prefix_lm
+        #JP: Added for fully-visible/bidirectional mask
+        if config.is_causal is not None: 
+            self.is_causal = config.is_causal
 
         # define attn mask
         self._attn_bias_initialized = False
@@ -390,7 +393,7 @@ class MPTModel(MPTPreTrainedModel):
                 dtype=torch.long,
                 device=input_ids.device,
             ).unsqueeze(0)
-            if attention_mask is not None:
+            if attention_mask is not None: # JP: What exactly does this do? Is this only for causal?
                 # adjust the position indices to account for padding tokens
                 pos = torch.clamp(
                     pos - torch.cumsum((~attention_mask).to(torch.int32),

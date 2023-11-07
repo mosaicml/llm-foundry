@@ -45,7 +45,9 @@ from transformers.models.llama.modeling_llama import \
 from transformers.models.llama.modeling_llama import \
     LlamaRotaryEmbedding as HFRotaryEmbedding
 
-from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
+from llmfoundry.models.layers.attention import (ATTN_CLASS_REGISTRY,
+                                                attn_bias_shape,
+                                                build_attn_bias)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY as FC_CLASS_REGISTRY
@@ -705,7 +707,25 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
-        return isinstance(module, MPTBlock)
+        if not hasattr(self.config, 'activation_checkpointing_target'):
+            return isinstance(module, MPTBlock)
+        act_ckpt_str = self.config.activation_checkpointing_target
+        act_ckpt_lst = act_ckpt_str.replace(' ', '').split(',')
+        if act_ckpt_lst:
+            if 'MPTBlock' in act_ckpt_lst or 'mptblock' in act_ckpt_lst:
+                act_ckpt_lst = ['MPTBlock']
+            for mod_name in act_ckpt_lst:
+                if mod_name in ['MPTBlock', 'mptblock']:
+                    mod_type = MPTBlock
+                elif mod_name in ATTN_CLASS_REGISTRY:
+                    mod_type = ATTN_CLASS_REGISTRY[mod_name]
+                elif mod_name in FFN_CLASS_REGISTRY:
+                    mod_type = FFN_CLASS_REGISTRY[mod_name]
+                elif mod_name in NORM_CLASS_REGISTRY:
+                    mod_type = NORM_CLASS_REGISTRY[mod_name]
+                else:
+                    continue
+                return isinstance(module, mod_type)
 
     def prepare_inputs_for_generation(
         self,

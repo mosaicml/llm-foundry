@@ -715,7 +715,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             if 'MPTBlock' in act_ckpt_lst or 'mptblock' in act_ckpt_lst:
                 act_ckpt_lst = ['MPTBlock']
             for mod_name in act_ckpt_lst:
-                if mod_name in ['MPTBlock', 'mptblock']:
+                if mod_name.lower() == 'mptblock':
                     mod_type = MPTBlock
                 elif mod_name in ATTN_CLASS_REGISTRY:
                     mod_type = ATTN_CLASS_REGISTRY[mod_name]

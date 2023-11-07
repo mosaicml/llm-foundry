@@ -390,6 +390,9 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             shift_labels=False, # JP: set to False
             allow_embedding_resizing=True, # JP: Not sure what this does
         )
+        
+        # Temperature for InfoNCELoss
+        self.temperature = resolved_om_model_config.get('temperature', 1)
 
         self.n_active_params = sum(p.numel() for p in self.parameters())
 

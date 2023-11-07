@@ -260,6 +260,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
             z_loss = om_model_config.get('z_loss', 0.0)
 
+
+            if om_model_config.get('split_qkv', False):
+                from tunes.model.split import SplitQKV
+                model = SplitQKV.patch_model(model)
+
             # if om_model_config includes lora and peft is installed, add lora modules
             peft_cfg = om_model_config.get("peft", None)
             if peft_cfg is not None:

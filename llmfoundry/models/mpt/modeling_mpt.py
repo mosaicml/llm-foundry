@@ -709,26 +709,28 @@ class MPTForCausalLM(MPTPreTrainedModel):
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
         if not hasattr(self.config, 'activation_checkpointing_target'):
             return isinstance(module, MPTBlock)
-        act_ckpt_str = self.config.activation_checkpointing_target
-        act_ckpt_list = act_ckpt_str.replace(' ', '').split(',')
+        act_ckpt_list = self.config.activation_checkpointing_target
         if act_ckpt_list:
             if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
-                act_ckpt_lst = ['MPTBlock']
-            for mod_name in act_ckpt_lst:
+                act_ckpt_list = ['MPTBlock']
+                warnings.warn(
+                    f'activation checkpointing MPTBlock, ignoring other sub-block modules if specified'
+                )
+            mod_types = ()
+            for mod_name in act_ckpt_list:
                 if mod_name.lower() == 'mptblock':
-                    mod_type = MPTBlock
+                    mod_types += (MPTBlock,)
                 elif mod_name in ATTN_CLASS_REGISTRY:
-                    mod_type = ATTN_CLASS_REGISTRY[mod_name]
+                    mod_types += (ATTN_CLASS_REGISTRY[mod_name],)
                 elif mod_name in FFN_CLASS_REGISTRY:
-                    mod_type = FFN_CLASS_REGISTRY[mod_name]
+                    mod_types += (FFN_CLASS_REGISTRY[mod_name],)
                 elif mod_name in NORM_CLASS_REGISTRY:
-                    mod_type = NORM_CLASS_REGISTRY[mod_name]
+                    mod_types += (NORM_CLASS_REGISTRY[mod_name],)
                 else:
                     warnings.warn(
                         f'module name specified in activation_checkpointing_target ({mod_name}) not recognized, available options are names in ATTN_CLASS_REGISTRY, FFN_CLASS_REGISTRY, NORM_CLASS_REGISTRY, or MPTBlock.'
                     )
-                    continue
-                return isinstance(module, mod_type)
+            return isinstance(module, mod_types)
 
     def prepare_inputs_for_generation(
         self,

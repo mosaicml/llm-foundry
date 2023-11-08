@@ -422,20 +422,14 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
 
     if dist.get_global_rank() == 0:
         if log_to_mlflow:
-            # assert mlflow_logger_mock.save_model.call_count == 1
-            mlflow_logger_mock.save_model.assert_called_once_with(
+            mlflow_logger_mock.save_model.assert_called_with(
                 flavor='transformers',
                 transformers_model=ANY,
                 path=ANY,
                 task='text-generation',
-                metatdata={'task': 'llm/v1/completions'})
+                metatdata={'task': 'llm/v1/completions'}
+            )
             assert mlflow_logger_mock.register_model.call_count == 1
-            # mlflow_logger.save_model(
-            #     flavor='transformers',
-            #     transformers_model=components,
-            #     path=local_save_path,
-            #     **self.mlflow_logging_config,
-            # )
         else:
             assert mlflow_logger_mock.save_model.call_count == 0
             assert mlflow_logger_mock.register_model.call_count == 0

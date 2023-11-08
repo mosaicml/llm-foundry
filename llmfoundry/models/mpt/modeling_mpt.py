@@ -707,14 +707,15 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
-        if not hasattr(self.config, 'activation_checkpointing_target'):
+        if not hasattr(self.config, 'activation_checkpointing_target'
+                      ) or self.config.activation_checkpointing_target is None:
             log.info(
                 f'activation checkpointing MPTBlock as activation_checkpointing_target is not set in model_config'
             )
             return isinstance(module, MPTBlock)
-        act_ckpt_list = self.config.activation_checkpointing_target
-        if act_ckpt_list:
-            if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
+        else:
+            act_ckpt_list = self.config.activation_checkpointing_target
+            if 'MPTBlock' in act_ckpt_list:
                 act_ckpt_list = ['MPTBlock']
                 warnings.warn(
                     f'activation checkpointing MPTBlock, ignoring other sub-block modules if specified'

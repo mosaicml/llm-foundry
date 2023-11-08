@@ -110,7 +110,7 @@ class StreamingFinetuningDataset(StreamingDataset):
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1e``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        shuffle_block_size (int): Unit of shuffle. If ``None``, its value is calculated as 
+        shuffle_block_size (int): Unit of shuffle. If ``None``, its value is calculated as
             ``max(4_000_000 // num_canonical_nodes), 1 << 18)``. Defaults to ``None``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.

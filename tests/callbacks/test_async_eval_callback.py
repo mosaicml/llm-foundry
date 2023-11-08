@@ -130,34 +130,69 @@ def test_get_eval_parameters():
     }
 
 
+FAKE_RUN = Run(
+    run_uid='123',
+    name=RUN_NAME,
+    image="fake-image",
+    status=RunStatus.RUNNING,
+    created_at='2021-01-01',
+    updated_at='2021-01-01',
+    created_by='me',
+    priority='low',
+    preemptible=False,
+    retry_on_system_failure=True,
+    cluster='c1z2',
+    gpu_type="a100",
+    gpus=16,
+    cpus=0,
+    node_count=2,
+    latest_resumption=None,
+    submitted_config=RunConfig(
+        name=RUN_NAME,
+        image='fake-image',
+        command='echo hi',
+        parameters={
+            'device_eval_batch_size': 2,
+            'icl_tasks': 'icl_task_example',
+            'max_seq_len': 3,
+            'model': 'model_example',
+            'save_folder': 'save_folder_example',
+        },
+    ),
+)
+
+
 @patch('llmfoundry.callbacks.async_eval_callback.get_run',
-       return_value=Run(
-           run_uid='123',
-           name=RUN_NAME,
-           status=RunStatus.RUNNING,
-           created_at='2021-01-01',
-           updated_at='2021-01-01',
-           created_by='me',
-           priority='low',
-           preemptible=False,
-           retry_on_system_failure=True,
-           cluster='c1z2',
-           gpu_type="a100",
-           gpus=16,
-           cpus=0,
-           node_count=2,
-           latest_resumption=None,
-           submitted_config=RunConfig(
-               parameters={
-                   'device_eval_batch_size': 2,
-                   'icl_tasks': 'icl_task_example',
-                   'max_seq_len': 3,
-                   'model': 'model_example',
-                   'save_folder': 'save_folder_example',
-               }),
-       ))
-@patch('llmfoundry.callbacks.async_eval_callback.create_run', return_value=None)
-def test_async_eval_callback_minimal(mock_get_run, mock_create_run):
-    callback = AsyncEval(interval='2ba')
+       return_value=FAKE_RUN)
+@patch('llmfoundry.callbacks.async_eval_callback.create_run',
+       return_value=FAKE_RUN)
+def test_async_eval_callback_minimal(mock_create_run, mock_get_run):
+    callback = AsyncEval(interval='2ba',
+                         compute={
+                             'cluster': 'c2z3',
+                             'nodes': 2,
+                         })
     assert callback.current_run.name == RUN_NAME
-    # todo
+    assert mock_get_run.call_count == 1
+    assert mock_get_run.call_args[0][0] == RUN_NAME
+
+    callback.count += 2
+    callback.launch_run()
+    assert mock_create_run.call_count == 1
+
+    run_config_created = mock_create_run.call_args[0][0]
+    assert run_config_created.name == 'eval2-foo_bar'
+    assert run_config_created.image == 'fake-image'
+    assert run_config_created.command
+
+    compute = run_config_created.compute
+    assert compute['cluster'] == 'c2z3'
+    assert compute['nodes'] == 2
+
+    parameters = run_config_created.parameters
+    assert parameters['device_eval_batch_size'] == 2
+    assert parameters['icl_tasks'] == 'icl_task_example'
+    assert parameters['max_seq_len'] == 3
+    assert parameters['load_path'] == 'save_folder_example/latest-rank0.pt'
+    assert parameters['models'] == ['model_example']
+    assert parameters['run_name'] == 'eval0-foo_bar'  # original run

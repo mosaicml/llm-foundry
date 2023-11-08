@@ -61,12 +61,15 @@ class AsyncEval(Callback):
             launched. If an integer, it will be assumed to be in :attr:`.TimeUnit.EPOCH`.
             Otherwise, the unit must be either :attr:`.TimeUnit.EPOCH`, :attr:`.TimeUnit.BATCH`,
             :attr:`.TimeUnit.TOKEN`, or :attr:`.TimeUnit.SAMPLE`.
+        compute: Optional[Union[ComputeConfig, Dict[str, Any]]]: The compute configuration to
+            use for the eval run. If not provided, the same cluster as the current run and a
+            single GPU node will be used.
     """
 
     def __init__(
         self,
         interval: Union[str, int, Time],
-        compute: Optional[ComputeConfig] = None,
+        compute: Optional[Union[ComputeConfig, Dict[str, Any]]] = None,
     ):
         self.check_interval = create_interval_scheduler(interval)
         self.compute = compute
@@ -78,25 +81,27 @@ class AsyncEval(Callback):
             self.current_run.submitted_config.parameters or {},
             self.current_run.name,
         )
+        log.info(
+            f'Initialized AsyncEval callback. Will generate runs at interval {interval}'
+        )
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         del logger
         if state.get_elapsed_duration() is not None and self.check_interval(
                 state, event):
-            new_run = self._launch_run()
-            log.info(f'Launched new run {new_run.name} for eval loop')
+            self.launch_run()
             self.count += 1
 
     def _get_current_run(self) -> Run:
         if os.environ.get(MOSAICML_PLATFORM_ENV_VAR,
                           'false').lower() == 'false':
-            raise Exception(
+            raise RuntimeError(
                 'AsyncEval callback is only supported when running on the MosaicML platform'
             )
 
         run_name = os.environ.get(RUN_NAME_ENV_VAR, None)
         if not run_name:
-            raise Exception(
+            raise RuntimeError(
                 'RUN_NAME environment variable must be set to use the AsyncEval callback'
             )
 
@@ -107,7 +112,6 @@ class AsyncEval(Callback):
         self,
         parameters: Dict[str, Any],
         run_name: str,
-        count: int = 0,
     ) -> Dict[str, Any]:
         looking_for = REQUIRED_PARAMS_FOR_EVAL.copy()
 
@@ -135,20 +139,17 @@ class AsyncEval(Callback):
         if 'fsdp_config' in subset_keys:
             subset_keys['fsdp_dict_cfg'] = subset_keys.pop('fsdp_config')
 
-        subset_keys['run_name'] = get_run_name(run_name, count)
+        subset_keys['run_name'] = get_run_name(run_name, 0)
         return subset_keys
 
-    def _launch_run(self) -> Run:
+    def launch_run(self) -> Run:
         cfg = self.current_run.submitted_config
         default_compute = {
             'nodes': 1,
             'cluster': self.current_run.cluster,
         }
-        params = self.get_eval_parameters(
-            cfg.parameters or {},
-            self.current_run.name,
-            self.count,
-        )
+        params = self.get_eval_parameters(cfg.parameters or {},
+                                          self.current_run.name)
 
         # TODO: This just runs an eval run, but we also want to attach the
         # deployment, which would require a hf conversion and parametrizing the
@@ -165,4 +166,8 @@ class AsyncEval(Callback):
             parameters=params,
         )
 
-        return create_run(c)
+        new_run = create_run(c)
+        log.info(
+            f'Launched new run {new_run.name} inside eval loop with config: \n{new_run.submitted_config}'
+        )
+        return new_run

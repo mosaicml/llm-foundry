@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML LLM Foundry authors
+# Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
@@ -8,7 +8,8 @@ from composer.core import Callback, Event, State, Time
 from composer.loggers import Logger
 from composer.loggers.mosaicml_logger import (MOSAICML_PLATFORM_ENV_VAR,
                                               RUN_NAME_ENV_VAR)
-from composer.utils import create_interval_scheduler, dist
+from composer.utils import dist
+from composer.utils.misc import create_interval_scheduler
 from mcli.api.runs import ComputeConfig  # TODO: should be available in root
 
 from mcli import Run, RunConfig, create_run, get_run
@@ -53,7 +54,7 @@ def get_load_path(save_folder: str,
 
 
 class AsyncEval(Callback):
-    """Run the eval loop asynchronously as part of a MosaicML platform run
+    """Run the eval loop asynchronously as part of a MosaicML platform run.
 
     Args:
         interval: Union[str, int, Time]: The interval describing how often eval runs should be
@@ -73,14 +74,17 @@ class AsyncEval(Callback):
 
         # Run these during init to fail fast in any of the error cases
         self.current_run = self._get_current_run()
-        self._get_eval_parameters()
+        self.get_eval_parameters(
+            self.current_run.submitted_config.parameters or {},
+            self.current_run.name,
+        )
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         del logger
         if state.get_elapsed_duration() is not None and self.check_interval(
                 state, event):
             new_run = self._launch_run()
-            logger.info(f'Launched new run {new_run.name} for eval loop')
+            log.info(f'Launched new run {new_run.name} for eval loop')
             self.count += 1
 
     def _get_current_run(self) -> Run:
@@ -99,17 +103,21 @@ class AsyncEval(Callback):
         # allows the MapiException to be raised if the run doesn't exist
         return get_run(run_name, include_details=True)
 
-    def _get_eval_parameters(self) -> Dict[str, Any]:
-        cfg_params = self.current_run.submitted_config.parameters or {}
+    def get_eval_parameters(
+        self,
+        parameters: Dict[str, Any],
+        run_name: str,
+        count: int = 0,
+    ) -> Dict[str, Any]:
         looking_for = REQUIRED_PARAMS_FOR_EVAL.copy()
 
         # Go through all parameters and pull out the ones needed for eval
         subset_keys = {}
-        for key in cfg_params:
+        for key in parameters:
             if key in OPTIONAL_PARAMS_FOR_EVAL:
-                subset_keys[key] = cfg_params[key]
+                subset_keys[key] = parameters[key]
             elif key in REQUIRED_PARAMS_FOR_EVAL:
-                subset_keys[key] = cfg_params[key]
+                subset_keys[key] = parameters[key]
                 looking_for.remove(key)
 
         if looking_for:
@@ -120,15 +128,15 @@ class AsyncEval(Callback):
         # Convert the save_folder to a load_path
         subset_keys['load_path'] = get_load_path(
             subset_keys.pop('save_folder'),
-            cfg_params.get('save_latest_filename', None))
+            parameters.get('save_latest_filename', None))
 
         # Rename the keys to match the eval script
-        subset_keys['models'] = [cfg_params.pop('model')]
-        if 'fsdp_cfg' in subset_keys:
-            subset_keys['fsdp_dict_cfg'] = cfg_params.pop('fsdp_cfg')
+        subset_keys['models'] = [subset_keys.pop('model')]
+        if 'fsdp_config' in subset_keys:
+            subset_keys['fsdp_dict_cfg'] = subset_keys.pop('fsdp_config')
 
-        cfg_params['run_name'] = get_run_name(self.current_run.name, self.count)
-        return cfg_params
+        subset_keys['run_name'] = get_run_name(run_name, count)
+        return subset_keys
 
     def _launch_run(self) -> Run:
         cfg = self.current_run.submitted_config
@@ -136,7 +144,11 @@ class AsyncEval(Callback):
             'nodes': 1,
             'cluster': self.current_run.cluster,
         }
-        params = self._get_eval_parameters()
+        params = self.get_eval_parameters(
+            cfg.parameters or {},
+            self.current_run.name,
+            self.count,
+        )
 
         # TODO: This just runs an eval run, but we also want to attach the
         # deployment, which would require a hf conversion and parametrizing the

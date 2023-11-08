@@ -26,6 +26,7 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM, build_finetuning_dataloader,
                         build_text_denoising_dataloader)
+from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_data_and_gauntlet,
@@ -519,7 +520,7 @@ def main(cfg: DictConfig) -> Trainer:
     ] if callback_configs else []
 
     use_async_eval = any(
-        isinstance(callback, Evaluator.Async) for callback in callbacks)
+        isinstance(callback, AsyncEval) for callback in callbacks)
 
     # Algorithms
     algorithms = [

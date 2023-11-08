@@ -43,6 +43,8 @@ from omegaconf import DictConfig
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
+from llmfoundry.utils.logging_utils import SpecificWarningFilter
+
 log = logging.getLogger(__name__)
 
 __all__ = ['dataset_constructor']
@@ -345,6 +347,12 @@ class DatasetConstructor:
 
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 
+        sequence_length_warning_filter = SpecificWarningFilter(
+            'Token indices sequence length is longer than the specified maximum sequence length')
+
+        # We will trim examples later in the collate_fn, so we want to silence this warning from Hugging Face
+        logging.addFilter(sequence_length_warning_filter)
+
         def dataset_mapper(example: Dict):
             if preprocessing_fn is not None:
                 example = preprocessing_fn(example)
@@ -406,6 +414,8 @@ class DatasetConstructor:
             os.remove(signal_file_path)
 
         log.debug('All ranks finished data prep')
+
+        logging.removeFilter(sequence_length_warning_filter)
         return empty_examples_dropped_dataset
 
     def build_from_streaming(self, *args: Any,

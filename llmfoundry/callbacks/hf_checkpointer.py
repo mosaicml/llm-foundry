@@ -98,6 +98,7 @@ class HuggingFaceCheckpointer(Callback):
         if self.upload_to_object_store:
             self.remote_ud = RemoteUploaderDownloader(
                 bucket_uri=f'{self.backend}://{self.bucket_name}',
+                backend_kwargs={'path': self.save_dir_format_str},
                 num_concurrent_uploads=4)
         else:
             self.remote_ud = None

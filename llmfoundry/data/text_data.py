@@ -96,7 +96,7 @@ class StreamingTextDataset(StreamingDataset):
                  epoch_size: Optional[int] = None,
                  predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
-                 partition_algo: str = 'orig',
+                 partition_algo: str = 'relaxed',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,

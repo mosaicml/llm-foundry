@@ -214,7 +214,7 @@ class DatasetConstructor:
 
     def print_registered_tasks(self) -> None:
         tasks = sorted(self._task_preprocessing_registry.keys())
-        print('\n'.join(tasks))
+        log.info('\n'.join(tasks))
 
     def get_preprocessing_fn_from_dict(
         self, mapping: Union[Dict, DictConfig]

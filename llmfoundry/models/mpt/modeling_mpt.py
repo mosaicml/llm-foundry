@@ -707,34 +707,30 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
-        if not hasattr(self.config, 'activation_checkpointing_target'
-                      ) or self.config.activation_checkpointing_target is None:
+        act_ckpt_list = getattr(self.config, 'activation_checkpointing_target',
+                                None) or ['MPTBlock']
+
+        if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
             log.info(
-                f'activation checkpointing MPTBlock as activation_checkpointing_target is not set in model_config'
+                'Activation checkpointing MPTBlock only (ignoring other sub-block modules if specified in activation_checkpointing_target).'
             )
             return isinstance(module, MPTBlock)
-        else:
-            act_ckpt_list = self.config.activation_checkpointing_target
-            if 'MPTBlock' in act_ckpt_list:
-                act_ckpt_list = ['MPTBlock']
-                warnings.warn(
-                    f'activation checkpointing MPTBlock, ignoring other sub-block modules if specified'
+
+        mod_types = ()
+        for mod_name in act_ckpt_list:
+            if mod_name.lower() == 'mptblock':
+                mod_types += (MPTBlock,)
+            elif mod_name in ATTN_CLASS_REGISTRY:
+                mod_types += (ATTN_CLASS_REGISTRY[mod_name],)
+            elif mod_name in FFN_CLASS_REGISTRY:
+                mod_types += (FFN_CLASS_REGISTRY[mod_name],)
+            elif mod_name in NORM_CLASS_REGISTRY:
+                mod_types += (NORM_CLASS_REGISTRY[mod_name],)
+            else:
+                raise ValueError(
+                    f'{mod_name=} (specified in activation_checkpointing_target) is not a recognized option, available options are names in ATTN_CLASS_REGISTRY, FFN_CLASS_REGISTRY, NORM_CLASS_REGISTRY, or MPTBlock.'
                 )
-            mod_types = ()
-            for mod_name in act_ckpt_list:
-                if mod_name.lower() == 'mptblock':
-                    mod_types += (MPTBlock,)
-                elif mod_name in ATTN_CLASS_REGISTRY:
-                    mod_types += (ATTN_CLASS_REGISTRY[mod_name],)
-                elif mod_name in FFN_CLASS_REGISTRY:
-                    mod_types += (FFN_CLASS_REGISTRY[mod_name],)
-                elif mod_name in NORM_CLASS_REGISTRY:
-                    mod_types += (NORM_CLASS_REGISTRY[mod_name],)
-                else:
-                    warnings.warn(
-                        f'module name specified in activation_checkpointing_target ({mod_name}) not recognized, available options are names in ATTN_CLASS_REGISTRY, FFN_CLASS_REGISTRY, NORM_CLASS_REGISTRY, or MPTBlock.'
-                    )
-            return isinstance(module, mod_types)
+        return isinstance(module, mod_types)
 
     def prepare_inputs_for_generation(
         self,

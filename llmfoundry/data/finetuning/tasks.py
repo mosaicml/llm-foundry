@@ -400,11 +400,11 @@ class DatasetConstructor:
         #         f'Dropped {empty_examples_removed} examples where the prompt or response was empty, '
         #         + 'or the response was only padding tokens.')
 
-        # # Now local rank 0 indicates to the other ranks that it is done
-        # if dist.get_local_rank() == 0:
-        #     log.debug('Local rank 0 finished data prep')
-        #     with open(signal_file_path, 'wb') as f:
-        #         f.write(b'local_rank0_completed_data_prep')
+        # Now local rank 0 indicates to the other ranks that it is done
+        if dist.get_local_rank() == 0:
+            log.debug('Local rank 0 finished data prep')
+            with open(signal_file_path, 'wb') as f:
+                f.write(b'local_rank0_completed_data_prep')
 
         # All ranks sync up at this barrier, having completed data processing
         dist.barrier()

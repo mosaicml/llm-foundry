@@ -10,7 +10,8 @@ from composer.loggers.mosaicml_logger import (MOSAICML_PLATFORM_ENV_VAR,
                                               RUN_NAME_ENV_VAR)
 from composer.utils import dist
 from composer.utils.misc import create_interval_scheduler
-from mcli.api.runs import ComputeConfig  # TODO: should be available in root
+from mcli.api.runs import \
+    ComputeConfig  # TODO: available in root in mcli 0.5.27+
 
 from mcli import Run, RunConfig, create_run, get_run
 
@@ -29,7 +30,7 @@ REQUIRED_PARAMS_FOR_EVAL = {
 OPTIONAL_PARAMS_FOR_EVAL = {
     'dist_timeout',
     'eval_gauntlet',
-    'fsdp_config',  # fsdp_dict_cfg
+    'fsdp_config',
     'icl_subset_num_batches',
     'loggers',
     'precision',
@@ -40,7 +41,7 @@ OPTIONAL_PARAMS_FOR_EVAL = {
 
 def get_run_name(previous_run_name: str, count: int) -> str:
     *name_without_uuid_suffix, _ = previous_run_name.split('-')
-    name_suffix = '-'.join(name_without_uuid_suffix)[:MAX_RUN_NAME_LENGTH]
+    name_suffix = ('-'.join(name_without_uuid_suffix))[:MAX_RUN_NAME_LENGTH]
     return f'eval{count}-{name_suffix}'
 
 

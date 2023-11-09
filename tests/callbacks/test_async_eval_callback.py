@@ -16,7 +16,7 @@ def test_get_run_name():
     a = get_run_name('foo-1234', 0)
     assert a == 'eval0-foo'
 
-    b = get_run_name(50 * 'foo-1234', 1)
+    b = get_run_name(50 * 'foo' + '-1234', 1)
     assert b == 'eval1-foofoofoofoofoofoofoofoofoofoofoofoofoof'
 
 
@@ -149,7 +149,7 @@ def test_get_eval_parameters():
             },
         }],
         'eval_gauntlet': 'eval_gauntlet_example',
-        'fsdp_dict_cfg': {
+        'fsdp_config': {
             'fsdp_cfg_example': 'fsdp_cfg_example'
         },
         'icl_subset_num_batches': 4,
@@ -222,5 +222,16 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
     assert parameters['icl_tasks'] == 'icl_task_example'
     assert parameters['max_seq_len'] == 3
     assert parameters['load_path'] == 'save_folder_example/latest-rank0.pt'
-    assert parameters['models'] == ['model_example']
+    assert parameters['models'] == [{
+        'model_name': 'model_example',
+        'model': {
+            'name': 'model_example',
+            'attn_config': {
+                'foo': 'bar'
+            }
+        },
+        'tokenizer': {
+            'tokenizer_example': 'tokenizer_example'
+        }
+    }]
     assert parameters['run_name'] == 'eval0-foo_bar'  # original run

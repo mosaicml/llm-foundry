@@ -34,9 +34,6 @@ from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
 
-import datasets
-datasets.logging.set_verbosity_debug()
-
 
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""

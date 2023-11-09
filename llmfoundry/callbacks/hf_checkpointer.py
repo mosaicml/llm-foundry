@@ -69,6 +69,7 @@ class HuggingFaceCheckpointer(Callback):
 
         # mlflow config setup
         self.mlflow_registered_model_name = mlflow_registered_model_name
+        print(f"__init__::mlflow_logging_config={mlflow_logging_config}\n[{type(mlflow_logging_config)}]")
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:

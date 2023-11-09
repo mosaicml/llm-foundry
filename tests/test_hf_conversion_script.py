@@ -5,7 +5,7 @@ import math
 import os
 import pathlib
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from composer import Trainer
 from composer.loggers import MLFlowLogger
@@ -254,6 +254,7 @@ def test_callback_inits_with_defaults():
 @pytest.mark.parametrize(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
     [('3ba', '2ba', '7ba', 3, 4), ('1dur', '2ba', '1ep', 1, 4)])
+@patch('os.cpu_count', MagicMock(return_value=None))
 def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                                          fsdp_state_dict_type: Optional[str],
                                          log_to_mlflow: bool,

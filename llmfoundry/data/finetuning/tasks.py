@@ -379,32 +379,32 @@ class DatasetConstructor:
                 f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
             )
 
-        pad_token_id = tokenizer.pad_token_id
+        # pad_token_id = tokenizer.pad_token_id
 
-        def filter_empty_examples(example: Dict) -> bool:
-            return len(example['input_ids']) > 0 and len(
-                example['labels']) > 0 and any(
-                    token_id != pad_token_id for token_id in example['labels'])
+        # def filter_empty_examples(example: Dict) -> bool:
+        #     return len(example['input_ids']) > 0 and len(
+        #         example['labels']) > 0 and any(
+        #             token_id != pad_token_id for token_id in example['labels'])
 
-        empty_examples_dropped_dataset = prompt_length_filtered_dataset.filter(
-            filter_empty_examples,
-            num_proc=num_cpus_to_use,
-            desc='Filtering out empty examples')
+        # empty_examples_dropped_dataset = prompt_length_filtered_dataset.filter(
+        #     filter_empty_examples,
+        #     num_proc=num_cpus_to_use,
+        #     desc='Filtering out empty examples')
 
-        log.debug('Done tokenizing and filtering examples.')
+        # log.debug('Done tokenizing and filtering examples.')
 
-        empty_examples_removed = len(prompt_length_filtered_dataset) - len(
-            empty_examples_dropped_dataset)
-        if empty_examples_removed > 0:
-            warnings.warn(
-                f'Dropped {empty_examples_removed} examples where the prompt or response was empty, '
-                + 'or the response was only padding tokens.')
+        # empty_examples_removed = len(prompt_length_filtered_dataset) - len(
+        #     empty_examples_dropped_dataset)
+        # if empty_examples_removed > 0:
+        #     warnings.warn(
+        #         f'Dropped {empty_examples_removed} examples where the prompt or response was empty, '
+        #         + 'or the response was only padding tokens.')
 
-        # Now local rank 0 indicates to the other ranks that it is done
-        if dist.get_local_rank() == 0:
-            log.debug('Local rank 0 finished data prep')
-            with open(signal_file_path, 'wb') as f:
-                f.write(b'local_rank0_completed_data_prep')
+        # # Now local rank 0 indicates to the other ranks that it is done
+        # if dist.get_local_rank() == 0:
+        #     log.debug('Local rank 0 finished data prep')
+        #     with open(signal_file_path, 'wb') as f:
+        #         f.write(b'local_rank0_completed_data_prep')
 
         # All ranks sync up at this barrier, having completed data processing
         dist.barrier()
@@ -414,7 +414,7 @@ class DatasetConstructor:
             os.remove(signal_file_path)
 
         log.debug('All ranks finished data prep')
-        return empty_examples_dropped_dataset
+        return prompt_length_filtered_dataset
 
     def build_from_streaming(self, *args: Any,
                              **kwargs: Any) -> StreamingFinetuningDataset:

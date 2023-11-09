@@ -53,7 +53,7 @@ class HuggingFaceCheckpointer(Callback):
         save_interval: Union[str, int, Time],
         huggingface_folder_name: str = 'ba{batch}',
         precision: str = 'float32',
-        overwrite: bool = False,
+        overwrite: bool = True,
         mlflow_registered_model_name: Optional[str] = None,
         mlflow_logging_config: Optional[dict] = None,
     ):

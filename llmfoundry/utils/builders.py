@@ -118,9 +118,12 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
         return EarlyStopper(**kwargs)
     elif name == 'hf_checkpointer':
         mlflow_logging_config = kwargs.pop('mlflow_logging_config', None)
+        print(f"build_callback::mlflow_logging_config={mlflow_logging_config}")
+        print(f"build_callback::isinstance(mlflow_logging_config, DictConfig)={isinstance(mlflow_logging_config, DictConfig)}")
         if isinstance(mlflow_logging_config, DictConfig):
             mlflow_logging_config = om.to_object(mlflow_logging_config)
         kwargs['mlflow_logging_config'] = mlflow_logging_config
+        print(f"build_callback::kwargs['mlflow_logging_config']={kwargs['mlflow_logging_config']}")
         return HuggingFaceCheckpointer(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')

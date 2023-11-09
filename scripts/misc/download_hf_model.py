@@ -14,6 +14,7 @@ from llmfoundry.utils.model_download_utils import (download_from_cache_server,
 
 HF_TOKEN_ENV_VAR = 'HUGGING_FACE_HUB_TOKEN'
 
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 if __name__ == '__main__':
@@ -35,8 +36,7 @@ if __name__ == '__main__':
         '--fallback',
         action='store_true',
         default=False,
-        help=
-        'Whether to fallback to downloading from Hugging Face if download from cache fails',
+        help='Whether to fallback to downloading from Hugging Face if download from cache fails',
     )
 
     args = argparser.parse_args(sys.argv[1:])

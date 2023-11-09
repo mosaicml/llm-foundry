@@ -24,9 +24,8 @@ from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
-                        MPTForCausalLM, build_finetuning_dataloader,
-                        build_text_denoising_dataloader)
-from llmfoundry.data.text_data import build_text_dataloader
+                        MPTForCausalLM)
+from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_data_and_gauntlet,
                                        build_logger, build_optimizer,
@@ -167,30 +166,6 @@ def print_trainable_parameters(model: torch.nn.Module) -> None:
     print(
         f'trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}'
     )
-
-
-def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-                     device_batch_size: int):
-    if cfg.name == 'text':
-        return build_text_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-    elif cfg.name == 'text_denoising':
-        return build_text_denoising_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-    elif cfg.name == 'finetuning':
-        return build_finetuning_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-    else:
-        raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
 def main(cfg: DictConfig) -> Trainer:
@@ -408,6 +383,12 @@ def main(cfg: DictConfig) -> Trainer:
                                                           'compile_config',
                                                           must_exist=False,
                                                           default_value=None)
+    metadata: Optional[Dict[str, str]] = pop_config(cfg,
+                                                    'metadata',
+                                                    must_exist=False,
+                                                    default_value=None,
+                                                    convert=True)
+
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
     if logged_cfg.get('run_name', None) is not None \
@@ -484,6 +465,14 @@ def main(cfg: DictConfig) -> Trainer:
             # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
             mosaicml_logger = MosaicMLLogger()
             loggers.append(mosaicml_logger)
+
+    if metadata is not None:
+        # Flatten the metadata for logging
+        logged_cfg.pop('metadata', None)
+        logged_cfg.update(metadata, merge=True)
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_metrics(metadata)
+            mosaicml_logger._flush_metadata(force_flush=True)
 
     # Profiling
     profiler: Optional[Profiler] = None

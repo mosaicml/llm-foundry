@@ -183,12 +183,13 @@ class MPTModel(MPTPreTrainedModel):
         ])
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
-        self.unembed = None
-        if config.tie_embd:
-            self.unembed = nn.Linear(config.d_model,
+        self.lm_head = None
+        if config.tie_word_embeddings is False:
+            self.lm_head = nn.Linear(config.d_model,
                                      config.vocab_size,
                                      bias=False,
                                      device=config.init_device)
+            self.lm_head._fsdp_wrap = True
 
         self.rope = config.attn_config['rope']
         self.rope_impl = None
@@ -581,10 +582,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     def __init__(self, config: MPTConfig):
         super().__init__(config)
-        if not config.tie_word_embeddings:
-            raise ValueError(
-                'MPTForCausalLM only supports tied word embeddings')
-
         log.info(f'Instantiating an MPTForCausalLM model from {__file__}')
 
         self.transformer: MPTModel = MPTModel(config)
@@ -666,8 +663,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
         )
 
         out = outputs.last_hidden_state.to(self.transformer.wte.weight.device)
-        if self.transformer.unembed is not None:
-            logits = self.transformer.unembed(out)
+        if self.transformer.lm_head is not None:
+            logits = self.transformer.lm_head(out)
         else:
             # move outputs to same device as weights for token embedding
             # needed to support HF `device_map`
@@ -867,7 +864,11 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         # assume the backward pass is approximately 2x the forward pass
 
         bs, msl = batch['input_ids'].shape[0:2]
-        params_flops_per_token = 2 * self.n_active_params
+        params = self.n_active_params
+        if self.model.transformer.config.tie_word_embeddings is False:
+            # embedding layers are lookup tables, therefore are not counted in the FLOP computation
+            params -= self.model.transformer.wte.weight.numel()
+        params_flops_per_token = 2 * params
         params_flops_per_seq = params_flops_per_token * msl
         attn_flops_per_seq = (self.model.config.n_layers * 2 * 2 *
                               (self.model.config.d_model * (msl**2)))

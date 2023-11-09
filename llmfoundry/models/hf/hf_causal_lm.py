@@ -71,7 +71,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
             InContextLearningCodeEvalAccuracy(),
-            InContextLearningCodeExecutionPredictionAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError()
         ]

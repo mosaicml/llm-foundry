@@ -22,6 +22,7 @@ from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
+from transforms.utils import logging as transformers_logging
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM)
@@ -35,6 +36,9 @@ from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            update_batch_size_info)
 
 log = logging.getLogger(__name__)
+
+transformers_logging.enable_default_handler()
+transformers_logging.disable_progress_bar()
 
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""
@@ -437,16 +441,6 @@ def main(cfg: DictConfig) -> Trainer:
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
         )
         logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
-
-        # Configure Hugging Face logging
-        hf_logger = logging.getLogger('transformers')
-        hf_logger.setLevel(logging.WARNING)
-        handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter(
-            fmt=f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
-        )
-        handler.setFormatter(formatter)
-        hf_logger.addHandler(handler)
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)

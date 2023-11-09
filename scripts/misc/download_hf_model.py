@@ -14,7 +14,8 @@ from llmfoundry.utils.model_download_utils import (download_from_cache_server,
 
 HF_TOKEN_ENV_VAR = 'HUGGING_FACE_HUB_TOKEN'
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(format=f'%(asctime)s: %(levelname)s: %(name)s: %(message)s',
+                    level=logging.INFO)
 log = logging.getLogger(__name__)
 
 if __name__ == '__main__':
@@ -61,12 +62,13 @@ if __name__ == '__main__':
             log.info('Repairing Hugging Face cache symlinks')
 
             # Hide some noisy logs that aren't important for just the symlink repair.
-            old_level = log.level
-            log.setLevel(logging.WARNING)
+            old_level = logging.getLogger().level
+            logging.getLogger().setLevel(logging.ERROR)
             download_from_hf_hub(args.model,
                                  save_dir=args.save_dir,
                                  token=args.token)
-            log.setLevel(old_level)  # Restore the original log level
+            logging.getLogger().setLevel(old_level)
+
         except PermissionError:
             log.error(f'Not authorized to download {args.model}.')
         except Exception as e:

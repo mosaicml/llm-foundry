@@ -366,9 +366,13 @@ class DatasetConstructor:
         pad_token_id = tokenizer.pad_token_id
 
         def filter_long_or_empty_examples(example: Dict) -> bool:
-            return (len(example['input_ids']) < max_seq_len) and (
-                len(example['input_ids']) > 0 and len(example['labels']) > 0 and
-                any(token_id != pad_token_id for token_id in example['labels']))
+            less_than_max_seq_len = len(example['input_ids']) < max_seq_len
+            non_empty_input = len(example['input_ids']) > 0
+            non_empty_labels = len(example['labels']) > 0
+            non_padding_response = any(
+                token_id != pad_token_id for token_id in example['labels'])
+            return (less_than_max_seq_len and non_empty_input and
+                    non_empty_labels and non_padding_response)
 
         filtered_dataset = tokenized_dataset.filter(
             filter_long_or_empty_examples,

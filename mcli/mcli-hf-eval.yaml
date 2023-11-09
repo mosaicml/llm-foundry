@@ -7,8 +7,6 @@ integrations:
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  pip uninstall mosaicml -y
-  pip install git+https://github.com/bmosaicml/composer.git@codetracing
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 

@@ -47,7 +47,7 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml@git+https://github.com/bmosaicml/composer.git@codetracing',
+    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.16.4,<0.17',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
     'transformers>=4.34.1,<4.35',
     'mosaicml-streaming>=0.6,<0.7',

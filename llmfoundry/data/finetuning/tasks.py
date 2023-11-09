@@ -364,8 +364,11 @@ class DatasetConstructor:
         )
 
         pad_token_id = tokenizer.pad_token_id
+
         def filter_long_or_empty_examples(example: Dict) -> bool:
-            return (len(example['input_ids']) < max_seq_len) and (len(example['input_ids']) > 0 and len(example['labels']) > 0 and any(token_id != pad_token_id for token_id in example['labels']))
+            return (len(example['input_ids']) < max_seq_len) and (
+                len(example['input_ids']) > 0 and len(example['labels']) > 0 and
+                any(token_id != pad_token_id for token_id in example['labels']))
 
         filtered_dataset = tokenized_dataset.filter(
             filter_long_or_empty_examples,
@@ -373,11 +376,11 @@ class DatasetConstructor:
             desc='Filtering out long prompts',
         )
 
-        examples_removed = len(tokenized_dataset) - len(
-            filtered_dataset)
+        examples_removed = len(tokenized_dataset) - len(filtered_dataset)
         if examples_removed > 0:
             warnings.warn(
-                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, ' + 
+                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, '
+                +
                 'the prompt or response was empty, or the response was all padding tokens.'
             )
 

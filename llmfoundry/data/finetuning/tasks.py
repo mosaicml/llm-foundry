@@ -362,8 +362,12 @@ class DatasetConstructor:
             num_proc=num_cpus_to_use,
             desc='Tokenizing dataset',
         )
+
+        def filter_long_prompts(example: Dict) -> bool:
+            return len(example['input_ids']) < max_seq_len
+
         prompt_length_filtered_dataset = tokenized_dataset.filter(
-            lambda example: len(example['input_ids']) < max_seq_len,
+            filter_long_prompts,
             num_proc=num_cpus_to_use,
             desc='Filtering out long prompts',
         )
@@ -376,10 +380,14 @@ class DatasetConstructor:
             )
 
         pad_token_id = tokenizer.pad_token_id
+
+        def filter_empty_examples(example: Dict) -> bool:
+            return len(example['input_ids']) > 0 and len(
+                example['labels']) > 0 and any(
+                    token_id != pad_token_id for token_id in example['labels'])
+
         empty_examples_dropped_dataset = prompt_length_filtered_dataset.filter(
-            lambda example: len(example['input_ids']) > 0 and len(example[
-                'labels']) > 0 and any(token_id != pad_token_id
-                                       for token_id in example['labels']),
+            filter_empty_examples,
             num_proc=num_cpus_to_use,
             desc='Filtering out empty examples')
 

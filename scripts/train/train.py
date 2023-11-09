@@ -10,6 +10,7 @@ import warnings
 from typing import Any, Dict, List, Optional, Union
 
 import torch
+import datasets as hf_datasets
 from composer import Trainer
 from composer.core import Evaluator
 from composer.core.callback import Callback
@@ -39,6 +40,7 @@ log = logging.getLogger(__name__)
 
 transformers_logging.enable_default_handler()
 transformers_logging.disable_progress_bar()
+hf_datasets.logging.disable_progress_bar()
 
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""

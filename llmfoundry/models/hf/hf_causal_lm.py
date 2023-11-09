@@ -11,7 +11,6 @@ from typing import Mapping, Union
 import transformers
 from composer.metrics.nlp import (
     InContextLearningCodeEvalAccuracy,
-    InContextLearningCodeExecutionPredictionAccuracy,
     InContextLearningLMAccuracy, InContextLearningLMExpectedCalibrationError,
     InContextLearningMCExpectedCalibrationError,
     InContextLearningMultipleChoiceAccuracy, InContextLearningQAAccuracy,

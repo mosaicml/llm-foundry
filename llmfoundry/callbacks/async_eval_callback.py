@@ -162,6 +162,13 @@ class AsyncEval(Callback):
             subset_keys.pop('save_folder'),
             parameters.get('save_latest_filename', None))
 
+        # Update the loggers to use the training run name
+        for logger, config in subset_keys.get('loggers', []):
+            if logger == 'wandb':
+                config['name'] = config.get('name', run_name)
+            elif logger == 'mlflow':
+                config['run_name'] = config.get('run_name', run_name)
+
         # Create new eval models list
         subset_keys['models'] = get_eval_models_dict(
             subset_keys.pop('model'), subset_keys.pop('tokenizer'))

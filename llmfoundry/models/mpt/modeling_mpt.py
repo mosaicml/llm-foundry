@@ -711,9 +711,10 @@ class MPTForCausalLM(MPTPreTrainedModel):
                                 None) or ['MPTBlock']
 
         if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
-            log.info(
-                'Activation checkpointing MPTBlock only (ignoring other sub-block modules if specified in activation_checkpointing_target).'
-            )
+            if len(act_ckpt_list) > 1:
+                log.info(
+                    'Activation checkpointing MPTBlock only (ignoring other sub-block modules specified in activation_checkpointing_target).'
+                )
             return isinstance(module, MPTBlock)
 
         mod_types = ()
@@ -727,8 +728,12 @@ class MPTForCausalLM(MPTPreTrainedModel):
             elif mod_name in NORM_CLASS_REGISTRY:
                 mod_types += (NORM_CLASS_REGISTRY[mod_name],)
             else:
+                msg = ', '.join(
+                    list(ATTN_CLASS_REGISTRY.keys()) +
+                    list(FFN_CLASS_REGISTRY.keys()) +
+                    list(NORM_CLASS_REGISTRY.keys()) + ['MPTBlock'])
                 raise ValueError(
-                    f'{mod_name=} (specified in activation_checkpointing_target) is not a recognized option, available options are names in ATTN_CLASS_REGISTRY, FFN_CLASS_REGISTRY, NORM_CLASS_REGISTRY, or MPTBlock.'
+                    f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option, available options are {msg}.'
                 )
         return isinstance(module, mod_types)
 

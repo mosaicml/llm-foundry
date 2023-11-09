@@ -183,6 +183,13 @@ class MPTModel(MPTPreTrainedModel):
         ])
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
+        self.unembed = None
+        if config.tie_embd:
+            self.unembed = nn.Linear(config.d_model,
+                                     config.vocab_size,
+                                     bias=False,
+                                     device=config.init_device)
+
         self.rope = config.attn_config['rope']
         self.rope_impl = None
         if self.rope:
@@ -658,12 +665,13 @@ class MPTForCausalLM(MPTPreTrainedModel):
             use_cache=use_cache,
         )
 
-        # move outputs to same device as weights for token embedding
-        # needed to support HF `device_map`
-        logits = self.transformer.wte(
-            outputs.last_hidden_state.to(self.transformer.wte.weight.device),
-            True,
-        )
+        out = outputs.last_hidden_state.to(self.transformer.wte.weight.device)
+        if self.unembed is not None:
+            logits = self.transformer.unembed(out)
+        else:
+            # move outputs to same device as weights for token embedding
+            # needed to support HF `device_map`
+            logits = self.transformer.wte(out, True)
 
         if self.logit_scale is not None:
             if self.logit_scale == 0:

@@ -59,6 +59,7 @@ class MPTConfig(PretrainedConfig):
         use_cache: bool = False,
         init_config: Dict = init_config_defaults,
         fc_type: str = 'torch',
+        tie_embd: bool = True,
         verbose: Optional[int] = None,
         **kwargs: Any,
     ):
@@ -128,6 +129,7 @@ class MPTConfig(PretrainedConfig):
                 ---
                 See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
             fc_type (str): choose fc layer implementation. Options: torch and te. te layers support fp8 when using H100 GPUs.
+            tie_embd (bool): Whether to tie the input embedding and output layers.
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -148,6 +150,7 @@ class MPTConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.init_config = init_config
         self.fc_type = fc_type
+        self.tie_embd = tie_embd
         if verbose is not None:
             warnings.warn(
                 DeprecationWarning(

@@ -377,7 +377,8 @@ class DatasetConstructor:
             filtered_dataset)
         if examples_removed > 0:
             warnings.warn(
-                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
+                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, ' + 
+                'the prompt or response was empty, or the response was all padding tokens.'
             )
 
         # Now local rank 0 indicates to the other ranks that it is done

@@ -170,7 +170,8 @@ eval_gauntlet:
     - name: bbq
       num_fewshot: 3
       random_baseline: 0.5
-  # THIS CATEGORY IS PARTICULARLY SLOW, USE SPARINGLY
+  # THIS CATEGORY IS PARTICULARLY SLOW, USE SPARINGLY.
+  # TASKS ARE DEFINED IN `coding_tasks.yaml`
   # - name: programming
   #   benchmarks:
   #   - name: human_eval

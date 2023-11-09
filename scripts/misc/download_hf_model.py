@@ -36,7 +36,8 @@ if __name__ == '__main__':
         '--fallback',
         action='store_true',
         default=False,
-        help='Whether to fallback to downloading from Hugging Face if download from cache fails',
+        help=
+        'Whether to fallback to downloading from Hugging Face if download from cache fails',
     )
 
     args = argparser.parse_args(sys.argv[1:])

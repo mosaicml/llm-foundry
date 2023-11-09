@@ -6,16 +6,16 @@ import copy
 import logging
 import os
 import time
+import warnings
 from http import HTTPStatus
 from typing import Optional
 from urllib.parse import urljoin
-import warnings
 
-from bs4 import BeautifulSoup
 import huggingface_hub as hf_hub
 import requests
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import tenacity
+from bs4 import BeautifulSoup
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from transformers.utils import SAFE_WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_NAME
 from transformers.utils import WEIGHTS_INDEX_NAME as PYTORCH_WEIGHTS_INDEX_NAME
 from transformers.utils import WEIGHTS_NAME as PYTORCH_WEIGHTS_NAME
@@ -33,8 +33,8 @@ log = logging.getLogger(__name__)
 
 @tenacity.retry(retry=tenacity.retry_if_not_exception_type(
     (ValueError, hf_hub.utils.RepositoryNotFoundError)),
-    stop=tenacity.stop_after_attempt(3),
-    wait=tenacity.wait_exponential(min=1, max=10))
+                stop=tenacity.stop_after_attempt(3),
+                wait=tenacity.wait_exponential(min=1, max=10))
 def download_from_hf_hub(
     repo_id: str,
     save_dir: Optional[str] = None,
@@ -181,8 +181,8 @@ def _recursive_download(
 
 @tenacity.retry(retry=tenacity.retry_if_not_exception_type(
     (PermissionError, ValueError)),
-    stop=tenacity.stop_after_attempt(3),
-    wait=tenacity.wait_exponential(min=1, max=10))
+                stop=tenacity.stop_after_attempt(3),
+                wait=tenacity.wait_exponential(min=1, max=10))
 def download_from_cache_server(
     model_name: str,
     cache_base_url: str,
@@ -214,14 +214,13 @@ def download_from_cache_server(
 
         download_start = time.time()
 
-        # Only downloads the blobs in order to avoid downloading model files twice due to the
-        # symlnks in the Hugging Face cache structure:
+        # Temporarily suppress noisy SSL certificate verification warnings if ignore_cert is set to True
         with warnings.catch_warnings():
-            # Disable noisy SSL certificate verification warnings if ignore_cert is set to True
             if ignore_cert:
-                warnings.simplefilter(
-                    'ignore', category=InsecureRequestWarning)
+                warnings.simplefilter('ignore', category=InsecureRequestWarning)
 
+            # Only downloads the blobs in order to avoid downloading model files twice due to the
+            # symlnks in the Hugging Face cache structure:
             _recursive_download(
                 session,
                 cache_base_url,

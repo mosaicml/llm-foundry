@@ -440,10 +440,10 @@ def main(cfg: DictConfig) -> Trainer:
 
         # Configure Hugging Face logging
         hf_logger = logging.getLogger('transformers')
-        hf_logger.setLevel(python_log_level.upper())
+        hf_logger.setLevel(logging.WARNING)
         handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
-            '%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+            fmt=f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
         )
         handler.setFormatter(formatter)
         hf_logger.addHandler(handler)

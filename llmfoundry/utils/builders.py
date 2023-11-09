@@ -118,7 +118,7 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
         return EarlyStopper(**kwargs)
     elif name == 'hf_checkpointer':
         mlflow_logging_config = kwargs.pop('mlflow_logging_config', None)
-        if isinstance(mlflow_logging_config, omegaconf.dictconfig.DictConfig):
+        if isinstance(mlflow_logging_config, DictConfig):
             mlflow_logging_config = om.to_object(mlflow_logging_config)
         kwargs['mlflow_logging_config'] = mlflow_logging_config
         return HuggingFaceCheckpointer(**kwargs)

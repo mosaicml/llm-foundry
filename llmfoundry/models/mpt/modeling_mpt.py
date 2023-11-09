@@ -666,7 +666,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         )
 
         out = outputs.last_hidden_state.to(self.transformer.wte.weight.device)
-        if self.unembed is not None:
+        if self.transformer.unembed is not None:
             logits = self.transformer.unembed(out)
         else:
             # move outputs to same device as weights for token embedding

@@ -446,6 +446,7 @@ def main(cfg: DictConfig) -> Trainer:
             '%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
         )
         handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)

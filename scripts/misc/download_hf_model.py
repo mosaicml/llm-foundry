@@ -35,7 +35,7 @@ if __name__ == '__main__':
     argparser.add_argument(
         '--fallback',
         action='store_true',
-        default=False,
+        default=True,
         help=
         'Whether to fallback to downloading from Hugging Face if download from cache fails',
     )
@@ -54,11 +54,24 @@ if __name__ == '__main__':
                 token=args.token,
                 ignore_cert=args.ignore_cert,
             )
+
+            # A little hacky: run the Hugging Face download just to repair the symlinks in the HF cache file structure.
+            # This shouldn't actually download any files if the cache server download was successful, but should address
+            # a non-deterministic bug where the symlinks aren't repaired properly by the time the model is initialized.
+            log.info('Repairing Hugging Face cache symlinks')
+
+            # Hide some noisy logs that aren't important for just the symlink repair.
+            old_level = log.level
+            log.setLevel(logging.WARNING)
+            download_from_hf_hub(args.model,
+                                 save_dir=args.save_dir,
+                                 token=args.token)
+            log.setLevel(old_level)  # Restore the original log level
         except PermissionError:
             log.error(f'Not authorized to download {args.model}.')
         except Exception as e:
             if args.fallback:
-                log.warn(
+                log.warning(
                     f'Failed to download {args.model} from cache server. Falling back to Hugging Face Hub. Error: {e}'
                 )
                 download_from_hf_hub(args.model,

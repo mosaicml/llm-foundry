@@ -733,7 +733,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     list(FFN_CLASS_REGISTRY.keys()) +
                     list(NORM_CLASS_REGISTRY.keys()) + ['MPTBlock'])
                 raise ValueError(
-                    f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option, available options are {msg}.'
+                    f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option out of available options {msg}.'
                 )
         return isinstance(module, mod_types)
 

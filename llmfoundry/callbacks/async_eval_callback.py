@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from composer.core import Callback, Event, State, Time
 from composer.loggers import Logger
@@ -18,12 +18,12 @@ log = logging.getLogger(__name__)
 
 MAX_RUN_NAME_LENGTH = 40
 
-# Note: train parameter names. See comments if they are different from eval
 REQUIRED_PARAMS_FOR_EVAL = {
     'device_eval_batch_size',
-    'icl_tasks',  # only required for eval
+    'icl_tasks',  # only required for eval, may not be specified in pure training
     'max_seq_len',
-    'model',  # models
+    'model',  # converted into models
+    'tokenizer',  # converted into models
     'save_folder',  # required, but used as load_path
 }
 OPTIONAL_PARAMS_FOR_EVAL = {
@@ -39,7 +39,9 @@ OPTIONAL_PARAMS_FOR_EVAL = {
 
 
 def get_run_name(previous_run_name: str, count: int) -> str:
-    return f'eval{count}-{previous_run_name[:MAX_RUN_NAME_LENGTH]}'
+    *name_without_uuid_suffix, _ = previous_run_name.split('-')
+    name_suffix = '-'.join(name_without_uuid_suffix)[:MAX_RUN_NAME_LENGTH]
+    return f'eval{count}-{name_suffix}'
 
 
 def get_load_path(save_folder: str,
@@ -51,6 +53,24 @@ def get_load_path(save_folder: str,
         save_latest_filename = f'latest-rank{rank}.pt'
 
     return f'{save_folder}/{save_latest_filename}'
+
+
+def get_eval_models_dict(
+    model: Dict[str, Any],
+    tokenizer: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    name = model.get('name')
+
+    cfg_overrides = model.pop('cfg_overrides', {})
+    for key in cfg_overrides:
+        model[key] = cfg_overrides[key]
+
+    new_model = {'model_name': name, 'model': model}
+
+    if tokenizer:
+        new_model['tokenizer'] = tokenizer
+
+    return [new_model]
 
 
 class AsyncEval(Callback):
@@ -74,6 +94,7 @@ class AsyncEval(Callback):
         self.check_interval = create_interval_scheduler(interval)
         self.compute = compute
         self.count = 0
+        self.last_launch: Optional[Time] = None
 
         # Run these during init to fail fast in any of the error cases
         self.current_run = self._get_current_run()
@@ -88,8 +109,10 @@ class AsyncEval(Callback):
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         del logger
         if state.get_elapsed_duration() is not None and self.check_interval(
-                state, event):
+                state, event) and self.last_launch != state.timestamp.batch:
             self.launch_run()
+
+            self.last_launch = state.timestamp.batch
             self.count += 1
 
     def _get_current_run(self) -> Run:
@@ -134,10 +157,9 @@ class AsyncEval(Callback):
             subset_keys.pop('save_folder'),
             parameters.get('save_latest_filename', None))
 
-        # Rename the keys to match the eval script
-        subset_keys['models'] = [subset_keys.pop('model')]
-        if 'fsdp_config' in subset_keys:
-            subset_keys['fsdp_dict_cfg'] = subset_keys.pop('fsdp_config')
+        # Create new eval models list
+        subset_keys['models'] = get_eval_models_dict(
+            subset_keys.pop('model'), subset_keys.pop('tokenizer'))
 
         subset_keys['run_name'] = get_run_name(run_name, 0)
         return subset_keys

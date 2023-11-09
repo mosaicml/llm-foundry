@@ -1,19 +1,21 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from unittest.mock import patch
 
 import pytest
 
-from llmfoundry.callbacks import AsyncEval
-from llmfoundry.callbacks.async_eval_callback import get_run_name
+from llmfoundry.callbacks.async_eval_callback import AsyncEval, get_run_name
 from mcli import Run, RunConfig, RunStatus
 
-RUN_NAME = 'foo_bar'
+RUN_NAME = 'foo_bar-1234'
 
 
 def test_get_run_name():
-    a = get_run_name('foo', 0)
+    a = get_run_name('foo-1234', 0)
     assert a == 'eval0-foo'
 
-    b = get_run_name(50 * 'foo', 1)
+    b = get_run_name(50 * 'foo-1234', 1)
     assert b == 'eval1-foofoofoofoofoofoofoofoofoofoofoofoofoof'
 
 
@@ -49,6 +51,25 @@ def test_fails_when_no_run_name():
             AsyncEval(interval='2ba')
 
 
+BASIC_PARAMS = {
+    'device_eval_batch_size': 2,
+    'icl_tasks': 'icl_task_example',
+    'max_seq_len': 3,
+    'model': {
+        'name': 'model_example',
+        'cfg_overrides': {
+            'attn_config': {
+                'foo': 'bar'
+            }
+        }
+    },
+    'tokenizer': {
+        'tokenizer_example': 'tokenizer_example',
+    },
+    'save_folder': 'save_folder_example',
+}
+
+
 def test_get_eval_parameters():
     with pytest.raises(
             Exception,
@@ -56,24 +77,29 @@ def test_get_eval_parameters():
         AsyncEval.get_eval_parameters(None, {}, RUN_NAME)
 
     # minimal example
-    params = AsyncEval.get_eval_parameters(
-        None, {
-            'device_eval_batch_size': 2,
-            'icl_tasks': 'icl_task_example',
-            'max_seq_len': 3,
-            'model': {
-                'model_example': 'model_example'
-            },
-            'save_folder': 'save_folder_example',
-        }, RUN_NAME)
+    params = AsyncEval.get_eval_parameters(None, BASIC_PARAMS, RUN_NAME)
     assert params == {
-        'device_eval_batch_size': 2,
-        'icl_tasks': 'icl_task_example',
-        'max_seq_len': 3,
-        'load_path': 'save_folder_example/latest-rank0.pt',
-        'run_name': 'eval0-foo_bar',
+        'device_eval_batch_size':
+            2,
+        'icl_tasks':
+            'icl_task_example',
+        'max_seq_len':
+            3,
+        'load_path':
+            'save_folder_example/latest-rank0.pt',
+        'run_name':
+            'eval0-foo_bar',
         'models': [{
-            'model_example': 'model_example'
+            'model_name': 'model_example',
+            'model': {
+                'name': 'model_example',
+                'attn_config': {
+                    'foo': 'bar'
+                },
+            },
+            'tokenizer': {
+                'tokenizer_example': 'tokenizer_example'
+            },
         }],
     }
 
@@ -82,13 +108,7 @@ def test_get_eval_parameters():
         None,
         {
             # required
-            'device_eval_batch_size': 2,
-            'icl_tasks': 'icl_task_example',
-            'max_seq_len': 3,
-            'model': {
-                'model_example': 'model_example'
-            },
-            'save_folder': 'save_folder_example',
+            **BASIC_PARAMS,
             # optional
             'dist_timeout': 1,
             'eval_gauntlet': 'eval_gauntlet_example',
@@ -113,7 +133,16 @@ def test_get_eval_parameters():
         'run_name': 'eval0-foo_bar',
         'dist_timeout': 1,
         'models': [{
-            'model_example': 'model_example'
+            'model_name': 'model_example',
+            'model': {
+                'name': 'model_example',
+                'attn_config': {
+                    'foo': 'bar'
+                },
+            },
+            'tokenizer': {
+                'tokenizer_example': 'tokenizer_example'
+            },
         }],
         'eval_gauntlet': 'eval_gauntlet_example',
         'fsdp_dict_cfg': {
@@ -133,7 +162,7 @@ def test_get_eval_parameters():
 FAKE_RUN = Run(
     run_uid='123',
     name=RUN_NAME,
-    image="fake-image",
+    image='fake-image',
     status=RunStatus.RUNNING,
     created_at='2021-01-01',
     updated_at='2021-01-01',
@@ -142,7 +171,7 @@ FAKE_RUN = Run(
     preemptible=False,
     retry_on_system_failure=True,
     cluster='c1z2',
-    gpu_type="a100",
+    gpu_type='a100',
     gpus=16,
     cpus=0,
     node_count=2,
@@ -151,13 +180,7 @@ FAKE_RUN = Run(
         name=RUN_NAME,
         image='fake-image',
         command='echo hi',
-        parameters={
-            'device_eval_batch_size': 2,
-            'icl_tasks': 'icl_task_example',
-            'max_seq_len': 3,
-            'model': 'model_example',
-            'save_folder': 'save_folder_example',
-        },
+        parameters=BASIC_PARAMS,
     ),
 )
 

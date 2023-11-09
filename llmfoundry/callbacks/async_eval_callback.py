@@ -145,7 +145,7 @@ class AsyncEval(Callback):
     def launch_run(self) -> Run:
         cfg = self.current_run.submitted_config
         default_compute = {
-            'nodes': 1,
+            'gpus': 8,
             'cluster': self.current_run.cluster,
         }
         params = self.get_eval_parameters(cfg.parameters or {},
@@ -166,7 +166,7 @@ class AsyncEval(Callback):
             parameters=params,
         )
 
-        new_run = create_run(c)
+        new_run = create_run(c, timeout=60)
         log.info(
             f'Launched new run {new_run.name} inside eval loop with config: \n{new_run.submitted_config}'
         )

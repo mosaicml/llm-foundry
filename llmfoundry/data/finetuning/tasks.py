@@ -346,12 +346,13 @@ class DatasetConstructor:
                 pass
 
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
-
+        
+        hf_tokenization_logger = logging.getLogger('transformers.tokenization_utils_base')
         sequence_length_warning_filter = SpecificWarningFilter(
             'Token indices sequence length is longer than the specified maximum sequence length')
 
         # We will trim examples later in the collate_fn, so we want to silence this warning from Hugging Face
-        log.addFilter(sequence_length_warning_filter)
+        hf_tokenization_logger.addFilter(sequence_length_warning_filter)
 
         def dataset_mapper(example: Dict):
             if preprocessing_fn is not None:
@@ -415,7 +416,7 @@ class DatasetConstructor:
 
         log.debug('All ranks finished data prep')
 
-        log.removeFilter(sequence_length_warning_filter)
+        hf_tokenization_logger.removeFilter(sequence_length_warning_filter)
         return empty_examples_dropped_dataset
 
     def build_from_streaming(self, *args: Any,

@@ -163,7 +163,7 @@ class AsyncEval(Callback):
             parameters.get('save_latest_filename', None))
 
         # Update the loggers to use the training run name
-        for logger, config in subset_keys.get('loggers', []):
+        for logger, config in subset_keys.get('loggers', {}).items():
             if logger == 'wandb':
                 config['name'] = config.get('name', run_name)
             elif logger == 'mlflow':

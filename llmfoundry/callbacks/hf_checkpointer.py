@@ -266,7 +266,7 @@ class HuggingFaceCheckpointer(Callback):
                         # TODO: Remove after mlflow fixes the bug that makes this necessary
                         import mlflow
                         mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
-                        print(f"_save_checkpoint::self.mlflow_logging_config={self.mlflow_logger}\n[{type(self.mlflow_logger)}]")
+                        print(f"_save_checkpoint::self.mlflow_logging_config={self.mlflow_logging_config}\n[{type(self.mlflow_logging_config)}]")
                         print(f"_save_checkpoint::self.mlflow_logging_config['metadata']={self.mlflow_logging_config['metadata']}\n{type(self.mlflow_logging_config['metadata'])}]")
                         mlflow_logger.save_model(
                             flavor='transformers',

@@ -374,7 +374,7 @@ class DatasetConstructor:
         )
 
         examples_removed = len(tokenized_dataset) - len(
-            prompt_length_filtered_dataset)
+            filtered_dataset)
         if examples_removed > 0:
             warnings.warn(
                 f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'

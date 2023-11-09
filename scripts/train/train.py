@@ -25,6 +25,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM)
+from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_data_and_gauntlet,

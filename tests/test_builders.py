@@ -7,6 +7,8 @@ from typing import Union
 import pytest
 from composer.callbacks import Generate
 from transformers import PreTrainedTokenizerBase
+from omegaconf import DictConfig
+from omegaconf import OmegaConf as om
 
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.builders import build_callback, build_tokenizer
@@ -78,3 +80,13 @@ def test_build_generate_callback_unspecified_interval():
                 'foo': 'bar',
                 'something': 'else',
             })
+
+def test_build_hf_checkpointer_callback():
+    hfc = build_callback(
+        'hf_checkpointer', 
+        mlflow_logging_config=om.create({"metadata": {'task': 'llm/v1/completions'}})
+        )
+    print(hfs)
+
+
+

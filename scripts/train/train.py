@@ -438,6 +438,15 @@ def main(cfg: DictConfig) -> Trainer:
         )
         logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
 
+        # Configure Hugging Face logging
+        hf_logger = logging.getLogger('transformers')
+        hf_logger.setLevel(python_log_level.upper())
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter(
+            '%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        handler.setFormatter(formatter)
+
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)

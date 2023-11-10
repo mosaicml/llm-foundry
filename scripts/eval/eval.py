@@ -117,6 +117,7 @@ def evaluate_model(
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+
     evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
         icl_tasks, eval_gauntlet_config, tokenizer, device_eval_batch_size,
         max_seq_len, icl_subset_num_batches)
@@ -173,6 +174,7 @@ def evaluate_model(
         dist_timeout=dist_timeout,
         python_log_level=python_log_level,
     )
+
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     a = time.time()
@@ -315,7 +317,6 @@ def main(cfg: DictConfig):
             row = {'model_name': model_cfg['model_name']}
             row.update(
                 {k.split('/')[-1]: v for k, v in composite_scores.items()})
-
             eval_gauntlet_df = pd.concat(
                 [eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
 

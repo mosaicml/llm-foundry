@@ -20,6 +20,7 @@ model:
   attn_config:
     attn_impl: torch
   loss_fn: torch_crossentropy
+  ds_activation_checkpointing: 1  
 
 # Tokenizer
 tokenizer:
@@ -101,9 +102,8 @@ deepspeed_config:
   zero_optimization:
     stage: 3
   zero_allow_untested_optimizer: true
-  train_micro_batch_size_per_gpu: 1
-  train_batch_size: 512
-
+  train_micro_batch_size_per_gpu: ${device_train_microbatch_size}
+  train_batch_size: ${global_train_batch_size}
 
 # Logging
 progress_bar: false

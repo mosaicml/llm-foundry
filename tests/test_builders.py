@@ -87,7 +87,7 @@ def test_build_hf_checkpointer_callback():
         mock_hf_checkpointer.return_value = None
         save_folder = "path_to_save_folder"
         save_interval = 1
-        mlflow_logging_config_dict = {"metadata": {'task': 'llm/v1/completions'}}
+        mlflow_logging_config_dict = {'metadata': {'databricks_model_family': 'MptForCausalLM', 'databricks_model_size_parameters': '7b', 'databricks_model_source': 'mosaic-fine-tuning', 'task': 'llm/v1/completions'}}
         build_callback(
             name='hf_checkpointer', 
             kwargs={
@@ -100,4 +100,6 @@ def test_build_hf_checkpointer_callback():
         _, _, kwargs = mock_hf_checkpointer.mock_calls[0]
         assert kwargs['save_folder'] == save_folder
         assert kwargs['save_interval'] == save_interval
+        assert isinstance(kwargs['mlflow_logging_config'], dict)
+        assert isinstance(kwargs['mlflow_logging_config']['metadata'], dict)
         assert kwargs['mlflow_logging_config'] == mlflow_logging_config_dict

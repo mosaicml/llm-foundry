@@ -16,7 +16,7 @@ from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.data.packing import BinPackWrapper
+from llmfoundry.data.packing import BinPackCollator
 from llmfoundry.data.text_data import (StreamingTextDataset,
                                        get_tokens_per_batch_func)
 from llmfoundry.models import utils
@@ -375,19 +375,25 @@ def build_text_denoising_dataloader(
             cfg.dataset.max_seq_len (int): The maximum length of sequences
                 in the batch. See :class:`MixtureOfDenoisersCollator` docstring
                 for details.
-            cfg.dataset.packing_ratio (float, optional): If provided, this invokes
+            cfg.dataset.packing_ratio (Optional[float, Literal['auto']]): If provided, this invokes
                 a collator wrapper that packs device_batch_size*packing_ratio
                 raw examples into device_batch_size packed examples. This helps
                 minimize padding while preserving sequence integrity.
                 This adds `sequence_id` to the batch, which indicates which unique
                 sequence each token belongs to.
+
+                If set to 'auto', packing_ratio is profiled and the highest observed packing ratio with
+                zero waste is selected.
+                In practice, this may result in > 0 waste because profiling is done on only a portion
+                of the dataset.
+
                 Note: Using this feature will not change device_batch_size but it
                     will determine the number of raw examples consumed by the dataloader
                     per batch. Some examples may be discarded if they do not fit when
                     packing.
                     Select packing_ratio **carefully** based on the dataset
                     statistics, max_seq_len, and tolerance for discarding samples!
-                    The packing code in `./packing.py` provides a script that can help
+                    The script `scripts/misc/profile_packing.py` can help
                     you choose the best packing_ratio.
             See :class:`StreamingTextDataset` for info on other standard config
                 options within `cfg.dataset`.
@@ -419,7 +425,7 @@ def build_text_denoising_dataloader(
             that the dataloader will produce.
 
     Note:
-        You can run the script inside `./packing.py` to quickly test the
+        You can use the script `scripts/misc/profile_packing.py` to quickly test the
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """
@@ -492,7 +498,7 @@ def build_text_denoising_dataloader(
             raise NotImplementedError(
                 'On-the-fly packing is currently only supported for decoder-only formats.'
             )
-        collate_fn = BinPackWrapper(
+        collate_fn = BinPackCollator(
             collator=collate_fn,
             target_batch_size=device_batch_size,
             max_seq_len=cfg.dataset.max_seq_len,

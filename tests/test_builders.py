@@ -6,7 +6,6 @@ from typing import Union
 
 import pytest
 from composer.callbacks import Generate
-from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 

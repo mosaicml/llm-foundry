@@ -5,7 +5,7 @@ import math
 import os
 import pathlib
 import sys
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from composer import Trainer
 from composer.loggers import MLFlowLogger

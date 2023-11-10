@@ -8,27 +8,42 @@ Forging LLMs can be quite complicated — you have to get your data prepared, se
 
 This tutorial will provide a brief intro to the repo’s structure and underlying tools (all courtesy of MosaicML, of course), will go over a few example workflows and point you to the related resources within the repo, and will finally cover a number of FAQs that we have encountered since release.
 
+- [LLM Foundry Tutorial](#llm-foundry-tutorial)
 - [Intro](#intro)
   - [How this repo is structured](#how-this-repo-is-structured)
   - [Key components](#key-components)
+    - [Composer](#composer)
+    - [StreamingDataset](#streamingdataset)
+    - [MCLI](#mcli)
   - [How the YAMLs work](#how-the-yamls-work)
 - [Example Workflows](#example-workflows)
   - [Workflow 1: I want to play with a HF model like MPT-7B locally](#workflow-1-i-want-to-play-with-a-hf-model-like-mpt-7b-locally)
   - [Workflow 2: I want to deploy an inference endpoint with a HF model like MPT-7B](#workflow-2-i-want-to-deploy-an-inference-endpoint-with-a-hf-model-like-mpt-7b)
   - [Workflow 3: I want to finetune a HF model like MPT-7B](#workflow-3-i-want-to-finetune-a-hf-model-like-mpt-7b)
+    - [Supervised FineTuning and Instruction FineTuning](#supervised-finetuning-and-instruction-finetuning)
+    - [Domain Adaptation and Sequence Length Adaptation](#domain-adaptation-and-sequence-length-adaptation)
+      - [Data](#data)
+      - [Modeling](#modeling)
   - [Workflow 4: I want to train a new HF model from scratch](#workflow-4-i-want-to-train-a-new-hf-model-from-scratch)
 - [FAQs](#faqs)
-  - [Why is the script only using 1 out of N GPUs?](#why-is-the-script-only-using-1-out-of-n-gpus)
-  - [I’m running into an Out-Of-Memory (OOM) error. What do I do?](#im-running-into-an-out-of-memory-oom-error-what-do-i-do)
-  - [What hardware can I train on?](#what-hardware-can-i-train-on)
-  - [What hardware can I run eval on?](#what-hardware-can-i-run-eval-on)
-  - [What is FSDP?](#what-is-fsdp)
-  - [What are the different attention options `torch` / `flash` / `triton`  for MPT and which one should I use?](#what-are-the-different-attention-options-torch--flash--triton-for-mpt-and-which-one-should-i-use)
-  - [Can I finetune using PEFT / LORA?](#can-i-finetune-using-peft--lora)
-  - [Can I quantize these models and/or run on CPU?](#can-i-quantize-these-models-andor-run-on-cpu)
-  - [How do I deploy with ONNX/FasterTransformer?](#how-do-i-deploy-with-onnxfastertransformer)
-  - [How expensive is it to build LLMs?](#how-expensive-is-it-to-build-llms)
-  - [Common installation issues](#common-installation-issues)
+    - [Why is the script only using 1 out of N GPUs?](#why-is-the-script-only-using-1-out-of-n-gpus)
+    - [I’m running into an Out-Of-Memory (OOM) error. What do I do?](#im-running-into-an-out-of-memory-oom-error-what-do-i-do)
+    - [What hardware can I train on?](#what-hardware-can-i-train-on)
+    - [What hardware can I run eval on?](#what-hardware-can-i-run-eval-on)
+    - [What hardware can I run inference on?](#what-hardware-can-i-run-inference-on)
+    - [What is FSDP?](#what-is-fsdp)
+    - [What are the different attention options `torch` / `flash` / `triton`  for MPT and which one should I use?](#what-are-the-different-attention-options-torch--flash--triton--for-mpt-and-which-one-should-i-use)
+      - [Limitations](#limitations)
+      - [What is `triton-pre-mlir`?](#what-is-triton-pre-mlir)
+      - [Known issue with sm86+ GPUs](#known-issue-with-sm86-gpus)
+      - [Support for FlashAttention-2](#support-for-flashattention-2)
+    - [What kinds of positional embeddings does LLM Foundry support?](#what-kinds-of-positional-embeddings-does-llm-foundry-support)
+    - [Can I finetune using PEFT / LoRA?](#can-i-finetune-using-peft--lora)
+    - [Can I quantize these models and/or run on CPU?](#can-i-quantize-these-models-andor-run-on-cpu)
+    - [How do I deploy with ONNX/FasterTransformer?](#how-do-i-deploy-with-onnxfastertransformer)
+    - [TransformerEngine and amp\_fp8 support](#transformerengine-and-amp_fp8-support)
+    - [How expensive is it to build LLMs?](#how-expensive-is-it-to-build-llms)
+    - [Common installation issues](#common-installation-issues)
 
 Let’s get started!
 
@@ -328,6 +343,18 @@ The majority of our training setups use `triton`. -->
   Updating to LLVM14 (or LLVM15) cannot be done because there are breaking changes.
   What is the result of this? Although sm89+ is not **formally** supported until LLVM15, our testing on H100 GPUs shows that `attn_impl=triton` still works well and still runs fast. The only issue is that when the network is starting to run, LLVM might throw a warning like: `'sm_90' is not a recognized processor for this target (ignoring processor)`. This warning does not seem to affect performance.
 
+#### Support for FlashAttention-2
+- [FlashAttention-2](https://arxiv.org/pdf/2307.08691.pdf) improves upon FlashAttention to get even faster attention computation. LLM Foundry supports FlashAttention-2. Please follow the instructions [here](https://github.com/mosaicml/llm-foundry/tree/main/scripts/train#flashattention).
+
+### What kinds of positional embeddings does LLM Foundry support?
+Currently we support [Learned Positional Embeddings](https://arxiv.org/pdf/1706.03762.pdf), [Attention with Linear Biases (ALiBi)](https://arxiv.org/pdf/2108.12409.pdf), and [Rotary Positional Embeddings (RoPE)](https://arxiv.org/pdf/2104.09864.pdf). There is also an option to switch off all of these embeddings to get [No Positional Embedding](https://arxiv.org/pdf/2203.16634.pdf).
+
+| Name                               | YAML Config                                                       | Training MFU on MPT-7B trained on 8 A100 80GB GPUs | Notes                                                                                                                                                                       |
+|:-----------------------------------|:------------------------------------------------------------------|:---------------------------------------------------:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Learned Positional Embeddings      | <pre>model:<br>     learned_pos_emb:&nbsp;True</pre>| 65.7                                                |                                                                                                                                                                             |
+| ALiBi                              | <pre>model:<br>     attn_config:<br>         alibi:&nbsp;True</pre>| 64.5                                                |  Requires Triton or Torch attention.                                                                                                                                        |
+| RoPE (Dao-AILab Implementation)    | <pre>model:<br>     attn_config:<br>         rope:&nbsp;True<br>         rope_impl:&nbsp;dail</pre>| 64.5                                                | Requires a CUDA GPU and the [flash-attn library](https://github.com/Dao-AILab/flash-attention) v2.0.1 or higher to be installed. Please see the instructions in the [paragraph above](#support-for-flashattention-2) on how to install flash-attn v2. Note that the attention implementation can still be `torch`, `triton`, or `flash`. |
+| RoPE (Hugging<code>&nbsp;</code>Face Implementation)  | <pre>model:<br>     attn_config:<br>         rope:&nbsp;True<br>         rope_impl:&nbsp;hf</pre>| 62.3                                                |                                                                                                                                                                             |
 
 ### Can I finetune using PEFT / LoRA?
 - The LLM Foundry codebase does not directly have examples of PEFT or LORA workflows. However, our MPT model is a subclass of HuggingFace `PretrainedModel`, and https://github.com/mosaicml/llm-foundry/pull/346 added required features to enable HuggingFace’s [PEFT](https://huggingface.co/docs/peft/index) / [LORA](https://huggingface.co/docs/peft/conceptual_guides/lora) workflows for MPT. MPT models with LoRA modules can be trained either using LLM Foundry or Hugging Face's [accelerate](https://huggingface.co/docs/accelerate/index). Within LLM Foundry, run (`scripts/train/train.py`), adding `lora` arguments to the config `.yaml`, like so:

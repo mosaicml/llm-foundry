@@ -198,4 +198,3 @@ eval_gauntlet:
   #   - name: human_eval_75
   #     num_fewshot: 0
   #     random_baseline: 0.0
-    

@@ -530,6 +530,7 @@ def test_convert_and_generate(model: str, tmp_path: pathlib.Path):
                      output_precision='fp32',
                      local_checkpoint_save_location=None,
                      hf_repo_for_upload=None,
+                     trust_remote_code=False,
                      test_uploaded_model=False)
     convert_composer_to_hf(args)
 
@@ -577,6 +578,7 @@ def test_convert_and_generate_triton(tmp_path: pathlib.Path):
                      output_precision='fp32',
                      local_checkpoint_save_location=None,
                      hf_repo_for_upload=None,
+                     trust_remote_code=False,
                      test_uploaded_model=False)
     convert_composer_to_hf(args)
 

@@ -46,7 +46,7 @@ class StreamingTextDataset(StreamingDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             `False``.
-        epoch_size (int, optional): Number of samples to draw per epoch balanced across all
+        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced across all
             streams. If ``None``, takes its value from the total number of underlying samples.
             Provide this field if you are weighting streams relatively to target a larger or
             smaller epoch size. Defaults to ``None``.
@@ -93,7 +93,7 @@ class StreamingTextDataset(StreamingDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 epoch_size: Optional[int] = None,
+                 epoch_size: Optional[Union[int, str]] = None,
                  predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
                  partition_algo: str = 'relaxed',

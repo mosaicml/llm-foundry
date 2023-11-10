@@ -120,6 +120,8 @@ You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117
 | `mosaicml/llm-foundry:2.0.1_cu118-latest`                   | 2.0.1          | 11.8         | Yes                                 |
 | `mosaicml/llm-foundry:2.1.0_cu121-latest`                   | 2.1.0          | 12.1         | Yes (flash attention v1)            |
 | `mosaicml/llm-foundry:2.1.0_cu121_flash2-latest`            | 2.1.0          | 12.1         | Yes (flash attention v2)            |
+| `mosaicml/llm-foundry:2.1.0_cu121_aws-latest`               | 2.1.0          | 12.1         | Yes (flash attention v2)            |
+| `mosaicml/llm-foundry:2.1.0_cu121_flash2_aws-latest`        | 2.1.0          | 12.1         | Yes (flash attention v2)            |
 
 
 # Installation

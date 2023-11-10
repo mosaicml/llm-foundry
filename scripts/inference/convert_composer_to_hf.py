@@ -16,6 +16,7 @@ from transformers import PretrainedConfig, PreTrainedTokenizerBase
 
 from llmfoundry import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import get_hf_tokenizer_from_composer_state_dict
+from llmfoundry.utils.checkpoint_conversion_helpers import load_tokenizer
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
@@ -213,7 +214,9 @@ def convert_composer_to_hf(args: Namespace) -> None:
     loaded_hf_model.save_pretrained(local_folder_path)
 
     print(f'Loading tokenizer from {local_folder_path}')
-    tokenizer = transformers.AutoTokenizer.from_pretrained(local_folder_path)
+
+    tokenizer = load_tokenizer(local_folder_path,
+                               trust_remote_code=args.trust_remote_code)
     tokenizer.save_pretrained(local_folder_path)
 
     # Only need to edit files for MPT because it has custom code

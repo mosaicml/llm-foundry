@@ -5,6 +5,7 @@ import logging
 import os
 import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
+from copy import deepcopy
 
 import torch
 from composer import algorithms
@@ -117,7 +118,8 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
     elif name == 'early_stopper':
         return EarlyStopper(**kwargs)
     elif name == 'hf_checkpointer':
-        mlflow_logging_config = kwargs.pop('mlflow_logging_config', None)
+        kwargs_copy = deepcopy(kwargs)
+        mlflow_logging_config = kwargs_copy.pop('mlflow_logging_config', None)
         print(f"build_callback::mlflow_logging_config={mlflow_logging_config}")
         print(f"build_callback::isinstance(mlflow_logging_config, DictConfig)={isinstance(mlflow_logging_config, DictConfig)}")
         if isinstance(mlflow_logging_config, DictConfig):
@@ -125,10 +127,13 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
             mlflow_logging_config = om.to_object(mlflow_logging_config)
             print(f"build_callback::mlflow_logging_config={mlflow_logging_config}")
             print(f"[{type(mlflow_logging_config)}]")
-        kwargs['mlflow_logging_config'] = mlflow_logging_config
-        print(f"build_callback::kwargs['mlflow_logging_config']={kwargs['mlflow_logging_config']}")
-        print(f"[{type(kwargs['mlflow_logging_config'])}")
-        return HuggingFaceCheckpointer(**kwargs)
+
+
+
+        kwargs_copy['mlflow_logging_config'] = mlflow_logging_config
+        print(f"build_callback::kwargs['mlflow_logging_config']={kwargs_copy['mlflow_logging_config']}")
+        print(f"[{type(kwargs_copy['mlflow_logging_config'])}")
+        return HuggingFaceCheckpointer(**kwargs_copy)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

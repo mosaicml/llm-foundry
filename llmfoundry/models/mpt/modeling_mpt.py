@@ -185,10 +185,12 @@ class MPTModel(MPTPreTrainedModel):
 
         self.lm_head = None
         if config.tie_word_embeddings is False:
-            self.lm_head = nn.Linear(config.d_model,
-                                     config.vocab_size,
-                                     bias=False,
-                                     device=config.init_device)
+            self.lm_head = nn.Linear(
+                config.d_model,
+                config.vocab_size,
+                bias=False,
+                device=config.init_device,
+            )
             self.lm_head._fsdp_wrap = True
 
         self.rope = config.attn_config['rope']
@@ -239,11 +241,29 @@ class MPTModel(MPTPreTrainedModel):
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
 
-    def get_input_embeddings(self) -> nn.Embedding:
+    def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
         return self.wte
 
-    def set_input_embeddings(self, value: nn.Embedding) -> None:
+    def set_input_embeddings(
+            self, value: Union[SharedEmbedding, nn.Embedding]) -> None:
         self.wte = value
+
+    def get_output_embeddings(
+            self) -> Union[SharedEmbedding, nn.Embedding, nn.Linear]:
+        return self.lm_head or self.wte
+
+    def set_output_embeddings(
+        self, new_embeddings: Union[SharedEmbedding, nn.Embedding,
+                                    nn.Linear]) -> None:
+        if self.lm_head is not None:
+            self.lm_head = new_embeddings
+        else:
+            self.wte = new_embeddings
+
+    def tie_weights(self) -> None:
+        if self.lm_head is not None:
+            del self.lm_head
+            self.lm_head = None
 
     @torch.no_grad()
     def _attn_bias(
@@ -606,19 +626,21 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     )
             self.logit_scale = logit_scale
 
-    def get_input_embeddings(self) -> nn.Embedding:
-        return self.transformer.wte
+    def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
+        return self.transformer.get_input_embeddings()
 
     def set_input_embeddings(
             self, value: Union[SharedEmbedding, nn.Embedding]) -> None:
-        self.transformer.wte = value
+        self.transformer.set_input_embeddings(value)
 
-    def get_output_embeddings(self) -> nn.Embedding:
-        return self.transformer.wte
+    def get_output_embeddings(
+            self) -> Union[SharedEmbedding, nn.Embedding, nn.Linear]:
+        return self.transformer.get_output_embeddings()
 
     def set_output_embeddings(
-            self, new_embeddings: Union[SharedEmbedding, nn.Embedding]) -> None:
-        self.transformer.wte = new_embeddings
+        self, new_embeddings: Union[SharedEmbedding, nn.Embedding,
+                                    nn.Linear]) -> None:
+        self.transformer.set_output_embeddings(new_embeddings)
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder

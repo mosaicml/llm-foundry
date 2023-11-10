@@ -5,7 +5,6 @@ import logging
 import os
 import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
-from copy import deepcopy
 
 import torch
 from composer import algorithms

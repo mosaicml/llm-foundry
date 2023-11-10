@@ -150,7 +150,6 @@ class MPTConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.init_config = init_config
         self.fc_type = fc_type
-        self.tie_word_embeddings = tie_word_embeddings
         if verbose is not None:
             warnings.warn(
                 DeprecationWarning(
@@ -169,6 +168,7 @@ class MPTConfig(PretrainedConfig):
             )
         super().__init__(**kwargs)
 
+        self.tie_word_embeddings = tie_word_embeddings
         self._validate_config()
 
     def _set_config_defaults(self, config: Dict[str, Any],

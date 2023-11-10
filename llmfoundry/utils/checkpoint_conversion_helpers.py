@@ -35,8 +35,9 @@ def _get_weight_data_type(data_type: str):
 
 # TODO: move this functionality to composer once the bug fixes are upstreamed
 def get_hf_tokenizer_from_composer_state_dict(
-        state_dict: Dict[str, Any],
-        tokenizer_save_dir: Optional[str] = None
+    state_dict: Dict[str, Any],
+    trust_remote_code: bool,
+    tokenizer_save_dir: Optional[str] = None,
 ) -> Optional[PreTrainedTokenizer]:
     if 'state' not in state_dict:
         raise RuntimeError(
@@ -85,7 +86,8 @@ def get_hf_tokenizer_from_composer_state_dict(
                 with open(tokenizer_file_path, 'wb') as _tmp_file:
                     _tmp_file.write(s.serialized_model_proto())
 
-        hf_tokenizer = AutoTokenizer.from_pretrained(tokenizer_save_dir)
+        hf_tokenizer = AutoTokenizer.from_pretrained(
+            tokenizer_save_dir, trust_remote_code=trust_remote_code)
 
         # remove 'name_or_path'
         hf_tokenizer.name_or_path = ''

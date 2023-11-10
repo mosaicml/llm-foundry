@@ -6,6 +6,7 @@ import copy
 import logging
 import os
 import time
+import warnings
 from http import HTTPStatus
 from typing import Optional
 from urllib.parse import urljoin
@@ -14,6 +15,7 @@ import huggingface_hub as hf_hub
 import requests
 import tenacity
 from bs4 import BeautifulSoup
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from transformers.utils import SAFE_WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_NAME
 from transformers.utils import WEIGHTS_INDEX_NAME as PYTORCH_WEIGHTS_INDEX_NAME
 from transformers.utils import WEIGHTS_NAME as PYTORCH_WEIGHTS_NAME
@@ -212,16 +214,21 @@ def download_from_cache_server(
 
         download_start = time.time()
 
-        # Only downloads the blobs in order to avoid downloading model files twice due to the
-        # symlnks in the Hugging Face cache structure:
-        _recursive_download(
-            session,
-            cache_base_url,
-            # Trailing slash to indicate directory
-            f'{formatted_model_name}/blobs/',
-            save_dir,
-            ignore_cert=ignore_cert,
-        )
+        # Temporarily suppress noisy SSL certificate verification warnings if ignore_cert is set to True
+        with warnings.catch_warnings():
+            if ignore_cert:
+                warnings.simplefilter('ignore', category=InsecureRequestWarning)
+
+            # Only downloads the blobs in order to avoid downloading model files twice due to the
+            # symlnks in the Hugging Face cache structure:
+            _recursive_download(
+                session,
+                cache_base_url,
+                # Trailing slash to indicate directory
+                f'{formatted_model_name}/blobs/',
+                save_dir,
+                ignore_cert=ignore_cert,
+            )
         download_duration = time.time() - download_start
         log.info(
             f'Downloaded model {model_name} from cache server in {download_duration} seconds'

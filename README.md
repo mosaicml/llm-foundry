@@ -45,15 +45,15 @@ You'll find in this repo:
 Mosaic Pretrained Transformers (MPT) are GPT-style models with some special features -- Flash Attention for efficiency, ALiBi for context length extrapolation, and stability improvements to mitigate loss spikes. As part of MosaicML's Foundation series, we have open-sourced several MPT models:
 
 
-| Model              | Context Length | Download                                           | Demo                                                             | Commercial use? |
-|--------------------|----------------|----------------------------------------------------|------------------------------------------------------------------|-----------------|
-| MPT-30B            | 8192           | https://huggingface.co/mosaicml/mpt-30b            |                                                                  | Yes             |
-| MPT-30B-Instruct   | 8192           | https://huggingface.co/mosaicml/mpt-30b-instruct   |                                                                  | Yes             |
-| MPT-30B-Chat       | 8192           | https://huggingface.co/mosaicml/mpt-30b-chat       | [Demo](https://huggingface.co/spaces/mosaicml/mpt-30b-chat)      | No              |
-| MPT-7B             | 2048           | https://huggingface.co/mosaicml/mpt-7b             |                                                                  | Yes             |
-| MPT-7B-Instruct    | 2048           | https://huggingface.co/mosaicml/mpt-7b-instruct    |                                                                  | Yes             |
-| MPT-7B-Chat        | 2048           | https://huggingface.co/mosaicml/mpt-7b-chat        | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-chat)       | No              |
-| MPT-7B-StoryWriter | 65536          | https://huggingface.co/mosaicml/mpt-7b-storywriter |                                                                  | Yes             |
+| Model              | Context Length | Download                                           | Demo                                                        | Commercial use? |
+| ------------------ | -------------- | -------------------------------------------------- | ----------------------------------------------------------- | --------------- |
+| MPT-30B            | 8192           | https://huggingface.co/mosaicml/mpt-30b            |                                                             | Yes             |
+| MPT-30B-Instruct   | 8192           | https://huggingface.co/mosaicml/mpt-30b-instruct   |                                                             | Yes             |
+| MPT-30B-Chat       | 8192           | https://huggingface.co/mosaicml/mpt-30b-chat       | [Demo](https://huggingface.co/spaces/mosaicml/mpt-30b-chat) | No              |
+| MPT-7B             | 2048           | https://huggingface.co/mosaicml/mpt-7b             |                                                             | Yes             |
+| MPT-7B-Instruct    | 2048           | https://huggingface.co/mosaicml/mpt-7b-instruct    |                                                             | Yes             |
+| MPT-7B-Chat        | 2048           | https://huggingface.co/mosaicml/mpt-7b-chat        | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-chat)  | No              |
+| MPT-7B-StoryWriter | 65536          | https://huggingface.co/mosaicml/mpt-7b-storywriter |                                                             | Yes             |
 
 To try out these models locally, [follow the instructions](https://github.com/mosaicml/llm-foundry/tree/main/scripts/inference#interactive-generation-with-modelgenerate) in `scripts/inference/README.md` to prompt HF models using our [hf_generate.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_generate.py) or [hf_chat.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_chat.py) scripts.
 
@@ -89,17 +89,17 @@ This codebase has been tested with PyTorch 1.13.1 and PyTorch 2.0.1 on systems w
 This codebase may also work on systems with other devices, such as consumer NVIDIA cards and AMD cards, but we are not actively testing these systems.
 If you have success/failure using LLM Foundry on other systems, please let us know in a Github issue and we will update the support matrix!
 
-| Device                    | Torch Version    | Cuda Version | Status                        |
-|---------------------------|------------------|--------------|-------------------------------|
-| A100-40GB/80GB            | 1.13.1           | 11.7         | :white_check_mark: Supported  |
-| A100-40GB/80GB            | 2.0.1            | 11.7, 11.8   | :white_check_mark: Supported  |
-| A100-40GB/80GB            | 2.1.0            | 11.8, 12.1   | :white_check_mark: Supported  |
-| H100-80GB                 | 1.13.1           | 11.7         | :x: Not Supported             |
-| H100-80GB                 | 2.0.1            | 11.8         | :white_check_mark: Supported  |
-| H100-80GB                 | 2.1.0            | 12.1         | :white_check_mark: Supported  |
-| A10-24GB                  | 1.13.1           | 11.7         | :construction: In Progress    |
-| A10-24GB                  | 2.0.1            | 11.7, 11.8   | :construction: In Progress    |
-| MI250                     | 2.0.1            | ROCm 5.4     | :construction: In Progress    |
+| Device         | Torch Version | Cuda Version | Status                       |
+| -------------- | ------------- | ------------ | ---------------------------- |
+| A100-40GB/80GB | 1.13.1        | 11.7         | :white_check_mark: Supported |
+| A100-40GB/80GB | 2.0.1         | 11.7, 11.8   | :white_check_mark: Supported |
+| A100-40GB/80GB | 2.1.0         | 11.8, 12.1   | :white_check_mark: Supported |
+| H100-80GB      | 1.13.1        | 11.7         | :x: Not Supported            |
+| H100-80GB      | 2.0.1         | 11.8         | :white_check_mark: Supported |
+| H100-80GB      | 2.1.0         | 12.1         | :white_check_mark: Supported |
+| A10-24GB       | 1.13.1        | 11.7         | :construction: In Progress   |
+| A10-24GB       | 2.0.1         | 11.7, 11.8   | :construction: In Progress   |
+| MI250          | 2.0.1         | ROCm 5.4     | :construction: In Progress   |
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.
@@ -111,15 +111,17 @@ You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117
 
 **Please Note:** The `mosaicml/llm-foundry` images do not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
 
-| Docker Image                                                | Torch Version  | Cuda Version | LLM Foundry dependencies installed? |
-|-------------------------------------------------------------|----------------|--------------|-------------------------------------|
-| `mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04`      | 1.13.1         | 11.7         | No                                  |
-| `mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04`       | 2.0.1          | 11.8         | No                                  |
-| `mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04`       | 2.1.0          | 12.1         | No                                  |
-| `mosaicml/llm-foundry:1.13.1_cu117-latest`                  | 1.13.1         | 11.7         | Yes                                 |
-| `mosaicml/llm-foundry:2.0.1_cu118-latest`                   | 2.0.1          | 11.8         | Yes                                 |
-| `mosaicml/llm-foundry:2.1.0_cu121-latest`                   | 2.1.0          | 12.1         | Yes (flash attention v1)            |
-| `mosaicml/llm-foundry:2.1.0_cu121_flash2-latest`            | 2.1.0          | 12.1         | Yes (flash attention v2)            |
+| Docker Image                                           | Torch Version | Cuda Version      | LLM Foundry dependencies installed? |
+| ------------------------------------------------------ | ------------- | ----------------- | ----------------------------------- |
+| `mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04` | 1.13.1        | 11.7 (Infiniband) | No                                  |
+| `mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04`  | 2.0.1         | 11.8 (Infiniband) | No                                  |
+| `mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04`  | 2.1.0         | 12.1 (Infiniband) | No                                  |
+| `mosaicml/llm-foundry:1.13.1_cu117-latest`             | 1.13.1        | 11.7 (Infiniband) | Yes                                 |
+| `mosaicml/llm-foundry:2.0.1_cu118-latest`              | 2.0.1         | 11.8 (Infiniband) | Yes                                 |
+| `mosaicml/llm-foundry:2.1.0_cu121-latest`              | 2.1.0         | 12.1 (Infiniband) | Yes (flash attention v1)            |
+| `mosaicml/llm-foundry:2.1.0_cu121_flash2-latest`       | 2.1.0         | 12.1 (Infiniband) | Yes (flash attention v2)            |
+| `mosaicml/llm-foundry:2.1.0_cu121_aws-latest`          | 2.1.0         | 12.1 (EFA)        | Yes (flash attention v1)            |
+| `mosaicml/llm-foundry:2.1.0_cu121_flash2_aws-latest`   | 2.1.0         | 12.1 (EFA)        | Yes (flash attention v2)            |
 
 
 # Installation

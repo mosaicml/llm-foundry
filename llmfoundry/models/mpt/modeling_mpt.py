@@ -662,12 +662,12 @@ class MPTForCausalLM(MPTPreTrainedModel):
             use_cache=use_cache,
         )
 
+        # move outputs to same device as weights for token embedding
+        # needed to support HF `device_map`
         out = outputs.last_hidden_state.to(self.transformer.wte.weight.device)
         if self.transformer.lm_head is not None:
             logits = self.transformer.lm_head(out)
         else:
-            # move outputs to same device as weights for token embedding
-            # needed to support HF `device_map`
             logits = self.transformer.wte(out, True)
 
         if self.logit_scale is not None:

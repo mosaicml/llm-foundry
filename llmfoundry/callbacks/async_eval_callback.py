@@ -11,10 +11,8 @@ from composer.loggers.mosaicml_logger import (MOSAICML_PLATFORM_ENV_VAR,
                                               RUN_NAME_ENV_VAR)
 from composer.utils import dist
 from composer.utils.misc import create_interval_scheduler
-from mcli.api.runs import \
-    ComputeConfig  # TODO: available in root in mcli 0.5.27+
 
-from mcli import Run, RunConfig, create_run, get_run
+from mcli import ComputeConfig, Run, RunConfig, create_run, get_run
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +40,14 @@ OPTIONAL_PARAMS_FOR_EVAL = {
 
 def get_run_name(previous_run_name: str, count: int) -> str:
     *name_without_uuid_suffix, _ = previous_run_name.split('-')
-    name_suffix = ('-'.join(name_without_uuid_suffix))[:MAX_RUN_NAME_LENGTH]
+    name_suffix = ('-'.join(name_without_uuid_suffix))
+
+    if len(name_suffix) > MAX_RUN_NAME_LENGTH:
+        log.warning(
+            f'Training run name {name_suffix} may be too long, truncating to {MAX_RUN_NAME_LENGTH} characters'
+        )
+        name_suffix = name_suffix[:MAX_RUN_NAME_LENGTH]
+
     return f'eval{count}-{name_suffix}'
 
 
@@ -190,7 +195,7 @@ class AsyncEval(Callback):
         # deployment, which would require a hf conversion and parametrizing the
         # dependent_deployment in the run config
         command = 'cd llm-foundry/scripts \n composer eval/eval.py $PARAMETERS'
-        c = RunConfig(
+        run_config = RunConfig(
             name=get_run_name(self.current_run.name, self.count),
             image=self.current_run.image,
             compute=self.compute or default_compute,
@@ -201,7 +206,8 @@ class AsyncEval(Callback):
             parameters=params,
         )
 
-        new_run = create_run(c, timeout=60)
+        # Increase default timeout of 10s just in case
+        new_run = create_run(run_config, timeout=20)
         log.info(
             f'Launched new run {new_run.name} inside eval loop with config: \n{new_run.submitted_config}'
         )

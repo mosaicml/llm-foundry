@@ -161,9 +161,8 @@ def parse_args() -> Namespace:
     parser.add_argument('--test_uploaded_model', action='store_true')
     parser.add_argument(
         '--trust_remote_code',
-        type=bool,
-        help='Whether or not to use code outside of transformers module.',
-        default=False)
+        action='store_true',
+        help='Whether or not to use code outside of transformers module.')
 
     return parser.parse_args()
 

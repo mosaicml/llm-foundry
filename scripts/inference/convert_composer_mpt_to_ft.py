@@ -210,9 +210,8 @@ def parse_args() -> Namespace:
         default='fp32')
     parser.add_argument(
         '--trust_remote_code',
-        type=bool,
-        help='Whether or not to use code outside of transformers module.',
-        default=False)
+        action='store_true',
+        help='Whether or not to use code outside of transformers module.')
 
     return parser.parse_args()
 

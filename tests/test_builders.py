@@ -90,11 +90,11 @@ def test_build_hf_checkpointer_callback():
         mlflow_logging_config_dict = {'metadata': {'databricks_model_family': 'MptForCausalLM', 'databricks_model_size_parameters': '7b', 'databricks_model_source': 'mosaic-fine-tuning', 'task': 'llm/v1/completions'}}
         build_callback(
             name='hf_checkpointer', 
-            kwargs={
+            kwargs=om.create({
                 "save_folder": save_folder,
                 "save_interval": save_interval,
-                "mlflow_logging_config": om.create(mlflow_logging_config_dict)
-            })
+                "mlflow_logging_config": mlflow_logging_config_dict
+            }))
 
         assert mock_hf_checkpointer.call_count == 1
         _, _, kwargs = mock_hf_checkpointer.mock_calls[0]

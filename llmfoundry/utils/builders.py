@@ -118,24 +118,26 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
     elif name == 'early_stopper':
         return EarlyStopper(**kwargs)
     elif name == 'hf_checkpointer':
-        print(type(kwargs))
-        kwargs_copy = deepcopy(kwargs)
-        mlflow_logging_config = kwargs_copy.pop('mlflow_logging_config', None)
-        print(f"build_callback::mlflow_logging_config={mlflow_logging_config}")
-        print(f"build_callback::isinstance(mlflow_logging_config, DictConfig)={isinstance(mlflow_logging_config, DictConfig)}")
-        if isinstance(mlflow_logging_config, DictConfig):
-            print("converting mlflow_logging_config")
-            mlflow_logging_config = om.to_object(mlflow_logging_config)
-            print(f"build_callback::mlflow_logging_config={mlflow_logging_config}")
-            print(f"[{type(mlflow_logging_config)}]")
-        print(f"after if statement: build_callback::mlflow_logging_config={mlflow_logging_config}")
-        print(f"[{type(mlflow_logging_config)}]")
-        print(f"before reassign: kwargs_copy.get('mlflow_logging_config', None)={kwargs_copy.get('mlflow_logging_config', None)}")
-        print(f"[{type(kwargs_copy.get('mlflow_logging_config', None))}]")
-        kwargs_copy['mlflow_logging_config'] = mlflow_logging_config
-        print(f"after reassign - build_callback::kwargs_copy['mlflow_logging_config']={kwargs_copy['mlflow_logging_config']}")
-        print(f"[{type(kwargs_copy['mlflow_logging_config'])}")
-        return HuggingFaceCheckpointer(**kwargs_copy)
+        if isinstance(kwargs, DictConfig):
+            kwargs = om.to_object(kwargs)
+        # print(type(kwargs))
+        # kwargs_copy = deepcopy(kwargs)
+        # mlflow_logging_config = kwargs_copy.pop('mlflow_logging_config', None)
+        # print(f"build_callback::mlflow_logging_config={mlflow_logging_config}")
+        # print(f"build_callback::isinstance(mlflow_logging_config, DictConfig)={isinstance(mlflow_logging_config, DictConfig)}")
+        # if isinstance(mlflow_logging_config, DictConfig):
+        #     print("converting mlflow_logging_config")
+        #     mlflow_logging_config = om.to_object(mlflow_logging_config)
+        #     print(f"build_callback::mlflow_logging_config={mlflow_logging_config}")
+        #     print(f"[{type(mlflow_logging_config)}]")
+        # print(f"after if statement: build_callback::mlflow_logging_config={mlflow_logging_config}")
+        # print(f"[{type(mlflow_logging_config)}]")
+        # print(f"before reassign: kwargs_copy.get('mlflow_logging_config', None)={kwargs_copy.get('mlflow_logging_config', None)}")
+        # print(f"[{type(kwargs_copy.get('mlflow_logging_config', None))}]")
+        # kwargs_copy['mlflow_logging_config'] = mlflow_logging_config
+        # print(f"after reassign - build_callback::kwargs_copy['mlflow_logging_config']={kwargs_copy['mlflow_logging_config']}")
+        # print(f"[{type(kwargs_copy['mlflow_logging_config'])}")
+        return HuggingFaceCheckpointer(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

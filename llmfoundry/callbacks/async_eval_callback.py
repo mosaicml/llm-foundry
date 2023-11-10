@@ -111,8 +111,8 @@ class AsyncEval(Callback):
         del logger
         if all([
                 state.get_elapsed_duration() is not None,
-                self.check_interval(state, event), self.last_launch
-                != state.timestamp.batch,
+                self.check_interval(state, event),
+                self.last_launch != state.timestamp.batch,
                 dist.get_global_rank() == 0
         ]):
             self.launch_run()

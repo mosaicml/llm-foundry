@@ -133,7 +133,7 @@ class AsyncEval(Callback):
                 'RUN_NAME environment variable must be set to use the AsyncEval callback'
             )
 
-        # allows the MapiException to be raised if the run doesn't exist
+        # Allows the MapiException to be raised if the run doesn't exist
         return get_run(run_name, include_details=True)
 
     def get_eval_parameters(

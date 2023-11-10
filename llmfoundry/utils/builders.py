@@ -121,9 +121,13 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
         print(f"build_callback::mlflow_logging_config={mlflow_logging_config}")
         print(f"build_callback::isinstance(mlflow_logging_config, DictConfig)={isinstance(mlflow_logging_config, DictConfig)}")
         if isinstance(mlflow_logging_config, DictConfig):
+            print("converting mlflow_logging_config")
             mlflow_logging_config = om.to_object(mlflow_logging_config)
+            print(f"build_callback::mlflow_logging_config={mlflow_logging_config}")
+            print(f"[{type(mlflow_logging_config)}]")
         kwargs['mlflow_logging_config'] = mlflow_logging_config
         print(f"build_callback::kwargs['mlflow_logging_config']={kwargs['mlflow_logging_config']}")
+        print(f"[{type(kwargs['mlflow_logging_config'])}")
         return HuggingFaceCheckpointer(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')

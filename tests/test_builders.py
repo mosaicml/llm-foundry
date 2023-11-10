@@ -12,6 +12,7 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.builders import build_callback, build_tokenizer
+from llmfoundry.callbacks import HuggingFaceCheckpointer
 
 
 @pytest.mark.parametrize('tokenizer_name,tokenizer_kwargs', [
@@ -82,11 +83,21 @@ def test_build_generate_callback_unspecified_interval():
             })
 
 def test_build_hf_checkpointer_callback():
-    hfc = build_callback(
-        'hf_checkpointer', 
-        mlflow_logging_config=om.create({"metadata": {'task': 'llm/v1/completions'}})
-        )
-    print(hfs)
+    with mock.patch.object(HuggingFaceCheckpointer, '__init__') as mock_hf_checkpointer:
+        mock_hf_checkpointer.return_value = None
+        save_folder = "path_to_save_folder"
+        save_interval = 1
+        mlflow_logging_config_dict = {"metadata": {'task': 'llm/v1/completions'}}
+        build_callback(
+            name='hf_checkpointer', 
+            kwargs={
+                "save_folder": save_folder,
+                "save_interval": save_interval,
+                "mlflow_logging_config": om.create(mlflow_logging_config_dict)
+            })
 
-
-
+        assert mock_hf_checkpointer.call_count == 1
+        _, _, kwargs = mock_hf_checkpointer.mock_calls[0]
+        assert kwargs['save_folder'] == save_folder
+        assert kwargs['save_interval'] == save_interval
+        assert kwargs['mlflow_logging_config'] == mlflow_logging_config_dict

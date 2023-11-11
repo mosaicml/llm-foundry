@@ -618,7 +618,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     def get_output_embeddings(
             self) -> Union[SharedEmbedding, nn.Embedding, nn.Linear]:
-        return self.lm_head or self.transformer.get_input_embeddings()
+        if self.lm_head is not None:
+            return self.lm_head
+        return self.transformer.get_input_embeddings()
 
     def set_output_embeddings(
         self, new_embeddings: Union[SharedEmbedding, nn.Embedding,

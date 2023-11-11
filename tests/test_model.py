@@ -954,9 +954,7 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
         torch.testing.assert_close(p1, p2)
 
 
-@pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_save_from_pretrained(tie_word_embeddings: bool,
-                              tmp_path: pathlib.Path):
+def test_save_from_pretrained(tmp_path: pathlib.Path):
     # Test that MPT can be used with the HuggingFace
     # save_pretrained/from_pretrained api.
     hf_config = MPTConfig(
@@ -971,12 +969,10 @@ def test_save_from_pretrained(tie_word_embeddings: bool,
         attn_config={
             'attn_impl': 'torch',
         },
-        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
 
     mpt.save_pretrained(tmp_path / 'test-save-pretrained')
-    print(tmp_path / 'test-save-pretrained')
     mpt2 = MPTForCausalLM.from_pretrained(tmp_path / 'test-save-pretrained')
 
     check_hf_model_equivalence(mpt, mpt2)

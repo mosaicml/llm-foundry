@@ -466,7 +466,8 @@ def test_opt_wrapping():
 
 @pytest.mark.parametrize('norm_type', NORM_CLASS_REGISTRY.keys())
 @pytest.mark.parametrize('no_bias', [False, True])
-def test_mpt_creation(norm_type: str, no_bias: bool):
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
+def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
     # Test that the config constructs the model as expected.
     hf_config = MPTConfig(
         init_device='cpu',
@@ -482,6 +483,7 @@ def test_mpt_creation(norm_type: str, no_bias: bool):
         },
         norm_type=norm_type,
         no_bias=no_bias,
+        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
 
@@ -493,6 +495,9 @@ def test_mpt_creation(norm_type: str, no_bias: bool):
 
     assert mpt.transformer.wte.weight.shape == torch.Size(
         [hf_config.vocab_size, hf_config.d_model])
+    if not tie_word_embeddings:
+        assert mpt.lm_head is not None
+        assert mpt.lm_head.weight.shape == mpt.transformer.wte.weight.shape
     assert mpt.transformer.wpe.weight.shape == torch.Size(
         [hf_config.max_seq_len, hf_config.d_model])
     assert mpt.transformer.emb_drop.p == 0.1
@@ -544,8 +549,9 @@ def test_mpt_creation(norm_type: str, no_bias: bool):
         'factor': 1.0,
     },
 }])
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_forward_with_padding(attention_impl: str, device: str,
-                              pos_emb_config: dict):
+                              pos_emb_config: dict, tie_word_embeddings: bool):
     # Test that different placement of padding does not affect the output.
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
@@ -580,6 +586,7 @@ def test_forward_with_padding(attention_impl: str, device: str,
             'name': 'baseline_',
             'init_std': 0.02,
         },
+        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
     mpt.eval()
@@ -766,7 +773,9 @@ def test_advanced_mask_building(attention_impl: str):
         'factor': 1.0,
     },
 }])
-def test_generate(attention_impl: str, device: str, pos_emb_config: dict):
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
+def test_generate(attention_impl: str, device: str, pos_emb_config: dict,
+                  tie_word_embeddings: bool):
     # Test that generate works, and produces the same output with or without
     # padding in the input.
     if not torch.cuda.is_available() and device == 'gpu':
@@ -796,10 +805,15 @@ def test_generate(attention_impl: str, device: str, pos_emb_config: dict):
             'attn_impl': attention_impl,
             **pos_emb_config,
         },
+        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
-    mpt.eval()
+    if not tie_word_embeddings:
+        assert mpt.lm_head is not None
+        with torch.no_grad():
+            mpt.lm_head.weight.copy_(mpt.transformer.wte.weight)
     mpt = composer_device.module_to_device(mpt)
+    mpt.eval()
 
     # padding on the left of the input
     left_padding_input_ids = torch.tensor(
@@ -861,8 +875,9 @@ def test_generate(attention_impl: str, device: str, pos_emb_config: dict):
 @pytest.mark.gpu
 @pytest.mark.parametrize('world_size', [1, 2])
 @pytest.mark.parametrize('use_cache', [False, True])
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_generate_with_device_map(tmp_path: pathlib.Path, world_size: int,
-                                  use_cache: bool):
+                                  use_cache: bool, tie_word_embeddings: bool):
     if not torch.cuda.is_available():
         pytest.skip(f'This test requires CUDA to be available.')
     if not torch.cuda.device_count() >= world_size:
@@ -882,6 +897,7 @@ def test_generate_with_device_map(tmp_path: pathlib.Path, world_size: int,
             'attn_impl': 'torch',
         },
         use_cache=use_cache,
+        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
     mpt.save_pretrained(save_path)
@@ -938,7 +954,9 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
         torch.testing.assert_close(p1, p2)
 
 
-def test_save_from_pretrained(tmp_path: pathlib.Path):
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
+def test_save_from_pretrained(tie_word_embeddings: bool,
+                              tmp_path: pathlib.Path):
     # Test that MPT can be used with the HuggingFace
     # save_pretrained/from_pretrained api.
     hf_config = MPTConfig(
@@ -953,10 +971,12 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
         attn_config={
             'attn_impl': 'torch',
         },
+        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
 
     mpt.save_pretrained(tmp_path / 'test-save-pretrained')
+    print(tmp_path / 'test-save-pretrained')
     mpt2 = MPTForCausalLM.from_pretrained(tmp_path / 'test-save-pretrained')
 
     check_hf_model_equivalence(mpt, mpt2)
@@ -994,8 +1014,10 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
         'factor': 1.0,
     },
 }])
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_forward_with_cache_and_padding(attn_impl: str, device: str,
-                                        pos_emb_config: dict):
+                                        pos_emb_config: dict,
+                                        tie_word_embeddings: bool):
     # Tests that the result is the same with or without padding when using kv caching
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
@@ -1028,6 +1050,7 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str,
             'name': 'baseline_',
             'init_std': 0.02,
         },
+        tie_word_embeddings=tie_word_embeddings,
     )
 
     mpt = MPTForCausalLM(hf_config)
@@ -1133,7 +1156,9 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str,
         'factor': 1.0,
     },
 }])
-def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
+def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict,
+                            tie_word_embeddings: bool):
     # Test that model forward with and without the key-value cache produces the
     # same output.
     if not torch.cuda.is_available() and device == 'gpu':
@@ -1168,8 +1193,13 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
             'name': 'baseline_',
             'init_std': 0.02,
         },
+        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
+    if not tie_word_embeddings:
+        assert mpt.lm_head is not None
+        with torch.no_grad():
+            mpt.lm_head.weight.copy_(mpt.transformer.wte.weight)
     mpt = composer_device.module_to_device(mpt)
     mpt.eval()
 
@@ -1274,8 +1304,9 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict):
         'factor': 1.0,
     },
 }])
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_generate_with_past_kv(attn_impl: str, device: str,
-                               pos_emb_config: dict):
+                               pos_emb_config: dict, tie_word_embeddings: bool):
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
@@ -1307,8 +1338,13 @@ def test_generate_with_past_kv(attn_impl: str, device: str,
             'name': 'baseline_',
             'init_std': 0.02,
         },
+        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
+    if not tie_word_embeddings:
+        assert mpt.lm_head is not None
+        with torch.no_grad():
+            mpt.lm_head.weight.copy_(mpt.transformer.wte.weight)
     mpt = composer_device.module_to_device(mpt)
     mpt.eval()
 
@@ -1386,9 +1422,11 @@ def test_generate_with_past_kv(attn_impl: str, device: str,
         'factor': 1.0,
     },
 }])
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
                                       generation_kwargs: Dict[str, Any],
-                                      pos_emb_config: dict):
+                                      pos_emb_config: dict,
+                                      tie_word_embeddings: bool):
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
@@ -1417,6 +1455,7 @@ def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
             **pos_emb_config,
         },
         use_cache=True,
+        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
     mpt = composer_device.module_to_device(mpt)
@@ -1467,7 +1506,9 @@ def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
         'factor': 1.0,
     },
 }])
-def test_model_to(attention_impl: str, pos_emb_config: dict):
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
+def test_model_to(attention_impl: str, pos_emb_config: dict,
+                  tie_word_embeddings: bool):
     # test that moving the model to diff devices and dtypes in diff ways does not break the model
     if not torch.cuda.is_available():
         pytest.skip(
@@ -1498,6 +1539,7 @@ def test_model_to(attention_impl: str, pos_emb_config: dict):
             'name': 'baseline_',
             'init_std': 0.02,
         },
+        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
     mpt = mpt.bfloat16()
@@ -1600,9 +1642,11 @@ def test_alibi_vs_hf():
 }])
 @pytest.mark.parametrize('output_attentions', [True, False])
 @pytest.mark.parametrize('output_hidden_states', [True, False])
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_forward_with_output_attentions_and_output_hidden_states(
         attn_impl: str, device: str, pos_emb_config: dict,
-        output_attentions: bool, output_hidden_states: bool):
+        output_attentions: bool, output_hidden_states: bool,
+        tie_word_embeddings: bool):
     # Test that model forward with output_attentions_and_output_hidden_states
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
@@ -1639,6 +1683,7 @@ def test_forward_with_output_attentions_and_output_hidden_states(
             'name': 'baseline_',
             'init_std': 0.02,
         },
+        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
     mpt = composer_device.module_to_device(mpt)

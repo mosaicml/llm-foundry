@@ -167,8 +167,10 @@ class MPTConfig(PretrainedConfig):
                 f'alibi or rope is turned on, setting `learned_pos_emb` to `False.`'
             )
         # tie_word_embeddings is set in Huggingface's PretrainedConfig __init__
-        kwargs['tie_word_embeddings'] = tie_word_embeddings
-        super().__init__(**kwargs)
+        super().__init__(
+            tie_word_embeddings=tie_word_embeddings,
+            **kwargs,
+        )
 
         self._validate_config()
 

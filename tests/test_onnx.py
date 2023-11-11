@@ -3,6 +3,7 @@
 
 import pathlib
 
+import pytest
 import torch
 from transformers import AutoModelForCausalLM
 
@@ -25,7 +26,8 @@ def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):
     return batch
 
 
-def test_onnx_export(tmp_path: pathlib.Path):
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
+def test_onnx_export(tie_word_embeddings: bool, tmp_path: pathlib.Path):
     from transformers.models.auto.configuration_auto import CONFIG_MAPPING
     CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
@@ -48,6 +50,7 @@ def test_onnx_export(tmp_path: pathlib.Path):
         use_cache=True,
         vocab_size=vocab_size,
         norm_type='layernorm',
+        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
     mpt.eval()

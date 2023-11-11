@@ -362,35 +362,31 @@ class DatasetConstructor:
             num_proc=num_cpus_to_use,
             desc='Tokenizing dataset',
         )
-        prompt_length_filtered_dataset = tokenized_dataset.filter(
-            lambda example: len(example['input_ids']) < max_seq_len,
+
+        pad_token_id = tokenizer.pad_token_id
+
+        def filter_long_or_empty_examples(example: Dict) -> bool:
+            less_than_max_seq_len = len(example['input_ids']) < max_seq_len
+            non_empty_input = len(example['input_ids']) > 0
+            non_empty_labels = len(example['labels']) > 0
+            non_padding_response = any(
+                token_id != pad_token_id for token_id in example['labels'])
+            return (less_than_max_seq_len and non_empty_input and
+                    non_empty_labels and non_padding_response)
+
+        filtered_dataset = tokenized_dataset.filter(
+            filter_long_or_empty_examples,
             num_proc=num_cpus_to_use,
             desc='Filtering out long prompts',
         )
 
-        examples_removed = len(tokenized_dataset) - len(
-            prompt_length_filtered_dataset)
+        examples_removed = len(tokenized_dataset) - len(filtered_dataset)
         if examples_removed > 0:
             warnings.warn(
-                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
+                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, '
+                +
+                'the prompt or response was empty, or the response was all padding tokens.'
             )
-
-        pad_token_id = tokenizer.pad_token_id
-        empty_examples_dropped_dataset = prompt_length_filtered_dataset.filter(
-            lambda example: len(example['input_ids']) > 0 and len(example[
-                'labels']) > 0 and any(token_id != pad_token_id
-                                       for token_id in example['labels']),
-            num_proc=num_cpus_to_use,
-            desc='Filtering out empty examples')
-
-        log.debug('Done tokenizing and filtering examples.')
-
-        empty_examples_removed = len(prompt_length_filtered_dataset) - len(
-            empty_examples_dropped_dataset)
-        if empty_examples_removed > 0:
-            warnings.warn(
-                f'Dropped {empty_examples_removed} examples where the prompt or response was empty, '
-                + 'or the response was only padding tokens.')
 
         # Now local rank 0 indicates to the other ranks that it is done
         if dist.get_local_rank() == 0:
@@ -406,7 +402,7 @@ class DatasetConstructor:
             os.remove(signal_file_path)
 
         log.debug('All ranks finished data prep')
-        return empty_examples_dropped_dataset
+        return filtered_dataset
 
     def build_from_streaming(self, *args: Any,
                              **kwargs: Any) -> StreamingFinetuningDataset:

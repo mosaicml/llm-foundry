@@ -9,20 +9,7 @@ eval_gauntlet:
     - language_understanding
     - symbolic_problem_solving
     - reading_comprehension
-    - programming
-    lm_task_average:
-    - world_knowledge_lm_task_subscore
-    - commonsense_reasoning_lm_task_subscore
-    - language_understanding_lm_task_subscore
-    - symbolic_problem_solving_lm_task_subscore
-    - reading_comprehension_lm_task_subscore
-    lite_average:
-    - world_knowledge_lite
-    - commonsense_reasoning_lite
-    - language_understanding_lite
-    - symbolic_problem_solving_lite
-    - reading_comprehension_lite
-    - programming_lite
+    # - programming
   categories:
   - name: world_knowledge
     benchmarks:
@@ -44,11 +31,20 @@ eval_gauntlet:
     - name: bigbench_misconceptions
       num_fewshot: 10
       random_baseline: 0.5
+    - name: triviaqa_sm_sub
+      num_fewshot: 3
+      random_baseline: 0.0
   - name: commonsense_reasoning
     benchmarks:
     - name: copa
       num_fewshot: 0
       random_baseline: 0.5
+    - name: siqa
+      num_fewshot: 10
+      random_baseline: 0.5
+    - name: commonsense_qa
+      num_fewshot: 10
+      random_baseline: 0.25
     - name: piqa
       num_fewshot: 10
       random_baseline: 0.5
@@ -119,6 +115,21 @@ eval_gauntlet:
     - name: logi_qa
       num_fewshot: 10
       random_baseline: 0.25
+    - name: aqua
+      num_fewshot: 3
+      random_baseline: 0.0
+    - name: gsm8k
+      num_fewshot: 3
+      random_baseline: 0.0
+    - name: svamp
+      num_fewshot: 3
+      random_baseline: 0
+    - name: agi_eval_sat_math
+      num_fewshot: 3
+      random_baseline: 0.0
+    - name: agi_eval_lsat_ar
+      num_fewshot: 3
+      random_baseline: 0.25
   - name: reading_comprehension
     benchmarks:
     - name: pubmed_qa_labeled
@@ -133,6 +144,34 @@ eval_gauntlet:
     - name: boolq
       num_fewshot: 10
       random_baseline: 0.5
+    - name: coqa
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: agi_eval_lsat_rc
+      num_fewshot: 3
+      random_baseline: 0.25
+    - name: agi_eval_lsat_lr
+      num_fewshot: 3
+      random_baseline: 0.25
+    - name: agi_eval_sat_en
+      num_fewshot: 3
+      random_baseline: 0.25
+  - name: safety
+    benchmarks:
+    - name: winogender_mc_female
+      num_fewshot: 10
+      random_baseline: 0.5
+    - name: winogender_mc_male
+      num_fewshot: 10
+      random_baseline: 0.5
+    - name: enterprise_pii_classification
+      num_fewshot: 10
+      random_baseline: 0.5
+    - name: bbq
+      num_fewshot: 3
+      random_baseline: 0.5
+# THIS CATEGORY IS PARTICULARLY SLOW, USE SPARINGLY.
+# TASKS ARE DEFINED IN `coding_tasks.yaml`
   # - name: programming
   #   benchmarks:
   #   - name: human_eval
@@ -159,102 +198,3 @@ eval_gauntlet:
   #   - name: human_eval_75
   #     num_fewshot: 0
   #     random_baseline: 0.0
-  - name: world_knowledge_lm_task_subscore
-    benchmarks:
-    - name: jeopardy
-      num_fewshot: 10
-      random_baseline: 0
-    - name: bigbench_qa_wikidata
-      num_fewshot: 10
-      random_baseline: 0
-  - name: language_understanding_lm_task_subscore
-    benchmarks:
-    - name: lambada_openai
-      num_fewshot: 0
-      random_baseline: 0.0
-    - name: bigbench_conlang_translation
-      num_fewshot: 0
-      random_baseline: 0.0
-  - name: symbolic_problem_solving_lm_task_subscore
-    benchmarks:
-    - name: bigbench_dyck_languages
-      num_fewshot: 10
-      random_baseline: 0
-    - name: bigbench_cs_algorithms
-      num_fewshot: 10
-      random_baseline: 0
-    - name: bigbench_operators
-      num_fewshot: 10
-      random_baseline: 0.0
-    - name: bigbench_repeat_copy_logic
-      num_fewshot: 10
-      random_baseline: 0.0
-    - name: simple_arithmetic_withspaces
-      num_fewshot: 10
-      random_baseline: 0.0
-    - name: simple_arithmetic_nospaces
-      num_fewshot: 10
-      random_baseline: 0.0
-  - name: reading_comprehension_lm_task_subscore
-    benchmarks:
-    - name: pubmed_qa_labeled
-      num_fewshot: 10
-      random_baseline: 0.0
-    - name: squad
-      num_fewshot: 10
-      random_baseline: 0
-  - name: world_knowledge_lite
-    benchmarks:
-    - name: jeopardy
-      num_fewshot: 10
-      random_baseline: 0
-    - name: arc_challenge
-      num_fewshot: 10
-      random_baseline: 0.25
-  - name: commonsense_reasoning_lite
-    benchmarks:
-    - name: copa
-      num_fewshot: 0
-      random_baseline: 0.5
-    - name: piqa
-      num_fewshot: 10
-      random_baseline: 0.5
-  - name: language_understanding_lite
-    benchmarks:
-    - name: lambada_openai
-      num_fewshot: 0
-      random_baseline: 0.0
-    - name: hellaswag
-      num_fewshot: 10
-      random_baseline: 0.25
-    - name: winograd
-      num_fewshot: 0
-      random_baseline: 0.5
-  - name: symbolic_problem_solving_lite
-    benchmarks:
-    - name: bigbench_elementary_math_qa
-      num_fewshot: 10
-      random_baseline: 0.25
-    - name: bigbench_dyck_languages
-      num_fewshot: 10
-      random_baseline: 0
-    - name: bigbench_operators
-      num_fewshot: 10
-      random_baseline: 0.0
-    - name: bigbench_repeat_copy_logic
-      num_fewshot: 10
-      random_baseline: 0.0
-    - name: simple_arithmetic_withspaces
-      num_fewshot: 10
-      random_baseline: 0.0
-    - name: simple_arithmetic_nospaces
-      num_fewshot: 10
-      random_baseline: 0.0
-  - name: reading_comprehension_lite
-    benchmarks:
-    - name: pubmed_qa_labeled
-      num_fewshot: 10
-      random_baseline: 0.0
-    - name: squad
-      num_fewshot: 10
-      random_baseline: 0

@@ -178,7 +178,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 5
+#   num_beams: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 # -

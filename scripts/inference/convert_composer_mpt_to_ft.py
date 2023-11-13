@@ -67,6 +67,7 @@ def write_ft_checkpoint_from_composer_checkpoint(
         checkpoint_path: Union[Path, str],
         infer_gpu_num: int,
         save_dir: str,
+        trust_remote_code: bool,
         output_precision: str = 'fp32',
         local_checkpoint_save_location: Optional[Union[Path,
                                                        str]] = None) -> None:
@@ -79,6 +80,7 @@ def write_ft_checkpoint_from_composer_checkpoint(
         checkpoint_path (Union[Path, str]): Path to the composer checkpoint, can be a local path, or a remote path beginning with ``s3://``, or another backend
             supported by Composer.
         infer_gpu_num (int): The number of gpus you are planning to use for inference.
+        trust_remote_code (bool): Whether or not to use code outside of the transformers module.
         save_dir (str): Path of the directory to save the checkpoint in FT format.
         output_precision (str, optional): The precision of the output weights saved to the FasterTransformer model. Can be either ``fp32`` or ``fp16``.
         local_checkpoint_save_location (Optional[Union[Path, str]], optional): If specified, where to save the checkpoint file to locally.
@@ -125,7 +127,7 @@ def write_ft_checkpoint_from_composer_checkpoint(
     print('#' * 30)
     print('Extracting HF Tokenizer...')
     hf_tokenizer = get_hf_tokenizer_from_composer_state_dict(
-        composer_state_dict)
+        composer_state_dict, trust_remote_code)
     if hf_tokenizer is None:
         print('Warning! No HF Tokenizer found!')
 
@@ -206,6 +208,10 @@ def parse_args() -> Namespace:
         'Data type of weights in the FasterTransformer output model. Input checkpoint weights will be converted to this dtype.',
         choices=['fp32', 'fp16'],
         default='fp32')
+    parser.add_argument(
+        '--trust_remote_code',
+        action='store_true',
+        help='Whether or not to use code outside of transformers module.')
 
     return parser.parse_args()
 
@@ -229,4 +235,5 @@ if __name__ == '__main__':
         infer_gpu_num=args.infer_gpu_num,
         save_dir=save_dir,
         output_precision=args.output_precision,
-        local_checkpoint_save_location=args.local_checkpoint_save_location)
+        local_checkpoint_save_location=args.local_checkpoint_save_location,
+        trust_remote_code=args.trust_remote_code)

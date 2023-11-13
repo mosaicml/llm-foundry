@@ -59,6 +59,7 @@ class MPTConfig(PretrainedConfig):
         use_cache: bool = False,
         init_config: Dict = init_config_defaults,
         fc_type: str = 'torch',
+        tie_word_embeddings: bool = True,
         verbose: Optional[int] = None,
         **kwargs: Any,
     ):
@@ -128,6 +129,7 @@ class MPTConfig(PretrainedConfig):
                 ---
                 See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
             fc_type (str): choose fc layer implementation. Options: torch and te. te layers support fp8 when using H100 GPUs.
+            tie_word_embeddings (bool): Whether to tie the input embedding and output layers.
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -164,7 +166,11 @@ class MPTConfig(PretrainedConfig):
             warnings.warn(
                 f'alibi or rope is turned on, setting `learned_pos_emb` to `False.`'
             )
-        super().__init__(**kwargs)
+        # tie_word_embeddings is set in Huggingface's PretrainedConfig __init__
+        super().__init__(
+            tie_word_embeddings=tie_word_embeddings,
+            **kwargs,
+        )
 
         self._validate_config()
 

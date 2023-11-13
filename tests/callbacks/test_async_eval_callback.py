@@ -16,6 +16,7 @@ def test_get_run_name():
     a = get_run_name('foo-1234', 0)
     assert a == 'eval0-foo'
 
+    # Run name should be truncated
     b = get_run_name(50 * 'foo' + '-1234', 1)
     assert b == 'eval1-foofoofoofoofoofoofoofoofoofoofoofoofoof'
 
@@ -58,7 +59,7 @@ BASIC_PARAMS = {
     'max_seq_len': 3,
     'model': {
         'name': 'model_example',
-        'cfg_overrides': {
+        'config_overrides': {
             'attn_config': {
                 'foo': 'bar'
             }

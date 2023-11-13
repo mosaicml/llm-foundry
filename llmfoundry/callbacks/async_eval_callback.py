@@ -1,6 +1,12 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""
+Run the eval loop asynchronously as part of a MosaicML platform run.
+
+This callback is currently experimental. The API may change in the future.
+"""
+
 import logging
 import os
 from typing import Any, Dict, List, Optional, Union
@@ -42,6 +48,7 @@ def get_run_name(previous_run_name: str, count: int) -> str:
     *name_without_uuid_suffix, _ = previous_run_name.split('-')
     name_suffix = ('-'.join(name_without_uuid_suffix))
 
+    # A run name that is too long will fail a createRun call
     if len(name_suffix) > MAX_RUN_NAME_LENGTH:
         log.warning(
             f'Training run name {name_suffix} may be too long, truncating to {MAX_RUN_NAME_LENGTH} characters'
@@ -68,7 +75,7 @@ def get_eval_models_dict(
 ) -> List[Dict[str, Any]]:
     name = model.get('name')
 
-    cfg_overrides = model.pop('cfg_overrides', {})
+    cfg_overrides = model.pop('config_overrides', {})
     for key in cfg_overrides:
         model[key] = cfg_overrides[key]
 
@@ -82,6 +89,8 @@ def get_eval_models_dict(
 
 class AsyncEval(Callback):
     """Run the eval loop asynchronously as part of a MosaicML platform run.
+
+    This callback is currently experimental. The API may change in the future.
 
     Args:
         interval: Union[str, int, Time]: The interval describing how often eval runs should be
@@ -117,8 +126,8 @@ class AsyncEval(Callback):
         del logger
         if all([
                 state.get_elapsed_duration() is not None,
-                self.check_interval(state, event),
-                self.last_launch != state.timestamp.batch,
+                self.check_interval(state, event), self.last_launch
+                != state.timestamp.batch,
                 dist.get_global_rank() == 0
         ]):
             self.launch_run()
@@ -168,12 +177,13 @@ class AsyncEval(Callback):
             subset_keys.pop('save_folder'),
             parameters.get('save_latest_filename', None))
 
-        # Update the loggers to use the training run name
-        for logger, config in subset_keys.get('loggers', {}).items():
-            if logger == 'wandb':
-                config['name'] = config.get('name', run_name)
-            elif logger == 'mlflow':
-                config['run_name'] = config.get('run_name', run_name)
+        # TODO: Update this and parametrize step when the composer loggers support
+        # it. For now, eval runs will be logged to separate experiment tracker runs
+        # for logger, config in subset_keys.get('loggers', {}).items():
+        #     if logger == 'wandb':
+        #         config['name'] = config.get('name', run_name)
+        #     elif logger == 'mlflow':
+        #         config['run_name'] = config.get('run_name', run_name)
 
         # Create new eval models list
         subset_keys['models'] = get_eval_models_dict(

@@ -37,7 +37,7 @@ def test_tokenizer_builder(tokenizer_name: str, tokenizer_kwargs: dict):
 
 def test_build_callback_fails():
     with pytest.raises(ValueError):
-        build_callback('nonexistent_callback', {})
+        build_callback('nonexistent_callback', {}, {})
 
 
 @pytest.mark.parametrize(
@@ -53,12 +53,15 @@ def test_build_generate_callback(
                            autospec=True) as mock_generate:
         mock_generate.return_value = None
         build_callback(
-            'generate_callback', {
+            'generate_callback',
+            {
                 'prompts': ['hello'],
                 interval_key: interval_value,
                 'foo': 'bar',
                 'something': 'else',
-            })
+            },
+            {},
+        )
 
         assert mock_generate.call_count == 1
         _, _, kwargs = mock_generate.mock_calls[0]
@@ -73,8 +76,12 @@ def test_build_generate_callback_unspecified_interval():
         with mock.patch.object(Generate, '__init__',
                                autospec=True) as mock_generate:
             mock_generate.return_value = None
-            build_callback('generate_callback', {
-                'prompts': ['hello'],
-                'foo': 'bar',
-                'something': 'else',
-            })
+            build_callback(
+                'generate_callback',
+                {
+                    'prompts': ['hello'],
+                    'foo': 'bar',
+                    'something': 'else',
+                },
+                {},
+            )

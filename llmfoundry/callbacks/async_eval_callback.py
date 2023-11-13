@@ -1,8 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Run the eval loop asynchronously as part of a MosaicML platform run.
+"""Run the eval loop asynchronously as part of a MosaicML platform run.
 
 This callback is currently experimental. The API may change in the future.
 """
@@ -93,6 +92,7 @@ class AsyncEval(Callback):
     This callback is currently experimental. The API may change in the future.
 
     Args:
+        training_config: Dict[str, Any]: The config from the training run
         interval: Union[str, int, Time]: The interval describing how often eval runs should be
             launched. If an integer, it will be assumed to be in :attr:`.TimeUnit.EPOCH`.
             Otherwise, the unit must be either :attr:`.TimeUnit.EPOCH`, :attr:`.TimeUnit.BATCH`,
@@ -104,9 +104,11 @@ class AsyncEval(Callback):
 
     def __init__(
         self,
+        training_config: Dict[str, Any],
         interval: Union[str, int, Time],
         compute: Optional[Union[ComputeConfig, Dict[str, Any]]] = None,
     ):
+        self.training_config = training_config
         self.check_interval = create_interval_scheduler(interval)
         self.compute = compute
         self.count = 0
@@ -114,10 +116,7 @@ class AsyncEval(Callback):
 
         # Run these during init to fail fast in any of the error cases
         self.current_run = self._get_current_run()
-        self.get_eval_parameters(
-            self.current_run.submitted_config.parameters or {},
-            self.current_run.name,
-        )
+        self.get_eval_parameters(training_config, self.current_run.name)
         log.info(
             f'Initialized AsyncEval callback. Will generate runs at interval {interval}'
         )
@@ -126,8 +125,8 @@ class AsyncEval(Callback):
         del logger
         if all([
                 state.get_elapsed_duration() is not None,
-                self.check_interval(state, event), self.last_launch
-                != state.timestamp.batch,
+                self.check_interval(state, event),
+                self.last_launch != state.timestamp.batch,
                 dist.get_global_rank() == 0
         ]):
             self.launch_run()
@@ -198,7 +197,7 @@ class AsyncEval(Callback):
             'gpus': 8,
             'cluster': self.current_run.cluster,
         }
-        params = self.get_eval_parameters(cfg.parameters or {},
+        params = self.get_eval_parameters(self.training_config,
                                           self.current_run.name)
 
         # TODO: This just runs an eval run, but we also want to attach the

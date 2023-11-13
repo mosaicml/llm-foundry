@@ -73,7 +73,11 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
-def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
+def build_callback(
+    name: str,
+    kwargs: Dict[str, Any],
+    config: Dict[str, Any],
+) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
@@ -119,7 +123,7 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
     elif name == 'hf_checkpointer':
         return HuggingFaceCheckpointer(**kwargs)
     elif name == 'async_eval':
-        return AsyncEval(**kwargs)
+        return AsyncEval(**kwargs, training_config=config)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

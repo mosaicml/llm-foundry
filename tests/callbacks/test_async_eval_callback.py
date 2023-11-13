@@ -10,6 +10,23 @@ from llmfoundry.callbacks.async_eval_callback import AsyncEval, get_run_name
 from mcli import Run, RunConfig, RunStatus
 
 RUN_NAME = 'foo_bar-1234'
+BASIC_PARAMS = {
+    'device_eval_batch_size': 2,
+    'icl_tasks': 'icl_task_example',
+    'max_seq_len': 3,
+    'model': {
+        'name': 'model_example',
+        'config_overrides': {
+            'attn_config': {
+                'foo': 'bar'
+            }
+        }
+    },
+    'tokenizer': {
+        'tokenizer_example': 'tokenizer_example',
+    },
+    'save_folder': 'save_folder_example',
+}
 
 
 def test_get_run_name():
@@ -37,7 +54,7 @@ def test_fails_when_not_on_platform():
                 match=
                 'AsyncEval callback is only supported when running on the MosaicML platform'
         ):
-            AsyncEval(interval='2ba')
+            AsyncEval(BASIC_PARAMS, interval='2ba')
 
 
 def test_fails_when_no_run_name():
@@ -50,26 +67,7 @@ def test_fails_when_no_run_name():
                 match=
                 'RUN_NAME environment variable must be set to use the AsyncEval callback'
         ):
-            AsyncEval(interval='2ba')
-
-
-BASIC_PARAMS = {
-    'device_eval_batch_size': 2,
-    'icl_tasks': 'icl_task_example',
-    'max_seq_len': 3,
-    'model': {
-        'name': 'model_example',
-        'config_overrides': {
-            'attn_config': {
-                'foo': 'bar'
-            }
-        }
-    },
-    'tokenizer': {
-        'tokenizer_example': 'tokenizer_example',
-    },
-    'save_folder': 'save_folder_example',
-}
+            AsyncEval(BASIC_PARAMS, interval='2ba')
 
 
 def test_get_eval_parameters():
@@ -185,7 +183,7 @@ FAKE_RUN = Run(
         name=RUN_NAME,
         image='fake-image',
         command='echo hi',
-        parameters=BASIC_PARAMS,
+        parameters={},
     ),
 )
 
@@ -196,7 +194,8 @@ FAKE_RUN = Run(
        return_value=FAKE_RUN)
 def test_async_eval_callback_minimal(mock_create_run: MagicMock,
                                      mock_get_run: MagicMock):
-    callback = AsyncEval(interval='2ba',
+    callback = AsyncEval(BASIC_PARAMS,
+                         interval='2ba',
                          compute={
                              'cluster': 'c2z3',
                              'nodes': 2,

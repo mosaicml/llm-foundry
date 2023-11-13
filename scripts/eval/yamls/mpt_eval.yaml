@@ -11,7 +11,6 @@ models:
     name: ${tokenizer_name}
     kwargs:
       model_max_length: ${max_seq_len}
-  load_path: # Add your (optional) Composer checkpoint path here!
   model:
     name: mpt_causal_lm
     init_device: mixed
@@ -25,7 +24,9 @@ models:
     attn_config:
       attn_impl: triton
 
-device_eval_batch_size: 4
+  load_path: # Add your non-optional Composer checkpoint path here! (must not be empty)
+
+device_eval_batch_size: 16
 
 # FSDP config for model sharding
 fsdp_config:
@@ -34,5 +35,11 @@ fsdp_config:
   forward_prefetch: True
   limit_all_gathers: True
 
-icl_tasks: 'eval/yamls/tasks_v0.1.yaml'
-eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'
+icl_tasks:
+-
+  label: jeopardy
+  dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0]
+  icl_task_type: language_modeling
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  has_categories: true

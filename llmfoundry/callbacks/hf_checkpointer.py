@@ -270,3 +270,18 @@ class HuggingFaceCheckpointer(Callback):
                             name=self.mlflow_registered_model_name,
                             await_registration_for=3600,
                         )
+
+            log.debug('Waiting for rank 0 to finish saving to disk')
+            signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed'
+            if dist.get_local_rank() == 0:
+                with open(signal_file_path, 'wb') as f:
+                    f.write(b'local_rank0_completed_download')
+
+            # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
+            # so that we don't timeout for large downloads. This syncs all processes on the node
+            with dist.local_rank_zero_download_and_wait(signal_file_path):
+                # Then, wait to ensure every node has finished downloading the checkpoint
+                dist.barrier()
+
+            if dist.get_local_rank() == 0:
+                os.remove(signal_file_path)

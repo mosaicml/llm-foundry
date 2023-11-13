@@ -16,6 +16,7 @@ from transformers import PretrainedConfig, PreTrainedTokenizerBase
 
 from llmfoundry import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import get_hf_tokenizer_from_composer_state_dict
+from llmfoundry.utils.checkpoint_conversion_helpers import load_tokenizer
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
@@ -23,6 +24,7 @@ from llmfoundry.utils.huggingface_hub_utils import \
 def write_huggingface_pretrained_from_composer_checkpoint(
     checkpoint_path: Union[Path, str],
     output_path: Union[Path, str],
+    trust_remote_code: bool,
     output_precision: str = 'fp32',
     local_checkpoint_save_location: Optional[Union[Path, str]] = None
 ) -> Tuple[PretrainedConfig, Optional[PreTrainedTokenizerBase]]:
@@ -63,6 +65,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
         checkpoint_path (Union[Path, str]): Path to the composer checkpoint, can be a local path, or a remote path beginning with ``s3://``, or another backend
             supported by :meth:`composer.utils.maybe_create_object_store_from_uri`.
         output_path (Union[Path, str]): Path to the folder to write the output to.
+        trust_remote_code (bool): Whether or not to use code outside of the transformers module.
         output_precision (str, optional): The precision of the output weights saved to `pytorch_model.bin`. Can be one of ``fp32``, ``fp16``, or ``bf16``.
         local_checkpoint_save_location (Optional[Union[Path, str]], optional): If specified, where to save the checkpoint file to locally.
                                                                                 If the input ``checkpoint_path`` is already a local path, this will be a symlink.
@@ -110,7 +113,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     print('#' * 30)
     print('Saving HF Tokenizer...')
     hf_tokenizer = get_hf_tokenizer_from_composer_state_dict(
-        composer_state_dict)
+        composer_state_dict, trust_remote_code)
     if hf_tokenizer is not None:
         hf_tokenizer.save_pretrained(output_path)
         print(hf_tokenizer)
@@ -157,6 +160,10 @@ def parse_args() -> Namespace:
                         default='fp32')
     parser.add_argument('--hf_repo_for_upload', type=str, default=None)
     parser.add_argument('--test_uploaded_model', action='store_true')
+    parser.add_argument(
+        '--trust_remote_code',
+        action='store_true',
+        help='Whether or not to use code outside of transformers module.')
 
     return parser.parse_args()
 
@@ -179,6 +186,7 @@ def convert_composer_to_hf(args: Namespace) -> None:
     config, tokenizer = write_huggingface_pretrained_from_composer_checkpoint(
         checkpoint_path=args.composer_path,
         output_path=local_folder_path,
+        trust_remote_code=args.trust_remote_code,
         output_precision=args.output_precision,
         local_checkpoint_save_location=args.local_checkpoint_save_location)
 
@@ -206,7 +214,9 @@ def convert_composer_to_hf(args: Namespace) -> None:
     loaded_hf_model.save_pretrained(local_folder_path)
 
     print(f'Loading tokenizer from {local_folder_path}')
-    tokenizer = transformers.AutoTokenizer.from_pretrained(local_folder_path)
+
+    tokenizer = load_tokenizer(local_folder_path,
+                               trust_remote_code=args.trust_remote_code)
     tokenizer.save_pretrained(local_folder_path)
 
     # Only need to edit files for MPT because it has custom code

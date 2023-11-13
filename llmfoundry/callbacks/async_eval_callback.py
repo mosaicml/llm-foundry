@@ -55,7 +55,7 @@ def get_load_path(save_folder: str,
                   save_latest_filename: Optional[str] = None) -> str:
     # TODO: check that the prefix is remote and not a local file (not supported of course)
 
-    if not save_latest_filename:
+    if save_latest_filename is None:
         rank = dist.get_global_rank()
         save_latest_filename = f'latest-rank{rank}.pt'
 
@@ -90,7 +90,7 @@ class AsyncEval(Callback):
             :attr:`.TimeUnit.TOKEN`, or :attr:`.TimeUnit.SAMPLE`.
         compute: Optional[Union[ComputeConfig, Dict[str, Any]]]: The compute configuration to
             use for the eval run. If not provided, the same cluster as the current run and a
-            single GPU node will be used.
+            single, full GPU node will be used.
     """
 
     def __init__(

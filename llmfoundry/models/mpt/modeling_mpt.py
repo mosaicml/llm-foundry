@@ -628,13 +628,19 @@ class MPTForCausalLM(MPTPreTrainedModel):
         if self.lm_head is not None:
             self.lm_head = new_embeddings
         else:
-            assert isinstance(new_embeddings, (SharedEmbedding, nn.Embedding))
+            if not isinstance(new_embeddings, (SharedEmbedding, nn.Embedding)):
+                raise ValueError(
+                    'new_embeddings must be an instance of SharedEmbedding ' +
+                    f'or nn.Embedding, but got {type(new_embeddings)}.')
+            warnings.warn(
+                'Using `set_output_embeddings` to set the embedding layer of ' +
+                'MPTForCausalLM with tied weights. Given weights are tied, ' +
+                'using `set_input_embeddings` is recommended over using ' +
+                '`set_output_embeddings`.')
             self.transformer.set_input_embeddings(new_embeddings)
 
     def tie_weights(self) -> None:
-        if self.lm_head is not None:
-            del self.lm_head
-            self.lm_head = None
+        self.lm_head = None
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder

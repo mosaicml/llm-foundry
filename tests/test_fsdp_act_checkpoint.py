@@ -11,7 +11,6 @@ from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import \
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 
 
-# python3 -m composer.cli.launcher -n 2 --master_port 26000 -m pytest -m gpu tests/test_fsdp_act_checkpoint.py::test_fsdp_act_checkpoint  # noqa
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize('activation_checkpointing', [True, False])

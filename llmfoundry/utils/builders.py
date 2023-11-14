@@ -206,51 +206,6 @@ def build_tokenizer(
 
     return tokenizer
 
-def prep_hf_dataset(icl_cfg: ListConfig):
-    """
-    Temporary hack to read HF datasets while the composer PR is still WIP
-    """
-    hf_dataset_uri = icl_cfg.dataset_uri.replace("hf://", "")
-    dataset_args = icl_cfg.hf_vars
-    if "split" not in dataset_args:
-        dataset_args["split"] = "test"
-    
-    # TODO: should I use tmp here?
-    output_filepath = icl_cfg.dataset_uri.replace("hf://", "/tmp/").replace("/", "_") + '_'.join([str(dataset_arg) for dataset_arg in dataset_args.values()]) + '.jsonl'
-    if os.path.isfile(output_filepath):
-        print(f"Output file already exists for {icl_cfg.label}, skipping dataset processing and saving")
-    else:
-        print(f"Processing {icl_cfg.label}")
-        dataset = hf_datasets.load_dataset(hf_dataset_uri, **dataset_args)
-        if "pivot_col" in icl_cfg.hf_cols:
-            def _augment_data(examples):
-                outputs = []
-                contexts = []
-                for i, doc in enumerate(examples[icl_cfg.hf_cols["pivot_col"]]):
-                    for j in range(len(examples[icl_cfg.hf_cols["inputs"][0]][i])):
-                        instruction = ''.join([examples[input_col][i][j] for input_col in icl_cfg.hf_cols["inputs"]])
-                        contexts.append(doc + "\n" + instruction)
-                        outputs.append(''.join([examples[output_col][i][j] for output_col in icl_cfg.hf_cols['outputs']]))
-                return {"context": contexts, "answer": outputs}
-            dataset = dataset.map(
-                _augment_data,
-                batched=True,
-                remove_columns=dataset.column_names,
-                batch_size=1000
-            )
-        else:
-            dataset = dataset.map(
-                    lambda example: {
-                        "context": ''.join([str(example[col]) for col in icl_cfg.hf_cols['inputs']]),
-                        "answer": ''.join([str(example[col]) for col in icl_cfg.hf_cols['outputs']])
-                    }
-                )
-        with open(output_filepath, 'w') as outfile:
-            for entry in dataset:
-                json.dump(entry, outfile)
-                outfile.write('\n') 
-    return output_filepath
-
 
 def build_icl_evaluators(
     icl_tasks: Union[str, ListConfig],
@@ -333,10 +288,6 @@ def build_icl_evaluators(
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
                 os.remove(destination_path)
             dist.barrier()
-
-            if "hf://" in icl_cfg.dataset_uri:
-                new_uri = prep_hf_dataset(icl_cfg)
-                icl_cfg.dataset_uri = new_uri
 
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,

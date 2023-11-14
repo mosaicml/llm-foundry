@@ -6,19 +6,19 @@ icl_tasks:
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
-  hf_vars: 
+  hf_loading_vars: 
     name: gsm100 
-  hf_cols:
-    inputs: ["inputs", "instructions"]
-    outputs: ["answer"] 
+  hf_parsing_vars:
+    context: ["input", "instructions"]
+    labels: ["outputs"] 
 -
   label: legal_contract_qa
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
-  hf_vars: 
+  hf_loading_vars: 
     name: legal_contract_qa 
-  hf_cols:
+  hf_parsing_vars:
     pivot_col: input
     inputs: ["instructions"]
     outputs: ["outputs"] 
@@ -27,9 +27,9 @@ icl_tasks:
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
-  hf_vars: 
+  hf_loading_vars: 
     name: financial_qa
-  hf_cols:
+  hf_parsing_vars:
     pivot_col: input
     inputs: ["instructions"]
     outputs: ["outputs"] 
@@ -38,9 +38,9 @@ icl_tasks:
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
-  hf_vars: 
+  hf_loading_vars: 
     name: multidoc_qa
-  hf_cols:
+  hf_parsing_vars:
     pivot_col: input
     inputs: ["instructions"]
     outputs: ["outputs"] 
@@ -49,9 +49,9 @@ icl_tasks:
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
-  hf_vars: 
+  hf_loading_vars: 
     name: scientific_qa 
-  hf_cols:
+  hf_parsing_vars:
     pivot_col: input
     inputs: ["instructions"]
     outputs: ["outputs"] 
@@ -60,9 +60,9 @@ icl_tasks:
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
-  hf_vars: 
+  hf_loading_vars: 
     name: narrative_qa
-  hf_cols:
+  hf_parsing_vars:
     pivot_col: input
     inputs: ["instructions"]
     outputs: ["outputs"] 
@@ -71,9 +71,9 @@ icl_tasks:
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
-  hf_vars: 
+  hf_loading_vars: 
     name: natural_question 
-  hf_cols:
+  hf_parsing_vars:
     pivot_col: input
     inputs: ["instructions"]
     outputs: ["outputs"] 
@@ -82,9 +82,9 @@ icl_tasks:
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
-  hf_vars: 
+  hf_loading_vars: 
     name: topic_retrieval_longchat  
-  hf_cols:
+  hf_parsing_vars:
     pivot_col: input
     inputs: ["instructions"]
     outputs: ["outputs"] 

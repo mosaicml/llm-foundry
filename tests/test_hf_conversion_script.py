@@ -248,20 +248,21 @@ def test_callback_inits_with_defaults():
 
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
-@pytest.mark.parametrize('model', ['mpt', 'neo', 'llama2'])
+@pytest.mark.parametrize(
+    'model,tie_word_embeddings',
+    [('mpt', True), ('mpt', False), ('neo', None), ('llama2', None)],
+)
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
 @pytest.mark.parametrize('log_to_mlflow', [True, False])
 @pytest.mark.parametrize(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
     [('3ba', '2ba', '7ba', 3, 4), ('1dur', '2ba', '1ep', 1, 4)])
 @patch('os.cpu_count', MagicMock(return_value=None))
-def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
-                                         fsdp_state_dict_type: Optional[str],
-                                         log_to_mlflow: bool,
-                                         hf_save_interval: str,
-                                         save_interval: str, max_duration: str,
-                                         expected_hf_checkpoints: int,
-                                         expected_normal_checkpoints: int):
+def test_huggingface_conversion_callback(
+        model: str, tmp_path: pathlib.Path, tie_word_embeddings: bool,
+        fsdp_state_dict_type: Optional[str], log_to_mlflow: bool,
+        hf_save_interval: str, save_interval: str, max_duration: str,
+        expected_hf_checkpoints: int, expected_normal_checkpoints: int):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
@@ -298,9 +299,11 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                 'attn_impl': 'torch',
             },
             'loss_fn': 'torch_crossentropy',
+            'tie_word_embeddings': tie_word_embeddings,
         }
         tokenizer_name = 'EleutherAI/gpt-neox-20b'
     elif model == 'neo':
+        assert tie_word_embeddings is None
         model_cfg = {
             'name': 'hf_causal_lm',
             'pretrained_model_name_or_path': 'EleutherAI/gpt-neo-125M',
@@ -313,6 +316,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         }
         tokenizer_name = 'EleutherAI/gpt-neo-125M'
     elif model == 'llama2':
+        assert tie_word_embeddings is None
         if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
             pytest.skip(
                 'The CI cluster does not have access to the Llama models, so skip this test.'
@@ -489,19 +493,26 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
     delete_transformers_cache()
 
 
-@pytest.mark.parametrize('model', ['mpt', 'neo', 'llama2'])
-def test_convert_and_generate(model: str, tmp_path: pathlib.Path):
+@pytest.mark.parametrize(
+    'model,tie_word_embeddings',
+    [('mpt', True), ('mpt', False), ('neo', None), ('llama2', None)],
+)
+def test_convert_and_generate(model: str, tie_word_embeddings: bool,
+                              tmp_path: pathlib.Path):
     delete_transformers_cache()
 
     om_cfg = None
     if model == 'mpt':
         om_cfg = get_config(
             conf_path='scripts/train/yamls/pretrain/testing.yaml')
+        om_cfg['tie_word_embeddings'] = tie_word_embeddings
     elif model == 'neo':
+        assert tie_word_embeddings is None
         om_cfg = get_config(
             conf_path='scripts/train/yamls/pretrain/gpt-neo-125m.yaml')
         om_cfg['model']['config_overrides']['hidden_size'] = 36
     elif model == 'llama2':
+        assert tie_word_embeddings is None
         if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
             pytest.skip(
                 'The CI cluster does not have access to the Llama models, so skip this test.'
@@ -530,6 +541,7 @@ def test_convert_and_generate(model: str, tmp_path: pathlib.Path):
                      output_precision='fp32',
                      local_checkpoint_save_location=None,
                      hf_repo_for_upload=None,
+                     trust_remote_code=False,
                      test_uploaded_model=False)
     convert_composer_to_hf(args)
 
@@ -561,11 +573,14 @@ def test_convert_and_generate(model: str, tmp_path: pathlib.Path):
 
 
 @pytest.mark.gpu
-def test_convert_and_generate_triton(tmp_path: pathlib.Path):
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
+def test_convert_and_generate_triton(tie_word_embeddings: str,
+                                     tmp_path: pathlib.Path):
     delete_transformers_cache()
 
     cfg = get_config()
     cfg['model']['init_device'] = 'cpu'
+    cfg['tie_word_embeddings'] = tie_word_embeddings
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'EleutherAI/gpt-neox-20b')
     model = ComposerMPTCausalLM(cfg['model'], tokenizer)
@@ -577,6 +592,7 @@ def test_convert_and_generate_triton(tmp_path: pathlib.Path):
                      output_precision='fp32',
                      local_checkpoint_save_location=None,
                      hf_repo_for_upload=None,
+                     trust_remote_code=False,
                      test_uploaded_model=False)
     convert_composer_to_hf(args)
 
@@ -600,7 +616,9 @@ def test_convert_and_generate_triton(tmp_path: pathlib.Path):
     delete_transformers_cache()
 
 
-def test_convert_and_generate_meta(tmp_path: pathlib.Path):
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
+def test_convert_and_generate_meta(tie_word_embeddings: str,
+                                   tmp_path: pathlib.Path):
     delete_transformers_cache()
 
     from composer.utils import dist
@@ -610,6 +628,7 @@ def test_convert_and_generate_meta(tmp_path: pathlib.Path):
     om_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
 
     om_cfg['model']['init_device'] = 'cpu'
+    om_cfg['tie_word_embeddings'] = tie_word_embeddings
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name)
     original_model = COMPOSER_MODEL_REGISTRY[om_cfg['model'].name](
@@ -631,6 +650,7 @@ def test_convert_and_generate_meta(tmp_path: pathlib.Path):
                      output_precision='fp32',
                      local_checkpoint_save_location=None,
                      hf_repo_for_upload=None,
+                     trust_remote_code=False,
                      test_uploaded_model=False)
     convert_composer_to_hf(args)
 

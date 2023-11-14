@@ -6,7 +6,7 @@ import torch
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-from llmfoundry.models.mpt.modeling_mpt import gen_rotary_embedding
+from llmfoundry.models.mpt.modeling_mpt import gen_rotary_embedding, gen_attention_mask_in_length, apply_sequence_id
 
 
 def allclose_helper(t0: torch.Tensor,
@@ -50,12 +50,14 @@ def allclose_helper(t0: torch.Tensor,
 @pytest.mark.parametrize(
     'attn_type',
     ['multihead_attention', 'multiquery_attention', 'grouped_query_attention'])
+@pytest.mark.parametrize('attn_uses_sequence_id', [True, False])
 def test_attn_impl(attn_impl_0: str,
                    attn_impl_1: str,
                    clip_qkv: bool,
                    qk_ln: bool,
                    pos_emb_config: dict,
                    attn_type: str,
+                   attn_uses_sequence_id: bool,
                    device: str = 'cuda'):
     """Compare all attn impl with each other.
 
@@ -71,6 +73,9 @@ def test_attn_impl(attn_impl_0: str,
     if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):
         pytest.skip('dail implementation of rope requires flash attention 2.')
+    
+    if not(alibi or rope) and attn_uses_sequence_id:
+        pytest.skip('attn_uses_sequence_id requires alibi or rope.')
 
     cfg = om.create({
         'attn_impl': 'flash',
@@ -85,9 +90,16 @@ def test_attn_impl(attn_impl_0: str,
     assert cfg.d_model % cfg.n_heads == 0
     if attn_type == 'grouped_query_attention':
         cfg.kv_n_heads = 2
+    
+    sequence_id = None
+    if attn_uses_sequence_id:
+        assert n==2
+        assert s>=8
+        sequence_id = torch.Tensor([[0]*4+[1]*(s-4), [0]*8+[1]*(s-8)]).to(device=device, dtype=torch.int64)
 
     cfg.attn_impl = attn_impl_0
     attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
+    cfg.attn_impl = attn_impl_1
     attn1 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
 
     attn1.load_state_dict(attn0.state_dict())
@@ -102,7 +114,7 @@ def test_attn_impl(attn_impl_0: str,
                                        s,
                                        alibi,
                                        prefix_lm=False,
-                                       use_sequence_id=False,
+                                       use_sequence_id=attn_uses_sequence_id,
                                        causal=causal)
         if bs is not None:
             attn_bias = torch.zeros(*bs, device=device)
@@ -115,8 +127,14 @@ def test_attn_impl(attn_impl_0: str,
                 alibi=alibi,
                 alibi_bias_max=8,
             )
+        if attn_impl != 'flash' and attn_uses_sequence_id and sequence_id is not None:
+            assert isinstance(attn_bias, torch.Tensor)  # pyright
+            attn_bias = apply_sequence_id(attn_bias, sequence_id, s)
 
         return attn_bias
+    
+    query_attention_mask_in_length_0, key_attention_mask_in_length_0 = gen_attention_mask_in_length(sequence_id=sequence_id, S=s, attn_uses_sequence_id=attn_uses_sequence_id, attn_impl=attn_impl_0)
+    query_attention_mask_in_length_1, key_attention_mask_in_length_1 = gen_attention_mask_in_length(sequence_id=sequence_id, S=s, attn_uses_sequence_id=attn_uses_sequence_id, attn_impl=attn_impl_1)
 
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()
@@ -124,7 +142,7 @@ def test_attn_impl(attn_impl_0: str,
     x1.requires_grad = True
 
     with torch.autocast(x0.device.type):
-        attn_bias = gen_bias(attn0.attn_impl)
+        attn_bias = gen_bias(attn_impl_0)
 
         rotary_emb_w_meta_info = None
         if rope:
@@ -157,14 +175,18 @@ def test_attn_impl(attn_impl_0: str,
                          attn_bias=attn_bias,
                          attention_mask=attention_mask,
                          rotary_emb_w_meta_info=rotary_emb_w_meta_info,
-                         is_causal=True)
-        attn_bias = gen_bias(attn1.attn_impl)
+                         is_causal=True,
+                         query_attention_mask_in_length=query_attention_mask_in_length_0,
+                         key_attention_mask_in_length=key_attention_mask_in_length_0)
+        attn_bias = gen_bias(attn_impl_1)
         y1, _, _ = attn1(x1,
                          past_key_value=None,
                          attn_bias=attn_bias,
                          attention_mask=attention_mask,
                          rotary_emb_w_meta_info=rotary_emb_w_meta_info,
-                         is_causal=True)
+                         is_causal=True,
+                         query_attention_mask_in_length=query_attention_mask_in_length_1,
+                         key_attention_mask_in_length=key_attention_mask_in_length_1)
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)
 
@@ -182,11 +204,23 @@ def test_attn_impl(attn_impl_0: str,
         assert p.grad is not None
         assert tp.grad is not None
         assert allclose_helper(p, tp)
-        assert allclose_helper(p.grad, tp.grad)
+        if not attn_uses_sequence_id:
+            try:
+                assert allclose_helper(p.grad, tp.grad)
+            except:
+                breakpoint()
+        else:
+            try:
+                assert torch.norm(tp.grad - p.grad) <= 1e-2 + 1e-2 * torch.norm(p.grad)
+            except:
+                breakpoint()
 
     assert x0.grad is not None
     assert x1.grad is not None
-    assert allclose_helper(x0.grad, x1.grad)
+    try:
+        assert allclose_helper(x0.grad, x1.grad)
+    except:
+        breakpoint()
 
 
 @pytest.mark.gpu

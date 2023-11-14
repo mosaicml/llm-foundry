@@ -96,8 +96,10 @@ def test_get_eval_parameters():
             'model_name': 'model_example',
             'model': {
                 'name': 'model_example',
-                'attn_config': {
-                    'foo': 'bar'
+                'config_overrides': {
+                    'attn_config': {
+                        'foo': 'bar'
+                    },
                 },
             },
             'tokenizer': {
@@ -139,8 +141,10 @@ def test_get_eval_parameters():
             'model_name': 'model_example',
             'model': {
                 'name': 'model_example',
-                'attn_config': {
-                    'foo': 'bar'
+                'config_overrides': {
+                    'attn_config': {
+                        'foo': 'bar'
+                    },
                 },
             },
             'tokenizer': {
@@ -226,9 +230,11 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
         'model_name': 'model_example',
         'model': {
             'name': 'model_example',
-            'attn_config': {
-                'foo': 'bar'
-            }
+            'config_overrides': {
+                'attn_config': {
+                    'foo': 'bar'
+                },
+            },
         },
         'tokenizer': {
             'tokenizer_example': 'tokenizer_example'

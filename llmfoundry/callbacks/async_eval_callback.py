@@ -73,11 +73,6 @@ def get_eval_models_dict(
     tokenizer: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
     name = model.get('name')
-
-    cfg_overrides = model.pop('config_overrides', {})
-    for key in cfg_overrides:
-        model[key] = cfg_overrides[key]
-
     new_model = {'model_name': name, 'model': model}
 
     if tokenizer:
@@ -125,8 +120,8 @@ class AsyncEval(Callback):
         del logger
         if all([
                 state.get_elapsed_duration() is not None,
-                self.check_interval(state, event),
-                self.last_launch != state.timestamp.batch,
+                self.check_interval(state, event), self.last_launch
+                != state.timestamp.batch,
                 dist.get_global_rank() == 0
         ]):
             self.launch_run()

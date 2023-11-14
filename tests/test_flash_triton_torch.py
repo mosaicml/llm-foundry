@@ -88,6 +88,7 @@ def test_attn_impl(attn_impl_0: str,
 
     cfg.attn_impl = attn_impl_0
     attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
+    cfg.attn_impl = attn_impl_1
     attn1 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
 
     attn1.load_state_dict(attn0.state_dict())

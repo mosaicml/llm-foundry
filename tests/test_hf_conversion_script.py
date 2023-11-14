@@ -425,18 +425,6 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                                                             else 0)
         assert mlflow_logger_mock.register_model.call_count == (
             1 if log_to_mlflow else 0)
-        # if log_to_mlflow:
-        #     # mlflow_logger_mock.save_model.assert_called_with(
-        #     #     flavor='transformers',
-        #     #     transformers_model=ANY,
-        #     #     path=ANY,
-        #     #     task='text-generation',
-        #     #     metatdata={'task': 'llm/v1/completions'}
-        #     # )
-        #     assert mlflow_logger_mock.register_model.call_count == 1
-        # else:
-        #     assert mlflow_logger_mock.save_model.call_count == 0
-        #     assert mlflow_logger_mock.register_model.call_count == 0
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
         assert mlflow_logger_mock.register_model.call_count == 0

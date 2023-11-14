@@ -11,6 +11,7 @@ icl_tasks:
     name: gsm100 
     split: test
   hf_parsing_vars:
+    batched: True
     context: ["input", "instructions"]
     labels: ["outputs"] 
 -
@@ -19,6 +20,8 @@ icl_tasks:
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_parsing_func: leval_hf_parsing_func 
+  hf_parsing_vars:
+    batched: True
   hf_loading_vars: 
     name: legal_contract_qa 
     split: test
@@ -28,6 +31,8 @@ icl_tasks:
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_parsing_func: leval_hf_parsing_func 
+  hf_parsing_vars:
+    batched: True
   hf_loading_vars: 
     name: financial_qa
     split: test
@@ -37,6 +42,8 @@ icl_tasks:
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_parsing_func: leval_hf_parsing_func 
+  hf_parsing_vars:
+    batched: True
   hf_loading_vars: 
     name: multidoc_qa
     split: test
@@ -46,6 +53,8 @@ icl_tasks:
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_parsing_func: leval_hf_parsing_func 
+  hf_parsing_vars:
+    batched: True
   hf_loading_vars: 
     name: scientific_qa 
     split: test
@@ -55,6 +64,8 @@ icl_tasks:
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_parsing_func: leval_hf_parsing_func 
+  hf_parsing_vars:
+    batched: True
   hf_loading_vars: 
     name: narrative_qa
     split: test
@@ -64,6 +75,8 @@ icl_tasks:
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_parsing_func: leval_hf_parsing_func 
+  hf_parsing_vars:
+    batched: True
   hf_loading_vars: 
     name: natural_question 
     split: test
@@ -73,6 +86,8 @@ icl_tasks:
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_parsing_func: leval_hf_parsing_func 
+  hf_parsing_vars:
+    batched: True
   hf_loading_vars: 
     name: topic_retrieval_longchat  
     split: test

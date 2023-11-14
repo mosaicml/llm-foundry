@@ -23,7 +23,28 @@ fsdp_config:
   sharding_strategy: FULL_SHARD
   mixed_precision: FULL
 
-icl_tasks: 'eval/yamls/leval.yaml'
-eval_gauntlet: 'eval/yamls/leval_test.yaml'
+icl_tasks:  'eval/yamls/leval_tasks.yaml'
+eval_gauntlet: 'eval/yamls/leval.yaml'
 # icl_tasks: 'eval/yamls/long_context_tasks.yaml'
 # eval_gauntlet: 'eval/yamls/eval_gauntlet_8k_section.yaml'
+# icl_tasks:
+# - label: longchat-lines
+#   dataset_uri: hf://abacusai/LongChat-Lines
+#   num_fewshot: [0]
+#   icl_task_type: question_answering
+#   hf_vars: 
+#     split: 100
+#   hf_cols:
+#     inputs: ["prompt"]
+#     outputs: ["expected_number"] 
+
+# eval_gauntlet:
+#   weighting: EQUAL
+#   subtract_random_baseline: true
+#   rescale_accuracy: true
+#   categories:
+#   - name: longchat-lines
+#     benchmarks:
+#     - name: longchat-lines 
+#       num_fewshot: 0
+#       random_baseline: 0.0

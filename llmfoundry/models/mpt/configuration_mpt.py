@@ -221,11 +221,6 @@ class MPTConfig(PretrainedConfig):
         ]:
             raise NotImplementedError(
                 'alibi only implemented with torch and triton attention.')
-        if self.attn_config['attn_uses_sequence_id'] and self.attn_config[
-                'attn_impl'] not in ['torch', 'triton']:
-            raise NotImplementedError(
-                'attn_uses_sequence_id only implemented with torch and triton attention.'
-            )
         if self.attn_config['rope'] and (self.attn_config['rope_impl']
                                          not in ['dail', 'hf']):
             raise ValueError(

@@ -509,6 +509,21 @@ class MPTModel(MPTPreTrainedModel):
             prefix_mask=prefix_mask,
             sequence_id=sequence_id,
         )
+        query_attention_mask_in_length = None  # Used for sequence masking in flash attention
+        key_attention_mask_in_length = None  # Used for sequence masking in flash attention
+        if sequence_id is not None and self.attn_uses_sequence_id and self.attn_impl == 'flash':
+            total_seq_len = sequence_id.shape[-1]
+            if total_seq_len > self.config.max_seq_len:
+                raise ValueError(
+                    f'sequence_id sequence length cannot exceed max_seq_len={self.config.max_seq_len}'
+                )
+            query_attention_mask_in_length = torch.nn.functional.one_hot(
+                sequence_id[:, -S:], num_classes=S).sum(dim=1)
+            key_attention_mask_in_length = torch.nn.functional.pad(
+                torch.nn.functional.one_hot(sequence_id,
+                                            num_classes=S).sum(dim=1),
+                (0, total_seq_len - S),
+                value=0)
 
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
@@ -532,6 +547,8 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
+                query_attention_mask_in_length=query_attention_mask_in_length,
+                key_attention_mask_in_length=key_attention_mask_in_length,
             )
             if presents is not None:
                 presents += (present,)

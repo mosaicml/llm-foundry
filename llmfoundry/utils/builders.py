@@ -7,8 +7,6 @@ import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
-import datasets as hf_datasets
-import json
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, OptimizerMonitor,
@@ -37,6 +35,7 @@ from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.utils.data_parsing_registry import EVAL_HF_PARSING_FUNCTION_REGISTRY
 
 log = logging.getLogger(__name__)
 
@@ -289,6 +288,11 @@ def build_icl_evaluators(
                 os.remove(destination_path)
             dist.barrier()
 
+            hf_parsing_vars = icl_cfg.get('hf_parsing_vars', {})
+            hf_loading_vars = icl_cfg.get('hf_loading_vars', {}) 
+            hf_parsing_func_name = icl_cfg.get('hf_parsing_func', '') 
+            hf_parsing_func = EVAL_HF_PARSING_FUNCTION_REGISTRY.get(hf_parsing_func_name, None)
+
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,
@@ -299,6 +303,9 @@ def build_icl_evaluators(
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
+                hf_parsing_vars=hf_parsing_vars, 
+                hf_loading_vars=hf_loading_vars, 
+                hf_parsing_func=hf_parsing_func, 
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 destination_path=destination_path,
                 pass_at_k=icl_cfg.pass_at_k,

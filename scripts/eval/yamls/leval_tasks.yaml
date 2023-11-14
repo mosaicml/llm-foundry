@@ -6,8 +6,10 @@ icl_tasks:
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
+  hf_parsing_func: leval_hf_parsing_func 
   hf_loading_vars: 
     name: gsm100 
+    split: test
   hf_parsing_vars:
     context: ["input", "instructions"]
     labels: ["outputs"] 
@@ -16,75 +18,61 @@ icl_tasks:
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
+  hf_parsing_func: leval_hf_parsing_func 
   hf_loading_vars: 
     name: legal_contract_qa 
-  hf_parsing_vars:
-    pivot_col: input
-    inputs: ["instructions"]
-    outputs: ["outputs"] 
+    split: test
 -
   label: financial_qa
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
+  hf_parsing_func: leval_hf_parsing_func 
   hf_loading_vars: 
     name: financial_qa
-  hf_parsing_vars:
-    pivot_col: input
-    inputs: ["instructions"]
-    outputs: ["outputs"] 
+    split: test
 -
   label: multidoc_qa
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
+  hf_parsing_func: leval_hf_parsing_func 
   hf_loading_vars: 
     name: multidoc_qa
-  hf_parsing_vars:
-    pivot_col: input
-    inputs: ["instructions"]
-    outputs: ["outputs"] 
+    split: test
 -
   label: scientific_qa
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
+  hf_parsing_func: leval_hf_parsing_func 
   hf_loading_vars: 
     name: scientific_qa 
-  hf_parsing_vars:
-    pivot_col: input
-    inputs: ["instructions"]
-    outputs: ["outputs"] 
+    split: test
 -
   label: narrative_qa
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
+  hf_parsing_func: leval_hf_parsing_func 
   hf_loading_vars: 
     name: narrative_qa
-  hf_parsing_vars:
-    pivot_col: input
-    inputs: ["instructions"]
-    outputs: ["outputs"] 
+    split: test
 -
   label: natural_question 
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
+  hf_parsing_func: leval_hf_parsing_func 
   hf_loading_vars: 
     name: natural_question 
-  hf_parsing_vars:
-    pivot_col: input
-    inputs: ["instructions"]
-    outputs: ["outputs"] 
+    split: test
 -
   label: topic_retrieval_longchat 
   dataset_uri: hf://L4NLP/LEval
   num_fewshot: [0]
   icl_task_type: question_answering
+  hf_parsing_func: leval_hf_parsing_func 
   hf_loading_vars: 
     name: topic_retrieval_longchat  
-  hf_parsing_vars:
-    pivot_col: input
-    inputs: ["instructions"]
-    outputs: ["outputs"] 
+    split: test

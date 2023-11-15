@@ -550,7 +550,7 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
 def test_sequence_id_based_masking(attention_impl: str, device: str,
                                    pos_emb_config: dict,
                                    tie_word_embeddings: bool):
-    # Test that different placement of padding does not affect the output.
+    # Testing the output of concatenated sequence with sequence id masking vs individual sequences.
     if not torch.cuda.is_available() and device == 'gpu':
         pytest.skip(
             f'This test requires CUDA to be available in order to run with {attention_impl} attention.'

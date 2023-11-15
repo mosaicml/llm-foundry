@@ -12,7 +12,6 @@ tokenizer:
 model:
   name: mpt_causal_lm
   init_device: cpu
-  tokenizer_name: ${tokenizer_name}
   d_model: 4096
   n_heads: 32
   n_layers: 32

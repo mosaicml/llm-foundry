@@ -5,7 +5,7 @@
 
 import math
 import warnings
-from typing import Any, Optional
+from typing import Any, Optional, Tuple, List
 
 import torch
 import torch.nn as nn
@@ -117,7 +117,7 @@ def scaled_multihead_dot_product_attention(
     value: torch.Tensor,
     n_heads: int,
     kv_n_heads: Optional[int] = None,
-    past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
+    past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
     key_padding_mask: Optional[torch.Tensor] = None,
@@ -126,7 +126,7 @@ def scaled_multihead_dot_product_attention(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
+) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
 
     if multiquery:
@@ -230,7 +230,7 @@ def scaled_multihead_dot_product_attention(
 
 
 def check_valid_inputs(*tensors: torch.Tensor,
-                       valid_dtypes: Optional[list[torch.dtype]] = None):
+                       valid_dtypes: Optional[List[torch.dtype]] = None):
     if valid_dtypes is None:
         valid_dtypes = [torch.float16, torch.bfloat16]
     for tensor in tensors:
@@ -246,7 +246,7 @@ def flash_attn_fn(
     value: torch.Tensor,
     n_heads: int,
     kv_n_heads: Optional[int] = None,
-    past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
+    past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
     key_padding_mask: Optional[torch.Tensor] = None,
@@ -255,7 +255,7 @@ def flash_attn_fn(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
+) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
@@ -384,7 +384,7 @@ def triton_flash_attn_fn(
     value: torch.Tensor,
     n_heads: int,
     kv_n_heads: Optional[int] = None,
-    past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
+    past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
     key_padding_mask: Optional[torch.Tensor] = None,
@@ -393,7 +393,7 @@ def triton_flash_attn_fn(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
+) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
         from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
@@ -601,13 +601,13 @@ class GroupedQueryAttention(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
+        past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         rotary_emb_w_meta_info: Optional[dict] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
-    ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
             torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
 
@@ -760,7 +760,7 @@ class MultiQueryAttention(GroupedQueryAttention):
 def attn_bias_shape(
         attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
         prefix_lm: bool, causal: bool,
-        use_sequence_id: bool) -> Optional[tuple[int, int, int, int]]:
+        use_sequence_id: bool) -> Optional[Tuple[int, int, int, int]]:
     if attn_impl == 'flash':
         return None
     elif attn_impl in ['torch', 'triton', 'habana_fused_sdpa']:

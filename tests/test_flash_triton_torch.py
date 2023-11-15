@@ -75,6 +75,9 @@ def test_attn_impl(attn_impl_0: str,
     if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):
         pytest.skip('dail implementation of rope requires flash attention 2.')
+    
+    if attn_uses_sequence_id and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash') and (not is_flash_v2_installed(v2_version='v2.1.2')):
+        pytest.skip('Using sequence id with flash attention requires flash attention v2.1.2 or higher.')
 
     if not (alibi or rope) and attn_uses_sequence_id:
         pytest.skip('attn_uses_sequence_id requires alibi or rope.')

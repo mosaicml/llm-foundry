@@ -132,16 +132,17 @@ def gen_rotary_embedding(rope_head_dim: int, rope_impl: str, rope_theta: int,
     raise ValueError('rope_impl needs to be either dail or hf')
 
 def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int, attn_uses_sequence_id: bool, attn_impl: str):
-        query_attention_mask_in_length = None  # Used for sequence masking in flash attention
-        key_attention_mask_in_length = None  # Used for sequence masking in flash attention
+        # Generates the attention masks used for sequence masking in flash attention
+        query_attention_mask_in_length = None
+        key_attention_mask_in_length = None
         if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
-            query_attention_mask_in_length = torch.nn.functional.one_hot(
-                sequence_id[:, -S:], num_classes=S).sum(dim=1)
-            key_attention_mask_in_length = torch.nn.functional.pad(
-                torch.nn.functional.one_hot(sequence_id,
-                                            num_classes=S).sum(dim=1),
-                (0, sequence_id.shape[-1] - S),
-                value=0)
+            query_attention_mask_in_length = torch.nn.functional.one_hot(sequence_id[:, -S:], num_classes=S).sum(dim=1)
+            # We use S as the number of classes while creating key_attention_mask_in_length instead of sequence_id.shape[-1] 
+            # because in case of inference, sequence_id.shape[-1] can become very large. In that case, the one_hot vectors 
+            # would've become very large as well.
+            key_attention_mask_in_length = torch.nn.functional.one_hot(sequence_id, num_classes=S).sum(dim=1)
+            # Since Flash Attention expects the masks to have same shape as the keys, we pad it with zeros.
+            key_attention_mask_in_length = torch.nn.functional.pad(key_attention_mask_in_length, (0, sequence_id.shape[-1] - S), value=0)
                 
         return query_attention_mask_in_length,key_attention_mask_in_length
 

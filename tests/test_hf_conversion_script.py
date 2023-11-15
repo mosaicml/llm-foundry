@@ -5,7 +5,7 @@ import math
 import os
 import pathlib
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 from composer import Trainer
 from composer.loggers import MLFlowLogger
@@ -242,8 +242,21 @@ def get_config(
     return cast(DictConfig, test_cfg)
 
 
-def test_callback_inits_with_defaults():
+def test_callback_inits():
+    # test with defaults
     _ = HuggingFaceCheckpointer(save_folder='test', save_interval='1ba')
+
+    # test default metatdata when mlflow registered name is given
+    hf_checkpointer = HuggingFaceCheckpointer(
+        save_folder='test',
+        save_interval='1ba',
+        mlflow_registered_model_name='test_model_name')
+    assert hf_checkpointer.mlflow_logging_config == {
+        'task': 'text-generation',
+        'metadata': {
+            'task': 'llm/v1/completions'
+        }
+    }
 
 
 @pytest.mark.world_size(2)
@@ -425,10 +438,18 @@ def test_huggingface_conversion_callback(
     trainer.fit()
 
     if dist.get_global_rank() == 0:
-        assert mlflow_logger_mock.save_model.call_count == (1 if log_to_mlflow
-                                                            else 0)
-        assert mlflow_logger_mock.register_model.call_count == (
-            1 if log_to_mlflow else 0)
+        if log_to_mlflow:
+            assert mlflow_logger_mock.save_model.call_count == 1
+            mlflow_logger_mock.save_model.assert_called_with(
+                flavor='transformers',
+                transformers_model=ANY,
+                path=ANY,
+                task='text-generation',
+                metadata={'task': 'llm/v1/completions'})
+            assert mlflow_logger_mock.register_model.call_count == 1
+        else:
+            assert mlflow_logger_mock.save_model.call_count == 0
+            assert mlflow_logger_mock.register_model.call_count == 0
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
         assert mlflow_logger_mock.register_model.call_count == 0

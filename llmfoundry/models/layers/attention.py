@@ -265,7 +265,7 @@ def flash_attn_fn(
 
     batch_size, seqlen = query.shape[:2]
 
-    if key_attention_mask_in_length is None:
+    if query_attention_mask_in_length is None:
         if key_padding_mask is None:
             key_padding_mask = torch.ones_like(key[:, :, 0], dtype=torch.bool)
         query_padding_mask = key_padding_mask[:, -query.size(1):]
@@ -283,6 +283,10 @@ def flash_attn_fn(
                                 'nnz (h d) -> nnz h d',
                                 h=kv_n_heads)
     else:
+        if key_attention_mask_in_length is None:
+            raise ValueError(
+                'key_attention_mask_in_length must not be None if query_attention_mask_in_length is not None.'
+            )
         query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = bert_padding.unpad_input_for_concatenated_sequences(
             query, query_attention_mask_in_length)
         query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)

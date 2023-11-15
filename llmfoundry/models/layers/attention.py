@@ -92,9 +92,10 @@ def scaled_multihead_dot_product_attention(
     multiquery: bool = False,
     query_attention_mask_in_length: Optional[torch.Tensor] = None,
     key_attention_mask_in_length: Optional[torch.Tensor] = None,
+    should_repeat_kv_for_gqa: Optional[bool] = True,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-    del query_attention_mask_in_length, key_attention_mask_in_length
+    del query_attention_mask_in_length, key_attention_mask_in_length, should_repeat_kv_for_gqa
 
     if multiquery:
         warnings.warn(
@@ -224,6 +225,7 @@ def flash_attn_fn(
     multiquery: bool = False,
     key_attention_mask_in_length: Optional[torch.Tensor] = None,
     query_attention_mask_in_length: Optional[torch.Tensor] = None,
+    should_repeat_kv_for_gqa: Optional[bool] = True,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
@@ -301,7 +303,7 @@ def flash_attn_fn(
                                 'nnz (h d) -> nnz h d',
                                 h=kv_n_heads)
 
-    if is_flash_v1_installed():
+    if should_repeat_kv_for_gqa:
         # multi-query case
         if kv_n_heads == 1:
             # Expanding a tensor does not allocate new memory, but only creates a new
@@ -386,9 +388,10 @@ def triton_flash_attn_fn(
     multiquery: bool = False,
     query_attention_mask_in_length: Optional[torch.Tensor] = None,
     key_attention_mask_in_length: Optional[torch.Tensor] = None,
+    should_repeat_kv_for_gqa: Optional[bool] = True,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-    del query_attention_mask_in_length, key_attention_mask_in_length
+    del query_attention_mask_in_length, key_attention_mask_in_length, should_repeat_kv_for_gqa
     try:
         from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
     except:
@@ -674,6 +677,7 @@ class GroupedQueryAttention(nn.Module):
             needs_weights=needs_weights,
             query_attention_mask_in_length=query_attention_mask_in_length,
             key_attention_mask_in_length=key_attention_mask_in_length,
+            should_repeat_kv_for_gqa=is_flash_v1_installed(),
         )
 
         return self.out_proj(context), attn_weights, past_key_value

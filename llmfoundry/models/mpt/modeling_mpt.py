@@ -135,7 +135,7 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
         # Generates the attention masks used for sequence masking in flash attention
         query_attention_mask_in_length = None
         key_attention_mask_in_length = None
-        if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
+        if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl == 'flash') and is_flash_v2_installed(v2_version='v2.1.2'):
             query_attention_mask_in_length = torch.nn.functional.one_hot(sequence_id[:, -S:], num_classes=S).sum(dim=1)
             # We use S as the number of classes while creating key_attention_mask_in_length instead of sequence_id.shape[-1] 
             # because in case of inference, sequence_id.shape[-1] can become very large. In that case, the one_hot vectors 

@@ -55,9 +55,11 @@ class MockMPTForCausalLM(MPTForCausalLM):
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
        new=MockMPTForCausalLM)
 def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
+                                tie_word_embeddings: bool,
                                 build_tiny_mpt: Callable[...,
                                                          ComposerMPTCausalLM],
                                 mpt_tokenizer: PreTrainedTokenizerBase):
@@ -67,11 +69,14 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
     """
     device = get_device('gpu')
 
-    model = build_tiny_mpt(attn_config={
-        'attn_impl': attn_impl,
-        'attn_uses_sequence_id': False,
-        'alibi': use_alibi
-    },)
+    model = build_tiny_mpt(
+        tie_word_embeddings=tie_word_embeddings,
+        attn_config={
+            'attn_impl': attn_impl,
+            'attn_uses_sequence_id': False,
+            'alibi': use_alibi
+        },
+    )
     model = device.module_to_device(model)
 
     model.eval()
@@ -88,13 +93,25 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
 
 
 @pytest.mark.gpu
-def test_mpt_generate_callback(build_tiny_mpt: Callable[...,
+@pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
+@pytest.mark.parametrize('use_alibi', [True, False])
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
+def test_mpt_generate_callback(attn_impl: str, use_alibi: bool,
+                               tie_word_embeddings: bool,
+                               build_tiny_mpt: Callable[...,
                                                         ComposerMPTCausalLM],
                                tiny_ft_dataloader: DataLoader):
     device = get_device('gpu')
 
     # build mpt model
-    model = build_tiny_mpt()
+    model = build_tiny_mpt(
+        tie_word_embeddings=tie_word_embeddings,
+        attn_config={
+            'attn_impl': attn_impl,
+            'attn_uses_sequence_id': False,
+            'alibi': use_alibi
+        },
+    )
     model = device.module_to_device(model)
 
     # generate callback

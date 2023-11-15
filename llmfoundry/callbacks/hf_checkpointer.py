@@ -204,7 +204,7 @@ class HuggingFaceCheckpointer(Callback):
                         state_dict[k] = v.to(dtype=self.dtype)
 
             if dist.get_global_rank() == 0:
-                log.debug('Saving Hugging Face checkpoint to disk')
+                log.debug('Saving Hugging Face checkpoint in global rank 0')
 
                 copied_config = copy.deepcopy(original_model.config)
                 if copied_config.model_type == 'mpt':

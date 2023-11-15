@@ -109,7 +109,7 @@ def test_build_hf_checkpointer_callback():
                            'save_interval': save_interval,
                            'mlflow_logging_config': mlflow_logging_config_dict
                        }),
-                       {})
+                       config={})
 
         assert mock_hf_checkpointer.call_count == 1
         _, _, kwargs = mock_hf_checkpointer.mock_calls[0]

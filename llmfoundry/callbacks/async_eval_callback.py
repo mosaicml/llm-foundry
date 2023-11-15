@@ -124,7 +124,7 @@ def get_eval_parameters(
 
     if looking_for:
         raise Exception(
-            f'Missing the following required parameters for async eval: {looking_for}'
+            f'Missing the following required parameters for async eval: {looking_for}\n{parameters}'
         )
 
     # Convert the save_folder to a load_path
@@ -132,8 +132,10 @@ def get_eval_parameters(
 
     for logger, config in subset_keys.get('loggers', {}).items():
         if logger == 'wandb':
-            config['group'] = config.get('name', training_run_name)
-            del config['name']
+            config['group'] = config.pop('name', training_run_name)
+
+        # mlflow currently does not support grouping, so this will just launch
+        # a new mlflow run
 
     # Create new eval models list
     model = subset_keys.pop('model')

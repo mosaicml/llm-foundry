@@ -210,8 +210,13 @@ class AsyncEval(Callback):
             current_interval = f'{state.timestamp.get(self.interval.unit)}{self.interval.unit.value}'
 
             checkpoint = get_latest_checkpoint(event, state)
-            if not checkpoint or checkpoint == self.last_checkpoint:
+            if not checkpoint:
+                return  # warnings logged in get_latest_checkpoint
+            if checkpoint == self.last_checkpoint:
                 # Do not eval a checkpoint that has already been evaluated.
+                log.info(
+                    'Skipping async eval because the checkpoint has not changed'
+                )
                 return
 
             self.launch_run(checkpoint, current_interval)
@@ -264,9 +269,7 @@ class AsyncEval(Callback):
             parameters=params,
         )
 
-        # Increase default timeout of 10s just in case
-        new_run = create_run(run_config, timeout=20)
-        log.info(
-            f'Launched new run {new_run.name} inside eval loop with config: \n{new_run.submitted_config}'
-        )
+        log.info(f'Creating new run with config: \n{run_config}')
+        new_run = create_run(run_config)
+        log.info(f'Launched new run {new_run.name} inside eval loop')
         return new_run

@@ -30,16 +30,16 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-30b-instruct
+    model_name: mosaicml/mpt-7b-instruct
     # Tokenizer
     tokenizer:
-      name:  mosaicml/mpt-30b-instruct
+      name:  mosaicml/mpt-7b-instruct
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path:  mosaicml/mpt-30b-instruct
+      pretrained_model_name_or_path:  mosaicml/mpt-7b-instruct
       init_device: mixed
       pretrained: true
       use_auth_token: false
@@ -56,7 +56,6 @@ parameters:
   eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
   callbacks:
     eval_output_logging:
-      print_only_incorrect: true
       subset_sample: -1
-      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b
+      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_7b
 

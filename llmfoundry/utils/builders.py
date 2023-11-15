@@ -3,11 +3,12 @@
 
 import logging
 import os
+import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from composer import algorithms
-from composer.callbacks import (EarlyStopper, LRMonitor, MemoryMonitor,
+from composer.callbacks import (EarlyStopper, Generate, LRMonitor, MemoryMonitor,
                                 OptimizerMonitor, RuntimeEstimator, EvalOutputLogging,
                                 SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
@@ -26,12 +27,14 @@ from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, Generate,
-                                  GlobalLRScaling, HuggingFaceCheckpointer,
-                                  LayerFreezing, MonolithicCheckpointSaver,
+from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
+                                  HuggingFaceCheckpointer, LayerFreezing,
+                                  MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
+from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
+from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
 log = logging.getLogger(__name__)
 
@@ -88,7 +91,21 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
             'log_optimizer_metrics', True),)
     elif name == 'generate_callback':
         prompts = kwargs.pop('prompts')
-        return Generate(prompts=list(prompts), **kwargs)
+        interval = kwargs.pop('interval', None)
+        # Generate callback used to be batch_log_interval, so this is for backwards compatibility
+        if interval is None:
+            batch_log_interval: str = kwargs.pop('batch_log_interval', '')
+            if batch_log_interval:
+                interval = f'{batch_log_interval}ba'
+                warnings.warn(
+                    ('generate_callback.batch_log_interval is deprecated and will be removed in a future release.'
+                     f'Please use interval: {interval}'),
+                    DeprecationWarning,
+                )
+            else:
+                raise KeyError(
+                    '"interval" must be specified with generate callback')
+        return Generate(prompts=list(prompts), interval=interval, **kwargs)
     elif name == 'global_lr_scaling':
         return GlobalLRScaling(**kwargs)
     elif name == 'layer_freezing':
@@ -112,6 +129,8 @@ def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
         return WandBLogger(**kwargs)
     elif name == 'tensorboard':
         return TensorboardLogger(**kwargs)
+    elif name == 'in_memory_logger':
+        return InMemoryLogger(**kwargs)
     elif name == 'mlflow':
         return MLFlowLogger(**kwargs)
     elif name == 'inmemory':
@@ -157,6 +176,8 @@ def build_scheduler(name: str,
         return ConstantWithWarmupScheduler(**scheduler_config)
     elif name == 'cosine_with_warmup':
         return CosineAnnealingWithWarmupScheduler(**scheduler_config)
+    elif name == 'inv_sqrt_with_warmup':
+        return InverseSquareRootWithWarmupScheduler(**scheduler_config)
     elif name == 'linear_decay_with_warmup':
         return LinearWithWarmupScheduler(**scheduler_config)
     else:
@@ -169,16 +190,34 @@ def build_tokenizer(
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                              **tokenizer_kwargs)
+    signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
 
-    # HuggingFace does not respect the model_max_length kwarg, and overrides it with
-    # min(kwargs['model_max_length'], original_config['model_max_length']), so we
-    # explicitly set it here
-    tokenizer.model_max_length = tokenizer_kwargs.get(
-        'model_max_length',
-        int(1e30),
-    )
+    # Make sure the tokenizer files are downloaded and cached first by local rank 0
+    with dist.local_rank_zero_download_and_wait(signal_file_path):
+        pass
+
+    if tokenizer_name.startswith('tiktoken'):
+        tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+                                                  **tokenizer_kwargs)
+
+        # HuggingFace does not respect the model_max_length kwarg, and overrides it with
+        # min(kwargs['model_max_length'], original_config['model_max_length']), so we
+        # explicitly set it here
+        tokenizer.model_max_length = tokenizer_kwargs.get(
+            'model_max_length',
+            int(1e30),
+        )
+
+    if dist.get_local_rank() == 0:
+        with open(signal_file_path, 'wb') as f:
+            f.write(b'local_rank0_completed_tokenizer_setup')
+
+    dist.barrier()
+
+    if dist.get_local_rank() == 0:
+        os.remove(signal_file_path)
 
     return tokenizer
 
@@ -225,6 +264,8 @@ def build_icl_evaluators(
                 ]
             elif icl_cfg.icl_task_type == 'question_answering':
                 icl_cfg.metric_names = ['InContextLearningQAAccuracy']
+            elif icl_cfg.icl_task_type == 'code_evaluation':
+                icl_cfg.metric_names = ['InContextLearningCodeEvalAccuracy']
             else:
                 raise ValueError(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg.icl_task_type}.'
@@ -240,6 +281,10 @@ def build_icl_evaluators(
             icl_cfg.max_seq_len = default_max_seq_len
         if 'batch_size' not in icl_cfg:
             icl_cfg.batch_size = default_batch_size
+        if 'pass_at_k' not in icl_cfg:
+            icl_cfg.pass_at_k = 1
+        if 'num_beams' not in icl_cfg:
+            icl_cfg.num_beams = 20
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
@@ -270,6 +315,8 @@ def build_icl_evaluators(
                 example_delimiter=icl_cfg.example_delimiter,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 destination_path=destination_path,
+                pass_at_k=icl_cfg.pass_at_k,
+                generations_per_sample=icl_cfg.num_beams,
                 has_categories=icl_cfg.get('has_categories', False),
             )
             if hasattr(

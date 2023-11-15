@@ -38,6 +38,7 @@ import warnings
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import datasets as hf_datasets
+from composer.utils import dist
 from omegaconf import DictConfig
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
@@ -71,44 +72,76 @@ class StreamingFinetuningDataset(StreamingDataset):
     """Finetuning dataset with flexible tokenization using StreamingDataset.
 
     Args:
-        local (str): Local dataset directory where shards are cached by split.
         tokenizer (Tokenizer): The name of the HuggingFace tokenizer to use to
             tokenize samples.
-        remote (str, optional): Download shards from this remote path or directory. If None, this
-            rank and worker's partition of the dataset must all exist locally. Defaults to ``None``.
-        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to ``False``.
-        predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep if remote is local. Defaults to
-            ``None``.
+        local (str): Local dataset directory where shards are cached by split.
+        remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
+            its data must exist locally. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
+        split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
+            the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
         download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
         download_timeout (float): Number of seconds to wait for a shard to download before raising
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
-            If ``None``, defaults to the number of nodes of the initial run. Defaults to 128.
+        keep_zip (bool): Whether to keep or delete the compressed form when decompressing
+            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
+            `False``.
+        epoch_size (int, optional): Number of samples to draw per epoch balanced across all
+            streams. If ``None``, takes its value from the total number of underlying samples.
+            Provide this field if you are weighting streams relatively to target a larger or
+            smaller epoch size. Defaults to ``None``.
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
+        cache_limit (Union[int, str], optional) - Maximum size in bytes of this StreamingDataset's
+            shard cache. Before downloading a shard, the least recently used resident shard(s) may
+            be evicted (deleted from the local cache) in order to stay under the limit. Set to None
+            to disable shard eviction. Supports integer bytes as well as string human-readable
+            bytes (e.g., 100b, 64kb, 77mb, and so on). Defaults to None.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
+            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
+            initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
+        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
+            Defaults to ``balanced``.
+        sampling_granularity (int): When picking samples for a stream's final partial repeat,
+            how many samples to pick from the same shard at a time (``1`` for evenly balanced
+            across shards, ``1000`` to pick 1000 samples from the same shard at a time, etc).
+            Defaults to ``1``.
+        batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
+            ``per_stream``. Defaults to ``random``.
     """
 
     def __init__(self,
-                 local: str,
                  tokenizer: PreTrainedTokenizerBase,
+                 local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
-                 shuffle: bool = False,
-                 predownload: Optional[int] = 100_000,
-                 keep_zip: bool = False,
                  download_retry: int = 2,
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
-                 shuffle_seed: int = 9176,
-                 num_canonical_nodes: Optional[int] = 128,
+                 keep_zip: bool = False,
+                 epoch_size: Optional[int] = None,
+                 predownload: Optional[int] = None,
+                 cache_limit: Optional[Union[int, str]] = None,
+                 partition_algo: str = 'orig',
+                 num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
+                 shuffle: bool = False,
+                 shuffle_algo: str = 'py1b',
+                 shuffle_seed: int = 9176,
+                 shuffle_block_size: int = 1 << 18,
+                 sampling_method: str = 'balanced',
+                 sampling_granularity: int = 1,
+                 batching_method: str = 'random',
                  **kwargs: Any):
 
         if len(kwargs) > 0:
@@ -125,18 +158,28 @@ class StreamingFinetuningDataset(StreamingDataset):
                     )
 
         # Build Dataset
-        super().__init__(local=local,
-                         remote=remote,
-                         split=split,
-                         shuffle=shuffle,
-                         predownload=predownload,
-                         keep_zip=keep_zip,
-                         download_retry=download_retry,
-                         download_timeout=download_timeout,
-                         validate_hash=validate_hash,
-                         shuffle_seed=shuffle_seed,
-                         num_canonical_nodes=num_canonical_nodes,
-                         batch_size=batch_size)
+        super().__init__(
+            local=local,
+            remote=remote,
+            split=split,
+            download_retry=download_retry,
+            download_timeout=download_timeout,
+            validate_hash=validate_hash,
+            keep_zip=keep_zip,
+            epoch_size=epoch_size,
+            predownload=predownload,
+            cache_limit=cache_limit,
+            partition_algo=partition_algo,
+            num_canonical_nodes=num_canonical_nodes,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            shuffle_algo=shuffle_algo,
+            shuffle_seed=shuffle_seed,
+            shuffle_block_size=shuffle_block_size,
+            sampling_method=sampling_method,
+            sampling_granularity=sampling_granularity,
+            batching_method=batching_method,
+        )
 
         self.tokenizer = tokenizer
 
@@ -277,7 +320,9 @@ class DatasetConstructor:
             Dataset: The tokenized dataset.
         """
         dataset_name = cfg.hf_name
-        split = cfg.split
+        # HF datasets does not support a split with dashes,so we replace split
+        # dashes with underscore.
+        split = cfg.split.replace('-', '_')
         kwargs = cfg.get('hf_kwargs', {})
         proto_preprocessing_fn = cfg.get('preprocessing_fn')
         if isinstance(proto_preprocessing_fn, dict) or isinstance(
@@ -288,6 +333,16 @@ class DatasetConstructor:
             preprocessing_fn = self.get_preprocessing_fn_from_str(
                 proto_preprocessing_fn, dataset_name)
 
+        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
+
+        # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
+        # Once local rank 0 is done, the datasets are all cached on disk, and all other ranks
+        # can just read them.
+        if dist.get_local_rank() != 0:
+            log.debug('Waiting for local_rank 0 to finish data prep')
+            with dist.local_rank_zero_download_and_wait(signal_file_path):
+                pass
+
         dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
 
         def dataset_mapper(example: Dict):
@@ -295,34 +350,59 @@ class DatasetConstructor:
                 example = preprocessing_fn(example)
             return _tokenize_formatted_example(example, tokenizer)
 
+        detected_cpu_count = os.cpu_count() or 1
+        detected_cpus_with_margin = detected_cpu_count - 8
+        num_cpus_to_use = max(1, detected_cpus_with_margin)
+
         columns_to_remove = list(dataset[0].keys())
         tokenized_dataset = dataset.map(
             dataset_mapper,
             batched=False,
             remove_columns=columns_to_remove,
+            num_proc=num_cpus_to_use,
+            desc='Tokenizing dataset',
         )
-        prompt_length_filtered_dataset = tokenized_dataset.filter(
-            lambda example: len(example['input_ids']) < max_seq_len)
 
-        examples_removed = len(tokenized_dataset) - len(
-            prompt_length_filtered_dataset)
+        pad_token_id = tokenizer.pad_token_id
+
+        def filter_long_or_empty_examples(example: Dict) -> bool:
+            less_than_max_seq_len = len(example['input_ids']) < max_seq_len
+            non_empty_input = len(example['input_ids']) > 0
+            non_empty_labels = len(example['labels']) > 0
+            non_padding_response = any(
+                token_id != pad_token_id for token_id in example['labels'])
+            return (less_than_max_seq_len and non_empty_input and
+                    non_empty_labels and non_padding_response)
+
+        filtered_dataset = tokenized_dataset.filter(
+            filter_long_or_empty_examples,
+            num_proc=num_cpus_to_use,
+            desc='Filtering out long prompts',
+        )
+
+        examples_removed = len(tokenized_dataset) - len(filtered_dataset)
         if examples_removed > 0:
             warnings.warn(
-                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}.'
+                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, '
+                +
+                'the prompt or response was empty, or the response was all padding tokens.'
             )
 
-        empty_examples_dropped_dataset = prompt_length_filtered_dataset.filter(
-            lambda example: len(example['input_ids']) > 0 and len(example[
-                'labels']) > 0 and any(token_id != tokenizer.pad_token_id
-                                       for token_id in example['labels']))
-        empty_examples_removed = len(prompt_length_filtered_dataset) - len(
-            empty_examples_dropped_dataset)
-        if empty_examples_removed > 0:
-            warnings.warn(
-                f'Dropped {empty_examples_removed} examples where the prompt or response was empty, '
-                + 'or the response was only padding tokens.')
+        # Now local rank 0 indicates to the other ranks that it is done
+        if dist.get_local_rank() == 0:
+            log.debug('Local rank 0 finished data prep')
+            with open(signal_file_path, 'wb') as f:
+                f.write(b'local_rank0_completed_data_prep')
 
-        return empty_examples_dropped_dataset
+        # All ranks sync up at this barrier, having completed data processing
+        dist.barrier()
+
+        # Last, local rank 0 cleans up the signal file
+        if dist.get_local_rank() == 0:
+            os.remove(signal_file_path)
+
+        log.debug('All ranks finished data prep')
+        return filtered_dataset
 
     def build_from_streaming(self, *args: Any,
                              **kwargs: Any) -> StreamingFinetuningDataset:

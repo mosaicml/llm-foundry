@@ -14,7 +14,8 @@ from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.metrics import (InContextLearningLMAccuracy,
+from composer.metrics import (InContextLearningCodeEvalAccuracy,
+                              InContextLearningLMAccuracy,
                               InContextLearningLMExpectedCalibrationError,
                               InContextLearningMCExpectedCalibrationError,
                               InContextLearningMultipleChoiceAccuracy,
@@ -22,11 +23,27 @@ from composer.metrics import (InContextLearningLMAccuracy,
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
+
+from llmfoundry.models.layers.attention import is_flash_v2_installed
+
+if is_flash_v2_installed():
+    try:  # This try...except is needed because transformers requires it despite the 'if' statement above
+        from flash_attn.layers.rotary import \
+            RotaryEmbedding as DAILRotaryEmbedding
+    except Exception as e:
+        raise e
+
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.modeling_outputs import (BaseModelOutputWithPast,
                                            CausalLMOutputWithPast)
+from transformers.models.llama.modeling_llama import \
+    LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import \
+    LlamaLinearScalingRotaryEmbedding as HFLinearScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import \
+    LlamaRotaryEmbedding as HFRotaryEmbedding
 
 from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
 from llmfoundry.models.layers.blocks import MPTBlock
@@ -67,6 +84,50 @@ except:
 import logging
 
 log = logging.getLogger(__name__)
+
+
+def gen_rotary_embedding(rope_head_dim: int, rope_impl: str, rope_theta: int,
+                         rope_dail_config: dict, rope_hf_config: dict,
+                         max_seq_len: int):
+    if rope_impl == 'dail':
+        return DAILRotaryEmbedding(
+            dim=rope_head_dim,
+            base=rope_theta,
+            interleaved=False,
+            scale_base=rope_dail_config['xpos_scale_base'] if
+            (rope_dail_config['type'] == 'xpos') else None,
+            pos_idx_in_fp32=rope_dail_config['pos_idx_in_fp32'],
+            device=
+            'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+        )
+    elif rope_impl == 'hf':
+        if rope_hf_config['type'] == 'no_scaling':
+            return HFRotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=max_seq_len,
+                base=rope_theta,
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
+        elif rope_hf_config['type'] == 'linear':
+            return HFLinearScalingRotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=max_seq_len,
+                base=rope_theta,
+                scaling_factor=rope_hf_config['factor'],
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
+        elif rope_hf_config['type'] == 'dynamic':
+            return HFDynamicNTKScalingRotaryEmbedding(
+                rope_head_dim,
+                max_position_embeddings=max_seq_len,
+                base=rope_theta,
+                scaling_factor=rope_hf_config['factor'],
+                device=
+                'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+            )
+    raise ValueError('rope_impl needs to be either dail or hf')
 
 
 class MPTPreTrainedModel(PreTrainedModel):
@@ -122,6 +183,18 @@ class MPTModel(MPTPreTrainedModel):
         ])
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
+        self.rope = config.attn_config['rope']
+        self.rope_impl = None
+        if self.rope:
+            self.rope_impl = config.attn_config['rope_impl']
+            self.rotary_embedding = gen_rotary_embedding(
+                rope_head_dim=config.d_model // config.n_heads,
+                rope_impl=self.rope_impl,
+                rope_theta=config.attn_config['rope_theta'],
+                rope_dail_config=config.attn_config['rope_dail_config'],
+                rope_hf_config=config.attn_config['rope_hf_config'],
+                max_seq_len=self.config.max_seq_len)
+
         if config.init_device != 'meta':
             log.info(
                 f'We recommend using config.init_device="meta" with Composer + FSDP for faster initialization.'
@@ -149,6 +222,11 @@ class MPTModel(MPTPreTrainedModel):
                         module.bias, nn.Parameter):
                     log.info(f'Removing bias ({module.bias}) from {module}.')
                     module.register_parameter('bias', None)
+
+                # For transformer engine
+                if hasattr(module, 'use_bias'):
+                    log.info(f'Setting use_bias=False for {module}.')
+                    module.use_bias = False
 
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
@@ -355,8 +433,9 @@ class MPTModel(MPTPreTrainedModel):
             S <= self.config.max_seq_len
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
-        tok_emb = self.wte(input_ids)
-        if self.learned_pos_emb:
+        rotary_emb_w_meta_info = None
+        x = self.wte(input_ids)
+        if self.learned_pos_emb or self.rope:
             past_position = 0
             if past_key_values is not None:
                 if len(past_key_values) != self.config.n_layers:
@@ -372,31 +451,44 @@ class MPTModel(MPTPreTrainedModel):
                 if self.attn_impl == 'torch':
                     past_position = past_key_values[0][0].size(3)
 
-            if S + past_position > self.config.max_seq_len:
+            if self.learned_pos_emb and (S + past_position >
+                                         self.config.max_seq_len):
                 raise ValueError(
                     f'Cannot forward input with past sequence length {past_position} and current sequence length '
                     +
                     f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
                 )
-            pos = torch.arange(
-                past_position,
-                S + past_position,
-                dtype=torch.long,
-                device=input_ids.device,
-            ).unsqueeze(0)
-            if attention_mask is not None:
-                # adjust the position indices to account for padding tokens
-                pos = torch.clamp(
-                    pos - torch.cumsum((~attention_mask).to(torch.int32),
-                                       dim=1)[:, past_position:],
-                    min=0,
-                )
 
-            pos_emb = self.wpe(pos)
-            x = tok_emb + pos_emb
-        else:
-            # ALiBi and NoPE use this path (RoPE will also use this path if / when enabled)
-            x = tok_emb
+            if self.learned_pos_emb or (self.rope and self.rope_impl == 'hf'):
+                pos = torch.arange(
+                    past_position,
+                    S + past_position,
+                    dtype=torch.long,
+                    device=input_ids.device,
+                ).unsqueeze(0)
+                if attention_mask is not None:
+                    # adjust the position indices to account for padding tokens
+                    pos = torch.clamp(
+                        pos - torch.cumsum((~attention_mask).to(torch.int32),
+                                           dim=1)[:, past_position:],
+                        min=0,
+                    )
+                if self.learned_pos_emb:
+                    x = x + self.wpe(pos)
+                elif self.rope and self.rope_impl == 'hf':
+                    rotary_emb_w_meta_info = {
+                        'impl': self.rope_impl,
+                        'rotary_emb': self.rotary_embedding,
+                        'offset_info': pos,
+                        'seq_len': S + past_position,
+                    }
+            elif self.rope and self.rope_impl == 'dail':
+                rotary_emb_w_meta_info = {
+                    'impl': self.rope_impl,
+                    'rotary_emb': self.rotary_embedding,
+                    'offset_info': past_position,
+                    'seq_len': S + past_position,
+                }
 
         if self.embedding_fraction == 1:
             x = self.emb_drop(x)
@@ -416,6 +508,7 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         # initialize the past key values cache if it should be used
+        presents = () if use_cache else None
         if use_cache and past_key_values is None:
             past_key_values = [() for _ in range(self.config.n_layers)
                               ]  # type: ignore
@@ -428,15 +521,17 @@ class MPTModel(MPTPreTrainedModel):
                 all_hidden_states = all_hidden_states + (x,)
             past_key_value = (past_key_values[b_idx]
                               if past_key_values is not None else None)
-            x, attn_weights, past_key_value = block(
+            x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
+                rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
+                output_attentions=bool(output_attentions),
             )
-            if past_key_values is not None:
-                past_key_values[b_idx] = past_key_value
+            if presents is not None:
+                presents += (present,)
 
             if output_attentions:
                 assert all_self_attns is not None  # pyright
@@ -451,7 +546,7 @@ class MPTModel(MPTPreTrainedModel):
 
         return BaseModelOutputWithPast(
             last_hidden_state=x,
-            past_key_values=past_key_values,
+            past_key_values=presents,
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )
@@ -687,13 +782,16 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         hf_config = MPTConfig.from_dict(resolved_om_model_config)
         model = MPTForCausalLM(hf_config)
 
-        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
+        use_train_metrics = om_model_config.get('use_train_metrics', True)
+        train_metrics = [LanguageCrossEntropy(),
+                         LanguagePerplexity()] if use_train_metrics else []
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
+            InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError(),
         ]

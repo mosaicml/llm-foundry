@@ -18,20 +18,29 @@ jobs:
     uses: ./.github/workflows/pytest-gpu.yaml
     strategy:
       matrix:
+        # TODO: After the PR with the flash attention 2 images goes in, add the new unit test suite
         include:
         - name: 'gpu-latest'
           container: mosaicml/pytorch:latest  # mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
           markers: 'gpu'
           pytest_command: 'coverage run -m pytest'
         - name: 'gpu-2.0.1'
-          container: mosaicml/pytorch:2.0.1_cu117-python3.10-ubuntu20.04
+          container: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
+          markers: 'gpu'
+          pytest_command: 'coverage run -m pytest'
+        - name: 'gpu-2.1.0'
+          container: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
+          markers: 'gpu'
+          pytest_command: 'coverage run -m pytest'
+        - name: 'gpu-2.1.0-flash2'
+          container: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
           markers: 'gpu'
           pytest_command: 'coverage run -m pytest'
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     with:
       container: ${{ matrix.container }}
-      mcloud-timeout: 1200
+      mcloud-timeout: 1800
       name: ${{ matrix.name }}
       pytest-command: ${{ matrix.pytest_command }}
       pytest-markers: ${{ matrix.markers }}

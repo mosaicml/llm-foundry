@@ -52,8 +52,14 @@ parameters:
     limit_all_gathers: True
 
 
-  icl_tasks: 'eval/yamls/tasks.yaml'
-  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+  icl_tasks:
+  -
+    label: jeopardy
+    dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+    num_fewshot: [10]
+    icl_task_type: language_modeling
+    continuation_delimiter: "\nAnswer: " # this separates questions from answers
+    has_categories: true
   callbacks:
     eval_output_logging:
       subset_sample: -1

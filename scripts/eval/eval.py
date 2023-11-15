@@ -96,6 +96,7 @@ def evaluate_model(
     model_cfg: DictConfig,
     dist_timeout: Union[float, int],
     run_name: str,
+    seed: int,
     icl_tasks: Union[str, ListConfig],
     max_seq_len: int,
     device_eval_batch_size: int,
@@ -109,6 +110,7 @@ def evaluate_model(
     icl_subset_num_batches: Optional[int],
     callback_configs: Optional[Dict]
 ):
+
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
     tokenizer_cfg: Dict[str,
@@ -150,7 +152,8 @@ def evaluate_model(
 
     if eval_gauntlet_df is None and eval_gauntlet_callback is not None:
         eval_gauntlet_df = pd.DataFrame(
-            columns=['model_name', 'average'] +
+            columns=['model_name'] +
+            [avg for avg in eval_gauntlet_callback.averages] +
             [t.name for t in eval_gauntlet_callback.categories])
 
     load_path = model_cfg.get('load_path', None)
@@ -165,6 +168,7 @@ def evaluate_model(
 
     trainer = Trainer(
         run_name=run_name,
+        seed=seed,
         model=composer_model,
         callbacks=callbacks,
         loggers=loggers,
@@ -222,7 +226,10 @@ def main(cfg: DictConfig):
     device_eval_batch_size: int = pop_config(cfg,
                                              'device_eval_batch_size',
                                              must_exist=True)
-    precision: str = pop_config(cfg, 'precision', must_exist=True)
+    precision: str = pop_config(cfg,
+                                'precision',
+                                must_exist=False,
+                                default_value=None)
     python_log_level: Optional[str] = pop_config(cfg,
                                                  'python_log_level',
                                                  must_exist=False,
@@ -285,6 +292,7 @@ def main(cfg: DictConfig):
              model_cfg=model_cfg,
              dist_timeout=dist_timeout,
              run_name=run_name,
+             seed=seed,
              icl_tasks=icl_tasks,
              max_seq_len=max_seq_len,
              device_eval_batch_size=device_eval_batch_size,
@@ -321,23 +329,17 @@ def main(cfg: DictConfig):
         if eval_gauntlet_df is not None and eval_gauntlet_callback is not None:
             assert composite_scores is not None
             row = {'model_name': model_cfg['model_name']}
-            row.update({
-                t.name:
-                composite_scores.get(f'icl/metrics/eval_gauntlet/{t.name}',
-                                     None)
-                for t in eval_gauntlet_callback.categories
-            })
-            row.update({
-                'average':
-                    composite_scores[f'icl/metrics/eval_gauntlet/average']
-            })
+            row.update(
+                {k.split('/')[-1]: v for k, v in composite_scores.items()})
             eval_gauntlet_df = pd.concat(
                 [eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
 
             print(f'Printing gauntlet results for all models')
+
             print(
                 eval_gauntlet_df.sort_values(
-                    'average', ascending=False).to_markdown(index=False))
+                    list(eval_gauntlet_callback.averages.keys())[0],
+                    ascending=False).to_markdown(index=False))
         print(f'Printing complete results for all models')
         assert models_df is not None
         print(models_df.to_markdown(index=False))

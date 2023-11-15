@@ -158,3 +158,23 @@ class TestTrainingYAMLInputs:
             main(cfg)
         assert str(exception_info.value
                   ) == 'Not sure how to build scheduler: invalid-scheduler'
+
+    def test_no_label_multiple_eval_datasets(self, cfg: DictConfig) -> None:
+        data_local = './my-copy-c4-multi-eval'
+        make_fake_index_file(f'{data_local}/train/index.json')
+        make_fake_index_file(f'{data_local}/val/index.json')
+        cfg.train_loader.dataset.local = data_local
+        # Set up multiple eval datasets
+        first_eval_loader = cfg.eval_loader
+        first_eval_loader.dataset.local = data_local
+        second_eval_loader = copy.deepcopy(first_eval_loader)
+        # Set the first eval dataloader to have no label
+        first_eval_loader.label = None
+        second_eval_loader.label = 'eval_1'
+        cfg.eval_loader = om.create([first_eval_loader, second_eval_loader])
+        with pytest.raises(ValueError) as exception_info:
+            main(cfg)
+        assert str(
+            exception_info.value
+        ) == 'When specifying multiple evaluation datasets, each one must include the \
+                            `label` attribute.'

@@ -8,7 +8,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import pytest
 import torch
-from composer.utils import reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch import nn
@@ -35,8 +34,6 @@ class MLP(nn.Module):
 
 @pytest.mark.parametrize('is_residual', [True, False])
 def test_div_is_residual(is_residual: bool):
-    reproducibility.seed_all(7)
-
     in_features, out_features = 8, 32
     cfg = om.create({
         'in_features': in_features,
@@ -64,8 +61,6 @@ def test_div_is_residual(is_residual: bool):
 
 @pytest.mark.parametrize('fused', [True, False])
 def test_fused_init_helper(fused: bool):
-    reproducibility.seed_all(7)
-
     in_features, out_features = 8, 32
     cfg = om.create({
         'in_features': in_features,
@@ -133,8 +128,6 @@ def test_all_params_init(module: torch.nn.Module):
     ('emb_init_uniform_lim', [1, 1])
 ])
 def test_emb_init(emb_init_cfg: Optional[Tuple[str, Union[int, List[int]]]]):
-    reproducibility.seed_all(7)
-
     cfg: Dict[str, Union[int, List[int]]] = {
         'vocab_size': 64,
         'in_features': 16,

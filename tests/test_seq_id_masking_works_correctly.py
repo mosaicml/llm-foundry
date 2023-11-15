@@ -1,0 +1,77 @@
+# NOTE: This is a temporary test file to test the correctness of the seq_id_masking function. 
+# Will be deleted before merging to main (or not, if people think this should be added).
+# To run, simply run `python test_seq_id_masking_works_correctly.py`.
+import math
+import torch
+from llmfoundry.models.layers.attention import flash_attn_fn
+
+d = 128
+n_heads = 4
+kv_n_heads = 4
+seqlen_1 = 6
+bsz = 2
+
+query_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(torch.bfloat16).cuda()
+query_1.requires_grad = True
+key_1 = torch.randn(bsz, seqlen_1, kv_n_heads * d).to(torch.bfloat16).cuda()
+key_1.requires_grad = True
+value_1 = torch.randn(bsz, seqlen_1, kv_n_heads * d).to(torch.bfloat16).cuda()
+value_1.requires_grad = True
+
+query_attention_mask_in_length_1 = torch.tensor([[3,2,1, 0 , 0  ,0], [3,2,1, 0 , 0  ,0]]).to(torch.int64).cuda()
+key_attention_mask_in_length_1 = torch.tensor([[3, 2,1, 0 , 0  ,0], [3, 2,1, 0 , 0  ,0]]).to(torch.int64).cuda()
+
+
+
+output_1, _, _ = flash_attn_fn(query=query_1,
+                                          key=key_1,
+                                          value=value_1,
+                                          n_heads=n_heads,
+                                          kv_n_heads=kv_n_heads,
+                                          past_key_value = None,
+                                          softmax_scale=1 / math.sqrt(d),
+                                          attn_bias = None,
+                                          key_padding_mask = None,
+                                          is_causal = True,
+                                          dropout_p = 0.0,
+                                          training = False,
+                                          needs_weights = False,
+                                          multiquery = False,
+                                          key_attention_mask_in_length = key_attention_mask_in_length_1,
+                                          query_attention_mask_in_length = query_attention_mask_in_length_1) 
+
+output_1.sum().backward()
+
+seq_ranges = [(0,3),(3, 5), (5,6)]
+for seq_range in seq_ranges:
+    seqlen_2 = seq_range[1] - seq_range[0]
+    query_2 = query_1.detach().clone()[:,seq_range[0]:seq_range[1],:]
+    query_2.requires_grad = True
+    key_2 = key_1.detach().clone()[:,seq_range[0]:seq_range[1],:]
+    key_2.requires_grad = True
+    value_2 = value_1.detach().clone()[:,seq_range[0]:seq_range[1],:]
+    value_2.requires_grad = True
+
+    output_2, _, _ = flash_attn_fn(query=query_2,
+                                          key=key_2,
+                                          value=value_2,
+                                          n_heads=n_heads,
+                                          kv_n_heads=kv_n_heads,
+                                          past_key_value = None,
+                                          softmax_scale=1 / math.sqrt(d),
+                                          attn_bias = None,
+                                          key_padding_mask = None,
+                                          is_causal = True,
+                                          dropout_p = 0.0,
+                                          training = False,
+                                          needs_weights = False,
+                                          multiquery = False,
+                                          key_attention_mask_in_length = None,
+                                          query_attention_mask_in_length = None) 
+    
+    output_2.sum().backward()
+    assert torch.allclose(output_1[:,seq_range[0]:seq_range[1],:], output_2) 
+    assert torch.allclose(query_1.grad[:,seq_range[0]:seq_range[1],:], query_2.grad) 
+    assert torch.allclose(key_1.grad[:,seq_range[0]:seq_range[1],:], key_2.grad) 
+    assert torch.allclose(value_1.grad[:,seq_range[0]:seq_range[1],:], value_2.grad)
+    

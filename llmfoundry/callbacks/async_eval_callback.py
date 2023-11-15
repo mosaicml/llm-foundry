@@ -184,7 +184,6 @@ class AsyncEval(Callback):
 
         self.check_interval = create_interval_scheduler(interval)
         self.compute = compute
-        self.last_launch: Optional[Time] = None
         self.last_checkpoint: Optional[str] = None
 
         # Run these during init to fail fast in any of the error cases
@@ -204,7 +203,6 @@ class AsyncEval(Callback):
         should_launch_run = all([
             state.get_elapsed_duration() is not None,
             self.check_interval(state, event),
-            self.last_launch != state.timestamp.batch,
             dist.get_global_rank() == 0,
         ])
 
@@ -217,8 +215,6 @@ class AsyncEval(Callback):
                 return
 
             self.launch_run(checkpoint, current_interval)
-
-            self.last_launch = state.timestamp.batch
             self.last_checkpoint = checkpoint
 
     def _get_current_run(self) -> Run:

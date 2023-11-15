@@ -6,7 +6,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from llmfoundry.callbacks.async_eval_callback import AsyncEval, get_run_name
+from llmfoundry.callbacks.async_eval_callback import (AsyncEval,
+                                                      get_eval_parameters,
+                                                      get_run_name)
 from mcli import Run, RunConfig, RunStatus
 
 RUN_NAME = 'foo_bar-1234'
@@ -25,17 +27,16 @@ BASIC_PARAMS = {
     'tokenizer': {
         'tokenizer_example': 'tokenizer_example',
     },
-    'save_folder': 'save_folder_example',
 }
 
 
 def test_get_run_name():
-    a = get_run_name('foo-1234', 0)
-    assert a == 'eval0-foo'
+    a = get_run_name('foo-1234', '1ba')
+    assert a == 'eval-1ba-foo'
 
     # Run name should be truncated
-    b = get_run_name(50 * 'foo' + '-1234', 1)
-    assert b == 'eval1-foofoofoofoofoofoofoofoofoofoofoofoofoof'
+    b = get_run_name(50 * 'foo' + '-1234', '1ba')
+    assert b == 'eval-1ba-foofoofoofoofoofoofoofoofoofoofoofoofoof'
 
 
 @pytest.fixture(autouse=True, scope='module')
@@ -74,13 +75,10 @@ def test_get_eval_parameters():
     with pytest.raises(
             Exception,
             match='Missing the following required parameters for async eval:'):
-        AsyncEval.get_eval_parameters(None, {}, RUN_NAME)  # type: ignore
+        get_eval_parameters({}, 'checkpoints/file', RUN_NAME)
 
     # minimal example
-    params = AsyncEval.get_eval_parameters(
-        None,  # type: ignore
-        BASIC_PARAMS,
-        RUN_NAME)
+    params = get_eval_parameters(BASIC_PARAMS, 'checkpoints/file', RUN_NAME)
     assert params == {
         'device_eval_batch_size':
             2,
@@ -89,9 +87,7 @@ def test_get_eval_parameters():
         'max_seq_len':
             3,
         'load_path':
-            'save_folder_example/latest-rank0.pt',
-        'run_name':
-            'eval0-foo_bar',
+            'checkpoints/file',
         'models': [{
             'model_name': 'model_example',
             'model': {
@@ -109,8 +105,7 @@ def test_get_eval_parameters():
     }
 
     # maximal example
-    params2 = AsyncEval.get_eval_parameters(
-        None,  # type: ignore
+    params2 = get_eval_parameters(
         {
             # required
             **BASIC_PARAMS,
@@ -130,12 +125,13 @@ def test_get_eval_parameters():
             # ignore this
             'ignore_this': 'ignore_this',
         },
-        RUN_NAME)
+        'checkpoints/file',
+        RUN_NAME,
+    )
     assert params2 == {
         'device_eval_batch_size': 2,
         'icl_tasks': 'icl_task_example',
         'max_seq_len': 3,
-        'run_name': 'eval0-foo_bar',
         'dist_timeout': 1,
         'models': [{
             'model_name': 'model_example',
@@ -162,7 +158,7 @@ def test_get_eval_parameters():
         'precision': 'precision_example',
         'python_log_level': 'debug',
         'seed': 5,
-        'load_path': 'save_folder_example/latest-rank0.pt'
+        'load_path': 'checkpoints/file',
     }
 
 
@@ -208,12 +204,11 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
     assert mock_get_run.call_count == 1
     assert mock_get_run.call_args[0][0] == RUN_NAME
 
-    callback.count += 2
-    callback.launch_run()
+    callback.launch_run('checkpoint/path', '1ba')
     assert mock_create_run.call_count == 1
 
     run_config_created = mock_create_run.call_args[0][0]
-    assert run_config_created.name == 'eval2-foo_bar'
+    assert run_config_created.name == 'eval-1ba-foo_bar'
     assert run_config_created.image == 'fake-image'
     assert run_config_created.command
 
@@ -225,7 +220,7 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
     assert parameters['device_eval_batch_size'] == 2
     assert parameters['icl_tasks'] == 'icl_task_example'
     assert parameters['max_seq_len'] == 3
-    assert parameters['load_path'] == 'save_folder_example/latest-rank0.pt'
+    assert parameters['load_path'] == 'checkpoint/path'
     assert parameters['models'] == [{
         'model_name': 'model_example',
         'model': {
@@ -240,4 +235,4 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
             'tokenizer_example': 'tokenizer_example'
         }
     }]
-    assert parameters['run_name'] == 'eval0-foo_bar'  # original run
+    assert parameters['run_name'] == 'eval-1ba-foo_bar'  # original run

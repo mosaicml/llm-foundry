@@ -6,7 +6,9 @@ import torch
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-from llmfoundry.models.mpt.modeling_mpt import gen_rotary_embedding, gen_attention_mask_in_length, apply_sequence_id
+from llmfoundry.models.mpt.modeling_mpt import (apply_sequence_id,
+                                                gen_attention_mask_in_length,
+                                                gen_rotary_embedding)
 
 
 def allclose_helper(t0: torch.Tensor,
@@ -73,8 +75,8 @@ def test_attn_impl(attn_impl_0: str,
     if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):
         pytest.skip('dail implementation of rope requires flash attention 2.')
-    
-    if not(alibi or rope) and attn_uses_sequence_id:
+
+    if not (alibi or rope) and attn_uses_sequence_id:
         pytest.skip('attn_uses_sequence_id requires alibi or rope.')
 
     cfg = om.create({
@@ -90,12 +92,14 @@ def test_attn_impl(attn_impl_0: str,
     assert cfg.d_model % cfg.n_heads == 0
     if attn_type == 'grouped_query_attention':
         cfg.kv_n_heads = 2
-    
+
     sequence_id = None
     if attn_uses_sequence_id:
-        assert n==2
-        assert s>=8
-        sequence_id = torch.Tensor([[0]*4+[1]*(s-4), [0]*8+[1]*(s-8)]).to(device=device, dtype=torch.int64)
+        assert n == 2
+        assert s >= 8
+        sequence_id = torch.Tensor([[0] * 4 + [1] * (s - 4),
+                                    [0] * 8 + [1] * (s - 8)
+                                   ]).to(device=device, dtype=torch.int64)
 
     cfg.attn_impl = attn_impl_0
     attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
@@ -132,9 +136,17 @@ def test_attn_impl(attn_impl_0: str,
             attn_bias = apply_sequence_id(attn_bias, sequence_id, s)
 
         return attn_bias
-    
-    query_attention_mask_in_length_0, key_attention_mask_in_length_0 = gen_attention_mask_in_length(sequence_id=sequence_id, S=s, attn_uses_sequence_id=attn_uses_sequence_id, attn_impl=attn_impl_0)
-    query_attention_mask_in_length_1, key_attention_mask_in_length_1 = gen_attention_mask_in_length(sequence_id=sequence_id, S=s, attn_uses_sequence_id=attn_uses_sequence_id, attn_impl=attn_impl_1)
+
+    query_attention_mask_in_length_0, key_attention_mask_in_length_0 = gen_attention_mask_in_length(
+        sequence_id=sequence_id,
+        S=s,
+        attn_uses_sequence_id=attn_uses_sequence_id,
+        attn_impl=attn_impl_0)
+    query_attention_mask_in_length_1, key_attention_mask_in_length_1 = gen_attention_mask_in_length(
+        sequence_id=sequence_id,
+        S=s,
+        attn_uses_sequence_id=attn_uses_sequence_id,
+        attn_impl=attn_impl_1)
 
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()
@@ -170,23 +182,25 @@ def test_attn_impl(attn_impl_0: str,
                     s,
             }
 
-        y0, _, _ = attn0(x0,
-                         past_key_value=None,
-                         attn_bias=attn_bias,
-                         attention_mask=attention_mask,
-                         rotary_emb_w_meta_info=rotary_emb_w_meta_info,
-                         is_causal=True,
-                         query_attention_mask_in_length=query_attention_mask_in_length_0,
-                         key_attention_mask_in_length=key_attention_mask_in_length_0)
+        y0, _, _ = attn0(
+            x0,
+            past_key_value=None,
+            attn_bias=attn_bias,
+            attention_mask=attention_mask,
+            rotary_emb_w_meta_info=rotary_emb_w_meta_info,
+            is_causal=True,
+            query_attention_mask_in_length=query_attention_mask_in_length_0,
+            key_attention_mask_in_length=key_attention_mask_in_length_0)
         attn_bias = gen_bias(attn_impl_1)
-        y1, _, _ = attn1(x1,
-                         past_key_value=None,
-                         attn_bias=attn_bias,
-                         attention_mask=attention_mask,
-                         rotary_emb_w_meta_info=rotary_emb_w_meta_info,
-                         is_causal=True,
-                         query_attention_mask_in_length=query_attention_mask_in_length_1,
-                         key_attention_mask_in_length=key_attention_mask_in_length_1)
+        y1, _, _ = attn1(
+            x1,
+            past_key_value=None,
+            attn_bias=attn_bias,
+            attention_mask=attention_mask,
+            rotary_emb_w_meta_info=rotary_emb_w_meta_info,
+            is_causal=True,
+            query_attention_mask_in_length=query_attention_mask_in_length_1,
+            key_attention_mask_in_length=key_attention_mask_in_length_1)
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)
 

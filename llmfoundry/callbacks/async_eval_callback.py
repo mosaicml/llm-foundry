@@ -84,6 +84,7 @@ def get_latest_checkpoint(event: Event, state: State) -> Optional[str]:
             break
 
     if not checkpointer:
+        log.warning('No checkpoint saver callback found')
         return None
 
     if event.name == Event.FIT_END:
@@ -91,6 +92,7 @@ def get_latest_checkpoint(event: Event, state: State) -> Optional[str]:
         return checkpointer.latest_filename
 
     if not checkpointer.saved_checkpoints:
+        log.warning('No saved checkpoints found on the checkpointer')
         return None
 
     return checkpointer.saved_checkpoints[-1]

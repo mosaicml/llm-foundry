@@ -297,32 +297,33 @@ def flash_attn_fn(
                                 'nnz (h d) -> nnz h d',
                                 h=kv_n_heads)
 
-    # multi-query case
-    if kv_n_heads == 1:
-        # Expanding a tensor does not allocate new memory, but only creates a new
-        # view on the existing tensor where a dimension of size one is expanded
-        # to a larger size by setting the stride to 0.
-        # - pytorch docs
-        #
-        # hopefully the kernels can utilize this and we're jot just wasting BW here
-        key_unpad = key_unpad.expand(key_unpad.size(0), n_heads,
-                                     key_unpad.size(-1))
-        value_unpad = value_unpad.expand(value_unpad.size(0), n_heads,
-                                         value_unpad.size(-1))
-    # grouped query case
-    elif kv_n_heads < n_heads:
-        # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
-        # We repeat each kv head by the group size number to use the underlying MHA kernels
+    if is_flash_v1_installed():
+        # multi-query case
+        if kv_n_heads == 1:
+            # Expanding a tensor does not allocate new memory, but only creates a new
+            # view on the existing tensor where a dimension of size one is expanded
+            # to a larger size by setting the stride to 0.
+            # - pytorch docs
+            #
+            # hopefully the kernels can utilize this and we're jot just wasting BW here
+            key_unpad = key_unpad.expand(key_unpad.size(0), n_heads,
+                                        key_unpad.size(-1))
+            value_unpad = value_unpad.expand(value_unpad.size(0), n_heads,
+                                            value_unpad.size(-1))
+        # grouped query case
+        elif kv_n_heads < n_heads:
+            # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
+            # We repeat each kv head by the group size number to use the underlying MHA kernels
 
-        # since repeat_kv_for_gqa expects input dims of (b, s, kv_n_heads, d)
-        # we use .view to modify {key, value}_unpad appropriately
+            # since repeat_kv_for_gqa expects input dims of (b, s, kv_n_heads, d)
+            # we use .view to modify {key, value}_unpad appropriately
 
-        key_unpad = repeat_kv_for_gqa(
-            key_unpad.view(batch_size, seqlen, kv_n_heads, -1),
-            n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
-        value_unpad = repeat_kv_for_gqa(
-            value_unpad.view(batch_size, seqlen, kv_n_heads, -1),
-            n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
+            key_unpad = repeat_kv_for_gqa(
+                key_unpad.view(batch_size, seqlen, kv_n_heads, -1),
+                n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
+            value_unpad = repeat_kv_for_gqa(
+                value_unpad.view(batch_size, seqlen, kv_n_heads, -1),
+                n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
 
     dropout_p = dropout_p if training else 0.0
 

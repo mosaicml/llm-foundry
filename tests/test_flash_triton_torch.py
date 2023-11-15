@@ -182,6 +182,7 @@ def test_attn_impl(attn_impl_0: str,
         tp = torch_name_param_map[n]
         assert p.grad is not None
         assert tp.grad is not None
+        assert allclose_helper(p, tp)
 
         using_hf_rope = pos_emb_config['rope'] and pos_emb_config[
             'rope_impl'] == 'hf'

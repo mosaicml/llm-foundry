@@ -207,8 +207,7 @@ class AsyncEval(Callback):
         ])
 
         if should_launch_run:
-            current_interval = f'{state.timestamp.get(self.interval.unit)}'
-
+            current_interval = state.timestamp.get(self.interval.unit)
             checkpoint = get_latest_checkpoint(event, state)
             if not checkpoint:
                 return  # warnings logged in get_latest_checkpoint

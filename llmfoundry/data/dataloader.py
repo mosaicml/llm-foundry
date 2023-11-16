@@ -41,4 +41,6 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
             device_batch_size,
         )
     else:
-        raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
+        raise ValueError(
+            'Expected dataloader name "text", "text_denoising", or "finetuning"'
+            f' but found name "{cfg.name}" in config: {cfg}')

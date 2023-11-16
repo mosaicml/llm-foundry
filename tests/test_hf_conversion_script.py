@@ -302,13 +302,12 @@ def test_huggingface_conversion_callback_interval(
             'attn_impl': 'torch',
         },
         'loss_fn': 'torch_crossentropy',
-        'tie_word_embeddings': tie_word_embeddings,
+        'tie_word_embeddings': True,
     }
     tokenizer_name = 'EleutherAI/gpt-neox-20b'
     model_cfg = om.create(model_cfg)
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name, use_auth_token=model == 'llama2')
+    tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
 
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')

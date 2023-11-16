@@ -259,6 +259,183 @@ def test_callback_inits():
     }
 
 
+@pytest.mark.gpu
+@pytest.mark.parametrize('log_to_mlflow', [True, False])
+@pytest.mark.parametrize(
+    'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
+    [('3ba', '2ba', '7ba', 3, 4), ('1dur', '2ba', '1ep', 1, 4)])
+@patch('os.cpu_count', MagicMock(return_value=None))
+def test_huggingface_conversion_callback_interval(
+        tmp_path: pathlib.Path, log_to_mlflow: bool, hf_save_interval: str,
+        save_interval: str, max_duration: str, expected_hf_checkpoints: int,
+        expected_normal_checkpoints: int):
+    delete_transformers_cache()
+
+    dist.initialize_dist(get_device('gpu'))
+
+    max_seq_len = 16
+    device_batch_size = 1
+    dataset_size = 14
+    precision_str = 'bfloat16'
+    precision = torch.bfloat16
+    batches_per_epoch = math.ceil(dataset_size / (device_batch_size * 2))
+
+    checkpointer_callback = HuggingFaceCheckpointer(
+        save_folder=os.path.join(tmp_path, 'checkpoints'),
+        save_interval=hf_save_interval,
+        precision=precision_str,
+        mlflow_registered_model_name='dummy-registered-name'
+        if log_to_mlflow else None,
+    )
+
+    # get small version of each model
+    model_cfg = {
+        'name': 'mpt_causal_lm',
+        'init_device': 'cpu',
+        'd_model': 128,
+        'n_heads': 2,
+        'n_layers': 2,
+        'expansion_ratio': 4,
+        'max_seq_len': max_seq_len,
+        'vocab_size': 50368,
+        'attn_config': {
+            'attn_impl': 'torch',
+        },
+        'loss_fn': 'torch_crossentropy',
+        'tie_word_embeddings': tie_word_embeddings,
+    }
+    tokenizer_name = 'EleutherAI/gpt-neox-20b'
+    model_cfg = om.create(model_cfg)
+
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        tokenizer_name, use_auth_token=model == 'llama2')
+
+    tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
+    tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
+    make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size)
+
+    dataloader_cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': tiny_dataset_folder_path,
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 4,
+        'pin_memory': False,
+        'prefetch_factor': 2,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    dataloader_cfg = om.create(dataloader_cfg)
+
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
+
+    train_dataloader = build_finetuning_dataloader(
+        dataloader_cfg,
+        tokenizer,
+        device_batch_size,
+    )
+
+    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
+                                                                tokenizer)
+
+    optimizer_config = {
+        'name': 'decoupled_adamw',
+        'lr': 6e-4,
+        'betas': [0.9, 0.95],
+        'eps': 1e-8,
+        'weight_decay': 0.0,
+    }
+    optimizer_name = optimizer_config.pop('name')
+    optimizer = build_optimizer(original_model, optimizer_name,
+                                optimizer_config)
+
+    mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
+    mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
+    mlflow_logger_mock.save_model = MagicMock()
+    mlflow_logger_mock.register_model = MagicMock()
+    mlflow_logger_mock.model_registry_prefix = ''
+    trainer = Trainer(
+        model=original_model,
+        device='gpu',
+        train_dataloader=train_dataloader,
+        save_folder=os.path.join(tmp_path, 'checkpoints'),
+        save_interval=save_interval,
+        max_duration=max_duration,
+        callbacks=[checkpointer_callback],
+        loggers=[mlflow_logger_mock] if log_to_mlflow else [],
+        optimizers=optimizer,
+        save_latest_filename=None,
+    )
+    trainer.fit()
+
+    if log_to_mlflow:
+        assert mlflow_logger_mock.save_model.call_count == 1
+        mlflow_logger_mock.save_model.assert_called_with(
+            flavor='transformers',
+            transformers_model=ANY,
+            path=ANY,
+            task='text-generation',
+            metadata={'task': 'llm/v1/completions'})
+        assert mlflow_logger_mock.register_model.call_count == 1
+    else:
+        assert mlflow_logger_mock.save_model.call_count == 0
+        assert mlflow_logger_mock.register_model.call_count == 0
+
+    normal_checkpoints = [
+        name for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
+        if name != 'huggingface'
+    ]
+    huggingface_checkpoints = [
+        name for name in os.listdir(
+            os.path.join(tmp_path, 'checkpoints', 'huggingface'))
+    ]
+    assert len(normal_checkpoints) == expected_normal_checkpoints
+    assert len(huggingface_checkpoints) == expected_hf_checkpoints
+
+    # Load the last huggingface checkpoint
+    loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
+        os.path.join(tmp_path, 'checkpoints', 'huggingface',
+                     f'ba{batches_per_epoch}'),
+        trust_remote_code=True,
+    )
+
+    # Check that the loaded model has the correct precision, and then set it back
+    # to the original for the equivalence check
+    assert loaded_model.config.torch_dtype == precision
+    loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
+
+    # Check that we have correctly set these attributes, and then set them back
+    # to the original for the equivalence check
+    assert loaded_model.config.attn_config['attn_impl'] == 'torch'
+    assert loaded_model.config.init_device == 'cpu'
+    loaded_model.config.attn_config[
+        'attn_impl'] = original_model.model.config.attn_config['attn_impl']
+    loaded_model.config.init_device = original_model.model.config.init_device
+
+    loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
+        os.path.join(tmp_path, 'checkpoints', 'huggingface',
+                     f'ba{batches_per_epoch}'),
+        trust_remote_code=True,
+    )
+
+    check_hf_model_equivalence(trainer.state.model.module.model.to(precision),
+                               loaded_model)
+    check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
+
+    delete_transformers_cache()
+
+
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize(
@@ -266,10 +443,6 @@ def test_callback_inits():
     [('mpt', True), ('mpt', False), ('neo', None), ('llama2', None)],
 )
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
-@pytest.mark.parametrize('log_to_mlflow', [True, False])
-@pytest.mark.parametrize(
-    'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
-    [('3ba', '2ba', '7ba', 3, 4), ('1dur', '2ba', '1ep', 1, 4)])
 @patch('os.cpu_count', MagicMock(return_value=None))
 def test_huggingface_conversion_callback(
         model: str, tmp_path: pathlib.Path, tie_word_embeddings: bool,
@@ -291,9 +464,7 @@ def test_huggingface_conversion_callback(
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=hf_save_interval,
         precision=precision_str,
-        mlflow_registered_model_name='dummy-registered-name'
-        if log_to_mlflow else None,
-    )
+        mlflow_registered_model_name='dummy-registered-name')
 
     # get small version of each model
     model_cfg = None
@@ -431,25 +602,21 @@ def test_huggingface_conversion_callback(
         save_interval=save_interval,
         max_duration=max_duration,
         callbacks=[checkpointer_callback],
-        loggers=[mlflow_logger_mock] if log_to_mlflow else [],
+        loggers=[mlflow_logger_mock],
         optimizers=optimizer,
         save_latest_filename=None,
     )
     trainer.fit()
 
     if dist.get_global_rank() == 0:
-        if log_to_mlflow:
-            assert mlflow_logger_mock.save_model.call_count == 1
-            mlflow_logger_mock.save_model.assert_called_with(
-                flavor='transformers',
-                transformers_model=ANY,
-                path=ANY,
-                task='text-generation',
-                metadata={'task': 'llm/v1/completions'})
-            assert mlflow_logger_mock.register_model.call_count == 1
-        else:
-            assert mlflow_logger_mock.save_model.call_count == 0
-            assert mlflow_logger_mock.register_model.call_count == 0
+        assert mlflow_logger_mock.save_model.call_count == 1
+        mlflow_logger_mock.save_model.assert_called_with(
+            flavor='transformers',
+            transformers_model=ANY,
+            path=ANY,
+            task='text-generation',
+            metadata={'task': 'llm/v1/completions'})
+        assert mlflow_logger_mock.register_model.call_count == 1
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
         assert mlflow_logger_mock.register_model.call_count == 0

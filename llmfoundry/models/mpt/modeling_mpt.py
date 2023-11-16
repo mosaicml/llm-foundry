@@ -269,6 +269,7 @@ class MPTModel(MPTPreTrainedModel):
         # flash does not support prefix_lm and will incorporate any
         # attention_mask inside the attention module
         if self.attn_impl == 'flash':
+            print(attention_mask) # JP ADDED
             return self.attn_bias, attention_mask
 
         if self.attn_bias is not None:
@@ -293,6 +294,7 @@ class MPTModel(MPTPreTrainedModel):
         # None in place of attention_mask since it will not be further needed in the
         # attention modules.
         if attention_mask is not None:
+            print('if attention_mask is not None:', attention_mask)
             s_k = attention_mask.shape[-1]
             if attn_bias is None:
                 attn_bias = torch.zeros((1, 1, 1, s_k),
@@ -403,10 +405,15 @@ class MPTModel(MPTPreTrainedModel):
                     'output_attentions is not implemented for MPT when using attn_impl `flash` or `triton`.'
                 )
 
-        if (self.training and attention_mask is not None and
-                attention_mask[:, 0].sum() != attention_mask.shape[0]):
-            raise NotImplementedError(
-                'MPT does not support training with left padding.')
+        # JP REMOVED
+        # if (self.training and attention_mask is not None and
+        #         attention_mask[:, 0].sum() != attention_mask.shape[0]):
+        #     print(attention_mask)
+        #     print('attention mask shape ', attention_mask.shape) # JP: added
+        #     print('attention_mask[:, 0].sum() ',attention_mask[:, 0].sum()) # JP added
+        #     print('attention_mask.shape[0] ',attention_mask.shape[0]) # JP added
+        #     raise NotImplementedError(
+        #         'MPT does not support training with left padding.')
 
         if self.prefix_lm and prefix_mask is None:
             raise ValueError(
@@ -462,22 +469,6 @@ class MPTModel(MPTPreTrainedModel):
                     +
                     f'{S + 1}, this model only supports total sequence length <= {self.config.max_seq_len}.'
                 )
-<<<<<<< HEAD
-            pos = torch.arange(
-                past_position,
-                S + past_position,
-                dtype=torch.long,
-                device=input_ids.device,
-            ).unsqueeze(0)
-            if attention_mask is not None: # JP: What exactly does this do? Is this only for causal?
-                # adjust the position indices to account for padding tokens
-                pos = torch.clamp(
-                    pos - torch.cumsum((~attention_mask).to(torch.int32),
-                                       dim=1)[:, past_position:],
-                    min=0,
-                )
-=======
->>>>>>> main
 
             if self.learned_pos_emb or (self.rope and self.rope_impl == 'hf'):
                 pos = torch.arange(
@@ -598,7 +589,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
         self.transformer: MPTModel = MPTModel(config)
 
-        self.lm_head = None
+        self.lm_head = None # JP why is this set to none?
         if not config.tie_word_embeddings:
             self.lm_head = nn.Linear(
                 config.d_model,
@@ -607,6 +598,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 device=config.init_device,
             )
             self.lm_head._fsdp_wrap = True
+            # JP Added
+            print('lm_head exists')
 
         for child in self.transformer.children():
             if isinstance(child, torch.nn.ModuleList):
@@ -659,7 +652,10 @@ class MPTForCausalLM(MPTPreTrainedModel):
             self.transformer.set_input_embeddings(new_embeddings)
 
     def tie_weights(self) -> None:
-        self.lm_head = None
+        # JP Removed
+        #self.lm_head = None
+        #JP Added
+        print('is this happening?')
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder
@@ -703,14 +699,26 @@ class MPTForCausalLM(MPTPreTrainedModel):
             use_cache=use_cache,
         )
 
+        # JP Added
+        print('self.lm_head ',self.lm_head)
         if self.lm_head is not None:
             logits = self.lm_head(outputs.last_hidden_state)
+            print('outputs.hidden_states ',outputs.hidden_states)
+            print('hi')
+            outputs.hidden_states = outputs.last_hidden_state # JP THIS IS A HACK
         else:
             # move outputs to same device as weights for token embedding
             # needed to support HF `device_map`
             out = outputs.last_hidden_state
-            out = out.to(self.transformer.wte.weight.device)
-            logits = self.transformer.wte(out, True)
+            out = out.to(self.transformer.wte.weight.device).long() # JP Added .long
+            # JP Added
+            print(out)
+            print('out.shape ',out.shape)
+            
+            # shouldn't this be self.transformer.wte(out, unembed=True)? For some reason I'm running into an error
+            logits = self.transformer.wte(out, True) # input: Tensor, unembed: bool = False
+            # JP changed
+            #logits = self.transformer.wte(out)
 
         if self.logit_scale is not None:
             if self.logit_scale == 0:

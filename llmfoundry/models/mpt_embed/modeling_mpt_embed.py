@@ -123,16 +123,17 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         train_metrics = [LanguageCrossEntropy(),
                          LanguagePerplexity()] if use_train_metrics else []
         # JP: These metrics might not work for the contrastive loss
-        eval_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-            InContextLearningLMAccuracy(),
-            InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningQAAccuracy(),
-            InContextLearningCodeEvalAccuracy(),
-            InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError(),
-        ]
+        # eval_metrics = [
+        #     LanguageCrossEntropy(),
+        #     LanguagePerplexity(),
+        #     InContextLearningLMAccuracy(),
+        #     InContextLearningMultipleChoiceAccuracy(),
+        #     InContextLearningQAAccuracy(),
+        #     InContextLearningCodeEvalAccuracy(),
+        #     InContextLearningLMExpectedCalibrationError(),
+        #     InContextLearningMCExpectedCalibrationError(),
+        # ]
+        eval_metrics = []
 
         super().__init__(
             model=model,
@@ -141,7 +142,7 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             metrics=train_metrics,
             eval_metrics=eval_metrics, # might be worth setting to []
             shift_labels=False, # JP: set to False
-            allow_embedding_resizing=True, # JP: Not sure what this does
+            allow_embedding_resizing=True, # JP: Not sure what this does. was set to True
         )
 
         # Temperature for InfoNCELoss
@@ -172,10 +173,13 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             )
 
     def format_queries_batch(self, batch):
-        """ Format `queries` by selecting every other pair from the batch """
+        """ Format `queries` by selecting every other pair from the batch 
+        JP: Note that there could be a better way to do this
+        """
         queries = {}
         for key in batch.keys():
-            queries[key] = batch[key][:,0::2,:].reshape(batch[key].size(0), -1)
+            # old queries[key] = batch[key][:,0::2,:].reshape(batch[key].size(0), -1)
+            queries[key] = batch[key][0::2,:] # no need to reshape.reshape(batch[key].size(0), -1)
         
         return queries
     
@@ -183,7 +187,8 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         """ Format `passages` by selecting every other pair from the batch """
         passages = {}
         for key in batch.keys():
-            passages[key] = batch[key][:,1::2,:].reshape(batch[key].size(0), -1)
+            #passages[key] = batch[key][:,1::2,:].reshape(batch[key].size(0), -1)
+            passages[key] = batch[key][1::2,:] #.reshape(batch[key].size(0), -1)
         
         return passages
     
@@ -193,6 +198,27 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         if self.model.transformer.prefix_lm:
             add_bidirectional_mask_if_missing(batch)
         # Note: prefix_mask is only used if model.prefix_lm is True
+
+        # JP - add
+        # Reshape pairs so that 
+        dim1,dim2,dim3=batch['input_ids'].shape
+        print(batch['input_ids'].shape)
+        print(batch['input_ids'].reshape((dim1*dim2,dim3)))
+        reshaped_input_ids = batch['input_ids'].reshape((dim1*dim2,dim3))
+        batch['input_ids'] = reshaped_input_ids
+        
+        # still need TO DO for prefix_mask and input_embeds
+        if 'attention_mask' in batch:
+            reshaped_attention_mask = batch['attention_mask'].reshape((dim1*dim2,dim3))
+            batch['attention_mask'] = reshaped_attention_mask
+            print('attention mask shape: ', batch['attention_mask'].shape)
+        if 'sequence_id' in batch:
+            reshaped_sequence_id = batch['sequence_id'].reshape((dim1*dim2,dim3))
+            batch['sequence_id'] = reshaped_sequence_id
+        if 'labels' in batch:
+            reshaped_labels = batch['labels'].reshape((dim1*dim2,dim3))
+            batch['labels'] = reshaped_labels
+
         return self.model(
             input_ids=batch['input_ids'],
             attention_mask=batch.get('attention_mask', None),
@@ -226,21 +252,28 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         #
         # in order to access the final output of the hidden states, we can do hidden_states[-1]
         
+        # JP changed to match current standard for MPTModel
         q_encoder_outputs = self.model(
                                         input_ids=queries_batch['input_ids'],
-                                        token_type_ids=queries_batch.get('token_type_ids', None),
                                         attention_mask=queries_batch.get('attention_mask', None),
-                                        position_ids=queries_batch.get('position_ids', None),
-                                        masked_tokens_mask=queries_batch.get('masked_tokens_mask', None),
+                                        prefix_mask=queries_batch.get('bidirectional_mask', None),
+                                        sequence_id=queries_batch.get('sequence_id', None),
+                                        inputs_embeds=queries_batch.get('inputs_embeds', None),
                                     )
 
         p_encoder_outputs = self.model(
                                         input_ids=passages_batch['input_ids'],
-                                        token_type_ids=passages_batch.get('token_type_ids', None),
                                         attention_mask=passages_batch.get('attention_mask', None),
-                                        position_ids=passages_batch.get('position_ids', None),
-                                        masked_tokens_mask=passages_batch.get('masked_tokens_mask', None),
+                                        prefix_mask=passages_batch.get('bidirectional_mask', None),
+                                        sequence_id=passages_batch.get('sequence_id', None),
+                                        inputs_embeds=passages_batch.get('inputs_embeds', None),
                                     )
+                                    # was previously
+                                    #     token_type_ids=passages_batch.get('token_type_ids', None),
+                                    #     attention_mask=passages_batch.get('attention_mask', None),
+                                    #     position_ids=passages_batch.get('position_ids', None),
+                                    #     masked_tokens_mask=passages_batch.get('masked_tokens_mask', None),
+                                    # )
 
         # JP: Note we went from p_encoder_outputs.masked_fill to q_encoder_outputs.hidden_states.masked_fill
         # Might need to do hidden_states[-1] to only select activations from the last layer

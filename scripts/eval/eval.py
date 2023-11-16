@@ -9,6 +9,7 @@ from typing import List
 
 import pandas as pd
 import torch
+from composer.core import Evaluator
 from composer.loggers import InMemoryLogger, LoggerDestination
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
@@ -16,8 +17,8 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry.callbacks import ModelGauntlet
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import (build_icl_evaluators, build_logger,
-                                       build_tokenizer)
+from llmfoundry.utils.builders import (build_dataloader, build_icl_evaluators,
+                                       build_logger, build_tokenizer)
 from llmfoundry.utils.config_utils import process_init_device
 
 
@@ -41,7 +42,7 @@ def load_model(model_cfg, tokenizer, fsdp_config, num_retries):
                     )
 
 
-def evaluate_model(model_cfg, run_name, model_gauntlet_df):
+def evaluate_model(cfg, model_cfg, run_name, model_gauntlet_df):
     print(f'Evaluating model: {model_cfg.model_name}', flush=True)
     # Build tokenizer and model
     tokenizer = build_tokenizer(model_cfg.tokenizer)
@@ -76,6 +77,14 @@ def evaluate_model(model_cfg, run_name, model_gauntlet_df):
         model_gauntlet_df = pd.DataFrame(
             columns=['model_name', 'average'] +
             [t.name for t in model_gauntlet.categories])
+
+    if 'eval_loader' in cfg:
+        eval_loader = Evaluator(
+            label='eval',
+            dataloader=build_dataloader(cfg.eval_loader, tokenizer,
+                                        cfg.device_eval_batch_size),
+            metric_names=list(model_cfg.model.train_metrics.keys()))
+        evaluators.append(eval_loader)
 
     in_memory_logger = InMemoryLogger()  # track metrics in the in_memory_logger
     loggers: List[LoggerDestination] = [
@@ -123,7 +132,7 @@ def main(cfg):
     models_df = None
     for model_cfg in cfg.models:
         (in_memory_logger, logger_keys, model_gauntlet_callback, model_gauntlet,
-         model_gauntlet_df) = evaluate_model(model_cfg, cfg.run_name,
+         model_gauntlet_df) = evaluate_model(cfg, model_cfg, cfg.run_name,
                                              model_gauntlet_df)
 
         if model_gauntlet_callback is not None:
@@ -252,5 +261,5 @@ if __name__ == '__main__':
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
-    cfg = om.merge(yaml_cfg, cli_cfg)
-    main(cfg)
+    om_cfg = om.merge(yaml_cfg, cli_cfg)
+    main(om_cfg)

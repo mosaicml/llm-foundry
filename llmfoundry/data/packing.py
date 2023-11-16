@@ -261,10 +261,8 @@ if __name__ == '__main__':
 
     from omegaconf import OmegaConf as om
 
-    from llmfoundry import (build_finetuning_dataloader,
-                            build_text_denoising_dataloader)
-    from llmfoundry.data import build_text_dataloader
     from llmfoundry.utils import build_tokenizer
+    from llmfoundry.utils.builders import build_dataloader
 
     def parse_args() -> Namespace:
         """Parse commandline arguments."""
@@ -311,19 +309,6 @@ if __name__ == '__main__':
         if args.num_packing_ratios < 1:
             raise ValueError('`num_packing_ratios` must be a positive integer.')
         return args
-
-    def build_dataloader(cfg, tokenizer, device_batch_size):
-        if cfg.name == 'text':
-            return build_text_dataloader(cfg, tokenizer, device_batch_size)
-        elif cfg.name == 'text_denoising':
-            return build_text_denoising_dataloader(cfg, tokenizer,
-                                                   device_batch_size)
-        elif cfg.name == 'finetuning':
-            return build_finetuning_dataloader(cfg, tokenizer,
-                                               device_batch_size)
-        else:
-            raise ValueError(
-                f'Not sure how to build dataloader with config: {cfg}')
 
     args = parse_args()
 

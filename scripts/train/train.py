@@ -14,14 +14,11 @@ from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizer
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
-                        MPTForCausalLM, build_finetuning_dataloader,
-                        build_text_denoising_dataloader)
-from llmfoundry.data.text_data import build_text_dataloader
-from llmfoundry.models.utils import init_empty_weights, init_on_device
+                        MPTForCausalLM)
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
-                                       build_icl_evaluators, build_logger,
-                                       build_optimizer, build_scheduler,
-                                       build_tokenizer)
+                                       build_dataloader, build_icl_evaluators,
+                                       build_logger, build_optimizer,
+                                       build_scheduler, build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, process_init_device,
                                            update_batch_size_info)
 
@@ -117,7 +114,7 @@ def build_composer_peft_model(
 
     print('Building model from HuggingFace checkpoint...')
     model = MPTForCausalLM.from_pretrained(
-        cfg.model.pretrained_model_name_or_path, trust_remote_code=True)
+        model_cfg.pretrained_model_name_or_path, trust_remote_code=True)
     print('Model built!')
 
     print('Adding Lora modules...')
@@ -140,30 +137,6 @@ def print_trainable_parameters(model) -> None:
     print(
         f'trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}'
     )
-
-
-def build_dataloader(cfg, tokenizer, device_batch_size):
-    if cfg.name == 'text':
-        return build_text_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-    elif cfg.name == 'text_denoising':
-        return build_text_denoising_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-    elif cfg.name == 'finetuning':
-        return build_finetuning_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-
-    else:
-        raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
 def main(cfg):
@@ -324,5 +297,5 @@ if __name__ == '__main__':
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
-    cfg = om.merge(yaml_cfg, cli_cfg)
-    main(cfg)
+    om_cfg = om.merge(yaml_cfg, cli_cfg)
+    main(om_cfg)

@@ -21,9 +21,12 @@ from omegaconf import OmegaConf as om
 from transformers import (AutoTokenizer, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
 
+from llmfoundry import (build_finetuning_dataloader,
+                        build_text_denoising_dataloader)
 from llmfoundry.callbacks import (FDiffMetrics, Generate, GlobalLRScaling,
                                   LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
+from llmfoundry.data.text_data import build_text_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW)
 
@@ -129,6 +132,34 @@ def build_scheduler(cfg):
                                          alpha_f=cfg.alpha_f)
     else:
         raise ValueError(f'Not sure how to build scheduler: {cfg.name}')
+
+
+def build_dataloader(
+    cfg: DictConfig,
+    tokenizer: PreTrainedTokenizer,
+    device_batch_size: int,
+):
+    if cfg.name == 'text':
+        return build_text_dataloader(
+            cfg,
+            tokenizer,
+            device_batch_size,
+        )
+    elif cfg.name == 'text_denoising':
+        return build_text_denoising_dataloader(
+            cfg,
+            tokenizer,
+            device_batch_size,
+        )
+    elif cfg.name == 'finetuning':
+        return build_finetuning_dataloader(
+            cfg,
+            tokenizer,
+            device_batch_size,
+        )
+
+    else:
+        raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
 def build_tokenizer(om_tokenizer_config: DictConfig,) -> Tokenizer:

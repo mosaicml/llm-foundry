@@ -75,9 +75,13 @@ def test_attn_impl(attn_impl_0: str,
     if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):
         pytest.skip('dail implementation of rope requires flash attention 2.')
-    
-    if attn_uses_sequence_id and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash') and (not is_flash_v2_installed(v2_version='v2.1.2')):
-        pytest.skip('Using sequence id with flash attention requires flash attention v2.1.2 or higher.')
+
+    if attn_uses_sequence_id and (
+            attn_impl_0 == 'flash' or attn_impl_1
+            == 'flash') and (not is_flash_v2_installed(v2_version='v2.1.2')):
+        pytest.skip(
+            'Using sequence id with flash attention requires flash attention v2.1.2 or higher.'
+        )
 
     if not (alibi or rope) and attn_uses_sequence_id:
         pytest.skip('attn_uses_sequence_id requires alibi or rope.')
@@ -102,7 +106,7 @@ def test_attn_impl(attn_impl_0: str,
         assert s >= 8
         sequence_id = torch.Tensor([[0] * 4 + [1] * (s - 4),
                                     [0] * 8 + [1] * (s - 8)
-                                   ]).to(device=device, dtype=torch.int64)
+                                   ]).to(device=device, dtype=torch.long)
 
     cfg.attn_impl = attn_impl_0
     attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
@@ -136,7 +140,7 @@ def test_attn_impl(attn_impl_0: str,
             )
         if attn_impl != 'flash' and attn_uses_sequence_id and sequence_id is not None:
             assert isinstance(attn_bias, torch.Tensor)  # pyright
-            attn_bias = apply_sequence_id(attn_bias, sequence_id, s)
+            attn_bias = apply_sequence_id(attn_bias, sequence_id, s) # type: ignore
 
         return attn_bias
 

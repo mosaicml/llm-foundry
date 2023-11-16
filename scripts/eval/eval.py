@@ -21,7 +21,8 @@ from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
 
 from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import (build_icl_data_and_gauntlet,
+from llmfoundry.utils.builders import (build_eval_loader,
+                                       build_icl_data_and_gauntlet,
                                        build_logger, build_tokenizer)
 from llmfoundry.utils.config_utils import pop_config, process_init_device
 
@@ -100,6 +101,7 @@ def evaluate_model(
     max_seq_len: int,
     device_eval_batch_size: int,
     eval_gauntlet_config: Optional[Union[str, DictConfig]],
+    eval_loader_config: Optional[Union[DictConfig, ListConfig]],
     fsdp_config: Optional[Dict],
     num_retries: int,
     loggers_cfg: Dict[str, Any],
@@ -121,6 +123,11 @@ def evaluate_model(
     evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
         icl_tasks, eval_gauntlet_config, tokenizer, device_eval_batch_size,
         max_seq_len, icl_subset_num_batches)
+
+    if eval_loader_config is not None:
+        loader_evaluators = build_eval_loader(eval_loader_config, tokenizer,
+                                              device_eval_batch_size)
+        evaluators.extend(loader_evaluators)
 
     callbacks = []
     if eval_gauntlet_callback is not None:
@@ -228,6 +235,8 @@ def main(cfg: DictConfig):
                                                  default_value='debug')
 
     # Optional Evaluation Parameters with default values
+    eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(
+        cfg, 'eval_loader', must_exist=False, default_value=None)
     seed: int = pop_config(cfg, 'seed', must_exist=False, default_value=17)
     dist_timeout: Union[float, int] = pop_config(cfg,
                                                  'dist_timeout',
@@ -285,6 +294,7 @@ def main(cfg: DictConfig):
              max_seq_len=max_seq_len,
              device_eval_batch_size=device_eval_batch_size,
              eval_gauntlet_config=eval_gauntlet_config,
+             eval_loader_config=eval_loader_config,
              fsdp_config=fsdp_config,
              num_retries=num_retries,
              loggers_cfg=loggers_cfg,

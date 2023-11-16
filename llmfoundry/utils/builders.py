@@ -31,12 +31,37 @@ from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
                                   HuggingFaceCheckpointer, LayerFreezing,
                                   MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
+from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
 log = logging.getLogger(__name__)
+
+
+def build_eval_loader(
+    eval_loader_config: DictConfig,
+    tokenizer: PreTrainedTokenizerBase,
+    device_eval_batch_size: int,
+) -> Evaluator:
+    evaluators = []
+
+    is_multi_eval = isinstance(eval_loader_config, ListConfig)
+    eval_configs = eval_loader_config if is_multi_eval else [eval_loader_config]
+    for eval_config in eval_configs:
+        eval_dataloader = build_dataloader(eval_config, tokenizer,
+                                           device_eval_batch_size)
+
+        # For training, metrics are added after the model is created
+        # For eval, we'll use Evaluator's default, which is to use what's
+        # returned by model.get_metrics()
+        eval_loader = Evaluator(
+            label=f'eval/{eval_config.label}' if is_multi_eval else 'eval',
+            dataloader=eval_dataloader,
+        )
+        evaluators.append(eval_loader)
+    return evaluators
 
 
 def build_icl_data_and_gauntlet(

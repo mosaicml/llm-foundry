@@ -46,12 +46,12 @@ class StreamingTextDataset(StreamingDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             `False``.
-        epoch_size (int, optional): Number of samples to draw per epoch balanced across all
+        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced across all
             streams. If ``None``, takes its value from the total number of underlying samples.
             Provide this field if you are weighting streams relatively to target a larger or
             smaller epoch size. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
+            iterating. If ``None``, its value is set to ``8 * batch_size``. Defaults to ``None``.
         cache_limit (Union[int, str], optional) - Maximum size in bytes of this StreamingDataset's
             shard cache. Before downloading a shard, the least recently used resident shard(s) may
             be evicted (deleted from the local cache) in order to stay under the limit. Set to None
@@ -59,15 +59,19 @@ class StreamingTextDataset(StreamingDataset):
             bytes (e.g., 100b, 64kb, 77mb, and so on). Defaults to None.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
-            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
-            initial run.
+            resumption. If ``None``, this is interpreted as 64 times the number of physical
+            nodes of the initial run if ``shuffle_algo`` is ``py1s`` or ``py2s``, and simply the
+            number of physical nodes of the initial run otherwise. Defaults to ``None``.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1e``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
+        shuffle_block_size (int, optional): Unit of shuffle. A canonical node's samples are split
+            into blocks of this size, and samples within each block are shuffled. If ``None``, its
+            value is calculated as ``max(4_000_000 // num_canonical_nodes), 1 << 18)``. Defaults to
+            ``None``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
         sampling_granularity (int): When picking samples for a stream's final partial repeat,
@@ -89,16 +93,16 @@ class StreamingTextDataset(StreamingDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 epoch_size: Optional[int] = None,
-                 predownload: int = 100_000,
+                 epoch_size: Optional[Union[int, str]] = None,
+                 predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
-                 partition_algo: str = 'orig',
+                 partition_algo: str = 'relaxed',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1b',
+                 shuffle_algo: str = 'py1e',
                  shuffle_seed: int = 9176,
-                 shuffle_block_size: int = 1 << 18,
+                 shuffle_block_size: Optional[int] = None,
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  batching_method: str = 'random',

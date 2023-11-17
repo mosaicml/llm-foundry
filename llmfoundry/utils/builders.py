@@ -73,7 +73,8 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
-def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
+def build_callback(name: str, kwargs: Union[DictConfig, Dict[str,
+                                                             Any]]) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
@@ -117,6 +118,8 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
     elif name == 'early_stopper':
         return EarlyStopper(**kwargs)
     elif name == 'hf_checkpointer':
+        if isinstance(kwargs, DictConfig):
+            kwargs = om.to_object(kwargs)  # pyright: ignore
         return HuggingFaceCheckpointer(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')

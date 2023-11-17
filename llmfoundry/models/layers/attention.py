@@ -677,7 +677,7 @@ class GroupedQueryAttention(nn.Module):
             needs_weights=needs_weights,
             query_attention_mask_in_length=query_attention_mask_in_length,
             key_attention_mask_in_length=key_attention_mask_in_length,
-            should_repeat_kv_for_gqa= not is_flash_v2_installed(),
+            should_repeat_kv_for_gqa=not is_flash_v2_installed(),
         )
 
         return self.out_proj(context), attn_weights, past_key_value

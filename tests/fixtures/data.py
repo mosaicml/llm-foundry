@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from composer.utils import dist
 from omegaconf import DictConfig

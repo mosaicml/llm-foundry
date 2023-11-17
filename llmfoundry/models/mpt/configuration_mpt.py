@@ -221,8 +221,10 @@ class MPTConfig(PretrainedConfig):
         ]:
             raise NotImplementedError(
                 'alibi only implemented with torch and triton attention.')
-        if self.attn_config['attn_uses_sequence_id'] and self.attn_config[
-                'attn_impl'] not in ['torch', 'triton'] and not (self.attn_config['attn_impl']=='flash' and is_flash_v2_installed(v2_version='v2.1.2')):
+        if self.attn_config['attn_uses_sequence_id'] and not (
+                self.attn_config['attn_impl'] in ['torch', 'triton'] or
+            (self.attn_config['attn_impl'] == 'flash' and
+             is_flash_v2_installed(v2_version='v2.1.2'))):
             raise NotImplementedError(
                 'attn_uses_sequence_id only implemented with torch, triton, and flash (v2.1.2 or higher) attention.'
             )

@@ -147,8 +147,8 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
         return query_attention_mask_in_length, key_attention_mask_in_length
 
 def apply_sequence_id(attn_bias: torch.Tensor,
-                        sequence_id: torch.LongTensor,
-                        max_seq_len: int) -> torch.Tensor:
+                      sequence_id: torch.LongTensor,
+                      max_seq_len: int) -> torch.Tensor:
     seq_len = sequence_id.shape[-1]
     if seq_len > max_seq_len:
         raise ValueError(

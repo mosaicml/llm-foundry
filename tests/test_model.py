@@ -514,10 +514,12 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         assert block.resid_ffn_dropout.p == 0.2
 
 
-@pytest.mark.parametrize('attention_impl', ['torch',
-                                                   pytest.param('flash', marks=pytest.mark.gpu),
-                                                   pytest.param('triton', marks=pytest.mark.gpu),
-                                                   pytest.param('torch', marks=pytest.mark.gpu)])
+@pytest.mark.parametrize('attention_impl', [
+    'torch',
+    pytest.param('flash', marks=pytest.mark.gpu),
+    pytest.param('triton', marks=pytest.mark.gpu),
+    pytest.param('torch', marks=pytest.mark.gpu)
+])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
     'rope': False
@@ -545,8 +547,8 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_forward_with_padding(attention_impl: str,
-                              pos_emb_config: dict, tie_word_embeddings: bool):
+def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
+                              tie_word_embeddings: bool):
     device = 'gpu' if torch.cuda.is_available() else 'cpu'
 
     # Test that different placement of padding does not affect the output.
@@ -770,8 +772,8 @@ def test_advanced_mask_building(attention_impl: str):
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_generate(attention_impl: str, precision: str,
-                  pos_emb_config: dict, tie_word_embeddings: bool):
+def test_generate(attention_impl: str, precision: str, pos_emb_config: dict,
+                  tie_word_embeddings: bool):
     device = 'gpu' if torch.cuda.is_available() else 'cpu'
 
     # Test that generate works, and produces the same output with or without
@@ -1000,8 +1002,7 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_forward_with_cache_and_padding(attn_impl: str,
-                                        pos_emb_config: dict,
+def test_forward_with_cache_and_padding(attn_impl: str, pos_emb_config: dict,
                                         tie_word_embeddings: bool):
     device = 'gpu' if torch.cuda.is_available() else 'cpu'
 
@@ -1282,8 +1283,8 @@ def test_forward_with_cache(attn_impl: str, pos_emb_config: dict,
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_generate_with_past_kv(attn_impl: str,
-                               pos_emb_config: dict, tie_word_embeddings: bool):
+def test_generate_with_past_kv(attn_impl: str, pos_emb_config: dict,
+                               tie_word_embeddings: bool):
     device = 'gpu' if torch.cuda.is_available() else 'cpu'
 
     if pos_emb_config['alibi'] and attn_impl == 'flash':
@@ -1610,9 +1611,8 @@ def test_alibi_vs_hf():
 @pytest.mark.parametrize('output_hidden_states', [True, False])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_forward_with_output_attentions_and_output_hidden_states(
-        attn_impl: str, pos_emb_config: dict,
-        output_attentions: bool, output_hidden_states: bool,
-        tie_word_embeddings: bool):
+        attn_impl: str, pos_emb_config: dict, output_attentions: bool,
+        output_hidden_states: bool, tie_word_embeddings: bool):
     device = 'gpu' if torch.cuda.is_available() else 'cpu'
 
     # Test that model forward with output_attentions_and_output_hidden_states

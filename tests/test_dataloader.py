@@ -273,7 +273,7 @@ def test_finetuning_dataloader(decoder_only_format: bool,
         'drop_last': False,
         'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': None,
+        'prefetch_factor': None if using_torch_2() else 2,
         'persistent_workers': False,
         'timeout': 0
     }

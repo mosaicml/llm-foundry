@@ -1352,11 +1352,11 @@ def test_generate_with_past_kv(attn_impl: str, pos_emb_config: dict,
                                                              hf_config.d_model)
 
 
-@pytest.mark.parametrize('attn_impl,device', [
+@pytest.mark.parametrize('attn_impl', [
     'torch',
-    pytest.param('flash', 'gpu', marks=pytest.mark.gpu),
-    pytest.param('triton', 'gpu', marks=pytest.mark.gpu),
-    pytest.param('torch', 'gpu', marks=pytest.mark.gpu),
+    pytest.param('flash', marks=pytest.mark.gpu),
+    pytest.param('triton', marks=pytest.mark.gpu),
+    pytest.param('torch', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('generation_kwargs', [{
     'max_new_tokens': 2,

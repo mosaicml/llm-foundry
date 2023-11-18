@@ -16,7 +16,7 @@ from accelerate import init_empty_weights
 from composer.core.precision import Precision, get_precision_context
 from composer.optim import DecoupledAdamW
 from composer.trainer.dist_strategy import prepare_fsdp_module
-from composer.utils import dist, get_device
+from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import (AutoModelForCausalLM, AutoTokenizer, PreTrainedModel,
@@ -1400,6 +1400,9 @@ def test_generation_kwargs_dont_crash(attn_impl: str,
             f'dail implementation of rope requires gpu and flash attention 2.')
     composer_device = get_device(None)
 
+    if composer_device.name == 'gpu':
+        torch.use_deterministic_algorithms(False)
+
     hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
@@ -1433,6 +1436,9 @@ def test_generation_kwargs_dont_crash(attn_impl: str,
         _ = mpt.generate(input_ids=no_padding_input_ids,
                          attention_mask=no_padding_attention_mask,
                          **generation_kwargs)
+
+    if composer_device.name == 'gpu':
+        reproducibility.configure_deterministic_mode()
 
 
 @pytest.mark.gpu

@@ -106,7 +106,7 @@ def test_attn_impl(attn_impl_0: str,
         assert s >= 8
         sequence_id = torch.Tensor([[0] * 4 + [1] * (s - 4),
                                     [0] * 8 + [1] * (s - 8)
-                                   ]).to(device=device, dtype=torch.long)
+                                   ]).to(device=device).long()
 
     cfg.attn_impl = attn_impl_0
     attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
@@ -140,7 +140,10 @@ def test_attn_impl(attn_impl_0: str,
             )
         if attn_impl != 'flash' and attn_uses_sequence_id and sequence_id is not None:
             assert isinstance(attn_bias, torch.Tensor)  # pyright
-            attn_bias = apply_sequence_id(attn_bias, sequence_id, s) # type: ignore
+            attn_bias = apply_sequence_id(
+                attn_bias,
+                sequence_id,  # type: ignore
+                s)
 
         return attn_bias
 

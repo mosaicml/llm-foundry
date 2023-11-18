@@ -13,6 +13,8 @@ from llmfoundry.models.layers.attention import (flash_attn_fn,
 @pytest.mark.gpu
 @pytest.mark.parametrize('kv_n_heads', [1, 2, 4, 8])
 def test_gqa_kv_repetition(kv_n_heads: int):
+    # Test that flash attention v2 with GQA (kv_n_heads < n_heads) works the same
+    # whether we repeat the kv_n_heads explicitly or flash attention v2 handles it on its own.
     if not is_flash_v2_installed():
         pytest.skip('GQA natively only supported by Flash Attention after v2.')
     d = 128
@@ -82,6 +84,7 @@ def test_gqa_kv_repetition(kv_n_heads: int):
 
 @pytest.mark.gpu
 def test_seq_id_masking_FA_v2():
+    # Test that flash attention v2 with sequence id masking works correctly.
     if not is_flash_v2_installed(v2_version='v2.1.2'):
         pytest.skip(
             'Using sequence id with flash attention requires flash attention v2.1.2 or higher.'

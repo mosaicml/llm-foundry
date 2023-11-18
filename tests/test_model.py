@@ -515,7 +515,6 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         assert block.resid_ffn_dropout.p == 0.2
 
 
-
 @pytest.mark.parametrize('attention_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
@@ -546,22 +545,16 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_sequence_id_based_masking(attention_impl: str,
-                                   pos_emb_config: dict,
+def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict,
                                    tie_word_embeddings: bool):
     # Testing the output of concatenated sequence with sequence id masking vs individual sequences.
-    device = 'gpu' if torch.cuda.is_available() else 'cpu'
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
-        )
     alibi = pos_emb_config['alibi']
     if alibi and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     rope = pos_emb_config['rope']
-    if rope and pos_emb_config['rope_impl'] == 'dail' and (
-            device != 'gpu' or not is_flash_v2_installed()):
+    if rope and pos_emb_config[
+            'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 
@@ -571,7 +564,7 @@ def test_sequence_id_based_masking(attention_impl: str,
             'Using sequence id with flash attention requires flash attention v2.1.2 or higher.'
         )
 
-    composer_device = get_device(device)
+    composer_device = get_device(None)
 
     hf_config = MPTConfig(
         init_device='cpu',

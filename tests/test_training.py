@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 import pytest
 from composer.loggers import InMemoryLogger
+from composer.utils import using_torch_2
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
@@ -137,10 +138,10 @@ def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
     test_cfg.icl_subset_num_batches = 1
     test_cfg.eval_subset_num_batches = 2
     test_cfg.train_loader.num_workers = 0
-    test_cfg.train_loader.prefetch_factor = None
+    test_cfg.train_loader.prefetch_factor = None if using_torch_2() else 2
     test_cfg.train_loader.persistent_workers = False
     test_cfg.eval_loader.num_workers = 0
-    test_cfg.eval_loader.prefetch_factor = None
+    test_cfg.eval_loader.prefetch_factor = None if using_torch_2() else 2
     test_cfg.eval_loader.persistent_workers = False
 
     test_cfg.eval_gauntlet = DictConfig({

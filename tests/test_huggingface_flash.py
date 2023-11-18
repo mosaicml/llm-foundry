@@ -44,8 +44,8 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
         )
 
     device = 'cuda:0'
-    sequence_length = 4096
-    model_dim = 4096 if '7b' in model_name else 8192
+    sequence_length = 64
+    model_dim = 128 if '7b' in model_name else 256
     batch_size = 2
     if patch_fn_name == 'torch':
         patch_fn = llama_attention_patch_torch
@@ -64,8 +64,8 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
     else:
         raise ValueError(f'Unknown patch_fn_name: {patch_fn_name}')
 
-    llama_config = transformers.AutoConfig.from_pretrained(model_name,
-                                                           use_auth_token=True)
+    llama_config = transformers.AutoConfig.from_pretrained(
+        model_name, use_auth_token=True, hidden_size=model_dim)
 
     reproducibility.seed_all(42)
     attention = LlamaAttention(config=llama_config,)
@@ -127,6 +127,7 @@ def test_attn_patch_integration(patch: str):
         'config_overrides': {
             'num_hidden_layers': 2,
             'intermediate_size': 64,
+            'hidden_size': 64,
         },
         'use_auth_token': True,
         'pretrained': False,
@@ -172,6 +173,7 @@ def test_flash2(model_name: str, use_flash_attention_2: bool):
             'config_overrides': {
                 'num_hidden_layers': 2,
                 'intermediate_size': 64,
+                'hidden_size': 64,
             },
             'use_auth_token': True,
             'pretrained': False,
@@ -191,6 +193,7 @@ def test_flash2(model_name: str, use_flash_attention_2: bool):
             'config_overrides': {
                 'num_hidden_layers': 2,
                 'intermediate_size': 64,
+                'hidden_size': 64,
             },
             'pretrained': False,
             'init_device': 'cpu',

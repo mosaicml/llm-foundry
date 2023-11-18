@@ -310,11 +310,6 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
      pytest.param('flash', torch.float16, marks=pytest.mark.gpu),
      pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu)])
 def test_determinism(attn_impl: str, precision: torch.dtype):
-    if not torch.cuda.is_available():
-        pytest.skip(
-            'This test requires CUDA to be available in order to run with bfloat16 precision.'
-        )
-
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
@@ -519,10 +514,10 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         assert block.resid_ffn_dropout.p == 0.2
 
 
-@pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),
-                                                   ('flash', 'gpu'),
-                                                   ('triton', 'gpu'),
-                                                   ('torch', 'gpu')])
+@pytest.mark.parametrize('attention_impl', ['torch',
+                                                   pytest.param('flash', marks=pytest.mark.gpu),
+                                                   pytest.param('triton', marks=pytest.mark.gpu),
+                                                   pytest.param('torch', marks=pytest.mark.gpu)])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
     'rope': False
@@ -550,13 +545,11 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_forward_with_padding(attention_impl: str, device: str,
+def test_forward_with_padding(attention_impl: str,
                               pos_emb_config: dict, tie_word_embeddings: bool):
+    device = 'gpu' if torch.cuda.is_available() else 'cpu'
+
     # Test that different placement of padding does not affect the output.
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
-        )
     alibi = pos_emb_config['alibi']
     if alibi and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
@@ -743,12 +736,12 @@ def test_advanced_mask_building(attention_impl: str):
     assert torch.equal(attn_bias, expected_attn_bias)
 
 
-@pytest.mark.parametrize('attention_impl,device,precision', [
-    ('torch', 'cpu', 'fp32'),
-    ('flash', 'gpu', 'amp_bf16'),
-    ('triton', 'gpu', 'amp_bf16'),
-    ('torch', 'gpu', 'amp_bf16'),
-    ('torch', 'gpu', 'fp32'),
+@pytest.mark.parametrize('attention_impl,precision', [
+    ('torch', 'fp32'),
+    pytest.param('flash', 'amp_bf16', marks=pytest.mark.gpu),
+    pytest.param('triton', 'amp_bf16', marks=pytest.mark.gpu),
+    pytest.param('torch', 'amp_bf16', marks=pytest.mark.gpu),
+    pytest.param('torch', 'fp32', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -777,14 +770,12 @@ def test_advanced_mask_building(attention_impl: str):
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_generate(attention_impl: str, device: str, precision: str,
+def test_generate(attention_impl: str, precision: str,
                   pos_emb_config: dict, tie_word_embeddings: bool):
+    device = 'gpu' if torch.cuda.is_available() else 'cpu'
+
     # Test that generate works, and produces the same output with or without
     # padding in the input.
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
-        )
     if pos_emb_config['alibi'] and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
@@ -878,8 +869,6 @@ def test_generate(attention_impl: str, device: str, precision: str,
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_generate_with_device_map(tmp_path: pathlib.Path, world_size: int,
                                   use_cache: bool, tie_word_embeddings: bool):
-    if not torch.cuda.is_available():
-        pytest.skip(f'This test requires CUDA to be available.')
     if not torch.cuda.device_count() >= world_size:
         pytest.skip(f'This test requires {world_size} GPUs.')
 
@@ -978,11 +967,11 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
     check_hf_model_equivalence(mpt, mpt2)
 
 
-@pytest.mark.parametrize('attn_impl,device', [
-    ('torch', 'cpu'),
-    ('flash', 'gpu'),
-    ('triton', 'gpu'),
-    ('torch', 'gpu'),
+@pytest.mark.parametrize('attn_impl', [
+    'torch',
+    pytest.param('flash', marks=pytest.mark.gpu),
+    pytest.param('triton', marks=pytest.mark.gpu),
+    pytest.param('torch', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1011,14 +1000,12 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_forward_with_cache_and_padding(attn_impl: str, device: str,
+def test_forward_with_cache_and_padding(attn_impl: str,
                                         pos_emb_config: dict,
                                         tie_word_embeddings: bool):
+    device = 'gpu' if torch.cuda.is_available() else 'cpu'
+
     # Tests that the result is the same with or without padding when using kv caching
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
-        )
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
     if pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail' and (
@@ -1120,11 +1107,11 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str,
                 rtol=1e-6)
 
 
-@pytest.mark.parametrize('attn_impl,device', [
-    ('torch', 'cpu'),
-    ('flash', 'gpu'),
-    ('triton', 'gpu'),
-    ('torch', 'gpu'),
+@pytest.mark.parametrize('attn_impl', [
+    'torch',
+    pytest.param('flash', marks=pytest.mark.gpu),
+    pytest.param('triton', marks=pytest.mark.gpu),
+    pytest.param('torch', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1153,14 +1140,12 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str,
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict,
+def test_forward_with_cache(attn_impl: str, pos_emb_config: dict,
                             tie_word_embeddings: bool):
+    device = 'gpu' if torch.cuda.is_available() else 'cpu'
+
     # Test that model forward with and without the key-value cache produces the
     # same output.
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
-        )
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
@@ -1265,10 +1250,10 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict,
 
 
 @pytest.mark.parametrize('attn_impl,device', [
-    ('torch', 'cpu'),
-    ('flash', 'gpu'),
-    ('triton', 'gpu'),
-    ('torch', 'gpu'),
+    'torch',
+    pytest.param('flash', 'gpu', marks=pytest.mark.gpu),
+    pytest.param('triton', 'gpu', marks=pytest.mark.gpu),
+    pytest.param('torch', 'gpu', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1297,12 +1282,10 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict,
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_generate_with_past_kv(attn_impl: str, device: str,
+def test_generate_with_past_kv(attn_impl: str,
                                pos_emb_config: dict, tie_word_embeddings: bool):
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
-        )
+    device = 'gpu' if torch.cuda.is_available() else 'cpu'
+
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
     if pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail' and (
@@ -1369,10 +1352,10 @@ def test_generate_with_past_kv(attn_impl: str, device: str,
 
 
 @pytest.mark.parametrize('attn_impl,device', [
-    ('torch', 'cpu'),
-    ('flash', 'gpu'),
-    ('triton', 'gpu'),
-    ('torch', 'gpu'),
+    'torch',
+    pytest.param('flash', 'gpu', marks=pytest.mark.gpu),
+    pytest.param('triton', 'gpu', marks=pytest.mark.gpu),
+    pytest.param('torch', 'gpu', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('generation_kwargs', [{
     'max_new_tokens': 2,
@@ -1412,14 +1395,12 @@ def test_generate_with_past_kv(attn_impl: str, device: str,
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
+def test_generation_kwargs_dont_crash(attn_impl: str,
                                       generation_kwargs: Dict[str, Any],
                                       pos_emb_config: dict,
                                       tie_word_embeddings: bool):
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
-        )
+    device = 'gpu' if torch.cuda.is_available() else 'cpu'
+
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
@@ -1499,10 +1480,6 @@ def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
 def test_model_to(attention_impl: str, pos_emb_config: dict,
                   tie_word_embeddings: bool):
     # test that moving the model to diff devices and dtypes in diff ways does not break the model
-    if not torch.cuda.is_available():
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
-        )
     if pos_emb_config['alibi'] and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
@@ -1598,10 +1575,10 @@ def test_alibi_vs_hf():
 
 
 @pytest.mark.parametrize('attn_impl,device', [
-    ('torch', 'cpu'),
-    ('flash', 'gpu'),
-    ('triton', 'gpu'),
-    ('torch', 'gpu'),
+    'torch',
+    pytest.param('flash', 'gpu', marks=pytest.mark.gpu),
+    pytest.param('triton', 'gpu', marks=pytest.mark.gpu),
+    pytest.param('torch', 'gpu', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1633,14 +1610,12 @@ def test_alibi_vs_hf():
 @pytest.mark.parametrize('output_hidden_states', [True, False])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_forward_with_output_attentions_and_output_hidden_states(
-        attn_impl: str, device: str, pos_emb_config: dict,
+        attn_impl: str, pos_emb_config: dict,
         output_attentions: bool, output_hidden_states: bool,
         tie_word_embeddings: bool):
+    device = 'gpu' if torch.cuda.is_available() else 'cpu'
+
     # Test that model forward with output_attentions_and_output_hidden_states
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
-        )
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
     if output_attentions and attn_impl in ['flash', 'triton']:
@@ -1708,8 +1683,6 @@ def test_hf_init(tmp_path: pathlib.Path,
                  init_device: str,
                  world_size: int,
                  batch_size: int = 1):
-    if not torch.cuda.is_available():
-        pytest.skip(f'This test requires CUDA to be available.')
     if not torch.cuda.device_count() >= world_size:
         pytest.skip(f'This test requires {world_size} GPUs.')
 

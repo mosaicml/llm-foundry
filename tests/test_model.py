@@ -304,6 +304,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     assert not torch.equal(original_params, updated_params)
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize(
     'attn_impl,precision',
     [('torch', torch.float16), ('torch', torch.bfloat16),

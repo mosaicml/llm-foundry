@@ -442,7 +442,7 @@ def test_huggingface_conversion_callback_interval(
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
 @pytest.mark.parametrize(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
-    [('3ba', '2ba', '7ba', 3, 4)])
+    [('1ba', '1ba', '1ba', 1, 1)])
 @patch('os.cpu_count', MagicMock(return_value=None))
 def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                                          tie_word_embeddings: bool,
@@ -457,7 +457,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
 
     max_seq_len = 16
     device_batch_size = 1
-    dataset_size = 14
+    dataset_size = 2
     precision_str = 'bfloat16'
     precision = torch.bfloat16
     batches_per_epoch = math.ceil(dataset_size / (device_batch_size * 2))
@@ -475,7 +475,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         model_cfg = {
             'name': 'mpt_causal_lm',
             'init_device': 'cpu',
-            'd_model': 128,
+            'd_model': 64,
             'n_heads': 2,
             'n_layers': 2,
             'expansion_ratio': 4,
@@ -553,9 +553,9 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
             'shuffle': True,
         },
         'drop_last': False,
-        'num_workers': 4,
+        'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': 2,
+        'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0
     }

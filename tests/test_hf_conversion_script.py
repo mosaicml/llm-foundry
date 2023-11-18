@@ -307,8 +307,6 @@ def test_huggingface_conversion_callback_interval(
     tokenizer_name = 'EleutherAI/gpt-neox-20b'
     model_cfg = om.create(model_cfg)
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
-
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
     make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size)
@@ -446,11 +444,13 @@ def test_huggingface_conversion_callback_interval(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
     [('3ba', '2ba', '7ba', 3, 4)])
 @patch('os.cpu_count', MagicMock(return_value=None))
-def test_huggingface_conversion_callback(
-        model: str, tmp_path: pathlib.Path, tie_word_embeddings: bool,
-        fsdp_state_dict_type: Optional[str],
-        hf_save_interval: str, save_interval: str, max_duration: str,
-        expected_hf_checkpoints: int, expected_normal_checkpoints: int):
+def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
+                                         tie_word_embeddings: bool,
+                                         fsdp_state_dict_type: Optional[str],
+                                         hf_save_interval: str,
+                                         save_interval: str, max_duration: str,
+                                         expected_hf_checkpoints: int,
+                                         expected_normal_checkpoints: int):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
@@ -535,9 +535,6 @@ def test_huggingface_conversion_callback(
         'limit_all_gathers': True,
         'state_dict_type': fsdp_state_dict_type,
     }
-
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name, use_auth_token=model == 'llama2')
 
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')

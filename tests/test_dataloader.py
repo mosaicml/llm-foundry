@@ -253,17 +253,16 @@ def test_finetuning_dataloader(decoder_only_format: bool,
                                allow_pad_trimming: bool,
                                packing_ratio: Optional[Union[float,
                                                              Literal['auto']]]):
-    # Use the datasets just built in the last test
-    tokenizer_name = 'gpt2' if decoder_only_format else 't5-base'
-    max_seq_len = 2048 if decoder_only_format else 1024
-
     if (decoder_only_format is False) and (packing_ratio is not None):
         pytest.xfail('packing_ratio only supported for decoder-only format.')
+
+    tokenizer_name = 'gpt2' if decoder_only_format else 't5-base'
+    max_seq_len = 2048 if decoder_only_format else 1024
 
     cfg = {
         'name': 'finetuning',
         'dataset': {
-            'hf_name': 'tatsu-lab/alpaca',
+            'hf_name': 'HuggingFaceH4/databricks_dolly_15k',
             'split': 'train',
             'max_seq_len': max_seq_len,
             'decoder_only_format': decoder_only_format,
@@ -272,9 +271,9 @@ def test_finetuning_dataloader(decoder_only_format: bool,
             'shuffle': True,
         },
         'drop_last': False,
-        'num_workers': 4,
+        'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': 2,
+        'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0
     }
@@ -530,7 +529,6 @@ def test_malformed_data(
         },
         'drop_last': False,
         'num_workers': 0,
-        # set prefetch to 2 if < torch 2, else set it to None
         'prefetch_factor': None if using_torch_2() else 2,
         'pin_memory': False,
         'persistent_workers': False,

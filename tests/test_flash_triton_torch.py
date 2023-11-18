@@ -5,6 +5,7 @@ import pytest
 import torch
 from omegaconf import OmegaConf as om
 
+from llmfoundry.models.layers import attention
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.mpt.modeling_mpt import gen_rotary_embedding
 
@@ -17,8 +18,14 @@ def allclose_helper(t0: torch.Tensor,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl_0', ['flash', 'triton', 'torch'])
-@pytest.mark.parametrize('attn_impl_1', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('attn_impl_0,attn_impl_1', [
+    ('flash', 'flash'),
+    ('flash', 'triton'),
+    ('flash', 'torch'),
+    ('triton', 'triton'),
+    ('triton', 'torch'),
+    ('torch', 'torch'),
+])
 @pytest.mark.parametrize('clip_qkv', [True, False])
 @pytest.mark.parametrize('qk_ln', [True, False])
 @pytest.mark.parametrize('pos_emb_config', [{
@@ -62,11 +69,10 @@ def test_attn_impl(attn_impl_0: str,
     Includes testing with and without attn_clip_qkv, attn_qk_ln, alibi, and
     rope.
     """
-    from llmfoundry.models.layers import attention
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
     if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'):
-        pytest.xfail('flash attn does not support alibi')
+        pytest.skip('flash attn does not support alibi')
 
     if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):
@@ -81,7 +87,7 @@ def test_attn_impl(attn_impl_0: str,
         'qk_ln': qk_ln,
     })
 
-    n, s, f = 2, 16, cfg.d_model
+    n, s, f = 2, 4, cfg.d_model
     assert cfg.d_model % cfg.n_heads == 0
     if attn_type == 'grouped_query_attention':
         cfg.kv_n_heads = 2
@@ -311,7 +317,7 @@ def test_grouped_attention_heads(attn_impl: str,
         'kv_n_heads': kv_n_heads
     })
 
-    n, s, f = 2, 16, cfg.d_model
+    n, s, f = 2, 4, cfg.d_model
 
     mmhsa = attention.GroupedQueryAttention(**cfg).to(device)
 

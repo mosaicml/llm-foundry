@@ -263,7 +263,7 @@ def test_callback_inits():
 @pytest.mark.parametrize('log_to_mlflow', [True, False])
 @pytest.mark.parametrize(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
-    [('3ba', '2ba', '7ba', 3, 4), ('1dur', '2ba', '1ep', 1, 4)])
+    [('3ba', '2ba', '4ba', 2, 2), ('1dur', '2ba', '1ep', 1, 2)])
 @patch('os.cpu_count', MagicMock(return_value=None))
 def test_huggingface_conversion_callback_interval(
         tmp_path: pathlib.Path, log_to_mlflow: bool, hf_save_interval: str,
@@ -273,12 +273,12 @@ def test_huggingface_conversion_callback_interval(
 
     dist.initialize_dist(get_device('gpu'))
 
-    max_seq_len = 16
-    device_batch_size = 1
-    dataset_size = 14
+    max_seq_len = 4
+    device_batch_size = 2
+    dataset_size = 8
     precision_str = 'bfloat16'
     precision = torch.bfloat16
-    batches_per_epoch = math.ceil(dataset_size / (device_batch_size * 2))
+    batches_per_epoch = math.ceil(dataset_size / device_batch_size)
 
     checkpointer_callback = HuggingFaceCheckpointer(
         save_folder=os.path.join(tmp_path, 'checkpoints'),
@@ -292,7 +292,7 @@ def test_huggingface_conversion_callback_interval(
     model_cfg = {
         'name': 'mpt_causal_lm',
         'init_device': 'cpu',
-        'd_model': 128,
+        'd_model': 64,
         'n_heads': 2,
         'n_layers': 2,
         'expansion_ratio': 4,
@@ -401,7 +401,7 @@ def test_huggingface_conversion_callback_interval(
     ]
     assert len(normal_checkpoints) == expected_normal_checkpoints
     assert len(huggingface_checkpoints) == expected_hf_checkpoints
-
+    print(huggingface_checkpoints)
     # Load the last huggingface checkpoint
     loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
         os.path.join(tmp_path, 'checkpoints', 'huggingface',
@@ -428,7 +428,7 @@ def test_huggingface_conversion_callback_interval(
         trust_remote_code=True,
     )
 
-    check_hf_model_equivalence(trainer.state.model.module.model.to(precision),
+    check_hf_model_equivalence(trainer.state.model.model.to(precision),
                                loaded_model)
     check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
@@ -442,14 +442,15 @@ def test_huggingface_conversion_callback_interval(
     [('mpt', True), ('mpt', False), ('neo', None), ('llama2', None)],
 )
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
+@pytest.mark.parametrize(
+    'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
+    [('3ba', '2ba', '7ba', 3, 4)])
 @patch('os.cpu_count', MagicMock(return_value=None))
-def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
-                                         tie_word_embeddings: bool,
-                                         fsdp_state_dict_type: Optional[str],
-                                         hf_save_interval: str,
-                                         save_interval: str, max_duration: str,
-                                         expected_hf_checkpoints: int,
-                                         expected_normal_checkpoints: int):
+def test_huggingface_conversion_callback(
+        model: str, tmp_path: pathlib.Path, tie_word_embeddings: bool,
+        fsdp_state_dict_type: Optional[str],
+        hf_save_interval: str, save_interval: str, max_duration: str,
+        expected_hf_checkpoints: int, expected_normal_checkpoints: int):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))

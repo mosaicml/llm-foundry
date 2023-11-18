@@ -313,9 +313,9 @@ def flash_attn_fn(
             #
             # hopefully the kernels can utilize this and we're jot just wasting BW here
             key_unpad = key_unpad.expand(key_unpad.size(0), n_heads,
-                                        key_unpad.size(-1))
+                                         key_unpad.size(-1))
             value_unpad = value_unpad.expand(value_unpad.size(0), n_heads,
-                                            value_unpad.size(-1))
+                                             value_unpad.size(-1))
         # grouped query case
         elif kv_n_heads < n_heads:
             # Each query belong to a group of kv heads of group size n_heads // kv_n_heads

@@ -131,23 +131,30 @@ def gen_rotary_embedding(rope_head_dim: int, rope_impl: str, rope_theta: int,
             )
     raise ValueError('rope_impl needs to be either dail or hf')
 
-def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int, attn_uses_sequence_id: bool, attn_impl: str):
-        # Generates the attention masks used for sequence masking in flash attention
-        query_attention_mask_in_length = None
-        key_attention_mask_in_length = None
-        if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
-            query_attention_mask_in_length = torch.nn.functional.one_hot(sequence_id[:, -S:], num_classes=S).sum(dim=1)
-            # We use S as the number of classes while creating key_attention_mask_in_length instead of sequence_id.shape[-1] 
-            # because in case of inference, sequence_id.shape[-1] can become very large. In that case, the one_hot vectors 
-            # would've become very large as well.
-            key_attention_mask_in_length = torch.nn.functional.one_hot(sequence_id, num_classes=S).sum(dim=1)
-            # Since Flash Attention expects the masks to have same shape as the keys, we pad it with zeros.
-            key_attention_mask_in_length = torch.nn.functional.pad(key_attention_mask_in_length, (0, sequence_id.shape[-1] - S), value=0)
-                
-        return query_attention_mask_in_length, key_attention_mask_in_length
 
-def apply_sequence_id(attn_bias: torch.Tensor,
-                      sequence_id: torch.LongTensor,
+def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
+                                 attn_uses_sequence_id: bool, attn_impl: str):
+    # Generates the attention masks used for sequence masking in flash attention
+    query_attention_mask_in_length = None
+    key_attention_mask_in_length = None
+    if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl
+                                                                == 'flash'):
+        query_attention_mask_in_length = torch.nn.functional.one_hot(
+            sequence_id[:, -S:], num_classes=S).sum(dim=1)
+        # We use S as the number of classes while creating key_attention_mask_in_length instead of sequence_id.shape[-1]
+        # because in case of inference, sequence_id.shape[-1] can become very large. In that case, the one_hot vectors
+        # would've become very large as well.
+        key_attention_mask_in_length = torch.nn.functional.one_hot(
+            sequence_id, num_classes=S).sum(dim=1)
+        # Since Flash Attention expects the masks to have same shape as the keys, we pad it with zeros.
+        key_attention_mask_in_length = torch.nn.functional.pad(
+            key_attention_mask_in_length, (0, sequence_id.shape[-1] - S),
+            value=0)
+
+    return query_attention_mask_in_length, key_attention_mask_in_length
+
+
+def apply_sequence_id(attn_bias: torch.Tensor, sequence_id: torch.LongTensor,
                       max_seq_len: int) -> torch.Tensor:
     seq_len = sequence_id.shape[-1]
     if seq_len > max_seq_len:
@@ -169,6 +176,7 @@ def apply_sequence_id(attn_bias: torch.Tensor,
     attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
 
     return attn_bias
+
 
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
@@ -324,7 +332,8 @@ class MPTModel(MPTPreTrainedModel):
         # If using torch or triton, we incorporate sequence_id (if appropriate)
         if self.attn_uses_sequence_id and sequence_id is not None:
             assert isinstance(attn_bias, torch.Tensor)  # pyright
-            attn_bias = apply_sequence_id(attn_bias, sequence_id, self.config.max_seq_len)
+            attn_bias = apply_sequence_id(attn_bias, sequence_id,
+                                          self.config.max_seq_len)
 
         # If using torch or triton, we incorporate attention_mask. This will output
         # None in place of attention_mask since it will not be further needed in the
@@ -524,7 +533,11 @@ class MPTModel(MPTPreTrainedModel):
             prefix_mask=prefix_mask,
             sequence_id=sequence_id,
         )
-        query_attention_mask_in_length, key_attention_mask_in_length = gen_attention_mask_in_length(sequence_id=sequence_id, S=S, attn_uses_sequence_id=self.attn_uses_sequence_id, attn_impl=self.attn_impl)
+        query_attention_mask_in_length, key_attention_mask_in_length = gen_attention_mask_in_length(
+            sequence_id=sequence_id,
+            S=S,
+            attn_uses_sequence_id=self.attn_uses_sequence_id,
+            attn_impl=self.attn_impl)
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
         if use_cache and past_key_values is None:

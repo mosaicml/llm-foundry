@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import copy
+import gc
 import logging
 import os
 import sys
@@ -23,9 +24,8 @@ from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
-                        MPTForCausalLM, build_finetuning_dataloader,
-                        build_text_denoising_dataloader)
-from llmfoundry.data.text_data import build_text_dataloader
+                        MPTForCausalLM)
+from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_data_and_gauntlet,
                                        build_logger, build_optimizer,
@@ -168,30 +168,6 @@ def print_trainable_parameters(model: torch.nn.Module) -> None:
     )
 
 
-def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-                     device_batch_size: int):
-    if cfg.name == 'text':
-        return build_text_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-    elif cfg.name == 'text_denoising':
-        return build_text_denoising_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-    elif cfg.name == 'finetuning':
-        return build_finetuning_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-    else:
-        raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
-
-
 def main(cfg: DictConfig) -> Trainer:
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
@@ -215,6 +191,12 @@ def main(cfg: DictConfig) -> Trainer:
     if max_split_size_mb is not None:
         os.environ[
             'PYTORCH_CUDA_ALLOC_CONF'] = f'max_split_size_mb:{max_split_size_mb}'
+
+    # Set CUDA lazy loading
+    # This can save a bit of memory if not all modules are needed
+    cuda_load_lazy: bool = cfg.pop('cuda_load_lazy', False)
+    if cuda_load_lazy:
+        os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
 
     # Set seed first
     seed: int = pop_config(cfg, 'seed', must_exist=True)
@@ -401,6 +383,12 @@ def main(cfg: DictConfig) -> Trainer:
                                                           'compile_config',
                                                           must_exist=False,
                                                           default_value=None)
+    metadata: Optional[Dict[str, str]] = pop_config(cfg,
+                                                    'metadata',
+                                                    must_exist=False,
+                                                    default_value=None,
+                                                    convert=True)
+
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
     if logged_cfg.get('run_name', None) is not None \
@@ -477,6 +465,14 @@ def main(cfg: DictConfig) -> Trainer:
             # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
             mosaicml_logger = MosaicMLLogger()
             loggers.append(mosaicml_logger)
+
+    if metadata is not None:
+        # Flatten the metadata for logging
+        logged_cfg.pop('metadata', None)
+        logged_cfg.update(metadata, merge=True)
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_metrics(metadata)
+            mosaicml_logger._flush_metadata(force_flush=True)
 
     # Profiling
     profiler: Optional[Profiler] = None
@@ -634,6 +630,7 @@ def main(cfg: DictConfig) -> Trainer:
     print('Logging config')
     log_config(logged_cfg)
     torch.cuda.empty_cache()
+    gc.collect()
 
     # Eval first if requested
     if eval_first and trainer.state.timestamp.batch.value == 0:

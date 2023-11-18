@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         include:
-        - name: 'cpu-latest'
+        - name: 'cpu-1.13.1'
           container: mosaicml/pytorch:1.13.1_cpu-python3.10-ubuntu20.04
           markers: 'not gpu'
           pytest_command: 'coverage run -m pytest'

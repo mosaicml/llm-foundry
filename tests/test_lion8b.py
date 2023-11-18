@@ -79,16 +79,18 @@ def test_modifies_weights_and_momentums(N: int, D: int, dtype: torch.dtype,
 
 
 @pytest.mark.parametrize('N,D', _MANY_PARAM_SHAPES)
-@pytest.mark.parametrize('dtype', [torch.float32,
-                                          pytest.param(torch.bfloat16, marks=pytest.mark.gpu),
-                                          pytest.param(torch.float16, marks=pytest.mark.gpu),
-                                          pytest.param(torch.float32, marks=pytest.mark.gpu)])
+@pytest.mark.parametrize('dtype', [
+    torch.float32,
+    pytest.param(torch.bfloat16, marks=pytest.mark.gpu),
+    pytest.param(torch.float16, marks=pytest.mark.gpu),
+    pytest.param(torch.float32, marks=pytest.mark.gpu)
+])
 @pytest.mark.parametrize('weight_decay', [0, .1])
 @pytest.mark.parametrize('fused,use_errors', [(False, False), (True, False),
                                               (True, True)])
-def test_changes_with_zero_grads(N: int, D: int,
-                                 dtype: torch.dtype, weight_decay: float,
-                                 fused: bool, use_errors: bool) -> None:
+def test_changes_with_zero_grads(N: int, D: int, dtype: torch.dtype,
+                                 weight_decay: float, fused: bool,
+                                 use_errors: bool) -> None:
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     if (device == 'cpu') and (fused or use_errors):
@@ -123,10 +125,12 @@ def test_changes_with_zero_grads(N: int, D: int,
 
 
 @pytest.mark.parametrize('N,D', [(1, 8), (17, 23), (32, 32)])
-@pytest.mark.parametrize('dtype', [torch.float32,
-                                          pytest.param(torch.bfloat16, marks=pytest.mark.gpu),
-                                          pytest.param(torch.float16, marks=pytest.mark.gpu),
-                                          pytest.param(torch.float32, marks=pytest.mark.gpu)])
+@pytest.mark.parametrize('dtype', [
+    torch.float32,
+    pytest.param(torch.bfloat16, marks=pytest.mark.gpu),
+    pytest.param(torch.float16, marks=pytest.mark.gpu),
+    pytest.param(torch.float32, marks=pytest.mark.gpu)
+])
 @pytest.mark.parametrize('fused,use_errors', [(False, False), (True, False),
                                               (True, True)])
 def test_descends(N: int, D: int, dtype: torch.dtype, fused: bool,

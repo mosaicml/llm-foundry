@@ -443,11 +443,13 @@ def test_huggingface_conversion_callback_interval(
 )
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
 @patch('os.cpu_count', MagicMock(return_value=None))
-def test_huggingface_conversion_callback(
-        model: str, tmp_path: pathlib.Path, tie_word_embeddings: bool,
-        fsdp_state_dict_type: Optional[str], log_to_mlflow: bool,
-        hf_save_interval: str, save_interval: str, max_duration: str,
-        expected_hf_checkpoints: int, expected_normal_checkpoints: int):
+def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
+                                         tie_word_embeddings: bool,
+                                         fsdp_state_dict_type: Optional[str],
+                                         hf_save_interval: str,
+                                         save_interval: str, max_duration: str,
+                                         expected_hf_checkpoints: int,
+                                         expected_normal_checkpoints: int):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))

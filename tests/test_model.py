@@ -565,6 +565,12 @@ def test_sequence_id_based_masking(attention_impl: str, device: str,
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 
+    if attention_impl == 'flash' and (
+            not is_flash_v2_installed(v2_version='v2.1.2')):
+        pytest.skip(
+            'Using sequence id with flash attention requires flash attention v2.1.2 or higher.'
+        )
+
     composer_device = get_device(device)
 
     hf_config = MPTConfig(

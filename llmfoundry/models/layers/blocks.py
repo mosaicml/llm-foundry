@@ -35,6 +35,8 @@ attn_config_defaults: Dict = {
         'type': 'no_scaling',
         'factor': 1.0,
     },
+    'tensor_parallel_qkvo': False,
+    'tp_world_size': None,
 }
 
 

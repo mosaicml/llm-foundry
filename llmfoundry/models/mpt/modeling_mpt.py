@@ -8,7 +8,7 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 import math
 import warnings
-from functools import cached_property, partial
+from functools import partial
 from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
                     Union)
 
@@ -38,7 +38,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.distributed._tensor import (DeviceMesh, Shard, distribute_module,
                                        distribute_tensor)
-from torch.distributed.tensor.parallel import (ColwiseParallel, RowwiseParallel,
+from torch.distributed.tensor.parallel import (RowwiseParallel,
                                                make_input_replicate_1d,
                                                make_sharded_output_tensor,
                                                parallelize_module)
@@ -266,7 +266,6 @@ class MPTModel(MPTPreTrainedModel):
                 mesh_dim_names=['ep', 'tp'],
             )
             new_blocks = nn.ModuleList()
-            torch.set_printoptions(profile='full', sci_mode=False)
             for block in self.blocks:
                 qkv_module = block.get_submodule('attn.Wqkv')
                 oned_mesh = _create_1d_device_mesh(twod_mesh, tp_mesh_dim=1)

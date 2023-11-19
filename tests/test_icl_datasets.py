@@ -24,7 +24,7 @@ def run_test(dir: pathlib.Path,
                                          tokenizer,
                                          1024,
                                          8,
-                                         destination_dir=dir)
+                                         destination_dir=str(dir))
 
     for e in evaluators:
         batch = next(e.dataloader.dataloader.__iter__())

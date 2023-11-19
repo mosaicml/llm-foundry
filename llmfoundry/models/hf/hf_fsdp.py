@@ -218,16 +218,16 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
                             module._fsdp_wrap = True
                             continue
 
-    if model.config.get('train_only', None):
-        train_only = model.config.get('train_only')
-        for full_name, module in model.named_modules():
-            _, _, name = full_name.rpartition('.')
-            if name in train_only:
-                module._fsdp_wrap = True
+    # if model.config.get('train_only', None):
+    #     train_only = model.config.get('train_only')
+    #     for full_name, module in model.named_modules():
+    #         _, _, name = full_name.rpartition('.')
+    #         if name in train_only:
+    #             module._fsdp_wrap = True
 
-    if 'peft' in model.config and model.config.peft.name == 'bitfit':
-        from tunes.methods.bitfit import BitFitLinear
-        BitFitLinear.mark_fsdp(model)
+    # if 'peft' in model.config and model.config.peft.name == 'bitfit':
+    from tunes.methods.bitfit import BitFitLinear
+    BitFitLinear.mark_fsdp(model)
 
     # FSDP Wrap and Activation Checkpoint every model block
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)

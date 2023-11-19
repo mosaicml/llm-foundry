@@ -33,6 +33,7 @@ from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
+from llmfoundry.models.mpt.modeling_mpt import rearrange_tensor
 from llmfoundry.utils import build_tokenizer
 
 
@@ -1877,14 +1878,24 @@ def test_tp_qkvo():
         # stores everything along the transpose) is sharded along the device mesh
         assert Wqkv_local.shape[0] * local_world_size == sharded_model_cfg.d_model * 3
 
-        # The out projection is row-wise sharded, so its input dimension (dim 1)
+        # The out projection is rowwise-sharded, so its input dimension (dim 1)
         # is sharded along the device mesh
         assert out_proj_local.shape[1] * local_world_size == sharded_model_cfg.d_model
     
+        Wqkv_interleaved = rearrange_tensor(
+            full_attn_module.Wqkv.weight, 
+            local_world_size,
+            sharded_model_cfg.d_model,
+            sharded_model_cfg.d_model // sharded_model_cfg.n_heads,
+            sharded_model_cfg.n_heads
+        )
         # Check that the sharded output weights are the same as the full model
-        # weights - rank 0 should have the top half and rank 1 should have the
-        # bottom half
+        # weights:
+        #   rank 0 should have the top half of out proj and the left half of Wqkv
+        #   rank 1 should have the bottom half of out proj and the right half of Wqkv
         if dist.get_local_rank() == 0:
             assert torch.equal(out_proj_local, full_attn_module.out_proj.weight[:, :out_proj_local.shape[1]])
+            assert torch.equal(Wqkv_local, Wqkv_interleaved[:Wqkv_local.shape[0], :])
         else:
             assert torch.equal(out_proj_local, full_attn_module.out_proj.weight[:, out_proj_local.shape[1]:])
+            assert torch.equal(Wqkv_local, Wqkv_interleaved[Wqkv_local.shape[0]:, :])

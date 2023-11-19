@@ -18,6 +18,6 @@ icl_tasks:
   icl_task_type: schema
 -
   label: triviaqa
-  dataset_uri: scripts/eval/local_data/world_knowledge/triviaqa.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: scripts/eval/local_data/world_knowledge/triviaqa_small.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [0, 1]
   icl_task_type: question_answering

@@ -11,8 +11,6 @@ from llmfoundry.models.mpt.modeling_mpt import gen_rotary_embedding
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('clip_qkv', [True, False])
-@pytest.mark.parametrize('qk_ln', [True, False])
 @pytest.mark.parametrize(
     'attn_type',
     ['multihead_attention', 'multiquery_attention', 'grouped_query_attention'])

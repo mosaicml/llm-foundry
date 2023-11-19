@@ -1,11 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import pathlib
-import random
-import shutil
-from pathlib import Path
 
 import pytest
 from omegaconf import OmegaConf as om
@@ -74,10 +70,11 @@ def run_test(dir: pathlib.Path,
             assert full_example == bos_tok + "Tom gave Ralph a lift to school so Ralph wouldn't have to walk.\nThe city councilmen refused the demonstrators a permit because the city councilmen feared violence"
             assert answer == ' feared violence'
 
-@pytest.mark.parametrize('tokenizer_name,bos_token', [
-    ('facebook/opt-6.7b', '</s>'),
-    ('EleutherAI/gpt-neox-20b', '')
-])
-def test_icl_task_tokenizer(tmp_path: pathlib.Path, tokenizer_name: str, bos_token: str):
+
+@pytest.mark.parametrize('tokenizer_name,bos_token',
+                         [('facebook/opt-6.7b', '</s>'),
+                          ('EleutherAI/gpt-neox-20b', '')])
+def test_icl_task_tokenizer(tmp_path: pathlib.Path, tokenizer_name: str,
+                            bos_token: str):
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     run_test(tmp_path, tokenizer, bos_token)

@@ -143,7 +143,7 @@ def test_dist_auto_packing(profile_packing: Mock):
     assert packing_ratio == 2
 
 
-def patched_packing_ratio(*args, **kwargs):
+def patched_packing_ratio(*args: Any, **kwargs: Any):
     from llmfoundry.data.packing import auto_packing_ratio
 
     return auto_packing_ratio(*args, **kwargs, num_packing_ratios=4)

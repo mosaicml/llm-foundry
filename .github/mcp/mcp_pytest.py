@@ -92,7 +92,7 @@ if __name__ == '__main__':
     clear_tmp_path_flag = '-o tmp_path_retention_policy=none'
     command += f'''
 
-    pip install --upgrade --user .[{deps_group}]
+    pip install --upgrade --user .[{args.deps_group}]
 
     export COMMON_ARGS="-v --durations=20 -m '{args.pytest_markers}' {clear_tmp_path_flag}"
 

@@ -1843,7 +1843,6 @@ def test_tp_qkvo():
     reproducibility.load_rng_state(rng_state)
     
     full_model = COMPOSER_MODEL_REGISTRY[full_model_cfg.name](full_model_cfg)
-    reproducibility.load_rng_state(rng_state)
 
     fsdp_config = {
        'sharding_strategy': 'NO_SHARD',
@@ -1854,13 +1853,11 @@ def test_tp_qkvo():
     trainer = Trainer(
         model=sharded_model,
         fsdp_config=fsdp_config,
-        seed=0
     )
 
     trainer = Trainer(
         model=full_model,
         fsdp_config=fsdp_config,
-        seed=0
     )
 
     sharded_transformer_blocks = sharded_model.model.transformer.blocks

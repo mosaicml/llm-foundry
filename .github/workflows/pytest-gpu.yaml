@@ -22,6 +22,9 @@ on:
         required: false
         type: string
         default: 3.9
+      deps-group:
+        require: true
+        type: string
     secrets:
       mcloud-api-key:
         required: true
@@ -78,3 +81,4 @@ jobs:
               --pytest_markers '${{ inputs.pytest-markers }}' \
               --pytest_command '${{ inputs.pytest-command }}' \
               --timeout ${{ inputs.mcloud-timeout }} ${REF_ARGS}
+              --deps_group ${{ inputs.deps-group }}

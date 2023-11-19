@@ -265,6 +265,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 from tunes.model.split import SplitQKV
                 model = SplitQKV.patch_model(model)
 
+            if om_model_config.get('train_only', None):
+                from tunes.model.util import set_trainable_strict
+                train_only = om_model_config.get('train_only')
+                set_trainable_strict(model, train_only)
+
+
             # if om_model_config includes lora and peft is installed, add lora modules
             peft_cfg = om_model_config.get("peft", None)
             if peft_cfg is not None:
@@ -275,7 +281,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 if (name := peft_cfg['name']) != 'lora':
                     raise NotImplementedError(f"Unsupported Peft technique {name}")
 
-                if peft_cfg['name'] == 'lora':
+                if peft_cfg['name'] == 'bitfit':
+                    from tunes.model.util import apply_bitfit
+                    target_modules = peft_cfg['target_modules']
+                    apply_bitfit(model, target_modules)
+
+                elif peft_cfg['name'] == 'lora':
                     peft_cfg.pop('name')
                     lora_cfg = peft_cfg
 

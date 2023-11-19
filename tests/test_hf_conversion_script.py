@@ -5,6 +5,7 @@ import math
 import os
 import pathlib
 import sys
+from typing import Callable
 from unittest.mock import ANY, MagicMock, patch
 
 from composer import Trainer
@@ -26,6 +27,7 @@ import torch
 import transformers
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from torch.utils.data import DataLoader
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
@@ -268,14 +270,14 @@ def test_callback_inits():
 def test_huggingface_conversion_callback_interval(
         tmp_path: pathlib.Path, log_to_mlflow: bool, hf_save_interval: str,
         save_interval: str, max_duration: str, expected_hf_checkpoints: int,
-        expected_normal_checkpoints: int):
+        expected_normal_checkpoints: int, tiny_ft_dataloader: DataLoader,
+        mpt_tokenizer: PreTrainedTokenizerBase, build_tiny_mpt: Callable):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
 
-    max_seq_len = 4
-    device_batch_size = 2
-    dataset_size = 8
+    device_batch_size = 1
+    dataset_size = 4
     precision_str = 'bfloat16'
     precision = torch.bfloat16
     batches_per_epoch = math.ceil(dataset_size / device_batch_size)
@@ -288,63 +290,7 @@ def test_huggingface_conversion_callback_interval(
         if log_to_mlflow else None,
     )
 
-    # get small version of each model
-    model_cfg = {
-        'name': 'mpt_causal_lm',
-        'init_device': 'cpu',
-        'd_model': 64,
-        'n_heads': 2,
-        'n_layers': 2,
-        'expansion_ratio': 4,
-        'max_seq_len': max_seq_len,
-        'vocab_size': 50368,
-        'attn_config': {
-            'attn_impl': 'torch',
-        },
-        'loss_fn': 'torch_crossentropy',
-        'tie_word_embeddings': True,
-    }
-    tokenizer_name = 'EleutherAI/gpt-neox-20b'
-    model_cfg = om.create(model_cfg)
-
-    tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
-    tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
-    make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size)
-
-    dataloader_cfg = {
-        'name': 'finetuning',
-        'dataset': {
-            'hf_name': tiny_dataset_folder_path,
-            'split': 'train',
-            'max_seq_len': max_seq_len,
-            'decoder_only_format': True,
-            'allow_pad_trimming': False,
-            'packing_ratio': None,
-            'shuffle': True,
-        },
-        'drop_last': False,
-        'num_workers': 4,
-        'pin_memory': False,
-        'prefetch_factor': 2,
-        'persistent_workers': False,
-        'timeout': 0
-    }
-
-    dataloader_cfg = om.create(dataloader_cfg)
-
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
-
-    train_dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        tokenizer,
-        device_batch_size,
-    )
-
-    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
-                                                                tokenizer)
+    original_model = build_tiny_mpt()
 
     optimizer_config = {
         'name': 'decoupled_adamw',
@@ -365,7 +311,7 @@ def test_huggingface_conversion_callback_interval(
     trainer = Trainer(
         model=original_model,
         device='gpu',
-        train_dataloader=train_dataloader,
+        train_dataloader=tiny_ft_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=save_interval,
         max_duration=max_duration,
@@ -399,7 +345,7 @@ def test_huggingface_conversion_callback_interval(
     ]
     assert len(normal_checkpoints) == expected_normal_checkpoints
     assert len(huggingface_checkpoints) == expected_hf_checkpoints
-    print(huggingface_checkpoints)
+
     # Load the last huggingface checkpoint
     loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
         os.path.join(tmp_path, 'checkpoints', 'huggingface',
@@ -428,7 +374,7 @@ def test_huggingface_conversion_callback_interval(
 
     check_hf_model_equivalence(trainer.state.model.model.to(precision),
                                loaded_model)
-    check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
+    check_hf_tokenizer_equivalence(mpt_tokenizer, loaded_tokenizer)
 
     delete_transformers_cache()
 

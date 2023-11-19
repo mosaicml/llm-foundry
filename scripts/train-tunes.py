@@ -1,4 +1,4 @@
-from rich.traceback import install; install(show_locals=True)
+from rich.traceback import install; install()
 import torch; torch.Tensor.__repr__ = lambda x: f"Tensor<{','.join(map(str, x.shape))}>"
 from rich import print as rprint
 

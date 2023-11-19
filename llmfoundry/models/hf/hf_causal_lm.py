@@ -82,6 +82,8 @@ def validate_lora_config(lora_cfg: DictConfig):
         raise ValueError('target_modules must be a list of strings')
 
     lora_dropout = lora_cfg['lora_dropout']
+    if isinstance(lora_dropout, int):
+        lora_dropout = float(lora_dropout)
     if not isinstance(lora_dropout, float):
         raise ValueError('lora_dropout must be a float')
 
@@ -278,13 +280,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     raise ImportError(
                         'cfg.model.lora is given but PEFT not installed. Run pip install -e ".[gpu,peft]"'
                     )
-                if (name := peft_cfg['name']) != 'lora':
+                if (name := peft_cfg['name']) not in ('lora', 'bitfit'):
                     raise NotImplementedError(f"Unsupported Peft technique {name}")
 
                 if peft_cfg['name'] == 'bitfit':
-                    from tunes.model.util import apply_bitfit
+                    from tunes.methods.bitfit import BitFitLinear
                     target_modules = peft_cfg['target_modules']
-                    apply_bitfit(model, target_modules)
+                    BitFitLinear.patch_model(model, target_modules)
 
                 elif peft_cfg['name'] == 'lora':
                     peft_cfg.pop('name')

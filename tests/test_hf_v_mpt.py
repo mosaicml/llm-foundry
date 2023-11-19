@@ -12,7 +12,6 @@ from llmfoundry import COMPOSER_MODEL_REGISTRY
 
 
 @pytest.mark.gpu
-# @pytest.mark.xfail(reason='CUDA OOM expected, needs to be fixed.')
 @pytest.mark.parametrize('attn_impl,dropout,alibi,mask_val,no_attn_mask', [
     ('flash', 0.0, False, 1, False),
     ('flash', 0.1, False, 1, False),

@@ -1885,5 +1885,9 @@ def test_tp_qkvo():
         assert out_proj_local.shape[1] * local_world_size == sharded_model_cfg.d_model
     
         # Check that the sharded output weights are the same as the full model
-        # weights 
-        assert torch.equal(out_proj_local, full_attn_module.out_proj.weight[:, :out_proj_local.shape[1]])
+        # weights - rank 0 should have the top half and rank 1 should have the
+        # bottom half
+        if dist.get_local_rank() == 0:
+            assert torch.equal(out_proj_local, full_attn_module.out_proj.weight[:, :out_proj_local.shape[1]])
+        else:
+            assert torch.equal(out_proj_local, full_attn_module.out_proj.weight[:, out_proj_local.shape[1]:])

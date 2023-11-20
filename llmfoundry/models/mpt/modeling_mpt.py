@@ -45,7 +45,9 @@ from transformers.models.llama.modeling_llama import \
 from transformers.models.llama.modeling_llama import \
     LlamaRotaryEmbedding as HFRotaryEmbedding
 
-from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
+from llmfoundry.models.layers.attention import (ATTN_CLASS_REGISTRY,
+                                                attn_bias_shape,
+                                                build_attn_bias)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY as FC_CLASS_REGISTRY
@@ -231,10 +233,11 @@ class MPTModel(MPTPreTrainedModel):
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
 
-    def get_input_embeddings(self) -> nn.Embedding:
+    def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
         return self.wte
 
-    def set_input_embeddings(self, value: nn.Embedding) -> None:
+    def set_input_embeddings(
+            self, value: Union[SharedEmbedding, nn.Embedding]) -> None:
         self.wte = value
 
     @torch.no_grad()
@@ -574,13 +577,19 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     def __init__(self, config: MPTConfig):
         super().__init__(config)
-        if not config.tie_word_embeddings:
-            raise ValueError(
-                'MPTForCausalLM only supports tied word embeddings')
-
         log.info(f'Instantiating an MPTForCausalLM model from {__file__}')
 
         self.transformer: MPTModel = MPTModel(config)
+
+        self.lm_head = None
+        if not config.tie_word_embeddings:
+            self.lm_head = nn.Linear(
+                config.d_model,
+                config.vocab_size,
+                bias=False,
+                device=config.init_device,
+            )
+            self.lm_head._fsdp_wrap = True
 
         for child in self.transformer.children():
             if isinstance(child, torch.nn.ModuleList):
@@ -602,19 +611,38 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     )
             self.logit_scale = logit_scale
 
-    def get_input_embeddings(self) -> nn.Embedding:
-        return self.transformer.wte
+    def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
+        return self.transformer.get_input_embeddings()
 
     def set_input_embeddings(
             self, value: Union[SharedEmbedding, nn.Embedding]) -> None:
-        self.transformer.wte = value
+        self.transformer.set_input_embeddings(value)
 
-    def get_output_embeddings(self) -> nn.Embedding:
-        return self.transformer.wte
+    def get_output_embeddings(
+            self) -> Union[SharedEmbedding, nn.Embedding, nn.Linear]:
+        if self.lm_head is not None:
+            return self.lm_head
+        return self.transformer.get_input_embeddings()
 
     def set_output_embeddings(
-            self, new_embeddings: Union[SharedEmbedding, nn.Embedding]) -> None:
-        self.transformer.wte = new_embeddings
+        self, new_embeddings: Union[SharedEmbedding, nn.Embedding,
+                                    nn.Linear]) -> None:
+        if self.lm_head is not None:
+            self.lm_head = new_embeddings
+        else:
+            if not isinstance(new_embeddings, (SharedEmbedding, nn.Embedding)):
+                raise ValueError(
+                    'new_embeddings must be an instance of SharedEmbedding ' +
+                    f'or nn.Embedding, but got {type(new_embeddings)}.')
+            warnings.warn(
+                'Using `set_output_embeddings` to set the embedding layer of ' +
+                'MPTForCausalLM with tied weights. Given weights are tied, ' +
+                'using `set_input_embeddings` is recommended over using ' +
+                '`set_output_embeddings`.')
+            self.transformer.set_input_embeddings(new_embeddings)
+
+    def tie_weights(self) -> None:
+        self.lm_head = None
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder
@@ -658,12 +686,14 @@ class MPTForCausalLM(MPTPreTrainedModel):
             use_cache=use_cache,
         )
 
-        # move outputs to same device as weights for token embedding
-        # needed to support HF `device_map`
-        logits = self.transformer.wte(
-            outputs.last_hidden_state.to(self.transformer.wte.weight.device),
-            True,
-        )
+        if self.lm_head is not None:
+            logits = self.lm_head(outputs.last_hidden_state)
+        else:
+            # move outputs to same device as weights for token embedding
+            # needed to support HF `device_map`
+            out = outputs.last_hidden_state
+            out = out.to(self.transformer.wte.weight.device)
+            logits = self.transformer.wte(out, True)
 
         if self.logit_scale is not None:
             if self.logit_scale == 0:
@@ -705,7 +735,35 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
-        return isinstance(module, MPTBlock)
+        act_ckpt_list = getattr(self.config, 'activation_checkpointing_target',
+                                None) or ['MPTBlock']
+
+        if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
+            if len(act_ckpt_list) > 1:
+                log.info(
+                    'Activation checkpointing MPTBlock only (ignoring other sub-block modules specified in activation_checkpointing_target).'
+                )
+            return isinstance(module, MPTBlock)
+
+        mod_types = ()
+        for mod_name in act_ckpt_list:
+            if mod_name.lower() == 'mptblock':
+                mod_types += (MPTBlock,)
+            elif mod_name in ATTN_CLASS_REGISTRY:
+                mod_types += (ATTN_CLASS_REGISTRY[mod_name],)
+            elif mod_name in FFN_CLASS_REGISTRY:
+                mod_types += (FFN_CLASS_REGISTRY[mod_name],)
+            elif mod_name in NORM_CLASS_REGISTRY:
+                mod_types += (NORM_CLASS_REGISTRY[mod_name],)
+            else:
+                msg = ', '.join(
+                    list(ATTN_CLASS_REGISTRY.keys()) +
+                    list(FFN_CLASS_REGISTRY.keys()) +
+                    list(NORM_CLASS_REGISTRY.keys()) + ['MPTBlock'])
+                raise ValueError(
+                    f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option out of available options {msg}.'
+                )
+        return isinstance(module, mod_types)
 
     def prepare_inputs_for_generation(
         self,
@@ -859,7 +917,11 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         # assume the backward pass is approximately 2x the forward pass
 
         bs, msl = batch['input_ids'].shape[0:2]
-        params_flops_per_token = 2 * self.n_active_params
+        params = self.n_active_params
+        if not self.model.transformer.config.tie_word_embeddings:
+            # embedding layers are lookup tables, therefore are not counted in the FLOP computation
+            params -= self.model.transformer.wte.weight.numel()
+        params_flops_per_token = 2 * params
         params_flops_per_seq = params_flops_per_token * msl
         attn_flops_per_seq = (self.model.config.n_layers * 2 * 2 *
                               (self.model.config.d_model * (msl**2)))

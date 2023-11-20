@@ -344,8 +344,8 @@ class DatasetConstructor:
             log.debug('Waiting for local_rank 0 to finish data prep')
             with dist.local_rank_zero_download_and_wait(signal_file_path):
                 pass
-        
-        error: Exception = None
+
+        error: Optional[Exception] = None
         try:
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,

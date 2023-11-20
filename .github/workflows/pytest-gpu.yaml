@@ -23,7 +23,7 @@ on:
         type: string
         default: 3.9
       deps-group:
-        require: true
+        required: true
         type: string
     secrets:
       mcloud-api-key:

@@ -344,8 +344,12 @@ class DatasetConstructor:
             log.debug('Waiting for local_rank 0 to finish data prep')
             with dist.local_rank_zero_download_and_wait(signal_file_path):
                 pass
-
-        dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
+        try:
+            dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
+        except Exception as e:
+            import torch.distributed as dist
+            dist.destroy_process_group()
+            raise e
 
         def dataset_mapper(example: Dict):
             if preprocessing_fn is not None:

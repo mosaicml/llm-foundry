@@ -8,9 +8,10 @@ icl_tasks:
     name: kv_pairs 
     context_length: 2048
     section: beginning 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: kv_pairs_middle_2k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -20,9 +21,10 @@ icl_tasks:
     name: kv_pairs
     context_length: 2048
     section: middle 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: kv_pairs_end_2k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -32,9 +34,10 @@ icl_tasks:
     name: kv_pairs
     context_length: 2048
     section: end 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: kv_pairs_beginning_4k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -44,9 +47,10 @@ icl_tasks:
     name: kv_pairs
     context_length: 4096
     section: beginning 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: kv_pairs_middle_4k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -56,9 +60,10 @@ icl_tasks:
     name: kv_pairs
     context_length: 4096
     section: middle 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: kv_pairs_end_4k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -68,9 +73,10 @@ icl_tasks:
     name: kv_pairs
     context_length: 4096
     section: end
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: kv_pairs_beginning_8k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -80,9 +86,10 @@ icl_tasks:
     name: kv_pairs
     context_length: 8192
     section: beginning 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: kv_pairs_middle_8k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -92,9 +99,10 @@ icl_tasks:
     name: kv_pairs
     context_length: 8192
     section: middle 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: kv_pairs_end_8k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -104,41 +112,42 @@ icl_tasks:
     name: kv_pairs
     context_length: 8192
     section: end
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: wikiqa_2k
   dataset_uri: hf://maxisawesome/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_loading_vars: 
-    name: wikiqa_2k
+    name: wikiqa
     context_length: 2048
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+    # outputs: ["answer"] 
 -
   label: wikiqa_4k
   dataset_uri: hf://maxisawesome/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_loading_vars: 
-    name: wikiqa_4k 
+    name: wikiqa
     context_length: 2048
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: wikiqa_8k
   dataset_uri: hf://maxisawesome/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_loading_vars: 
-    name: wikiqa_8k 
+    name: wikiqa
     context_length: 2048
-  hf_parsing_vars:
-    inputs: ["context"]
+  # hf_parsing_vars:
+  #   inputs: ["context"]
     outputs: ["answer"] 
 -
   label: hotpotqa_beginning_2k
@@ -149,9 +158,10 @@ icl_tasks:
     name: hotpotqa
     context_length: 2048
     section: beginning 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: hotpotqa_middle_2k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -161,9 +171,10 @@ icl_tasks:
     name: hotpotqa
     context_length: 2048
     section: middle 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: hotpotqa_end_2k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -173,9 +184,10 @@ icl_tasks:
     name: hotpotqa
     context_length: 2048
     section: end 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: hotpotqa_beginning_4k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -185,9 +197,10 @@ icl_tasks:
     name: hotpotqa
     context_length: 4096
     section: beginning
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: hotpotqa_middle_4k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -197,9 +210,10 @@ icl_tasks:
     name: hotpotqa
     context_length: 4096
     section: middle 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: hotpotqa_end_4k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -209,9 +223,10 @@ icl_tasks:
     name: hotpotqa
     context_length: 4096
     section: end
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: hotpotqa_beginning_8k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -221,9 +236,10 @@ icl_tasks:
     name: hotpotqa
     context_length: 8192 
     section: beginning 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: hotpotqa_middle_8k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -233,9 +249,10 @@ icl_tasks:
     name: hotpotqa
     context_length: 8192 
     section: middle 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 
 -
   label: hotpotqa_end_8k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -245,6 +262,7 @@ icl_tasks:
     name: hotpotqa
     context_length: 8192 
     section: end 
-  hf_parsing_vars:
-    inputs: ["context"]
-    outputs: ["answer"] 
+    split: test
+  # hf_parsing_vars:
+  #   inputs: ["context"]
+  #   outputs: ["answer"] 

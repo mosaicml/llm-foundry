@@ -80,5 +80,5 @@ jobs:
               --image '${{ inputs.container }}' \
               --pytest_markers '${{ inputs.pytest-markers }}' \
               --pytest_command '${{ inputs.pytest-command }}' \
-              --timeout ${{ inputs.mcloud-timeout }} ${REF_ARGS}
+              --timeout ${{ inputs.mcloud-timeout }} ${REF_ARGS} \
               --deps_group ${{ inputs.deps-group }}

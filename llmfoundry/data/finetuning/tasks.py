@@ -347,8 +347,6 @@ class DatasetConstructor:
         try:
             dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
         except Exception as e:
-            import torch.distributed as dist
-            dist.destroy_process_group()
             raise e
 
         def dataset_mapper(example: Dict):

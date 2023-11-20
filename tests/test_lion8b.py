@@ -78,18 +78,21 @@ def test_modifies_weights_and_momentums(N: int, D: int, dtype: torch.dtype,
         assert torch.std(momentum).item() > 0
 
 
-@pytest.mark.gpu
 @pytest.mark.parametrize('N,D', _MANY_PARAM_SHAPES)
-@pytest.mark.parametrize('device,dtype', [('cpu', torch.float32),
-                                          ('cuda', torch.bfloat16),
-                                          ('cuda', torch.float16),
-                                          ('cuda', torch.float32)])
+@pytest.mark.parametrize('dtype', [
+    torch.float32,
+    pytest.param(torch.bfloat16, marks=pytest.mark.gpu),
+    pytest.param(torch.float16, marks=pytest.mark.gpu),
+    pytest.param(torch.float32, marks=pytest.mark.gpu)
+])
 @pytest.mark.parametrize('weight_decay', [0, .1])
 @pytest.mark.parametrize('fused,use_errors', [(False, False), (True, False),
                                               (True, True)])
-def test_changes_with_zero_grads(N: int, D: int, device: str,
-                                 dtype: torch.dtype, weight_decay: float,
-                                 fused: bool, use_errors: bool) -> None:
+def test_changes_with_zero_grads(N: int, D: int, dtype: torch.dtype,
+                                 weight_decay: float, fused: bool,
+                                 use_errors: bool) -> None:
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
     if (device == 'cpu') and (fused or use_errors):
         return
 
@@ -121,16 +124,19 @@ def test_changes_with_zero_grads(N: int, D: int, device: str,
             torch.testing.assert_close(W_orig, W)  # no weight modification
 
 
-@pytest.mark.gpu
 @pytest.mark.parametrize('N,D', [(1, 8), (17, 23), (32, 32)])
-@pytest.mark.parametrize('device,dtype', [('cpu', torch.float32),
-                                          ('cuda', torch.bfloat16),
-                                          ('cuda', torch.float16),
-                                          ('cuda', torch.float32)])
+@pytest.mark.parametrize('dtype', [
+    torch.float32,
+    pytest.param(torch.bfloat16, marks=pytest.mark.gpu),
+    pytest.param(torch.float16, marks=pytest.mark.gpu),
+    pytest.param(torch.float32, marks=pytest.mark.gpu)
+])
 @pytest.mark.parametrize('fused,use_errors', [(False, False), (True, False),
                                               (True, True)])
-def test_descends(N: int, D: int, device: str, dtype: torch.dtype, fused: bool,
+def test_descends(N: int, D: int, dtype: torch.dtype, fused: bool,
                   use_errors: bool) -> None:
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
     if (device == 'cpu') and (fused or use_errors):
         return
     torch.manual_seed(123)
@@ -399,8 +405,6 @@ _SHARDED_STATE = fsdp.StateDictType.SHARDED_STATE_DICT
 _LOCAL_STATE = fsdp.StateDictType.LOCAL_STATE_DICT
 
 
-# run just this test with:
-# python3 -m composer.cli.launcher -n 2 --master_port 26000 -m pytest -m gpu tests/test_lion8b.py::test_fsdp_save_load  # noqa
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('dtype', _FLOAT_DTYPES)

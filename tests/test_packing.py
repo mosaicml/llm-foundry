@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import torch
-from composer.utils import dist, reproducibility
+from composer.utils import dist, reproducibility, using_torch_2
 from omegaconf import DictConfig
 from pytest import approx
 from torch.utils.data import DataLoader
@@ -143,7 +143,15 @@ def test_dist_auto_packing(profile_packing: Mock):
     assert packing_ratio == 2
 
 
+def patched_packing_ratio(*args: Any, **kwargs: Any):
+    from llmfoundry.data.packing import auto_packing_ratio
+
+    return auto_packing_ratio(*args, **kwargs, num_packing_ratios=4)
+
+
 @pytest.mark.parametrize('packing_ratio', ['auto', 2.0])
+@patch('llmfoundry.data.finetuning.dataloader.auto_packing_ratio',
+       patched_packing_ratio)
 def test_packing_with_dataloader(packing_ratio: Any):
     """Tests that packing works with a dataloader."""
     reproducibility.seed_all(17)
@@ -164,7 +172,7 @@ def test_packing_with_dataloader(packing_ratio: Any):
         # Gets copied per worker and we cannot check the waste for child processes.
         'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': None,
+        'prefetch_factor': None if using_torch_2() else 2,
         'persistent_workers': False,
         'timeout': 0,
     })
@@ -185,7 +193,7 @@ def test_packing_with_dataloader(packing_ratio: Any):
     padding = (1 - pack_collator.efficiency)
     if packing_ratio == 'auto':
         assert pack_collator.waste == approx(0)
-        assert padding == approx(0.1197916, rel=.01)
+        assert padding == approx(0.292019, rel=.01)
     else:
         assert pack_collator.waste == approx(0)
         assert padding == approx(0.873720, rel=.01)

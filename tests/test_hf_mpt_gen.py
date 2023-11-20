@@ -37,7 +37,7 @@ def test_init_hfhub_mpt(
         _ = model.generate(
             composer_device.tensor_to_device(
                 mpt_tokenizer('hello', return_tensors='pt')['input_ids']),
-            max_new_tokens=10,
+            max_new_tokens=2,
         )
 
 

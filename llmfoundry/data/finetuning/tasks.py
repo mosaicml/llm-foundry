@@ -344,9 +344,12 @@ class DatasetConstructor:
             log.debug('Waiting for local_rank 0 to finish data prep')
             with dist.local_rank_zero_download_and_wait(signal_file_path):
                 pass
+        
         error: Exception = None
         try:
-            dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
+            dataset = hf_datasets.load_dataset(dataset_name,
+                                               split=split,
+                                               **kwargs)
 
             def dataset_mapper(example: Dict):
                 if preprocessing_fn is not None:
@@ -406,7 +409,7 @@ class DatasetConstructor:
             os.remove(signal_file_path)
 
         if error:
-            log.error("Error during data prep")
+            log.error('Error during data prep')
             raise error
         log.debug('All ranks finished data prep')
         return filtered_dataset

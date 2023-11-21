@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import torch
 from transformers import PreTrainedTokenizer
 
+DEFAULT_SYSTEM_PROMPT = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
+
 
 class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     """A thin wrapper around tiktoken to make it compatible with Hugging Face.
@@ -23,6 +25,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                  encoding_name: Optional[str] = None,
                  add_bos_token: bool = False,
                  add_eos_token: bool = False,
+                 use_default_system_prompt: bool = False,
                  unk_token: Optional[str] = '<|endoftext|>',
                  eos_token: Optional[str] = '<|endoftext|>',
                  bos_token: Optional[str] = '<|endoftext|>',
@@ -39,6 +42,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 Either model_name or encoding_name must be set, but not both.
             add_bos_token (bool, optional): Whether to add bos tokens. Defaults to False.
             add_eos_token (bool, optional): Whether to add eos tokens. Defaults to False.
+            use_default_system_prompt (bool, optional): Use the default system prompt or not. Defaults to False.
             unk_token (Optional[str], optional): The unk token. Defaults to '<|endoftext|>'.
             eos_token (Optional[str], optional): The eos token. Defaults to '<|endoftext|>'.
             bos_token (Optional[str], optional): The bos token. Defaults to '<|endoftext|>'.
@@ -87,11 +91,13 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
         self.add_bos_token = add_bos_token
         self.add_eos_token = add_eos_token
+        self.use_default_system_prompt = use_default_system_prompt
 
         super().__init__(model_name=model_name,
                          encoding_name=encoding_name,
                          add_bos_token=add_bos_token,
                          add_eos_token=add_eos_token,
+                         use_default_system_prompt=use_default_system_prompt,
                          unk_token=unk_token,
                          eos_token=eos_token,
                          bos_token=bos_token,
@@ -106,6 +112,27 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     @property
     def is_fast(self) -> bool:
         return False
+
+    @property
+    def default_chat_template(self):
+        """Chat ML Template for User/Assistant.
+
+        Pinning default Chat ML template in case defaults change.
+        """
+        template = (
+            "{% set system_message = '' %}"
+            '{% if USE_DEFAULT_PROMPT == true %}'
+            "{{'<|im_start|>system\n' + 'DEFAULT_SYSTEM_PROMPT'}}"
+            '{% endif %}'
+            '{% for message in messages %}'
+            "{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}"
+            '{% endfor %}')
+        template = template.replace(
+            'USE_DEFAULT_PROMPT',
+            'true' if self.use_default_system_prompt else 'false')
+        template = template.replace('DEFAULT_SYSTEM_PROMPT',
+                                    DEFAULT_SYSTEM_PROMPT)
+        return template
 
     def get_vocab(self) -> Dict[str, int]:
         """Returns vocab as a dict.

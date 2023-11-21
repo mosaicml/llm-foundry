@@ -63,11 +63,14 @@ You should go outside and touch grass.<|im_end|>
 """
 ]
 
+DEFAULT_SYSTEM_PROMPT = """<|im_start|>system\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
+
 
 def get_tokenizers_for_testing(
     model_name: Optional[str],
     encoding_name: Optional[str],
     tmp_path: pathlib.Path,
+    use_default_system_prompt: bool = False,
     add_bos_token: bool = False,
     add_eos_token: bool = False,
     additional_special_tokens: Optional[List[str]] = None,
@@ -80,6 +83,7 @@ def get_tokenizers_for_testing(
         encoding_name=encoding_name,
         add_bos_token=add_bos_token,
         add_eos_token=add_eos_token,
+        use_default_system_prompt=use_default_system_prompt,
         additional_special_tokens=additional_special_tokens)
     if model_name is not None:
         original_tokenizer = tiktoken.encoding_for_model(model_name)
@@ -286,6 +290,7 @@ def test_additional_special_tokens(model_name: Optional[str],
 def test_chat_formatting(model_name: Optional[str],
                          encoding_name: Optional[str], tmp_path: pathlib.Path):
     special_tokens_to_add = ['<|im_start|>', '<im_end>']
+    # Default behavior to not use default system prompt.
     wrapped_tokenizer, _, _ = get_tokenizers_for_testing(
         model_name,
         encoding_name,
@@ -297,3 +302,17 @@ def test_chat_formatting(model_name: Optional[str],
         chat_str = wrapped_tokenizer.apply_chat_template(dict_chats,
                                                          tokenize=False)
         assert chat_str == MULTI_TURN_CHAT_STRING[i]
+
+    # Using default system prompt.
+    wrapped_tokenizer, _, _ = get_tokenizers_for_testing(
+        model_name,
+        encoding_name,
+        tmp_path,
+        use_default_system_prompt=True,
+        add_bos_token=False,
+        add_eos_token=False,
+        additional_special_tokens=special_tokens_to_add)
+    for i, dict_chats in enumerate(MULTI_TURN_CHAT_ML):
+        chat_str = wrapped_tokenizer.apply_chat_template(dict_chats,
+                                                         tokenize=False)
+        assert chat_str == DEFAULT_SYSTEM_PROMPT + MULTI_TURN_CHAT_STRING[i]

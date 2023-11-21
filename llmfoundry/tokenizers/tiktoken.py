@@ -91,17 +91,15 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         # Pin default ChatML Format in case HF changes defaults
         chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}"
         kwargs.update({'chat_template': chat_template})
-        super().__init__(
-            model_name=model_name,
-            encoding_name=encoding_name,
-            add_bos_token=add_bos_token,
-            add_eos_token=add_eos_token,
-            unk_token=unk_token,
-            eos_token=eos_token,
-            bos_token=bos_token,
-            pad_token=pad_token,
-            #chat_template=chat_template
-            **kwargs)
+        super().__init__(model_name=model_name,
+                         encoding_name=encoding_name,
+                         add_bos_token=add_bos_token,
+                         add_eos_token=add_eos_token,
+                         unk_token=unk_token,
+                         eos_token=eos_token,
+                         bos_token=bos_token,
+                         pad_token=pad_token,
+                         **kwargs)
 
     @property
     def vocab_size(self) -> int:

@@ -308,6 +308,7 @@ def test_finetuning_dataloader(decoder_only_format: bool,
 
 
 @pytest.mark.world_size(2)
+@pytest.mark.gpu
 @pytest.mark.parametrize('dataset_size', [4, 8])
 @pytest.mark.parametrize('device_batch_size', [2, 4])
 @pytest.mark.parametrize('drop_last', [True, False])

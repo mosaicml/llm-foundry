@@ -311,7 +311,7 @@ def test_finetuning_dataloader(decoder_only_format: bool,
 @pytest.mark.parametrize('dataset_size', [4, 8])
 @pytest.mark.parametrize('device_batch_size', [2, 4])
 @pytest.mark.parametrize('drop_last', [True, False])
-@pytest.mark.parameterize('invalid_dataset', [True, False])
+@pytest.mark.parametrize('invalid_dataset', [True, False])
 def test_finetuning_dataloader_small_data(dataset_size: int,
                                           device_batch_size: int,
                                           drop_last: bool, 
@@ -355,7 +355,7 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     error_context = contextlib.nullcontext()
     if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
         error_context = pytest.raises(ValueError, match='Your dataset')
-    if (invalid_dataset):
+    if invalid_dataset:
         error_context = pytest.raises(ValueError, match='Unable to tokenize example')
 
     with error_context:

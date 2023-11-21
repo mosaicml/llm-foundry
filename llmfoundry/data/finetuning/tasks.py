@@ -306,8 +306,8 @@ class DatasetConstructor:
     def build_from_hf(
         self, cfg: DictConfig, max_seq_len: int,
         tokenizer: PreTrainedTokenizerBase
-    ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
-               hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
+    ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset, hf_datasets.
+               IterableDatasetDict, hf_datasets.IterableDataset, None]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
 
         Note: This function will drop examples where the prompt is longer than the max_seq_len
@@ -345,6 +345,7 @@ class DatasetConstructor:
                 pass
 
         error: Optional[Exception] = None
+        filtered_dataset = None
         try:
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,
@@ -411,7 +412,8 @@ class DatasetConstructor:
             log.error('Error during data prep')
             raise error
         log.debug('All ranks finished data prep')
-        return filtered_dataset  # type: ignore
+        assert filtered_dataset is not None
+        return filtered_dataset
 
     def build_from_streaming(self, *args: Any,
                              **kwargs: Any) -> StreamingFinetuningDataset:

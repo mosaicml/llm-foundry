@@ -3,7 +3,7 @@
 
 import pytest
 from composer import Trainer
-from composer.utils import get_device
+from composer.utils import get_device, using_torch_2
 from omegaconf import OmegaConf as om
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import \
     CheckpointWrapper
@@ -60,9 +60,12 @@ def test_fsdp_act_checkpoint(activation_checkpointing: bool,
          ) or activation_checkpointing_target == [
              'mptblock', 'grouped_query_attention'
          ]:
-        assert isinstance(
-            trainer.state.model.model._fsdp_wrapped_module.transformer.
-            blocks[0]._fsdp_wrapped_module, CheckpointWrapper)
+        module = trainer.state.model.model._fsdp_wrapped_module.transformer.blocks[
+            0]._fsdp_wrapped_module
+        if not using_torch_2():
+            module = trainer.state.model.model._fsdp_wrapped_module.transformer.blocks[
+                0]._fsdp_wrapped_module._fpw_module
+        assert isinstance(module, CheckpointWrapper)
     elif activation_checkpointing_target == ['grouped_query_attention']:
         assert isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.

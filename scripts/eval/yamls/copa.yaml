@@ -1,6 +1,0 @@
-icl_tasks:
--
-  label: copa
-  dataset_uri: eval/local_data/commonsense_reasoning/copa.jsonl
-  num_fewshot: [0]
-  icl_task_type: multiple_choice

@@ -293,8 +293,6 @@ def test_chat_formatting(model_name: Optional[str],
         add_bos_token=False,
         add_eos_token=False,
         additional_special_tokens=special_tokens_to_add)
-    #wrapped_tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + ': \n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}"
-    print('TOK', wrapped_tokenizer.chat_template)
     for i, dict_chats in enumerate(MULTI_TURN_CHAT_ML):
         chat_str = wrapped_tokenizer.apply_chat_template(dict_chats,
                                                          tokenize=False)

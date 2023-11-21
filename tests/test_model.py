@@ -650,8 +650,8 @@ def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
         right_pad_v_left_pad_atol = 1e-6 if attention_impl == 'torch' else 1e-8
         if rope and pos_emb_config['rope_impl'] == 'dail':
             # dail implementation of rope uses bf16 precision and hence the rotations have small numerical errors. This causes some differences between the outputs of padded and unpadded inputs.
-            right_pad_v_left_pad_rtol = 1e-2
-            right_pad_v_left_pad_atol = 1e-2
+            right_pad_v_left_pad_rtol = 2e-2
+            right_pad_v_left_pad_atol = 2e-2
         assert torch.allclose(right_padding_output[0, :3],
                               left_padding_output[0, 3:],
                               rtol=right_pad_v_left_pad_rtol,

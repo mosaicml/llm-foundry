@@ -88,9 +88,6 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         self.add_bos_token = add_bos_token
         self.add_eos_token = add_eos_token
 
-        # Pin default ChatML Format in case HF changes defaults
-        chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}"
-        kwargs.update({'chat_template': chat_template})
         super().__init__(model_name=model_name,
                          encoding_name=encoding_name,
                          add_bos_token=add_bos_token,
@@ -109,6 +106,15 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     @property
     def is_fast(self) -> bool:
         return False
+
+    @property
+    def default_chat_template(self):
+        """Chat ML Template for User/Assistant.
+
+        Pinning default Chat ML template in case defaults change.
+        """
+        template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}"
+        return template
 
     def get_vocab(self) -> Dict[str, int]:
         """Returns vocab as a dict.

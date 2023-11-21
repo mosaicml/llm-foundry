@@ -1,4 +1,4 @@
-# Mosaic Model Gauntlet v0 - Evaluation Suite
+# Mosaic Eval Gauntlet v0.1.0 - Evaluation Suite
 
 
 <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->
@@ -7,9 +7,9 @@
       <img alt="LLM Foundry" src="../../../assets/radar_blog.png" width="60%">
     </picture>
     <br>
-    MPT-7B vs MPT-30B compared on the 6 categories of Model Gauntlet.
+    MPT-7B vs MPT-30B compared on the 6 categories of Eval Gauntlet v0.
 </p>
-The Mosaic Model Gauntlet is MosaicML’s new technique for evaluating the quality of pretrained foundation models. The Model Gauntlet encompasses 35 different benchmarks collected from a variety of sources, and organized into 6 broad categories of competency that we expect good foundation models to have. We compiled the categories after an extensive review of existing LLM publications, and open source evaluation harnesses such as EleutherAI Eval Harness and Stanford CRFM’s HELM.
+The Mosaic Eval Gauntlet is MosaicML’s new technique for evaluating the quality of pretrained foundation models. The Eval Gauntlet encompasses 35 different benchmarks collected from a variety of sources, and organized into 6 broad categories of competency that we expect good foundation models to have. We compiled the categories after an extensive review of existing LLM publications, and open source evaluation harnesses such as EleutherAI Eval Harness and Stanford CRFM’s HELM.
 
 <br>
 While deciding which benchmarks to include, we had a few criteria in mind. We wanted benchmarks to require a broad range of skills that were useful for practical applications, we wanted them to come from a diverse range of sources, we wanted them to capture skills that have been traditionally emphasized by the research community as well as those that have been underexplored, and we wanted them to be evaluated via simple, unambiguous metrics such as exact match and multiple choice accuracy. The philosophy behind compiling aggregate scores as opposed to the more common approach of reporting individual metrics, is two-fold.
@@ -24,7 +24,7 @@ At evaluation time, we run all the benchmarks, average the subscores within each
 
 For example, if benchmark A has a random baseline accuracy of 25%, and the model achieved 30%, we would report this as (0.3 - 0.25)/(1-0.25) = 0.0667. This can be thought of as the accuracy above chance rescaled so the max is 1. For benchmarks in which the random guessing baseline accuracy is ~0 we report the accuracy as is. Note that with this rescaling, a model could technically score below 0 on a category as a whole, but we haven’t found this to occur with any of the models we’ve tested.
 
-This is version v0, in the coming weeks we will update the mixture to include more benchmarks.
+This is version v0.1.0 of the Eval Gauntlet.
 
 ### Reading Comprehension
 
@@ -349,7 +349,7 @@ The Safety category consists of benchmarks designed to assess model's toxicity, 
     - Random baseline accuracy: 50%
 
 ### Programming
-Programming tasks evaluate the model's ability to understand code, write functionally correct code given a specification, simulate code, and document code. Right now we just have HumanEval but later versions will include more.
+Programming tasks evaluate the model's ability to understand code, write functionally correct code given a specification, simulate code, and document code. Right now we just have HumanEval but later versions will include more. By default the programming tasks are disabled in `scripts/eval/yamls/tasks.yaml` due to their long duration.
 
 51. HumanEval Python code generation
     - Description: HumanEval Python consists of 164 python programming challenges, in which the model is presented with the method signature and docstring comment for a python program and is expected to complete the program. We then test the resultant code’s functional correctness on a number of test input/output pairs.

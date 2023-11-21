@@ -159,7 +159,6 @@ class StreamingFinetuningDataset(StreamingDataset):
                         f'local directory {local} does not contain split {split}'
                     )
 
-        # Build Dataset
         super().__init__(
             local=local,
             remote=remote,
@@ -345,51 +344,57 @@ class DatasetConstructor:
             with dist.local_rank_zero_download_and_wait(signal_file_path):
                 pass
 
-        dataset = hf_datasets.load_dataset(dataset_name, split=split, **kwargs)
+        error: Optional[Exception] = None
+        filtered_dataset = None
+        try:
+            dataset = hf_datasets.load_dataset(dataset_name,
+                                               split=split,
+                                               **kwargs)
 
-        def dataset_mapper(example: Dict):
-            if preprocessing_fn is not None:
-                example = preprocessing_fn(example)
-            return _tokenize_formatted_example(example, tokenizer)
+            def dataset_mapper(example: Dict):
+                if preprocessing_fn is not None:
+                    example = preprocessing_fn(example)
+                return _tokenize_formatted_example(example, tokenizer)
 
-        detected_cpu_count = os.cpu_count() or 1
-        detected_cpus_with_margin = detected_cpu_count - 8
-        num_cpus_to_use = max(1, detected_cpus_with_margin)
+            detected_cpu_count = os.cpu_count() or 1
+            detected_cpus_with_margin = detected_cpu_count - 8
+            num_cpus_to_use = max(1, detected_cpus_with_margin)
 
-        columns_to_remove = list(dataset[0].keys())
-        tokenized_dataset = dataset.map(
-            dataset_mapper,
-            batched=False,
-            remove_columns=columns_to_remove,
-            num_proc=num_cpus_to_use,
-            desc='Tokenizing dataset',
-        )
-
-        pad_token_id = tokenizer.pad_token_id
-
-        def filter_long_or_empty_examples(example: Dict) -> bool:
-            less_than_max_seq_len = len(example['input_ids']) < max_seq_len
-            non_empty_input = len(example['input_ids']) > 0
-            non_empty_labels = len(example['labels']) > 0
-            non_padding_response = any(
-                token_id != pad_token_id for token_id in example['labels'])
-            return (less_than_max_seq_len and non_empty_input and
-                    non_empty_labels and non_padding_response)
-
-        filtered_dataset = tokenized_dataset.filter(
-            filter_long_or_empty_examples,
-            num_proc=num_cpus_to_use,
-            desc='Filtering out long prompts',
-        )
-
-        examples_removed = len(tokenized_dataset) - len(filtered_dataset)
-        if examples_removed > 0:
-            warnings.warn(
-                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, '
-                +
-                'the prompt or response was empty, or the response was all padding tokens.'
+            columns_to_remove = list(dataset[0].keys())
+            tokenized_dataset = dataset.map(
+                dataset_mapper,
+                batched=False,
+                remove_columns=columns_to_remove,
+                num_proc=num_cpus_to_use,
+                desc='Tokenizing dataset',
             )
 
+            pad_token_id = tokenizer.pad_token_id
+
+            def filter_long_or_empty_examples(example: Dict) -> bool:
+                less_than_max_seq_len = len(example['input_ids']) < max_seq_len
+                non_empty_input = len(example['input_ids']) > 0
+                non_empty_labels = len(example['labels']) > 0
+                non_padding_response = any(
+                    token_id != pad_token_id for token_id in example['labels'])
+                return (less_than_max_seq_len and non_empty_input and
+                        non_empty_labels and non_padding_response)
+
+            filtered_dataset = tokenized_dataset.filter(
+                filter_long_or_empty_examples,
+                num_proc=num_cpus_to_use,
+                desc='Filtering out long prompts',
+            )
+
+            examples_removed = len(tokenized_dataset) - len(filtered_dataset)
+            if examples_removed > 0:
+                warnings.warn(
+                    f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, '
+                    +
+                    'the prompt or response was empty, or the response was all padding tokens.'
+                )
+        except Exception as e:
+            error = e
         # Now local rank 0 indicates to the other ranks that it is done
         if dist.get_local_rank() == 0:
             log.debug('Local rank 0 finished data prep')
@@ -403,7 +408,11 @@ class DatasetConstructor:
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
 
+        if error is not None:
+            log.error('Error during data prep')
+            raise error
         log.debug('All ranks finished data prep')
+        assert filtered_dataset is not None
         return filtered_dataset
 
     def build_from_streaming(self, *args: Any,

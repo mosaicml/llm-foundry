@@ -1,11 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import pathlib
-import random
-import shutil
-from pathlib import Path
 
 import pytest
 from omegaconf import OmegaConf as om
@@ -20,19 +16,6 @@ def load_icl_config(conf_path: str = 'tests/test_tasks.yaml'):
     return test_cfg
 
 
-@pytest.fixture(autouse=True, scope='function')
-def tmp_dir():
-    TMP_FOLDER = 'tmp_data' + str(random.randint(0, 100_000))
-    dirpath = Path(TMP_FOLDER)
-    if dirpath.exists() and dirpath.is_dir():
-        shutil.rmtree(dirpath)
-    os.mkdir(TMP_FOLDER)
-    yield TMP_FOLDER
-    dirpath = Path(TMP_FOLDER)
-    if dirpath.exists() and dirpath.is_dir():
-        shutil.rmtree(dirpath)
-
-
 def run_test(dir: pathlib.Path,
              tokenizer: PreTrainedTokenizerBase,
              bos_tok: str = ''):
@@ -41,7 +24,7 @@ def run_test(dir: pathlib.Path,
                                          tokenizer,
                                          1024,
                                          8,
-                                         destination_dir=f'{os.getcwd()}/{dir}')
+                                         destination_dir=str(dir))
 
     for e in evaluators:
         batch = next(e.dataloader.dataloader.__iter__())
@@ -72,7 +55,7 @@ def run_test(dir: pathlib.Path,
             assert full_example == bos_tok + 'Question: Who was the man behind The Chipmunks?\nAnswer:'
             assert answer == 'David Seville'
         elif e.label == 'triviaqa/1-shot':
-            assert full_example == bos_tok + 'Question: High Willhays is the highest point of what National Park?\nAnswer: DARTMOOR\nQuestion: Who was the man behind The Chipmunks?\nAnswer:'
+            assert full_example == bos_tok + 'Question: Which was the only eastern bloc country to participate in the 1984 LA Olympics?\nAnswer: Rumania\nQuestion: Who was the man behind The Chipmunks?\nAnswer:'
             assert answer == 'David Seville'
         elif e.label == 'copa/0-shot':
             assert full_example == bos_tok + 'The man turned on the faucet, therefore the toilet filled with water'
@@ -88,21 +71,10 @@ def run_test(dir: pathlib.Path,
             assert answer == ' feared violence'
 
 
-def test_icl_task_loading_gpt2_tokenizer(tmp_dir: pathlib.Path):
-    tokenizer = AutoTokenizer.from_pretrained('gpt2')
-    run_test(tmp_dir, tokenizer)
-
-
-def test_icl_task_loading_gptj_tokenizer(tmp_dir: pathlib.Path):
-    tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-j-6b')
-    run_test(tmp_dir, tokenizer)
-
-
-def test_icl_task_loading_opt_tokenizer(tmp_dir: pathlib.Path):
-    tokenizer = AutoTokenizer.from_pretrained('facebook/opt-6.7b')
-    run_test(tmp_dir, tokenizer, '</s>')
-
-
-def test_icl_task_loading_gptneox_tokenizer(tmp_dir: pathlib.Path):
-    tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
-    run_test(tmp_dir, tokenizer)
+@pytest.mark.parametrize('tokenizer_name,bos_token',
+                         [('facebook/opt-6.7b', '</s>'),
+                          ('EleutherAI/gpt-neox-20b', '')])
+def test_icl_task_tokenizer(tmp_path: pathlib.Path, tokenizer_name: str,
+                            bos_token: str):
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    run_test(tmp_path, tokenizer, bos_token)

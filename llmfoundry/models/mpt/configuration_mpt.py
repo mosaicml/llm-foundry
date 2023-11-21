@@ -109,7 +109,7 @@ class MPTConfig(PretrainedConfig):
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
-            verbose (int): The verbosity level. 0 is silent.
+            verbose (int): Deprecated.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
             use_cache (bool): Whether or not the model should return the last key/values attentions

@@ -43,6 +43,26 @@ MODEL_ENCODING_NAME_PARAMETRIZATION = [
     (None, 'cl100k_base'),
 ]
 
+MULTI_TURN_CHAT_ML = [[{
+    'content':
+        'Please summarize the goals in this text:\n\nGoing outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.',
+    'role':
+        'user'
+}, {
+    'content': 'You should go outside and touch grass.',
+    'role': 'assistant'
+}]]
+
+MULTI_TURN_CHAT_STRING = [
+    """<|im_start|>user
+Please summarize the goals in this text:
+
+Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
+<|im_start|>assistant
+You should go outside and touch grass.<|im_end|>
+"""
+]
+
 
 def get_tokenizers_for_testing(
     model_name: Optional[str],
@@ -259,3 +279,34 @@ def test_additional_special_tokens(model_name: Optional[str],
 
     assert encoded_outputs[0] == wrapped_tokenizer.vocab_size
     assert len(encoded_outputs) == 2
+
+
+@pytest.mark.parametrize('model_name,encoding_name',
+                         MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_chat_formatting(model_name: Optional[str],
+                         encoding_name: Optional[str], tmp_path: pathlib.Path):
+    special_tokens_to_add = ['<|im_start|>', '<im_end>']
+    wrapped_tokenizer, _, _ = get_tokenizers_for_testing(
+        model_name,
+        encoding_name,
+        tmp_path,
+        add_bos_token=False,
+        add_eos_token=False,
+        additional_special_tokens=special_tokens_to_add)
+    #wrapped_tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + ': \n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}"
+    print('TOK', wrapped_tokenizer.chat_template)
+    import difflib
+    for i, dict_chats in enumerate(MULTI_TURN_CHAT_ML):
+        chat_str = wrapped_tokenizer.apply_chat_template(dict_chats,
+                                                         tokenize=False)
+
+        print(chat_str)
+        print('------')
+        print(MULTI_TURN_CHAT_STRING[i])
+        print('------@')
+        output_list = [
+            li for li in difflib.ndiff(chat_str, MULTI_TURN_CHAT_STRING[i])
+            if li[0] != ' '
+        ]
+        print('OUTPUT LIST', output_list)
+        assert chat_str == MULTI_TURN_CHAT_STRING[i]

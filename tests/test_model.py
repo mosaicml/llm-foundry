@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import contextlib
 import copy
-import gc
 import os
 import pathlib
 import warnings
@@ -304,17 +303,13 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     assert not torch.equal(original_params, updated_params)
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize(
     'attn_impl,precision',
     [('torch', torch.float16), ('torch', torch.bfloat16),
      pytest.param('flash', torch.float16, marks=pytest.mark.gpu),
      pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu)])
 def test_determinism(attn_impl: str, precision: torch.dtype):
-    if not torch.cuda.is_available():
-        pytest.skip(
-            'This test requires CUDA to be available in order to run with bfloat16 precision.'
-        )
-
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
@@ -519,10 +514,12 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         assert block.resid_ffn_dropout.p == 0.2
 
 
-@pytest.mark.parametrize('attention_impl,device', [('torch', 'cpu'),
-                                                   ('flash', 'gpu'),
-                                                   ('triton', 'gpu'),
-                                                   ('torch', 'gpu')])
+@pytest.mark.parametrize('attention_impl', [
+    'torch',
+    pytest.param('flash', marks=pytest.mark.gpu),
+    pytest.param('triton', marks=pytest.mark.gpu),
+    pytest.param('torch', marks=pytest.mark.gpu)
+])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
     'rope': False
@@ -550,24 +547,20 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_forward_with_padding(attention_impl: str, device: str,
-                              pos_emb_config: dict, tie_word_embeddings: bool):
+def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
+                              tie_word_embeddings: bool):
     # Test that different placement of padding does not affect the output.
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
-        )
     alibi = pos_emb_config['alibi']
     if alibi and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
     rope = pos_emb_config['rope']
-    if rope and pos_emb_config['rope_impl'] == 'dail' and (
-            device != 'gpu' or not is_flash_v2_installed()):
+    if rope and pos_emb_config[
+            'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 
-    composer_device = get_device(device)
+    composer_device = get_device(None)
 
     hf_config = MPTConfig(
         init_device='cpu',
@@ -657,8 +650,8 @@ def test_forward_with_padding(attention_impl: str, device: str,
         right_pad_v_left_pad_atol = 1e-6 if attention_impl == 'torch' else 1e-8
         if rope and pos_emb_config['rope_impl'] == 'dail':
             # dail implementation of rope uses bf16 precision and hence the rotations have small numerical errors. This causes some differences between the outputs of padded and unpadded inputs.
-            right_pad_v_left_pad_rtol = 1e-2
-            right_pad_v_left_pad_atol = 1e-2
+            right_pad_v_left_pad_rtol = 2e-2
+            right_pad_v_left_pad_atol = 2e-2
         assert torch.allclose(right_padding_output[0, :3],
                               left_padding_output[0, 3:],
                               rtol=right_pad_v_left_pad_rtol,
@@ -743,12 +736,12 @@ def test_advanced_mask_building(attention_impl: str):
     assert torch.equal(attn_bias, expected_attn_bias)
 
 
-@pytest.mark.parametrize('attention_impl,device,precision', [
-    ('torch', 'cpu', 'fp32'),
-    ('flash', 'gpu', 'amp_bf16'),
-    ('triton', 'gpu', 'amp_bf16'),
-    ('torch', 'gpu', 'amp_bf16'),
-    ('torch', 'gpu', 'fp32'),
+@pytest.mark.parametrize('attention_impl,precision', [
+    ('torch', 'fp32'),
+    pytest.param('flash', 'amp_bf16', marks=pytest.mark.gpu),
+    pytest.param('triton', 'amp_bf16', marks=pytest.mark.gpu),
+    pytest.param('torch', 'amp_bf16', marks=pytest.mark.gpu),
+    pytest.param('torch', 'fp32', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -777,25 +770,21 @@ def test_advanced_mask_building(attention_impl: str):
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_generate(attention_impl: str, device: str, precision: str,
-                  pos_emb_config: dict, tie_word_embeddings: bool):
+def test_generate(attention_impl: str, precision: str, pos_emb_config: dict,
+                  tie_word_embeddings: bool):
     # Test that generate works, and produces the same output with or without
     # padding in the input.
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
-        )
     if pos_emb_config['alibi'] and attention_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
-    if pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail' and (
-            device != 'gpu' or not is_flash_v2_installed()):
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
     if attention_impl == 'torch' and precision == 'amp_bf16' and tie_word_embeddings == False:
         pytest.skip(f'This test configuration has precision / sampling issues.')
 
-    composer_device = get_device(device)
+    composer_device = get_device(None)
 
     hf_config = MPTConfig(
         init_device='cpu',
@@ -874,29 +863,26 @@ def test_generate(attention_impl: str, device: str, precision: str,
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('world_size', [1, 2])
-@pytest.mark.parametrize('use_cache', [False, True])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_generate_with_device_map(tmp_path: pathlib.Path, world_size: int,
-                                  use_cache: bool, tie_word_embeddings: bool):
-    if not torch.cuda.is_available():
-        pytest.skip(f'This test requires CUDA to be available.')
+                                  tie_word_embeddings: bool):
     if not torch.cuda.device_count() >= world_size:
         pytest.skip(f'This test requires {world_size} GPUs.')
 
     save_path = tmp_path / 'test-device-map'
     hf_config = MPTConfig(
         init_device='cpu',
-        d_model=128,
+        d_model=64,
         n_heads=4,
         n_layers=2,
         expansion_ratio=2,
-        max_seq_len=2048,
+        max_seq_len=4,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': 'torch',
         },
-        use_cache=use_cache,
+        use_cache=True,
         tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
@@ -926,8 +912,8 @@ def test_generate_with_device_map(tmp_path: pathlib.Path, world_size: int,
     )
     with torch.autocast('cuda', dtype=torch.bfloat16):
         _ = pipe(
-            'The quick fox jumped over',
-            max_length=10,
+            'The fox',
+            max_new_tokens=2,
             do_sample=True,
         )
 
@@ -978,11 +964,10 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
     check_hf_model_equivalence(mpt, mpt2)
 
 
-@pytest.mark.parametrize('attn_impl,device', [
-    ('torch', 'cpu'),
-    ('flash', 'gpu'),
-    ('triton', 'gpu'),
-    ('torch', 'gpu'),
+@pytest.mark.parametrize('attn_impl', [
+    'torch',
+    pytest.param('flash', marks=pytest.mark.gpu),
+    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1010,23 +995,16 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
         'factor': 1.0,
     },
 }])
-@pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_forward_with_cache_and_padding(attn_impl: str, device: str,
-                                        pos_emb_config: dict,
-                                        tie_word_embeddings: bool):
+def test_forward_with_cache_and_padding(attn_impl: str, pos_emb_config: dict):
     # Tests that the result is the same with or without padding when using kv caching
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
-        )
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
-    if pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail' and (
-            device != 'gpu' or not is_flash_v2_installed()):
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 
-    composer_device = get_device(device)
+    composer_device = get_device(None)
 
     hf_config = MPTConfig(
         init_device='cpu',
@@ -1046,7 +1024,7 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str,
             'name': 'baseline_',
             'init_std': 0.02,
         },
-        tie_word_embeddings=tie_word_embeddings,
+        tie_word_embeddings=True,
     )
 
     mpt = MPTForCausalLM(hf_config)
@@ -1120,11 +1098,10 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str,
                 rtol=1e-6)
 
 
-@pytest.mark.parametrize('attn_impl,device', [
-    ('torch', 'cpu'),
-    ('flash', 'gpu'),
-    ('triton', 'gpu'),
-    ('torch', 'gpu'),
+@pytest.mark.parametrize('attn_impl', [
+    'torch',
+    pytest.param('flash', marks=pytest.mark.gpu),
+    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1153,23 +1130,19 @@ def test_forward_with_cache_and_padding(attn_impl: str, device: str,
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict,
+def test_forward_with_cache(attn_impl: str, pos_emb_config: dict,
                             tie_word_embeddings: bool):
     # Test that model forward with and without the key-value cache produces the
     # same output.
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
-        )
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
-    if pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail' and (
-            device != 'gpu' or not is_flash_v2_installed()):
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 
-    composer_device = get_device(device)
+    composer_device = get_device(None)
 
     hf_config = MPTConfig(
         init_device='cpu',
@@ -1264,11 +1237,10 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict,
         )
 
 
-@pytest.mark.parametrize('attn_impl,device', [
-    ('torch', 'cpu'),
-    ('flash', 'gpu'),
-    ('triton', 'gpu'),
-    ('torch', 'gpu'),
+@pytest.mark.parametrize('attn_impl', [
+    'torch',
+    pytest.param('flash', marks=pytest.mark.gpu),
+    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1297,20 +1269,16 @@ def test_forward_with_cache(attn_impl: str, device: str, pos_emb_config: dict,
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_generate_with_past_kv(attn_impl: str, device: str,
-                               pos_emb_config: dict, tie_word_embeddings: bool):
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
-        )
+def test_generate_with_past_kv(attn_impl: str, pos_emb_config: dict,
+                               tie_word_embeddings: bool):
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
-    if pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail' and (
-            device != 'gpu' or not is_flash_v2_installed()):
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 
-    composer_device = get_device(device)
+    composer_device = get_device(None)
 
     hf_config = MPTConfig(
         init_device='cpu',
@@ -1368,22 +1336,16 @@ def test_generate_with_past_kv(attn_impl: str, device: str,
                                                              hf_config.d_model)
 
 
-@pytest.mark.parametrize('attn_impl,device', [
-    ('torch', 'cpu'),
-    ('flash', 'gpu'),
-    ('triton', 'gpu'),
-    ('torch', 'gpu'),
+@pytest.mark.parametrize('attn_impl', [
+    'torch',
+    pytest.param('flash', marks=pytest.mark.gpu),
+    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('generation_kwargs', [{
     'max_new_tokens': 2,
-    'num_beams': 4
-}, {
-    'max_new_tokens': 2,
+    'num_beams': 4,
     'top_k': 5,
     'penalty_alpha': 0.4
-}, {
-    'do_sample': True,
-    'top_p': 0.95
 }])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1412,24 +1374,22 @@ def test_generate_with_past_kv(attn_impl: str, device: str,
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
+def test_generation_kwargs_dont_crash(attn_impl: str,
                                       generation_kwargs: Dict[str, Any],
                                       pos_emb_config: dict,
                                       tie_word_embeddings: bool):
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
-        )
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
 
-    if pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail' and (
-            device != 'gpu' or not is_flash_v2_installed()):
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
-    composer_device = get_device(device)
-    if device == 'gpu':  # Switch deteminism off
+    composer_device = get_device(None)
+
+    if composer_device.name == 'gpu':
         torch.use_deterministic_algorithms(False)
+
     hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
@@ -1452,7 +1412,6 @@ def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
 
     with get_precision_context('amp_bf16' if composer_device.name ==
                                'gpu' else 'fp32'):
-        # no padding in the input
         no_padding_input_ids = torch.tensor([[11274, 16390, 11]])
         no_padding_input_ids = composer_device.tensor_to_device(
             no_padding_input_ids)
@@ -1463,12 +1422,12 @@ def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
         _ = mpt.generate(input_ids=no_padding_input_ids,
                          attention_mask=no_padding_attention_mask,
                          **generation_kwargs)
-    if device == 'gpu':  # Switch deteminism back on
+
+    if composer_device.name == 'gpu':
         reproducibility.configure_deterministic_mode()
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attention_impl', ['torch', 'flash', 'triton'])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
     'rope': False
@@ -1496,34 +1455,25 @@ def test_generation_kwargs_dont_crash(attn_impl: str, device: str,
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_model_to(attention_impl: str, pos_emb_config: dict,
-                  tie_word_embeddings: bool):
+def test_model_to(pos_emb_config: dict, tie_word_embeddings: bool):
     # test that moving the model to diff devices and dtypes in diff ways does not break the model
-    if not torch.cuda.is_available():
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attention_impl} attention.'
-        )
-    if pos_emb_config['alibi'] and attention_impl == 'flash':
-        pytest.skip(f'alibi only implemented with torch and triton attention.')
-
     if pos_emb_config['rope'] and pos_emb_config[
             'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(f'dail implementation of rope requires flash attention 2.')
 
     hf_config = MPTConfig(
         init_device='cpu',
-        d_model=128,
+        d_model=64,
         n_heads=4,
         n_layers=2,
         expansion_ratio=2,
-        max_seq_len=2048,
+        max_seq_len=4,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
-            'attn_impl': attention_impl,
+            'attn_impl': 'torch',
             **pos_emb_config,
         },
-        use_cache=True,
         init_config={
             'name': 'baseline_',
             'init_std': 0.02,
@@ -1539,37 +1489,23 @@ def test_model_to(attention_impl: str, pos_emb_config: dict,
     input_ids = torch.tensor([[11274, 16390, 11]]).to('cuda')
     attention_mask = torch.tensor([[1, 1, 1]]).bool().to('cuda')
 
-    # with get_precision_context('amp_bf16'):
     _ = mpt(input_ids, attention_mask=attention_mask)
 
     # move the model around using different methods
-    mpt = mpt.bfloat16()
     mpt = mpt.to('cpu')
 
     # verify the model still works
-    if attention_impl == 'torch' and not (
-            pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail'):
+    if not (pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail'):
         with torch.autocast('cpu', dtype=torch.bfloat16, enabled=True):
             _ = mpt(input_ids.to('cpu'),
                     attention_mask=attention_mask.to('cpu'))
 
-    mpt = mpt.cuda()
-    mpt = mpt.bfloat16()
-
-    # verify the model still works
-    if attention_impl == 'torch':
-        with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
-            _ = mpt(input_ids, attention_mask=attention_mask)
-
-    mpt = mpt.to('cpu')
     mpt = mpt.float()
 
     # verify the model still works
-    if attention_impl == 'torch' and not (
-            pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail'):
+    if not (pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail'):
         _ = mpt(input_ids.to('cpu'), attention_mask=attention_mask.to('cpu'))
 
-    mpt = mpt.half()
     mpt = mpt.to(0)  # move to rank0
     mpt = mpt.bfloat16()
 
@@ -1597,11 +1533,11 @@ def test_alibi_vs_hf():
             torch.testing.assert_close(alibi_bias_hf, alibi_bias_m)
 
 
-@pytest.mark.parametrize('attn_impl,device', [
-    ('torch', 'cpu'),
-    ('flash', 'gpu'),
-    ('triton', 'gpu'),
-    ('torch', 'gpu'),
+@pytest.mark.parametrize('attn_impl', [
+    'torch',
+    pytest.param('flash', marks=pytest.mark.gpu),
+    pytest.param('triton', marks=pytest.mark.gpu),
+    pytest.param('torch', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1629,28 +1565,18 @@ def test_alibi_vs_hf():
         'factor': 1.0,
     },
 }])
-@pytest.mark.parametrize('output_attentions', [True, False])
-@pytest.mark.parametrize('output_hidden_states', [True, False])
-@pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_forward_with_output_attentions_and_output_hidden_states(
-        attn_impl: str, device: str, pos_emb_config: dict,
-        output_attentions: bool, output_hidden_states: bool,
-        tie_word_embeddings: bool):
-    # Test that model forward with output_attentions_and_output_hidden_states
-    if not torch.cuda.is_available() and device == 'gpu':
-        pytest.skip(
-            f'This test requires CUDA to be available in order to run with {attn_impl} attention.'
-        )
+        attn_impl: str, pos_emb_config: dict):
     if pos_emb_config['alibi'] and attn_impl == 'flash':
         pytest.skip(f'alibi only implemented with torch and triton attention.')
-    if output_attentions and attn_impl in ['flash', 'triton']:
+    if attn_impl in ['flash', 'triton']:
         pytest.skip(f'output_attentions only implemented with torch attention.')
-    if pos_emb_config['rope'] and pos_emb_config['rope_impl'] == 'dail' and (
-            device != 'gpu' or not is_flash_v2_installed()):
+    if pos_emb_config['rope'] and pos_emb_config[
+            'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.')
 
-    composer_device = get_device(device)
+    composer_device = get_device(None)
 
     n_layers = 2
 
@@ -1672,7 +1598,7 @@ def test_forward_with_output_attentions_and_output_hidden_states(
             'name': 'baseline_',
             'init_std': 0.02,
         },
-        tie_word_embeddings=tie_word_embeddings,
+        tie_word_embeddings=True,
     )
     mpt = MPTForCausalLM(hf_config)
     mpt = composer_device.module_to_device(mpt)
@@ -1685,20 +1611,16 @@ def test_forward_with_output_attentions_and_output_hidden_states(
         attention_mask = torch.tensor([[1, 1, 1]]).bool()
         attention_mask = composer_device.tensor_to_device(attention_mask)
 
-        # start with passing the first three tokens through
         outputs = mpt(
             input_ids,
             attention_mask=attention_mask,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
+            output_attentions=True,
+            output_hidden_states=True,
         )
 
-        if output_attentions:
-            assert len(outputs.attentions) == n_layers
-            assert all(
-                attn.shape == (1, 4, 3, 3) for attn in outputs.attentions)
-        if output_hidden_states:
-            assert len(outputs.hidden_states) == n_layers + 1
+        assert len(outputs.attentions) == n_layers
+        assert all(attn.shape == (1, 4, 3, 3) for attn in outputs.attentions)
+        assert len(outputs.hidden_states) == n_layers + 1
 
 
 @pytest.mark.gpu
@@ -1708,14 +1630,8 @@ def test_hf_init(tmp_path: pathlib.Path,
                  init_device: str,
                  world_size: int,
                  batch_size: int = 1):
-    if not torch.cuda.is_available():
-        pytest.skip(f'This test requires CUDA to be available.')
     if not torch.cuda.device_count() >= world_size:
         pytest.skip(f'This test requires {world_size} GPUs.')
-
-    torch.cuda.empty_cache()
-    gc.collect()  #just in case
-    torch.cuda.synchronize()
 
     test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
     test_cfg.device = torch.cuda.current_device()

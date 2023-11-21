@@ -408,7 +408,7 @@ class DatasetConstructor:
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
 
-        if error:
+        if error is not None:
             log.error('Error during data prep')
             raise error
         log.debug('All ranks finished data prep')

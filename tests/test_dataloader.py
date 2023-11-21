@@ -311,7 +311,7 @@ def test_finetuning_dataloader(decoder_only_format: bool,
 @pytest.mark.parametrize('dataset_size', [4, 8])
 @pytest.mark.parametrize('device_batch_size', [2, 4])
 @pytest.mark.parametrize('drop_last', [True, False])
-@pytest.mark.parametrize('invalid_dataset', [True, True])
+@pytest.mark.parametrize('invalid_dataset', [True, False])
 def test_finetuning_dataloader_small_data(dataset_size: int,
                                           device_batch_size: int,
                                           drop_last: bool, 

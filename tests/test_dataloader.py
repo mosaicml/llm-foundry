@@ -25,6 +25,7 @@ from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
+
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
@@ -314,14 +315,16 @@ def test_finetuning_dataloader(decoder_only_format: bool,
 @pytest.mark.parametrize('invalid_dataset', [True, False])
 def test_finetuning_dataloader_small_data(dataset_size: int,
                                           device_batch_size: int,
-                                          drop_last: bool, 
+                                          drop_last: bool,
                                           invalid_dataset: bool):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
     if dist.get_global_rank() == 0:
-        make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size, add_bad_data_error=invalid_dataset)
+        make_tiny_ft_dataset(path=tiny_dataset_path,
+                             size=dataset_size,
+                             add_bad_data_error=invalid_dataset)
 
     cfg = {
         'name': 'finetuning',
@@ -356,7 +359,10 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
         error_context = pytest.raises(ValueError, match='Your dataset')
     if invalid_dataset:
-        error_context = pytest.raises(TypeError, match='Unable to tokenize example because "prompt" was not a string')
+        error_context = pytest.raises(
+            TypeError,
+            match='Unable to tokenize example because "prompt" was not a string'
+        )
 
     with error_context:
         _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)

@@ -25,7 +25,6 @@ from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
-from datasets.builder import DatasetGenerationError
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
@@ -312,7 +311,7 @@ def test_finetuning_dataloader(decoder_only_format: bool,
 @pytest.mark.parametrize('dataset_size', [4, 8])
 @pytest.mark.parametrize('device_batch_size', [2, 4])
 @pytest.mark.parametrize('drop_last', [True, False])
-@pytest.mark.parametrize('invalid_dataset', [True, False])
+@pytest.mark.parametrize('invalid_dataset', [True, True])
 def test_finetuning_dataloader_small_data(dataset_size: int,
                                           device_batch_size: int,
                                           drop_last: bool, 
@@ -357,7 +356,7 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
         error_context = pytest.raises(ValueError, match='Your dataset')
     if invalid_dataset:
-        error_context = pytest.raises(DatasetGenerationError, match='An error occurred while generating the dataset')
+        error_context = pytest.raises(TypeError, match='Unable to tokenize example because "prompt" was not a string')
 
     with error_context:
         _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)

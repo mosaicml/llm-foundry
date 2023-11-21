@@ -159,7 +159,6 @@ class StreamingFinetuningDataset(StreamingDataset):
                         f'local directory {local} does not contain split {split}'
                     )
 
-        # Build Dataset
         super().__init__(
             local=local,
             remote=remote,
@@ -412,7 +411,7 @@ class DatasetConstructor:
             log.error('Error during data prep')
             raise error
         log.debug('All ranks finished data prep')
-        return filtered_dataset # type: ignore
+        return filtered_dataset  # type: ignore
 
     def build_from_streaming(self, *args: Any,
                              **kwargs: Any) -> StreamingFinetuningDataset:

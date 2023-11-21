@@ -54,12 +54,14 @@ def allclose_helper(t0: torch.Tensor,
 @pytest.mark.parametrize(
     'attn_type',
     ['multihead_attention', 'multiquery_attention', 'grouped_query_attention'])
+@pytest.mark.parametrize('pad_attention_mask', [True, False])
 def test_attn_impl(attn_impl_0: str,
                    attn_impl_1: str,
                    clip_qkv: bool,
                    qk_ln: bool,
                    pos_emb_config: dict,
                    attn_type: str,
+                   pad_attention_mask: bool,
                    device: str = 'cuda'):
     """Compare all attn impl with each other.
 
@@ -97,6 +99,11 @@ def test_attn_impl(attn_impl_0: str,
     attn1.load_state_dict(attn0.state_dict())
 
     attention_mask = torch.ones(n, s).to(device).bool()
+
+    if pad_attention_mask:
+        # zero out the last third of the attention mask
+        # to simulate padding
+        attention_mask[:, :s // 3] = 0
 
     def gen_bias(attn_impl: str):
         causal = True

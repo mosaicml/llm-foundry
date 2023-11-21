@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 import pytest
 from composer.loggers import InMemoryLogger
+from composer.utils import using_torch_2
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
@@ -26,9 +27,7 @@ from scripts.train.train import main  # noqa: E402
 def create_c4_dataset_xsmall(path: pathlib.Path) -> str:
     """Creates a small mocked version of the C4 dataset."""
     c4_dir = os.path.join(path, f'my-copy-c4')
-    downloaded_split = 'val_xsmall'  # very fast to convert
-
-    # Hyperparameters from https://github.com/mosaicml/llm-foundry/blob/340a56658560ebceb2a3aa69d6e37813e415acd0/README.md#L188
+    downloaded_split = 'val_xxsmall'
     main_hf(
         Namespace(
             **{
@@ -49,7 +48,7 @@ def create_c4_dataset_xsmall(path: pathlib.Path) -> str:
     # copy the small downloaded_split to other c4 splits for mocking purposes
     mocked_splits = ['train', 'val']
     for mocked_split in mocked_splits:
-        shutil.copytree(os.path.join(c4_dir, 'val_xsmall'),
+        shutil.copytree(os.path.join(c4_dir, 'val_xxsmall'),
                         os.path.join(c4_dir, mocked_split))
     assert os.path.exists(c4_dir)
     return c4_dir
@@ -86,12 +85,15 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
     assert isinstance(test_cfg, DictConfig)
 
     test_cfg.data_local = dataset_name
-    test_cfg.global_train_batch_size = 8
-    test_cfg.device_eval_batch_size = 4
-    test_cfg.device_train_microbatch_size = 4
+    test_cfg.global_train_batch_size = 1
+    test_cfg.device_eval_batch_size = 2
+    test_cfg.device_train_microbatch_size = 1
     test_cfg.max_duration = '4ba'
     test_cfg.eval_interval = '4ba'
     test_cfg.run_name = 'gpt-mini-integration-test'
+
+    test_cfg.model.n_layer = 2
+    test_cfg.model.n_embd = 64
 
     if device == 'cpu':
         test_cfg.model.init_device = 'cpu'
@@ -133,7 +135,14 @@ def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
                 'language_modeling'
         })
     ])
-    test_cfg.icl_subset_num_batches = 1  # -1 to evaluate on all batches
+    test_cfg.icl_subset_num_batches = 1
+    test_cfg.eval_subset_num_batches = 2
+    test_cfg.train_loader.num_workers = 0
+    test_cfg.train_loader.prefetch_factor = None if using_torch_2() else 2
+    test_cfg.train_loader.persistent_workers = False
+    test_cfg.eval_loader.num_workers = 0
+    test_cfg.eval_loader.prefetch_factor = None if using_torch_2() else 2
+    test_cfg.eval_loader.persistent_workers = False
 
     test_cfg.eval_gauntlet = DictConfig({
         'weighting':
@@ -162,7 +171,7 @@ def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
     if averages is not None:
         test_cfg.eval_gauntlet['averages'] = averages
 
-    test_cfg.icl_seq_len = 128
+    test_cfg.icl_seq_len = 16
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
     test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})

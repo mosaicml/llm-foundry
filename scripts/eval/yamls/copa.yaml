@@ -1,3 +1,4 @@
+icl_tasks:
 -
   label: copa
   dataset_uri: eval/local_data/commonsense_reasoning/copa.jsonl

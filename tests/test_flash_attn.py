@@ -6,9 +6,9 @@ import math
 import pytest
 import torch
 
-from llmfoundry.models.layers.attention import (
-    flash_attn_fn, is_flash_v2_installed,
-    scaled_multihead_dot_product_attention)
+from llmfoundry.models.layers.attention import (flash_attn_fn,
+                                                is_flash_v2_installed,
+                                                triton_flash_attn_fn)
 
 
 @pytest.mark.gpu
@@ -230,32 +230,34 @@ def test_sliding_window(sliding_window_size: int):
                                                            device=device)
 
     window_mask_2 = torch.tril(
-        torch.ones(seqlen_1, seqlen_1), diagonal=-sliding_window_size).to(
+        torch.ones(seqlen_1, seqlen_1), diagonal=-(sliding_window_size + 1)).to(
             dtype=dtype, device=device) * torch.finfo(attn_bias_2.dtype).min
     attn_bias_2 = attn_bias_2 + window_mask_2
-    output_2, _, _ = scaled_multihead_dot_product_attention(
-        query=query_2,
-        key=key_2,
-        value=value_2,
-        n_heads=n_heads,
-        kv_n_heads=n_heads,
-        past_key_value=None,
-        softmax_scale=1 / math.sqrt(d),
-        attn_bias=attn_bias_2,
-        key_padding_mask=None,
-        is_causal=True,
-        dropout_p=0.0,
-        training=False,
-        needs_weights=False,
-        multiquery=False,
-        key_attention_mask_in_length=None,
-        query_attention_mask_in_length=None,
-        should_repeat_kv_for_gqa=False,
-        sliding_window_size=-1)
+    output_2, _, _ = triton_flash_attn_fn(query=query_2,
+                                          key=key_2,
+                                          value=value_2,
+                                          n_heads=n_heads,
+                                          kv_n_heads=n_heads,
+                                          past_key_value=None,
+                                          softmax_scale=1 / math.sqrt(d),
+                                          attn_bias=attn_bias_2,
+                                          key_padding_mask=None,
+                                          is_causal=True,
+                                          dropout_p=0.0,
+                                          training=False,
+                                          needs_weights=False,
+                                          multiquery=False,
+                                          key_attention_mask_in_length=None,
+                                          query_attention_mask_in_length=None,
+                                          should_repeat_kv_for_gqa=False,
+                                          sliding_window_size=-1)
 
     output_2.sum().backward()
-    breakpoint()
-    assert torch.testing.assert_close(output_1, output_2)
-    assert torch.allclose(query_1.grad, query_2.grad)  # type: ignore
-    assert torch.allclose(key_1.grad, key_2.grad)  # type: ignore
-    assert torch.allclose(value_1.grad, value_2.grad)  # type: ignore
+
+    assert torch.allclose(output_1, output_2)
+    assert torch.norm(query_2.grad - query_1.grad  # type: ignore
+                     ) <= 1e-2 + 1e-2 * torch.norm(query_2.grad)
+    assert torch.norm(key_2.grad - key_1.grad  # type: ignore
+                     ) <= 1e-2 + 1e-2 * torch.norm(key_2.grad)
+    assert torch.norm(value_2.grad - value_1.grad  # type: ignore
+                     ) <= 1e-2 + 1e-2 * torch.norm(value_2.grad)

@@ -363,7 +363,7 @@ def flash_attn_fn(
             softmax_scale=softmax_scale,
             causal=reset_is_causal,
             return_attn_probs=needs_weights,
-            window_size=(sliding_window_size, -1))
+            window_size=(sliding_window_size, sliding_window_size))
     else:
         raise RuntimeError(
             'flash-attn==1.0.9 or flash-attn==2.3.2 is required.')

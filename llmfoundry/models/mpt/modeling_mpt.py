@@ -141,6 +141,7 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
     # 1. Training with left padding is not supported in MPT (see https://github.com/mosaicml/llm-foundry/blob/1eecd4cb8e734499f77f6a35f657b8b20c0adfcb/llmfoundry/models/mpt/modeling_mpt.py#L407).
     # 2. For generation with left padding, we only have a single sequence id per sample, so we don't need sequence id based sparse attention.
     # 3. Am I missing any cases where we have left padding + multiple concatenated sequences?
+    # I don't think we have any case where we have middle padding for causal LM pretraining/eval/generation.
     query_attention_mask_in_length = None
     key_attention_mask_in_length = None
     left_padding = (attention_mask is not None) and (attention_mask[:, 0].sum()

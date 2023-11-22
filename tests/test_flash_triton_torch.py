@@ -103,7 +103,7 @@ def test_attn_impl(attn_impl_0: str,
     if pad_attention_mask:
         # zero out the last third of the attention mask
         # to simulate padding
-        attention_mask[:, :s // 3] = 0
+        attention_mask[:, -s // 3:] = 0
 
     def gen_bias(attn_impl: str):
         causal = True

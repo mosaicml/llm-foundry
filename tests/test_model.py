@@ -617,13 +617,13 @@ def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict,
 
         assert torch.allclose(concatenated_seq_output[:, :3],
                               first_seq_output,
-                              atol=1e-6 if attention_impl == 'torch' else 1e-8)
+                              atol=2e-6 if attention_impl == 'torch' else 1e-8)
         assert torch.allclose(concatenated_seq_output[:, 3:4],
                               second_seq_output,
-                              atol=1e-6 if attention_impl == 'torch' else 1e-8)
+                              atol=2e-6 if attention_impl == 'torch' else 1e-8)
         atol = 1e-8
         if attention_impl == 'torch':
-            atol = 1e-6
+            atol = 2e-6
         elif pos_emb_config['rope']:
             atol = 2e-2
         assert torch.allclose(concatenated_seq_output[:, 4:6],

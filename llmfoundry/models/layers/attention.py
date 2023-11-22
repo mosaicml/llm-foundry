@@ -93,9 +93,10 @@ def scaled_multihead_dot_product_attention(
     query_attention_mask_in_length: Optional[torch.Tensor] = None,
     key_attention_mask_in_length: Optional[torch.Tensor] = None,
     should_repeat_kv_for_gqa: Optional[bool] = True,
+    sliding_window_size: int = -1,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-    del query_attention_mask_in_length, key_attention_mask_in_length, should_repeat_kv_for_gqa
+    del query_attention_mask_in_length, key_attention_mask_in_length, should_repeat_kv_for_gqa, sliding_window_size
 
     if multiquery:
         warnings.warn(
@@ -226,6 +227,7 @@ def flash_attn_fn(
     key_attention_mask_in_length: Optional[torch.Tensor] = None,
     query_attention_mask_in_length: Optional[torch.Tensor] = None,
     should_repeat_kv_for_gqa: Optional[bool] = True,
+    sliding_window_size: int = -1,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
@@ -281,7 +283,9 @@ def flash_attn_fn(
         key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
         value_unpad, _, _, _ = bert_padding.unpad_input(value, key_padding_mask)
-        value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
+        value_unpad = rearrange(value_unpad,
+                                'nnz (h d) -> nnz h d',
+                                h=kv_n_heads)
     else:
         if key_attention_mask_in_length is None:
             raise ValueError(
@@ -358,7 +362,8 @@ def flash_attn_fn(
             dropout_p=dropout_p,
             softmax_scale=softmax_scale,
             causal=reset_is_causal,
-            return_attn_probs=needs_weights)
+            return_attn_probs=needs_weights,
+            window_size=(sliding_window_size, -1))
     else:
         raise RuntimeError(
             'flash-attn==1.0.9 or flash-attn==2.3.2 is required.')
@@ -387,9 +392,10 @@ def triton_flash_attn_fn(
     query_attention_mask_in_length: Optional[torch.Tensor] = None,
     key_attention_mask_in_length: Optional[torch.Tensor] = None,
     should_repeat_kv_for_gqa: Optional[bool] = True,
+    sliding_window_size: int = -1,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-    del query_attention_mask_in_length, key_attention_mask_in_length, should_repeat_kv_for_gqa
+    del query_attention_mask_in_length, key_attention_mask_in_length, should_repeat_kv_for_gqa, sliding_window_size
     try:
         from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
     except:
@@ -521,6 +527,7 @@ class GroupedQueryAttention(nn.Module):
         fc_type: str = 'torch',
         device: Optional[str] = None,
         bias: bool = True,
+        sliding_window_size: int = -1,
     ):
         super().__init__()
 
@@ -531,6 +538,7 @@ class GroupedQueryAttention(nn.Module):
         self.d_model = d_model
         self.n_heads = n_heads
         self.kv_n_heads = kv_n_heads
+        self.sliding_window_size = sliding_window_size
 
         self.head_dim = d_model // n_heads
 
@@ -676,6 +684,7 @@ class GroupedQueryAttention(nn.Module):
             query_attention_mask_in_length=query_attention_mask_in_length,
             key_attention_mask_in_length=key_attention_mask_in_length,
             should_repeat_kv_for_gqa=not is_flash_v2_installed(),
+            sliding_window_size=self.sliding_window_size,
         )
 
         return self.out_proj(context), attn_weights, past_key_value
@@ -701,6 +710,7 @@ class MultiheadAttention(GroupedQueryAttention):
         fc_type: str = 'torch',
         device: Optional[str] = None,
         bias: bool = True,
+        sliding_window_size: int = -1,
     ):
         super().__init__(
             d_model=d_model,
@@ -715,6 +725,7 @@ class MultiheadAttention(GroupedQueryAttention):
             fc_type=fc_type,
             device=device,
             bias=bias,
+            sliding_window_size=sliding_window_size,
         )
 
 
@@ -738,6 +749,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         fc_type: str = 'torch',
         device: Optional[str] = None,
         bias: bool = True,
+        sliding_window_size: int = -1,
     ):
         super().__init__(
             d_model=d_model,
@@ -752,6 +764,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             fc_type=fc_type,
             device=device,
             bias=bias,
+            sliding_window_size=sliding_window_size,
         )
 
 

@@ -133,19 +133,30 @@ def gen_rotary_embedding(rope_head_dim: int, rope_impl: str, rope_theta: int,
 
 
 def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
-                                 attn_uses_sequence_id: bool, attn_impl: str):
+                                 attn_uses_sequence_id: bool, attn_impl: str,
+                                 attention_mask: Union[torch.Tensor, None]):
     # Generates the attention masks used for sequence masking in flash attention
+    # NOTE: Only supports sequence id based sparse attention for no attention masking or attention masking with right padding.
+    # In case of left padding:
+    # 1. Training with left padding is not supported in MPT (see https://github.com/mosaicml/llm-foundry/blob/1eecd4cb8e734499f77f6a35f657b8b20c0adfcb/llmfoundry/models/mpt/modeling_mpt.py#L407).
+    # 2. For generation with left padding, we only have a single sequence id per sample, so we don't need sequence id based sparse attention.
+    # 3. Am I missing any cases where we have left padding + multiple concatenated sequences?
     query_attention_mask_in_length = None
     key_attention_mask_in_length = None
-    if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl
-                                                                == 'flash'):
+    left_padding = (attention_mask is not None) and (attention_mask[:, 0].sum()
+                                                     != attention_mask.shape[0])
+    if (not left_padding) and (
+            sequence_id is not None) and attn_uses_sequence_id and (attn_impl
+                                                                    == 'flash'):
+        if attention_mask is not None:
+            sequence_id = sequence_id.masked_fill(~attention_mask, S)
         query_attention_mask_in_length = torch.nn.functional.one_hot(
-            sequence_id[:, -S:], num_classes=S).sum(dim=1)
+            sequence_id[:, -S:], num_classes=S + 1).sum(dim=1)[:, :-1]
         # We use S as the number of classes while creating key_attention_mask_in_length instead of sequence_id.shape[-1]
         # because in case of inference, sequence_id.shape[-1] can become very large. In that case, the one_hot vectors
         # would've become very large as well.
         key_attention_mask_in_length = torch.nn.functional.one_hot(
-            sequence_id, num_classes=S).sum(dim=1)
+            sequence_id, num_classes=S + 1).sum(dim=1)[:, :-1]
         # Since Flash Attention expects the masks to have same shape as the keys, we pad it with zeros.
         key_attention_mask_in_length = torch.nn.functional.pad(
             key_attention_mask_in_length, (0, sequence_id.shape[-1] - S),
@@ -537,7 +548,8 @@ class MPTModel(MPTPreTrainedModel):
             sequence_id=sequence_id,
             S=S,
             attn_uses_sequence_id=self.attn_uses_sequence_id,
-            attn_impl=self.attn_impl)
+            attn_impl=self.attn_impl,
+            attention_mask=attention_mask)
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
         if use_cache and past_key_values is None:

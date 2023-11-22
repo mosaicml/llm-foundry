@@ -161,12 +161,14 @@ def test_attn_impl(attn_impl_0: str,
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
-        attn_impl=attn_impl_0)
+        attn_impl=attn_impl_0,
+        attention_mask=attention_mask)
     query_attention_mask_in_length_1, key_attention_mask_in_length_1 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
-        attn_impl=attn_impl_1)
+        attn_impl=attn_impl_1,
+        attention_mask=attention_mask)
 
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()

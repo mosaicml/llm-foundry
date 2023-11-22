@@ -4,7 +4,8 @@
 import logging
 import os
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from collections import OrderedDict
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 from composer import algorithms
@@ -155,18 +156,58 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
         raise ValueError(f'Not sure how to build algorithm: {name}')
 
 
+def extract_param_groups(
+    model: torch.nn.Module,
+    optimizer_config: Dict[str, Any],
+) -> Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]:
+
+    if 'disable_grad' in optimizer_config.keys():
+        str_match = optimizer_config.pop('disable_grad')
+        if isinstance(str_match, str):
+            str_match = [str_match]
+        for _str_match in str_match:
+            for n, p in model.named_parameters():
+                if n in _str_match:
+                    p.requires_grad = False
+
+    if 'param_groups' in optimizer_config.keys():
+        params = []
+        param_dict = OrderedDict((n, p) for n, p in model.named_parameters())
+
+        for param_group_config in optimizer_config['param_groups']:
+            str_match = param_group_config.pop('param_str_match')
+            group_param_names = [n for n in param_dict.keys() if str_match in n]
+            _params = []
+            for n in group_param_names:
+                _params.append(param_dict.pop(n))
+            group_params = {'params': _params}
+            group_params.update(param_group_config)
+
+            params.append(group_params)
+
+        optimizer_config.pop('param_groups')
+
+        params.insert(0, {'params': param_dict.values()})
+        return params
+
+    return model.parameters()
+
+
 def build_optimizer(model: torch.nn.Module, name: str,
                     optimizer_config: Dict[str, Any]) -> Optimizer:
+
+    params = extract_param_groups(model, optimizer_config)
+
     if name == 'decoupled_adamw':
-        return DecoupledAdamW(model.parameters(), **optimizer_config)
+        return DecoupledAdamW(params, **optimizer_config)
     elif name == 'decoupled_lionw':
-        return DecoupledLionW(model.parameters(), **optimizer_config)
+        return DecoupledLionW(params, **optimizer_config)
     elif name == 'clip_lion':
-        return DecoupledClipLion(model.parameters(), **optimizer_config)
+        return DecoupledClipLion(params, **optimizer_config)
     elif name == 'adalr_lion':
-        return DecoupledAdaLRLion(model.parameters(), **optimizer_config)
+        return DecoupledAdaLRLion(params, **optimizer_config)
     elif name == 'decoupled_lionw_8b':
-        return DecoupledLionW_8bit(model.parameters(), **optimizer_config)
+        return DecoupledLionW_8bit(params, **optimizer_config)
     else:
         raise ValueError(f'Not sure how to build optimizer: {name}')
 

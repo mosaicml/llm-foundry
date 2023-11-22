@@ -281,9 +281,7 @@ def flash_attn_fn(
         key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
         value_unpad, _, _, _ = bert_padding.unpad_input(value, key_padding_mask)
-        value_unpad = rearrange(value_unpad,
-                                'nnz (h d) -> nnz h d',
-                                h=kv_n_heads)
+        value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
     else:
         if key_attention_mask_in_length is None:
             raise ValueError(
@@ -325,11 +323,11 @@ def flash_attn_fn(
             # we use .view to modify {key, value}_unpad appropriately
 
             key_unpad = repeat_kv_for_gqa(
-                key_unpad.view(batch_size, seqlen, kv_n_heads, -1),
-                n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
+                key_unpad.view(1, key_unpad.size(0), kv_n_heads, -1),
+                n_heads // kv_n_heads).view(key_unpad.size(0), n_heads, -1)
             value_unpad = repeat_kv_for_gqa(
-                value_unpad.view(batch_size, seqlen, kv_n_heads, -1),
-                n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
+                value_unpad.view(1, value_unpad.size(0), kv_n_heads, -1),
+                n_heads // kv_n_heads).view(value_unpad.size(0), n_heads, -1)
 
     dropout_p = dropout_p if training else 0.0
 

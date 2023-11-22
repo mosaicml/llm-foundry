@@ -10,7 +10,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 from composer import Trainer
 from composer.loggers import MLFlowLogger
-from composer.utils import dist, get_device
+from composer.utils import dist, get_device, using_torch_2
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
@@ -501,7 +501,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
         'drop_last': False,
         'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': None,
+        'prefetch_factor': None if using_torch_2() else 2,
         'persistent_workers': False,
         'timeout': 0
     }

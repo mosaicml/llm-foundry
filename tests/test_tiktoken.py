@@ -121,25 +121,30 @@ def test_tiktoken_simple(model_name: Optional[str],
         assert set(wrapped_output.keys()) == {'input_ids', 'attention_mask'}
         assert reloaded_wrapped_output == wrapped_output
 
+
 @pytest.mark.parametrize('model_name,encoding_name',
                          MODEL_ENCODING_NAME_PARAMETRIZATION)
 def test_tiktoken_tokenize_with_ids(model_name: Optional[str],
-                         encoding_name: Optional[str], tmp_path: pathlib.Path):
+                                    encoding_name: Optional[str],
+                                    tmp_path: pathlib.Path):
     wrapped_tokenizer, reloaded_wrapped_tokenizer, original_tokenizer = get_tokenizers_for_testing(
         model_name, encoding_name, tmp_path)
 
-    for i, string in enumerate(TEST_STRINGS):
+    for string in TEST_STRINGS:
         wrapped_output = wrapped_tokenizer.tokenize(string)
-        original_output = original_tokenizer.encode(string, allowed_special='all')
+        original_output = original_tokenizer.encode(string,
+                                                    allowed_special='all')
         reloaded_wrapped_output = reloaded_wrapped_tokenizer.tokenize(string)
 
         assert all([isinstance(t, str) for t in wrapped_output])
         assert len(wrapped_output) == len(original_output)
         assert wrapped_output == reloaded_wrapped_output
 
-        redone_token_ids = wrapped_tokenizer.convert_tokens_to_ids(wrapped_output)
+        redone_token_ids = wrapped_tokenizer.convert_tokens_to_ids(
+            wrapped_output)
         assert redone_token_ids == original_output
-        assert wrapped_tokenizer.convert_ids_to_tokens(redone_token_ids) == wrapped_output
+        assert wrapped_tokenizer.convert_ids_to_tokens(
+            redone_token_ids) == wrapped_output
 
 
 @pytest.mark.parametrize('model_name,encoding_name',

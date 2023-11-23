@@ -1,28 +1,33 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 from functools import lru_cache
-import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from transformers import PreTrainedTokenizer
 
 DEFAULT_SYSTEM_PROMPT = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
 
+
 @lru_cache()
 def bytes_to_unicode():
-    """
-    Returns list of utf-8 byte and a mapping to unicode strings. We specifically avoids mapping to whitespace/control
-    characters the bpe code barfs on.
+    """Returns list of utf-8 byte and a mapping to unicode strings.
 
-    The reversible bpe codes work on unicode strings. This means you need a large # of unicode characters in your vocab
-    if you want to avoid UNKs. When you're at something like a 10B token dataset you end up needing around 5K for
-    decent coverage. This is a significant percentage of your normal, say, 32K bpe vocab. To avoid that, we want lookup
-    tables between utf-8 bytes and unicode strings.
+    We specifically avoids mapping to whitespace/control characters the bpe code
+    barfs on.
+
+    The reversible bpe codes work on unicode strings. This means you need a
+    large # of unicode characters in your vocab if you want to avoid UNKs. When
+    you're at something like a 10B token dataset you end up needing around 5K
+    for decent coverage. This is a significant percentage of your normal, say,
+    32K bpe vocab. To avoid that, we want lookup tables between utf-8 bytes and
+    unicode strings.
     """
-    bs = (
-        list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
-    )
+    bs = (list(range(ord('!'),
+                     ord('~') + 1)) + list(range(ord('¡'),
+                                                 ord('¬') + 1)) +
+          list(range(ord('®'),
+                     ord('ÿ') + 1)))
     cs = bs[:]
     n = 0
     for b in range(2**8):
@@ -32,6 +37,7 @@ def bytes_to_unicode():
             n += 1
     cs = [chr(n) for n in cs]
     return dict(zip(bs, cs))
+
 
 class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     """A thin wrapper around tiktoken to make it compatible with Hugging Face.
@@ -125,7 +131,10 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 self.encoding.decode_single_token_bytes(i)
             except KeyError:
                 continue
-            decoding = ''.join([bytes_to_unicode()[ord(char)] for char in self.encoding.decode_single_token_bytes(i).decode('latin-1')])
+            decoding = ''.join([
+                bytes_to_unicode()[ord(char)] for char in
+                self.encoding.decode_single_token_bytes(i).decode('latin-1')
+            ])
             self.decoder[i] = decoding
 
         self.encoder = {}
@@ -180,7 +189,6 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         Note: This function does not work properly due to difference in assumptions between tiktoken and Hugging Face tokenizers.
         Most uses do not need to use get_vocab, so this is not a priority to fix.
         """
-
         return self.encoder
 
     def _tokenize(self, text: str) -> List[str]:
@@ -189,22 +197,25 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             raise ValueError(
                 f'Expected a string input to _tokenize but got {type(text)}.')
 
-        tokens = [self.decoder[t] for t in self.encoding.encode(text, allowed_special='all')]
-        
+        tokens = [
+            self.decoder[t]
+            for t in self.encoding.encode(text, allowed_special='all')
+        ]
+
         return tokens
 
-    def _convert_token_to_id(self, token):
+    def _convert_token_to_id(self, token: str):
         """Converts a token (str) in an id using the vocab."""
         return self.encoder.get(token, self.encoder.get(self.unk_token))
 
-    def _convert_id_to_token(self, index):
+    def _convert_id_to_token(self, index: int):
         """Converts an index (integer) in a token (str) using the vocab."""
         return self.decoder.get(index)
 
-    def convert_tokens_to_string(self, tokens):
+    def convert_tokens_to_string(self, tokens: List[str]):
         """Converts a sequence of tokens (string) in a single string."""
-        text = "".join(tokens)
-        text = bytearray([self.byte_decoder[c] for c in text]).decode("utf-8")
+        text = ''.join(tokens)
+        text = bytearray([self.byte_decoder[c] for c in text]).decode('utf-8')
         return text
 
     def build_inputs_with_special_tokens(

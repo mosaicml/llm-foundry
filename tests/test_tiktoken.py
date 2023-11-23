@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 import pytest
 import transformers
 
-from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper, bytes_to_unicode
+from llmfoundry.tokenizers.tiktoken import (TiktokenTokenizerWrapper,
+                                            bytes_to_unicode)
 from tests.horrible_strings import HORRIBLE_STRINGS
 from tests.test_hf_conversion_script import check_hf_tokenizer_equivalence
 
@@ -228,13 +229,16 @@ def test_tiktoken_vocab(model_name: Optional[str], encoding_name: Optional[str],
     reloaded_wrapped_vocab = reloaded_wrapped_tokenizer.get_vocab()
     assert wrapped_vocab == reloaded_wrapped_vocab
 
-    didnt_match = []
     for key, value in wrapped_vocab.items():
         # Skip checking the extra ids we pad the vocab with
         if key.startswith('<extra_id') and key.endswith('>'):
             continue
 
-        expected_decoding = ''.join([bytes_to_unicode()[ord(char)] for char in original_tokenizer.decode_single_token_bytes(value).decode('latin-1')])
+        expected_decoding = ''.join([
+            bytes_to_unicode()[ord(char)]
+            for char in original_tokenizer.decode_single_token_bytes(
+                value).decode('latin-1')
+        ])
         assert expected_decoding == key
 
 

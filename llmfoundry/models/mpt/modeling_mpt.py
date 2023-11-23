@@ -704,7 +704,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
         if self.lm_head is not None:
             logits = self.lm_head(outputs.last_hidden_state)
             print('outputs.hidden_states ',outputs.hidden_states)
-            print('hi')
             outputs.hidden_states = outputs.last_hidden_state # JP THIS IS A HACK
         else:
             # move outputs to same device as weights for token embedding

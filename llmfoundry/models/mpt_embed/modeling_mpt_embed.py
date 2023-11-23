@@ -19,7 +19,8 @@ from composer.metrics import (InContextLearningCodeEvalAccuracy,
                               InContextLearningLMExpectedCalibrationError,
                               InContextLearningMCExpectedCalibrationError,
                               InContextLearningMultipleChoiceAccuracy,
-                              InContextLearningQAAccuracy)
+                              InContextLearningQAAccuracy,
+                              LossMetric) # JP Added
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
@@ -120,8 +121,13 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         model = MPTForCausalLM(hf_config)
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
-        train_metrics = [LanguageCrossEntropy(),
-                         LanguagePerplexity()] if use_train_metrics else []
+        
+        # train_metrics = [LanguageCrossEntropy(),
+        #                  LanguagePerplexity()] if use_train_metrics else []
+
+        # JP Add
+        train_metrics = [LanguageCrossEntropy()] if use_train_metrics else []
+
         # JP: These metrics might not work for the contrastive loss
         # eval_metrics = [
         #     LanguageCrossEntropy(),
@@ -338,6 +344,12 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         scores, labels = self._compute_scores(batch)
                 
         loss = self.loss_fn(scores, labels)
+
+        self.labels = labels # JP Added, necessary for train metrics LanguageCrossEntropy
+        # Note that LanguageCrossEntropy() calculates loss with respect to logits
+        # e.g. losses = self.loss_fn(logits, target)
+        # This is different from how we are calculating the loss between the output vectors of query vs passage
+
         
         # Based on https://github.com/microsoft/unilm/blob/b60c741f746877293bb85eed6806736fc8fa0ffd/simlm/src/models/biencoder_model.py#L60C62-L60C62
         # We are scaling the loss by the world size because we think it will be divided by the world size in the backward pass

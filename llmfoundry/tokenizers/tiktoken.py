@@ -9,6 +9,8 @@ from transformers import PreTrainedTokenizer
 DEFAULT_SYSTEM_PROMPT = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
 
 
+# Taken from
+# https://github.com/huggingface/transformers/blob/8aca43bdb3cb9a5020f6d57589d85679dc873b1c/src/transformers/models/gpt2/tokenization_gpt2.py#L62-L84
 @lru_cache()
 def bytes_to_unicode():
     """Returns list of utf-8 byte and a mapping to unicode strings.
@@ -131,6 +133,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 self.encoding.decode_single_token_bytes(i)
             except KeyError:
                 continue
+            # Taken from
+            # https://gist.github.com/xenova/a452a6474428de0182b17605a98631ee
             decoding = ''.join([
                 bytes_to_unicode()[ord(char)] for char in
                 self.encoding.decode_single_token_bytes(i).decode('latin-1')

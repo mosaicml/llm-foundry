@@ -224,6 +224,7 @@ def extract_param_groups(
             for n, p in model.named_parameters():
                 if n in _str_match:
                     p.requires_grad = False
+                    log.debug(f'Setting `{n}.requires_grad = False`.')
 
     if 'param_groups' in optimizer_config.keys():
         params = []
@@ -243,6 +244,9 @@ def extract_param_groups(
         optimizer_config.pop('param_groups')
 
         params.insert(0, {'params': param_dict.values()})
+
+        log.debug(f'Optimizer param_groups: {params}.')
+
         return params
 
     return model.parameters()

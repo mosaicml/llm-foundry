@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 import pytest
 import transformers
 
-from llmfoundry import TiktokenTokenizerWrapper
+from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper, bytes_to_unicode
 from tests.horrible_strings import HORRIBLE_STRINGS
 from tests.test_hf_conversion_script import check_hf_tokenizer_equivalence
 
@@ -15,16 +15,16 @@ if TYPE_CHECKING:
     from tiktoken.core import Encoding
 
 TEST_STRINGS = [
-    # 'Hello world!', 'def hello_world(input: str):\n    print(input)',
-    # '0000000000000000000000000000',
-    # '19234324 asas sf 119aASDFM AW3RAW-AF;;9900', '\n\n\n\nhello\n\t',
-    # '            hello\n\t\\\\     goodbye!?*#&@!)     ',
-    # 'This is just a normal sentence. And here is another one!',
-    # 'hello<|endoftext|>world', 'hello <|endoftext|> world',
-    # 'hello <|endoftext|>', 'hello <|endoftext|> ', '<|endoftext}>',
-    # '<|endoftext}> ', ' <|endoftext|>',
-    # '<|endoftext|><|endoftext|><|endoftext|><|endoftext|>',
-    # '<|endoftext|> <|endoftext|> <|endoftext|> <|endoftext|>'
+    'Hello world!', 'def hello_world(input: str):\n    print(input)',
+    '0000000000000000000000000000',
+    '19234324 asas sf 119aASDFM AW3RAW-AF;;9900', '\n\n\n\nhello\n\t',
+    '            hello\n\t\\\\     goodbye!?*#&@!)     ',
+    'This is just a normal sentence. And here is another one!',
+    'hello<|endoftext|>world', 'hello <|endoftext|> world',
+    'hello <|endoftext|>', 'hello <|endoftext|> ', '<|endoftext}>',
+    '<|endoftext}> ', ' <|endoftext|>',
+    '<|endoftext|><|endoftext|><|endoftext|><|endoftext|>',
+    '<|endoftext|> <|endoftext|> <|endoftext|> <|endoftext|>'
 ]
 
 TEST_STRINGS += HORRIBLE_STRINGS
@@ -234,25 +234,8 @@ def test_tiktoken_vocab(model_name: Optional[str], encoding_name: Optional[str],
         if key.startswith('<extra_id') and key.endswith('>'):
             continue
 
-        if original_tokenizer.encode(key, allowed_special='all') == [value]:
-            continue
-        else:
-            didnt_match.append(
-                (key, original_tokenizer.encode(key,
-                                                allowed_special='all'), value))
-
-    # Decode is lossy because some bytes are not representable in utf-8
-    # see https://github.com/openai/tiktoken/blob/39f29cecdb6fc38d9a3434e5dd15e4de58cf3c80/tiktoken/core.py#L245-L247
-    # This means that the str: int vocab mapping doesn't work. Would have to look more into how other HF tokenizers handle this.
-    model_or_encoding_name = model_name or encoding_name
-    if model_or_encoding_name is not None:
-        expected_didnt_match = MODEL_OR_ENCODING_NAME_TO_NON_UTF8_TOKENS.get(
-            model_or_encoding_name)
-        assert len(didnt_match) == expected_didnt_match
-    else:
-        raise NotImplementedError(
-            'Add the new tokenizer and how many tokens in the vocab are not utf8 representable.'
-        )
+        expected_decoding = ''.join([bytes_to_unicode()[ord(char)] for char in original_tokenizer.decode_single_token_bytes(value).decode('latin-1')])
+        assert expected_decoding == key
 
 
 @pytest.mark.parametrize('model_name,encoding_name',

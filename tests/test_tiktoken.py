@@ -30,14 +30,6 @@ TEST_STRINGS = [
 
 TEST_STRINGS += HORRIBLE_STRINGS
 
-MODEL_OR_ENCODING_NAME_TO_NON_UTF8_TOKENS = {
-    'gpt-4': 77,
-    'gpt-3.5-turbo': 77,
-    'text-davinci-003': 14,
-    'gpt2': 14,
-    'cl100k_base': 77,
-}
-
 MODEL_ENCODING_NAME_PARAMETRIZATION = [
     ('gpt-4', None),
     ('gpt-3.5-turbo', None),

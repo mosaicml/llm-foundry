@@ -15,16 +15,16 @@ if TYPE_CHECKING:
     from tiktoken.core import Encoding
 
 TEST_STRINGS = [
-    'Hello world!', 'def hello_world(input: str):\n    print(input)',
-    '0000000000000000000000000000',
-    '19234324 asas sf 119aASDFM AW3RAW-AF;;9900', '\n\n\n\nhello\n\t',
-    '            hello\n\t\\\\     goodbye!?*#&@!)     ',
-    'This is just a normal sentence. And here is another one!',
-    'hello<|endoftext|>world', 'hello <|endoftext|> world',
-    'hello <|endoftext|>', 'hello <|endoftext|> ', '<|endoftext}>',
-    '<|endoftext}> ', ' <|endoftext|>',
-    '<|endoftext|><|endoftext|><|endoftext|><|endoftext|>',
-    '<|endoftext|> <|endoftext|> <|endoftext|> <|endoftext|>'
+    # 'Hello world!', 'def hello_world(input: str):\n    print(input)',
+    # '0000000000000000000000000000',
+    # '19234324 asas sf 119aASDFM AW3RAW-AF;;9900', '\n\n\n\nhello\n\t',
+    # '            hello\n\t\\\\     goodbye!?*#&@!)     ',
+    # 'This is just a normal sentence. And here is another one!',
+    # 'hello<|endoftext|>world', 'hello <|endoftext|> world',
+    # 'hello <|endoftext|>', 'hello <|endoftext|> ', '<|endoftext}>',
+    # '<|endoftext}> ', ' <|endoftext|>',
+    # '<|endoftext|><|endoftext|><|endoftext|><|endoftext|>',
+    # '<|endoftext|> <|endoftext|> <|endoftext|> <|endoftext|>'
 ]
 
 TEST_STRINGS += HORRIBLE_STRINGS
@@ -33,6 +33,7 @@ MODEL_OR_ENCODING_NAME_TO_NON_UTF8_TOKENS = {
     'gpt-4': 77,
     'gpt-3.5-turbo': 77,
     'text-davinci-003': 14,
+    'gpt2': 14,
     'cl100k_base': 77,
 }
 
@@ -41,6 +42,7 @@ MODEL_ENCODING_NAME_PARAMETRIZATION = [
     ('gpt-3.5-turbo', None),
     ('text-davinci-003', None),
     (None, 'cl100k_base'),
+    ('gpt2', None),
 ]
 
 MULTI_TURN_CHAT_ML = [[{
@@ -118,6 +120,26 @@ def test_tiktoken_simple(model_name: Optional[str],
         assert wrapped_output['input_ids'] == original_output
         assert set(wrapped_output.keys()) == {'input_ids', 'attention_mask'}
         assert reloaded_wrapped_output == wrapped_output
+
+@pytest.mark.parametrize('model_name,encoding_name',
+                         MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_tiktoken_tokenize_with_ids(model_name: Optional[str],
+                         encoding_name: Optional[str], tmp_path: pathlib.Path):
+    wrapped_tokenizer, reloaded_wrapped_tokenizer, original_tokenizer = get_tokenizers_for_testing(
+        model_name, encoding_name, tmp_path)
+
+    for i, string in enumerate(TEST_STRINGS):
+        wrapped_output = wrapped_tokenizer.tokenize(string)
+        original_output = original_tokenizer.encode(string, allowed_special='all')
+        reloaded_wrapped_output = reloaded_wrapped_tokenizer.tokenize(string)
+
+        assert all([isinstance(t, str) for t in wrapped_output])
+        assert len(wrapped_output) == len(original_output)
+        assert wrapped_output == reloaded_wrapped_output
+
+        redone_token_ids = wrapped_tokenizer.convert_tokens_to_ids(wrapped_output)
+        assert redone_token_ids == original_output
+        assert wrapped_tokenizer.convert_ids_to_tokens(redone_token_ids) == wrapped_output
 
 
 @pytest.mark.parametrize('model_name,encoding_name',

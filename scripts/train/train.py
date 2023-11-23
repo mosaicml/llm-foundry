@@ -637,6 +637,9 @@ def main(cfg: DictConfig) -> Trainer:
         trainer.eval()
 
     print('Starting training...')
+    print('model.n_active_params ',model.n_active_params)
+    print('model_config.tie_word_embeddings ',model_config.tie_word_embeddings)
+    print('model_config.vocab_size ',model_config.vocab_size)
     trainer.fit()
 
     print('Done.')

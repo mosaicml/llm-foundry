@@ -269,7 +269,7 @@ class MPTModel(MPTPreTrainedModel):
         # flash does not support prefix_lm and will incorporate any
         # attention_mask inside the attention module
         if self.attn_impl == 'flash':
-            print(attention_mask) # JP ADDED
+            print('attention_mask shape in modeling_mpt.py', attention_mask.shape) # JP ADDED
             return self.attn_bias, attention_mask
 
         if self.attn_bias is not None:
@@ -703,15 +703,16 @@ class MPTForCausalLM(MPTPreTrainedModel):
         print('self.lm_head ',self.lm_head)
         if self.lm_head is not None:
             logits = self.lm_head(outputs.last_hidden_state)
-            print('outputs.hidden_states ',outputs.hidden_states)
+            
             outputs.hidden_states = outputs.last_hidden_state # JP THIS IS A HACK
+            print('outputs.hidden_states.shape',outputs.hidden_states.shape)
         else:
             # move outputs to same device as weights for token embedding
             # needed to support HF `device_map`
             out = outputs.last_hidden_state
             out = out.to(self.transformer.wte.weight.device).long() # JP Added .long
             # JP Added
-            print(out)
+            #print(out)
             print('out.shape ',out.shape)
             
             # shouldn't this be self.transformer.wte(out, unembed=True)? For some reason I'm running into an error

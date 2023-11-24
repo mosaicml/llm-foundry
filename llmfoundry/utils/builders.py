@@ -170,7 +170,7 @@ def _extract_param_groups(
     defines a string; if a parameter name contains this string, then it will be
     in this parameter group. This is useful for grouping parameters together.
     The dict can also contain any other key that is a valid optimizer arg.
-    Note: to handle name overlap conflics, params are assiged to parameter
+    Note: to handle name overlap conflicts, params are assigned to parameter
     groups and added to `param_groups` in the order that `param_str_match` appear
     in `param_groups`.
 
@@ -188,7 +188,7 @@ def _extract_param_groups(
     ```
 
     To create modify the optimizer parameters for all parameters that contain the
-    string "norm" and "bias" seperately:
+    string "norm" and "bias" separately:
     ```
     optimizer_config: {
         "name": "decoupled_lionw",

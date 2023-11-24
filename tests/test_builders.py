@@ -133,7 +133,7 @@ class _DummyModule(nn.Module):
     ('decoupled_lionw', {}),
     ('clip_lion', {}),
     ('adalr_lion', {}),
-    ('decoupled_lionw_8b', {}),
+    pytest.param('decoupled_lionw_8b', {}, marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('opt_additional_config', [
     {

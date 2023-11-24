@@ -156,7 +156,7 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
         raise ValueError(f'Not sure how to build algorithm: {name}')
 
 
-def extract_param_groups(
+def _extract_param_groups(
     model: torch.nn.Module,
     optimizer_config: Dict[str, Any],
 ) -> Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]:
@@ -170,6 +170,9 @@ def extract_param_groups(
     defines a string; if a parameter name contains this string, then it will be
     in this parameter group. This is useful for grouping parameters together.
     The dict can also contain any other key that is a valid optimizer arg.
+    Note: to handle name overlap conflics, params are assiged to parameter
+    groups and added to `param_groups` in the order that `param_str_match` appear
+    in `param_groups`.
 
     Usage
     To disable gradient for all parameters that contain the string "norm" or "bias":
@@ -222,7 +225,7 @@ def extract_param_groups(
             str_match = [str_match]
         for _str_match in str_match:
             for n, p in model.named_parameters():
-                if n in _str_match:
+                if _str_match in n:
                     p.requires_grad = False
                     log.debug(f'Setting `{n}.requires_grad = False`.')
 
@@ -255,7 +258,7 @@ def extract_param_groups(
 def build_optimizer(model: torch.nn.Module, name: str,
                     optimizer_config: Dict[str, Any]) -> Optimizer:
 
-    params = extract_param_groups(model, optimizer_config)
+    params = _extract_param_groups(model, optimizer_config)
 
     if name == 'decoupled_adamw':
         return DecoupledAdamW(params, **optimizer_config)

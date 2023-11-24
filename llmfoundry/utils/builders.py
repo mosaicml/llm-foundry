@@ -1,8 +1,10 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import functools
 import logging
 import os
+import re
 import warnings
 from collections import OrderedDict
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
@@ -220,12 +222,12 @@ def _extract_param_groups(
             torch.Tensor's or dict's. Specifies what Tensors should be optimized.
     """
     if 'disable_grad' in optimizer_config.keys():
-        str_match = optimizer_config.pop('disable_grad')
-        if isinstance(str_match, str):
-            str_match = [str_match]
-        for _str_match in str_match:
+        str_matches = optimizer_config.pop('disable_grad')
+        if isinstance(str_matches, str):
+            str_matches = [str_matches]
+        for str_match in str_matches:
             for n, p in model.named_parameters():
-                if _str_match in n:
+                if re.search(str_match, n):
                     p.requires_grad = False
                     log.debug(f'Setting `{n}.requires_grad = False`.')
 
@@ -235,11 +237,9 @@ def _extract_param_groups(
 
         for param_group_config in optimizer_config['param_groups']:
             str_match = param_group_config.pop('param_str_match')
-            group_param_names = [n for n in param_dict.keys() if str_match in n]
-            _params = []
-            for n in group_param_names:
-                _params.append(param_dict.pop(n))
-            group_params = {'params': _params}
+            filter_fn = functools.partial(re.search, str_match)
+            param_names = [n for n in param_dict.keys() if filter_fn(n)]
+            group_params = {'params': [param_dict.pop(n) for n in param_names]}
             group_params.update(param_group_config)
 
             params.append(group_params)

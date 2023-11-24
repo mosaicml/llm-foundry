@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import re
 import unittest.mock as mock
 from copy import deepcopy
 from typing import Any, Dict, Union
@@ -170,7 +171,7 @@ def test_build_optimizer(name: str, optimizer_config: Dict[str, Any],
             disable_grad = [disable_grad]
         for n, p in model.named_parameters():
             for k in disable_grad:
-                if k in n:
+                if re.search(k, n):
                     assert not p.requires_grad
 
     if 'param_groups' in opt_additional_config.keys():
@@ -185,5 +186,5 @@ def test_build_optimizer(name: str, optimizer_config: Dict[str, Any],
 
             param_ids = [id(p) for p in param_group['params']]
             for n, p in model.named_parameters():
-                if param_str_match in n:
+                if re.search(param_str_match, n):
                     assert id(p) in param_ids

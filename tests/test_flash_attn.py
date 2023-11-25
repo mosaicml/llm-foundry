@@ -45,8 +45,7 @@ def test_gqa_kv_repetition(kv_n_heads: int):
                                    training=False,
                                    needs_weights=False,
                                    multiquery=False,
-                                   key_attention_mask_in_length=None,
-                                   query_attention_mask_in_length=None,
+                                   attention_mask_in_length=None,
                                    should_repeat_kv_for_gqa=True)
 
     output_1.sum().backward()
@@ -72,8 +71,7 @@ def test_gqa_kv_repetition(kv_n_heads: int):
                                    training=False,
                                    needs_weights=False,
                                    multiquery=False,
-                                   key_attention_mask_in_length=None,
-                                   query_attention_mask_in_length=None,
+                                   attention_mask_in_length=None,
                                    should_repeat_kv_for_gqa=False)
 
     output_2.sum().backward()
@@ -107,12 +105,9 @@ def test_seq_id_masking_FA_v2():
     seq_ranges = [
         (0, 3), (3, 5), (5, 6)
     ]  # Each batch has 3 sequences of length 3, 2, and 1 respectively.
-    query_attention_mask_in_length_1 = torch.tensor([[3, 2, 1, 0, 0, 0],
-                                                     [3, 2, 1, 0, 0, 0]
-                                                    ]).to(torch.int64).cuda()
-    key_attention_mask_in_length_1 = torch.tensor([[3, 2, 1, 0, 0, 0],
-                                                   [3, 2, 1, 0, 0,
-                                                    0]]).to(torch.int64).cuda()
+    attention_mask_in_length_1 = torch.tensor([[3, 2, 1, 0, 0, 0],
+                                               [3, 2, 1, 0, 0,
+                                                0]]).to(torch.int64).cuda()
 
     output_1, _, _ = flash_attn_fn(
         query=query_1,
@@ -129,8 +124,7 @@ def test_seq_id_masking_FA_v2():
         training=False,
         needs_weights=False,
         multiquery=False,
-        key_attention_mask_in_length=key_attention_mask_in_length_1,
-        query_attention_mask_in_length=query_attention_mask_in_length_1)
+        attention_mask_in_length=attention_mask_in_length_1)
 
     output_1.sum().backward()
 
@@ -156,8 +150,7 @@ def test_seq_id_masking_FA_v2():
                                        training=False,
                                        needs_weights=False,
                                        multiquery=False,
-                                       key_attention_mask_in_length=None,
-                                       query_attention_mask_in_length=None)
+                                       attention_mask_in_length=None)
 
         output_2.sum().backward()
         assert torch.allclose(output_1[:, seq_range[0]:seq_range[1], :],
@@ -212,8 +205,7 @@ def test_sliding_window(sliding_window_size: int):
                                    training=False,
                                    needs_weights=False,
                                    multiquery=False,
-                                   key_attention_mask_in_length=None,
-                                   query_attention_mask_in_length=None,
+                                   attention_mask_in_length=None,
                                    should_repeat_kv_for_gqa=True,
                                    sliding_window_size=sliding_window_size)
 
@@ -247,8 +239,7 @@ def test_sliding_window(sliding_window_size: int):
                                           training=False,
                                           needs_weights=False,
                                           multiquery=False,
-                                          key_attention_mask_in_length=None,
-                                          query_attention_mask_in_length=None,
+                                          attention_mask_in_length=None,
                                           should_repeat_kv_for_gqa=False,
                                           sliding_window_size=-1)
 

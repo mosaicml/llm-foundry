@@ -140,28 +140,19 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
     # In case of left padding:
     # 1. Training with left padding is not supported in MPT (see https://github.com/mosaicml/llm-foundry/blob/1eecd4cb8e734499f77f6a35f657b8b20c0adfcb/llmfoundry/models/mpt/modeling_mpt.py#L407).
     # 2. For generation with left padding, we only have a single sequence id per sample, so we don't need sequence id based sparse attention.
-    query_attention_mask_in_length = None
-    key_attention_mask_in_length = None
+    attention_mask_in_length = None
     left_padding = (attention_mask is not None) and (attention_mask[:, 0].sum()
                                                      != attention_mask.shape[0])
     if (not left_padding) and (
             sequence_id is not None) and attn_uses_sequence_id and (attn_impl
                                                                     == 'flash'):
+        assert S == sequence_id.shape[-1]
         if attention_mask is not None:
             sequence_id = sequence_id.masked_fill(~attention_mask, S)
-        query_attention_mask_in_length = torch.nn.functional.one_hot(
-            sequence_id[:, -S:], num_classes=S + 1).sum(dim=1)[:, :-1]
-        # We use S as the number of classes while creating key_attention_mask_in_length instead of sequence_id.shape[-1]
-        # because in case of inference, sequence_id.shape[-1] can become very large. In that case, the one_hot vectors
-        # would've become very large as well.
-        key_attention_mask_in_length = torch.nn.functional.one_hot(
+        attention_mask_in_length = torch.nn.functional.one_hot(
             sequence_id, num_classes=S + 1).sum(dim=1)[:, :-1]
-        # Since Flash Attention expects the masks to have same shape as the keys, we pad it with zeros.
-        key_attention_mask_in_length = torch.nn.functional.pad(
-            key_attention_mask_in_length, (0, sequence_id.shape[-1] - S),
-            value=0)
 
-    return query_attention_mask_in_length, key_attention_mask_in_length
+    return attention_mask_in_length
 
 
 def apply_sequence_id(attn_bias: torch.Tensor, sequence_id: torch.LongTensor,
@@ -543,7 +534,7 @@ class MPTModel(MPTPreTrainedModel):
             prefix_mask=prefix_mask,
             sequence_id=sequence_id,
         )
-        query_attention_mask_in_length, key_attention_mask_in_length = gen_attention_mask_in_length(
+        attention_mask_in_length = gen_attention_mask_in_length(
             sequence_id=sequence_id,
             S=S,
             attn_uses_sequence_id=self.attn_uses_sequence_id,
@@ -571,8 +562,7 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
-                query_attention_mask_in_length=query_attention_mask_in_length,
-                key_attention_mask_in_length=key_attention_mask_in_length,
+                attention_mask_in_length=attention_mask_in_length,
             )
             if presents is not None:
                 presents += (present,)

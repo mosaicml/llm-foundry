@@ -157,13 +157,13 @@ def test_attn_impl(attn_impl_0: str,
 
         return attn_bias
 
-    query_attention_mask_in_length_0, key_attention_mask_in_length_0 = gen_attention_mask_in_length(
+    attention_mask_in_length_0 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
         attn_impl=attn_impl_0,
         attention_mask=attention_mask)
-    query_attention_mask_in_length_1, key_attention_mask_in_length_1 = gen_attention_mask_in_length(
+    attention_mask_in_length_1 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
@@ -204,25 +204,21 @@ def test_attn_impl(attn_impl_0: str,
                     s,
             }
 
-        y0, _, _ = attn0(
-            x0,
-            past_key_value=None,
-            attn_bias=attn_bias,
-            attention_mask=attention_mask,
-            rotary_emb_w_meta_info=rotary_emb_w_meta_info,
-            is_causal=True,
-            query_attention_mask_in_length=query_attention_mask_in_length_0,
-            key_attention_mask_in_length=key_attention_mask_in_length_0)
+        y0, _, _ = attn0(x0,
+                         past_key_value=None,
+                         attn_bias=attn_bias,
+                         attention_mask=attention_mask,
+                         rotary_emb_w_meta_info=rotary_emb_w_meta_info,
+                         is_causal=True,
+                         attention_mask_in_length=attention_mask_in_length_0)
         attn_bias = gen_bias(attn_impl_1)
-        y1, _, _ = attn1(
-            x1,
-            past_key_value=None,
-            attn_bias=attn_bias,
-            attention_mask=attention_mask,
-            rotary_emb_w_meta_info=rotary_emb_w_meta_info,
-            is_causal=True,
-            query_attention_mask_in_length=query_attention_mask_in_length_1,
-            key_attention_mask_in_length=key_attention_mask_in_length_1)
+        y1, _, _ = attn1(x1,
+                         past_key_value=None,
+                         attn_bias=attn_bias,
+                         attention_mask=attention_mask,
+                         rotary_emb_w_meta_info=rotary_emb_w_meta_info,
+                         is_causal=True,
+                         attention_mask_in_length=attention_mask_in_length_1)
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)
 

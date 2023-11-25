@@ -90,13 +90,12 @@ def scaled_multihead_dot_product_attention(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-    query_attention_mask_in_length: Optional[torch.Tensor] = None,
-    key_attention_mask_in_length: Optional[torch.Tensor] = None,
+    attention_mask_in_length: Optional[torch.Tensor] = None,
     should_repeat_kv_for_gqa: Optional[bool] = True,
     sliding_window_size: int = -1,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-    del query_attention_mask_in_length, key_attention_mask_in_length, should_repeat_kv_for_gqa, sliding_window_size
+    del attention_mask_in_length, should_repeat_kv_for_gqa, sliding_window_size
 
     if multiquery:
         warnings.warn(
@@ -224,8 +223,7 @@ def flash_attn_fn(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-    key_attention_mask_in_length: Optional[torch.Tensor] = None,
-    query_attention_mask_in_length: Optional[torch.Tensor] = None,
+    attention_mask_in_length: Optional[torch.Tensor] = None,
     should_repeat_kv_for_gqa: Optional[bool] = True,
     sliding_window_size: int = -1,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
@@ -269,7 +267,7 @@ def flash_attn_fn(
 
     batch_size, seqlen = query.shape[:2]
 
-    if query_attention_mask_in_length is None:
+    if attention_mask_in_length is None:
         if key_padding_mask is None:
             key_padding_mask = torch.ones_like(key[:, :, 0], dtype=torch.bool)
         query_padding_mask = key_padding_mask[:, -query.size(1):]
@@ -287,20 +285,16 @@ def flash_attn_fn(
                                 'nnz (h d) -> nnz h d',
                                 h=kv_n_heads)
     else:
-        if key_attention_mask_in_length is None:
-            raise ValueError(
-                'key_attention_mask_in_length must not be None if query_attention_mask_in_length is not None.'
-            )
         query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = bert_padding.unpad_input_for_concatenated_sequences(
-            query, query_attention_mask_in_length)
+            query, attention_mask_in_length)
         query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
 
         key_unpad, _, cu_seqlens_k, max_seqlen_k = bert_padding.unpad_input_for_concatenated_sequences(
-            key, key_attention_mask_in_length)
+            key, attention_mask_in_length)
         key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
         value_unpad, _, _, _ = bert_padding.unpad_input_for_concatenated_sequences(
-            value, key_attention_mask_in_length)
+            value, attention_mask_in_length)
         value_unpad = rearrange(value_unpad,
                                 'nnz (h d) -> nnz h d',
                                 h=kv_n_heads)
@@ -389,13 +383,12 @@ def triton_flash_attn_fn(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-    query_attention_mask_in_length: Optional[torch.Tensor] = None,
-    key_attention_mask_in_length: Optional[torch.Tensor] = None,
+    attention_mask_in_length: Optional[torch.Tensor] = None,
     should_repeat_kv_for_gqa: Optional[bool] = True,
     sliding_window_size: int = -1,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-    del query_attention_mask_in_length, key_attention_mask_in_length, should_repeat_kv_for_gqa, sliding_window_size
+    del attention_mask_in_length, should_repeat_kv_for_gqa, sliding_window_size
     try:
         from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
     except:
@@ -608,8 +601,7 @@ class GroupedQueryAttention(nn.Module):
         rotary_emb_w_meta_info: Optional[dict] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
-        query_attention_mask_in_length: Optional[torch.Tensor] = None,
-        key_attention_mask_in_length: Optional[torch.Tensor] = None,
+        attention_mask_in_length: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
             torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
@@ -681,8 +673,7 @@ class GroupedQueryAttention(nn.Module):
             dropout_p=self.attn_dropout_p,
             training=self.training,
             needs_weights=needs_weights,
-            query_attention_mask_in_length=query_attention_mask_in_length,
-            key_attention_mask_in_length=key_attention_mask_in_length,
+            attention_mask_in_length=attention_mask_in_length,
             should_repeat_kv_for_gqa=not is_flash_v2_installed(),
             sliding_window_size=self.sliding_window_size,
         )

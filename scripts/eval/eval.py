@@ -334,9 +334,8 @@ def main(cfg: DictConfig):
         if eval_gauntlet_df is not None and eval_gauntlet_callback is not None:
             assert composite_scores is not None
             row = {'model_name': model_cfg['model_name']}
-            row.update({
-                k.split('/')[-1]: v for k, v in composite_scores.items()
-            })
+            row.update(
+                {k.split('/')[-1]: v for k, v in composite_scores.items()})
             eval_gauntlet_df = pd.concat(
                 [eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
 

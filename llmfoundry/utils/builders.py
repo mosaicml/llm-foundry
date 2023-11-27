@@ -42,22 +42,26 @@ log = logging.getLogger(__name__)
 
 
 def build_eval_loader(
-    eval_loader_config: DictConfig,
+    eval_loader_config: Union[DictConfig, ListConfig],
     model: Union[Any, ComposerHFCausalLM],
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
-) -> Evaluator:
+) -> List[Evaluator]:
     assert model.train_metrics is not None
     eval_metric_names = list(model.train_metrics.keys())
 
-    evaluators = []
+    evaluators: List[Evaluator] = []
+    if isinstance(eval_loader_config, ListConfig):
+        eval_configs: ListConfig = eval_configs
+        is_multi_eval = True
+    else:
+        eval_configs = ListConfig([eval_loader_config])
+        is_multi_eval = False
 
-    is_multi_eval = isinstance(eval_loader_config, ListConfig)
-    eval_configs = eval_loader_config if is_multi_eval else [eval_loader_config]
     for eval_config in eval_configs:
         eval_dataloader = build_dataloader(eval_config, tokenizer,
                                            device_eval_batch_size)
-        eval_loader = Evaluator(
+        eval_loader: Evaluator = Evaluator(
             label=f'eval/{eval_config.label}' if is_multi_eval else 'eval',
             dataloader=eval_dataloader,
             metric_names=eval_metric_names,
@@ -220,8 +224,8 @@ def build_tokenizer(
 
     signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
 
-    if dist.is_available() and dist.is_initialized() and dist.get_world_size(
-    ) > 1:
+    if dist.is_available() and dist.is_initialized(
+    ) and dist.get_world_size() > 1:
         # Make sure the tokenizer files are downloaded and cached first by local rank 0
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             pass
@@ -240,8 +244,8 @@ def build_tokenizer(
             int(1e30),
         )
 
-    if dist.is_available() and dist.is_initialized() and dist.get_world_size(
-    ) > 1:
+    if dist.is_available() and dist.is_initialized(
+    ) and dist.get_world_size() > 1:
         if dist.get_local_rank() == 0:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_tokenizer_setup')

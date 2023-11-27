@@ -18,11 +18,8 @@ LOADER_NAME_TO_FUNCTION = {
 }
 
 
-def build_dataloader(
-    cfg: DictConfig,
-    tokenizer: PreTrainedTokenizerBase,
-    device_batch_size: int,
-) -> DataSpec:
+def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+                     device_batch_size: int) -> DataSpec:
     """Builds a dataloader from a config.
 
     Args:
@@ -33,7 +30,7 @@ def build_dataloader(
     """
 
     if cfg.name not in LOADER_NAME_TO_FUNCTION:
-        allowed = ", ".join(LOADER_NAME_TO_FUNCTION.keys())
+        allowed = ', '.join(LOADER_NAME_TO_FUNCTION.keys())
         raise ValueError(f'Expected dataloader name to be one of {allowed}' +
                          f' but found name "{cfg.name}" in config: {cfg}')
 

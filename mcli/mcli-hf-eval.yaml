@@ -14,9 +14,9 @@ command: |
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: output-logger-test
-gpu_num: 8
-gpu_type: a100_80gb
-cluster: r1z1 # replace with your cluster here!
+gpu_num: 32
+gpu_type: a100_40gb
+cluster: r7z2 # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
@@ -30,19 +30,19 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: meta-llama/Llama-2-70b-chat-hf
     # Tokenizer
     tokenizer:
-      name:  mosaicml/mpt-7b-instruct
+      name: meta-llama/Llama-2-70b-chat-hf
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path:  mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path: meta-llama/Llama-2-70b-chat-hf
       init_device: mixed
       pretrained: true
-      use_auth_token: false
+      use_auth_token: true
 
   # FSDP config for model sharding
   fsdp_config:
@@ -55,13 +55,12 @@ parameters:
   icl_tasks:
   -
     label: jeopardy
-    dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
-    num_fewshot: [10]
-    icl_task_type: language_modeling
-    continuation_delimiter: "\nAnswer: " # this separates questions from answers
+    dataset_uri: eval/local_data/topv2_small.jsonl # ADD YOUR OWN DATASET URI
+    num_fewshot: [5]
+    icl_task_type: question_answering
     has_categories: true
   callbacks:
     eval_output_logging:
       subset_sample: -1
-      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_7b
+      output_directory: s3://mosaicml-internal-checkpoints-test/llama_70b_topv2_small
 

@@ -27,6 +27,7 @@ from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from llmfoundry import ComposerHFCausalLM
 from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
                                   HuggingFaceCheckpointer, LayerFreezing,
                                   MonolithicCheckpointSaver,
@@ -42,9 +43,13 @@ log = logging.getLogger(__name__)
 
 def build_eval_loader(
     eval_loader_config: DictConfig,
+    model: Union[Any, ComposerHFCausalLM],
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
 ) -> Evaluator:
+    assert model.train_metrics is not None
+    eval_metric_names = list(model.train_metrics.keys())
+
     evaluators = []
 
     is_multi_eval = isinstance(eval_loader_config, ListConfig)
@@ -52,13 +57,10 @@ def build_eval_loader(
     for eval_config in eval_configs:
         eval_dataloader = build_dataloader(eval_config, tokenizer,
                                            device_eval_batch_size)
-
-        # For training, metrics are added after the model is created
-        # For eval, we'll use Evaluator's default, which is to use what's
-        # returned by model.get_metrics()
         eval_loader = Evaluator(
             label=f'eval/{eval_config.label}' if is_multi_eval else 'eval',
             dataloader=eval_dataloader,
+            metric_names=eval_metric_names,
         )
         evaluators.append(eval_loader)
     return evaluators
@@ -218,8 +220,8 @@ def build_tokenizer(
 
     signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
 
-    if dist.is_available() and dist.is_initialized(
-    ) and dist.get_world_size() > 1:
+    if dist.is_available() and dist.is_initialized() and dist.get_world_size(
+    ) > 1:
         # Make sure the tokenizer files are downloaded and cached first by local rank 0
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             pass
@@ -238,8 +240,8 @@ def build_tokenizer(
             int(1e30),
         )
 
-    if dist.is_available() and dist.is_initialized(
-    ) and dist.get_world_size() > 1:
+    if dist.is_available() and dist.is_initialized() and dist.get_world_size(
+    ) > 1:
         if dist.get_local_rank() == 0:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_tokenizer_setup')

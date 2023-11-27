@@ -28,7 +28,7 @@ from llmfoundry.utils.config_utils import pop_config, process_init_device
 
 
 def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-                    num_retries: int) -> Optional[ComposerModel]:
+                    num_retries: int) -> ComposerModel:
     try:
         from peft import PeftModel
     except ImportError as e:
@@ -44,7 +44,8 @@ def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
     }
 
     retries = 0
-    while retries < num_retries:
+    composer_model_wrapper = None
+    while retries < num_retries and composer_model_wrapper is None:
         try:
             trust_remote_code = model_cfg.get('trust_remote_code', True)
             use_auth_token = model_cfg.get('use_auth_token', False)
@@ -59,7 +60,6 @@ def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
 
             composer_model_wrapper = COMPOSER_MODEL_REGISTRY[model_cfg.name](
                 peft_model, tokenizer)
-            return composer_model_wrapper
         except Exception as e:
             retries += 1
             if retries >= num_retries:
@@ -69,19 +69,21 @@ def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
                 )
 
+    assert composer_model_wrapper is not None
+    return composer_model_wrapper
+
 
 def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-               fsdp_config: Optional[Dict],
-               num_retries: int) -> Optional[ComposerModel]:
+               fsdp_config: Optional[Dict], num_retries: int) -> ComposerModel:
     init_context = process_init_device(model_cfg, fsdp_config)
 
     retries = 0
+    composer_model = None
     with init_context:
-        while retries < num_retries:
+        while retries < num_retries and composer_model is None:
             try:
                 composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](
                     model_cfg, tokenizer)
-                return composer_model
             except Exception as e:
                 retries += 1
                 if retries >= num_retries:
@@ -90,6 +92,9 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     print(
                         f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
                     )
+
+    assert composer_model is not None
+    return composer_model
 
 
 def evaluate_model(
@@ -124,11 +129,6 @@ def evaluate_model(
         icl_tasks, eval_gauntlet_config, tokenizer, device_eval_batch_size,
         max_seq_len, icl_subset_num_batches)
 
-    if eval_loader_config is not None:
-        loader_evaluators = build_eval_loader(eval_loader_config, tokenizer,
-                                              device_eval_batch_size)
-        evaluators.extend(loader_evaluators)
-
     callbacks = []
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
@@ -149,6 +149,15 @@ def evaluate_model(
     else:
         composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
                                     num_retries)
+
+    if eval_loader_config is not None:
+        loader_evaluators = build_eval_loader(
+            eval_loader_config,
+            composer_model,
+            tokenizer,
+            device_eval_batch_size,
+        )
+        evaluators.extend(loader_evaluators)
 
     if eval_gauntlet_df is None and eval_gauntlet_callback is not None:
         eval_gauntlet_df = pd.DataFrame(
@@ -325,8 +334,9 @@ def main(cfg: DictConfig):
         if eval_gauntlet_df is not None and eval_gauntlet_callback is not None:
             assert composite_scores is not None
             row = {'model_name': model_cfg['model_name']}
-            row.update(
-                {k.split('/')[-1]: v for k, v in composite_scores.items()})
+            row.update({
+                k.split('/')[-1]: v for k, v in composite_scores.items()
+            })
             eval_gauntlet_df = pd.concat(
                 [eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
 

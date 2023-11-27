@@ -54,11 +54,12 @@ parameters:
 
   icl_tasks:
   -
-    label: jeopardy
+    label: topv2
     dataset_uri: eval/local_data/topv2_small.jsonl # ADD YOUR OWN DATASET URI
     num_fewshot: [5]
     icl_task_type: question_answering
     has_categories: true
+    continuation_delimiter: "\nParse: "
   callbacks:
     eval_output_logging:
       subset_sample: -1

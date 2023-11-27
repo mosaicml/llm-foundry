@@ -8,7 +8,6 @@ import time
 import warnings
 from typing import Any, Dict, List, Optional, Union
 from composer.core.callback import Callback
-from composer.callbacks import EvalOutputLogging
 import pandas as pd
 import torch
 from composer.loggers.logger_destination import LoggerDestination

@@ -1,8 +1,0 @@
-{"context": "Utterance: Will it rain tomorrow?", "answer": "[IN:GET_WEATHER Will it [SL:WEATHER_ATTRIBUTE rain ] [SL:DATE_TIME tomorrow ] ? ]", "category": "weather"}
-{"context": "Utterance: Tell me the local weather.", "answer": "[IN:GET_WEATHER Tell me the local weather . ]", "category": "weather"}
-{"context": "Utterance: Is there a lightning delay?", "answer": "[IN:GET_WEATHER Is there a [SL:WEATHER_ATTRIBUTE lightning delay ] ? ]", "category": "weather"}
-{"context": "Utterance: Do I need rain gear?", "answer": "[IN:GET_WEATHER Do I need [SL:WEATHER_ATTRIBUTE rain gear ] ? ]", "category": "weather"}
-{"context": "Utterance: find out what they are forecasting for Friday", "answer": "[IN:GET_WEATHER find out what they are forecasting [SL:DATE_TIME for Friday ] ]", "category": "reminder"}
-{"context": "Utterance: show me what you are forecasting for Sunday", "answer": "[IN:GET_WEATHER show me what you are forecasting [SL:DATE_TIME for Sunday ] ]", "category": "reminder"}
-{"context": "Utterance: this Tuesday what are you forecasting", "answer": "[IN:GET_WEATHER [SL:DATE_TIME this Tuesday ] what are you forecasting ]", "category": "reminder"}
-{"context": "Utterance: next week what are you forecasting for me", "answer": "[IN:GET_WEATHER [SL:DATE_TIME next week ] what are you forecasting for me ]", "category": "reminder"}

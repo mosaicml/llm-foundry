@@ -138,7 +138,7 @@ async def main(args: Namespace) -> None:
         data['prompt'] = prompts
         api_key = os.environ.get(ENDPOINT_API_KEY_ENV, '')
         if not api_key:
-            log.warn('API key not set in {ENDPOINT_API_KEY_ENV}')
+            log.warning(f'API key not set in {ENDPOINT_API_KEY_ENV}')
         headers = {"Authorization": api_key, "Content-Type": "application/json"}
 
         req_start = time.time()

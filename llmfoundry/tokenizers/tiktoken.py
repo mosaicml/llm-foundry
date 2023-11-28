@@ -127,7 +127,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         self.byte_encoder = bytes_to_unicode()
         self.byte_decoder = {v: k for k, v in self.byte_encoder.items()}
 
-        self.decoder = {}
+        self.decoder: Dict[int, str] = {}
         for i in range(self.encoding.n_vocab):
             try:
                 self.encoding.decode_single_token_bytes(i)
@@ -141,7 +141,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             ])
             self.decoder[i] = decoding
 
-        self.encoder = {}
+        self.encoder: Dict[str, int] = {}
         for i in range(self.encoding.n_vocab):
             if i in self.decoder:
                 self.encoder[self.decoder[i]] = i
@@ -227,15 +227,15 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
         return tokens
 
-    def _convert_token_to_id(self, token: str):
+    def _convert_token_to_id(self, token: str) -> Optional[int]:
         """Converts a token (str) in an id using the vocab."""
         return self.encoder.get(token, self.encoder.get(self.unk_token))
 
-    def _convert_id_to_token(self, index: int):
+    def _convert_id_to_token(self, index: int) -> Optional[str]:
         """Converts an index (integer) in a token (str) using the vocab."""
         return self.decoder.get(index)
 
-    def convert_tokens_to_string(self, tokens: List[str]):
+    def convert_tokens_to_string(self, tokens: List[str]) -> str:
         """Converts a sequence of tokens (string) in a single string."""
         text = ''.join(tokens)
         text = bytearray([self.byte_decoder[c] for c in text]).decode('utf-8')

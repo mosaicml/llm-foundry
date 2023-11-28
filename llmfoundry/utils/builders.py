@@ -27,7 +27,6 @@ from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry import ComposerHFCausalLM
 from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
                                   HuggingFaceCheckpointer, LayerFreezing,
                                   MonolithicCheckpointSaver,
@@ -43,7 +42,7 @@ log = logging.getLogger(__name__)
 
 def build_eval_loader(
     eval_loader_config: Union[DictConfig, ListConfig],
-    model: Union[Any, ComposerHFCausalLM],
+    model: Any,
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
 ) -> List[Evaluator]:

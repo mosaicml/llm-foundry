@@ -152,6 +152,13 @@ class _DummyModule(nn.Module):
     },
     {
         'param_groups': [{
+            'param_str_match': 'no.*.bias',
+            'lr': 1e-9,
+            'weight_decay': 0.0,
+        },]
+    },
+    {
+        'param_groups': [{
             'param_str_match': 'norm',
             'lr': 1e-4,
             'weight_decay': 0.0,

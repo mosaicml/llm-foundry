@@ -189,8 +189,8 @@ def _extract_param_groups(
     }
     ```
 
-    To create and modify the optimizer parameters for all parameters that contain the
-    string "norm" and "bias" separately:
+    To create and modify the optimizer parameters for all parameters that contain
+    the string "norm" and "bias" separately:
     ```
     optimizer_config: {
         "name": "decoupled_lionw",
@@ -219,7 +219,8 @@ def _extract_param_groups(
 
     Returns:
         Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]: an iterable of
-            torch.Tensor's or dict's. Specifies what Tensors should be optimized and their param groupings.
+            torch.Tensor's or dict's. Specifies what Tensors should be optimized
+            and their param groupings.
     """
     if 'disable_grad' in optimizer_config.keys():
         str_matches = optimizer_config.pop('disable_grad')
@@ -231,25 +232,27 @@ def _extract_param_groups(
                     p.requires_grad = False
                     log.debug(f'Setting `{n}.requires_grad = False`.')
 
-    if 'param_groups' in optimizer_config.keys():
+    param_groups_config = optimizer_config.pop('param_groups', None)
+    if param_groups_config is not None:
         params = []
         param_dict = OrderedDict((n, p) for n, p in model.named_parameters())
 
-        for param_group_config in optimizer_config['param_groups']:
+        log.debug(f'Default optimizer settings: {optimizer_config}.')
+        for param_group_config in param_groups_config:
             str_match = param_group_config.pop('param_str_match')
             filter_fn = functools.partial(re.search, str_match)
             param_names = [n for n in param_dict.keys() if filter_fn(n)]
             group_params = {'params': [param_dict.pop(n) for n in param_names]}
             group_params.update(param_group_config)
 
+            log.debug(
+                f'Creating optimizer param_group with parameters: {param_names} ' +\
+                f'(extracted using {str_match=}). The param_group optimizer ' +\
+                f'setting overrides are: {param_group_config}.')
+
             params.append(group_params)
 
-        optimizer_config.pop('param_groups')
-
         params.insert(0, {'params': param_dict.values()})
-
-        log.debug(f'Optimizer param_groups: {params}.')
-
         return params
 
     return model.parameters()

@@ -208,8 +208,8 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         # JP - add
         # Reshape pairs so that 
         dim1,dim2,dim3=batch['input_ids'].shape
-        print(batch['input_ids'].shape)
-        print(batch['input_ids'].reshape((dim1*dim2,dim3)))
+        # print(batch['input_ids'].shape)
+        # print(batch['input_ids'].reshape((dim1*dim2,dim3)))
         reshaped_input_ids = batch['input_ids'].reshape((dim1*dim2,dim3))
         batch['input_ids'] = reshaped_input_ids
         
@@ -217,7 +217,7 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         if 'attention_mask' in batch:
             reshaped_attention_mask = batch['attention_mask'].reshape((dim1*dim2,dim3))
             batch['attention_mask'] = reshaped_attention_mask
-            print('attention mask shape: ', batch['attention_mask'].shape)
+            # print('attention mask shape: ', batch['attention_mask'].shape)
         if 'sequence_id' in batch:
             reshaped_sequence_id = batch['sequence_id'].reshape((dim1*dim2,dim3))
             batch['sequence_id'] = reshaped_sequence_id

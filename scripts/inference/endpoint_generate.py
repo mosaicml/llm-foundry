@@ -1,5 +1,11 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+
+"""Batch generate text completion results from an endpoint.
+
+Warning: This script is experimental and could change or be removed at any time
+"""
+
 import asyncio
 import copy
 import logging
@@ -55,12 +61,12 @@ def parse_args() -> Namespace:
     parser.add_argument(
         '--rate-limit',
         type=int,
-        default=5,
+        default=10,
         help='Max number of calls to make to the endpoint in a second')
     parser.add_argument(
         '--batch-size',
         type=int,
-        default=5,
+        default=10,
         help='Max number of calls to make to the endpoint in a single request')
 
     #####
@@ -81,6 +87,8 @@ def parse_args() -> Namespace:
 
 
 def load_prompts_from_file(prompt_path_str: str) -> List[str]:
+    # Note: slightly different than hf_generate.py (uses delimiter to split strings)
+
     if not prompt_path_str.startswith('file::'):
         raise ValueError('prompt_path_str must start with "file::".')
     _, prompt_file_path = prompt_path_str.split('file::', maxsplit=1)

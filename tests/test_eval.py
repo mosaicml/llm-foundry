@@ -1,16 +1,21 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import copy
 import os
+import pathlib
 import sys
 from typing import Any
 
 import omegaconf as om
 import pytest
 from composer import Trainer
+from composer.loggers import InMemoryLogger
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils import build_tokenizer
+from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xsmall,
+                              gpt_tiny_cfg)
 
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -66,3 +71,84 @@ def test_icl_eval(capfd: Any, mock_saved_model_path: Any):
     assert expected_results in out
     expected_results = '| model_name   |   default_average |   language_understanding_lite |\n|:-------------|------------------:|------------------------------:|\n| tiny_mpt     |                 0 |                             0 |'
     assert expected_results in out
+
+
+@pytest.mark.gpu
+def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
+                     tmp_path: pathlib.Path):
+
+    c4_dataset_name = create_c4_dataset_xsmall(tmp_path)
+
+    # Use a training config that already has eval loader configured
+    test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')
+
+    # define icl eval task
+    test_cfg.icl_tasks = om.ListConfig([
+        om.DictConfig({
+            'label':
+                'lambada_openai',
+            'dataset_uri':
+                'eval/local_data/language_understanding/lambada_openai_small.jsonl',
+            'num_fewshot': [0],
+            'icl_task_type':
+                'language_modeling'
+        })
+    ])
+
+    # convert the model from a training to eval model
+    model = test_cfg.pop('model')
+    new_model = {
+        'model_name': model.get('name'),
+        'model': model,
+        'load_path': mock_saved_model_path
+    }
+
+    tokenizer = test_cfg.pop('tokenizer', None)
+    if tokenizer:
+        new_model['tokenizer'] = tokenizer
+    test_cfg.models = [new_model]
+
+    # Set up multiple eval dataloaders
+    first_eval_loader = test_cfg.eval_loader
+    first_eval_loader.label = 'c4'
+    # Create second eval dataloader using the arxiv dataset.
+    second_eval_loader = copy.deepcopy(first_eval_loader)
+    arxiv_dataset_name = create_arxiv_dataset(tmp_path)
+    second_eval_loader.data_local = arxiv_dataset_name
+    second_eval_loader.label = 'arxiv'
+    test_cfg.eval_loader = om.OmegaConf.create(
+        [first_eval_loader, second_eval_loader])
+
+    trainers, eval_gauntlet_df = main(test_cfg)
+    assert eval_gauntlet_df is None
+
+    assert len(trainers) == 1  # one per model
+    trainer = trainers[0]
+
+    assert isinstance(trainer.logger.destinations, tuple)
+
+    assert len(trainer.logger.destinations) > 0
+    inmemorylogger = trainer.logger.destinations[
+        0]  # pyright: ignore [reportGeneralTypeIssues]
+    assert isinstance(inmemorylogger, InMemoryLogger)
+    print(inmemorylogger.data.keys())
+
+    # Checks for first eval dataloader
+    assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
+    assert isinstance(
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'], list)
+    assert len(
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1]) > 0
+    assert isinstance(
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1], tuple)
+
+    # Checks for second eval dataloader
+    assert 'metrics/eval/arxiv/LanguageCrossEntropy' in inmemorylogger.data.keys(
+    )
+    assert isinstance(
+        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'], list)
+    assert len(
+        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1]) > 0
+    assert isinstance(
+        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1],
+        tuple)

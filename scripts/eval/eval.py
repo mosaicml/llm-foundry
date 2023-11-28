@@ -292,6 +292,7 @@ def main(cfg: DictConfig):
     eval_gauntlet_df = None
     models_df = None
     composite_scores = None
+    trainers = []
     for model_cfg in model_configs:
         (trainer, logger_keys, eval_gauntlet_callback,
          eval_gauntlet_df) = evaluate_model(
@@ -311,6 +312,7 @@ def main(cfg: DictConfig):
              precision=precision,
              eval_gauntlet_df=eval_gauntlet_df,
              icl_subset_num_batches=icl_subset_num_batches)
+        trainers.append(trainer)
 
         if eval_gauntlet_callback is not None:
             composite_scores = eval_gauntlet_callback.eval_after_all(
@@ -348,6 +350,8 @@ def main(cfg: DictConfig):
         print(f'Printing complete results for all models')
         assert models_df is not None
         print(models_df.to_markdown(index=False))
+
+    return trainers, eval_gauntlet_df
 
 
 def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,

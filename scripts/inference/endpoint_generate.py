@@ -7,7 +7,7 @@ import math
 import os
 import time
 from argparse import ArgumentParser, Namespace
-from typing import cast
+from typing import List, cast
 
 import pandas as pd
 import requests
@@ -19,6 +19,8 @@ log = logging.getLogger(__name__)
 
 ENDPOINT_API_KEY_ENV: str = 'ENDPOINT_API_KEY'
 ENDPOINT_URL_ENV: str = 'ENDPOINT_URL'
+
+PROMPT_DELIMITER = "\n"
 
 
 def parse_args() -> Namespace:
@@ -78,7 +80,7 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def load_prompt_string_from_file(prompt_path_str: str):
+def load_prompts_from_file(prompt_path_str: str) -> List[str]:
     if not prompt_path_str.startswith('file::'):
         raise ValueError('prompt_path_str must start with "file::".')
     _, prompt_file_path = prompt_path_str.split('file::', maxsplit=1)
@@ -87,8 +89,8 @@ def load_prompt_string_from_file(prompt_path_str: str):
         raise FileNotFoundError(
             f'{prompt_file_path=} does not match any existing files.')
     with open(prompt_file_path, 'r') as f:
-        prompt_string = ''.join(f.readlines())
-    return prompt_string
+        prompt_string = f.read()
+    return prompt_string.split(PROMPT_DELIMITER)
 
 
 async def main(args: Namespace) -> None:
@@ -148,8 +150,8 @@ async def main(args: Namespace) -> None:
                     response = await resp.json()
                 except requests.JSONDecodeError:
                     raise Exception(
-                        f'Bad response: {resp.status_code} {resp.reason}'
-                    )  # type: ignore
+                        f'Bad response: {resp.status_code} {resp.reason}'  # type: ignore
+                    )
             else:
                 raise Exception(
                     f'Bad response: {resp.status_code} {resp.content.decode().strip()}'  # type: ignore

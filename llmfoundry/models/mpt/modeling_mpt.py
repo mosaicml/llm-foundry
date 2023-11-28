@@ -653,9 +653,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     def tie_weights(self) -> None:
         # JP Removed
-        #self.lm_head = None
+        # self.lm_head = None
         #JP Added
-        # print('is this happening?')
+        print('is this happening?')
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder

@@ -269,7 +269,7 @@ class MPTModel(MPTPreTrainedModel):
         # flash does not support prefix_lm and will incorporate any
         # attention_mask inside the attention module
         if self.attn_impl == 'flash':
-            print('attention_mask shape in modeling_mpt.py', attention_mask.shape) # JP ADDED
+            # print('attention_mask shape in modeling_mpt.py', attention_mask.shape) # JP ADDED
             return self.attn_bias, attention_mask
 
         if self.attn_bias is not None:
@@ -294,7 +294,7 @@ class MPTModel(MPTPreTrainedModel):
         # None in place of attention_mask since it will not be further needed in the
         # attention modules.
         if attention_mask is not None:
-            print('if attention_mask is not None:', attention_mask)
+            # print('if attention_mask is not None:', attention_mask)
             s_k = attention_mask.shape[-1]
             if attn_bias is None:
                 attn_bias = torch.zeros((1, 1, 1, s_k),
@@ -599,7 +599,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             )
             self.lm_head._fsdp_wrap = True
             # JP Added
-            print('lm_head exists')
+            # print('lm_head exists')
 
         for child in self.transformer.children():
             if isinstance(child, torch.nn.ModuleList):
@@ -655,7 +655,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         # JP Removed
         #self.lm_head = None
         #JP Added
-        print('is this happening?')
+        # print('is this happening?')
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder
@@ -700,12 +700,12 @@ class MPTForCausalLM(MPTPreTrainedModel):
         )
 
         # JP Added
-        print('self.lm_head ',self.lm_head)
+        # print('self.lm_head ',self.lm_head)
         if self.lm_head is not None:
             logits = self.lm_head(outputs.last_hidden_state)
             
             outputs.hidden_states = outputs.last_hidden_state # JP THIS IS A HACK
-            print('outputs.hidden_states.shape',outputs.hidden_states.shape)
+            # print('outputs.hidden_states.shape',outputs.hidden_states.shape)
         else:
             # move outputs to same device as weights for token embedding
             # needed to support HF `device_map`
@@ -713,7 +713,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             out = out.to(self.transformer.wte.weight.device).long() # JP Added .long
             # JP Added
             #print(out)
-            print('out.shape ',out.shape)
+            # print('out.shape ',out.shape)
             
             # shouldn't this be self.transformer.wte(out, unembed=True)? For some reason I'm running into an error
             logits = self.transformer.wte(out, True) # input: Tensor, unembed: bool = False

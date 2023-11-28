@@ -113,6 +113,8 @@ async def main(args: Namespace) -> None:
         raise ValueError(
             f'URL must be provided via --endpoint or {ENDPOINT_URL_ENV}')
 
+    log.info(f'Using endpoint {url}')
+
     # Load prompts
     prompt_strings = []
     for prompt in args.prompts:
@@ -134,10 +136,10 @@ async def main(args: Namespace) -> None:
                        prompts: list):
         data = copy.copy(param_data)
         data['prompt'] = prompts
-        headers = {
-            "Authorization": os.environ.get(ENDPOINT_API_KEY_ENV),
-            "Content-Type": "application/json"
-        }
+        api_key = os.environ.get(ENDPOINT_API_KEY_ENV, '')
+        if not api_key:
+            log.warn('API key not set in {ENDPOINT_API_KEY_ENV}')
+        headers = {"Authorization": api_key, "Content-Type": "application/json"}
 
         req_start = time.time()
         async with session.post(url, headers=headers, json=data) as resp:

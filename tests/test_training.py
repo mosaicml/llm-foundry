@@ -7,13 +7,13 @@ from typing import Any, Optional
 
 import pytest
 from composer.loggers import InMemoryLogger
+from composer.utils import using_torch_2
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 from scripts.train.train import main  # noqa: E402
 from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xsmall,
                               gpt_tiny_cfg)
-
 
 @pytest.fixture(autouse=False)
 def set_correct_cwd():
@@ -45,7 +45,14 @@ def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
                 'language_modeling'
         })
     ])
-    test_cfg.icl_subset_num_batches = 1  # -1 to evaluate on all batches
+    test_cfg.icl_subset_num_batches = 1
+    test_cfg.eval_subset_num_batches = 2
+    test_cfg.train_loader.num_workers = 0
+    test_cfg.train_loader.prefetch_factor = None if using_torch_2() else 2
+    test_cfg.train_loader.persistent_workers = False
+    test_cfg.eval_loader.num_workers = 0
+    test_cfg.eval_loader.prefetch_factor = None if using_torch_2() else 2
+    test_cfg.eval_loader.persistent_workers = False
 
     test_cfg.eval_gauntlet = DictConfig({
         'weighting':
@@ -74,7 +81,7 @@ def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
     if averages is not None:
         test_cfg.eval_gauntlet['averages'] = averages
 
-    test_cfg.icl_seq_len = 128
+    test_cfg.icl_seq_len = 16
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
     test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})

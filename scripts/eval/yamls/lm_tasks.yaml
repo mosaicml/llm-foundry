@@ -61,3 +61,8 @@ icl_tasks:
   dataset_uri: eval/local_data/reading_comprehension/squad.jsonl # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: language_modeling
+-
+  label: coqa
+  dataset_uri: eval/local_data/reading_comprehension/coqa.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0]
+  icl_task_type: language_modeling

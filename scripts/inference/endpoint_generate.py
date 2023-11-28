@@ -117,11 +117,15 @@ async def main(args: Namespace) -> None:
 
     log.info(f'Using endpoint {url}')
 
+    api_key = os.environ.get(ENDPOINT_API_KEY_ENV, '')
+    if not api_key:
+        log.warning(f'API key not set in {ENDPOINT_API_KEY_ENV}')
+
     # Load prompts
     prompt_strings = []
     for prompt in args.prompts:
         if prompt.startswith('file::'):
-            prompt = load_prompt_string_from_file(prompt)
+            prompt = load_prompts_from_file(prompt)
         prompt_strings.append(prompt)
 
     cols = ['batch', 'prompt', 'output']
@@ -138,9 +142,6 @@ async def main(args: Namespace) -> None:
                        prompts: list):
         data = copy.copy(param_data)
         data['prompt'] = prompts
-        api_key = os.environ.get(ENDPOINT_API_KEY_ENV, '')
-        if not api_key:
-            log.warning(f'API key not set in {ENDPOINT_API_KEY_ENV}')
         headers = {'Authorization': api_key, 'Content-Type': 'application/json'}
 
         req_start = time.time()

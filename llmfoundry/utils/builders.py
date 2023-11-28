@@ -189,7 +189,7 @@ def _extract_param_groups(
     }
     ```
 
-    To create modify the optimizer parameters for all parameters that contain the
+    To create and modify the optimizer parameters for all parameters that contain the
     string "norm" and "bias" separately:
     ```
     optimizer_config: {
@@ -219,7 +219,7 @@ def _extract_param_groups(
 
     Returns:
         Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]: an iterable of
-            torch.Tensor's or dict's. Specifies what Tensors should be optimized.
+            torch.Tensor's or dict's. Specifies what Tensors should be optimized and their param groupings.
     """
     if 'disable_grad' in optimizer_config.keys():
         str_matches = optimizer_config.pop('disable_grad')

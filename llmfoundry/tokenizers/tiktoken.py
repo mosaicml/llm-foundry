@@ -188,11 +188,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         return template
 
     def get_vocab(self) -> Dict[str, int]:
-        """Returns vocab as a dict.
-
-        Note: This function does not work properly due to difference in assumptions between tiktoken and Hugging Face tokenizers.
-        Most uses do not need to use get_vocab, so this is not a priority to fix.
-        """
+        """Returns vocab as a dict."""
         # As far as I can tell, we don't require get_vocab to completely work,
         # but when using additional_special_tokens, Hugging Face determines the next
         # token index to add with len(self.get_vocab()) so we need the _size_ of this dictionary to be correct.

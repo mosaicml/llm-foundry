@@ -119,9 +119,13 @@ def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
     test_cfg.eval_loader = om.OmegaConf.create(
         [first_eval_loader, second_eval_loader])
 
-    trainers, eval_gauntlet_df = main(test_cfg)
-    assert eval_gauntlet_df is None
+    test_cfg.max_duration = '1ba'
+    test_cfg.eval_interval = '1ba'
+    test_cfg.loggers = om.DictConfig({'inmemory': om.DictConfig({})})
 
+    trainers, eval_gauntlet_df = main(test_cfg)
+
+    assert eval_gauntlet_df is None
     assert len(trainers) == 1  # one per model
     trainer = trainers[0]
 

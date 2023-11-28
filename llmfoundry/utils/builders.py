@@ -51,7 +51,7 @@ def build_eval_loader(
 
     evaluators: List[Evaluator] = []
     if isinstance(eval_loader_config, ListConfig):
-        eval_configs: ListConfig = eval_configs
+        eval_configs: ListConfig = eval_loader_config
         is_multi_eval = True
     else:
         eval_configs = ListConfig([eval_loader_config])
@@ -223,8 +223,8 @@ def build_tokenizer(
 
     signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
 
-    if dist.is_available() and dist.is_initialized() and dist.get_world_size(
-    ) > 1:
+    if dist.is_available() and dist.is_initialized(
+    ) and dist.get_world_size() > 1:
         # Make sure the tokenizer files are downloaded and cached first by local rank 0
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             pass
@@ -243,8 +243,8 @@ def build_tokenizer(
             int(1e30),
         )
 
-    if dist.is_available() and dist.is_initialized() and dist.get_world_size(
-    ) > 1:
+    if dist.is_available() and dist.is_initialized(
+    ) and dist.get_world_size() > 1:
         if dist.get_local_rank() == 0:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_tokenizer_setup')

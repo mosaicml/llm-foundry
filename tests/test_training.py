@@ -15,6 +15,7 @@ from scripts.train.train import main  # noqa: E402
 from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xsmall,
                               gpt_tiny_cfg)
 
+
 @pytest.fixture(autouse=False)
 def set_correct_cwd():
     if not os.getcwd().endswith('llm-foundry/scripts'):

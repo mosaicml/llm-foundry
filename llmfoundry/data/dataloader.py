@@ -28,7 +28,6 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         device_batch_size (int): The size of the batches (number of examples)
             that the dataloader will produce.
     """
-
     if cfg.name not in LOADER_NAME_TO_FUNCTION:
         allowed = ', '.join(LOADER_NAME_TO_FUNCTION.keys())
         raise ValueError(f'Expected dataloader name to be one of {allowed}' +

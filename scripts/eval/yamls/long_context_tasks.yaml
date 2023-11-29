@@ -1,127 +1,137 @@
 icl_tasks:
 -
   label: kv_pairs_beginning_2k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: kv_pairs 
     context_length: 2048
     section: beginning 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: kv_pairs_middle_2k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: kv_pairs
     context_length: 2048
     section: middle 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: kv_pairs_end_2k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: kv_pairs
     context_length: 2048
     section: end 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: kv_pairs_beginning_4k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: kv_pairs
     context_length: 4096
     section: beginning 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: kv_pairs_middle_4k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: kv_pairs
     context_length: 4096
     section: middle 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: kv_pairs_end_4k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: kv_pairs
     context_length: 4096
     section: end
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: kv_pairs_beginning_8k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: kv_pairs
     context_length: 8192
     section: beginning 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: kv_pairs_middle_8k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: kv_pairs
     context_length: 8192
     section: middle 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: kv_pairs_end_8k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: kv_pairs
     context_length: 8192
     section: end
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
 #   label: wikiqa_2k 
-#   dataset_uri: hf://maxisawesome/long_context_eval 
+#   dataset_uri: hf://mosaicml/long_context_eval 
 #   num_fewshot: [0]
 #   icl_task_type: question_answering
 #   hf_vars: 
 #     name: kv_pairs
 #     context_length: 2048
 #     section: middle 
+#     num_fewshot: 0
 #   hf_cols:
 #     inputs: ["context"]
 #     outputs: ["answer"] 
 # -
 #   label: wikiqa_4k
-#   dataset_uri: hf://maxisawesome/long_context_eval 
+#   dataset_uri: hf://mosaicml/long_context_eval 
 #   num_fewshot: [0]
 #   icl_task_type: question_answering
 #   hf_vars: 
@@ -133,7 +143,7 @@ icl_tasks:
 #     outputs: ["answer"] 
 # -
 #   label: wikiqa_8k
-#   dataset_uri: hf://maxisawesome/long_context_eval 
+#   dataset_uri: hf://mosaicml/long_context_eval 
 #   num_fewshot: [0]
 #   icl_task_type: question_answering
 #   hf_vars: 
@@ -145,109 +155,118 @@ icl_tasks:
 #     outputs: ["answer"] 
 # -
   label: hotpotqa_beginning_2k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: hotpotqa
     context_length: 2048
     section: beginning 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: hotpotqa_middle_2k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: hotpotqa
     context_length: 2048
     section: middle 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: hotpotqa_end_2k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: hotpotqa
     context_length: 2048
     section: end 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: hotpotqa_beginning_4k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: hotpotqa
     context_length: 4096
     section: beginning
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: hotpotqa_middle_4k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: hotpotqa
     context_length: 4096
     section: middle 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: hotpotqa_end_4k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: hotpotqa
     context_length: 4096
     section: end
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: hotpotqa_beginning_8k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: hotpotqa
     context_length: 8192 
     section: beginning 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: hotpotqa_middle_8k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: hotpotqa
     context_length: 8192 
     section: middle 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 
 -
   label: hotpotqa_end_8k
-  dataset_uri: hf://maxisawesome/long_context_eval 
+  dataset_uri: hf://mosaicml/long_context_eval 
   num_fewshot: [0]
   icl_task_type: question_answering
   hf_vars: 
     name: hotpotqa
     context_length: 8192 
     section: end 
+    num_fewshot: 0
   hf_cols:
     inputs: ["context"]
     outputs: ["answer"] 

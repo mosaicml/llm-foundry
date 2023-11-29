@@ -96,8 +96,8 @@ class DownloadingIterable:
 
     def __iter__(self):
         for object_name in self.object_names:
-            object_name = object_name.strip('/')
-            output_filename = os.path.join(self.output_folder, object_name)
+            output_filename = os.path.join(self.output_folder,
+                                           object_name.strip('/'))
             if self.object_store is not None:
                 self.object_store.download_object(object_name=object_name,
                                                   filename=output_filename,

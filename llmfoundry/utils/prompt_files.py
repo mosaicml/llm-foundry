@@ -41,7 +41,6 @@ def load_prompts_from_file(prompt_path: str,
     Returns:
         List of prompt string(s)
     """
-
     if not prompt_path.startswith(PROMPTFILE_PREFIX):
         raise ValueError(f'prompt_path_str must start with {PROMPTFILE_PREFIX}')
 

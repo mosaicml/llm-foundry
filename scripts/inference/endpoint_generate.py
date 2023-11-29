@@ -39,8 +39,8 @@ def parse_args() -> Namespace:
     #####
     # Path Parameters
     parser.add_argument(
-        '-p',
-        '--prompts',
+        '-i',
+        '--inputs',
         nargs='+',
         help=f'List of strings, local datafiles (starting with {utils.PROMPTFILE_PREFIX}),' +\
              ' and/or remote object stores'
@@ -114,10 +114,10 @@ async def main(args: Namespace) -> None:
     if not api_key:
         log.warning(f'API key not set in {ENDPOINT_API_KEY_ENV}')
 
-    new_prompts = []
-    for prompt in args.prompts:
+    new_inputs = []
+    for prompt in args.inputs:
         if prompt.startswith(utils.PROMPTFILE_PREFIX):
-            new_prompts.append(prompt)
+            new_inputs.append(prompt)
             continue
 
         input_object_store = maybe_create_object_store_from_uri(prompt)
@@ -127,9 +127,9 @@ async def main(args: Namespace) -> None:
             log.info(f'Downloaded {prompt} to {local_output_path}')
             prompt = f'{utils.PROMPTFILE_PREFIX}{local_output_path}'
 
-        new_prompts.append(prompt)
+        new_inputs.append(prompt)
 
-    prompt_strings = utils.load_prompts(new_prompts, args.prompt_delimiter)
+    prompt_strings = utils.load_prompts(new_inputs, args.prompt_delimiter)
 
     cols = ['batch', 'prompt', 'output']
     param_data = {

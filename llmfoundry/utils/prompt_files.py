@@ -1,15 +1,17 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 from typing import List, Optional
 
-PROMPTFILE_PREFIX = "file::"
+PROMPTFILE_PREFIX = 'file::'
 
 
 def load_prompts(prompts: List[str],
                  prompt_delimiter: Optional[str] = None) -> List[str]:
-    """
-    Loads a set of prompts, both free text and from file
+    """Loads a set of prompts, both free text and from file.
 
-    Args: 
+    Args:
         prompts (List[str]): List of free text prompts and prompt files
         prompt_delimiter (Optional str): Delimiter for text file
             If not provided, assumes the prompt file is a single prompt (non-delimited)
@@ -29,8 +31,7 @@ def load_prompts(prompts: List[str],
 
 def load_prompts_from_file(prompt_path: str,
                            prompt_delimiter: Optional[str] = None) -> List[str]:
-    """
-    Load a set of prompts from a text fie
+    """Load a set of prompts from a text fie.
 
     Args:
         prompt_path (str): Path for text file
@@ -55,4 +56,4 @@ def load_prompts_from_file(prompt_path: str,
 
     if prompt_delimiter is None:
         return [prompt_string]
-    return [i for i in  prompt_string.split(prompt_delimiter) if i]
+    return [i for i in prompt_string.split(prompt_delimiter) if i]

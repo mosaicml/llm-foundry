@@ -1,6 +1,10 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from pathlib import Path
 
 from llmfoundry.utils import prompt_files as utils
+
 
 def test_load_prompt_strings(tmp_path: Path):
     assert utils.load_prompts(['hello', 'goodbye']) == ['hello', 'goodbye']

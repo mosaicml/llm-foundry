@@ -196,10 +196,10 @@ async def main(args: Namespace) -> None:
             output_object_store.upload_object(remote_path, local_path)
             log.info(f'Uploaded results to {args.output_folder}/{file}')
         else:
-            os.makedirs(args.output_folder, exist_ok=True)
-            permanent_local = os.path.join(args.output_folder, file)
-            os.rename(local_path, permanent_local)
-            log.info(f'Saved results to {permanent_local}')
+            output_dir, _ = os.path.split(args.output_folder)
+            os.makedirs(output_dir, exist_ok=True)
+            os.rename(local_path, args.output_folder)
+            log.info(f'Saved results to {args.output_folder}')
 
 
 if __name__ == '__main__':

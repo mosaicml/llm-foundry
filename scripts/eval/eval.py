@@ -6,7 +6,7 @@ import os
 import sys
 import time
 import warnings
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
@@ -21,7 +21,7 @@ from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
 
 from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import (build_eval_loader,
+from llmfoundry.utils.builders import (build_eval_loaders,
                                        build_icl_data_and_gauntlet,
                                        build_logger, build_tokenizer)
 from llmfoundry.utils.config_utils import pop_config, process_init_device
@@ -151,13 +151,13 @@ def evaluate_model(
                                     num_retries)
 
     if eval_loader_config is not None:
-        loader_evaluators = build_eval_loader(
-            eval_loader_config,
-            composer_model,
-            tokenizer,
-            device_eval_batch_size,
-        )
-        evaluators.extend(loader_evaluators)
+        evaluators.extend(
+            build_eval_loaders(
+                eval_loader_config,
+                composer_model,
+                tokenizer,
+                device_eval_batch_size,
+            ))
 
     if eval_gauntlet_df is None and eval_gauntlet_callback is not None:
         eval_gauntlet_df = pd.DataFrame(
@@ -202,7 +202,7 @@ def evaluate_model(
     return (trainer, logger_keys, eval_gauntlet_callback, eval_gauntlet_df)
 
 
-def main(cfg: DictConfig):
+def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     om.resolve(cfg)
     model_configs: ListConfig = pop_config(cfg, 'models', must_exist=True)
     eval_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(

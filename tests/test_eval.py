@@ -14,7 +14,7 @@ from composer.loggers import InMemoryLogger
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils import build_tokenizer
-from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xsmall,
+from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
                               gpt_tiny_cfg)
 
 # Add repo root to path so we can import scripts and test it
@@ -77,7 +77,7 @@ def test_icl_eval(capfd: Any, mock_saved_model_path: Any):
 def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
                      tmp_path: pathlib.Path):
 
-    c4_dataset_name = create_c4_dataset_xsmall(tmp_path)
+    c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)
 
     # Use a training config that already has eval loader configured
     test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')
@@ -97,16 +97,15 @@ def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
 
     # convert the model from a training to eval model
     model = test_cfg.pop('model')
-    new_model = {
+    eval_model = {
         'model_name': model.get('name'),
         'model': model,
         'load_path': mock_saved_model_path
     }
 
-    tokenizer = test_cfg.pop('tokenizer', None)
-    if tokenizer:
-        new_model['tokenizer'] = tokenizer
-    test_cfg.models = [new_model]
+    tokenizer = test_cfg.pop('tokenizer')
+    eval_model['tokenizer'] = tokenizer
+    test_cfg.models = [eval_model]
 
     # Set up multiple eval dataloaders
     first_eval_loader = test_cfg.eval_loader

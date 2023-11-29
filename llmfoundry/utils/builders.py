@@ -40,13 +40,17 @@ from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 log = logging.getLogger(__name__)
 
 
-def build_eval_loader(
+def build_eval_loaders(
     eval_loader_config: Union[DictConfig, ListConfig],
     model: Any,
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
 ) -> List[Evaluator]:
-    assert model.train_metrics is not None
+    if model.train_metrics is not None:
+        raise ValueError(
+            'Eval loader requires metrics, either through the models defaults and/or train_metrics'
+        )
+
     eval_metric_names = list(model.train_metrics.keys())
 
     evaluators: List[Evaluator] = []

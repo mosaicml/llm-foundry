@@ -12,7 +12,7 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 from scripts.train.train import main  # noqa: E402
-from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xsmall,
+from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
                               gpt_tiny_cfg)
 
 
@@ -33,7 +33,7 @@ def set_correct_cwd():
 def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
                         tmp_path: pathlib.Path):
     """Test training run with a small dataset."""
-    dataset_name = create_c4_dataset_xsmall(tmp_path)
+    dataset_name = create_c4_dataset_xxsmall(tmp_path)
     test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
     test_cfg.icl_tasks = ListConfig([
         DictConfig({
@@ -112,7 +112,7 @@ def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
 
 def test_train_multi_eval(set_correct_cwd: Any, tmp_path: pathlib.Path):
     """Test training run with multiple eval datasets."""
-    c4_dataset_name = create_c4_dataset_xsmall(tmp_path)
+    c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)
     test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')
     # Set up multiple eval dataloaders
     first_eval_loader = test_cfg.eval_loader

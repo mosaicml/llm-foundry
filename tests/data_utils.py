@@ -1,11 +1,16 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import json
 import os
+import sys
+
+# Add repo root to path so we can import scripts and test it
+repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(repo_dir)
+
+import json
 import pathlib
 import shutil
-import sys
 from argparse import Namespace
 from typing import Optional
 
@@ -15,10 +20,6 @@ from omegaconf import OmegaConf as om
 from scripts.data_prep.convert_dataset_hf import main as main_hf  # noqa: E402
 from scripts.data_prep.convert_dataset_json import \
     main as main_json  # noqa: E402
-
-# Add repo root to path so we can import scripts and test it
-repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(repo_dir)
 
 
 def make_tiny_ft_dataset(
@@ -82,10 +83,10 @@ def make_tiny_ft_dataset(
             _f.write('\n')
 
 
-def create_c4_dataset_xsmall(path: pathlib.Path) -> str:
+def create_c4_dataset_xxsmall(path: pathlib.Path) -> str:
     """Creates a small mocked version of the C4 dataset."""
     c4_dir = os.path.join(path, f'my-copy-c4')
-    downloaded_split = 'val_xsmall'  # very fast to convert
+    downloaded_split = 'val_xxsmall'  # very fast to convert
 
     # Hyperparameters from https://github.com/mosaicml/llm-foundry/blob/340a56658560ebceb2a3aa69d6e37813e415acd0/README.md#L188
     main_hf(
@@ -108,7 +109,7 @@ def create_c4_dataset_xsmall(path: pathlib.Path) -> str:
     # copy the small downloaded_split to other c4 splits for mocking purposes
     mocked_splits = ['train', 'val']
     for mocked_split in mocked_splits:
-        shutil.copytree(os.path.join(c4_dir, 'val_xsmall'),
+        shutil.copytree(os.path.join(c4_dir, 'val_xxsmall'),
                         os.path.join(c4_dir, mocked_split))
     assert os.path.exists(c4_dir)
     return c4_dir

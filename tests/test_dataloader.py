@@ -746,20 +746,6 @@ def test_token_counting_func_dataloader_setting(
 def test_build_unknown_dataloader():
     cfg = DictConfig({
         'name': 'unknown',
-        'dataset': {
-            'local': 'dummy-path',
-            'remote': 'dummy-path',
-            'split': 'train',
-            'max_seq_len': 1024,
-            'shuffle': True,
-            'shuffle_seed': 0,
-        },
-        'drop_last': False,
-        'num_workers': 0,
-        'prefetch_factor': None if using_torch_2() else 2,
-        'pin_memory': False,
-        'persistent_workers': False,
-        'timeout': 0
     })
     tokenizer = MagicMock()
     with pytest.raises(ValueError,

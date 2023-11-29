@@ -26,7 +26,7 @@ from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
-                                       build_eval_loader,
+                                       build_eval_loaders,
                                        build_icl_data_and_gauntlet,
                                        build_logger, build_optimizer,
                                        build_scheduler, build_tokenizer)
@@ -552,7 +552,7 @@ def main(cfg: DictConfig) -> Trainer:
     print('Building eval loader...')
     evaluators = []
     if eval_loader_config is not None:
-        evaluators = build_eval_loader(
+        evaluators = build_eval_loaders(
             eval_loader_config,
             model,
             tokenizer,

@@ -21,9 +21,9 @@ from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
 
 from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import (build_eval_loaders,
-                                       build_icl_data_and_gauntlet,
-                                       build_logger, build_tokenizer)
+from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
+                                       build_evaluators, build_logger,
+                                       build_tokenizer)
 from llmfoundry.utils.config_utils import pop_config, process_init_device
 
 
@@ -125,9 +125,15 @@ def evaluate_model(
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
-    evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
-        icl_tasks, eval_gauntlet_config, tokenizer, device_eval_batch_size,
-        max_seq_len, icl_subset_num_batches)
+    evaluators, logger_keys, eval_gauntlet_callback = build_evaluators(
+        eval_loader_config,
+        icl_tasks,
+        eval_gauntlet_config,
+        tokenizer=tokenizer,
+        device_eval_batch_size=device_eval_batch_size,
+        icl_seq_len=max_seq_len,
+        icl_subset_num_batches=icl_subset_num_batches,
+    )
 
     callbacks = []
     if eval_gauntlet_callback is not None:
@@ -150,14 +156,9 @@ def evaluate_model(
         composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
                                     num_retries)
 
+    # Now add the eval metrics
     if eval_loader_config is not None:
-        evaluators.extend(
-            build_eval_loaders(
-                eval_loader_config,
-                composer_model,
-                tokenizer,
-                device_eval_batch_size,
-            ))
+        evaluators = add_metrics_to_eval_loaders(evaluators, composer_model)
 
     if eval_gauntlet_df is None and eval_gauntlet_callback is not None:
         eval_gauntlet_df = pd.DataFrame(

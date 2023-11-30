@@ -25,11 +25,11 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM)
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.utils.builders import (build_algorithm, build_callback,
-                                       build_eval_loaders,
-                                       build_icl_data_and_gauntlet,
-                                       build_logger, build_optimizer,
-                                       build_scheduler, build_tokenizer)
+from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
+                                       build_algorithm, build_callback,
+                                       build_evaluators, build_logger,
+                                       build_optimizer, build_scheduler,
+                                       build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
@@ -524,6 +524,22 @@ def main(cfg: DictConfig) -> Trainer:
     if mosaicml_logger is not None:
         mosaicml_logger.log_metrics({'data_validated': time.time()})
 
+    ## Evaluation
+    print('Building eval loader...')
+    eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
+    evaluators, _, eval_gauntlet_callback = build_evaluators(
+        eval_loader_config,
+        icl_tasks_config,
+        eval_gauntlet_config,
+        tokenizer=tokenizer,
+        device_eval_batch_size=device_eval_batch_size,
+        icl_seq_len=eval_icl_seq_len,
+        icl_subset_num_batches=icl_subset_num_batches,
+    )
+
+    if eval_gauntlet_callback is not None:
+        callbacks.append(eval_gauntlet_callback)
+
     # Build Model
     print('Initializing model...')
     with init_context:
@@ -548,27 +564,9 @@ def main(cfg: DictConfig) -> Trainer:
     optimizer_name: str = optimizer_config.pop('name')
     optimizer = build_optimizer(model, optimizer_name, optimizer_config)
 
-    ## Evaluation
-    print('Building eval loader...')
-    evaluators = []
+    # Now add the eval metrics
     if eval_loader_config is not None:
-        evaluators = build_eval_loaders(
-            eval_loader_config,
-            model,
-            tokenizer,
-            device_eval_batch_size,
-        )
-
-    eval_gauntlet_callback = None
-    if icl_tasks_config is not None:
-        icl_evaluators, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
-            icl_tasks_config, eval_gauntlet_config, tokenizer,
-            device_eval_batch_size, icl_seq_len if icl_seq_len else max_seq_len,
-            icl_subset_num_batches)
-        evaluators.extend(icl_evaluators)
-
-    if eval_gauntlet_callback is not None:
-        callbacks.append(eval_gauntlet_callback)
+        evaluators = add_metrics_to_eval_loaders(evaluators, model)
 
     # Build the Trainer
     print('Building trainer...')

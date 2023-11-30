@@ -96,15 +96,16 @@ class DownloadingIterable:
 
     def __iter__(self):
         for object_name in self.object_names:
-            object_name = object_name.strip('/')
-            output_filename = os.path.join(self.output_folder, object_name)
+            # Default output_filename, used for local paths.
+            output_filename = object_name
+
+            # Download objects if remote path.
             if self.object_store is not None:
+                output_filename = os.path.join(self.output_folder,
+                                               object_name.strip('/'))
                 self.object_store.download_object(object_name=object_name,
                                                   filename=output_filename,
                                                   overwrite=True)
-            else:
-                # Inputs are local so we do not need to download them.
-                output_filename = object_name
 
             with open(output_filename) as _txt_file:
                 txt = _txt_file.read()

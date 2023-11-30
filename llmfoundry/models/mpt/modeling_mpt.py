@@ -141,11 +141,14 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
     # 1. Training with left padding is not supported in MPT (see https://github.com/mosaicml/llm-foundry/blob/1eecd4cb8e734499f77f6a35f657b8b20c0adfcb/llmfoundry/models/mpt/modeling_mpt.py#L407).
     # 2. For generation with left padding, we only have a single sequence id per sample, so we don't need sequence id based sparse attention.
     attention_mask_in_length = None
-    left_padding = (attention_mask is not None) and (attention_mask[:, 0].sum()
-                                                     != attention_mask.shape[0])
-    if (not left_padding) and (
-            sequence_id is not None) and attn_uses_sequence_id and (attn_impl
-                                                                    == 'flash'):
+    if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl
+                                                                == 'flash'):
+        # Check if sequence has left padding. If yes, raise an error.
+        if (attention_mask is not None) and (attention_mask[:, 0].sum() !=
+                                             attention_mask.shape[0]):
+            raise NotImplementedError(
+                'Left padding is not supported with flash attention when attn_uses_sequence_id is set to True.'
+            )
         assert S == sequence_id.shape[-1]
         attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
         if attention_mask is not None:

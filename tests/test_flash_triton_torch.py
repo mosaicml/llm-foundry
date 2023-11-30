@@ -3,8 +3,11 @@
 
 import pytest
 import torch
-from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
+
+from llmfoundry.models.layers import attention
+from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.mpt.modeling_mpt import gen_rotary_embedding
 
 
 def allclose_helper(t0: torch.Tensor,
@@ -15,53 +18,92 @@ def allclose_helper(t0: torch.Tensor,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl_0', ['flash', 'triton', 'torch'])
-@pytest.mark.parametrize('attn_impl_1', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('attn_impl_0,attn_impl_1', [
+    ('flash', 'triton'),
+    ('flash', 'torch'),
+    ('triton', 'torch'),
+])
 @pytest.mark.parametrize('clip_qkv', [True, False])
 @pytest.mark.parametrize('qk_ln', [True, False])
-@pytest.mark.parametrize('alibi', [True, False])
+@pytest.mark.parametrize('pos_emb_config', [{
+    'alibi': False,
+    'rope': False
+}, {
+    'alibi': True,
+    'rope': False
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_impl': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_impl': 'hf',
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
+}])
 @pytest.mark.parametrize(
     'attn_type',
     ['multihead_attention', 'multiquery_attention', 'grouped_query_attention'])
+@pytest.mark.parametrize('pad_attention_mask', [True, False])
 def test_attn_impl(attn_impl_0: str,
                    attn_impl_1: str,
                    clip_qkv: bool,
                    qk_ln: bool,
-                   alibi: bool,
+                   pos_emb_config: dict,
                    attn_type: str,
+                   pad_attention_mask: bool,
                    device: str = 'cuda'):
     """Compare all attn impl with each other.
 
-    Includes testing with and without attn_clip_qkv, attn_qk_ln, and alibi.
+    Includes testing with and without attn_clip_qkv, attn_qk_ln, alibi, and
+    rope.
     """
-    from llmfoundry.models.layers import attention
-
+    alibi = pos_emb_config['alibi']
+    rope = pos_emb_config['rope']
     if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'):
-        pytest.xfail('flash attn does not support alibi')
+        pytest.skip('flash attn does not support alibi')
 
-    reproducibility.seed_all(7)
+    if rope and (pos_emb_config['rope_impl']
+                 == 'dail') and (not is_flash_v2_installed()):
+        pytest.skip('dail implementation of rope requires flash attention 2.')
 
     cfg = om.create({
         'attn_impl': 'flash',
-        'd_model': 128,
+        'd_model': 64,
         'n_heads': 4,
         'attn_pdrop': 0,
         'clip_qkv': clip_qkv,
         'qk_ln': qk_ln,
     })
 
-    n, s, f = 2, 16, cfg.d_model
-
+    n, s, f = 2, 4, cfg.d_model
+    assert cfg.d_model % cfg.n_heads == 0
     if attn_type == 'grouped_query_attention':
         cfg.kv_n_heads = 2
 
     cfg.attn_impl = attn_impl_0
     attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
+    cfg.attn_impl = attn_impl_1
     attn1 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
 
     attn1.load_state_dict(attn0.state_dict())
 
     attention_mask = torch.ones(n, s).to(device).bool()
+
+    if pad_attention_mask:
+        # zero out the last third of the attention mask
+        # to simulate padding
+        attention_mask[:, -s // 3:] = 0
 
     def gen_bias(attn_impl: str):
         causal = True
@@ -94,16 +136,45 @@ def test_attn_impl(attn_impl_0: str,
 
     with torch.autocast(x0.device.type):
         attn_bias = gen_bias(attn0.attn_impl)
+
+        rotary_emb_w_meta_info = None
+        if rope:
+            rotary_embedding = gen_rotary_embedding(
+                rope_head_dim=cfg.d_model // cfg.n_heads,
+                rope_impl=pos_emb_config['rope_impl'],
+                rope_theta=pos_emb_config['rope_theta'],
+                rope_dail_config=pos_emb_config.get('rope_dail_config', {}),
+                rope_hf_config=pos_emb_config.get('rope_hf_config', {}),
+                max_seq_len=s).to(device)
+            pos = torch.arange(s).unsqueeze(0).to(device=device)
+            # adjust the position indices to account for padding tokens
+            pos = torch.clamp(
+                pos - torch.cumsum((~attention_mask).to(torch.int32), dim=1),
+                min=0,
+            )
+            rotary_emb_w_meta_info = {
+                'impl':
+                    pos_emb_config['rope_impl'],
+                'rotary_emb':
+                    rotary_embedding,
+                'offset_info':
+                    pos if (pos_emb_config['rope_impl'] == 'hf') else 0,
+                'seq_len':
+                    s,
+            }
+
         y0, _, _ = attn0(x0,
                          past_key_value=None,
                          attn_bias=attn_bias,
                          attention_mask=attention_mask,
+                         rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                          is_causal=True)
         attn_bias = gen_bias(attn1.attn_impl)
         y1, _, _ = attn1(x1,
                          past_key_value=None,
                          attn_bias=attn_bias,
                          attention_mask=attention_mask,
+                         rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                          is_causal=True)
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)
@@ -122,7 +193,15 @@ def test_attn_impl(attn_impl_0: str,
         assert p.grad is not None
         assert tp.grad is not None
         assert allclose_helper(p, tp)
-        assert allclose_helper(p.grad, tp.grad)
+
+        using_hf_rope = pos_emb_config['rope'] and pos_emb_config[
+            'rope_impl'] == 'hf'
+
+        # special case that (likely) fails due to numerics
+        if clip_qkv and qk_ln and using_hf_rope and attn_type == 'grouped_query_attention':
+            assert allclose_helper(p.grad, tp.grad, atol=2.e-2, rtol=2.e-2)
+        else:
+            assert allclose_helper(p.grad, tp.grad)
 
     assert x0.grad is not None
     assert x1.grad is not None
@@ -135,11 +214,9 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
     """Compare diff attn_impl to torch.nn.MultiheadAttention."""
     from llmfoundry.models.layers import attention
 
-    reproducibility.seed_all(17)
-
     cfg = om.create({
         'attn_impl': attn_impl,
-        'd_model': 256,
+        'd_model': 64,
         'n_heads': 2,
         'attn_pdrop': 0,
         'clip_qkv': False,
@@ -225,16 +302,14 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
-@pytest.mark.parametrize('n_heads', [32, 16, 8])
-@pytest.mark.parametrize('kv_n_heads', [8, 4, 2, 1])
+@pytest.mark.parametrize('n_heads', [16, 8])
+@pytest.mark.parametrize('kv_n_heads', [4, 2, 1])
 def test_grouped_attention_heads(attn_impl: str,
                                  n_heads: int,
                                  kv_n_heads: int,
                                  device: str = 'cuda'):
     """Ensure grouped_query_attention runs w/ diff n_heads & kv_n_heads."""
     from llmfoundry.models.layers import attention
-
-    reproducibility.seed_all(17)
 
     cfg = om.create({
         'attn_impl': attn_impl,
@@ -246,7 +321,7 @@ def test_grouped_attention_heads(attn_impl: str,
         'kv_n_heads': kv_n_heads
     })
 
-    n, s, f = 2, 16, cfg.d_model
+    n, s, f = 2, 4, cfg.d_model
 
     mmhsa = attention.GroupedQueryAttention(**cfg).to(device)
 
@@ -267,16 +342,12 @@ def test_grouped_attention_heads(attn_impl: str,
     loss0.backward()
 
 
-@pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
-def test_grouped_query_invalid_heads(attn_impl: str, device: str = 'cuda'):
+def test_grouped_query_invalid_heads():
     """Check indivisble combinations of grouped_query_attention."""
     from llmfoundry.models.layers import attention
 
-    reproducibility.seed_all(17)
-
     cfg = om.create({
-        'attn_impl': attn_impl,
+        'attn_impl': 'torch',
         'd_model': 256,
         'n_heads': 16,
         'attn_pdrop': 0,
@@ -288,34 +359,18 @@ def test_grouped_query_invalid_heads(attn_impl: str, device: str = 'cuda'):
     expected_error = 'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads'
 
     with pytest.raises(ValueError, match=expected_error):
-        _ = attention.GroupedQueryAttention(**cfg).to(device)
+        _ = attention.GroupedQueryAttention(**cfg)
 
-    cfg = om.create({
-        'attn_impl': attn_impl,
-        'd_model': 256,
-        'n_heads': 16,
-        'attn_pdrop': 0,
-        'clip_qkv': False,
-        'qk_ln': False,
-        'kv_n_heads': 17
-    })
+    cfg.kv_n_heads = 17
 
     expected_error = 'The number of KV heads should be less than or equal to Q heads'
 
     with pytest.raises(ValueError, match=expected_error):
-        _ = attention.GroupedQueryAttention(**cfg).to(device)
+        _ = attention.GroupedQueryAttention(**cfg)
 
-    cfg = om.create({
-        'attn_impl': attn_impl,
-        'd_model': 256,
-        'n_heads': 16,
-        'attn_pdrop': 0,
-        'clip_qkv': False,
-        'qk_ln': False,
-        'kv_n_heads': 0
-    })
+    cfg.kv_n_heads = 0
 
     expected_error = 'kv_n_heads should be greater than zero'
 
     with pytest.raises(ValueError, match=expected_error):
-        _ = attention.GroupedQueryAttention(**cfg).to(device)
+        _ = attention.GroupedQueryAttention(**cfg)

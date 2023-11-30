@@ -12,27 +12,12 @@ from llmfoundry import COMPOSER_MODEL_REGISTRY
 
 
 @pytest.mark.gpu
-@pytest.mark.xfail(reason='CUDA OOM expected, needs to be fixed.')
 @pytest.mark.parametrize('attn_impl,dropout,alibi,mask_val,no_attn_mask', [
     ('flash', 0.0, False, 1, False),
     ('flash', 0.1, False, 1, False),
     ('torch', 0.0, False, 1, False),
     ('triton', 0.0, False, 1, False),
     ('triton', 0.1, False, 1, False),
-    pytest.param('torch',
-                 0.0,
-                 True,
-                 1,
-                 False,
-                 marks=pytest.mark.xfail(
-                     reason='hf model is not implemented with alibi')),
-    pytest.param('triton',
-                 0.1,
-                 True,
-                 1,
-                 False,
-                 marks=pytest.mark.xfail(
-                     reason='hf model is not implemented with alibi')),
     ('torch', 0.0, False, 0, False),
     ('triton', 0.0, False, 0, False),
     ('triton', 0.1, False, 0, False),
@@ -52,10 +37,6 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     batch_size = 2  # set batch size
     device = 'cuda'  # set decive
 
-    # ensure reproducibility
-    seed = 17
-    reproducibility.seed_all(seed)  # set seed
-
     # get hf gpt2 cfg
     hf_cfg = om.create({
         'model': {
@@ -63,6 +44,11 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
             'pretrained_model_name_or_path': 'gpt2',
             'device': 'cpu',
             'pretrained': False,
+            'config_overrides': {
+                'n_layer': 2,
+                'n_embd': 64,
+                'n_head': 8,
+            }
         },
         'tokenizer': {
             'name': 'gpt2'
@@ -112,6 +98,9 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     # given this, it will generate different drop idx when compared to nn.Dropout
     # reguradless of if rng is seeded.
     model_cfg.attn_pdrop = hf_model.model.config.attn_pdrop
+    model_cfg.n_layers = hf_model.model.config.n_layer
+    model_cfg.d_model = hf_model.model.config.n_embd
+    model_cfg.n_heads = hf_model.model.config.n_head
 
     # Build Model
     print('Initializing model...')
@@ -154,11 +143,9 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
 
     # UTIL: can be used to verify that models are not the same at init
     with torch.autocast(device_type='cuda', dtype=torch.float16):
-        torch.manual_seed(seed)
         hf_model_fwd = hf_model(batch)['logits']
         if kpm is not None:
             hf_model_fwd *= kpm
-        torch.manual_seed(seed)
         model_fwd = model(batch).logits
         if kpm is not None:
             model_fwd *= kpm
@@ -179,8 +166,8 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     # HF keys which need to be replaced by the associated value
     hf_2_mosaic_key_mods = {
         'model.transformer.h.': 'model.transformer.blocks.',
-        '.mlp.c_fc.': '.mlp.mlp_up.',
-        '.mlp.c_proj.': '.mlp.mlp_down.',
+        '.mlp.c_fc.': '.ffn.up_proj.',
+        '.mlp.c_proj.': '.ffn.down_proj.',
         '.attn.c_attn.': '.attn.Wqkv.',
         '.attn.c_proj.': '.attn.out_proj.',
         '.ln_': '.norm_',
@@ -208,11 +195,11 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     model.load_state_dict(_hf_model_statedict)
 
     with torch.autocast(device_type=device, dtype=torch.float16):
-        torch.manual_seed(seed)
+        reproducibility.seed_all(17)
         hf_model_fwd = hf_model(batch)['logits']
         if kpm is not None:
             hf_model_fwd *= kpm
-        torch.manual_seed(seed)
+        reproducibility.seed_all(17)
         model_fwd = model(batch).logits
         if kpm is not None:
             model_fwd *= kpm

@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pathlib
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import pytest
 import transformers
 
-from llmfoundry import TiktokenTokenizerWrapper
+from llmfoundry.tokenizers.tiktoken import (TiktokenTokenizerWrapper,
+                                            bytes_to_unicode)
 from tests.horrible_strings import HORRIBLE_STRINGS
 from tests.test_hf_conversion_script import check_hf_tokenizer_equivalence
 
@@ -29,35 +30,56 @@ TEST_STRINGS = [
 
 TEST_STRINGS += HORRIBLE_STRINGS
 
-MODEL_OR_ENCODING_NAME_TO_NON_UTF8_TOKENS = {
-    'gpt-4': 77,
-    'gpt-3.5-turbo': 77,
-    'text-davinci-003': 14,
-    'cl100k_base': 77,
-}
-
 MODEL_ENCODING_NAME_PARAMETRIZATION = [
     ('gpt-4', None),
     ('gpt-3.5-turbo', None),
     ('text-davinci-003', None),
     (None, 'cl100k_base'),
+    ('gpt2', None),
 ]
+
+MULTI_TURN_CHAT_ML = [[{
+    'content':
+        'Please summarize the goals in this text:\n\nGoing outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.',
+    'role':
+        'user'
+}, {
+    'content': 'You should go outside and touch grass.',
+    'role': 'assistant'
+}]]
+
+MULTI_TURN_CHAT_STRING = [
+    """<|im_start|>user
+Please summarize the goals in this text:
+
+Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
+<|im_start|>assistant
+You should go outside and touch grass.<|im_end|>
+"""
+]
+
+DEFAULT_SYSTEM_PROMPT = """<|im_start|>system\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
 
 
 def get_tokenizers_for_testing(
     model_name: Optional[str],
     encoding_name: Optional[str],
     tmp_path: pathlib.Path,
+    use_default_system_prompt: bool = False,
     add_bos_token: bool = False,
-    add_eos_token: bool = False
+    add_eos_token: bool = False,
+    additional_special_tokens: Optional[List[str]] = None,
 ) -> Tuple[TiktokenTokenizerWrapper, TiktokenTokenizerWrapper, 'Encoding']:
     tiktoken = pytest.importorskip('tiktoken')
 
     # Construction
-    wrapped_tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
-                                                 encoding_name=encoding_name,
-                                                 add_bos_token=add_bos_token,
-                                                 add_eos_token=add_eos_token)
+    wrapped_tokenizer = TiktokenTokenizerWrapper(
+        model_name=model_name,
+        encoding_name=encoding_name,
+        add_bos_token=add_bos_token,
+        add_eos_token=add_eos_token,
+        use_default_system_prompt=use_default_system_prompt,
+        additional_special_tokens=additional_special_tokens)
     if model_name is not None:
         original_tokenizer = tiktoken.encoding_for_model(model_name)
     else:
@@ -91,6 +113,31 @@ def test_tiktoken_simple(model_name: Optional[str],
         assert wrapped_output['input_ids'] == original_output
         assert set(wrapped_output.keys()) == {'input_ids', 'attention_mask'}
         assert reloaded_wrapped_output == wrapped_output
+
+
+@pytest.mark.parametrize('model_name,encoding_name',
+                         MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_tiktoken_tokenize_with_ids(model_name: Optional[str],
+                                    encoding_name: Optional[str],
+                                    tmp_path: pathlib.Path):
+    wrapped_tokenizer, reloaded_wrapped_tokenizer, original_tokenizer = get_tokenizers_for_testing(
+        model_name, encoding_name, tmp_path)
+
+    for string in TEST_STRINGS:
+        wrapped_output = wrapped_tokenizer.tokenize(string)
+        original_output = original_tokenizer.encode(string,
+                                                    allowed_special='all')
+        reloaded_wrapped_output = reloaded_wrapped_tokenizer.tokenize(string)
+
+        assert all([isinstance(t, str) for t in wrapped_output])
+        assert len(wrapped_output) == len(original_output)
+        assert wrapped_output == reloaded_wrapped_output
+
+        redone_token_ids = wrapped_tokenizer.convert_tokens_to_ids(
+            wrapped_output)
+        assert redone_token_ids == original_output
+        assert wrapped_tokenizer.convert_ids_to_tokens(
+            redone_token_ids) == wrapped_output
 
 
 @pytest.mark.parametrize('model_name,encoding_name',
@@ -174,27 +221,17 @@ def test_tiktoken_vocab(model_name: Optional[str], encoding_name: Optional[str],
     reloaded_wrapped_vocab = reloaded_wrapped_tokenizer.get_vocab()
     assert wrapped_vocab == reloaded_wrapped_vocab
 
-    didnt_match = []
     for key, value in wrapped_vocab.items():
-        if original_tokenizer.encode(key, allowed_special='all') == [value]:
+        # Skip checking the extra ids we pad the vocab with
+        if key.startswith('<extra_id') and key.endswith('>'):
             continue
-        else:
-            didnt_match.append(
-                (key, original_tokenizer.encode(key,
-                                                allowed_special='all'), value))
 
-    # Decode is lossy because some bytes are not representable in utf-8
-    # see https://github.com/openai/tiktoken/blob/39f29cecdb6fc38d9a3434e5dd15e4de58cf3c80/tiktoken/core.py#L245-L247
-    # This means that the str: int vocab mapping doesn't work. Would have to look more into how other HF tokenizers handle this.
-    model_or_encoding_name = model_name or encoding_name
-    if model_or_encoding_name is not None:
-        expected_didnt_match = MODEL_OR_ENCODING_NAME_TO_NON_UTF8_TOKENS.get(
-            model_or_encoding_name)
-        assert len(didnt_match) == expected_didnt_match
-    else:
-        raise NotImplementedError(
-            'Add the new tokenizer and how many tokens in the vocab are not utf8 representable.'
-        )
+        expected_decoding = ''.join([
+            bytes_to_unicode()[ord(char)]
+            for char in original_tokenizer.decode_single_token_bytes(
+                value).decode('latin-1')
+        ])
+        assert expected_decoding == key
 
 
 @pytest.mark.parametrize('model_name,encoding_name',
@@ -232,3 +269,56 @@ def test_tiktoken_encode_plus(model_name: Optional[str],
         encoded_special_mask = encoded_outputs.special_tokens_mask
         assert encoded_special_mask[0] == 1
         assert encoded_special_mask[-1] == 1
+
+
+@pytest.mark.parametrize('model_name,encoding_name',
+                         MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_additional_special_tokens(model_name: Optional[str],
+                                   encoding_name: Optional[str],
+                                   tmp_path: pathlib.Path):
+    special_token_to_add = '<|im_start|>'
+    wrapped_tokenizer, _, _ = get_tokenizers_for_testing(
+        model_name,
+        encoding_name,
+        tmp_path,
+        add_bos_token=False,
+        add_eos_token=False,
+        additional_special_tokens=[special_token_to_add])
+    encoded_outputs = wrapped_tokenizer(special_token_to_add +
+                                        ' hello')['input_ids']
+
+    assert encoded_outputs[0] == wrapped_tokenizer.vocab_size
+    assert len(encoded_outputs) == 2
+
+
+@pytest.mark.parametrize('model_name,encoding_name',
+                         MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_chat_formatting(model_name: Optional[str],
+                         encoding_name: Optional[str], tmp_path: pathlib.Path):
+    special_tokens_to_add = ['<|im_start|>', '<im_end>']
+    # Default behavior to not use default system prompt.
+    wrapped_tokenizer, _, _ = get_tokenizers_for_testing(
+        model_name,
+        encoding_name,
+        tmp_path,
+        add_bos_token=False,
+        add_eos_token=False,
+        additional_special_tokens=special_tokens_to_add)
+    for i, dict_chats in enumerate(MULTI_TURN_CHAT_ML):
+        chat_str = wrapped_tokenizer.apply_chat_template(dict_chats,
+                                                         tokenize=False)
+        assert chat_str == MULTI_TURN_CHAT_STRING[i]
+
+    # Using default system prompt.
+    wrapped_tokenizer, _, _ = get_tokenizers_for_testing(
+        model_name,
+        encoding_name,
+        tmp_path,
+        use_default_system_prompt=True,
+        add_bos_token=False,
+        add_eos_token=False,
+        additional_special_tokens=special_tokens_to_add)
+    for i, dict_chats in enumerate(MULTI_TURN_CHAT_ML):
+        chat_str = wrapped_tokenizer.apply_chat_template(dict_chats,
+                                                         tokenize=False)
+        assert chat_str == DEFAULT_SYSTEM_PROMPT + MULTI_TURN_CHAT_STRING[i]

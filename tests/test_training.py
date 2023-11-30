@@ -6,10 +6,11 @@ import pathlib
 import shutil
 import sys
 from argparse import Namespace
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 from composer.loggers import InMemoryLogger
+from composer.utils import using_torch_2
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
@@ -26,9 +27,7 @@ from scripts.train.train import main  # noqa: E402
 def create_c4_dataset_xsmall(path: pathlib.Path) -> str:
     """Creates a small mocked version of the C4 dataset."""
     c4_dir = os.path.join(path, f'my-copy-c4')
-    downloaded_split = 'val_xsmall'  # very fast to convert
-
-    # Hyperparameters from https://github.com/mosaicml/llm-foundry/blob/340a56658560ebceb2a3aa69d6e37813e415acd0/README.md#L188
+    downloaded_split = 'val_xxsmall'
     main_hf(
         Namespace(
             **{
@@ -49,7 +48,7 @@ def create_c4_dataset_xsmall(path: pathlib.Path) -> str:
     # copy the small downloaded_split to other c4 splits for mocking purposes
     mocked_splits = ['train', 'val']
     for mocked_split in mocked_splits:
-        shutil.copytree(os.path.join(c4_dir, 'val_xsmall'),
+        shutil.copytree(os.path.join(c4_dir, 'val_xxsmall'),
                         os.path.join(c4_dir, mocked_split))
     assert os.path.exists(c4_dir)
     return c4_dir
@@ -86,12 +85,15 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
     assert isinstance(test_cfg, DictConfig)
 
     test_cfg.data_local = dataset_name
-    test_cfg.global_train_batch_size = 8
-    test_cfg.device_eval_batch_size = 4
-    test_cfg.device_train_microbatch_size = 4
+    test_cfg.global_train_batch_size = 1
+    test_cfg.device_eval_batch_size = 2
+    test_cfg.device_train_microbatch_size = 1
     test_cfg.max_duration = '4ba'
     test_cfg.eval_interval = '4ba'
     test_cfg.run_name = 'gpt-mini-integration-test'
+
+    test_cfg.model.n_layer = 2
+    test_cfg.model.n_embd = 64
 
     if device == 'cpu':
         test_cfg.model.init_device = 'cpu'
@@ -114,7 +116,11 @@ def set_correct_cwd():
         os.chdir('..')
 
 
-def test_train_gauntlet(set_correct_cwd: Any, tmp_path: pathlib.Path):
+@pytest.mark.parametrize('averages', [{
+    'core_average': ['language_understanding_lite']
+}, None])
+def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
+                        tmp_path: pathlib.Path):
     """Test training run with a small dataset."""
     dataset_name = create_c4_dataset_xsmall(tmp_path)
     test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
@@ -129,7 +135,14 @@ def test_train_gauntlet(set_correct_cwd: Any, tmp_path: pathlib.Path):
                 'language_modeling'
         })
     ])
-    test_cfg.icl_subset_num_batches = 1  # -1 to evaluate on all batches
+    test_cfg.icl_subset_num_batches = 1
+    test_cfg.eval_subset_num_batches = 2
+    test_cfg.train_loader.num_workers = 0
+    test_cfg.train_loader.prefetch_factor = None if using_torch_2() else 2
+    test_cfg.train_loader.persistent_workers = False
+    test_cfg.eval_loader.num_workers = 0
+    test_cfg.eval_loader.prefetch_factor = None if using_torch_2() else 2
+    test_cfg.eval_loader.persistent_workers = False
 
     test_cfg.eval_gauntlet = DictConfig({
         'weighting':
@@ -155,7 +168,10 @@ def test_train_gauntlet(set_correct_cwd: Any, tmp_path: pathlib.Path):
             ])
     })
 
-    test_cfg.icl_seq_len = 128
+    if averages is not None:
+        test_cfg.eval_gauntlet['averages'] = averages
+
+    test_cfg.icl_seq_len = 16
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
     test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
@@ -167,14 +183,20 @@ def test_train_gauntlet(set_correct_cwd: Any, tmp_path: pathlib.Path):
     inmemorylogger = trainer.logger.destinations[
         0]  # pyright: ignore [reportGeneralTypeIssues]
     assert isinstance(inmemorylogger, InMemoryLogger)
-    assert 'icl/metrics/eval_gauntlet/average' in inmemorylogger.data.keys()
-    assert isinstance(inmemorylogger.data['icl/metrics/eval_gauntlet/average'],
-                      list)
-    assert len(inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1]) > 0
-    assert isinstance(
-        inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1], tuple)
 
-    assert inmemorylogger.data['icl/metrics/eval_gauntlet/average'][-1][-1] == 0
+    category_name = 'default_average' if averages is None else 'core_average'
+    assert f'icl/metrics/eval_gauntlet/{category_name}' in inmemorylogger.data.keys(
+    )
+    assert isinstance(
+        inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'], list)
+    assert len(inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}']
+               [-1]) > 0
+    assert isinstance(
+        inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'][-1],
+        tuple)
+
+    assert inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'][
+        -1][-1] == 0
 
 
 def test_train_multi_eval(set_correct_cwd: Any, tmp_path: pathlib.Path):

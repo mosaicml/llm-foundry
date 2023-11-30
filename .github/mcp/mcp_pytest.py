@@ -54,6 +54,9 @@ if __name__ == '__main__':
                         type=int,
                         default=1800,
                         help='Timeout for run (in seconds)')
+    parser.add_argument('--deps_group',
+                        type=str,
+                        help='Dependency group to install')
     args = parser.parse_args()
 
     name = args.name
@@ -89,7 +92,7 @@ if __name__ == '__main__':
     clear_tmp_path_flag = '-o tmp_path_retention_policy=none'
     command += f'''
 
-    pip install --upgrade --user .[all]
+    pip install --upgrade --user .[{args.deps_group}]
 
     export COMMON_ARGS="-v --durations=20 -m '{args.pytest_markers}' {clear_tmp_path_flag}"
 

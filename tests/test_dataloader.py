@@ -8,7 +8,7 @@ import shutil
 import sys
 import tempfile
 from argparse import Namespace
-from typing import Optional
+from typing import Literal, Optional, Union
 from unittest.mock import MagicMock
 
 import pytest
@@ -248,21 +248,21 @@ def test_denoising_dataloader(decoder_only_format: bool, pretokenize: bool,
 
 @pytest.mark.parametrize('decoder_only_format', [True, False])
 @pytest.mark.parametrize('allow_pad_trimming', [True, False])
-@pytest.mark.parametrize('packing_ratio', [10.0, None])
+@pytest.mark.parametrize('packing_ratio', [10.0, None, 'auto'])
 def test_finetuning_dataloader(decoder_only_format: bool,
                                allow_pad_trimming: bool,
-                               packing_ratio: Optional[float]):
-    # Use the datasets just built in the last test
-    tokenizer_name = 'gpt2' if decoder_only_format else 't5-base'
-    max_seq_len = 2048 if decoder_only_format else 1024
-
+                               packing_ratio: Optional[Union[float,
+                                                             Literal['auto']]]):
     if (decoder_only_format is False) and (packing_ratio is not None):
         pytest.xfail('packing_ratio only supported for decoder-only format.')
+
+    tokenizer_name = 'gpt2' if decoder_only_format else 't5-base'
+    max_seq_len = 2048 if decoder_only_format else 1024
 
     cfg = {
         'name': 'finetuning',
         'dataset': {
-            'hf_name': 'tatsu-lab/alpaca',
+            'hf_name': 'HuggingFaceH4/databricks_dolly_15k',
             'split': 'train',
             'max_seq_len': max_seq_len,
             'decoder_only_format': decoder_only_format,
@@ -271,9 +271,9 @@ def test_finetuning_dataloader(decoder_only_format: bool,
             'shuffle': True,
         },
         'drop_last': False,
-        'num_workers': 4,
+        'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': 2,
+        'prefetch_factor': None if using_torch_2() else 2,
         'persistent_workers': False,
         'timeout': 0
     }
@@ -308,18 +308,23 @@ def test_finetuning_dataloader(decoder_only_format: bool,
 
 
 @pytest.mark.world_size(2)
+@pytest.mark.gpu
 @pytest.mark.parametrize('dataset_size', [4, 8])
 @pytest.mark.parametrize('device_batch_size', [2, 4])
 @pytest.mark.parametrize('drop_last', [True, False])
+@pytest.mark.parametrize('invalid_dataset', [True, False])
 def test_finetuning_dataloader_small_data(dataset_size: int,
                                           device_batch_size: int,
-                                          drop_last: bool):
+                                          drop_last: bool,
+                                          invalid_dataset: bool):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
     if dist.get_global_rank() == 0:
-        make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size)
+        make_tiny_ft_dataset(path=tiny_dataset_path,
+                             size=dataset_size,
+                             add_bad_data_error=invalid_dataset)
 
     cfg = {
         'name': 'finetuning',
@@ -353,6 +358,11 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     error_context = contextlib.nullcontext()
     if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
         error_context = pytest.raises(ValueError, match='Your dataset')
+    if invalid_dataset:
+        error_context = pytest.raises(
+            TypeError,
+            match='Unable to tokenize example because "prompt" was not a string'
+        )
 
     with error_context:
         _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
@@ -529,7 +539,6 @@ def test_malformed_data(
         },
         'drop_last': False,
         'num_workers': 0,
-        # set prefetch to 2 if < torch 2, else set it to None
         'prefetch_factor': None if using_torch_2() else 2,
         'pin_memory': False,
         'persistent_workers': False,

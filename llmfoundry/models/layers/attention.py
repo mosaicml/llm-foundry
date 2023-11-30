@@ -5,7 +5,7 @@
 
 import math
 import warnings
-from typing import Any, List, Optional, Tuple
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
@@ -17,12 +17,13 @@ from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 
-def is_flash_v2_installed():
+def is_flash_v2_installed(v2_version: str = '2.0.0'):
+    assert version.parse(v2_version) >= version.parse('2.0.0')
     try:
         import flash_attn as flash_attn
     except:
         return False
-    return version.parse(flash_attn.__version__) >= version.parse('2.0.0')
+    return version.parse(flash_attn.__version__) >= version.parse(v2_version)
 
 
 def is_flash_v1_installed():
@@ -31,6 +32,16 @@ def is_flash_v1_installed():
     except:
         return False
     return version.parse(flash_attn.__version__) < version.parse('2.0.0')
+
+
+# Before importing any transformers models, we need to disable transformers flash attention if
+# we are in an environment with flash attention version <2. Transformers hard errors on a not properly
+# gated import otherwise.
+if is_flash_v1_installed():
+    import transformers
+    transformers.utils.is_flash_attn_available = lambda: False
+
+from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
@@ -70,7 +81,7 @@ def scaled_multihead_dot_product_attention(
     value: torch.Tensor,
     n_heads: int,
     kv_n_heads: Optional[int] = None,
-    past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+    past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
     key_padding_mask: Optional[torch.Tensor] = None,
@@ -79,7 +90,7 @@ def scaled_multihead_dot_product_attention(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
+) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
 
     if multiquery:
@@ -183,7 +194,7 @@ def scaled_multihead_dot_product_attention(
 
 
 def check_valid_inputs(*tensors: torch.Tensor,
-                       valid_dtypes: Optional[List[torch.dtype]] = None):
+                       valid_dtypes: Optional[list[torch.dtype]] = None):
     if valid_dtypes is None:
         valid_dtypes = [torch.float16, torch.bfloat16]
     for tensor in tensors:
@@ -199,7 +210,7 @@ def flash_attn_fn(
     value: torch.Tensor,
     n_heads: int,
     kv_n_heads: Optional[int] = None,
-    past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+    past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
     key_padding_mask: Optional[torch.Tensor] = None,
@@ -208,7 +219,7 @@ def flash_attn_fn(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
+) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
@@ -337,7 +348,7 @@ def triton_flash_attn_fn(
     value: torch.Tensor,
     n_heads: int,
     kv_n_heads: Optional[int] = None,
-    past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+    past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
     key_padding_mask: Optional[torch.Tensor] = None,
@@ -346,7 +357,7 @@ def triton_flash_attn_fn(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor,
+) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
         from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
@@ -552,12 +563,13 @@ class GroupedQueryAttention(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
+        rotary_emb_w_meta_info: Optional[dict] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
             torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
 
@@ -580,6 +592,39 @@ class GroupedQueryAttention(nn.Module):
             dtype = query.dtype
             query = self.q_ln(query).to(dtype)
             key = self.k_ln(key).to(dtype)
+
+        if rotary_emb_w_meta_info is not None:
+            rotary_emb = rotary_emb_w_meta_info['rotary_emb']
+            seq_len = rotary_emb_w_meta_info['seq_len']
+            offset_info = rotary_emb_w_meta_info['offset_info']
+            bsz, seqlen = query.shape[:2]
+            query = query.view(bsz, seqlen, -1, self.head_dim)
+            key = key.view(bsz, seqlen, -1, self.head_dim)
+
+            if rotary_emb_w_meta_info['impl'] == 'dail':
+                value = value.view(bsz, seqlen, -1, self.head_dim)
+
+                kv = torch.stack([key, value], dim=2)
+                query, kv = rotary_emb(query,
+                                       kv,
+                                       seqlen_offset=offset_info,
+                                       max_seqlen=seq_len)
+                [key, value] = torch.unbind(kv, dim=2)
+
+                value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
+            elif rotary_emb_w_meta_info['impl'] == 'hf':
+                (cos, sin) = rotary_emb(value, seq_len)
+                # The following two transposes should be removed once the transformers library allows for the specification of the dimension for heads in the call to apply_rotary_pos_emb
+                query = query.transpose(1, 2)
+                key = key.transpose(1, 2)
+                query, key = apply_rotary_pos_emb(query, key, cos, sin,
+                                                  offset_info)
+                # The following two transposes should be removed once the transformers library allows for the specification of the dimension for heads in the call to apply_rotary_pos_emb
+                query = query.transpose(1, 2)
+                key = key.transpose(1, 2)
+
+            query = query.view(bsz, seqlen, self.d_model)
+            key = key.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
 
         context, attn_weights, past_key_value = self.attn_fn(
             query,
@@ -677,7 +722,7 @@ class MultiQueryAttention(GroupedQueryAttention):
 def attn_bias_shape(
         attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
         prefix_lm: bool, causal: bool,
-        use_sequence_id: bool) -> Optional[Tuple[int, int, int, int]]:
+        use_sequence_id: bool) -> Optional[tuple[int, int, int, int]]:
     if attn_impl == 'flash':
         return None
     elif attn_impl in ['torch', 'triton']:

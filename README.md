@@ -181,14 +181,14 @@ source llmfoundry-venv-amd/bin/activate
 
 # installs
 pip install cmake packaging torch
-pip install -e .  # this installs some things which are not needed but they dont hurt
+pip install -e .  # This installs some things that are not needed but they don't hurt
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.4.2
 ```
 **Lastly**, install the ROCm enabled flash attention (instructions [here](https://github.com/ROCmSoftwarePlatform/flash-attention/tree/flash_attention_for_rocm2#amd-gpurocm-support)).
 
 Notes:
 1. `attn_impl: triton` does not work.
-1. We don't yet have a docker img where everything works perfectly. You might need to up/down grade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
+1. We don't yet have a docker img where everything works perfectly. You might need to up/downgrade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
 
 # Quickstart
 
@@ -228,7 +228,7 @@ python inference/convert_composer_to_hf.py \
   # --hf_repo_for_upload user-org/repo-name
 
 # Evaluate the model on a subset of tasks
-python eval/eval.py \
+composer eval/eval.py \
   eval/yamls/hf_eval.yaml \
   icl_tasks=eval/yamls/copa.yaml \
   model_name_or_path=mpt-125m-hf

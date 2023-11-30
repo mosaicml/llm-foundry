@@ -13,7 +13,7 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: output-logger-test
+run_name: output-logger-rlhf-prompts
 gpu_num: 8
 gpu_type: a100_80gb
 cluster: r1z1 # replace with your cluster here!
@@ -25,21 +25,21 @@ parameters:
   dist_timeout: 6000
   seed: 1
   max_seq_len: 1024
-  device_eval_batch_size: 4
+  device_eval_batch_size: 1
   precision: amp_fp16
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: mosaicml/mpt-30b-instruct
     # Tokenizer
     tokenizer:
-      name:  mosaicml/mpt-7b-instruct
+      name:  mosaicml/mpt-30b-instruct
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path:  mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path:  mosaicml/mpt-30b-instruct
       init_device: mixed
       pretrained: true
       use_auth_token: false
@@ -54,15 +54,15 @@ parameters:
 
   icl_tasks:
   -
-    label: jeopardy
-    dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
-    num_fewshot: [10]
-    icl_task_type: language_modeling
-    continuation_delimiter: "\nAnswer: " # this separates questions from answers
+    label: rlhf_prompts
+    dataset_uri: eval/local_data/rlhf_prompts/rlhf_prompts.jsonl # ADD YOUR OWN DATASET URI
+    num_fewshot: [0]
+    icl_task_type: question_answering
     has_categories: true
-    
+  
   callbacks:
     eval_output_logging:
+      print_only_incorrect: false
       subset_sample: -1
-      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_7b
+      output_directory: s3://mosaicml-internal-checkpoints-test/30b_instruct_rlhf_prompts
 

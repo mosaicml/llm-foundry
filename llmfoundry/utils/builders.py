@@ -28,6 +28,7 @@ from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
+from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
@@ -107,18 +108,13 @@ def build_eval_loaders(
 
 def add_metrics_to_eval_loaders(
     evaluators: List[Evaluator],
-    model: Any,
+    metrics: Dict[str, Metric],
 ) -> List[Evaluator]:
-    if model.train_metrics is None:
-        raise ValueError(
-            'Eval loader requires metrics, either through the models defaults and/or train_metrics'
-        )
-
-    eval_metric_names = list(model.train_metrics.keys())
+    metric_names = list(metrics.keys())
     eval_loaders, other_evaluators = [], []
     for evaluator in evaluators:
         if evaluator.metric_names == []:
-            evaluator.metric_names = eval_metric_names
+            evaluator.metric_names = metric_names
             eval_loaders.append(evaluator)
         else:
             other_evaluators.append(evaluator)

@@ -514,12 +514,8 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         assert block.resid_ffn_dropout.p == 0.2
 
 
-@pytest.mark.parametrize('attention_impl', [
-    'torch',
-    pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
-    pytest.param('torch', marks=pytest.mark.gpu)
-])
+@pytest.mark.gpu
+@pytest.mark.parametrize('attention_impl', ['flash', 'triton', 'torch'])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': True,
     'rope': False

@@ -109,9 +109,9 @@ def test_attn_impl(attn_impl_0: str,
     if attn_uses_sequence_id:
         assert n == 2
         assert s >= 4
-        sequence_id = torch.Tensor([[0] * 2 + [1] * (s - 2),
-                                    [0] * 4 + [1] * (s - 4)
-                                   ]).to(device=device).long()
+        sequence_id = torch.LongTensor([[0] * 2 + [1] * (s - 2),
+                                        [0] * 4 + [1] * (s - 4)
+                                       ]).to(device=device)
 
     cfg.attn_impl = attn_impl_0
     attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)

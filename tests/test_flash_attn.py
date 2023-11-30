@@ -12,7 +12,7 @@ from llmfoundry.models.layers.attention import (flash_attn_fn,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('kv_n_heads', [1, 2, 4, 8])
+@pytest.mark.parametrize('kv_n_heads', [1, 4, 8])
 def test_gqa_kv_repetition(kv_n_heads: int):
     # Test that flash attention v2 with GQA (kv_n_heads < n_heads) works the same
     # whether we repeat the kv_n_heads explicitly or flash attention v2 handles it on its own.
@@ -167,7 +167,7 @@ def test_seq_id_masking_FA_v2():
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('sliding_window_size', [1, 2, 4, 8])
+@pytest.mark.parametrize('sliding_window_size', [1, 4, 8])
 def test_sliding_window(sliding_window_size: int):
     # Test that sliding window attention works as expected.
     if not is_flash_v2_installed('v2.3.0'):

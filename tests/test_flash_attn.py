@@ -225,23 +225,22 @@ def test_sliding_window(sliding_window_size: int):
         torch.ones(seqlen_1, seqlen_1), diagonal=-(sliding_window_size + 1)).to(
             dtype=dtype, device=device) * torch.finfo(attn_bias_2.dtype).min
     attn_bias_2 = attn_bias_2 + window_mask_2
-    output_2, _, _ = triton_flash_attn_fn(query=query_2,
-                                          key=key_2,
-                                          value=value_2,
-                                          n_heads=n_heads,
-                                          kv_n_heads=n_heads,
-                                          past_key_value=None,
-                                          softmax_scale=1 / math.sqrt(d),
-                                          attn_bias=attn_bias_2,
-                                          key_padding_mask=None,
-                                          is_causal=True,
-                                          dropout_p=0.0,
-                                          training=False,
-                                          needs_weights=False,
-                                          multiquery=False,
-                                          attention_mask_in_length=None,
-                                          should_repeat_kv_for_gqa=False,
-                                          sliding_window_size=-1)
+    output_2, _, _ = triton_flash_attn_fn(
+        query=query_2,
+        key=key_2,
+        value=value_2,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=attn_bias_2,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        multiquery=False,
+    )
 
     output_2.sum().backward()
 

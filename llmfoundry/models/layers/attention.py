@@ -90,13 +90,8 @@ def scaled_multihead_dot_product_attention(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-    attention_mask_in_length: Optional[torch.Tensor] = None,
-    should_repeat_kv_for_gqa: Optional[bool] = True,
-    sliding_window_size: int = -1,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-    del attention_mask_in_length, should_repeat_kv_for_gqa, sliding_window_size
-
     if multiquery:
         warnings.warn(
             DeprecationWarning(
@@ -271,33 +266,28 @@ def flash_attn_fn(
         if key_padding_mask is None:
             key_padding_mask = torch.ones_like(key[:, :, 0], dtype=torch.bool)
         query_padding_mask = key_padding_mask[:, -query.size(1):]
-
-        query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = bert_padding.unpad_input(
-            query, query_padding_mask)
-        query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
-
-        key_unpad, _, cu_seqlens_k, max_seqlen_k = bert_padding.unpad_input(
-            key, key_padding_mask)
-        key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
-
-        value_unpad, _, _, _ = bert_padding.unpad_input(value, key_padding_mask)
-        value_unpad = rearrange(value_unpad,
-                                'nnz (h d) -> nnz h d',
-                                h=kv_n_heads)
+        unpadding_function = bert_padding.unpad_input
     else:
-        query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = bert_padding.unpad_input_for_concatenated_sequences(
-            query, attention_mask_in_length)
-        query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
+        unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
+        query_padding_mask = attention_mask_in_length
+        key_padding_mask = attention_mask_in_length
 
-        key_unpad, _, cu_seqlens_k, max_seqlen_k = bert_padding.unpad_input_for_concatenated_sequences(
-            key, attention_mask_in_length)
-        key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
+    query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
+        query, query_padding_mask)
+    query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
 
-        value_unpad, _, _, _ = bert_padding.unpad_input_for_concatenated_sequences(
-            value, attention_mask_in_length)
-        value_unpad = rearrange(value_unpad,
-                                'nnz (h d) -> nnz h d',
-                                h=kv_n_heads)
+    key_unpad, _, cu_seqlens_k, max_seqlen_k = unpadding_function(
+        key, key_padding_mask)
+    key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
+
+    value_unpad, _, _, _ = unpadding_function(value, key_padding_mask)
+    value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
+
+    if (kv_n_heads < n_heads) and (not is_flash_v2_installed()) and (
+            not should_repeat_kv_for_gqa):
+        raise ValueError(
+            'For Grouped Query Attention or Multi Query Attention, should_repeat_kv_for_gqa should be set to True if not using Flash Attention v2.'
+        )
 
     if should_repeat_kv_for_gqa:
         # multi-query case
@@ -383,12 +373,8 @@ def triton_flash_attn_fn(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-    attention_mask_in_length: Optional[torch.Tensor] = None,
-    should_repeat_kv_for_gqa: Optional[bool] = True,
-    sliding_window_size: int = -1,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-    del attention_mask_in_length, should_repeat_kv_for_gqa, sliding_window_size
     try:
         from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
     except:
@@ -659,6 +645,14 @@ class GroupedQueryAttention(nn.Module):
             query = query.view(bsz, seqlen, self.d_model)
             key = key.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
 
+        extra_attn_kwargs = {}
+        if self.attn_impl == 'flash':
+            extra_attn_kwargs = {
+                'attention_mask_in_length': attention_mask_in_length,
+                'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
+                'sliding_window_size': self.sliding_window_size,
+            }
+
         context, attn_weights, past_key_value = self.attn_fn(
             query,
             key,
@@ -673,9 +667,7 @@ class GroupedQueryAttention(nn.Module):
             dropout_p=self.attn_dropout_p,
             training=self.training,
             needs_weights=needs_weights,
-            attention_mask_in_length=attention_mask_in_length,
-            should_repeat_kv_for_gqa=not is_flash_v2_installed(),
-            sliding_window_size=self.sliding_window_size,
+            **extra_attn_kwargs,
         )
 
         return self.out_proj(context), attn_weights, past_key_value

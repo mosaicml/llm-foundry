@@ -1,17 +1,22 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import re
 import unittest.mock as mock
-from typing import Union
+from copy import deepcopy
+from typing import Any, Dict, Union
 
 import pytest
+import torch
+import torch.nn as nn
 from composer.callbacks import Generate
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
-from llmfoundry.utils.builders import build_callback, build_tokenizer
+from llmfoundry.utils.builders import (build_callback, build_optimizer,
+                                       build_tokenizer)
 
 
 @pytest.mark.parametrize('tokenizer_name,tokenizer_kwargs', [
@@ -118,3 +123,83 @@ def test_build_hf_checkpointer_callback():
         assert isinstance(kwargs['mlflow_logging_config'], dict)
         assert isinstance(kwargs['mlflow_logging_config']['metadata'], dict)
         assert kwargs['mlflow_logging_config'] == mlflow_logging_config_dict
+
+
+class _DummyModule(nn.Module):
+
+    def __init__(self, device: str = 'cpu', dtype: torch.dtype = torch.float32):
+        super().__init__()
+        self.linear0 = nn.Linear(4, 3, device=device, dtype=dtype)
+        self.norm0 = nn.LayerNorm(3, device=device, dtype=dtype)
+        self.linear1 = nn.Linear(3, 5, device=device, dtype=dtype)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type:ignore
+        return self.linear1(self.norm0(self.linear0(x)))
+
+
+@pytest.mark.parametrize('name, optimizer_config', [
+    ('decoupled_adamw', {}),
+    ('decoupled_lionw', {}),
+    ('clip_lion', {}),
+    ('adalr_lion', {}),
+    pytest.param('decoupled_lionw_8b', {}, marks=pytest.mark.gpu),
+])
+@pytest.mark.parametrize('opt_additional_config', [
+    {
+        'disable_grad': 'norm'
+    },
+    {
+        'disable_grad': ['norm', 'bias']
+    },
+    {
+        'param_groups': [{
+            'param_str_match': 'norm',
+            'lr': 1e-9,
+            'weight_decay': 0.0,
+        },]
+    },
+    {
+        'param_groups': [{
+            'param_str_match': 'no.*.bias',
+            'lr': 1e-9,
+            'weight_decay': 0.0,
+        },]
+    },
+    {
+        'param_groups': [{
+            'param_str_match': 'norm',
+            'lr': 1e-4,
+            'weight_decay': 0.0,
+        },],
+        'disable_grad': ['bias'],
+    },
+])
+def test_build_optimizer(name: str, optimizer_config: Dict[str, Any],
+                         opt_additional_config: Dict[str, Any]):
+    model = _DummyModule()
+    optimizer_config.update(deepcopy(opt_additional_config))
+    optimizer = build_optimizer(model, name, optimizer_config)
+
+    if 'disable_grad' in opt_additional_config.keys():
+        disable_grad = opt_additional_config['disable_grad']
+        if isinstance(disable_grad, str):
+            disable_grad = [disable_grad]
+        for n, p in model.named_parameters():
+            for k in disable_grad:
+                if re.search(k, n):
+                    assert not p.requires_grad
+
+    if 'param_groups' in opt_additional_config.keys():
+        for param_group_config, param_group in zip(
+                opt_additional_config['param_groups'],
+                optimizer.param_groups[1:]):
+            param_group_config = deepcopy(param_group_config)
+            param_str_match = param_group_config.pop('param_str_match')
+
+            for k, v in param_group_config.items():
+                assert param_group[k] == v
+
+            param_ids = [id(p) for p in param_group['params']]
+            for n, p in model.named_parameters():
+                if re.search(param_str_match, n):
+                    assert id(p) in param_ids

@@ -1,7 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import copy
-import os
 import pathlib
 from typing import Any, Optional
 
@@ -14,17 +13,6 @@ from omegaconf import OmegaConf as om
 from scripts.train.train import main  # noqa: E402
 from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
                               gpt_tiny_cfg)
-
-
-@pytest.fixture(autouse=False)
-def set_correct_cwd():
-    if not os.getcwd().endswith('llm-foundry/scripts'):
-        os.chdir('scripts')
-
-    yield
-
-    if os.getcwd().endswith('llm-foundry/scripts'):
-        os.chdir('..')
 
 
 @pytest.mark.parametrize('averages', [{

@@ -252,12 +252,6 @@ def flash_attn_fn(
         past_key_value = (key, value)
 
     if attn_bias is not None:
-        # clamp to 0 necessary for torch 2.0 compile()
-        _s_q = max(0, attn_bias.size(2) - query.size(1))
-        _s_k = max(0, attn_bias.size(3) - key.size(1))
-        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
-
-    if attn_bias is not None:
         raise NotImplementedError(f'attn_bias not implemented for flash attn.')
 
     batch_size, seqlen = query.shape[:2]

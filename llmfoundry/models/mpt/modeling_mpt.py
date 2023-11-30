@@ -138,16 +138,16 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
     """Generates the attention mask used for sequence masking in FA v2.
 
     Only supports sequence id based sparse attention for no attention masking or attention masking with right padding.
-     In case of left padding:
-     1. Training with left padding is not supported in MPT (see https://github.com/mosaicml/llm-foundry/blob/1eecd4cb8e734499f77f6a35f657b8b20c0adfcb/llmfoundry/models/mpt/modeling_mpt.py#L407).
-     2. For generation with left padding, we only have a single sequence id per sample, so we don't need sequence id based sparse attention.
+    In case of left padding:
+        1. Training with left padding is not supported in MPT (see https://github.com/mosaicml/llm-foundry/blob/1eecd4cb8e734499f77f6a35f657b8b20c0adfcb/llmfoundry/models/mpt/modeling_mpt.py#L407).
+        2. For generation with left padding, we only have a single sequence id per sample, so we don't need sequence id based sparse attention.
 
-     Args:
-         sequence_id (Union[None, torch.Tensor]): Tensor containing the sequence id for each token. Shape (batch_size, seq_len).
-         S (int): Sequence length
-         attn_uses_sequence_id (bool): Whether the attention uses sequence id based masking.
-         attn_impl (str): Attention implementation. This function is only creates attention_mask_in_length for flash attention.
-         attention_mask (Union[torch.Tensor, None]): Attention mask tensor of shape (batch_size, seq_len)
+    Args:
+        sequence_id (Union[None, torch.Tensor]): Tensor containing the sequence id for each token. Shape (batch_size, seq_len).
+        S (int): Sequence length
+        attn_uses_sequence_id (bool): Whether the attention uses sequence id based masking.
+        attn_impl (str): Attention implementation. This function is only creates attention_mask_in_length for flash attention.
+        attention_mask (Union[torch.Tensor, None]): Attention mask tensor of shape (batch_size, seq_len)
     """
     attention_mask_in_length = None
     if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl

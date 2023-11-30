@@ -57,6 +57,7 @@ class TestHuggingFaceEvalYAMLInputs:
             'loggers',
             'eval_gauntlet',
             'fsdp_config',
+            'eval_loader',
         ]
         old_cfg = copy.deepcopy(cfg)
         for param in optional_params:

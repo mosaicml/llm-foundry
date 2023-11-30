@@ -640,7 +640,7 @@ def main(cfg: DictConfig) -> Trainer:
     print('model.n_active_params ',model.n_active_params)
     print('model_config.tie_word_embeddings ',model_config.tie_word_embeddings)
     print('model_config.vocab_size ',model_config.vocab_size)
-    trainer.fit()
+    trainer.fit() # reset_time=True,duration=max_duration) # JP Added
 
     print('Done.')
     return trainer

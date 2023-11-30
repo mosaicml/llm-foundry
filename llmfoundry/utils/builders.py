@@ -109,7 +109,7 @@ def add_metrics_to_eval_loaders(
     evaluators: List[Evaluator],
     model: Any,
 ) -> List[Evaluator]:
-    if model.train_metrics is not None:
+    if model.train_metrics is None:
         raise ValueError(
             'Eval loader requires metrics, either through the models defaults and/or train_metrics'
         )

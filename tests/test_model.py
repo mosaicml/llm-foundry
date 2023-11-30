@@ -6,7 +6,7 @@ import gc
 import os
 import pathlib
 import warnings
-from typing import Any, Dict, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 from unittest import mock
 
 import pytest
@@ -99,18 +99,24 @@ def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
 
 def gen_random_batch(batch_size: int,
                      test_cfg: Union[DictConfig, ListConfig],
-                     inputs_embeds: bool = False):
+                     inputs: Optional[List[str]] = None):
+    # inputs can be [], ['input_ids'], ['input_ids', 'inputs_embeds'], and ['inputs_embeds']
+    # default to only input ids
+    if inputs == None:
+        inputs = ['input_ids']
     # generate input batch of random data, suitable for a Causal or Prefix LM
     batch = {}
-    if inputs_embeds:
-        batch['inputs_embeds'] = torch.randn(batch_size, test_cfg.max_seq_len,
-                                             test_cfg.model.d_model).to(
-                                                 test_cfg.device)
-    else:
-        batch['input_ids'] = torch.randint(
-            low=0,
-            high=test_cfg.model.vocab_size,
-            size=(batch_size, test_cfg.max_seq_len)).to(test_cfg.device)
+    for inp in inputs:
+        if inp == 'input_ids':
+            batch['input_ids'] = torch.randint(
+                low=0,
+                high=test_cfg.model.vocab_size,
+                size=(batch_size, test_cfg.max_seq_len)).to(test_cfg.device)
+        if inp == 'inputs_embeds':
+            batch['inputs_embeds'] = torch.randn(batch_size, test_cfg.max_seq_len,
+                                                test_cfg.model.d_model).to(
+                                                    test_cfg.device)
+
     batch['labels'] = torch.randint(low=0,
                                     high=test_cfg.model.vocab_size,
                                     size=(batch_size, test_cfg.max_seq_len)).to(
@@ -164,7 +170,7 @@ def test_full_forward_and_backward_with_inputs_embeds(batch_size: int = 2):
     test_cfg, model, optimizer = get_objs(
         conf_path='scripts/train/yamls/pretrain/testing.yaml')
 
-    batch = gen_random_batch(batch_size, test_cfg, inputs_embeds=True)
+    batch = gen_random_batch(batch_size, test_cfg, inputs=['inputs_embeds'])
 
     model.train()
     original_params = next(model.parameters()).clone().data
@@ -174,6 +180,18 @@ def test_full_forward_and_backward_with_inputs_embeds(batch_size: int = 2):
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
     assert not torch.equal(original_params, updated_params)
+
+
+@pytest.mark.parametrize('inputs', [[], ['input_ids','inputs_embeds']])
+def test_invalid_inputs_embeds_input_ids_combinations(inputs: List[str]):
+    test_cfg, model, _ = get_objs(
+        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+
+    batch = gen_random_batch(2, test_cfg, inputs=inputs)
+
+    model.train()
+    with pytest.raises(ValueError):
+        _ = model(batch)
 
 
 def test_attention_mechanism(batch_size: int = 2):
@@ -780,6 +798,9 @@ def test_generate(attention_impl: str, device: str, alibi: bool):
     no_padding_attention_mask = composer_device.tensor_to_device(
         no_padding_attention_mask)
 
+    # inputs_embeds
+    inputs_embeds = torch.randn(2, 3, 128).to(device)
+
     # a single batch with different amounts of left padding in the input
     batched_input_ids = torch.tensor([[50256, 50256, 50256, 11274, 16390, 11],
                                       [50256, 50256, 16, 11274, 16390, 11]])
@@ -817,6 +838,31 @@ def test_generate(attention_impl: str, device: str, alibi: bool):
         # check that left padding and no padding produce the same output
         assert generation_with_no_padding[:, 3:].equal(
             generation_with_left_padding[:, 6:])
+
+        # check that both/neither ids and embeds do not error
+        # note that we need to set the BOS token ID for generating from neither
+        _ = mpt.generate(input_ids=no_padding_input_ids,
+                            inputs_embeds=inputs_embeds,
+                            attention_mask=no_padding_attention_mask,
+                            max_new_tokens=5,
+                            use_cache=False)
+        _ = mpt.generate(input_ids=no_padding_input_ids,
+                            inputs_embeds=inputs_embeds,
+                            attention_mask=no_padding_attention_mask,
+                            max_new_tokens=5,
+                            use_cache=True)
+        _ = mpt.generate(input_ids=None,
+                            inputs_embeds=None,
+                            attention_mask=no_padding_attention_mask,
+                            max_new_tokens=5,
+                            use_cache=False,
+                            bos_token_id=50256)
+        _ = mpt.generate(input_ids=None,
+                            inputs_embeds=None,
+                            attention_mask=no_padding_attention_mask,
+                            max_new_tokens=5,
+                            use_cache=True,
+                            bos_token_id=50256)
 
 
 @pytest.mark.gpu

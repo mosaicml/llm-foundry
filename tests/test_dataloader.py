@@ -22,6 +22,9 @@ from streaming import MDSWriter
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data import build_dataloader
+from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
+                                              _ALLOWED_RESPONSE_KEYS,
+                                              _tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
@@ -370,6 +373,39 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
 
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
+
+
+def test_tokenize_example_malformed():
+    no_keys = {}
+    no_prompt_key = {'response': 'response'}
+    no_response_key = {'prompt': 'prompt'}
+    extra_keys_with_prompt = {'prompt': 'prompt', 'extra': 'extra'}
+    extra_keys_with_response = {'response': 'response', 'extra': 'extra'}
+    multiple_allowed_response_keys = {
+        'prompt': 'prompt',
+        'response': 'response',
+        'completion': 'completion'
+    }
+
+    malformed_examples = [
+        no_keys, no_prompt_key, no_response_key, extra_keys_with_prompt,
+        extra_keys_with_response, multiple_allowed_response_keys
+    ]
+
+    for example in malformed_examples:
+        with pytest.raises(KeyError):
+            _tokenize_formatted_example(example, MagicMock())
+
+
+def test_tokenize_example_well_formed():
+    tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
+
+    for prompt_key in _ALLOWED_PROMPT_KEYS:
+        for response_key in _ALLOWED_RESPONSE_KEYS:
+            example = {prompt_key: 'prompt', response_key: 'response'}
+            tokenized_example = _tokenize_formatted_example(example, tokenizer)
+            assert 'input_ids' in tokenized_example
+            assert 'labels' in tokenized_example
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'data'])

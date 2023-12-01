@@ -739,6 +739,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
         act_ckpt_list = getattr(self.config, 'activation_checkpointing_target',
                                 None) or ['MPTBlock']
+        if not isinstance(act_ckpt_list, list):
+            # `activation_checkpointing_target` is a single value
+            act_ckpt_list = [act_ckpt_list]
 
         if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
             if len(act_ckpt_list) > 1:

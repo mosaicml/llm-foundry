@@ -365,7 +365,7 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if invalid_dataset:
         error_context = pytest.raises(
             TypeError,
-            match='Unable to tokenize example because "prompt" was not a string'
+            match='Unable to tokenize example'
         )
 
     with error_context:

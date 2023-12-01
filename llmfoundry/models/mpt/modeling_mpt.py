@@ -368,7 +368,7 @@ class MPTModel(MPTPreTrainedModel):
 
     def forward(
         self,
-        input_ids: torch.LongTensor,
+        input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         prefix_mask: Optional[torch.ByteTensor] = None,
@@ -412,11 +412,6 @@ class MPTModel(MPTPreTrainedModel):
                 'prefix_mask is a required argument when MPT is configured with prefix_lm=True.'
             )
 
-        # Raise a not implemented error if input_embeds is not None (this is an arg in huggingface transformers and we need to support it for PEFT)
-        if inputs_embeds is not None:
-            raise NotImplementedError(
-                'inputs_embeds is not implemented for MPT.')
-
         if self.training:
             if self.attn_uses_sequence_id and sequence_id is None:
                 raise ValueError(
@@ -430,14 +425,25 @@ class MPTModel(MPTPreTrainedModel):
                     'This input will be ignored. If you want the model to use `sequence_id`, set attn_uses_sequence_id to True.'
                 )
 
-        S = input_ids.size(1)
+        if input_ids is not None and inputs_embeds is not None:
+            raise ValueError(
+                'You cannot specify both input_ids and inputs_embeds.')
+        elif input_ids is not None:
+            S = input_ids.size(1)
+            x = self.wte(input_ids)
+            input_device = input_ids.device
+        elif inputs_embeds is not None:
+            S = inputs_embeds.size(1)
+            x = inputs_embeds
+            input_device = inputs_embeds.device
+        else:
+            raise ValueError('You must specify input_ids or inputs_embeds')
 
         assert (
             S <= self.config.max_seq_len
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
         rotary_emb_w_meta_info = None
-        x = self.wte(input_ids)
         if self.learned_pos_emb or self.rope:
             past_position = 0
             if past_key_values is not None:
@@ -467,7 +473,7 @@ class MPTModel(MPTPreTrainedModel):
                     past_position,
                     S + past_position,
                     dtype=torch.long,
-                    device=input_ids.device,
+                    device=input_device,
                 ).unsqueeze(0)
                 if attention_mask is not None:
                     # adjust the position indices to account for padding tokens
@@ -652,7 +658,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     def forward(
         self,
-        input_ids: torch.LongTensor,
+        input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         prefix_mask: Optional[torch.ByteTensor] = None,
@@ -669,11 +675,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
         use_cache = (use_cache
                      if use_cache is not None else self.config.use_cache)
 
-        # if input_embeds is not none, raise a not implemented error
-        if inputs_embeds is not None:
-            raise NotImplementedError(
-                'inputs_embeds has to be None (for hf/peft support).')
-        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.transformer(
             input_ids=input_ids,
             past_key_values=past_key_values,
@@ -684,6 +685,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             use_cache=use_cache,
+            inputs_embeds=inputs_embeds,
         )
 
         if self.lm_head is not None:
@@ -773,10 +775,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
         inputs_embeds: Optional[torch.Tensor] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        if inputs_embeds is not None:
-            raise NotImplementedError(
-                'inputs_embeds is not implemented for MPT yet')
-
         attention_mask = kwargs['attention_mask'].bool()
         if attention_mask[:, -1].sum() != attention_mask.shape[0]:
             raise NotImplementedError(
@@ -787,6 +785,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         else:
             sequence_id = None
 
+        # only last token for inputs_ids if past is defined in kwargs
         if past_key_values is not None:
             input_ids = input_ids[:, -1].unsqueeze(-1)
 
@@ -800,14 +799,20 @@ class MPTForCausalLM(MPTPreTrainedModel):
         else:
             prefix_mask = None
 
-        return {
-            'input_ids': input_ids,
+        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
+        if inputs_embeds is not None and past_key_values is None:
+            model_inputs = {'inputs_embeds': inputs_embeds}
+        else:
+            model_inputs = {'input_ids': input_ids}
+
+        model_inputs.update({
             'attention_mask': attention_mask,
             'prefix_mask': prefix_mask,
             'sequence_id': sequence_id,
             'past_key_values': past_key_values,
             'use_cache': kwargs.get('use_cache', True),
-        }
+        })
+        return model_inputs
 
     @staticmethod
     def _reorder_cache(
@@ -898,7 +903,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             add_bidirectional_mask_if_missing(batch)
         # Note: prefix_mask is only used if model.prefix_lm is True
         return self.model(
-            input_ids=batch['input_ids'],
+            input_ids=batch.get('input_ids', None),
             attention_mask=batch.get('attention_mask', None),
             prefix_mask=batch.get('bidirectional_mask', None),
             sequence_id=batch.get('sequence_id', None),

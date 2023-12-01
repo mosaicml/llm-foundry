@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 from typing import Dict, List, Optional
 
 import omegaconf as om
@@ -12,6 +13,17 @@ from composer.metrics import InContextLearningLMAccuracy
 from transformers import AutoTokenizer
 
 from llmfoundry.utils.builders import build_icl_data_and_gauntlet
+
+
+@pytest.fixture(autouse=True)
+def set_correct_cwd():
+    if not os.getcwd().endswith('llm-foundry/scripts'):
+        os.chdir('scripts')
+
+    yield
+
+    if os.getcwd().endswith('llm-foundry/scripts'):
+        os.chdir('..')
 
 
 class MockState(State):

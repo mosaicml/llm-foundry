@@ -18,6 +18,17 @@ from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
                               gpt_tiny_cfg)
 
 
+@pytest.fixture(autouse=True)
+def set_correct_cwd():
+    if not os.getcwd().endswith('llm-foundry/scripts'):
+        os.chdir('scripts')
+
+    yield
+
+    if os.getcwd().endswith('llm-foundry/scripts'):
+        os.chdir('..')
+
+
 @pytest.fixture
 def eval_cfg(foundry_dir: str) -> Union[om.ListConfig, om.DictConfig]:
     yaml_path = os.path.join(foundry_dir, 'scripts/eval/yamls/test_eval.yaml')

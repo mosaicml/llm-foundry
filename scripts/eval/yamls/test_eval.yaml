@@ -25,7 +25,7 @@ device_eval_batch_size: 4
 icl_subset_num_batches: 1
 icl_tasks:
 - label: lambada_openai
-  dataset_uri: scripts/eval/local_data/language_understanding/lambada_openai.jsonl
+  dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
   num_fewshot: [0]
   icl_task_type: language_modeling
 eval_gauntlet:

@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import os
 import pathlib
 import shutil
@@ -113,10 +114,14 @@ def create_arxiv_dataset(path: pathlib.Path) -> str:
     arxiv_dir = os.path.join(path, f'my-copy-arxiv')
     downloaded_split = 'train'
 
+    arxiv_path = 'data_prep/example_data/arxiv.jsonl'
+    if not os.getcwd().endswith('scripts'):
+        arxiv_path = os.path.join('scripts', arxiv_path)
+
     main_json(
         Namespace(
             **{
-                'path': 'data_prep/example_data/arxiv.jsonl',
+                'path': arxiv_path,
                 'out_root': arxiv_dir,
                 'compression': None,
                 'split': downloaded_split,

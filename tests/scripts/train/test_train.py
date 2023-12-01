@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import copy
 import pathlib
-from typing import Any, Optional
+from typing import Optional
 
 import pytest
 from composer.loggers import InMemoryLogger
@@ -18,8 +18,7 @@ from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
 @pytest.mark.parametrize('averages', [{
     'core_average': ['language_understanding_lite']
 }, None])
-def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
-                        tmp_path: pathlib.Path):
+def test_train_gauntlet(averages: Optional[dict], tmp_path: pathlib.Path):
     """Test training run with a small dataset."""
     dataset_name = create_c4_dataset_xxsmall(tmp_path)
     test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
@@ -28,7 +27,7 @@ def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
             'label':
                 'lambada_openai',
             'dataset_uri':
-                'eval/local_data/language_understanding/lambada_openai_small.jsonl',
+                'scripts/eval/local_data/language_understanding/lambada_openai_small.jsonl',
             'num_fewshot': [0],
             'icl_task_type':
                 'language_modeling'
@@ -98,7 +97,7 @@ def test_train_gauntlet(averages: Optional[dict], set_correct_cwd: Any,
         -1][-1] == 0
 
 
-def test_train_multi_eval(set_correct_cwd: Any, tmp_path: pathlib.Path):
+def test_train_multi_eval(tmp_path: pathlib.Path):
     """Test training run with multiple eval datasets."""
     c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)
     test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')

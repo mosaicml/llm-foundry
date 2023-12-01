@@ -28,18 +28,99 @@ from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
+from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
                                   HuggingFaceCheckpointer, LayerFreezing,
                                   MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
+from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
 log = logging.getLogger(__name__)
+
+
+def build_evaluators(
+    eval_loader_config: Optional[Union[DictConfig, ListConfig]],
+    icl_tasks_config: Optional[Union[str, ListConfig]],
+    eval_gauntlet_config: Optional[Union[str, DictConfig]],
+    *,
+    tokenizer: PreTrainedTokenizerBase,
+    device_eval_batch_size: int,
+    icl_seq_len: int,
+    icl_subset_num_batches: Optional[int],
+) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
+
+    evaluators = []
+    if eval_loader_config is not None:
+        evaluators = build_eval_loaders(
+            eval_loader_config,
+            tokenizer,
+            device_eval_batch_size,
+        )
+
+    logger_keys = []
+    eval_gauntlet_callback = None
+    if icl_tasks_config is not None:
+        icl_evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
+            icl_tasks_config,
+            eval_gauntlet_config,
+            tokenizer,
+            device_eval_batch_size,
+            icl_seq_len,
+            icl_subset_num_batches,
+        )
+        evaluators.extend(icl_evaluators)
+
+    return evaluators, logger_keys, eval_gauntlet_callback
+
+
+def build_eval_loaders(
+    eval_loader_config: Union[DictConfig, ListConfig],
+    tokenizer: PreTrainedTokenizerBase,
+    device_eval_batch_size: int,
+) -> List[Evaluator]:
+    evaluators: List[Evaluator] = []
+    if isinstance(eval_loader_config, ListConfig):
+        eval_configs: ListConfig = eval_loader_config
+        is_multi_eval = True
+    else:
+        eval_configs = ListConfig([eval_loader_config])
+        is_multi_eval = False
+
+    for eval_config in eval_configs:
+        eval_dataloader = build_dataloader(eval_config, tokenizer,
+                                           device_eval_batch_size)
+        eval_loader: Evaluator = Evaluator(
+            label=f'eval/{eval_config.label}' if is_multi_eval else 'eval',
+            dataloader=eval_dataloader,
+            # Load the eval data to fail fast. metrics will get added
+            # later in add_metrics_to_eval_loaders, after the model is loaded
+            metric_names=[],
+        )
+        evaluators.append(eval_loader)
+    return evaluators
+
+
+def add_metrics_to_eval_loaders(
+    evaluators: List[Evaluator],
+    metrics: Dict[str, Metric],
+) -> List[Evaluator]:
+    metric_names = list(metrics.keys())
+    eval_loaders, other_evaluators = [], []
+    for evaluator in evaluators:
+        if evaluator.metric_names == []:
+            evaluator.metric_names = metric_names
+            eval_loaders.append(evaluator)
+        else:
+            other_evaluators.append(evaluator)
+
+    # Put the base eval_loaders first
+    return eval_loaders + other_evaluators
 
 
 def build_icl_data_and_gauntlet(

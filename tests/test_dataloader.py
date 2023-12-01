@@ -363,10 +363,8 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
         error_context = pytest.raises(ValueError, match='Your dataset')
     if invalid_dataset:
-        error_context = pytest.raises(
-            TypeError,
-            match='Unable to tokenize example'
-        )
+        error_context = pytest.raises(TypeError,
+                                      match='Unable to tokenize example')
 
     with error_context:
         _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)

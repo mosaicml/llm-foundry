@@ -21,6 +21,7 @@ from streaming import MDSWriter
 
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
+from llmfoundry.data import build_dataloader
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
@@ -740,3 +741,13 @@ def test_token_counting_func_dataloader_setting(
     actual_token_count = dl.get_num_tokens_in_batch(batch_tokenized)
 
     assert actual_token_count == expected_token_count
+
+
+def test_build_unknown_dataloader():
+    cfg = DictConfig({
+        'name': 'unknown',
+    })
+    tokenizer = MagicMock()
+    with pytest.raises(ValueError,
+                       match='Expected dataloader name to be one of'):
+        _ = build_dataloader(cfg, tokenizer, 2)

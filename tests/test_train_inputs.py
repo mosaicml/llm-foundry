@@ -103,7 +103,7 @@ class TestTrainingYAMLInputs:
             'save_folder',
             'fsdp_config',
             'lora_config',
-            'eval_loader_config',
+            'eval_loader',
             'icl_tasks_config',
         ]
         old_cfg = copy.deepcopy(cfg)

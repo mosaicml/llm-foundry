@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Union
+
 import pytest
 from composer import Trainer
 from composer.utils import get_device, using_torch_2
@@ -14,11 +16,12 @@ from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize('activation_checkpointing', [True, False])
-@pytest.mark.parametrize(
-    'activation_checkpointing_target',
-    [[], ['grouped_query_attention'], ['mptblock', 'grouped_query_attention']])
+@pytest.mark.parametrize('activation_checkpointing_target', [
+    'grouped_query_attention', [], ['grouped_query_attention'],
+    ['mptblock', 'grouped_query_attention']
+])
 def test_fsdp_act_checkpoint(activation_checkpointing: bool,
-                             activation_checkpointing_target: list):
+                             activation_checkpointing_target: Union[list, str]):
     device = get_device('gpu')
     model_cfg = {
         'name': 'mpt_causal_lm',
@@ -66,7 +69,9 @@ def test_fsdp_act_checkpoint(activation_checkpointing: bool,
             module = trainer.state.model.model._fsdp_wrapped_module.transformer.blocks[
                 0]._fsdp_wrapped_module._fpw_module
         assert isinstance(module, CheckpointWrapper)
-    elif activation_checkpointing_target == ['grouped_query_attention']:
+    elif activation_checkpointing_target == [
+            'grouped_query_attention'
+    ] or activation_checkpointing_target == 'grouped_query_attention':
         assert isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
             blocks[0]._fsdp_wrapped_module.attn, CheckpointWrapper)

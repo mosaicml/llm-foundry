@@ -10,7 +10,7 @@ import transformers
 from llmfoundry.tokenizers.tiktoken import (TiktokenTokenizerWrapper,
                                             bytes_to_unicode)
 from tests.horrible_strings import HORRIBLE_STRINGS
-from tests.scripts.inference.test_convert_composer_to_hf import \
+from tests.a_scripts.inference.test_convert_composer_to_hf import \
     check_hf_tokenizer_equivalence
 
 if TYPE_CHECKING:

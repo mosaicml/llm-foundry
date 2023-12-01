@@ -1,10 +1,5 @@
-from rich.traceback import install; install()
-import torch; torch.Tensor.__repr__ = lambda x: f"Tensor<{','.join(map(str, x.shape))}>"
-from rich import print as rprint
-
-import llmfoundry; print(llmfoundry.__path__)
-from peft import PeftModel, LoraConfig, get_peft_model
-from peft import LoraModel
+# from peft import PeftModel, LoraConfig, get_peft_model
+# from peft import LoraModel
 
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
@@ -159,6 +154,11 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
 
 
 def main(cfg: DictConfig) -> Trainer:
+    from rich.traceback import install; install()
+    import torch; torch.Tensor.__repr__ = lambda x: f"Tensor<{','.join(map(str, x.shape))}>"
+    from rich import print as rprint
+
+    import llmfoundry; print(llmfoundry.__path__)
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
         action='ignore',
@@ -599,6 +599,9 @@ def main(cfg: DictConfig) -> Trainer:
     log_config(logged_cfg)
     torch.cuda.empty_cache()
     gc.collect()
+
+    if cfg.get('just_build_trainer', None) is True:
+        return trainer
 
     # Eval first if requested
     if eval_first and trainer.state.timestamp.batch.value == 0:

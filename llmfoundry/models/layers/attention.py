@@ -262,9 +262,9 @@ def flash_attn_fn(
         query_padding_mask = key_padding_mask[:, -query.size(1):]
         unpadding_function = bert_padding.unpad_input
     else:
-        unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
-        query_padding_mask = attention_mask_in_length
         key_padding_mask = attention_mask_in_length
+        query_padding_mask = attention_mask_in_length
+        unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
 
     query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
         query, query_padding_mask)

@@ -47,25 +47,46 @@ log = logging.getLogger(__name__)
 
 __all__ = ['dataset_constructor']
 
+_ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
+_ALLOWED_PROMPT_KEYS = {'prompt'}
+
 
 def _tokenize_formatted_example(
         example: Dict[str, Any],
         tokenizer: PreTrainedTokenizerBase) -> Dict[str, List[int]]:
-    if ('prompt' not in example) or ('response' not in example):
+    """Tokenize a formatted example and validate expected keys."""
+    example_keys = set(example.keys())
+    prompt_keys = example_keys.intersection(_ALLOWED_PROMPT_KEYS)
+    response_keys = example_keys.intersection(_ALLOWED_RESPONSE_KEYS)
+
+    if len(prompt_keys) != 1:
         raise KeyError(
-            'Unable to tokenize example because it has not been properly formatted. ' +\
-            '"prompt" and "response" are required keys but at least one was missing ' +\
-            f'from {example=}.'
+            f'Unable to tokenize example because {len(prompt_keys)} of the allowed prompt keys ' +\
+            f'were present in {example_keys=}. Please specify exactly one. {_ALLOWED_PROMPT_KEYS=}'
         )
-    if not isinstance(example['prompt'], str):
+
+    if len(response_keys) != 1:
+        raise KeyError(
+            f'Unable to tokenize example because {len(response_keys)} of the allowed response keys ' +\
+            f'were present in {example_keys=}. Please specify exactly one. {_ALLOWED_RESPONSE_KEYS=}'
+        )
+
+    prompt_key = prompt_keys.pop()
+    response_key = response_keys.pop()
+    prompt = example[prompt_key]
+    response = example[response_key]
+
+    if not isinstance(prompt, str):
         raise TypeError(
-            f'Unable to tokenize example because "prompt" was not a string. {example=}'
+            f'Unable to tokenize example because {prompt_key} was not a string. {example=}'
         )
-    if not isinstance(example['response'], str):
+
+    if not isinstance(response, str):
         raise TypeError(
-            f'Unable to tokenize example because "response" was not a string. {example=}'
+            f'Unable to tokenize example because {response_key} was not a string. {example=}'
         )
-    return tokenizer(text=example['prompt'], text_target=example['response'])
+
+    return tokenizer(text=prompt, text_target=response)
 
 
 class StreamingFinetuningDataset(StreamingDataset):

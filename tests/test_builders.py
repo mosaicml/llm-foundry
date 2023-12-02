@@ -5,17 +5,22 @@ import re
 import unittest.mock as mock
 from copy import deepcopy
 from typing import Any, Dict, Union
+from unittest.mock import MagicMock
 
 import pytest
 import torch
 import torch.nn as nn
 from composer.callbacks import Generate
+from composer.core import Evaluator
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
-from llmfoundry.utils.builders import (build_callback, build_optimizer,
+from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
+                                       build_callback, build_eval_loaders,
+                                       build_evaluators, build_optimizer,
                                        build_tokenizer)
 
 
@@ -203,3 +208,114 @@ def test_build_optimizer(name: str, optimizer_config: Dict[str, Any],
             for n, p in model.named_parameters():
                 if re.search(param_str_match, n):
                     assert id(p) in param_ids
+
+
+def test_build_evaluators_empty():
+    evaluators, logger_keys, eval_gauntlet_callback = build_evaluators(
+        None,
+        None,
+        None,
+        tokenizer=None,  # type: ignore
+        device_eval_batch_size=1,
+        icl_seq_len=2,
+        icl_subset_num_batches=3)
+    assert evaluators == []
+    assert logger_keys == []
+    assert eval_gauntlet_callback is None
+
+
+def test_build_eval_loaders(monkeypatch: pytest.MonkeyPatch):
+    tokenizer = TiktokenTokenizerWrapper(model_name='gpt-4')
+
+    eval_loader_cfg = DictConfig({
+        'name': 'text',
+        'dataset': {
+            # mocked, not needed
+        },
+        'drop_last': False,
+        'num_workers': 8,
+    })
+    monkeypatch.setattr('llmfoundry.data.text_data.StreamingTextDataset',
+                        lambda *args, **kwargs: MagicMock())
+    eval_loaders = build_eval_loaders(eval_loader_cfg, tokenizer, 2)
+
+    assert len(eval_loaders) == 1
+
+    assert eval_loaders[0].label == 'eval'
+    assert eval_loaders[0].dataloader is not None
+    assert eval_loaders[0].metric_names == []
+
+    multi_eval_loader_cfg = ListConfig([
+        {
+            'name': 'text',
+            'label': 'test1',
+            'dataset': {
+                # mocked, not needed
+            },
+            'drop_last': False,
+            'num_workers': 8,
+        },
+        {
+            'name': 'text',
+            'label': 'test2',
+            'dataset': {
+                # mocked, not needed
+            },
+            'drop_last': False,
+            'num_workers': 8,
+        }
+    ])
+    monkeypatch.setattr('llmfoundry.data.text_data.StreamingTextDataset',
+                        lambda *args, **kwargs: MagicMock())
+    eval_loaders2 = build_eval_loaders(multi_eval_loader_cfg, tokenizer, 2)
+
+    assert len(eval_loaders2) == 2
+
+    assert eval_loaders2[0].label == 'eval/test1'
+    assert eval_loaders2[0].dataloader is not None
+    assert eval_loaders2[0].metric_names == []
+
+    assert eval_loaders2[1].label == 'eval/test2'
+    assert eval_loaders2[1].dataloader is not None
+    assert eval_loaders2[1].metric_names == []
+
+
+def test_add_metrics_to_eval_loaders():
+    evaluators = [
+        Evaluator(
+            label='first',
+            metric_names=['a', 'b'],
+            dataloader=None,  # type: ignore
+            device_eval_microbatch_size=1,
+        ),
+        Evaluator(
+            label='second',
+            metric_names=[],
+            dataloader=None,  # type: ignore
+            device_eval_microbatch_size=1,
+        ),
+        Evaluator(
+            label='third',
+            metric_names=['c'],
+            dataloader=None,  # type: ignore
+            device_eval_microbatch_size=1,
+        )
+    ]
+
+    new_evaluators = add_metrics_to_eval_loaders(
+        evaluators,
+        {
+            'new1': 'foo',
+            'new2': 'bar'
+        },  # type: ignore
+    )
+    assert len(new_evaluators) == 3
+
+    assert new_evaluators[0].label == 'second'
+    assert new_evaluators[0].metric_names == ['new1', 'new2']
+
+    assert new_evaluators[1].label == 'first'
+    assert new_evaluators[1].metric_names == ['a', 'b']
+
+    assert new_evaluators[2].label == 'third'
+    assert new_evaluators[2].metric_names == ['c']

@@ -12,12 +12,13 @@ from llmfoundry.models.layers.attention import (flash_attn_fn,
 
 
 @pytest.mark.gpu
+@pytest.mark.skipif(
+    not is_flash_v2_installed(),
+    reason='GQA natively only supported by Flash Attention after v2.')
 @pytest.mark.parametrize('kv_n_heads', [1, 4, 8])
 def test_gqa_kv_repetition(kv_n_heads: int):
     # Test that flash attention v2 with GQA (kv_n_heads < n_heads) works the same
     # whether we repeat the kv_n_heads explicitly or flash attention v2 handles it on its own.
-    if not is_flash_v2_installed():
-        pytest.skip('GQA natively only supported by Flash Attention after v2.')
     d = 128
     n_heads = 8
     seqlen_1 = 6
@@ -82,12 +83,13 @@ def test_gqa_kv_repetition(kv_n_heads: int):
 
 
 @pytest.mark.gpu
+@pytest.mark.skipif(
+    not is_flash_v2_installed(v2_version='v2.1.2'),
+    reason=
+    'Using sequence id with flash attention requires flash attention v2.1.2 or higher.'
+)
 def test_seq_id_masking_FA_v2():
     # Test that flash attention v2 with sequence id masking works correctly.
-    if not is_flash_v2_installed(v2_version='v2.1.2'):
-        pytest.skip(
-            'Using sequence id with flash attention requires flash attention v2.1.2 or higher.'
-        )
     d = 128
     n_heads = 4
     kv_n_heads = 4
@@ -167,13 +169,13 @@ def test_seq_id_masking_FA_v2():
 
 
 @pytest.mark.gpu
+@pytest.mark.skipif(
+    not is_flash_v2_installed(v2_version='v2.3.0'),
+    reason=
+    'Sliding window attention only supported by Flash Attention after v2.3.0.')
 @pytest.mark.parametrize('sliding_window_size', [1, 4, 8])
 def test_sliding_window(sliding_window_size: int):
     # Test that sliding window attention works as expected.
-    if not is_flash_v2_installed('v2.3.0'):
-        pytest.skip(
-            'Sliding window attention only supported by Flash Attention after v2.3.0.'
-        )
     dtype = torch.bfloat16
     device = 'cuda'
     d = 128

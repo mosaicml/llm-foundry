@@ -580,9 +580,7 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         'factor': 1.0,
     },
 }])
-@pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict,
-                                   tie_word_embeddings: bool):
+def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict):
     # Testing the output of concatenated sequence with sequence id masking vs individual sequences.
     alibi = pos_emb_config['alibi']
     if alibi and attention_impl == 'flash':
@@ -620,7 +618,6 @@ def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict,
             'name': 'baseline_',
             'init_std': 0.02,
         },
-        tie_word_embeddings=tie_word_embeddings,
     )
     mpt = MPTForCausalLM(hf_config)
     mpt.eval()

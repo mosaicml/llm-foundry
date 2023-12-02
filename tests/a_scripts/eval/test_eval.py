@@ -4,8 +4,7 @@
 import copy
 import os
 import pathlib
-import sys
-from typing import Any
+from typing import Any, Union
 
 import omegaconf as om
 import pytest
@@ -14,14 +13,9 @@ from composer.loggers import InMemoryLogger
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils import build_tokenizer
+from scripts.eval.eval import main  # noqa: E402
 from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
                               gpt_tiny_cfg)
-
-# Add repo root to path so we can import scripts and test it
-repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(repo_dir)
-
-from scripts.eval.eval import main  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -35,11 +29,16 @@ def set_correct_cwd():
         os.chdir('..')
 
 
-@pytest.fixture()
-def mock_saved_model_path():
-    # load the eval and model config
-    with open('eval/yamls/test_eval.yaml', 'r', encoding='utf-8') as f:
+@pytest.fixture
+def eval_cfg(foundry_dir: str) -> Union[om.ListConfig, om.DictConfig]:
+    yaml_path = os.path.join(foundry_dir, 'scripts/eval/yamls/test_eval.yaml')
+    with open(yaml_path, 'r', encoding='utf-8') as f:
         eval_cfg = om.OmegaConf.load(f)
+    return eval_cfg
+
+
+@pytest.fixture()
+def mock_saved_model_path(eval_cfg: Union[om.ListConfig, om.DictConfig]):
     model_cfg = eval_cfg.models[0]
     # set device to cpu
     device = 'cpu'
@@ -60,12 +59,11 @@ def mock_saved_model_path():
     os.remove(saved_model_path)
 
 
-def test_icl_eval(capfd: Any, mock_saved_model_path: Any):
-    with open('eval/yamls/test_eval.yaml', 'r', encoding='utf-8') as f:
-        test_cfg = om.OmegaConf.load(f)
-    test_cfg.models[0].load_path = mock_saved_model_path
-    assert isinstance(test_cfg, om.DictConfig)
-    main(test_cfg)
+def test_icl_eval(eval_cfg: Union[om.ListConfig, om.DictConfig], capfd: Any,
+                  mock_saved_model_path: Any):
+    eval_cfg.models[0].load_path = mock_saved_model_path
+    assert isinstance(eval_cfg, om.DictConfig)
+    main(eval_cfg)
     out, _ = capfd.readouterr()
     expected_results = '| Category                    | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           |          0 | 0-shot            | tiny_mpt |'
     assert expected_results in out

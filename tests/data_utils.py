@@ -1,14 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import os
-import sys
-
-# Add repo root to path so we can import scripts and test it
-repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(repo_dir)
-
 import json
+import os
 import pathlib
 import shutil
 from argparse import Namespace
@@ -120,10 +114,14 @@ def create_arxiv_dataset(path: pathlib.Path) -> str:
     arxiv_dir = os.path.join(path, f'my-copy-arxiv')
     downloaded_split = 'train'
 
+    arxiv_path = 'data_prep/example_data/arxiv.jsonl'
+    if not os.getcwd().endswith('scripts'):
+        arxiv_path = os.path.join('scripts', arxiv_path)
+
     main_json(
         Namespace(
             **{
-                'path': 'data_prep/example_data/arxiv.jsonl',
+                'path': arxiv_path,
                 'out_root': arxiv_dir,
                 'compression': None,
                 'split': downloaded_split,
@@ -139,8 +137,11 @@ def create_arxiv_dataset(path: pathlib.Path) -> str:
 
 def gpt_tiny_cfg(dataset_name: str, device: str):
     """Create gpt tiny cfg."""
-    conf_path: str = os.path.join(repo_dir,
-                                  'scripts/train/yamls/pretrain/testing.yaml')
+    from tests.fixtures.autouse import REPO_DIR
+    conf_path: str = os.path.join(
+        REPO_DIR,
+        'scripts/train/yamls/pretrain/testing.yaml',
+    )
     with open(conf_path) as f:
         test_cfg = om.load(f)
     assert isinstance(test_cfg, DictConfig)

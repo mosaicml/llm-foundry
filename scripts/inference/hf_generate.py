@@ -1,7 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import itertools
-import os
 import random
 import time
 import warnings
@@ -12,6 +11,8 @@ from typing import Dict, Union
 import numpy as np
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
+
+from llmfoundry.utils import prompt_files as utils
 
 
 def get_dtype(dtype: str):
@@ -62,9 +63,14 @@ def parse_args() -> Namespace:
             'My name is',
             'This is an explanation of deep learning to a five year old. Deep learning is',
         ],
-        help='Generation prompts. Use syntax "file::/path/to/prompt.txt" to load a ' +\
-             'prompt contained in a txt file.'
+        help='List of generation prompts or list of delimited files. Use syntax ' +\
+             '"file::/path/to/prompt.txt" to load a prompt(s) contained in a txt file.'
         )
+    parser.add_argument(
+        '--prompt-delimiter',
+        default=None,
+        help=
+        'Prompt delimiter for txt files. By default, a file is a single prompt')
     parser.add_argument('--max_seq_len', type=int, default=None)
     parser.add_argument('--max_new_tokens', type=int, default=100)
     parser.add_argument('--max_batch_size', type=int, default=None)
@@ -125,19 +131,6 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def load_prompt_string_from_file(prompt_path_str: str):
-    if not prompt_path_str.startswith('file::'):
-        raise ValueError('prompt_path_str must start with "file::".')
-    _, prompt_file_path = prompt_path_str.split('file::', maxsplit=1)
-    prompt_file_path = os.path.expanduser(prompt_file_path)
-    if not os.path.isfile(prompt_file_path):
-        raise FileNotFoundError(
-            f'{prompt_file_path=} does not match any existing files.')
-    with open(prompt_file_path, 'r') as f:
-        prompt_string = ''.join(f.readlines())
-    return prompt_string
-
-
 def maybe_synchronize():
     if torch.cuda.is_available():
         torch.cuda.synchronize()
@@ -163,11 +156,7 @@ def main(args: Namespace) -> None:
     print(f'Using {model_dtype=}')
 
     # Load prompts
-    prompt_strings = []
-    for prompt in args.prompts:
-        if prompt.startswith('file::'):
-            prompt = load_prompt_string_from_file(prompt)
-        prompt_strings.append(prompt)
+    prompt_strings = utils.load_prompts(args.prompts, args.prompt_delimiter)
 
     # Grab config first
     print(f'Loading HF Config...')
@@ -217,6 +206,7 @@ def main(args: Namespace) -> None:
         if device is not None:
             print(f'Placing model on {device=}...')
             model.to(device)
+        model.to(model_dtype)
     except Exception as e:
         raise RuntimeError(
             'Unable to load HF model. ' +

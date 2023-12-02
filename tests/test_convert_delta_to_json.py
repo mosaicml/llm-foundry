@@ -6,24 +6,21 @@
 
 import os
 import sys
-
-import pytest
+from typing import Any
 
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 
 import unittest
-from unittest.mock import MagicMock, mock_open, patch
-
+from unittest.mock import MagicMock, patch
 from scripts.data_prep.convert_delta_to_json import stream_delta_to_json
-
 
 class TestStreamDeltaToJson(unittest.TestCase):
 
     @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
     @patch('scripts.data_prep.convert_delta_to_json.pd.DataFrame.to_json')
-    def test_stream_delta_to_json(self, mock_to_json, mock_connect):
+    def test_stream_delta_to_json(self, mock_to_json:Any, mock_connect:Any):
         mock_args = MagicMock()
         mock_args.DATABRICKS_HOST = 'test_host'
         mock_args.DATABRICKS_TOKEN = 'test_token'

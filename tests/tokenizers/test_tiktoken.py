@@ -9,8 +9,9 @@ import transformers
 
 from llmfoundry.tokenizers.tiktoken import (TiktokenTokenizerWrapper,
                                             bytes_to_unicode)
+from tests.a_scripts.inference.test_convert_composer_to_hf import \
+    check_hf_tokenizer_equivalence
 from tests.horrible_strings import HORRIBLE_STRINGS
-from tests.test_hf_conversion_script import check_hf_tokenizer_equivalence
 
 if TYPE_CHECKING:
     from tiktoken.core import Encoding

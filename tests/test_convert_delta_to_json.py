@@ -1,18 +1,23 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 # copyright 2022 mosaicml llm foundry authors
 # spdx-license-identifier: apache-2.0
 
-import pytest
 import os
 import sys
-import warnings
+
+import pytest
 
 # Add repo root to path so we can import scripts and test it
 repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 
 import unittest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import MagicMock, mock_open, patch
+
 from scripts.data_prep.convert_delta_to_json import stream_delta_to_json
+
 
 class TestStreamDeltaToJson(unittest.TestCase):
 
@@ -36,18 +41,27 @@ class TestStreamDeltaToJson(unittest.TestCase):
         count_response = MagicMock()
         count_response.asDict.return_value = {'COUNT(*)': 3}
         column_response_item = MagicMock()
-        column_response_item.asDict.return_value = {'COLUMN_NAME': 'name'}  # Assuming SHOW COLUMNS query returns this format
+        column_response_item.asDict.return_value = {
+            'COLUMN_NAME': 'name'
+        }  # Assuming SHOW COLUMNS query returns this format
         data_response_item = MagicMock()
-        data_response_item.asDict.return_value = {'name': 'test', 'id': 1}  # Assuming SELECT query returns this format
-        mock_cursor.fetchall.side_effect = [[count_response], [column_response_item], [data_response_item]]
+        data_response_item.asDict.return_value = {
+            'name': 'test',
+            'id': 1
+        }  # Assuming SELECT query returns this format
+        mock_cursor.fetchall.side_effect = [[count_response],
+                                            [column_response_item],
+                                            [data_response_item]]
 
         stream_delta_to_json(mock_args)
 
-        mock_connect.assert_called_once_with(server_hostname='test_host', http_path='test_http_path', access_token='test_token')
+        mock_connect.assert_called_once_with(server_hostname='test_host',
+                                             http_path='test_http_path',
+                                             access_token='test_token')
         mock_to_json.assert_called()
         mock_cursor.close.assert_called()
         mock_connection.close.assert_called()
 
+
 if __name__ == '__main__':
     unittest.main()
-

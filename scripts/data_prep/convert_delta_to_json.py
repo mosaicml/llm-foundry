@@ -9,20 +9,6 @@ from databricks import sql
 
 log = logging.getLogger(__name__)
 
-"""
-Sample tables are created here
-
-  - E2-dogfood: https://e2-dogfood.staging.cloud.databricks.com/?o=6051921418418893#notebook/3642707736157009/command/551761898400018
-  - Data Force One: https://dbc-559ffd80-2bfc.cloud.databricks.com/?o=7395834863327820#notebook/2500382962301597/command/2500382962301599
-
-The script can be called as:
-
-  - python scripts/data_prep/convert_delta_to_json.py  --delta_table_name 'main.streaming.dummy_table' --json_output_path /tmp/delta2json2 --debug False --http_path 'sql/protocolv1/o/7395834863327820/1116-234530-6seh113n'
-
-  - python scripts/data_prep/convert_delta_to_json.py  --delta_table_name 'main.streaming.dummy_table' --json_output_path /tmp/delta2json2 --debug False --http_path {http_path} --DATABRICKS_HOST {your host} --DATABRICKS_TOKEN {your token}
-
-"""
-
 def stream_delta_to_json(connection, tablename, json_output_folder, key = 'name', batch_size=1<<20):
 
     cursor = connection.cursor()

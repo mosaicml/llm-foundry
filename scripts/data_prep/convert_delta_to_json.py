@@ -9,7 +9,25 @@ from databricks import sql
 
 log = logging.getLogger(__name__)
 
-def stream_delta_to_json(connection, tablename, json_output_folder, key = 'name', batch_size=1<<20):
+def stream_delta_to_json(args: argparse.Namespace,
+                         batch_size:int =1<<20):
+    """Read UC delta table and convert it to json. Save json files to local.
+       In the case of table has more than batch_size rows, read the table batch_size rows a time
+    """
+    server_hostname = args.DATABRICKS_HOST  if args.DATABRICKS_HOST else os.getenv("DATABRICKS_HOST")
+    access_token = args.DATABRICKS_TOKEN  if args.DATABRICKS_TOKEN else os.getenv("DATABRICKS_TOKEN")
+    http_path= args.http_path
+    tablename = args.delta_table_name
+    json_output_path = args.json_output_path
+
+    try:
+        connection = sql.connect(
+                server_hostname=server_hostname,
+                http_path=http_path,
+                access_token=access_token,
+            )
+    except Exception as e:
+        raise RuntimeError("Failed to create sql connection to db workspace. Check {server_hostname} and {http_path} and access token!") from exc
 
     cursor = connection.cursor()
     cursor.execute(f"USE CATALOG main;")
@@ -23,6 +41,7 @@ def stream_delta_to_json(connection, tablename, json_output_folder, key = 'name'
     cursor.execute(f"SHOW COLUMNS IN {tablename}")
     ans = cursor.fetchall()
 
+    # Get the first column to order by. can be any column
     order_by = [ row.asDict() for row in ans ][0].popitem()[1]
     log.info(f'order by column {order_by}')
 
@@ -33,7 +52,7 @@ def stream_delta_to_json(connection, tablename, json_output_folder, key = 'name'
         WITH NumberedRows AS (
             SELECT
                 *,
-                ROW_NUMBER() OVER (ORDER BY {key}) AS rn
+                ROW_NUMBER() OVER (ORDER BY {order_by}) AS rn
             FROM
                 {tablename}
         )
@@ -45,16 +64,15 @@ def stream_delta_to_json(connection, tablename, json_output_folder, key = 'name'
         ans = cursor.fetchall()
 
         result = [ row.asDict() for row in ans ]
-        print(result)
         df = pd.DataFrame.from_dict(result)
-        df.to_json(os.path.join(args.json_output_path, f'shard_{start+1}_{end}.json'))
+        df.to_json(os.path.join(json_output_path, f'shard_{start+1}_{end}.json'))
 
     cursor.close()
     connection.close()
 
 
 if __name__ == "__main__":
-    print(f"Start .... Convert delta to json")
+    log.info(f"Start .... Convert delta to json")
     parser = argparse.ArgumentParser(description="Download delta table from UC and convert to json to save local")
     parser.add_argument("--delta_table_name", required=True, type=str, help="UC table of format <catalog>.<schema>.<table name>")
     parser.add_argument("--json_output_path", required=True, type=str, help="Local path to save the converted json")
@@ -64,27 +82,15 @@ if __name__ == "__main__":
     parser.add_argument("--debug", type=bool, required=False, default=False)
     args = parser.parse_args()
 
-    server_hostname = args.DATABRICKS_HOST  if args.DATABRICKS_HOST else os.getenv("DATABRICKS_HOST")
-    access_token = args.DATABRICKS_TOKEN  if args.DATABRICKS_TOKEN else os.getenv("DATABRICKS_TOKEN")
-    http_path= args.http_path
-
-    try:
-        connection = sql.connect(
-                server_hostname=server_hostname,
-                http_path=http_path,
-                access_token=access_token,
-            )
-    except Exception as e:
-        raise RuntimeError("Failed to create sql connection to db workspace. Check {server_hostname} and {http_path} and access token!") from exc
-
     if os.path.exists(args.json_output_path):
         if not os.path.isdir(args.json_output_path) or os.listdir(args.json_output_path):
             raise RuntimeError(f"A file or a folder {args.json_output_path} already exists and is not empty. Remove it and retry!")
 
     os.makedirs(args.json_output_path, exist_ok=True)
+
     log.info(f"Directory {args.json_output_path} created.")
 
-    stream_delta_to_json(connection, args.delta_table_name, args.json_output_path)
+    stream_delta_to_json(args)
 
     print(f"Convert delta to json is done. check {args.json_output_path}.")
     log.info(f"Convert delta to json is done. check {args.json_output_path}.")

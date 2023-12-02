@@ -391,7 +391,7 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
                                          expected_normal_checkpoints: int):
     delete_transformers_cache()
 
-    # dist.initialize_dist(get_device('gpu'))
+    dist.initialize_dist(get_device('gpu'))
 
     max_seq_len = 16
     device_batch_size = 1

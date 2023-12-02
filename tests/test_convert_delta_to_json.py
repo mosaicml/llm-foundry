@@ -14,13 +14,15 @@ sys.path.append(repo_dir)
 
 import unittest
 from unittest.mock import MagicMock, patch
+
 from scripts.data_prep.convert_delta_to_json import stream_delta_to_json
+
 
 class TestStreamDeltaToJson(unittest.TestCase):
 
     @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
     @patch('scripts.data_prep.convert_delta_to_json.pd.DataFrame.to_json')
-    def test_stream_delta_to_json(self, mock_to_json:Any, mock_connect:Any):
+    def test_stream_delta_to_json(self, mock_to_json: Any, mock_connect: Any):
         mock_args = MagicMock()
         mock_args.DATABRICKS_HOST = 'test_host'
         mock_args.DATABRICKS_TOKEN = 'test_token'

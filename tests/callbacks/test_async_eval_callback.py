@@ -36,7 +36,7 @@ def test_get_run_name():
 
     # Run name should be truncated
     b = get_run_name(50 * 'foo' + '-1234', '1ba')
-    assert b == 'eval-1ba-foofoofoofoofoofoofoofoofoofoofoofoofoof'
+    assert b == 'eval-1ba-foofoofoofoofoofoofoofoofoofoofoofoofoofoofoof'
 
 
 @pytest.fixture(autouse=True, scope='module')

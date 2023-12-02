@@ -529,18 +529,21 @@ def main(cfg: DictConfig) -> Trainer:
         mosaicml_logger.log_metrics({'data_validated': time.time()})
 
     ## Evaluation
-    print('Building eval loader...')
-
-    eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
-    evaluators, _, eval_gauntlet_callback = build_evaluators(
-        eval_loader_config,
-        icl_tasks_config,
-        eval_gauntlet_config,
-        tokenizer=tokenizer,
-        device_eval_batch_size=device_eval_batch_size,
-        icl_seq_len=eval_icl_seq_len,
-        icl_subset_num_batches=icl_subset_num_batches,
-    )
+    if use_async_eval:
+        print('Using async eval, skipping eval loader')
+        evaluators, eval_gauntlet_callback = [], None
+    else:
+        print('Building eval loader...')
+        eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
+        evaluators, _, eval_gauntlet_callback = build_evaluators(
+            eval_loader_config,
+            icl_tasks_config,
+            eval_gauntlet_config,
+            tokenizer=tokenizer,
+            device_eval_batch_size=device_eval_batch_size,
+            icl_seq_len=eval_icl_seq_len,
+            icl_subset_num_batches=icl_subset_num_batches,
+        )
 
     if eval_gauntlet_callback is not None and not use_async_eval:
         callbacks.append(eval_gauntlet_callback)

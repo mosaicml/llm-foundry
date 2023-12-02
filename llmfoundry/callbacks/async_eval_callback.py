@@ -22,8 +22,6 @@ from mcli import ComputeConfig, Run, RunConfig, create_run, get_run
 
 log = logging.getLogger(__name__)
 
-MAX_RUN_NAME_LENGTH = 40
-
 REQUIRED_PARAMS_FOR_EVAL = {
     'device_eval_batch_size',
     'icl_tasks',  # only required for eval, may not be specified in pure training
@@ -34,6 +32,7 @@ REQUIRED_PARAMS_FOR_EVAL = {
 OPTIONAL_PARAMS_FOR_EVAL = {
     'dist_timeout',
     'eval_gauntlet',
+    'eval_loader',
     'fsdp_config',
     'icl_subset_num_batches',
     'loggers',
@@ -42,7 +41,8 @@ OPTIONAL_PARAMS_FOR_EVAL = {
     'seed',
 }
 
-NAME_PREFIX = 'eval'
+RUN_NAME_PREFIX = 'eval'
+MAX_RUN_NAME_BASE_LENGTH = 55
 
 
 def get_run_name(training_run_name: str, current_interval: str) -> str:
@@ -55,23 +55,27 @@ def get_run_name(training_run_name: str, current_interval: str) -> str:
     Returns:
         The new run name
     """
-    *name_without_uuid_suffix, _ = training_run_name.split('-')
-    name_suffix = ('-'.join(name_without_uuid_suffix))
+    name_without_uuid_suffix = training_run_name.rsplit('-', 1)[0]
+
+    max_length = MAX_RUN_NAME_BASE_LENGTH - len(RUN_NAME_PREFIX) - len(
+        current_interval) - 2
 
     # A run name that is too long will fail a createRun call
-    if len(name_suffix) > MAX_RUN_NAME_LENGTH:
+    if len(name_without_uuid_suffix) > max_length:
+        new_name = name_without_uuid_suffix[:max_length]
         log.warning(
-            f'Training run name {name_suffix} may be too long, truncating to {MAX_RUN_NAME_LENGTH} characters'
-        )
-        name_suffix = name_suffix[:MAX_RUN_NAME_LENGTH]
+            f'Training run name {name_without_uuid_suffix} may be too long,' +
+            f' truncating to {new_name}')
+        name_without_uuid_suffix = new_name
 
-    return '-'.join([NAME_PREFIX, current_interval, name_suffix])
+    return f'{RUN_NAME_PREFIX}-{current_interval}-{name_without_uuid_suffix}'
 
 
 def get_latest_checkpoint(event: Event, state: State) -> Optional[str]:
     """Get the latest checkpoint from the training run.
 
     Args:
+        event: The current run event
         state: The current state of the training run
 
     Returns:
@@ -89,7 +93,7 @@ def get_latest_checkpoint(event: Event, state: State) -> Optional[str]:
 
     if event.name == Event.FIT_END:
         # Use the latest symlink for the end of training
-        return checkpointer.latest_filename
+        return str(checkpointer.latest_filename)
 
     if not checkpointer.saved_checkpoints:
         log.warning('No saved checkpoints found on the checkpointer')
@@ -126,7 +130,7 @@ def get_eval_parameters(
 
     if looking_for:
         raise Exception(
-            f'Missing the following required parameters for async eval: {looking_for}\n{parameters}'
+            f'Missing the following required parameters for async eval: {looking_for}'
         )
 
     # Convert the save_folder to a load_path
@@ -141,10 +145,14 @@ def get_eval_parameters(
 
     # Create new eval models list
     model = subset_keys.pop('model')
-    new_models = {'model_name': model.get('name'), 'model': model}
+
+    model_name = model.get('name', None)
+    if not model_name:
+        raise Exception(f'Async evaluation requires "name" keys for models')
+    new_models = {'model_name': model_name, 'model': model}
 
     tokenizer = subset_keys.pop('tokenizer', None)
-    if tokenizer:
+    if tokenizer is not None:
         new_models['tokenizer'] = tokenizer
     subset_keys['models'] = [new_models]
     return subset_keys
@@ -207,7 +215,7 @@ class AsyncEval(Callback):
         ])
 
         if should_launch_run:
-            current_interval = state.timestamp.get(self.interval.unit)
+            current_interval = str(state.timestamp.get(self.interval.unit))
             checkpoint = get_latest_checkpoint(event, state)
             if not checkpoint:
                 return  # warnings logged in get_latest_checkpoint

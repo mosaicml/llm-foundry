@@ -5,7 +5,6 @@ import os
 import pathlib
 import random
 import shutil
-import sys
 import tempfile
 from argparse import Namespace
 from typing import Literal, Optional, Union
@@ -26,10 +25,6 @@ from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
-
-# Add repo root to path so we can import scripts and test it
-repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(repo_dir)
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 from tests.data_utils import make_tiny_ft_dataset
 

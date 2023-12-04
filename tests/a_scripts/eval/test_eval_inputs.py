@@ -2,17 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 import copy
 import os
-import sys
 import warnings
 
 import omegaconf
 import pytest
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-
-# Add repo root to path so we can import scripts and test it
-repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(repo_dir)
 
 from scripts.eval.eval import main  # noqa: E402
 
@@ -21,10 +16,12 @@ class TestHuggingFaceEvalYAMLInputs:
     """Validate and tests error handling for the input YAML file."""
 
     @pytest.fixture
-    def cfg(self) -> DictConfig:
+    def cfg(self, foundry_dir: str) -> DictConfig:
         """Create YAML cfg fixture for testing purposes."""
-        conf_path: str = os.path.join(repo_dir,
-                                      'scripts/eval/yamls/hf_eval.yaml')
+        conf_path: str = os.path.join(
+            foundry_dir,
+            'scripts/eval/yamls/hf_eval.yaml',
+        )
         with open(conf_path, 'r', encoding='utf-8') as config:
             test_cfg = om.load(config)
         assert isinstance(test_cfg, DictConfig)
@@ -57,6 +54,7 @@ class TestHuggingFaceEvalYAMLInputs:
             'loggers',
             'eval_gauntlet',
             'fsdp_config',
+            'eval_loader',
         ]
         old_cfg = copy.deepcopy(cfg)
         for param in optional_params:
@@ -77,15 +75,17 @@ class TestHuggingFaceEvalYAMLInputs:
 class TestMPTEvalYAMLInputs:
 
     @pytest.fixture
-    def cfg(self) -> DictConfig:
+    def cfg(self, foundry_dir: str) -> DictConfig:
         """Create YAML cfg fixture for testing purposes."""
-        conf_path: str = os.path.join(repo_dir,
-                                      'scripts/eval/yamls/mpt_eval.yaml')
+        conf_path: str = os.path.join(
+            foundry_dir,
+            'scripts/eval/yamls/mpt_eval.yaml',
+        )
         with open(conf_path, 'r', encoding='utf-8') as config:
             test_cfg = om.load(config)
 
         test_cfg.icl_tasks[0].dataset_uri = os.path.join(
-            repo_dir, 'scripts', test_cfg.icl_tasks[0].dataset_uri)
+            foundry_dir, 'scripts', test_cfg.icl_tasks[0].dataset_uri)
 
         # make tests use cpu initialized transformer models only
         test_cfg.models[0].model.init_device = 'cpu'

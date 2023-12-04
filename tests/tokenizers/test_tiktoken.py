@@ -7,9 +7,11 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 import pytest
 import transformers
 
-from llmfoundry import TiktokenTokenizerWrapper
+from llmfoundry.tokenizers.tiktoken import (TiktokenTokenizerWrapper,
+                                            bytes_to_unicode)
+from tests.a_scripts.inference.test_convert_composer_to_hf import \
+    check_hf_tokenizer_equivalence
 from tests.horrible_strings import HORRIBLE_STRINGS
-from tests.test_hf_conversion_script import check_hf_tokenizer_equivalence
 
 if TYPE_CHECKING:
     from tiktoken.core import Encoding
@@ -29,18 +31,12 @@ TEST_STRINGS = [
 
 TEST_STRINGS += HORRIBLE_STRINGS
 
-MODEL_OR_ENCODING_NAME_TO_NON_UTF8_TOKENS = {
-    'gpt-4': 77,
-    'gpt-3.5-turbo': 77,
-    'text-davinci-003': 14,
-    'cl100k_base': 77,
-}
-
 MODEL_ENCODING_NAME_PARAMETRIZATION = [
     ('gpt-4', None),
     ('gpt-3.5-turbo', None),
     ('text-davinci-003', None),
     (None, 'cl100k_base'),
+    ('gpt2', None),
 ]
 
 MULTI_TURN_CHAT_ML = [[{
@@ -118,6 +114,31 @@ def test_tiktoken_simple(model_name: Optional[str],
         assert wrapped_output['input_ids'] == original_output
         assert set(wrapped_output.keys()) == {'input_ids', 'attention_mask'}
         assert reloaded_wrapped_output == wrapped_output
+
+
+@pytest.mark.parametrize('model_name,encoding_name',
+                         MODEL_ENCODING_NAME_PARAMETRIZATION)
+def test_tiktoken_tokenize_with_ids(model_name: Optional[str],
+                                    encoding_name: Optional[str],
+                                    tmp_path: pathlib.Path):
+    wrapped_tokenizer, reloaded_wrapped_tokenizer, original_tokenizer = get_tokenizers_for_testing(
+        model_name, encoding_name, tmp_path)
+
+    for string in TEST_STRINGS:
+        wrapped_output = wrapped_tokenizer.tokenize(string)
+        original_output = original_tokenizer.encode(string,
+                                                    allowed_special='all')
+        reloaded_wrapped_output = reloaded_wrapped_tokenizer.tokenize(string)
+
+        assert all([isinstance(t, str) for t in wrapped_output])
+        assert len(wrapped_output) == len(original_output)
+        assert wrapped_output == reloaded_wrapped_output
+
+        redone_token_ids = wrapped_tokenizer.convert_tokens_to_ids(
+            wrapped_output)
+        assert redone_token_ids == original_output
+        assert wrapped_tokenizer.convert_ids_to_tokens(
+            redone_token_ids) == wrapped_output
 
 
 @pytest.mark.parametrize('model_name,encoding_name',
@@ -201,31 +222,17 @@ def test_tiktoken_vocab(model_name: Optional[str], encoding_name: Optional[str],
     reloaded_wrapped_vocab = reloaded_wrapped_tokenizer.get_vocab()
     assert wrapped_vocab == reloaded_wrapped_vocab
 
-    didnt_match = []
     for key, value in wrapped_vocab.items():
         # Skip checking the extra ids we pad the vocab with
         if key.startswith('<extra_id') and key.endswith('>'):
             continue
 
-        if original_tokenizer.encode(key, allowed_special='all') == [value]:
-            continue
-        else:
-            didnt_match.append(
-                (key, original_tokenizer.encode(key,
-                                                allowed_special='all'), value))
-
-    # Decode is lossy because some bytes are not representable in utf-8
-    # see https://github.com/openai/tiktoken/blob/39f29cecdb6fc38d9a3434e5dd15e4de58cf3c80/tiktoken/core.py#L245-L247
-    # This means that the str: int vocab mapping doesn't work. Would have to look more into how other HF tokenizers handle this.
-    model_or_encoding_name = model_name or encoding_name
-    if model_or_encoding_name is not None:
-        expected_didnt_match = MODEL_OR_ENCODING_NAME_TO_NON_UTF8_TOKENS.get(
-            model_or_encoding_name)
-        assert len(didnt_match) == expected_didnt_match
-    else:
-        raise NotImplementedError(
-            'Add the new tokenizer and how many tokens in the vocab are not utf8 representable.'
-        )
+        expected_decoding = ''.join([
+            bytes_to_unicode()[ord(char)]
+            for char in original_tokenizer.decode_single_token_bytes(
+                value).decode('latin-1')
+        ])
+        assert expected_decoding == key
 
 
 @pytest.mark.parametrize('model_name,encoding_name',

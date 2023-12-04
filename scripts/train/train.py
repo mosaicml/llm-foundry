@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 from composer import Trainer
-from composer.core import Evaluator
 from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
 from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
@@ -26,10 +25,11 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM)
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.utils.builders import (build_algorithm, build_callback,
-                                       build_icl_data_and_gauntlet,
-                                       build_logger, build_optimizer,
-                                       build_scheduler, build_tokenizer)
+from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
+                                       build_algorithm, build_callback,
+                                       build_evaluators, build_logger,
+                                       build_optimizer, build_scheduler,
+                                       build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
@@ -526,31 +526,16 @@ def main(cfg: DictConfig) -> Trainer:
 
     ## Evaluation
     print('Building eval loader...')
-    evaluators = []
-    eval_loaders = []
-    if eval_loader_config is not None:
-        is_multi_eval = isinstance(eval_loader_config, ListConfig)
-        eval_configs = eval_loader_config if is_multi_eval else [
-            eval_loader_config
-        ]
-        for eval_config in eval_configs:
-            eval_dataloader = build_dataloader(eval_config, tokenizer,
-                                               device_eval_batch_size)
-            eval_loader = Evaluator(
-                label=f'eval/{eval_config.label}' if is_multi_eval else 'eval',
-                dataloader=eval_dataloader,
-                metric_names=[],  # we will add these after model is created
-            )
-            eval_loaders.append(eval_loader)
-
-    eval_gauntlet_callback = None
-
-    if icl_tasks_config is not None:
-        icl_evaluators, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
-            icl_tasks_config, eval_gauntlet_config, tokenizer,
-            device_eval_batch_size, icl_seq_len if icl_seq_len else max_seq_len,
-            icl_subset_num_batches)
-        evaluators.extend(icl_evaluators)
+    eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
+    evaluators, _, eval_gauntlet_callback = build_evaluators(
+        eval_loader_config,
+        icl_tasks_config,
+        eval_gauntlet_config,
+        tokenizer=tokenizer,
+        device_eval_batch_size=device_eval_batch_size,
+        icl_seq_len=eval_icl_seq_len,
+        icl_subset_num_batches=icl_subset_num_batches,
+    )
 
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
@@ -581,11 +566,8 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Now add the eval metrics
     if eval_loader_config is not None:
-        assert model.train_metrics is not None
-        eval_metric_names = list(model.train_metrics.keys())
-        for eval_loader in eval_loaders:
-            eval_loader.metric_names = eval_metric_names
-            evaluators.insert(0, eval_loader)  # Put the base eval_loaders first
+        train_metrics = model.get_metrics(is_train=True)
+        evaluators = add_metrics_to_eval_loaders(evaluators, train_metrics)
 
     # Build the Trainer
     print('Building trainer...')

@@ -2,13 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import sys
-
-import pytest
-
-# Add repo root to path so we can import scripts and test it
-repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(repo_dir)
 import pathlib
 from concurrent.futures import ProcessPoolExecutor
 from glob import glob
@@ -16,6 +9,7 @@ from typing import Callable, Iterable, List
 from unittest.mock import Mock, patch
 
 import numpy as np
+import pytest
 from streaming import StreamingDataset
 from transformers import AutoTokenizer
 
@@ -186,6 +180,37 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
 
     # Check that the number of tokens found while iterating through the dataset is as expected.
     assert n_tokens == expected_n_tokens
+
+
+def test_local_path(tmp_path: pathlib.Path):
+    # Input/output folders
+    input_folder = tmp_path / 'input'
+    output_folder = tmp_path / 'output'
+
+    # Create input text data
+    os.makedirs(input_folder, exist_ok=True)
+    with open(input_folder / 'test.txt', 'w') as f:
+        f.write('test')
+
+    # Convert text data to mds
+    convert_text_to_mds(
+        tokenizer_name='mosaicml/mpt-7b',
+        output_folder=str(output_folder),
+        input_folder=str(input_folder),
+        concat_tokens=1,
+        eos_text='',
+        bos_text='',
+        no_wrap=False,
+        compression='zstd',
+        processes=1,
+        args_str='Namespace()',
+        reprocess=False,
+    )
+
+    # Make sure all the files exist as expected.
+    assert os.path.exists(output_folder / '.text_to_mds_conversion_done')
+    assert os.path.exists(output_folder / 'index.json')
+    assert os.path.exists(output_folder / 'shard.00000.mds.zstd')
 
 
 def test_is_already_processed(tmp_path: pathlib.Path):

@@ -3,17 +3,12 @@
 import copy
 import json
 import os
-import sys
 import warnings
 
 import omegaconf
 import pytest
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-
-# Add repo root to path so we can import scripts and test it
-repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(repo_dir)
 
 from scripts.train.train import main  # noqa: E402
 
@@ -54,10 +49,10 @@ class TestTrainingYAMLInputs:
     """Validate and tests error handling for the input YAML file."""
 
     @pytest.fixture
-    def cfg(self) -> DictConfig:
+    def cfg(self, foundry_dir: str) -> DictConfig:
         """Create YAML cfg fixture for testing purposes."""
         conf_path: str = os.path.join(
-            repo_dir, 'scripts/train/yamls/pretrain/testing.yaml')
+            foundry_dir, 'scripts/train/yamls/pretrain/testing.yaml')
         with open(conf_path, 'r', encoding='utf-8') as config:
             test_cfg = om.load(config)
         assert isinstance(test_cfg, DictConfig)
@@ -103,7 +98,7 @@ class TestTrainingYAMLInputs:
             'save_folder',
             'fsdp_config',
             'lora_config',
-            'eval_loader_config',
+            'eval_loader',
             'icl_tasks_config',
         ]
         old_cfg = copy.deepcopy(cfg)

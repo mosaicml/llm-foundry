@@ -5,7 +5,7 @@ import copy
 import os
 import pathlib
 import warnings
-from typing import Any, Dict, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 from unittest import mock
 
 import pytest
@@ -94,13 +94,26 @@ def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     return test_cfg, model, optimizer
 
 
-def gen_random_batch(batch_size: int, test_cfg: Union[DictConfig, ListConfig]):
+def gen_random_batch(batch_size: int,
+                     test_cfg: Union[DictConfig, ListConfig],
+                     inputs: Optional[List[str]] = None):
+    # inputs can be [], ['input_ids'], ['input_ids', 'inputs_embeds'], and ['inputs_embeds']
+    # default to only input ids
+    if inputs == None:
+        inputs = ['input_ids']
     # generate input batch of random data, suitable for a Causal or Prefix LM
     batch = {}
-    batch['input_ids'] = torch.randint(
-        low=0,
-        high=test_cfg.model.vocab_size,
-        size=(batch_size, test_cfg.max_seq_len)).to(test_cfg.device)
+    for inp in inputs:
+        if inp == 'input_ids':
+            batch['input_ids'] = torch.randint(
+                low=0,
+                high=test_cfg.model.vocab_size,
+                size=(batch_size, test_cfg.max_seq_len)).to(test_cfg.device)
+        if inp == 'inputs_embeds':
+            batch['inputs_embeds'] = torch.randn(
+                batch_size, test_cfg.max_seq_len,
+                test_cfg.model.d_model).to(test_cfg.device)
+
     batch['labels'] = torch.randint(low=0,
                                     high=test_cfg.model.vocab_size,
                                     size=(batch_size, test_cfg.max_seq_len)).to(
@@ -148,6 +161,34 @@ def test_full_forward_and_backward(batch_size: int = 2):
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
     assert not torch.equal(original_params, updated_params)
+
+
+def test_full_forward_and_backward_with_inputs_embeds(batch_size: int = 2):
+    test_cfg, model, optimizer = get_objs(
+        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+
+    batch = gen_random_batch(batch_size, test_cfg, inputs=['inputs_embeds'])
+
+    model.train()
+    original_params = next(model.parameters()).clone().data
+    outputs = model(batch)
+    loss = model.loss(outputs, batch)
+    loss.backward()
+    optimizer.step()
+    updated_params = next(model.parameters()).clone().data
+    assert not torch.equal(original_params, updated_params)
+
+
+@pytest.mark.parametrize('inputs', [[], ['input_ids', 'inputs_embeds']])
+def test_invalid_inputs_embeds_input_ids_combinations(inputs: List[str]):
+    test_cfg, model, _ = get_objs(
+        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+
+    batch = gen_random_batch(2, test_cfg, inputs=inputs)
+
+    model.train()
+    with pytest.raises(ValueError):
+        _ = model(batch)
 
 
 def test_attention_mechanism(batch_size: int = 2):
@@ -514,6 +555,116 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         assert block.resid_ffn_dropout.p == 0.2
 
 
+@pytest.mark.gpu
+@pytest.mark.parametrize('attention_impl', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('pos_emb_config', [{
+    'alibi': True,
+    'rope': False
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_impl': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+}, {
+    'alibi': False,
+    'rope': True,
+    'rope_theta': 10000,
+    'rope_impl': 'hf',
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
+}])
+def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict):
+    # Testing the output of concatenated sequence with sequence id masking vs individual sequences.
+    alibi = pos_emb_config['alibi']
+    if alibi and attention_impl == 'flash':
+        pytest.skip(f'alibi only implemented with torch and triton attention.')
+
+    rope = pos_emb_config['rope']
+    if rope and pos_emb_config[
+            'rope_impl'] == 'dail' and not is_flash_v2_installed():
+        pytest.skip(
+            f'dail implementation of rope requires gpu and flash attention 2.')
+
+    if attention_impl == 'flash' and (
+            not is_flash_v2_installed(v2_version='v2.1.2')):
+        pytest.skip(
+            'Using sequence id with flash attention requires flash attention v2.1.2 or higher.'
+        )
+
+    composer_device = get_device(None)
+
+    hf_config = MPTConfig(
+        init_device='cpu',
+        d_model=128,
+        n_heads=1,
+        n_layers=2,
+        expansion_ratio=2,
+        max_seq_len=2048,
+        emb_pdrop=0.1,
+        resid_pdrop=0.2,
+        attn_config={
+            'attn_impl': attention_impl,
+            'attn_uses_sequence_id': True,
+            **pos_emb_config,
+        },
+        init_config={
+            'name': 'baseline_',
+            'init_std': 0.02,
+        },
+    )
+    mpt = MPTForCausalLM(hf_config)
+    mpt.eval()
+    mpt = composer_device.module_to_device(mpt)
+
+    with get_precision_context('amp_bf16' if composer_device.name ==
+                               'gpu' else 'fp32'):
+        # padding on the right side of the input
+        concatenated_seq_ids = torch.tensor([[11274, 16390, 11, 4332, 323, 423],
+                                             [2342, 12, 111, 123, 50256, 342]])
+        concatenated_seq_ids = composer_device.tensor_to_device(
+            concatenated_seq_ids)
+
+        sequence_id = torch.tensor([[0, 0, 0, 1, 2, 2], [0, 0, 0, 1, 2, 2]])
+        sequence_id = composer_device.tensor_to_device(sequence_id)
+
+        first_seq_ids = torch.tensor([[11274, 16390, 11], [2342, 12, 111]])
+        first_seq_ids = composer_device.tensor_to_device(first_seq_ids)
+
+        second_seq_ids = torch.tensor([[4332], [123]])
+        second_seq_ids = composer_device.tensor_to_device(second_seq_ids)
+
+        third_seq_ids = torch.tensor([[323, 423], [50256, 342]])
+        third_seq_ids = composer_device.tensor_to_device(third_seq_ids)
+
+        concatenated_seq_output = mpt(concatenated_seq_ids,
+                                      sequence_id=sequence_id).logits
+        first_seq_output = mpt(first_seq_ids).logits
+        second_seq_output = mpt(second_seq_ids).logits
+        third_seq_output = mpt(third_seq_ids).logits
+
+        assert torch.allclose(concatenated_seq_output[:, :3],
+                              first_seq_output,
+                              atol=2e-6 if attention_impl == 'torch' else 1e-8)
+        assert torch.allclose(concatenated_seq_output[:, 3:4],
+                              second_seq_output,
+                              atol=2e-6 if attention_impl == 'torch' else 1e-8)
+        atol = 1e-8
+        if attention_impl == 'torch':
+            atol = 2e-6
+        elif pos_emb_config['rope']:
+            atol = 2e-2
+        assert torch.allclose(concatenated_seq_output[:, 4:6],
+                              third_seq_output,
+                              atol=atol)
+
+
 @pytest.mark.parametrize('attention_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
@@ -825,6 +976,9 @@ def test_generate(attention_impl: str, precision: str, pos_emb_config: dict,
     no_padding_attention_mask = composer_device.tensor_to_device(
         no_padding_attention_mask)
 
+    # inputs_embeds
+    inputs_embeds = composer_device.tensor_to_device(torch.randn(2, 3, 128))
+
     # a single batch with different amounts of left padding in the input
     batched_input_ids = torch.tensor([[50256, 50256, 50256, 11274, 16390, 11],
                                       [50256, 50256, 16, 11274, 16390, 11]])
@@ -859,6 +1013,29 @@ def test_generate(attention_impl: str, precision: str, pos_emb_config: dict,
         # check that left padding and no padding produce the same output
         assert generation_with_no_padding[:, 3:].equal(
             generation_with_left_padding[:, 6:])
+
+        # check that both/neither ids and embeds do not error
+        # note that we need to set the BOS token ID for generating from neither
+        _ = mpt.generate(input_ids=no_padding_input_ids,
+                         inputs_embeds=inputs_embeds,
+                         attention_mask=no_padding_attention_mask,
+                         max_new_tokens=5,
+                         use_cache=False)
+        _ = mpt.generate(input_ids=no_padding_input_ids,
+                         inputs_embeds=inputs_embeds,
+                         attention_mask=no_padding_attention_mask,
+                         max_new_tokens=5,
+                         use_cache=True)
+        _ = mpt.generate(input_ids=None,
+                         inputs_embeds=None,
+                         max_new_tokens=5,
+                         use_cache=False,
+                         bos_token_id=50256)
+        _ = mpt.generate(input_ids=None,
+                         inputs_embeds=None,
+                         max_new_tokens=5,
+                         use_cache=True,
+                         bos_token_id=50256)
 
 
 @pytest.mark.gpu

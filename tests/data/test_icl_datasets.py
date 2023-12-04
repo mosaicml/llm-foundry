@@ -10,7 +10,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry.utils.builders import build_icl_evaluators
 
 
-def load_icl_config(conf_path: str = 'tests/test_tasks.yaml'):
+def load_icl_config(conf_path: str = 'tests/data/test_tasks.yaml'):
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return test_cfg

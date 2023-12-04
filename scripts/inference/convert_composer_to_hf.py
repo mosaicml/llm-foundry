@@ -168,18 +168,10 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def convert_composer_to_hf(args: Namespace) -> None:
+def _convert_composer_to_hf(args: Namespace) -> None:
     print()
     print('#' * 30)
     print('Converting Composer checkpoint to HuggingFace checkpoint format...')
-
-    # Register MPT auto classes so that this script works with MPT
-    # This script will not work without modification for other custom models,
-    # but will work for other HuggingFace causal LMs
-    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
-    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
-    MPTConfig.register_for_auto_class()
-    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
 
     _, _, local_folder_path = parse_uri(args.hf_output_path)
 
@@ -294,6 +286,26 @@ def convert_composer_to_hf(args: Namespace) -> None:
     print(
         'Composer checkpoint successfully converted to HuggingFace checkpoint format.'
     )
+
+
+def convert_composer_to_hf(args: Namespace) -> None:
+    # Register MPT auto classes so that this script works with MPT
+    # This script will not work without modification for other custom models,
+    # but will work for other HuggingFace causal LMs
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
+    MPTConfig.register_for_auto_class()
+    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
+
+    try:
+        _convert_composer_to_hf(args)
+    except Exception as e:
+        raise e
+    finally:
+        # Undo auto registration after running the script
+        del CONFIG_MAPPING._extra_content['mpt']
+        delattr(MPTConfig, '_auto_class')
+        delattr(MPTForCausalLM, '_auto_class')
 
 
 if __name__ == '__main__':

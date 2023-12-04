@@ -4,6 +4,7 @@
 import argparse
 import logging
 import os
+import time
 
 import pandas as pd
 from databricks import sql
@@ -129,5 +130,10 @@ if __name__ == '__main__':
     tablename = args.delta_table_name
     json_output_path = args.json_output_path
 
+    tik = time.time()
+    print("start timer", tik)
+
     stream_delta_to_json(server_hostname, access_token, http_path, tablename, json_output_path)
+
+    print("end timer", time.time() - tik)
 

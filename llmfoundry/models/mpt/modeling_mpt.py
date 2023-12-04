@@ -132,6 +132,114 @@ def gen_rotary_embedding(rope_head_dim: int, rope_impl: str, rope_theta: int,
     raise ValueError('rope_impl needs to be either dail or hf')
 
 
+def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
+                                 attn_uses_sequence_id: bool, attn_impl: str,
+                                 attention_mask: Union[torch.Tensor, None]):
+    """Generates the attention mask used for sequence masking in FA v2.
+
+    Only supports sequence id based sparse attention for no attention masking or attention masking with right padding.
+    In case of left padding:
+        1. Training with left padding is not supported in MPT (see https://github.com/mosaicml/llm-foundry/blob/1eecd4cb8e734499f77f6a35f657b8b20c0adfcb/llmfoundry/models/mpt/modeling_mpt.py#L407).
+        2. For generation with left padding, we only have a single sequence id per sample, so we don't need sequence id based sparse attention.
+
+    Args:
+        sequence_id (Union[None, torch.Tensor]): Tensor containing the sequence id for each token. Shape (batch_size, seq_len).
+        S (int): Sequence length
+        attn_uses_sequence_id (bool): Whether the attention uses sequence id based masking.
+        attn_impl (str): Attention implementation. This function is only creates attention_mask_in_length for flash attention.
+        attention_mask (Union[torch.Tensor, None]): Attention mask tensor of shape (batch_size, seq_len)
+
+    Returns:
+        attention_mask_in_length: (batch, seqlen), int, a nonzero number (e.g., 1, 2, 3, etc.) means length of concatenated sequence in b-th batch, and 0 means none. For example, if batch = 3 and seqlen = 6, the attention_mask_in_length is:
+            ```
+            [
+            [2, 3, 0, 0, 0, 0],
+            [3, 2, 0, 0, 0, 0],
+            [6, 0, 0, 0, 0, 0]
+            ]
+            ```
+        , which refers to the 3D-attention mask:
+            ```
+            [
+            [
+                [1, 0, 0, 0, 0, 0],
+                [1, 1, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 1, 1, 0, 0],
+                [0, 0, 1, 1, 1, 0],
+                [0, 0, 0, 0, 0, 1]
+            ],
+            [
+                [1, 0, 0, 0, 0, 0],
+                [1, 1, 0, 0, 0, 0],
+                [1, 1, 1, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 1, 1, 0],
+                [0, 0, 0, 0, 0, 1]
+            ],
+            [
+                [1, 0, 0, 0, 0, 0],
+                [1, 1, 0, 0, 0, 0],
+                [1, 1, 1, 0, 0, 0],
+                [1, 1, 1, 1, 0, 0],
+                [1, 1, 1, 1, 1, 0],
+                [1, 1, 1, 1, 1, 1]
+            ]
+            ]
+            ```.
+            (The description above is taken verbatim from https://github.com/Dao-AILab/flash-attention/blob/9356a1c0389660d7e231ff3163c1ac17d9e3824a/flash_attn/bert_padding.py#L125 .)
+    """
+    attention_mask_in_length = None
+    if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl
+                                                                == 'flash'):
+        # Check if sequence has left padding. If yes, raise an error.
+        if (attention_mask is not None) and (attention_mask[:, 0].sum() !=
+                                             attention_mask.shape[0]):
+            raise NotImplementedError(
+                'Left padding is not supported with flash attention when attn_uses_sequence_id is set to True.'
+            )
+        if S != sequence_id.shape[-1]:
+            raise ValueError(
+                f'Sequence length ({S}) does not match length of sequences in sequence_id ({sequence_id.shape[-1]}).'
+            )
+        attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
+        if attention_mask is not None:
+            attention_mask_in_length = attention_mask_in_length.masked_fill(
+                ~attention_mask.unsqueeze(-1), 0)
+        attention_mask_in_length = attention_mask_in_length.sum(dim=1)
+        attention_mask_in_length = torch.nn.functional.pad(
+            attention_mask_in_length,
+            (0, S - attention_mask_in_length.shape[-1]),
+            mode='constant',
+            value=0)
+
+    return attention_mask_in_length
+
+
+def apply_sequence_id(attn_bias: torch.Tensor, sequence_id: torch.LongTensor,
+                      max_seq_len: int) -> torch.Tensor:
+    seq_len = sequence_id.shape[-1]
+    if seq_len > max_seq_len:
+        raise ValueError(
+            f'sequence_id sequence length cannot exceed max_seq_len={max_seq_len}'
+        )
+
+    # select seq_len subset of attn mask
+    attn_bias = attn_bias[..., :seq_len, :seq_len]
+
+    # Restrict attention to tokens that share the same value
+    # in sequence_id
+    cannot_attend = torch.logical_not(
+        torch.eq(
+            sequence_id.view(-1, seq_len, 1),
+            sequence_id.view(-1, 1, seq_len),
+        )).unsqueeze(1)
+    min_val = torch.finfo(attn_bias.dtype).min
+    attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
+
+    return attn_bias
+
+
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
     base_model_prefix = 'model'
@@ -286,7 +394,8 @@ class MPTModel(MPTPreTrainedModel):
         # If using torch or triton, we incorporate sequence_id (if appropriate)
         if self.attn_uses_sequence_id and sequence_id is not None:
             assert isinstance(attn_bias, torch.Tensor)  # pyright
-            attn_bias = self._apply_sequence_id(attn_bias, sequence_id)
+            attn_bias = apply_sequence_id(attn_bias, sequence_id,
+                                          self.config.max_seq_len)
 
         # If using torch or triton, we incorporate attention_mask. This will output
         # None in place of attention_mask since it will not be further needed in the
@@ -338,29 +447,6 @@ class MPTModel(MPTPreTrainedModel):
         prefix = prefix_mask.view(-1, 1, 1, seq_len)
         cannot_attend = ~torch.logical_or(causal, prefix.bool())
 
-        min_val = torch.finfo(attn_bias.dtype).min
-        attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
-
-        return attn_bias
-
-    def _apply_sequence_id(self, attn_bias: torch.Tensor,
-                           sequence_id: torch.LongTensor) -> torch.Tensor:
-        seq_len = sequence_id.shape[-1]
-        if seq_len > self.config.max_seq_len:
-            raise ValueError(
-                f'sequence_id sequence length cannot exceed max_seq_len={self.config.max_seq_len}'
-            )
-
-        # select seq_len subset of attn mask
-        attn_bias = attn_bias[..., :seq_len, :seq_len]
-
-        # Restrict attention to tokens that share the same value
-        # in sequence_id
-        cannot_attend = torch.logical_not(
-            torch.eq(
-                sequence_id.view(-1, seq_len, 1),
-                sequence_id.view(-1, 1, seq_len),
-            )).unsqueeze(1)
         min_val = torch.finfo(attn_bias.dtype).min
         attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
 
@@ -515,7 +601,12 @@ class MPTModel(MPTPreTrainedModel):
             prefix_mask=prefix_mask,
             sequence_id=sequence_id,
         )
-
+        attention_mask_in_length = gen_attention_mask_in_length(
+            sequence_id=sequence_id,
+            S=S,
+            attn_uses_sequence_id=self.attn_uses_sequence_id,
+            attn_impl=self.attn_impl,
+            attention_mask=attention_mask)
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
         if use_cache and past_key_values is None:
@@ -538,6 +629,7 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
+                attention_mask_in_length=attention_mask_in_length,
             )
             if presents is not None:
                 presents += (present,)

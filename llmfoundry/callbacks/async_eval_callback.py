@@ -261,16 +261,39 @@ class AsyncEval(Callback):
         )
         params['run_name'] = run_name
 
+        integrations = cfg.integrations
+        found_llm_foundry, installation_path = False, 'llm-foundry'
+        for i in integrations:
+            if i['integration_type'] != 'git_repo' or i[
+                    'git_repo'] != 'mosaicml/llm-foundry':
+                continue
+
+            found_llm_foundry = True
+            if i['path']:
+                installation_path = i['path']
+
+        if not found_llm_foundry:
+            log.warning(
+                'No github integration found for llm-foundry. Adding installation for latest'
+            )
+            integrations.append({
+                'integration_type': 'git_repo',
+                'git_repo': 'mosaicml/llm-foundry',
+                'git_branch': 'v0.4.0',
+                'pip_install': '-e .[gpu]',
+                'ssh_clone': False,
+            })
+
         # TODO: This just runs an eval run, but we also want to attach the
         # deployment, which would require a hf conversion and parametrizing the
         # dependent_deployment in the run config
-        command = 'cd llm-foundry/scripts \n composer eval/eval.py $PARAMETERS'
+        command = f'cd {installation_path}/scripts \n composer eval/eval.py $PARAMETERS'
         run_config = RunConfig(
             name=run_name,
             image=self.current_run.image,
             compute=self.compute or default_compute,
             command=command,
-            integrations=cfg.integrations,
+            integrations=integrations,
             env_variables=cfg.env_variables,
             metadata=cfg.metadata,
             parameters=params,

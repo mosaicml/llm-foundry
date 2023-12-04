@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import datetime
+from copy import deepcopy
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,6 +12,7 @@ from llmfoundry.callbacks.async_eval_callback import (AsyncEval,
                                                       get_run_name)
 from mcli import Run, RunConfig, RunStatus
 
+# here
 RUN_NAME = 'foo_bar-1234'
 BASIC_PARAMS = {
     'device_eval_batch_size': 2,
@@ -210,7 +212,15 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
     run_config_created = mock_create_run.call_args[0][0]
     assert run_config_created.name == 'eval-1ba-foo_bar'
     assert run_config_created.image == 'fake-image'
-    assert run_config_created.command
+
+    print(run_config_created)
+    assert 'cd llm-foundry/scripts' in run_config_created.command
+
+    integrations = run_config_created.integrations
+    assert len(integrations) == 1
+    assert integrations[0]['integration_type'] == 'git_repo'
+    assert integrations[0]['git_repo'] == 'mosaicml/llm-foundry'
+    assert 'git_branch' in integrations[0]
 
     compute = run_config_created.compute
     assert compute['cluster'] == 'c2z3'
@@ -236,3 +246,50 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
         }
     }]
     assert parameters['run_name'] == 'eval-1ba-foo_bar'  # original run
+
+
+INTEGRATION_GIT_LLMFOUNDRY = {
+    'integration_type': 'git_repo',
+    'git_repo': 'mosaicml/llm-foundry',
+    'git_branch': 'custom_branch',
+    'path': 'custom/llm-foundry',
+    'pip_install': '-e .[gpu]',
+    'ssh_clone': False,
+}
+INTEGRATION_GIT_RANDOM = {
+    'integration_type': 'git_repo',
+    'git_repo': 'another-repo',
+    'git_branch': 'foobar',
+}
+
+FAKE_RUN_WITH_INTEGRATIONS = deepcopy(FAKE_RUN)
+FAKE_RUN_WITH_INTEGRATIONS.submitted_config.integrations = [
+    INTEGRATION_GIT_LLMFOUNDRY, INTEGRATION_GIT_RANDOM
+]
+
+
+@patch('llmfoundry.callbacks.async_eval_callback.get_run',
+       return_value=FAKE_RUN_WITH_INTEGRATIONS)
+@patch('llmfoundry.callbacks.async_eval_callback.create_run',
+       return_value=FAKE_RUN_WITH_INTEGRATIONS)
+def test_async_eval_callback_integrations(mock_create_run: MagicMock,
+                                          mock_get_run: MagicMock):
+    callback = AsyncEval(BASIC_PARAMS,
+                         interval='2ba',
+                         compute={
+                             'cluster': 'c2z3',
+                             'nodes': 2,
+                         })
+    assert mock_get_run.call_count == 1
+
+    callback.launch_run('checkpoint/path', '1ba')
+    assert mock_create_run.call_count == 1
+    run_config_created = mock_create_run.call_args[0][0]
+
+    assert len(run_config_created.integrations) == 2
+    # order should be retained
+    assert run_config_created.integrations[0] == INTEGRATION_GIT_LLMFOUNDRY
+    assert run_config_created.integrations[1] == INTEGRATION_GIT_RANDOM
+
+    custom_path = run_config_created.integrations[0]['path']
+    assert f'cd {custom_path}/scripts' in run_config_created.command

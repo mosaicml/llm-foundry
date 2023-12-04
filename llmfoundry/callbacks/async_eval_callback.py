@@ -264,8 +264,10 @@ class AsyncEval(Callback):
         integrations = cfg.integrations
         found_llm_foundry, installation_path = False, 'llm-foundry'
         for i in integrations:
-            if i['integration_type'] != 'git_repo' or i[
-                    'git_repo'] != 'mosaicml/llm-foundry':
+            if i['integration_type'] != 'git_repo':
+                continue
+
+            if not i['git_repo'].endswith('llm-foundry'):  # detects forks
                 continue
 
             found_llm_foundry = True
@@ -273,9 +275,16 @@ class AsyncEval(Callback):
                 installation_path = i['path']
 
         if not found_llm_foundry:
+            # If github integration is not found, foundry is likely installed
+            # through the run command. In this case, we'll add the integration
+            # so the eval run will still work. However, it could cause unexpected
+            # behaviors because its not using custom repos or branches specified
+            # in the training run. For this reason, we'll log a warning
             log.warning(
-                'No github integration found for llm-foundry. Adding installation for latest'
-            )
+                'No github integration found for llm-foundry. ' +
+                'Adding installation to eval run for latest foundry release. ' +
+                'To use a fork, custom branch, or custom version, configure ' +
+                'llm-foundry installation through a github integration')
             integrations.append({
                 'integration_type': 'git_repo',
                 'git_repo': 'mosaicml/llm-foundry',

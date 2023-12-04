@@ -11,19 +11,29 @@ from databricks import sql
 log = logging.getLogger(__name__)
 
 
-def stream_delta_to_json(args: argparse.Namespace, batch_size: int = 1 << 20):
+def stream_delta_to_json(server_hostname: str,
+                         access_token: str,
+                         http_path: str,
+                         tablename: str,
+                         json_output_path: str,
+                         batch_size: int = 1 << 20):
     """Read UC delta table and convert it to json.
 
     Save json files to local. In the case of table has more than batch_size
     rows, read the table batch_size rows a time
     """
-    server_hostname = args.DATABRICKS_HOST if args.DATABRICKS_HOST else os.getenv(
-        'DATABRICKS_HOST')
-    access_token = args.DATABRICKS_TOKEN if args.DATABRICKS_TOKEN else os.getenv(
-        'DATABRICKS_TOKEN')
-    http_path = args.http_path
-    tablename = args.delta_table_name
-    json_output_path = args.json_output_path
+    log.info(f'Start .... Convert delta to json')
+
+    if os.path.exists(json_output_path):
+        if not os.path.isdir(json_output_path) or os.listdir(
+                json_output_path):
+            raise RuntimeError(
+                f'A file or a folder {json_output_path} already exists and is not empty. Remove it and retry!'
+            )
+
+    os.makedirs(json_output_path, exist_ok=True)
+
+    log.info(f'Directory {json_output_path} created.')
 
     try:
         connection = sql.connect(
@@ -78,9 +88,10 @@ def stream_delta_to_json(args: argparse.Namespace, batch_size: int = 1 << 20):
     cursor.close()
     connection.close()
 
+    print(f'Convert delta to json is done. check {json_output_path}.')
+    log.info(f'Convert delta to json is done. check {json_output_path}.')
 
 if __name__ == '__main__':
-    log.info(f'Start .... Convert delta to json')
     parser = argparse.ArgumentParser(
         description=
         'Download delta table from UC and convert to json to save local')
@@ -110,18 +121,13 @@ if __name__ == '__main__':
     parser.add_argument('--debug', type=bool, required=False, default=False)
     args = parser.parse_args()
 
-    if os.path.exists(args.json_output_path):
-        if not os.path.isdir(args.json_output_path) or os.listdir(
-                args.json_output_path):
-            raise RuntimeError(
-                f'A file or a folder {args.json_output_path} already exists and is not empty. Remove it and retry!'
-            )
+    server_hostname = args.DATABRICKS_HOST if args.DATABRICKS_HOST is not None else os.getenv(
+        'DATABRICKS_HOST')
+    access_token = args.DATABRICKS_TOKEN if args.DATABRICKS_TOKEN is not None else os.getenv(
+        'DATABRICKS_TOKEN')
+    http_path = args.http_path
+    tablename = args.delta_table_name
+    json_output_path = args.json_output_path
 
-    os.makedirs(args.json_output_path, exist_ok=True)
+    stream_delta_to_json(server_hostname, access_token, http_path, tablename, json_output_path)
 
-    log.info(f'Directory {args.json_output_path} created.')
-
-    stream_delta_to_json(args)
-
-    print(f'Convert delta to json is done. check {args.json_output_path}.')
-    log.info(f'Convert delta to json is done. check {args.json_output_path}.')

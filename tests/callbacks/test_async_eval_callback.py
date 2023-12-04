@@ -220,7 +220,7 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
     assert len(integrations) == 1
     assert integrations[0]['integration_type'] == 'git_repo'
     assert integrations[0]['git_repo'] == 'mosaicml/llm-foundry'
-    assert 'git_branch' in integrations[0]
+    assert integrations[0]['git_branch'].startswith('v')
 
     compute = run_config_created.compute
     assert compute['cluster'] == 'c2z3'

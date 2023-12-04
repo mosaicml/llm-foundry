@@ -10,6 +10,7 @@ import torch.nn as nn
 
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, build_ffn
+from llmfoundry.models.layers.ffn_padding_utils import pad_input, unpad_input
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 attn_config_defaults: Dict = {
@@ -52,6 +53,7 @@ class MPTBlock(nn.Module):
         fc_type: str = 'torch',
         device: Optional[str] = None,
         no_bias: bool = False,
+        use_pad_tok_in_ffwd: bool = True,
         **kwargs: Any,
     ):
         if attn_config is None:
@@ -104,6 +106,8 @@ class MPTBlock(nn.Module):
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)
         self.resid_ffn_dropout = nn.Dropout(resid_pdrop)
 
+        self.use_pad_tok_in_ffwd = use_pad_tok_in_ffwd
+
     def forward(
         self,
         x: torch.Tensor,
@@ -129,6 +133,12 @@ class MPTBlock(nn.Module):
         m = x
         if self.norm_2 is not None:
             m = self.norm_2(x)
+        batch_size = m.size(0)
+        seq_len = m.size(1)
+        if not self.use_pad_tok_in_ffwd:
+            m, indices, _, _ = unpad_input(m, attention_mask)
         n = self.ffn(m)
+        if not self.use_pad_tok_in_ffwd:
+            n = pad_input(n, indices, batch_size, seq_len)
         x = x + self.resid_ffn_dropout(n)
         return x, attn_weights, past_key_value

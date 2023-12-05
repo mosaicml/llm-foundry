@@ -285,10 +285,14 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         # Might need to do hidden_states[-1] to only select activations from the last layer
         #
         # Note that we do _not_ want to use the logits; we want the full output dimension to be the hidden_dim
-        q_last_hidden = q_encoder_outputs.hidden_states[-1].masked_fill(~queries_batch.get('attention_mask', None)[..., None].bool(), 0.0)
+        # for batch of [16,128], q_encoder_outputs.hidden_states has shape [16,128,768] but q_encoder_outputs.hidden_states[-1].shape:  torch.Size([128, 768])
+        # q_last_hidden also has shape [16,128,768]. q_pooled_outputs should be [16,768]
+        
+        # print('\nq_encoder_outputs.hidden_states[-1].shape: ', q_encoder_outputs.hidden_states[-1].shape)
+        q_last_hidden = q_encoder_outputs.hidden_states.masked_fill(~queries_batch.get('attention_mask', None)[..., None].bool(), 0.0)
         q_pooled_outputs = q_last_hidden.sum(dim=1) / queries_batch.get('attention_mask', None).sum(dim=1)[..., None]
         
-        p_last_hidden = p_encoder_outputs.hidden_states[-1].masked_fill(~passages_batch.get('attention_mask', None)[..., None].bool(), 0.0)
+        p_last_hidden = p_encoder_outputs.hidden_states.masked_fill(~passages_batch.get('attention_mask', None)[..., None].bool(), 0.0)
         p_pooled_outputs = p_last_hidden.sum(dim=1) / passages_batch.get('attention_mask', None).sum(dim=1)[..., None]
         
         #print('>>p_pooled_outputs shape:',p_pooled_outputs.shape)
@@ -299,10 +303,13 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         q_pooled_outputs = q_pooled_outputs.contiguous() # Why do we need to make this contiguous?
         p_pooled_outputs = p_pooled_outputs.contiguous() # Why do we need to make this contiguous?
 
+        # All Gather is included
         all_q_pooled_outputs = dist_gather_tensor(q_pooled_outputs)
         all_p_pooled_outputs = dist_gather_tensor(p_pooled_outputs)
-        # all_q_pooled_outputs = q_pooled_outputs
-        # all_p_pooled_outputs = p_pooled_outputs
+        
+        # No All Gather
+        #all_q_pooled_outputs = q_pooled_outputs
+        #all_p_pooled_outputs = p_pooled_outputs
         
         all_scores, all_labels = self.full_contrastive_scores_and_labels(queries=all_q_pooled_outputs, 
                                                                          passages=all_p_pooled_outputs)

@@ -86,6 +86,7 @@ extra_deps['dev'] = [
 extra_deps['databricks'] = [
     'mosaicml[databricks]>=0.17.2,<0.18',
     'databricks-sql-connector>=3, <4',
+    'databricks-connect==14.0.0'
 ]
 
 extra_deps['tensorboard'] = [

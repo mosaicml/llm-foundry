@@ -234,12 +234,11 @@ class MPTModel(MPTPreTrainedModel):
                 # Call to parallelize_module moves params to gpu if they are cpu params.
                 # Move them back to cpu so that FSDP wrapping sees all params on cpu.
                 # Othewise FSDP wrapping fails as it sees some params on cpu and others on gpu.
-                assert config.init_device == 'cpu'
-                if config.init_device == 'cpu':
-                    block = block.to('cpu')
+                assert config.init_device == 'cpu', "config.init_device must be 'cpu' when using tensor parallelism."
+                block = block.to('cpu')
                 new_blocks.append(block)
             self.blocks = new_blocks
-            print('Tensor parallelism initialized...')
+            log.info('Tensor parallelism initialized...')
 
             # This call is needed to register the hooks to be compatible with FSDP
             if not enable_2d_with_fsdp():

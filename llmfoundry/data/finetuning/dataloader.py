@@ -14,7 +14,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.tasks import dataset_constructor
-from llmfoundry.data.packing import BinPackWrapper
+from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.data.text_data import get_tokens_per_batch_func
 
 log = logging.getLogger(__name__)
@@ -74,20 +74,26 @@ def build_finetuning_dataloader(cfg: DictConfig,
             cfg.dataset.allow_pad_trimming (bool, optional): Whether to allow
                 the collator to trim padding. See :class:`Seq2SeqFinetuningCollator`
                 docstring for details. Default: ``False``.
-            cfg.dataset.packing_ratio (float, optional): If provided, this invokes
-                a collator wrapper that packs `device_batch_size*packing_ratio`
-                raw examples into `device_batch_size` packed examples. This helps
+            cfg.dataset.packing_ratio (Optional[float, Literal['auto']]): If provided, this invokes
+                a collator wrapper that packs device_batch_size*packing_ratio
+                raw examples into device_batch_size packed examples. This helps
                 minimize padding while preserving sequence integrity.
                 This adds `sequence_id` to the batch, which indicates which unique
                 sequence each token belongs to.
+
+                If set to 'auto', packing_ratio is profiled and the highest observed packing ratio with
+                zero waste is selected.
+                In practice, this may result in > 0 waste because profiling is done on only a portion
+                of the dataset.
+
                 Note: Using this feature will not change device_batch_size but it
                     will determine the number of raw examples consumed by the dataloader
                     per batch. Some examples may be discarded if they do not fit when
                     packing.
-                    Select `packing_ratio` **carefully** based on the dataset
-                    statistics, `max_seq_len`, and tolerance for discarding samples!
-                    The packing code in `../packing.py` provides a script that can help
-                    you choose the best `packing_ratio`.
+                    Select packing_ratio **carefully** based on the dataset
+                    statistics, max_seq_len, and tolerance for discarding samples!
+                    The script `scripts/misc/profile_packing.py` can help
+                    you choose the best packing_ratio.
             cfg.dataset.shuffle (bool): Whether to shuffle the dataset.
             ___
             See :class:`StreamingFinetuningDataset` for info on other standard config
@@ -106,7 +112,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
         A pytorch dataloader
 
     Note:
-        You can run the script inside `../packing.py` to quickly test the
+        You can run the script inside `scripts/misc/profile_packing.py` to quickly test the
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """
@@ -130,20 +136,20 @@ def build_finetuning_dataloader(cfg: DictConfig,
             epoch_size=cfg.dataset.get('epoch_size', None),
             predownload=cfg.dataset.get('predownload', None),
             cache_limit=cfg.dataset.get('cache_limit', None),
-            partition_algo=cfg.dataset.get('partition_algo', 'orig'),
+            partition_algo=cfg.dataset.get('partition_algo', 'relaxed'),
             num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', None),
             batch_size=device_batch_size,
             shuffle=cfg.dataset.get('shuffle', False),
-            shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1b'),
+            shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1e'),
             shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
-            shuffle_block_size=cfg.dataset.get('shuffle_block_size', 1 << 18),
+            shuffle_block_size=cfg.dataset.get('shuffle_block_size', None),
             sampling_method=cfg.dataset.get('sampling_method', 'balanced'),
             sampling_granularity=cfg.dataset.get('sampling_granularity', 1),
             batching_method=cfg.dataset.get('batching_method', 'random'),
         )
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
-            cfg.dataset, tokenizer, device_batch_size)
+            cfg, tokenizer, device_batch_size)
 
         dl = DataLoader(
             dataset,
@@ -174,7 +180,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             )
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
-            cfg.dataset, tokenizer, device_batch_size)
+            cfg, tokenizer, device_batch_size)
 
         if cfg.drop_last:
             world_size = dist.get_world_size()
@@ -367,24 +373,39 @@ def _build_hf_dataset_from_remote(
 
 
 def _build_collate_fn(
-    dataset_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+    dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int
-) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackWrapper], int]:
+) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
+    dataset_cfg = dataloader_cfg.dataset
+    max_seq_len = dataset_cfg.max_seq_len
+
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,
-        max_seq_len=dataset_cfg.max_seq_len,
+        max_seq_len=max_seq_len,
         decoder_only_format=dataset_cfg.decoder_only_format,
         allow_pad_trimming=dataset_cfg.get('allow_pad_trimming', False),
     )
 
     packing_ratio = dataset_cfg.get('packing_ratio')
+    max_leftover_bins_to_keep = dataset_cfg.get('max_leftover_bins_to_keep')
     if packing_ratio is None:
-        if dataset_cfg.get('max_leftover_bins_to_keep') is not None:
+        if max_leftover_bins_to_keep is not None:
             raise ValueError(
                 'dataset.max_leftover_bins_to_keep has been defined, ' +\
                 'but dataset.packing_ratio has not been set. Please set ' +\
                 'the latter to turn on packing or remove the former from the config.')
         return collate_fn, device_batch_size
+
+    if packing_ratio == 'auto':
+        packing_ratio = auto_packing_ratio(dataloader_cfg, tokenizer,
+                                           device_batch_size)
+
+    if isinstance(packing_ratio, str):
+        raise ValueError(
+            'dataset.packing_ratio must be a float or "auto", but it was set to '
+            + f'{packing_ratio}.')
+
+    log.info(f'Using packing ratio {packing_ratio}')
 
     if packing_ratio == 1.0:
         return collate_fn, device_batch_size
@@ -396,13 +417,13 @@ def _build_collate_fn(
             'On-the-fly packing is currently only supported for decoder-only formats.'
         )
 
-    collate_fn = BinPackWrapper(
+    collate_fn = BinPackCollator(
         collator=collate_fn,
         target_batch_size=device_batch_size,
-        max_seq_len=dataset_cfg.max_seq_len,
+        max_seq_len=max_seq_len,
         pad_token_id=tokenizer.pad_token_id,
         padding_side=tokenizer.padding_side,
-        max_leftover_bins_to_keep=dataset_cfg.get('max_leftover_bins_to_keep'),
+        max_leftover_bins_to_keep=max_leftover_bins_to_keep,
     )
     n_examples_to_pack = int(device_batch_size * packing_ratio)
     return collate_fn, n_examples_to_pack

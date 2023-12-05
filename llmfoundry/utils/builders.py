@@ -73,7 +73,8 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
-def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
+def build_callback(name: str, kwargs: Union[DictConfig, Dict[str,
+                                                             Any]]) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
@@ -117,6 +118,8 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
     elif name == 'early_stopper':
         return EarlyStopper(**kwargs)
     elif name == 'hf_checkpointer':
+        if isinstance(kwargs, DictConfig):
+            kwargs = om.to_object(kwargs)  # pyright: ignore
         return HuggingFaceCheckpointer(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
@@ -188,6 +191,14 @@ def build_tokenizer(
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
+    signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
+
+    if dist.is_available() and dist.is_initialized(
+    ) and dist.get_world_size() > 1:
+        # Make sure the tokenizer files are downloaded and cached first by local rank 0
+        with dist.local_rank_zero_download_and_wait(signal_file_path):
+            pass
+
     if tokenizer_name.startswith('tiktoken'):
         tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
     else:
@@ -201,6 +212,17 @@ def build_tokenizer(
             'model_max_length',
             int(1e30),
         )
+
+    if dist.is_available() and dist.is_initialized(
+    ) and dist.get_world_size() > 1:
+        if dist.get_local_rank() == 0:
+            with open(signal_file_path, 'wb') as f:
+                f.write(b'local_rank0_completed_tokenizer_setup')
+
+        dist.barrier()
+
+        if dist.get_local_rank() == 0:
+            os.remove(signal_file_path)
 
     return tokenizer
 

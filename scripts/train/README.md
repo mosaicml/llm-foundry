@@ -5,14 +5,15 @@ This README walks through pretraining and finetuning a large language model usin
 #### Table of Contents
 1. [Part 1: LLM Pretraining](#llmpretraining)
    1. [Installation](#installation)
-   2. [Dataset Preparation](#datasetpreparation)
-   3. [How to start single and multi-node pretraining](#howtostartpretraining)
-2. [Part 2: LLM Finetuning](#llmfinetuning)
+   1. [Dataset Preparation](#datasetpreparation)
+   1. [How to start single and multi-node pretraining](#howtostartpretraining)
+1. [Part 2: LLM Finetuning](#llmfinetuning)
    1. [Using a dataset on the HuggingFace Hub](#hfdataset)
-   2. [Using a local dataset](#localdataset)
-   3. [Using a StreamingDataset (MDS) formatted dataset locally or in an object store](#mdsdataset)
-3. [FAQ: How many GPUs do I need to train a LLM?](#howmandygpus)
-4. [FAQ: Optimizing Performance](#optimizingperformance)
+   1. [Using a local dataset](#localdataset)
+   1. [Using a StreamingDataset (MDS) formatted dataset locally or in an object store](#mdsdataset)
+1. [Using Flash Attention](#flashattention)
+1. [FAQ: How many GPUs do I need to train a LLM?](#howmandygpus)
+1. [FAQ: Optimizing Performance](#optimizingperformance)
 
 # Part 1: LLM Pretraining <a name="llmpretraining"></a>
 
@@ -332,6 +333,53 @@ train_loader:
         ...
 ```
 
+# Using Flash Attention <a name="flashattention"></a>
+
+Flash Attention is an optimized implementation of the attention mechanism, first introduced by [Dao et al.](https://github.com/Dao-AILab/flash-attention). There are three versions of Flash Attention that can be used with LLM Foundry: Flash Attention V1, Flash Attention V2, and a Triton implementation of Flash Attention. To start, we recommend using one of our [provided Docker images](../../README.md#mosaicml-docker-images) corresponding to the Flash Attention version you would like to use. The Triton implementation can be used with either Flash Attention V1 or V2. Next, how you specify to use Flash Attention depends on which model you are using.
+
+For MPT, you can specify Flash Attention in your YAML like so:
+```yaml
+model:
+    name: mpt_causal_lm
+    ...
+    attn_config:
+        # Will use either V1 or V2 depending on what is installed
+        # "triton" will use the Triton implementation
+        attn_impl: flash
+        ...
+```
+
+If loading MPT from the HuggingFace Hub, you can specify Flash Attention in your YAML like so:
+```yaml
+model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: mosaicml/mpt-7b
+    ...
+    config_overrides:
+        # Will use either V1 or V2 depending on what is installed
+        # "triton" will use the Triton implementation
+        attn_config:
+            attn_impl: flash
+        ...
+```
+
+For any HuggingFace model that supports Flash Attention (e.g. Llama and Mistral), you can specify Flash Attention in your YAML like so:
+```yaml
+model:
+    name: hf_causal_lm
+    use_flash_attention_2: True # Will be automatically set to True if Flash Attention V2 is installed and the model supports it
+    ...
+```
+HuggingFace models currently only support Flash Attention V2.
+
+For Llama specifically, we have another option if you would like to use the Triton implementation of Flash Attention. You can specify this in your YAML like so:
+```yaml
+model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
+    attention_patch_type: triton
+    ...
+```
 
 # FAQ: How many GPUs do I need to train a LLM? <a name="howmanygpus"></a>
 This is a complicated question in general, but if we assume that you are using FSDP with `FULL_SHARD`,

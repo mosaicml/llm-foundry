@@ -1,19 +1,21 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List, Optional, Tuple
-from unittest.mock import patch
+from typing import Callable, List, Optional, Tuple
+from unittest.mock import Mock, patch
 
 import pytest
 import torch
+from composer import Trainer
+from composer.callbacks import Generate as ComposerGenerate
 from composer.core.precision import get_precision_context
-from composer.utils import dist, get_device, reproducibility
-from omegaconf import DictConfig
+from composer.utils import dist, get_device
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+from torch.utils.data import DataLoader
+from transformers import PreTrainedTokenizerBase
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
-from llmfoundry.utils import build_tokenizer
+from llmfoundry.models.mpt.modeling_mpt import (ComposerMPTCausalLM,
+                                                MPTForCausalLM)
 
 EOS_TOKEN_ID = 0
 
@@ -53,46 +55,140 @@ class MockMPTForCausalLM(MPTForCausalLM):
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
        new=MockMPTForCausalLM)
-def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool):
+def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
+                                tie_word_embeddings: bool,
+                                build_tiny_mpt: Callable[...,
+                                                         ComposerMPTCausalLM],
+                                mpt_tokenizer: PreTrainedTokenizerBase):
     """Tests mpt generation with mutiple gpus.
 
     and generations of different lengths.
     """
-    composer_device = get_device('gpu')
-    dist.initialize_dist(composer_device)
-    reproducibility.seed_all(42)
+    device = get_device('gpu')
 
-    model_config = DictConfig({
-        'name': 'mpt_causal_lm',
-        'd_model': 128,
-        'n_heads': 4,
-        'n_layers': 2,
-        'expansion_ratio': 2,
-        'no_bias': False,
-        'use_cache': True,
-        'attn_config': {
+    model = build_tiny_mpt(
+        tie_word_embeddings=tie_word_embeddings,
+        attn_config={
             'attn_impl': attn_impl,
             'attn_uses_sequence_id': False,
             'alibi': use_alibi
         },
-    })
+    )
+    model = device.module_to_device(model)
 
-    # build tokenizer
-    tokenizer = build_tokenizer('EleutherAI/gpt-neox-20b', {})
-
-    # build model
-    model = COMPOSER_MODEL_REGISTRY[model_config.name](model_config, tokenizer)
-    model = composer_device.module_to_device(model)
     model.eval()
 
     model.model = FSDP(model.model)
 
     with get_precision_context('amp_bf16'):
-        _ = model.generate(composer_device.tensor_to_device(
-            tokenizer('hello', return_tensors='pt')['input_ids']),
+        _ = model.generate(device.tensor_to_device(
+            mpt_tokenizer('hello', return_tensors='pt')['input_ids']),
                            max_new_tokens=3,
                            eos_token_id=EOS_TOKEN_ID,
                            use_cache=True,
                            synced_gpus=True)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
+@pytest.mark.parametrize('use_alibi', [True, False])
+def test_mpt_generate_callback(attn_impl: str, use_alibi: bool,
+                               build_tiny_mpt: Callable[...,
+                                                        ComposerMPTCausalLM],
+                               tiny_ft_dataloader: DataLoader):
+    device = get_device('gpu')
+
+    # build mpt model
+    model = build_tiny_mpt(
+        tie_word_embeddings=True,
+        attn_config={
+            'attn_impl': attn_impl,
+            'attn_uses_sequence_id': False,
+            'alibi': use_alibi
+        },
+    )
+    model = device.module_to_device(model)
+
+    # generate callback
+    prompts = [
+        'The best banana bread recipe is',
+        '2+2=',
+        'how much wood could a woodchuck chuck',
+    ]
+    gen_interval = 1
+    generate = ComposerGenerate(
+        prompts,
+        interval=f'{gen_interval}ba',
+        max_new_tokens=5,
+        batch_size=len(prompts),
+        use_cache=True,
+    )
+    generate.generate = Mock(wraps=generate.generate, autospec=True)
+
+    # build trainer
+    trainer = Trainer(
+        model=model,
+        train_dataloader=tiny_ft_dataloader,
+        device=device,
+        max_duration=f'{gen_interval}ba',
+        callbacks=[generate],
+    )
+    trainer.logger.log_table = Mock()
+    trainer.fit()
+
+    generate.generate.assert_called_once()
+    trainer.logger.log_table.assert_called_once()
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
+@pytest.mark.parametrize('use_alibi', [True, False])
+def test_mpt_generate_callback_not_tied(
+        use_alibi: bool, attn_impl: str,
+        build_tiny_mpt: Callable[..., ComposerMPTCausalLM],
+        tiny_ft_dataloader: DataLoader):
+    device = get_device('gpu')
+
+    # build mpt model
+    model = build_tiny_mpt(
+        tie_word_embeddings=False,
+        attn_config={
+            'attn_impl': attn_impl,
+            'attn_uses_sequence_id': False,
+            'alibi': use_alibi,
+        },
+    )
+    model = device.module_to_device(model)
+
+    # generate callback
+    prompts = [
+        'The best banana bread recipe is',
+        '2+2=',
+        'how much wood could a woodchuck chuck',
+    ]
+    gen_interval = 1
+    generate = ComposerGenerate(
+        prompts,
+        interval=f'{gen_interval}ba',
+        max_new_tokens=5,
+        batch_size=len(prompts),
+        use_cache=True,
+    )
+    generate.generate = Mock(wraps=generate.generate, autospec=True)
+
+    # build trainer
+    trainer = Trainer(
+        model=model,
+        train_dataloader=tiny_ft_dataloader,
+        device=device,
+        max_duration=f'{gen_interval}ba',
+        callbacks=[generate],
+    )
+    trainer.logger.log_table = Mock()
+    trainer.fit()
+
+    generate.generate.assert_called_once()
+    trainer.logger.log_table.assert_called_once()

@@ -186,6 +186,11 @@ c4constants.splits['val_xsmall'] = DataSplitConstants(hf_split='validation',
                                                       folder_split='val_xsmall',
                                                       raw_samples=3000,
                                                       truncated_samples=3000)
+c4constants.splits['val_xxsmall'] = DataSplitConstants(
+    hf_split='validation',
+    folder_split='val_xxsmall',
+    raw_samples=100,
+    truncated_samples=100)
 
 CONSTS = {'c4': c4constants, 'the_pile': pileconstants}
 

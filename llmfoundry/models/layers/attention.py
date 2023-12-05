@@ -94,7 +94,6 @@ def scaled_multihead_dot_product_attention(
     tp_world_size: Optional[int] = None
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-
     if multiquery:
         warnings.warn(
             DeprecationWarning(
@@ -231,6 +230,9 @@ def flash_attn_fn(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
+    attention_mask_in_length: Optional[torch.Tensor] = None,
+    should_repeat_kv_for_gqa: Optional[bool] = True,
+    sliding_window_size: int = -1,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
@@ -262,57 +264,64 @@ def flash_attn_fn(
         past_key_value = (key, value)
 
     if attn_bias is not None:
-        # clamp to 0 necessary for torch 2.0 compile()
-        _s_q = max(0, attn_bias.size(2) - query.size(1))
-        _s_k = max(0, attn_bias.size(3) - key.size(1))
-        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
-
-    if attn_bias is not None:
         raise NotImplementedError(f'attn_bias not implemented for flash attn.')
 
     batch_size, seqlen = query.shape[:2]
 
-    if key_padding_mask is None:
-        key_padding_mask = torch.ones_like(key[:, :, 0], dtype=torch.bool)
-    query_padding_mask = key_padding_mask[:, -query.size(1):]
+    if attention_mask_in_length is None:
+        if key_padding_mask is None:
+            key_padding_mask = torch.ones_like(key[:, :, 0], dtype=torch.bool)
+        query_padding_mask = key_padding_mask[:, -query.size(1):]
+        unpadding_function = bert_padding.unpad_input
+    else:
+        key_padding_mask = attention_mask_in_length
+        query_padding_mask = attention_mask_in_length
+        unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
 
-    query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = bert_padding.unpad_input(
+    query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
         query, query_padding_mask)
     query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
 
-    key_unpad, _, cu_seqlens_k, max_seqlen_k = bert_padding.unpad_input(
+    key_unpad, _, cu_seqlens_k, max_seqlen_k = unpadding_function(
         key, key_padding_mask)
     key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
-    value_unpad, _, _, _ = bert_padding.unpad_input(value, key_padding_mask)
+    value_unpad, _, _, _ = unpadding_function(value, key_padding_mask)
     value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
-    # multi-query case
-    if kv_n_heads == 1:
-        # Expanding a tensor does not allocate new memory, but only creates a new
-        # view on the existing tensor where a dimension of size one is expanded
-        # to a larger size by setting the stride to 0.
-        # - pytorch docs
-        #
-        # hopefully the kernels can utilize this and we're jot just wasting BW here
-        key_unpad = key_unpad.expand(key_unpad.size(0), n_heads,
-                                     key_unpad.size(-1))
-        value_unpad = value_unpad.expand(value_unpad.size(0), n_heads,
-                                         value_unpad.size(-1))
-    # grouped query case
-    elif kv_n_heads < n_heads:
-        # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
-        # We repeat each kv head by the group size number to use the underlying MHA kernels
+    if (kv_n_heads < n_heads) and (not is_flash_v2_installed()) and (
+            not should_repeat_kv_for_gqa):
+        raise ValueError(
+            'For Grouped Query Attention or Multi Query Attention, should_repeat_kv_for_gqa should be set to True if not using Flash Attention v2.'
+        )
 
-        # since repeat_kv_for_gqa expects input dims of (b, s, kv_n_heads, d)
-        # we use .view to modify {key, value}_unpad appropriately
+    if should_repeat_kv_for_gqa:
+        # multi-query case
+        if kv_n_heads == 1:
+            # Expanding a tensor does not allocate new memory, but only creates a new
+            # view on the existing tensor where a dimension of size one is expanded
+            # to a larger size by setting the stride to 0.
+            # - pytorch docs
+            #
+            # hopefully the kernels can utilize this and we're jot just wasting BW here
+            key_unpad = key_unpad.expand(key_unpad.size(0), n_heads,
+                                         key_unpad.size(-1))
+            value_unpad = value_unpad.expand(value_unpad.size(0), n_heads,
+                                             value_unpad.size(-1))
+        # grouped query case
+        elif kv_n_heads < n_heads:
+            # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
+            # We repeat each kv head by the group size number to use the underlying MHA kernels
 
-        key_unpad = repeat_kv_for_gqa(
-            key_unpad.view(batch_size, seqlen, kv_n_heads, -1),
-            n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
-        value_unpad = repeat_kv_for_gqa(
-            value_unpad.view(batch_size, seqlen, kv_n_heads, -1),
-            n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
+            # since repeat_kv_for_gqa expects input dims of (b, s, kv_n_heads, d)
+            # we use .view to modify {key, value}_unpad appropriately
+
+            key_unpad = repeat_kv_for_gqa(
+                key_unpad.view(1, key_unpad.size(0), kv_n_heads, -1),
+                n_heads // kv_n_heads).view(key_unpad.size(0), n_heads, -1)
+            value_unpad = repeat_kv_for_gqa(
+                value_unpad.view(1, value_unpad.size(0), kv_n_heads, -1),
+                n_heads // kv_n_heads).view(value_unpad.size(0), n_heads, -1)
 
     dropout_p = dropout_p if training else 0.0
 
@@ -343,7 +352,8 @@ def flash_attn_fn(
             dropout_p=dropout_p,
             softmax_scale=softmax_scale,
             causal=reset_is_causal,
-            return_attn_probs=needs_weights)
+            return_attn_probs=needs_weights,
+            window_size=(sliding_window_size, sliding_window_size))
     else:
         raise RuntimeError(
             'flash-attn==1.0.9 or flash-attn==2.3.2 is required.')
@@ -518,6 +528,7 @@ class GroupedQueryAttention(nn.Module):
         fc_type: str = 'torch',
         device: Optional[str] = None,
         bias: bool = True,
+        sliding_window_size: int = -1,
     ):
         super().__init__()
 
@@ -531,6 +542,7 @@ class GroupedQueryAttention(nn.Module):
         self.d_model = d_model
         self.n_heads = n_heads
         self.kv_n_heads = kv_n_heads
+        self.sliding_window_size = sliding_window_size
 
         self.head_dim = d_model // n_heads
 
@@ -600,6 +612,7 @@ class GroupedQueryAttention(nn.Module):
         rotary_emb_w_meta_info: Optional[dict] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
+        attention_mask_in_length: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
             torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
@@ -669,6 +682,14 @@ class GroupedQueryAttention(nn.Module):
             query = query.view(bsz, seqlen, self.d_model)
             key = key.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
 
+        extra_attn_kwargs = {}
+        if self.attn_impl == 'flash':
+            extra_attn_kwargs = {
+                'attention_mask_in_length': attention_mask_in_length,
+                'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
+                'sliding_window_size': self.sliding_window_size,
+            }
+
         context, attn_weights, past_key_value = self.attn_fn(
             query,
             key,
@@ -685,6 +706,7 @@ class GroupedQueryAttention(nn.Module):
             needs_weights=needs_weights,
             tensor_parallel_qkvo=self.tensor_parallel_qkvo,
             tp_world_size=self.tp_world_size,
+            **extra_attn_kwargs,
         )
 
         return self.out_proj(context), attn_weights, past_key_value
@@ -712,6 +734,7 @@ class MultiheadAttention(GroupedQueryAttention):
         fc_type: str = 'torch',
         device: Optional[str] = None,
         bias: bool = True,
+        sliding_window_size: int = -1,
     ):
         super().__init__(
             d_model=d_model,
@@ -728,6 +751,7 @@ class MultiheadAttention(GroupedQueryAttention):
             fc_type=fc_type,
             device=device,
             bias=bias,
+            sliding_window_size=sliding_window_size,
         )
 
 
@@ -753,6 +777,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         fc_type: str = 'torch',
         device: Optional[str] = None,
         bias: bool = True,
+        sliding_window_size: int = -1,
     ):
         super().__init__(
             d_model=d_model,
@@ -769,6 +794,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             fc_type=fc_type,
             device=device,
             bias=bias,
+            sliding_window_size=sliding_window_size,
         )
 
 

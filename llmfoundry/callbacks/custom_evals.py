@@ -112,7 +112,7 @@ class InstructionFollowingEval(GenerateEval):
     def fit_start(self, state: State, logger: Logger):
         self.run_eval(state, logger)
 
-    def eval_after_all(self, state: State, logger: Logger):
+    def epoch_end(self, state: State, logger: Logger):
         self.run_eval(state, logger)
 
     def run_eval(self, state: State, logger: Logger) -> dict[str, float]:

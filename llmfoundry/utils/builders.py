@@ -288,9 +288,8 @@ def build_icl_evaluators(
                 os.remove(destination_path)
             dist.barrier()
 
-            hf_parsing_vars = icl_cfg.get('hf_parsing_vars', {})
+            hf_parsing_map = icl_cfg.get('hf_parsing_map', {})
             hf_loading_vars = icl_cfg.get('hf_loading_vars', {}) 
-            hf_parsing_func_name = icl_cfg.get('hf_parsing_func', '') 
             hf_parsing_func = EVAL_HF_PARSING_FUNCTION_REGISTRY.get(hf_parsing_func_name, None)
 
             dataloaders = get_icl_task_dataloader(
@@ -303,12 +302,13 @@ def build_icl_evaluators(
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
-                hf_parsing_vars=hf_parsing_vars, 
+                hf_parsing_map=hf_parsing_map, 
                 hf_loading_vars=hf_loading_vars, 
                 hf_parsing_func=hf_parsing_func, 
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 destination_path=destination_path,
                 pass_at_k=icl_cfg.pass_at_k,
+                # TODO: these variables are poorly named. Either composer or icl_config needs to change
                 generations_per_sample=icl_cfg.num_beams,
                 has_categories=icl_cfg.get('has_categories', False),
             )

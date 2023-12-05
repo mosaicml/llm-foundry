@@ -7,7 +7,9 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry.models.layers import attention
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-from llmfoundry.models.mpt.modeling_mpt import gen_rotary_embedding
+from llmfoundry.models.mpt.modeling_mpt import (apply_sequence_id,
+                                                gen_attention_mask_in_length,
+                                                gen_rotary_embedding)
 
 
 def allclose_helper(t0: torch.Tensor,
@@ -54,6 +56,7 @@ def allclose_helper(t0: torch.Tensor,
 @pytest.mark.parametrize(
     'attn_type',
     ['multihead_attention', 'multiquery_attention', 'grouped_query_attention'])
+@pytest.mark.parametrize('attn_uses_sequence_id', [True, False])
 @pytest.mark.parametrize('pad_attention_mask', [True, False])
 def test_attn_impl(attn_impl_0: str,
                    attn_impl_1: str,
@@ -61,6 +64,7 @@ def test_attn_impl(attn_impl_0: str,
                    qk_ln: bool,
                    pos_emb_config: dict,
                    attn_type: str,
+                   attn_uses_sequence_id: bool,
                    pad_attention_mask: bool,
                    device: str = 'cuda'):
     """Compare all attn impl with each other.
@@ -77,6 +81,16 @@ def test_attn_impl(attn_impl_0: str,
                  == 'dail') and (not is_flash_v2_installed()):
         pytest.skip('dail implementation of rope requires flash attention 2.')
 
+    if attn_uses_sequence_id and (
+            attn_impl_0 == 'flash' or attn_impl_1
+            == 'flash') and (not is_flash_v2_installed(v2_version='v2.1.2')):
+        pytest.skip(
+            'Using sequence id with flash attention requires flash attention v2.1.2 or higher.'
+        )
+
+    if not (alibi or rope) and attn_uses_sequence_id:
+        pytest.skip('attn_uses_sequence_id requires alibi or rope.')
+
     cfg = om.create({
         'attn_impl': 'flash',
         'd_model': 64,
@@ -90,6 +104,14 @@ def test_attn_impl(attn_impl_0: str,
     assert cfg.d_model % cfg.n_heads == 0
     if attn_type == 'grouped_query_attention':
         cfg.kv_n_heads = 2
+
+    sequence_id = None
+    if attn_uses_sequence_id:
+        assert n == 2
+        assert s >= 4
+        sequence_id = torch.LongTensor([[0] * 2 + [1] * (s - 2),
+                                        [0] * 4 + [1] * (s - 4)
+                                       ]).to(device=device)
 
     cfg.attn_impl = attn_impl_0
     attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
@@ -113,7 +135,7 @@ def test_attn_impl(attn_impl_0: str,
                                        s,
                                        alibi,
                                        prefix_lm=False,
-                                       use_sequence_id=False,
+                                       use_sequence_id=attn_uses_sequence_id,
                                        causal=causal)
         if bs is not None:
             attn_bias = torch.zeros(*bs, device=device)
@@ -126,8 +148,27 @@ def test_attn_impl(attn_impl_0: str,
                 alibi=alibi,
                 alibi_bias_max=8,
             )
+        if attn_impl != 'flash' and attn_uses_sequence_id and sequence_id is not None:
+            assert isinstance(attn_bias, torch.Tensor)  # pyright
+            attn_bias = apply_sequence_id(
+                attn_bias,
+                sequence_id,  # type: ignore
+                s)
 
         return attn_bias
+
+    attention_mask_in_length_0 = gen_attention_mask_in_length(
+        sequence_id=sequence_id,
+        S=s,
+        attn_uses_sequence_id=attn_uses_sequence_id,
+        attn_impl=attn_impl_0,
+        attention_mask=attention_mask)
+    attention_mask_in_length_1 = gen_attention_mask_in_length(
+        sequence_id=sequence_id,
+        S=s,
+        attn_uses_sequence_id=attn_uses_sequence_id,
+        attn_impl=attn_impl_1,
+        attention_mask=attention_mask)
 
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()
@@ -135,8 +176,7 @@ def test_attn_impl(attn_impl_0: str,
     x1.requires_grad = True
 
     with torch.autocast(x0.device.type):
-        attn_bias = gen_bias(attn0.attn_impl)
-
+        attn_bias_0 = gen_bias(attn_impl_0)
         rotary_emb_w_meta_info = None
         if rope:
             rotary_embedding = gen_rotary_embedding(
@@ -165,17 +205,19 @@ def test_attn_impl(attn_impl_0: str,
 
         y0, _, _ = attn0(x0,
                          past_key_value=None,
-                         attn_bias=attn_bias,
+                         attn_bias=attn_bias_0,
                          attention_mask=attention_mask,
                          rotary_emb_w_meta_info=rotary_emb_w_meta_info,
-                         is_causal=True)
-        attn_bias = gen_bias(attn1.attn_impl)
+                         is_causal=True,
+                         attention_mask_in_length=attention_mask_in_length_0)
+        attn_bias_1 = gen_bias(attn_impl_1)
         y1, _, _ = attn1(x1,
                          past_key_value=None,
-                         attn_bias=attn_bias,
+                         attn_bias=attn_bias_1,
                          attention_mask=attention_mask,
                          rotary_emb_w_meta_info=rotary_emb_w_meta_info,
-                         is_causal=True)
+                         is_causal=True,
+                         attention_mask_in_length=attention_mask_in_length_1)
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)
 

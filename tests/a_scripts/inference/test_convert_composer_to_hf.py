@@ -6,7 +6,7 @@ import os
 import pathlib
 import shutil
 from argparse import Namespace
-from typing import Any, Callable, Optional, cast
+from typing import Callable, Optional, cast
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -383,10 +383,16 @@ def test_huggingface_conversion_callback_interval(
     [('1ba', '1ba', '1ba', 1, 1)])
 @patch('os.cpu_count', MagicMock(return_value=1))
 def test_huggingface_conversion_callback(
-        model: str, tmp_path: pathlib.Path, tie_word_embeddings: bool,
-        fsdp_state_dict_type: Optional[str], hf_save_interval: str,
-        save_interval: str, max_duration: str, expected_hf_checkpoints: int,
-        expected_normal_checkpoints: int, monkeypatch: Any):
+    model: str,
+    tmp_path: pathlib.Path,
+    tie_word_embeddings: bool,
+    fsdp_state_dict_type: Optional[str],
+    hf_save_interval: str,
+    save_interval: str,
+    max_duration: str,
+    expected_hf_checkpoints: int,
+    expected_normal_checkpoints: int,
+):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))

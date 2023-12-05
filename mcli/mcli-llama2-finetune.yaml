@@ -152,3 +152,4 @@ parameters:
 #   Load from local filesystem or remote object store
 #   load_path: ./gpt-1b/checkpoints/latest-rank{rank}.pt
 #   load_path: s3://my-bucket/my-folder/gpt-1b/checkpoints/latest-rank{rank}.pt
+#   load_weights_only: true # Only load the weights, not the optimizer state, LR schedule, etc

@@ -120,13 +120,6 @@ callbacks:
 # save_interval: 3ep
 # save_num_checkpoints_to_keep: 1
 
-# need to use converted checkpoint with llm-foundry code
-# load_path:
-autoresume: false
-load_weights_only: false
-python_log_level: debug
-
-
 icl_max_seq_len: 2048
 
 # YOU MUST ADD YOUR OWN DATASET URIs

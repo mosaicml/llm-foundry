@@ -325,8 +325,8 @@ class DatasetConstructor:
         return preprocessing_fn
 
     def build_from_hf(
-        self, cfg: DictConfig, max_seq_len: int,
-        tokenizer: PreTrainedTokenizerBase
+        self, dataset_name_or_path: str, split: str, max_seq_len: int,
+        tokenizer: PreTrainedTokenizerBase, proto_preprocessing_fn: Union[dict, DictConfig, str], hf_kwargs: dict[str, Any]
     ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
                hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
@@ -341,19 +341,16 @@ class DatasetConstructor:
         Returns:
             Dataset: The tokenized dataset.
         """
-        dataset_name = cfg.hf_name
         # HF datasets does not support a split with dashes,so we replace split
         # dashes with underscore.
-        split = cfg.split.replace('-', '_')
-        kwargs = cfg.get('hf_kwargs', {})
-        proto_preprocessing_fn = cfg.get('preprocessing_fn')
+        split = split.replace('-', '_')
         if isinstance(proto_preprocessing_fn, dict) or isinstance(
                 proto_preprocessing_fn, DictConfig):
             preprocessing_fn = self.get_preprocessing_fn_from_dict(
                 proto_preprocessing_fn)
         else:
             preprocessing_fn = self.get_preprocessing_fn_from_str(
-                proto_preprocessing_fn, dataset_name)
+                proto_preprocessing_fn, dataset_name_or_path)
 
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
 
@@ -368,9 +365,9 @@ class DatasetConstructor:
         error: Optional[Exception] = None
         filtered_dataset = None
         try:
-            dataset = hf_datasets.load_dataset(dataset_name,
+            dataset = hf_datasets.load_dataset(dataset_name_or_path,
                                                split=split,
-                                               **kwargs)
+                                               **hf_kwargs)
 
             def dataset_mapper(example: Dict):
                 if preprocessing_fn is not None:

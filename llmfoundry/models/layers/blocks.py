@@ -10,7 +10,7 @@ import torch.nn as nn
 
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, build_ffn
-from llmfoundry.models.layers.ffn_padding_utils import pad_input, unpad_input
+# from llmfoundry.models.layers.ffn_padding_utils import pad_input, unpad_input
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 attn_config_defaults: Dict = {
@@ -136,9 +136,19 @@ class MPTBlock(nn.Module):
         batch_size = m.size(0)
         seq_len = m.size(1)
         if not self.use_pad_tok_in_ffwd:
+            try:
+                from flash_attn.bert_padding import unpad_input  # type: ignore # yapf: disable # isort: skip
+            except:
+                raise RuntimeError(
+                    'Please install flash-attn==1.0.9 or flash-attn==2.3.2')
             m, indices, _, _ = unpad_input(m, attention_mask)
         n = self.ffn(m)
         if not self.use_pad_tok_in_ffwd:
+            try:
+                from flash_attn.bert_padding import pad_input  # type: ignore # yapf: disable # isort: skip
+            except:
+                raise RuntimeError(
+                    'Please install flash-attn==1.0.9 or flash-attn==2.3.2')
             n = pad_input(n, indices, batch_size, seq_len)
         x = x + self.resid_ffn_dropout(n)
         return x, attn_weights, past_key_value

@@ -10,7 +10,6 @@ import torch.nn as nn
 
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, build_ffn
-# from llmfoundry.models.layers.ffn_padding_utils import pad_input, unpad_input
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 attn_config_defaults: Dict = {

@@ -71,7 +71,7 @@ def fetch(method,
           tablename: str,
           json_output_path: str,
           batch_size: int = 1 << 20,
-          processes = 1,
+          partitions = 1,
           sparkSession = None,
           dbsql = None,
           ):
@@ -101,10 +101,10 @@ def fetch(method,
 
     if method == 'dbconnect':
         df = run_query(f"SELECT * FROM {tablename}", method, cursor, sparkSession, collect=False)
-        print('processes = ', processes)
+        print('partitions = ', partitions)
 
         dbfs_cache = 'dbfs:/' + json_output_path.lstrip('/')
-        df.repartition(processes).write.mode("overwrite").json(dbfs_cache)
+        df.repartition(partitions).write.mode("overwrite").json(dbfs_cache)
         print(f"downloading from {dbfs_cache} to {json_output_path}")
         subprocess.run(f"databricks fs cp -r {dbfs_cache} {json_output_path}", shell=True, capture_output=True, text=True)
         subprocess.run(f"databricks fs rm -r {dbfs_cache}", shell=True, capture_output=True, text=True)
@@ -163,7 +163,7 @@ def fetch_DT(*args: Any, **kwargs: Any):
         session_id = str(uuid4())
         sparkSession = DatabricksSession.builder.host(args.DATABRICKS_HOST).token(args.DATABRICKS_TOKEN).header("x-databricks-session-id", session_id).getOrCreate()
 
-    fetch(method, args.delta_table_name, args.json_output_path, args.batch_size, args.processes, sparkSession, dbsql)
+    fetch(method, args.delta_table_name, args.json_output_path, args.batch_size, args.partitions, sparkSession, dbsql)
 
     if dbsql is not None:
         dbsql.close()
@@ -200,12 +200,12 @@ if __name__ == '__main__':
                         default=1<<20,
                         help=
                         'chunk of rows to transmit a time')
-    parser.add_argument('--processes',
+    parser.add_argument('--partitions',
                         required=False,
                         type=int,
                         default=1,
                         help=
-                        'number of processes allowed to use')
+                        'number of partitions allowed to use')
     parser.add_argument('--debug', type=bool, required=False, default=False)
     args = parser.parse_args()
 

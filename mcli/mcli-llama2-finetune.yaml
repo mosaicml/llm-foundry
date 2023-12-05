@@ -140,6 +140,8 @@ parameters:
     memory_monitor: {}
     runtime_estimator: {}
 
+  load_weights_only: true # Only load the weights, not the optimizer state, LR schedule, etc
+
 #   loggers:
 #     wandb: {}
 

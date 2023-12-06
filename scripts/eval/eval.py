@@ -124,7 +124,6 @@ def evaluate_model(
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
-
     evaluators, logger_keys, eval_gauntlet_callback = build_evaluators(
         eval_loader_config,
         icl_tasks,
@@ -365,9 +364,8 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
         # dl_name is either 2-tuple (benchmark_name, num_fewshot)
         # or 3-tuple (benchmark_name, num_fewshot, subcategory)
         dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
-        if 'Accuracy' not in metric_name:
+        if 'Accuracy' not in metric_name and 'Score' not in metric_name:
             continue
-
         metric = trainer.state.eval_metrics.get('/'.join(dl_name),
                                                 {}).get(metric_name, None)
 

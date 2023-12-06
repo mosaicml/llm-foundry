@@ -12,10 +12,21 @@ models:
   model:
     name: hf_causal_lm
     pretrained_model_name_or_path: ${model_name_or_path}
-    init_device: mixed
+    init_device: cpu
     pretrained: true
   tokenizer:
     name: ${model_name_or_path}
+    kwargs:
+      model_max_length: ${max_seq_len}
+-
+  model_name: EleutherAI/gpt-neo-1.3B
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: EleutherAI/gpt-neo-1.3B
+    init_device: cpu
+    pretrained: true
+  tokenizer:
+    name: EleutherAI/gpt-neo-1.3B
     kwargs:
       model_max_length: ${max_seq_len}
 # # if you are evaluating more than one model, list them all as YAML blocks without variable interpolation
@@ -43,5 +54,15 @@ device_eval_batch_size: 4
 #   forward_prefetch: True
 #   limit_all_gathers: True
 
-icl_tasks: 'eval/yamls/tasks_v0.1.yaml'
-eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'
+# icl_tasks: 'eval/yamls/tasks_v0.1.yaml'
+# eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'
+
+icl_tasks: 
+-
+  label: copa
+  dataset_uri: eval/local_data/commonsense_reasoning/copa.jsonl
+  num_fewshot: [0]
+  icl_task_type: multiple_choice
+  metric_names:
+  - 'InContextLearningMultipleChoiceBrierScore'
+  - 'InContextLearningMultipleChoiceAccuracy'

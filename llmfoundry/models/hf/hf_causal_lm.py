@@ -17,6 +17,8 @@ from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
                                   InContextLearningMultipleChoiceAccuracy,
                                   InContextLearningQAAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
+from llmfoundry.eval.metrics.nlp import InContextLearningMultipleChoiceBrierScore
+
 from composer.utils import dist
 from omegaconf import DictConfig
 from torch import nn
@@ -71,6 +73,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             LanguagePerplexity(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
+            InContextLearningMultipleChoiceBrierScore(),
             InContextLearningQAAccuracy(),
             InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),

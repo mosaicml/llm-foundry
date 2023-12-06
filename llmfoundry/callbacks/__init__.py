@@ -14,7 +14,7 @@ try:
     from llmfoundry.callbacks.scheduled_gc_callback import \
         ScheduledGarbageCollector
     from llmfoundry.callbacks.peft_params import LogPeftParams
-    from llmfoundry.callbacks.custom_evals import InstructionFollowingEval
+    from llmfoundry.callbacks.custom_evals import InstructionFollowingEval, JSONExtractionEval
 except ImportError as e:
     raise ImportError(
         'Please make sure to pip install . to get requirements for llm-foundry.'
@@ -32,4 +32,5 @@ __all__ = [
     'HuggingFaceCheckpointer',
     'LogPeftParams',
     'InstructionFollowingEval',
+    'JSONExtractionEval',
 ]

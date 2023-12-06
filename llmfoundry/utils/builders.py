@@ -30,7 +30,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
                                   HuggingFaceCheckpointer, LayerFreezing,
                                   MonolithicCheckpointSaver,
-                                  ScheduledGarbageCollector, LogPeftParams, InstructionFollowingEval)
+                                  ScheduledGarbageCollector, LogPeftParams, InstructionFollowingEval, JSONExtractionEval)
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
@@ -122,6 +122,8 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
         return LogPeftParams(**kwargs)
     elif name == 'instruction_following_eval':
         return InstructionFollowingEval(**kwargs)
+    elif name == 'json_extraction_eval':
+        return JSONExtractionEval(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

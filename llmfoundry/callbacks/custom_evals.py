@@ -44,6 +44,9 @@ def generate_mode(model: HuggingFaceModel):
 
 class GenerateEval(Callback):
 
+    def __init__(self, verbose: bool = False):
+        self._verbose = verbose
+
     def generate(self, state: State, prompts: list[str], batch_size: int = 1, generate_kws: Optional[dict[str, Any]] = None) -> list[str]:
         self.generate_kwargs = generate_kws or {}
         model = state.model.module if state.is_model_ddp else state.model
@@ -85,13 +88,56 @@ class GenerateEval(Callback):
                 output_tokens = output_token_ids[i][input_tokens_len:]
                 output_text = tokenizer.decode(output_tokens, skip_special_tokens=True)
                 outputs.append(output_text)
+
+            if self._verbose:
+                from rich.console import Console
+                c = Console()
+                for i, (prompt, output) in enumerate(zip(prompts, outputs)):
+                    c.print(f"# {i}/{len(prompts)}")
+                    c.print(f'Prompt: {prompt}', style='green')
+                    c.print(f'Reply:  {output}', style='yellow')
+
             return outputs
+
+    def fit_start(self, state: State, logger: Logger):
+        self.run_eval(state, logger)
+
+    def epoch_end(self, state: State, logger: Logger):
+        self.run_eval(state, logger)
+
+    def run_eval(self, state: State, logger: Logger) -> dict[str, float]:
+        raise NotImplementedError("Base Class")
+
+
+class JSONExtractionEval(GenerateEval):
+
+    def __init__(self, data_path: str, verbose: bool = False):
+        super().__init__(verbose=verbose)
+        from tunes.data.extraction import json_f1_score
+        import datasets as hf_datasets
+
+        self.batch_size = 1
+ 
+        dset = hf_datasets.load_from_disk(data_path)['test']
+        self.prompts = dset['prompt']
+        self.responses = dset['response']
+
+    def run_eval(self, state: State, logger: Logger) -> dict[str, float]:
+        responses = self.generate(state, self.prompts, batch_size=self.batch_size)
+        f1_scores = [json_f1_score(gt, gen) for gt, gen in zip(self.responses, responses)]
+        mean_f1_score = sum(f1_scores) / len(f1_scores)
+        metrics = {
+                'metrics/extraction/0-shot/MeanF1Score': mean_f1_score,
+        }
+        logger.log_metrics(metrics)
+        return metrics
 
 
 class InstructionFollowingEval(GenerateEval):
 
 
-    def __init__(self, log_categories: bool=True):
+    def __init__(self, verbose: bool = False, log_categories: bool=True):
+        super().__init__(verbose=verbose)
         try:
             from instruction_following_eval import instruction_following_eval, default_examples
         except ImportError:
@@ -108,12 +154,6 @@ class InstructionFollowingEval(GenerateEval):
 
         # TODO: grab from config
         self.batch_size = 48
-
-    def fit_start(self, state: State, logger: Logger):
-        self.run_eval(state, logger)
-
-    def epoch_end(self, state: State, logger: Logger):
-        self.run_eval(state, logger)
 
     def run_eval(self, state: State, logger: Logger) -> dict[str, float]:
 

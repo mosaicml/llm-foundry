@@ -8,6 +8,7 @@ This callback is currently experimental. The API may change in the future.
 
 import logging
 import os
+from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 from composer.callbacks import CheckpointSaver
@@ -94,7 +95,8 @@ def get_latest_checkpoint(event: Event, state: State) -> Optional[str]:
         log.warning('No saved checkpoints found on the checkpointer')
         return None
 
-    return checkpointer.saved_checkpoints[-1]
+    latest = checkpointer.saved_checkpoints[-1]
+    return str(Path(latest).parts[-1])
 
 
 def get_eval_parameters(
@@ -153,6 +155,35 @@ def get_eval_parameters(
     return subset_keys
 
 
+def validate_interval(interval: Union[str, int, Time],
+                      save_interval: Union[str, int, Time]) -> Time:
+    if isinstance(save_interval, str):
+        new_save_interval: Time = Time.from_timestring(save_interval)
+    elif isinstance(save_interval, int):
+        new_save_interval: Time = Time(save_interval, TimeUnit.EPOCH)
+    else:
+        new_save_interval: Time = save_interval
+
+    if isinstance(interval, str):
+        result: Time = Time.from_timestring(interval)
+    elif isinstance(interval, int):
+        result: Time = Time(interval, TimeUnit.EPOCH)
+    else:
+        result: Time = interval
+
+    if new_save_interval.unit != result.unit:
+        raise ValueError(
+            'Save interval and async eval interval must be in the same unit')
+    if result < new_save_interval:
+        raise ValueError(
+            'Async eval interval must be equal or greater (less frequent) than save interval'
+        )
+    if result.value % new_save_interval.value != 0:
+        raise ValueError(
+            'Async eval interval must be a multiple of save interval')
+    return result
+
+
 class AsyncEval(Callback):
     """Run the eval loop asynchronously as part of a MosaicML platform run.
 
@@ -176,15 +207,14 @@ class AsyncEval(Callback):
         compute: Optional[Union[ComputeConfig, Dict[str, Any]]] = None,
     ):
 
+        for required in ('save_interval', 'save_folder'):
+            if required not in training_config:
+                raise ValueError(f'{required} required for async eval')
+
+        self.checkpoint_save_folder = training_config['save_folder']
         self.training_config = training_config
-
-        if isinstance(interval, str):
-            self.interval = Time.from_timestring(interval)
-        elif isinstance(interval, int):
-            self.interval = Time(interval, TimeUnit.EPOCH)
-        else:
-            self.interval = interval
-
+        self.interval = validate_interval(interval,
+                                          self.training_config['save_interval'])
         self.check_interval = create_interval_scheduler(
             interval,
             # There is a custom close to ensure that the final checkpoint
@@ -220,15 +250,16 @@ class AsyncEval(Callback):
             if not checkpoint:
                 return  # warnings logged in get_latest_checkpoint
 
-            if checkpoint == self.last_checkpoint:
+            full_checkpoint = f'{self.checkpoint_save_folder}/{checkpoint}'
+            if full_checkpoint == self.last_checkpoint:
                 # Do not eval a checkpoint that has already been evaluated.
                 log.info(
                     'Skipping async eval because the checkpoint has not changed'
                 )
                 return
 
-            self.launch_run(checkpoint, current_interval)
-            self.last_checkpoint = checkpoint
+            self.launch_run(full_checkpoint, current_interval)
+            self.last_checkpoint = full_checkpoint
 
     def close(self, state: State, logger: Logger) -> None:
         del state
@@ -236,10 +267,7 @@ class AsyncEval(Callback):
 
         if dist.get_global_rank() != 0:
             return
-        self.training_config
 
-        # TODO: enforce this exists before
-        save_folder = self.training_config['save_folder']
         save_latest_filename = self.training_config.get('save_latest_filename',
                                                         None)
 
@@ -247,7 +275,7 @@ class AsyncEval(Callback):
             rank = dist.get_global_rank()
             save_latest_filename = f'latest-rank{rank}.pt'
 
-        checkpoint = f'{save_folder}/{save_latest_filename}'
+        checkpoint = f'{self.checkpoint_save_folder}/{save_latest_filename}'
         self.launch_run(checkpoint, 'final')
 
     def _get_current_run(self) -> Run:

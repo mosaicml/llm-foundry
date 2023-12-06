@@ -6,10 +6,12 @@ from copy import deepcopy
 from unittest.mock import MagicMock, patch
 
 import pytest
+from composer.core import Time, TimeUnit
 
 from llmfoundry.callbacks.async_eval_callback import (AsyncEval,
                                                       get_eval_parameters,
-                                                      get_run_name)
+                                                      get_run_name,
+                                                      validate_interval)
 from mcli import Run, RunConfig, RunStatus
 
 # here
@@ -162,6 +164,21 @@ def test_get_eval_parameters():
         'seed': 5,
         'load_path': 'checkpoints/file',
     }
+
+
+def test_validate_interval():
+    with pytest.raises(ValueError):
+        validate_interval('1ba', '1ep')  # different units
+    with pytest.raises(ValueError):
+        validate_interval('1ba', '2ba')  # checkpointing happens less often
+    with pytest.raises(ValueError):
+        validate_interval('3ba', '2ba')  # not a multiple
+
+    assert validate_interval('2ba', '1ba') == Time(2, TimeUnit.BATCH)
+    two_epochs = Time(2, TimeUnit.EPOCH)
+    assert validate_interval(2, 2) == two_epochs
+    assert validate_interval(two_epochs, two_epochs) == two_epochs
+    assert validate_interval('2ep', two_epochs) == two_epochs
 
 
 FAKE_RUN = Run(

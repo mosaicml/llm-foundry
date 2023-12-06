@@ -90,10 +90,6 @@ def get_latest_checkpoint(event: Event, state: State) -> Optional[str]:
         log.warning('No checkpoint saver callback found')
         return None
 
-    if event.name == Event.FIT_END:
-        # Use the latest symlink for the end of training
-        return str(checkpointer.latest_filename)
-
     if not checkpointer.saved_checkpoints:
         log.warning('No saved checkpoints found on the checkpointer')
         return None

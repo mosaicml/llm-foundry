@@ -240,6 +240,7 @@ class AsyncEval(Callback):
             return
         self.training_config
 
+        # TODO: enforce this exists before
         save_folder = self.training_config['save_folder']
         save_latest_filename = self.training_config.get('save_latest_filename',
                                                         None)
@@ -295,7 +296,7 @@ class AsyncEval(Callback):
                 continue
 
             found_llm_foundry = True
-            if i['path']:
+            if i.get('path'):
                 installation_path = i['path']
 
         if not found_llm_foundry:

@@ -32,7 +32,6 @@ REQUIRED_PARAMS_FOR_EVAL = {
 OPTIONAL_PARAMS_FOR_EVAL = {
     'dist_timeout',
     'eval_gauntlet',
-    'eval_loader',
     'fsdp_config',
     'icl_subset_num_batches',
     'loggers',

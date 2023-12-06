@@ -235,7 +235,10 @@ class AsyncEval(Callback):
             self.launch_run(checkpoint, current_interval)
             self.last_checkpoint = checkpoint
 
-    def close(self) -> None:
+    def close(self, state: State, logger: Logger) -> None:
+        del state
+        del logger
+
         if dist.get_global_rank() != 0:
             return
         self.training_config

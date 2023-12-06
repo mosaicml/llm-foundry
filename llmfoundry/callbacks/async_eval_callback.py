@@ -192,7 +192,7 @@ class AsyncEval(Callback):
 
         self.check_interval = create_interval_scheduler(
             interval,
-            # There is a custom post_close to ensure that the final checkpoint
+            # There is a custom close to ensure that the final checkpoint
             # (which is the most important) is evaled after it is written
             include_end_of_training=False,
         )
@@ -235,7 +235,7 @@ class AsyncEval(Callback):
             self.launch_run(checkpoint, current_interval)
             self.last_checkpoint = checkpoint
 
-    def post_close(self) -> None:
+    def close(self) -> None:
         if dist.get_global_rank() != 0:
             return
         self.training_config

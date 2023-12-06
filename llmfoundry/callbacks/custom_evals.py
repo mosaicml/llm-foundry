@@ -118,7 +118,12 @@ class JSONExtractionEval(GenerateEval):
 
         self.batch_size = 1
  
-        dset = hf_datasets.load_from_disk(data_path)['test']
+        # dset = hf_datasets.load_from_disk(data_path)['test']
+        import subprocess
+        subprocess.run('mkdir /data'.split())
+        subprocess.run(f'rclone copy {data_path} /data')
+        dset = hf_datasets.load_from_disk('/data')['test']
+
         self.prompts = dset['prompt']
         self.responses = dset['response']
 

@@ -37,12 +37,21 @@ class InContextLearningMultipleChoiceBrierScore(InContextLearningMetric):
             cont_tok_logits = output_logits[batch_idx].index_select(dim=0, index=cont_idx - 1)
             # labels have been shifted left by one index, so the cont_idx needs to be shifted as well.
             cont_tok_targ = labels[batch_idx].index_select(dim=0, index=cont_idx - 1)
+<<<<<<< HEAD
             mean_logit_of_targ_tok = cont_tok_logits.index_select(dim=1, index=cont_tok_targ).diagonal().mean()
             probabilites.append(torch.exp(-mean_logit_of_targ_tok)) # undo negative log prob to get unnormalized probability
 
         for (start, end), gold_idx in zip(batch['choice_groupings'], batch['gold_indices']):
             subset = probabilites[start:end]
             subset = torch.tensor(subset) / torch.tensor(subset).sum() # normalize probability
+=======
+            probability = cont_tok_logits.index_select(dim=1, index=cont_tok_targ).diagonal().mean()
+            probabilites.append(torch.exp(-probability))
+
+        for (start, end), gold_idx in zip(batch['choice_groupings'], batch['gold_indices']):
+            subset = probabilites[start:end]
+            subset = torch.tensor(subset) / torch.tensor(subset).sum()
+>>>>>>> 1e65cdcaf6b33e791632c31186dbe72ee24df9dc
             tgt_prob = torch.zeros_like(subset)
             tgt_prob[gold_idx] = 1.0
             self.brier_score_sum += torch.nn.functional.mse_loss(subset, tgt_prob)

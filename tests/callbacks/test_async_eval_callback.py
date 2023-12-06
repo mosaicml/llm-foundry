@@ -17,6 +17,8 @@ from mcli import Run, RunConfig, RunStatus
 # here
 RUN_NAME = 'foo_bar-1234'
 BASIC_PARAMS = {
+    'save_interval': '1ba',
+    'save_folder': 'foobar',
     'device_eval_batch_size': 2,
     'icl_tasks': 'icl_task_example',
     'max_seq_len': 3,
@@ -90,8 +92,6 @@ def test_get_eval_parameters():
             'icl_task_example',
         'max_seq_len':
             3,
-        'load_path':
-            'checkpoints/file',
         'models': [{
             'model_name': 'model_example',
             'model': {
@@ -105,6 +105,7 @@ def test_get_eval_parameters():
             'tokenizer': {
                 'tokenizer_example': 'tokenizer_example'
             },
+            'load_path': 'checkpoints/file',
         }],
     }
 
@@ -150,6 +151,7 @@ def test_get_eval_parameters():
             'tokenizer': {
                 'tokenizer_example': 'tokenizer_example'
             },
+            'load_path': 'checkpoints/file',
         }],
         'eval_gauntlet': 'eval_gauntlet_example',
         'fsdp_config': {
@@ -162,7 +164,6 @@ def test_get_eval_parameters():
         'precision': 'precision_example',
         'python_log_level': 'debug',
         'seed': 5,
-        'load_path': 'checkpoints/file',
     }
 
 
@@ -247,7 +248,6 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
     assert parameters['device_eval_batch_size'] == 2
     assert parameters['icl_tasks'] == 'icl_task_example'
     assert parameters['max_seq_len'] == 3
-    assert parameters['load_path'] == 'checkpoint/path'
     assert parameters['models'] == [{
         'model_name': 'model_example',
         'model': {
@@ -260,7 +260,8 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
         },
         'tokenizer': {
             'tokenizer_example': 'tokenizer_example'
-        }
+        },
+        'load_path': 'checkpoint/path',
     }]
     assert parameters['run_name'] == 'eval-1ba-foo_bar'  # original run
 

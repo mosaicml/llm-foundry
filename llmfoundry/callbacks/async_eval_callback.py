@@ -130,9 +130,6 @@ def get_eval_parameters(
             f'Missing the following required parameters for async eval: {looking_for}'
         )
 
-    # Convert the save_folder to a load_path
-    subset_keys['load_path'] = checkpoint
-
     for logger, config in subset_keys.get('loggers', {}).items():
         if logger == 'wandb':
             config['group'] = config.pop('name', training_run_name)
@@ -146,7 +143,11 @@ def get_eval_parameters(
     model_name = model.get('name', None)
     if not model_name:
         raise Exception(f'Async evaluation requires "name" keys for models')
-    new_models = {'model_name': model_name, 'model': model}
+    new_models = {
+        'model_name': model_name,
+        'model': model,
+        'load_path': checkpoint
+    }
 
     tokenizer = subset_keys.pop('tokenizer', None)
     if tokenizer is not None:
@@ -250,6 +251,7 @@ class AsyncEval(Callback):
             if not checkpoint:
                 return  # warnings logged in get_latest_checkpoint
 
+            # TODO: ensure the checkpoint is fully written before launching the eval run
             full_checkpoint = f'{self.checkpoint_save_folder}/{checkpoint}'
             if full_checkpoint == self.last_checkpoint:
                 # Do not eval a checkpoint that has already been evaluated.

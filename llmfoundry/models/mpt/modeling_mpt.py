@@ -597,7 +597,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 bias=False,
                 device=config.init_device,
             )
-            self.lm_head._fsdp_wrap = True
+            self.lm_head._fsdp_wrap = True # JP Note this _fsdp_wrap function...how important is it?
             # JP Added
             # print('lm_head exists')
 
@@ -653,9 +653,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     def tie_weights(self) -> None:
         # JP Removed
-        # self.lm_head = None
+        self.lm_head = None
         #JP Added
-        print('is this happening?')
+        #print('is this happening?')
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder
@@ -704,13 +704,14 @@ class MPTForCausalLM(MPTPreTrainedModel):
         if self.lm_head is not None:
             logits = self.lm_head(outputs.last_hidden_state)
             
-            outputs.hidden_states = outputs.last_hidden_state # JP THIS IS A HACK
+            outputs.hidden_states = outputs.last_hidden_state # JP THIS IS A HACK, since outputs.hidden_states seems to be empty
             # print('outputs.hidden_states.shape',outputs.hidden_states.shape)
         else:
+            outputs.hidden_states = outputs.last_hidden_state # JP THIS IS A HACK, since outputs.hidden_states seems to be empty
             # move outputs to same device as weights for token embedding
             # needed to support HF `device_map`
-            out = outputs.last_hidden_state
-            out = out.to(self.transformer.wte.weight.device).long() # JP Added .long
+            out = outputs.last_hidden_state # [batch size, sequence length, hidden dimension]
+            out = out.to(self.transformer.wte.weight.device) # this puts tensor on same device as wte JP Added .long() amd then removed
             # JP Added
             #print(out)
             # print('out.shape ',out.shape)

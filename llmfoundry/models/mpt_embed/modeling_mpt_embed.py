@@ -218,9 +218,16 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             reshaped_attention_mask = batch['attention_mask'].reshape((dim1*dim2,dim3))
             batch['attention_mask'] = reshaped_attention_mask
             # print('attention mask shape: ', batch['attention_mask'].shape)
+        if 'prefix_mask' in batch:
+            reshaped_prefix_mask = batch['prefix_mask'].reshape((dim1*dim2,dim3))
+            batch['prefix_mask'] = reshaped_prefix_mask
         if 'sequence_id' in batch:
             reshaped_sequence_id = batch['sequence_id'].reshape((dim1*dim2,dim3))
             batch['sequence_id'] = reshaped_sequence_id
+        if 'input_embeds' in batch:
+            reshaped_input_embeds = batch['input_embeds'].reshape((dim1*dim2,dim3))
+            batch['input_embeds'] = reshaped_input_embeds
+        
         if 'labels' in batch:
             reshaped_labels = batch['labels'].reshape((dim1*dim2,dim3))
             batch['labels'] = reshaped_labels
@@ -228,7 +235,7 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         return self.model(
             input_ids=batch['input_ids'],
             attention_mask=batch.get('attention_mask', None),
-            prefix_mask=batch.get('bidirectional_mask', None),
+            prefix_mask=batch.get('prefix_mask', None),
             sequence_id=batch.get('sequence_id', None),
             inputs_embeds=batch.get('inputs_embeds', None),
         )
@@ -262,7 +269,7 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         q_encoder_outputs = self.model(
                                         input_ids=queries_batch['input_ids'],
                                         attention_mask=queries_batch.get('attention_mask', None),
-                                        prefix_mask=queries_batch.get('bidirectional_mask', None),
+                                        prefix_mask=queries_batch.get('prefix_mask', None),
                                         sequence_id=queries_batch.get('sequence_id', None),
                                         inputs_embeds=queries_batch.get('inputs_embeds', None),
                                     )
@@ -270,7 +277,7 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         p_encoder_outputs = self.model(
                                         input_ids=passages_batch['input_ids'],
                                         attention_mask=passages_batch.get('attention_mask', None),
-                                        prefix_mask=passages_batch.get('bidirectional_mask', None),
+                                        prefix_mask=passages_batch.get('prefix_mask', None),
                                         sequence_id=passages_batch.get('sequence_id', None),
                                         inputs_embeds=passages_batch.get('inputs_embeds', None),
                                     )

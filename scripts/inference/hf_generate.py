@@ -64,7 +64,7 @@ def parse_args() -> Namespace:
             'This is an explanation of deep learning to a five year old. Deep learning is',
         ],
         help='List of generation prompts or list of delimited files. Use syntax ' +\
-             f'"{utils.PROMPTFILE_PREFIX}/path/to/prompt.txt" to load a prompt(s) contained in a txt file. ' +\
+             f'"{utils.PROMPTFILE_PREFIX}/path/to/prompt.txt" to load prompt(s) contained in a txt file. ' +\
              f'\nUse syntax "{utils.PROMPTDATASET_PREFIX}org/dataset" to load prompts from a HF dataset. '
         )
     parser.add_argument(

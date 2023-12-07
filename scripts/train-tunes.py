@@ -154,7 +154,9 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
 
 
 def main(cfg: DictConfig) -> Trainer:
-    from rich.traceback import install; install()
+    import os
+    from rich.traceback import install
+    install(show_locals=os.environ('SHOW_LOCALS', '0') == '1')
     import torch; torch.Tensor.__repr__ = lambda x: f"Tensor<{','.join(map(str, x.shape))}>"
     from rich import print as rprint
 

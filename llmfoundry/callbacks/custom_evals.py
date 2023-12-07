@@ -117,11 +117,8 @@ class JSONExtractionEval(GenerateEval):
         import datasets as hf_datasets
 
         self.batch_size = 1
- 
-        # dset = hf_datasets.load_from_disk(data_path)['test']
-        from rclone_python import rclone
-        rclone.copy(data_path, '/data/test')
-        dset = hf_datasets.load_from_disk('/data/test')['test']
+
+        dset = hf_datasets.load_from_disk(data_path)['test']
 
         self.prompts = dset['prompt']
         self.responses = dset['response']

@@ -96,10 +96,6 @@ if __name__ == '__main__':
 
     export COMMON_ARGS="-v --durations=20 -m '{args.pytest_markers}' {clear_tmp_path_flag}"
 
-    export PYTHONUNBUFFERED=1
-
-    export MOSAICML_PLATFORM=False
-
     make test-dist PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS" WORLD_SIZE=2
 
     make test PYTEST='{args.pytest_command}' EXTRA_ARGS="$COMMON_ARGS --codeblocks"
@@ -118,6 +114,10 @@ if __name__ == '__main__':
         integrations=[git_integration],
         command=command,
         scheduling={'max_duration': args.timeout / 60 / 60},
+        env_variables={
+            'MOSAICML_PLATFORM': 'False',
+            'PYTHONUNBUFFERED': '1',
+        },
     )
 
     # Create run

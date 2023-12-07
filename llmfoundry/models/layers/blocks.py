@@ -58,7 +58,7 @@ class MPTBlock(nn.Module):
         fc_type: str = 'torch',
         device: Optional[str] = None,
         no_bias: bool = False,
-        use_pad_tok_in_ffwd: bool = True,
+        use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
     ):
         if attn_config is None:

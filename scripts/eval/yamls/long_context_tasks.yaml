@@ -97,6 +97,7 @@ icl_tasks:
   hf_loading_vars: 
     name: wikiqa
     context_length: 2048
+    split: test
 -
   label: wikiqa_4k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -105,6 +106,7 @@ icl_tasks:
   hf_loading_vars: 
     name: wikiqa
     context_length: 2048
+    split: test
 -
   label: wikiqa_8k
   dataset_uri: hf://maxisawesome/long_context_eval 
@@ -113,6 +115,7 @@ icl_tasks:
   hf_loading_vars: 
     name: wikiqa
     context_length: 2048
+    split: test
 -
   label: hotpotqa_beginning_2k
   dataset_uri: hf://maxisawesome/long_context_eval 

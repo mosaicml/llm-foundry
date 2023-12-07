@@ -464,20 +464,20 @@ def build_icl_evaluators(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg.icl_task_type}.'
                 )
 
-        # if 'prompt_string' not in icl_cfg:
-        #     icl_cfg.prompt_string = ''
-        # if 'example_delimiter' not in icl_cfg:
-        #     icl_cfg.example_delimiter = '\n'
-        # if 'continuation_delimiter' not in icl_cfg:
-        #     icl_cfg.continuation_delimiter = ' '
+        if 'prompt_string' not in icl_cfg:
+            icl_cfg.prompt_string = ''
+        if 'example_delimiter' not in icl_cfg:
+            icl_cfg.example_delimiter = '\n'
+        if 'continuation_delimiter' not in icl_cfg:
+            icl_cfg.continuation_delimiter = ' '
         if 'max_seq_len' not in icl_cfg:
             icl_cfg.max_seq_len = default_max_seq_len
         if 'batch_size' not in icl_cfg:
             icl_cfg.batch_size = default_batch_size
-        # if 'pass_at_k' not in icl_cfg:
-        #     icl_cfg.pass_at_k = 1
-        # if 'num_beams' not in icl_cfg:
-        #     icl_cfg.num_beams = 20
+        if 'pass_at_k' not in icl_cfg:
+            icl_cfg.pass_at_k = 1
+        if 'num_beams' not in icl_cfg:
+            icl_cfg.num_beams = 20
 
 
     for icl_cfg in icl_tasks_list:
@@ -499,7 +499,6 @@ def build_icl_evaluators(
 
             hf_parsing_map = icl_cfg.get('hf_parsing_map', {})
             hf_loading_vars = icl_cfg.get('hf_loading_vars', {}) 
-            hf_parsing_func = EVAL_HF_PARSING_FUNCTION_REGISTRY.get(hf_parsing_func_name, None)
 
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
@@ -511,9 +510,8 @@ def build_icl_evaluators(
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
-                hf_parsing_map=hf_parsing_map, 
                 hf_loading_vars=hf_loading_vars, 
-                hf_parsing_func=hf_parsing_func, 
+                hf_parsing_map=hf_parsing_map, 
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,

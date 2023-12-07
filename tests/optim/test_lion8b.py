@@ -6,14 +6,12 @@ import time
 import warnings
 
 import numpy as np
-import packaging.version as version
 import pytest
 import torch
 import torch.distributed as dist
 import torch.nn as nn
 from torch.distributed import fsdp
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-
 from torch.distributed.fsdp.api import (  # type:ignore .api not in public API
     FullOptimStateDictConfig, LocalOptimStateDictConfig,
     ShardedOptimStateDictConfig)

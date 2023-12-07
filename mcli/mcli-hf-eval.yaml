@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.4.0
+  git_branch: brier_score # v0.4.0
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
@@ -11,10 +11,10 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: mpt-eval
-gpu_num: 8
-# gpu_type:
-# cluster:  # replace with your cluster here!
+run_name: brier-score-eval
+gpu_num: 16
+gpu_type: a100_40gb 
+cluster: r7z2 # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.0.1_cu118-latest
 
@@ -28,19 +28,66 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
-    # Tokenizer
-    tokenizer:
-      name: EleutherAI/gpt-neox-20b
-      kwargs:
-        model_max_length: ${max_seq_len}
-
+    model_name: EleutherAI/gpt-neo-125m
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path: EleutherAI/gpt-neo-125m
       init_device: mixed
       pretrained: true
-      use_auth_token: false
+      config_overrides:
+        tie_word_embeddings: false
+    tokenizer:
+      name: EleutherAI/gpt-neo-125m
+      kwargs:
+        model_max_length: ${max_seq_len}
+  -
+    model_name: EleutherAI/gpt-neo-1.3B
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: EleutherAI/gpt-neo-1.3B
+      init_device: mixed
+      pretrained: true
+      config_overrides:
+        tie_word_embeddings: false
+    tokenizer:
+      name: EleutherAI/gpt-neo-1.3B
+      kwargs:
+        model_max_length: ${max_seq_len}
+  -
+    model_name: EleutherAI/gpt-neo-2.7B
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: EleutherAI/gpt-neo-2.7B
+      init_device: mixed
+      pretrained: true
+      config_overrides:
+        tie_word_embeddings: false
+    tokenizer:
+      name: EleutherAI/gpt-neo-2.7B
+      kwargs:
+        model_max_length: ${max_seq_len}
+  -
+    model_name: mosaicml/mpt-7b
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: mosaicml/mpt-7b
+      init_device: mixed
+      pretrained: true
+    tokenizer:
+      name: mosaicml/mpt-7b
+      kwargs:
+        model_max_length: ${max_seq_len}
+  -
+    model_name: mosaicml/mpt-7b-8k
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: mosaicml/mpt-7b-8k
+      init_device: mixed
+      pretrained: true
+    tokenizer:
+      name: mosaicml/mpt-7b-8k
+      kwargs:
+        model_max_length: ${max_seq_len}
 
   # FSDP config for model sharding
   fsdp_config:
@@ -50,5 +97,14 @@ parameters:
     limit_all_gathers: True
 
 
-  icl_tasks: 'eval/yamls/tasks.yaml'
-  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+  icl_tasks: 
+  -
+    label: mmlu
+    dataset_uri: eval/local_data/world_knowledge/mmlu.jsonl
+    num_fewshot: [10]
+    icl_task_type: multiple_choice
+    continuation_delimiter: "\nAnswer: " # this separates questions from answers
+    has_categories: true
+    metric_names:
+      - 'InContextLearningMultipleChoiceBrierScore'
+

@@ -18,17 +18,7 @@ models:
     name: ${model_name_or_path}
     kwargs:
       model_max_length: ${max_seq_len}
--
-  model_name: EleutherAI/gpt-neo-1.3B
-  model:
-    name: hf_causal_lm
-    pretrained_model_name_or_path: EleutherAI/gpt-neo-1.3B
-    init_device: cpu
-    pretrained: true
-  tokenizer:
-    name: EleutherAI/gpt-neo-1.3B
-    kwargs:
-      model_max_length: ${max_seq_len}
+
 # # if you are evaluating more than one model, list them all as YAML blocks without variable interpolation
 # -
 #   model_name: mosaicml/mpt-7b

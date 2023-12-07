@@ -24,9 +24,12 @@ class MPTMLP(nn.Module):
         expansion_ratio: int,
         fc_type: str = 'torch',
         device: Optional[str] = None,
+        bias: bool = True,
     ):
         super().__init__()
-        fc_kwargs = {}
+        fc_kwargs: dict[str, Any] = {
+            'bias': bias,
+        }
         if fc_type != 'te':
             fc_kwargs['device'] = device
         self.up_proj = FC_CLASS_REGISTRY[fc_type](
@@ -60,6 +63,7 @@ def build_ffn(
     expansion_ratio: int,
     fc_type: str = 'torch',
     device: Optional[str] = None,
+    bias: bool = True,
     **kwargs: Any,
 ) -> nn.Module:
     ffn_type = kwargs.pop('ffn_type')
@@ -72,12 +76,14 @@ def build_ffn(
             expansion_ratio=expansion_ratio,
             fc_type=fc_type,
             device=device,
+            bias=bias,
         )
     elif ffn_type == 'te_ln_mlp':
         assert te is not None
         return te.LayerNormMLP(
             hidden_size=d_model,
             ffn_hidden_size=d_model * expansion_ratio,
+            bias=bias,
             **kwargs,
         )
 

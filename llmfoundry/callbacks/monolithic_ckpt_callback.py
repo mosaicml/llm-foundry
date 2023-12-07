@@ -74,6 +74,9 @@ class MonolithicCheckpointSaver(Callback):
         ) if self.upload_to_object_store else contextlib.nullcontext(
             enter_result=save_dir)
         with dir_context_mgr as temp_save_dir:
+            # pyright doesn't know about enter_result
+            assert isinstance(temp_save_dir, str)
+
             save_path = str(Path(temp_save_dir) / Path(filename))
             dirname = os.path.dirname(save_path)
             if dirname:

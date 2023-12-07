@@ -10,6 +10,7 @@ from concurrent.futures import ProcessPoolExecutor
 from glob import glob
 from typing import Iterable, List, Tuple, cast
 
+import psutil
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
                             parse_uri)
 from streaming import MDSWriter
@@ -87,7 +88,7 @@ def parse_args() -> Namespace:
         '--processes',
         type=int,
         required=False,
-        default=1,
+        default=min(max(psutil.cpu_count() - 2, 1), 32),
         help=
         'The number of processes to use to download and convert the dataset',
     )

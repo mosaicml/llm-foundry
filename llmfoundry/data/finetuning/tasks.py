@@ -141,6 +141,9 @@ class StreamingFinetuningDataset(StreamingDataset):
             Defaults to ``1``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
+        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+            execution during deserialization, whether to keep going if ``True`` or raise an error
+            if ``False``. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -165,6 +168,7 @@ class StreamingFinetuningDataset(StreamingDataset):
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  batching_method: str = 'random',
+                 allow_unsafe_types: bool = False,
                  **kwargs: Any):
 
         if len(kwargs) > 0:
@@ -201,6 +205,7 @@ class StreamingFinetuningDataset(StreamingDataset):
             sampling_method=sampling_method,
             sampling_granularity=sampling_granularity,
             batching_method=batching_method,
+            allow_unsafe_types=allow_unsafe_types,
         )
 
         self.tokenizer = tokenizer

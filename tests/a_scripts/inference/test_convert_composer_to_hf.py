@@ -4,34 +4,26 @@
 import math
 import os
 import pathlib
-import sys
-from typing import Callable
-from unittest.mock import ANY, MagicMock, patch
-
-from composer import Trainer
-from composer.loggers import MLFlowLogger
-from composer.utils import dist, get_device, using_torch_2
-
-from llmfoundry.callbacks import HuggingFaceCheckpointer
-from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
-
-# Add repo root to path so we can import scripts and test it
-repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(repo_dir)
 import shutil
 from argparse import Namespace
-from typing import Optional, cast
+from typing import Callable, Optional, cast
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 import torch
 import transformers
+from composer import Trainer
+from composer.loggers import MLFlowLogger
+from composer.utils import dist, get_device, using_torch_2
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.data.finetuning import build_finetuning_dataloader
+from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_optimizer, build_tokenizer
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
@@ -390,13 +382,17 @@ def test_huggingface_conversion_callback_interval(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
     [('1ba', '1ba', '1ba', 1, 1)])
 @patch('os.cpu_count', MagicMock(return_value=None))
-def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
-                                         tie_word_embeddings: bool,
-                                         fsdp_state_dict_type: Optional[str],
-                                         hf_save_interval: str,
-                                         save_interval: str, max_duration: str,
-                                         expected_hf_checkpoints: int,
-                                         expected_normal_checkpoints: int):
+def test_huggingface_conversion_callback(
+    model: str,
+    tmp_path: pathlib.Path,
+    tie_word_embeddings: bool,
+    fsdp_state_dict_type: Optional[str],
+    hf_save_interval: str,
+    save_interval: str,
+    max_duration: str,
+    expected_hf_checkpoints: int,
+    expected_normal_checkpoints: int,
+):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
@@ -588,12 +584,15 @@ def test_huggingface_conversion_callback(model: str, tmp_path: pathlib.Path,
             assert len(normal_checkpoints) == expected_normal_checkpoints
             assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
-            # Load the last huggingface checkpoint
-            loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
-                os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                             f'ba{batches_per_epoch}'),
-                trust_remote_code=True,
-            )
+            # Patch flash_attn package to be empty to simulate loading the model in
+            # an environment without flash atttention installed
+            with patch.dict('sys.modules', {'flash_attn': None}):
+                # Load the last huggingface checkpoint
+                loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
+                    os.path.join(tmp_path, 'checkpoints', 'huggingface',
+                                 f'ba{batches_per_epoch}'),
+                    trust_remote_code=True,
+                )
 
             # Check that the loaded model has the correct precision, and then set it back
             # to the original for the equivalence check

@@ -2,13 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import sys
-
-import pytest
-
-# Add repo root to path so we can import scripts and test it
-repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(repo_dir)
 import pathlib
 from concurrent.futures import ProcessPoolExecutor
 from glob import glob
@@ -16,6 +9,7 @@ from typing import Callable, Iterable, List
 from unittest.mock import Mock, patch
 
 import numpy as np
+import pytest
 from streaming import StreamingDataset
 from transformers import AutoTokenizer
 

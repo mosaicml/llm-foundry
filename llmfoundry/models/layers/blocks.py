@@ -140,8 +140,7 @@ class MPTBlock(nn.Module):
         m = x
         if self.norm_2 is not None:
             m = self.norm_2(x)
-        batch_size = m.size(0)
-        seq_len = m.size(1)
+        batch_size, seq_len= m.size[:2]
         if not self.use_pad_tok_in_ffwd:
             if unpad_input is None:
                 raise RuntimeError(

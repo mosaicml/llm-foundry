@@ -287,6 +287,7 @@ def main(args: Namespace) -> None:
                 encoded_inp['input_ids'] !=
                 tokenizer.pad_token_id,  # type: ignore
                 axis=1).numpy(force=True)
+
             # Warmup
             if args.warmup and (not done_warmup):
                 print('Warming up...')

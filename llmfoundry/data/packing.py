@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from composer.utils import using_torch_2
 from omegaconf import DictConfig
+from streaming.base.util import clean_stale_shared_memory
 from transformers import PreTrainedTokenizerBase
 
 
@@ -406,6 +407,8 @@ def profile_packing(
     for packing_ratio, raw_batch_size in zip(packing_ratios, raw_batch_sizes):
         padding, waste = profile(raw_batch_size)
         yield (packing_ratio, padding, waste)
+
+    clean_stale_shared_memory()
 
 
 if __name__ == '__main__':

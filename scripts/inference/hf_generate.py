@@ -64,7 +64,8 @@ def parse_args() -> Namespace:
             'This is an explanation of deep learning to a five year old. Deep learning is',
         ],
         help='List of generation prompts or list of delimited files. Use syntax ' +\
-             '"file::/path/to/prompt.txt" to load a prompt(s) contained in a txt file.'
+             f'"{utils.PROMPTFILE_PREFIX}/path/to/prompt.txt" to load a prompt(s) contained in a txt file. ' +\
+             f'\nUse syntax "{utils.PROMPTDATASET_PREFIX}org/dataset" to load prompts from a HF dataset. '
         )
     parser.add_argument(
         '--prompt-delimiter',
@@ -286,7 +287,6 @@ def main(args: Namespace) -> None:
                 encoded_inp['input_ids'] !=
                 tokenizer.pad_token_id,  # type: ignore
                 axis=1).numpy(force=True)
-
             # Warmup
             if args.warmup and (not done_warmup):
                 print('Warming up...')

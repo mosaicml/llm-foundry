@@ -4,12 +4,16 @@
 import os
 from typing import List, Optional
 
+from composer.utils import get_file, parse_uri
+from datasets import load_dataset
+
 PROMPTFILE_PREFIX = 'file::'
+PROMPTDATASET_PREFIX = 'dataset::'
 
 
 def load_prompts(prompts: List[str],
                  prompt_delimiter: Optional[str] = None) -> List[str]:
-    """Loads a set of prompts, both free text and from file.
+    """Loads a set of prompts, both free text and from file or HF dataset.
 
     Args:
         prompts (List[str]): List of free text prompts and prompt files
@@ -23,6 +27,9 @@ def load_prompts(prompts: List[str],
     for prompt in prompts:
         if prompt.startswith(PROMPTFILE_PREFIX):
             prompts = load_prompts_from_file(prompt, prompt_delimiter)
+            prompt_strings.extend(prompts)
+        elif prompt.startswith(PROMPTDATASET_PREFIX):
+            prompts = load_prompts_from_dataset(prompt, prompt_delimiter)
             prompt_strings.extend(prompts)
         else:
             prompt_strings.append(prompt)
@@ -46,13 +53,60 @@ def load_prompts_from_file(prompt_path: str,
 
     _, prompt_file_path = prompt_path.split(PROMPTFILE_PREFIX, maxsplit=1)
     prompt_file_path = os.path.expanduser(prompt_file_path)
-    if not os.path.isfile(prompt_file_path):
-        raise FileNotFoundError(
-            f'{prompt_file_path=} does not match any existing files.')
+    backend, _, _ = parse_uri(prompt_file_path)
+    if backend not in ['', None]:
+        if not os.path.isfile(prompt_file_path):
+            raise FileNotFoundError(
+                f'{prompt_file_path=} does not match any existing files.')
+        else:
+            local_path = prompt_file_path
+    else:
+        local_path = prompt_file_path.split('/')[-1]
+        get_file(path=prompt_file_path, destination=local_path)
 
-    with open(prompt_file_path, 'r') as f:
+    with open(local_path, 'r') as f:
         prompt_string = f.read()
 
     if prompt_delimiter is None:
         return [prompt_string]
     return [i for i in prompt_string.split(prompt_delimiter) if i]
+
+
+def load_prompts_from_dataset(dataset_path: str,
+                              prompt_delimiter: Optional[str] = None
+                             ) -> List[str]:
+    """Load a set of prompts from a huggingface dataset.
+
+    Args:
+        dataset_path (str): Path for dataset
+        prompt_delimiter (Optional str): We misuse the delimiter here to specify
+            the name of the prompt column in the dataset. If not provided, assumes the
+            prompt column is named 'prompt'.
+
+    Returns:
+        List of prompt string(s)
+    """
+    if not dataset_path.startswith(PROMPTDATASET_PREFIX):
+        raise ValueError(f'dataset_path must start with {PROMPTDATASET_PREFIX}')
+
+    _, dataset_path = dataset_path.split(PROMPTDATASET_PREFIX, maxsplit=1)
+
+    try:
+        dataset = load_dataset(dataset_path, token=True)
+    except:
+        dataset = load_dataset(dataset_path)
+
+    prompt_strings = []
+    if prompt_delimiter is None:
+        prompt_delimiter = 'prompt'
+    try:
+        ds = dataset['train']
+    except:
+        ds = dataset
+
+    if prompt_delimiter not in ds.column_names:
+        raise ValueError(f'{prompt_delimiter} not in dataset columns.')
+    for prompt in ds[prompt_delimiter]:
+        prompt_strings.append(prompt)
+
+    return prompt_strings

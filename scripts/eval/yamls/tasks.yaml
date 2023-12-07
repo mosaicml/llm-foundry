@@ -175,11 +175,7 @@ icl_tasks:
   continuation_delimiter: "\nAnswer: " # this separates questions from answers
 # -
 #   label: human_eval
-<<<<<<< HEAD
-#   dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
-=======
 #   dataset_uri: eval/local_data/programming/human_eval.jsonl
->>>>>>> main
 #   num_fewshot: [0]
 #   pass_at_k: 1
 #   num_beams: 20
@@ -187,11 +183,7 @@ icl_tasks:
 #   icl_task_type: code_evaluation
 # -
 #   label: human_eval_cpp
-<<<<<<< HEAD
-#   dataset_uri: eval/local_data/programming/processed_human_eval_cpp.jsonl # ADD YOUR OWN DATASET URI
-=======
 #   dataset_uri: eval/local_data/programming/processed_human_eval_cpp.jsonl
->>>>>>> main
 #   num_fewshot: [0]
 #   pass_at_k: 1
 #   num_beams: 20
@@ -199,11 +191,7 @@ icl_tasks:
 #   icl_task_type: code_evaluation
 # -
 #   label: human_eval_js
-<<<<<<< HEAD
-#   dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl # ADD YOUR OWN DATASET URI
-=======
 #   dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl
->>>>>>> main
 #   num_fewshot: [0]
 #   pass_at_k: 1
 #   num_beams: 20
@@ -211,11 +199,7 @@ icl_tasks:
 #   icl_task_type: code_evaluation
 # -
 #   label: human_eval_return_simple
-<<<<<<< HEAD
-#   dataset_uri: eval/local_data/programming/human_eval_return_simple.jsonl # ADD YOUR OWN DATASET URI
-=======
 #   dataset_uri: eval/local_data/programming/human_eval_return_simple.jsonl
->>>>>>> main
 #   num_fewshot: [0]
 #   pass_at_k: 1
 #   num_beams: 20

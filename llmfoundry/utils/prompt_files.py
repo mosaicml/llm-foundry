@@ -52,15 +52,17 @@ def load_prompts_from_file(prompt_path: str,
         raise ValueError(f'prompt_path_str must start with {PROMPTFILE_PREFIX}')
 
     _, prompt_file_path = prompt_path.split(PROMPTFILE_PREFIX, maxsplit=1)
-    prompt_file_path = os.path.expanduser(prompt_file_path)
     backend, _, _ = parse_uri(prompt_file_path)
-    if backend not in ['', None]:
+    if backend in ['', None]:
+        # local file
+        prompt_file_path = os.path.expanduser(prompt_file_path)
         if not os.path.isfile(prompt_file_path):
             raise FileNotFoundError(
                 f'{prompt_file_path=} does not match any existing files.')
         else:
             local_path = prompt_file_path
     else:
+        # file in object storage
         local_path = prompt_file_path.split('/')[-1]
         get_file(path=prompt_file_path, destination=local_path)
 

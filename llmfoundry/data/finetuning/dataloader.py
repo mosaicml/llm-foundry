@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
-from typing import Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 import datasets as hf_datasets
 import torch
@@ -119,6 +119,9 @@ def build_finetuning_dataloader(cfg: DictConfig,
     """
     _validate_config(cfg.dataset)
 
+    collate_fn, dataloader_batch_size = _build_collate_fn(
+        cfg, tokenizer, device_batch_size)
+
     # Use EOS as the pad token if none exists
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -126,61 +129,42 @@ def build_finetuning_dataloader(cfg: DictConfig,
     dataset = None  # for pyright
     sampler = None
 
-    # Build streaming or HF dataset.
-    if cfg.dataset.get('remote') is not None:
-        # Build Streaming dataset
-        dataset = _build_streaming_dataset(cfg.dataset, tokenizer)
-    else:
-        hf_name, split = cfg.dataset.hf_name, cfg.dataset.split
-
-        backend, _, _ = parse_uri(hf_name)
-        if backend not in ['', None]:
-            # Download dataset from remote object store.
-            if cfg.dataset.get('split') is None:
-                raise ValueError(
-                    'When using a HuggingFace dataset from a URL, you must set the ' + \
-                    '`split` key in the dataset config.'
-                )
-            hf_name = _download_remote_dataset(hf_name, split)
-        elif cfg.dataset.get('safe_load') is True:
-            # Download dataset from huggingface hub with restrictions.
-            hf_kwargs = cfg.dataset.get('hf_kwargs', None)
-            token = hf_kwargs.get('token', None)
-            hf_name = _safe_download_hf_dataset(hf_name, token)
-        
+    # Build HF or streaming dataset.
+    if cfg.dataset.get('hf_name') is not None:
         # Build HF dataset
-        dataset = dataset_constructor.build_from_hf(
-            dataset_name_or_path=hf_name,
+        hf_name = cfg.dataset.get('hf_name')
+        split = cfg.dataset.get('split')
+        _build_hf_dataset(
+            hf_name=hf_name,
             split=split,
-            max_seq_len=cfg.dataset.max_seq_len,
-            proto_preprocessing_fn=cfg.dataset.preprocessing_fn,
-            tokenizer=tokenizer,
-            hf_kwargs=cfg.dataset.get('hf_kwargs', {})
+            safe_load=cfg.dataset.get('safe_load', False), # TODO: What should the default be?
+            max_seq_len=cfg.dataset.get('max_seq_len'),
+            preprocessing_fn=_build_preprocessing_function(dataset_name_or_path=hf_name),
+            hf_kwargs=cfg.get('hf_kwargs', {})
         )
+        if cfg.drop_last:
+            world_size = dist.get_world_size()
+            minimum_dataset_size = world_size * dataloader_batch_size
+            if hasattr(dataset, '__len__'):
+                full_dataset_size = len(dataset)
+                if full_dataset_size < minimum_dataset_size:
+                    raise ValueError(
+                        f'Your dataset (name={hf_name}, split={split}) '
+                        +
+                        f'has {full_dataset_size} samples, but your minimum batch size '
+                        +
+                        f'is {minimum_dataset_size} because you are running on {world_size} gpus and '
+                        +
+                        f'your per device batch size is {dataloader_batch_size}. Please increase the number '
+                        +
+                        f'of samples in your dataset to at least {minimum_dataset_size}.'
+                    )
         sampler = dist.get_sampler(dataset,
-                    drop_last=cfg.drop_last,
-                    shuffle=cfg.dataset.shuffle)
-
-    collate_fn, dataloader_batch_size = _build_collate_fn(
-        cfg, tokenizer, device_batch_size)
-
-    if cfg.drop_last:
-        world_size = dist.get_world_size()
-        minimum_dataset_size = world_size * dataloader_batch_size
-        if hasattr(dataset, '__len__'):
-            full_dataset_size = len(dataset)
-            if full_dataset_size < minimum_dataset_size:
-                raise ValueError(
-                    f'Your dataset (name={cfg.dataset.hf_name}, split={cfg.dataset.split}) '
-                    +
-                    f'has {full_dataset_size} samples, but your minimum batch size '
-                    +
-                    f'is {minimum_dataset_size} because you are running on {world_size} gpus and '
-                    +
-                    f'your per device batch size is {dataloader_batch_size}. Please increase the number '
-                    +
-                    f'of samples in your dataset to at least {minimum_dataset_size}.'
-                )
+            drop_last=cfg.drop_last,
+            shuffle=cfg.dataset.shuffle)
+    else:
+        # Build streaming dataset
+        dataset = _build_streaming_dataset(cfg.dataset, tokenizer, device_batch_size)
     
     assert dataset is not None
     dl = DataLoader(
@@ -201,8 +185,42 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
     return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 
+def _build_preprocessing_function(dataset_name_or_path: str, proto_preprocessing_fn: Optional[Union[dict, DictConfig, str]]):
+    if isinstance(proto_preprocessing_fn, dict) or isinstance(
+            proto_preprocessing_fn, DictConfig):
+        return dataset_constructor.get_preprocessing_fn_from_dict(
+            proto_preprocessing_fn)
+    return dataset_constructor.get_preprocessing_fn_from_str(
+            proto_preprocessing_fn, dataset_name_or_path)
 
-def _build_streaming_dataset(dataset_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase) -> StreamingFinetuningDataset:
+def _build_hf_dataset(hf_name: str, split: Optional[str], safe_load: bool, max_seq_len: int, 
+                      preprocessing_fn: Optional[Callable[[dict[str, Any]], 
+                                                          dict[str,str]]], hf_kwargs: dict) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset, hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
+    backend, _, _ = parse_uri(hf_name)
+    if backend not in ['', None]:
+        # Download dataset from remote object store. 
+        if split is None:
+            raise ValueError(
+                'When using a HuggingFace dataset from a URL, you must set the ' + \
+                '`split` key in the dataset config.'
+            )
+        hf_name = _download_remote_dataset(hf_name, split)
+    elif not os.path.exists(hf_name) and safe_load: # hf_name is not a local directory and safe_load is True
+        # Download dataset from huggingface hub with restrictions.
+        token = hf_kwargs.get('token', None)
+        hf_name = _safe_download_hf_dataset(hf_name, token)
+    # Build HF dataset
+    return dataset_constructor.build_from_hf(
+        dataset_name_or_path=hf_name,
+        split=split,
+        max_seq_len=cfg.dataset.max_seq_len,
+        preprocessing_fn=preprocessing_fn,
+        tokenizer=tokenizer,
+        hf_kwargs=hf_kwargs
+    )
+
+
+def _build_streaming_dataset(dataset_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase, device_batch_size: int) -> StreamingFinetuningDataset:
     return dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
             local=dataset_cfg.local,
@@ -288,12 +306,32 @@ def _downloaded_datasets_dir() -> str:
         'downloaded_finetuning')
 
 def _safe_download_hf_dataset(hf_name: str, token: Union[bool, str, None]) -> str:
-    local_dataset_dir = _downloaded_datasets_dir()
-    hf_hub.snapshot_download(
-        hf_name, 
-        repo_type='dataset', 
-        allow_patterns=["*.csv", "*.jsonl", "*.parquet"], 
-        token=token, local_dir=local_dataset_dir)
+    local_dataset_dir = os.path.join(_downloaded_datasets_dir(), hf_name)
+    if len(os.listdir(local_dataset_dir)) > 0:
+        # Early exit. Dataset has already been downloaded.
+        return local_dataset_dir
+    signal_file_path = os.path.join(local_dataset_dir, f'.node_{dist.get_node_rank()}_local_rank0_completed')
+    if dist.get_local_rank() == 0:
+        hf_hub.snapshot_download(
+            hf_name, 
+            repo_type='dataset', 
+            allow_patterns=["*.csv", "*.jsonl", "*.parquet"], 
+            token=token, local_dir=local_dataset_dir)
+        os.makedirs(os.path.dirname(signal_file_path), exist_ok=True)
+        with open(signal_file_path, 'wb') as f:
+            f.write(b'local_rank0_completed_download')
+
+    # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
+    # so that we don't timeout for large downloads. This syncs all processes on the node
+    with dist.local_rank_zero_download_and_wait(signal_file_path):
+        # Then, wait to ensure every node has finished downloading the checkpoint
+        dist.barrier()
+
+    # clean up signal file
+    if dist.get_local_rank() == 0:
+        os.remove(signal_file_path)
+    dist.barrier()
+    
     return local_dataset_dir
 
 def _download_remote_dataset(hf_name: str, split: str) -> str:

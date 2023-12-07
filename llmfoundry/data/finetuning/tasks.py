@@ -326,7 +326,7 @@ class DatasetConstructor:
 
     def build_from_hf(
         self, dataset_name_or_path: str, split: str, max_seq_len: int,
-        tokenizer: PreTrainedTokenizerBase, proto_preprocessing_fn: Union[dict, DictConfig, str], hf_kwargs: dict[str, Any]
+        tokenizer: PreTrainedTokenizerBase, preprocessing_fn: Optional[Callable[[dict[str, Any]], dict[str,str]]], hf_kwargs: dict[str, Any]
     ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
                hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
@@ -344,13 +344,6 @@ class DatasetConstructor:
         # HF datasets does not support a split with dashes,so we replace split
         # dashes with underscore.
         split = split.replace('-', '_')
-        if isinstance(proto_preprocessing_fn, dict) or isinstance(
-                proto_preprocessing_fn, DictConfig):
-            preprocessing_fn = self.get_preprocessing_fn_from_dict(
-                proto_preprocessing_fn)
-        else:
-            preprocessing_fn = self.get_preprocessing_fn_from_str(
-                proto_preprocessing_fn, dataset_name_or_path)
 
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
 

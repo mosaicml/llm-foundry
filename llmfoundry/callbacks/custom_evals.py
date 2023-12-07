@@ -119,10 +119,9 @@ class JSONExtractionEval(GenerateEval):
         self.batch_size = 1
  
         # dset = hf_datasets.load_from_disk(data_path)['test']
-        import subprocess
-        subprocess.run('mkdir /data'.split())
-        subprocess.run(f'rclone copy {data_path} /data')
-        dset = hf_datasets.load_from_disk('/data')['test']
+        from rclone_python import rclone
+        rclone.copy(data_path, '/data/test')
+        dset = hf_datasets.load_from_disk('/data/test')['test']
 
         self.prompts = dset['prompt']
         self.responses = dset['response']
@@ -185,3 +184,9 @@ class InstructionFollowingEval(GenerateEval):
         from pprint import pprint
         pprint(acc_dict)
         return acc_dict
+
+
+class MultiPLCodeEval(GenerateEval):
+
+    # IMPORTANT: Temperature is a hyperparameter
+    # https://github.com/mcarbin/composer/blob/9fe12627e178d34f1f599f383f9634fd24c4e99b/composer/datasets/in_context_learning_evaluation.py#L1062

@@ -305,6 +305,8 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
             break
         packing_ratio = packing_ratio_candidate
 
+    clean_stale_shared_memory()
+
     # Select the minimum packing ratio across all ranks.
     if dist.is_available() and dist.is_initialized():
         device = get_device(None)
@@ -407,8 +409,6 @@ def profile_packing(
     for packing_ratio, raw_batch_size in zip(packing_ratios, raw_batch_sizes):
         padding, waste = profile(raw_batch_size)
         yield (packing_ratio, padding, waste)
-
-    clean_stale_shared_memory()
 
 
 if __name__ == '__main__':

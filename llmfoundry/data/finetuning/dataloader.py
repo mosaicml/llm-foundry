@@ -299,7 +299,7 @@ def _build_hf_dataset_from_remote(
     Raises:
         FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.
     """
-    supported_extensions = ['jsonl', 'csv', 'parquet']
+    supported_extensions = ['jsonl', 'csv', 'parquet', 'arrow']
     # HF datasets does not support a split with dashes, so we replace dashes
     # with underscores in the destination split.
     destination_split = cfg.dataset.split.replace('-', '_')

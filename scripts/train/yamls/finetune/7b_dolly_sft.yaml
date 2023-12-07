@@ -41,7 +41,10 @@ train_loader:
     allow_pad_trimming: false
     decoder_only_format: true
     shuffle: true
-    # # Use `python llmfoundry/data/packing.py --yaml-path /path/to/this/yaml/ ...`
+    # # Use packing_ratio: 'auto' to automatically profile and select the highest observed packing ratio with
+    # # zero waste. In practice, this may result in > 0 waste because profiling is done on only a portion
+    # # of the dataset.
+    # # Or use `python llmfoundry/scripts/misc/profile_packing.py --yaml-path /path/to/this/yaml/ ...`
     # # to profile this run's optimal packing_ratio as it depends on GPU count,
     # # batch size, sequence length
     # packing_ratio:
@@ -96,7 +99,6 @@ fsdp_config:
   activation_checkpointing_reentrant: false
   activation_cpu_offload: false
   limit_all_gathers: true
-  verbose: false
 
 # Logging
 progress_bar: false
@@ -122,3 +124,4 @@ callbacks:
 # Load from remote object store
 # REPLACE THE BELOW with you own checkpoint!
 load_path: oci://my-bucket/my-folder/mpt-7b/checkpoints/some_checkpoint.pt
+load_weights_only: true # Only load the weights, not the optimizer state, LR schedule, etc

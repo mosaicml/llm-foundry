@@ -187,6 +187,6 @@ class InstructionFollowingEval(GenerateEval):
 
 
 class MultiPLCodeEval(GenerateEval):
-
+    pass
     # IMPORTANT: Temperature is a hyperparameter
     # https://github.com/mcarbin/composer/blob/9fe12627e178d34f1f599f383f9634fd24c4e99b/composer/datasets/in_context_learning_evaluation.py#L1062

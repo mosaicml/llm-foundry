@@ -25,6 +25,7 @@ from composer.models import HuggingFaceModel
 from composer.utils import dist
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.eval.metrics.nlp import InContextLearningMultipleChoiceBrierScore
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
@@ -955,6 +956,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError(),
+            InContextLearningMultipleChoiceBrierScore()
         ]
 
         super().__init__(

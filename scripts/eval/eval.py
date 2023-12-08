@@ -124,7 +124,6 @@ def evaluate_model(
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
-
     evaluators, logger_keys, eval_gauntlet_callback = build_evaluators(
         eval_loader_config,
         icl_tasks,
@@ -365,9 +364,8 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
         # dl_name is either 2-tuple (benchmark_name, num_fewshot)
         # or 3-tuple (benchmark_name, num_fewshot, subcategory)
         dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
-        if 'Accuracy' not in metric_name:
+        if 'Accuracy' not in metric_name and 'Score' not in metric_name:
             continue
-
         metric = trainer.state.eval_metrics.get('/'.join(dl_name),
                                                 {}).get(metric_name, None)
 
@@ -382,13 +380,19 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
         if metric_name not in results[dl_name[1]][dl_name[0]]:
             results[dl_name[1]][dl_name[0]][metric_name] = []
 
-        results[dl_name[1]][dl_name[0]][metric_name].append({
-            'val': metric.compute(),
-            'subcat': dl_name[-1] if len(dl_name) == 3 else 'no_subcat'
-        })
+        if 'Accuracy' in metric_name:
+            results[dl_name[1]][dl_name[0]][metric_name].append({
+                'acc': metric.compute(),
+                'subcat': dl_name[-1] if len(dl_name) == 3 else 'no_subcat'
+            })
+        else:
+            results[dl_name[1]][dl_name[0]][metric_name].append({
+                'brier_score': metric.compute(),
+                'subcat': dl_name[-1] if len(dl_name) == 3 else 'no_subcat'
+            })
 
     df = pd.DataFrame(columns=[
-        'Category', 'Benchmark', 'Subtask', 'Accuracy', 'Number few shot',
+        'Category', 'Benchmark', 'Subtask', 'Accuracy', 'BrierScore', 'Number few shot',
         'Model'
     ])
 
@@ -401,7 +405,8 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                         'Category': benchmark_to_taxonomy.get(benchmark, ''),
                         'Benchmark': benchmark,
                         'Subtask': None,
-                        'Accuracy': subscores[0]['val'],
+                        'Accuracy': subscores[0].get('acc', None),
+                        'BrierScore': subscores[0].get('brier_score', None),
                         'Number few shot': num_shot,
                         'Model': model_name
                     }
@@ -415,7 +420,9 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                         'Subtask':
                             'Average',
                         'Accuracy':
-                            sum(s['val'] for s in subscores) / len(subscores),
+                            sum(s['acc'] for s in subscores if 'acc' in s) / len(subscores),
+                        'BrierScore':
+                            sum(s['brier_score'] for s in subscores if 'brier_score' in s) / len(subscores),
                         'Number few shot':
                             num_shot,
                         'Model':
@@ -431,7 +438,9 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                             'Subtask':
                                 sub['subcat'],
                             'Accuracy':
-                                sub['val'],
+                                sub.get('acc', None),
+                            'BrierScore':
+                                sub.get('brier_score', None),
                             'Number few shot':
                                 num_shot,
                             'Model':

@@ -13,9 +13,13 @@ from typing import Any, Optional, List, Tuple
 from databricks.connect import DatabricksSession
 from uuid import uuid4
 from pyspark.sql.types import Row
-import concurrent.futures
+from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Pool
 import subprocess
+
+import patch # Monkey Patching for SparkConnectClient
+import requests
+
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +44,17 @@ def run_query(q:str, method:str, cursor=None, spark=None, collect=True) -> Optio
 
     return None
 
+
+def get_args(signed, json_output_path):
+    for i, r in enumerate(signed):
+        yield (i, r.url, json_output_path)
+
+def download_json(i, url, json_output_path):
+    data =requests.get(url).json()
+    pd.DataFrame.from_dict(data).to_json(os.path.join(json_output_path, 'part_'+str(i)+'.json'))
+
+def download_json_starargs(args: Tuple):
+    return download_json(*args)
 
 def fetch_data_starargs(args: Tuple):
     return fetch_data(*args)
@@ -106,8 +121,16 @@ def fetch(method,
         dbfs_cache = 'dbfs:/' + json_output_path.lstrip('/')
         df.repartition(partitions).write.mode("overwrite").json(dbfs_cache)
         print(f"downloading from {dbfs_cache} to {json_output_path}")
-        subprocess.run(f"databricks fs cp -r {dbfs_cache} {json_output_path}", shell=True, capture_output=True, text=True)
-        subprocess.run(f"databricks fs rm -r {dbfs_cache}", shell=True, capture_output=True, text=True)
+        #subprocess.run(f"databricks fs cp -r {dbfs_cache} {json_output_path}", shell=True, capture_output=True, text=True)
+        #subprocess.run(f"databricks fs rm -r {dbfs_cache}", shell=True, capture_output=True, text=True)
+        signed, rows, overflow = df.collect_cf("json")
+        print(len(signed))
+        print(rows)
+        print(overflow)
+
+        args = get_args(signed, json_output_path)
+        with ProcessPoolExecutor(max_workers=partitions) as executor:
+            list(executor.map(download_json_starargs, args))
 
     elif method == 'dbsql':
         ans = run_query(query, method, cursor, sparkSession, collect=True)
@@ -118,6 +141,7 @@ def fetch(method,
 
     if cursor is not None:
         cursor.close()
+
 
 
 def fetch_DT(*args: Any, **kwargs: Any):

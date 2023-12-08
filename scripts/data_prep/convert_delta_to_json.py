@@ -115,16 +115,18 @@ def fetch(method,
     obj = urllib.parse.urlparse(json_output_path)
 
     if method == 'dbconnect':
-        df = run_query(f"SELECT * FROM {tablename}", method, cursor, sparkSession, collect=False)
+        #df = run_query(f"SELECT * FROM {tablename}", method, cursor, sparkSession, collect=False)
         print('partitions = ', partitions)
+        df = sparkSession.table("main.tpcds_sf100_delta.store_sales")
 
-        dbfs_cache = 'dbfs:/' + json_output_path.lstrip('/')
-        df.repartition(partitions).write.mode("overwrite").json(dbfs_cache)
-        print(f"downloading from {dbfs_cache} to {json_output_path}")
+        #dbfs_cache = 'dbfs:/' + json_output_path.lstrip('/')
+        #df.repartition(partitions).write.mode("overwrite").json(dbfs_cache)
+        #print(f"downloading from {dbfs_cache} to {json_output_path}")
         #subprocess.run(f"databricks fs cp -r {dbfs_cache} {json_output_path}", shell=True, capture_output=True, text=True)
         #subprocess.run(f"databricks fs rm -r {dbfs_cache}", shell=True, capture_output=True, text=True)
         signed, rows, overflow = df.collect_cf("json")
         print(len(signed))
+        print(signed)
         print(rows)
         print(overflow)
 

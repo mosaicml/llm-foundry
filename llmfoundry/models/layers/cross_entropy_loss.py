@@ -1,15 +1,14 @@
 # Modified from https://github.com/Dao-AILab/flash-attention/blob/v1.0.9/flash_attn/losses/cross_entropy.py
 
+# type: ignore
+
 # Inspired by https://github.com/NVIDIA/apex/blob/master/apex/transformer/tensor_parallel/cross_entropy.py
 # But we make it much faster: we compute the local loss and the LSE, and by exchanging the LSE and
 # the losses we can get the global loss. There's no need to do it step by step
 # (compute local max, exchange, compute exp, compute local sum, exchange, etc.)
 # The original xentropy interface is here: https://github.com/NVIDIA/apex/blob/master/apex/contrib/xentropy/softmax_xentropy.py
-from typing import Optional
-
 import torch
 import torch.nn as nn
-from torch._C._distributed_c10d import ProcessGroup
 
 import xentropy_cuda_lib
 
@@ -43,8 +42,10 @@ class SoftmaxCrossEntropyLossFn(torch.autograd.Function):
             labels_local = labels
         else:
             rank = torch.distributed.get_rank(process_group)
-            vocab_start_index = rank * vocab_size
+            vocab_start_index, vocab_end_index = rank * vocab_size, (rank + 1) * vocab_size
 
+            # Create a mask of valid vocab ids (1 means it needs to be masked).
+            labels_mask = (labels < vocab_start_index) | (labels >= vocab_end_index)
             ignored_mask = labels == ignored_index
             labels_local = torch.where(ignored_mask, labels, labels - vocab_start_index)
 
@@ -108,8 +109,8 @@ class SoftmaxCrossEntropyLossFn(torch.autograd.Function):
 
 class CrossEntropyLoss(nn.Module):
 
-    def __init__(self, ignore_index: int=-100, reduction: str='mean', label_smoothing: float=0.0,
-                 inplace_backward: bool=False, process_group: Optional[ProcessGroup]=None):
+    def __init__(self, ignore_index=-100, reduction='mean', label_smoothing=0.0,
+                 inplace_backward=False, process_group=None):
         super().__init__()
         if reduction not in ['mean', 'none']:
             raise NotImplementedError("Only support reduction = 'mean' or 'none'")
@@ -119,7 +120,7 @@ class CrossEntropyLoss(nn.Module):
         self.inplace_backward = inplace_backward
         self.process_group = process_group
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor):
+    def forward(self, input, target):
         assert input.is_cuda and target.is_cuda
         # SoftmaxCrossEntropyLoss implicitly casts to float
         loss = SoftmaxCrossEntropyLossFn.apply(

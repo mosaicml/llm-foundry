@@ -88,7 +88,7 @@ def load_prompts_from_remote(prompt_path: str,
                 f'prompt_path_str must start with s3:// etc if using object storage')
 
         local_path = prompt_path.split('/')[-1]
-        get_file(path=prompt_path, destination=local_path)
+        get_file(path=prompt_path, destination=local_path, overwrite=True)
 
         with open(local_path, 'r') as f:
             prompt_string = f.read()

@@ -539,7 +539,7 @@ def main(cfg: DictConfig) -> Trainer:
         elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
             model = model.to(dtype=torch.float16)
 
-    rprint(f"[red]{repr(model)}[/red]")
+    rprint(f"[yellow]{repr(model)}[/yellow]")
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())

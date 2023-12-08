@@ -114,18 +114,22 @@ class JSONExtractionEval(GenerateEval):
     def __init__(self, data_path: str, verbose: bool = False):
         super().__init__(verbose=verbose)
         from tunes.data.extraction import json_f1_score
-        import datasets as hf_datasets
+        self.score_fn = json_f1_score
+        # import datasets as hf_datasets
+        import pandas as pd
+        import os
 
         self.batch_size = 1
 
-        dset = hf_datasets.load_from_disk(data_path)['test']
+        # dset = hf_datasets.load_from_disk(data_path)['test']
+        dset = pd.read_parquet(os.path.join(data_path, 'test.parquet'))
 
-        self.prompts = dset['prompt']
-        self.responses = dset['response']
+        self.prompts = dset['prompt'].to_list()
+        self.responses = dset['response'].to_list()
 
     def run_eval(self, state: State, logger: Logger) -> dict[str, float]:
         responses = self.generate(state, self.prompts, batch_size=self.batch_size)
-        f1_scores = [json_f1_score(gt, gen) for gt, gen in zip(self.responses, responses)]
+        f1_scores = [self.score_fn(gt, gen) for gt, gen in zip(self.responses, responses)]
         mean_f1_score = sum(f1_scores) / len(f1_scores)
         metrics = {
                 'metrics/extraction/0-shot/MeanF1Score': mean_f1_score,

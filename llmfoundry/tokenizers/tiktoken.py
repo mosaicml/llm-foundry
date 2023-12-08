@@ -173,12 +173,30 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         Pinning default Chat ML template in case defaults change.
         """
         template = (
-            "{% set system_message = '' %}"
-            '{% if USE_DEFAULT_PROMPT == true %}'
-            "{{'<|im_start|>system\n' + 'DEFAULT_SYSTEM_PROMPT'}}"
+            "{% if messages[0]['role'] == 'system' %}"
+            '{% set loop_messages = messages[1:] %}'
+            "{% set system_message = messages[0]['content'] %}"
+            "{% elif USE_DEFAULT_PROMPT == true and not 'system' in messages[0]['role'] %}"
+            '{% set loop_messages = messages %}'
+            "{% set system_message = 'DEFAULT_SYSTEM_PROMPT' %}"
+            '{% else %}'
+            '{% set loop_messages = messages %}'
+            '{% set system_message = false %}'
             '{% endif %}'
-            '{% for message in messages %}'
-            "{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}"
+            '{% for message in loop_messages %}'
+            '{% if loop.index0 == 0 %}'
+            '{% if system_message != false %}'
+            "{{ '<|im_start|>system\n' + system_message.strip() + '\n'}}"
+            '{% endif %}'
+            "{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' }}"
+            '{% else %}'
+            "{{ '\n' + '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' }}"
+            '{% endif %}'
+            '{% if (add_generation_prompt == true) %}'
+            "{{ '\n' + '<|im_start|>' + 'assistant' + '\n' }}"
+            "{% elif (message['role'] == 'assistant') %}"
+            '{{ eos_token }}'
+            '{% endif %}'
             '{% endfor %}')
         template = template.replace(
             'USE_DEFAULT_PROMPT',

@@ -453,7 +453,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Loggers
     loggers = [
-        build_logger(str(name), om.to_container(logger_cfg, resolve=True))
+        build_logger(str(name), logger_cfg)
         for name, logger_cfg in logger_configs.items()
     ] if logger_configs else []
 

@@ -5,7 +5,6 @@ from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
-from composer.utils import using_torch_2
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
 
@@ -348,7 +347,7 @@ def profile_packing(
     dataloader_cfg.dataset.packing_ratio = None
     dataloader_cfg.drop_last = False
     dataloader_cfg.num_workers = 0
-    dataloader_cfg.prefetch_factor = None if using_torch_2() else 2
+    dataloader_cfg.prefetch_factor = None
     dataloader_cfg.persistent_workers = False
 
     # Determine the packing_ratio values we'll try

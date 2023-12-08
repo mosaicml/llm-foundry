@@ -79,7 +79,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             eos_token (Optional[str], optional): The eos token. Defaults to '<|endoftext|>'.
             bos_token (Optional[str], optional): The bos token. Defaults to '<|endoftext|>'.
             pad_token (Optional[str], optional): The pad token. Defaults to None.
-            errors (`str`, *optional*): Paradigm to follow when decoding bytes to UTF-8. See
+            errors (str, optional): Paradigm to follow when decoding bytes to UTF-8. See
                 [bytes.decode](https://docs.python.org/3/library/stdtypes.html#bytes.decode) for more information.
                 Defaults to `"replace"`.
         """

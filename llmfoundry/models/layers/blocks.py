@@ -21,6 +21,7 @@ attn_config_defaults: Dict = {
     'softmax_scale': None,
     'prefix_lm': False,
     'attn_uses_sequence_id': False,
+    'sliding_window_size': -1,
     'alibi': False,
     'alibi_bias_max': 8,
     'rope': False,
@@ -113,6 +114,7 @@ class MPTBlock(nn.Module):
         attention_mask: Optional[torch.ByteTensor] = None,
         is_causal: bool = True,
         output_attentions: bool = False,
+        attention_mask_in_length: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
             torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
@@ -124,6 +126,7 @@ class MPTBlock(nn.Module):
             attention_mask=attention_mask,
             is_causal=is_causal,
             needs_weights=output_attentions,
+            attention_mask_in_length=attention_mask_in_length,
         )
         x = x + self.resid_attn_dropout(b)
         m = x

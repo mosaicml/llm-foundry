@@ -132,6 +132,114 @@ def gen_rotary_embedding(rope_head_dim: int, rope_impl: str, rope_theta: int,
     raise ValueError('rope_impl needs to be either dail or hf')
 
 
+def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
+                                 attn_uses_sequence_id: bool, attn_impl: str,
+                                 attention_mask: Union[torch.Tensor, None]):
+    """Generates the attention mask used for sequence masking in FA v2.
+
+    Only supports sequence id based sparse attention for no attention masking or attention masking with right padding.
+    In case of left padding:
+        1. Training with left padding is not supported in MPT (see https://github.com/mosaicml/llm-foundry/blob/1eecd4cb8e734499f77f6a35f657b8b20c0adfcb/llmfoundry/models/mpt/modeling_mpt.py#L407).
+        2. For generation with left padding, we only have a single sequence id per sample, so we don't need sequence id based sparse attention.
+
+    Args:
+        sequence_id (Union[None, torch.Tensor]): Tensor containing the sequence id for each token. Shape (batch_size, seq_len).
+        S (int): Sequence length
+        attn_uses_sequence_id (bool): Whether the attention uses sequence id based masking.
+        attn_impl (str): Attention implementation. This function is only creates attention_mask_in_length for flash attention.
+        attention_mask (Union[torch.Tensor, None]): Attention mask tensor of shape (batch_size, seq_len)
+
+    Returns:
+        attention_mask_in_length: (batch, seqlen), int, a nonzero number (e.g., 1, 2, 3, etc.) means length of concatenated sequence in b-th batch, and 0 means none. For example, if batch = 3 and seqlen = 6, the attention_mask_in_length is:
+            ```
+            [
+            [2, 3, 0, 0, 0, 0],
+            [3, 2, 0, 0, 0, 0],
+            [6, 0, 0, 0, 0, 0]
+            ]
+            ```
+        , which refers to the 3D-attention mask:
+            ```
+            [
+            [
+                [1, 0, 0, 0, 0, 0],
+                [1, 1, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 1, 1, 0, 0],
+                [0, 0, 1, 1, 1, 0],
+                [0, 0, 0, 0, 0, 1]
+            ],
+            [
+                [1, 0, 0, 0, 0, 0],
+                [1, 1, 0, 0, 0, 0],
+                [1, 1, 1, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 1, 1, 0],
+                [0, 0, 0, 0, 0, 1]
+            ],
+            [
+                [1, 0, 0, 0, 0, 0],
+                [1, 1, 0, 0, 0, 0],
+                [1, 1, 1, 0, 0, 0],
+                [1, 1, 1, 1, 0, 0],
+                [1, 1, 1, 1, 1, 0],
+                [1, 1, 1, 1, 1, 1]
+            ]
+            ]
+            ```.
+            (The description above is taken verbatim from https://github.com/Dao-AILab/flash-attention/blob/9356a1c0389660d7e231ff3163c1ac17d9e3824a/flash_attn/bert_padding.py#L125 .)
+    """
+    attention_mask_in_length = None
+    if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl
+                                                                == 'flash'):
+        # Check if sequence has left padding. If yes, raise an error.
+        if (attention_mask is not None) and (attention_mask[:, 0].sum() !=
+                                             attention_mask.shape[0]):
+            raise NotImplementedError(
+                'Left padding is not supported with flash attention when attn_uses_sequence_id is set to True.'
+            )
+        if S != sequence_id.shape[-1]:
+            raise ValueError(
+                f'Sequence length ({S}) does not match length of sequences in sequence_id ({sequence_id.shape[-1]}).'
+            )
+        attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
+        if attention_mask is not None:
+            attention_mask_in_length = attention_mask_in_length.masked_fill(
+                ~attention_mask.unsqueeze(-1), 0)
+        attention_mask_in_length = attention_mask_in_length.sum(dim=1)
+        attention_mask_in_length = torch.nn.functional.pad(
+            attention_mask_in_length,
+            (0, S - attention_mask_in_length.shape[-1]),
+            mode='constant',
+            value=0)
+
+    return attention_mask_in_length
+
+
+def apply_sequence_id(attn_bias: torch.Tensor, sequence_id: torch.LongTensor,
+                      max_seq_len: int) -> torch.Tensor:
+    seq_len = sequence_id.shape[-1]
+    if seq_len > max_seq_len:
+        raise ValueError(
+            f'sequence_id sequence length cannot exceed max_seq_len={max_seq_len}'
+        )
+
+    # select seq_len subset of attn mask
+    attn_bias = attn_bias[..., :seq_len, :seq_len]
+
+    # Restrict attention to tokens that share the same value
+    # in sequence_id
+    cannot_attend = torch.logical_not(
+        torch.eq(
+            sequence_id.view(-1, seq_len, 1),
+            sequence_id.view(-1, 1, seq_len),
+        )).unsqueeze(1)
+    min_val = torch.finfo(attn_bias.dtype).min
+    attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
+
+    return attn_bias
+
+
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
     base_model_prefix = 'model'
@@ -286,7 +394,8 @@ class MPTModel(MPTPreTrainedModel):
         # If using torch or triton, we incorporate sequence_id (if appropriate)
         if self.attn_uses_sequence_id and sequence_id is not None:
             assert isinstance(attn_bias, torch.Tensor)  # pyright
-            attn_bias = self._apply_sequence_id(attn_bias, sequence_id)
+            attn_bias = apply_sequence_id(attn_bias, sequence_id,
+                                          self.config.max_seq_len)
 
         # If using torch or triton, we incorporate attention_mask. This will output
         # None in place of attention_mask since it will not be further needed in the
@@ -343,32 +452,9 @@ class MPTModel(MPTPreTrainedModel):
 
         return attn_bias
 
-    def _apply_sequence_id(self, attn_bias: torch.Tensor,
-                           sequence_id: torch.LongTensor) -> torch.Tensor:
-        seq_len = sequence_id.shape[-1]
-        if seq_len > self.config.max_seq_len:
-            raise ValueError(
-                f'sequence_id sequence length cannot exceed max_seq_len={self.config.max_seq_len}'
-            )
-
-        # select seq_len subset of attn mask
-        attn_bias = attn_bias[..., :seq_len, :seq_len]
-
-        # Restrict attention to tokens that share the same value
-        # in sequence_id
-        cannot_attend = torch.logical_not(
-            torch.eq(
-                sequence_id.view(-1, seq_len, 1),
-                sequence_id.view(-1, 1, seq_len),
-            )).unsqueeze(1)
-        min_val = torch.finfo(attn_bias.dtype).min
-        attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
-
-        return attn_bias
-
     def forward(
         self,
-        input_ids: torch.LongTensor,
+        input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         prefix_mask: Optional[torch.ByteTensor] = None,
@@ -412,11 +498,6 @@ class MPTModel(MPTPreTrainedModel):
                 'prefix_mask is a required argument when MPT is configured with prefix_lm=True.'
             )
 
-        # Raise a not implemented error if input_embeds is not None (this is an arg in huggingface transformers and we need to support it for PEFT)
-        if inputs_embeds is not None:
-            raise NotImplementedError(
-                'inputs_embeds is not implemented for MPT.')
-
         if self.training:
             if self.attn_uses_sequence_id and sequence_id is None:
                 raise ValueError(
@@ -430,14 +511,25 @@ class MPTModel(MPTPreTrainedModel):
                     'This input will be ignored. If you want the model to use `sequence_id`, set attn_uses_sequence_id to True.'
                 )
 
-        S = input_ids.size(1)
+        if input_ids is not None and inputs_embeds is not None:
+            raise ValueError(
+                'You cannot specify both input_ids and inputs_embeds.')
+        elif input_ids is not None:
+            S = input_ids.size(1)
+            x = self.wte(input_ids)
+            input_device = input_ids.device
+        elif inputs_embeds is not None:
+            S = inputs_embeds.size(1)
+            x = inputs_embeds
+            input_device = inputs_embeds.device
+        else:
+            raise ValueError('You must specify input_ids or inputs_embeds')
 
         assert (
             S <= self.config.max_seq_len
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
         rotary_emb_w_meta_info = None
-        x = self.wte(input_ids)
         if self.learned_pos_emb or self.rope:
             past_position = 0
             if past_key_values is not None:
@@ -467,7 +559,7 @@ class MPTModel(MPTPreTrainedModel):
                     past_position,
                     S + past_position,
                     dtype=torch.long,
-                    device=input_ids.device,
+                    device=input_device,
                 ).unsqueeze(0)
                 if attention_mask is not None:
                     # adjust the position indices to account for padding tokens
@@ -509,7 +601,12 @@ class MPTModel(MPTPreTrainedModel):
             prefix_mask=prefix_mask,
             sequence_id=sequence_id,
         )
-
+        attention_mask_in_length = gen_attention_mask_in_length(
+            sequence_id=sequence_id,
+            S=S,
+            attn_uses_sequence_id=self.attn_uses_sequence_id,
+            attn_impl=self.attn_impl,
+            attention_mask=attention_mask)
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
         if use_cache and past_key_values is None:
@@ -532,6 +629,7 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
+                attention_mask_in_length=attention_mask_in_length,
             )
             if presents is not None:
                 presents += (present,)
@@ -652,7 +750,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     def forward(
         self,
-        input_ids: torch.LongTensor,
+        input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         prefix_mask: Optional[torch.ByteTensor] = None,
@@ -669,11 +767,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
         use_cache = (use_cache
                      if use_cache is not None else self.config.use_cache)
 
-        # if input_embeds is not none, raise a not implemented error
-        if inputs_embeds is not None:
-            raise NotImplementedError(
-                'inputs_embeds has to be None (for hf/peft support).')
-        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.transformer(
             input_ids=input_ids,
             past_key_values=past_key_values,
@@ -684,6 +777,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             use_cache=use_cache,
+            inputs_embeds=inputs_embeds,
         )
 
         if self.lm_head is not None:
@@ -737,6 +831,12 @@ class MPTForCausalLM(MPTPreTrainedModel):
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
         act_ckpt_list = getattr(self.config, 'activation_checkpointing_target',
                                 None) or ['MPTBlock']
+        if isinstance(act_ckpt_list, str):
+            act_ckpt_list = [act_ckpt_list]
+        elif not isinstance(act_ckpt_list, list):
+            raise ValueError(
+                f'activation_checkpointing_target must be either a single string or a list, but got {type(act_ckpt_list)}'
+            )
 
         if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
             if len(act_ckpt_list) > 1:
@@ -773,10 +873,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
         inputs_embeds: Optional[torch.Tensor] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        if inputs_embeds is not None:
-            raise NotImplementedError(
-                'inputs_embeds is not implemented for MPT yet')
-
         attention_mask = kwargs['attention_mask'].bool()
         if attention_mask[:, -1].sum() != attention_mask.shape[0]:
             raise NotImplementedError(
@@ -787,6 +883,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         else:
             sequence_id = None
 
+        # only last token for inputs_ids if past is defined in kwargs
         if past_key_values is not None:
             input_ids = input_ids[:, -1].unsqueeze(-1)
 
@@ -800,14 +897,20 @@ class MPTForCausalLM(MPTPreTrainedModel):
         else:
             prefix_mask = None
 
-        return {
-            'input_ids': input_ids,
+        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
+        if inputs_embeds is not None and past_key_values is None:
+            model_inputs = {'inputs_embeds': inputs_embeds}
+        else:
+            model_inputs = {'input_ids': input_ids}
+
+        model_inputs.update({
             'attention_mask': attention_mask,
             'prefix_mask': prefix_mask,
             'sequence_id': sequence_id,
             'past_key_values': past_key_values,
             'use_cache': kwargs.get('use_cache', True),
-        }
+        })
+        return model_inputs
 
     @staticmethod
     def _reorder_cache(
@@ -898,7 +1001,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             add_bidirectional_mask_if_missing(batch)
         # Note: prefix_mask is only used if model.prefix_lm is True
         return self.model(
-            input_ids=batch['input_ids'],
+            input_ids=batch.get('input_ids', None),
             attention_mask=batch.get('attention_mask', None),
             prefix_mask=batch.get('bidirectional_mask', None),
             sequence_id=batch.get('sequence_id', None),

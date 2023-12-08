@@ -1,0 +1,23 @@
+icl_tasks:
+-
+  label: jeopardy
+  dataset_uri: scripts/eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 1]
+  icl_task_type: language_modeling
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  has_categories: true
+-
+  label: copa
+  dataset_uri: scripts/eval/local_data/commonsense_reasoning/copa.jsonl  # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 1]
+  icl_task_type: multiple_choice
+-
+  label: winograd
+  dataset_uri: scripts/eval/local_data/language_understanding/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 1]
+  icl_task_type: schema
+-
+  label: triviaqa
+  dataset_uri: scripts/eval/local_data/world_knowledge/triviaqa_small.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0, 1]
+  icl_task_type: question_answering

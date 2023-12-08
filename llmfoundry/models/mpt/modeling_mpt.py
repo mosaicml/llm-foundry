@@ -972,8 +972,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
             try:
-                from flash_attn.losses.cross_entropy import \
-                    CrossEntropyLoss as FusedCrossEntropyLoss
+                # from flash_attn.losses.cross_entropy import \
+                #     CrossEntropyLoss as FusedCrossEntropyLoss
+                from llmfoundry.models.layers.cross_entropy_loss import CrossEntropyLoss as FusedCrossEntropyLoss
 
                 self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
             except:

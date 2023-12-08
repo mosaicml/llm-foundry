@@ -71,31 +71,33 @@ def load_prompts_from_file(prompt_path: str,
 
 
 def load_prompts_from_remote(prompt_path: str,
-                             prompt_delimiter: Optional[str] = None) -> List[str]:
-        """Load a set of prompts from object storage.
-    
-        Args:
-            prompt_path (str): Path for text file
-            prompt_delimiter (Optional str): Delimiter for text file
-                If not provided, assumes the prompt file is a single prompt (non-delimited)
+                             prompt_delimiter: Optional[str] = None
+                            ) -> List[str]:
+    """Load a set of prompts from object storage.
 
-        Returns:
-            List of prompt string(s)
-        """
-        backend, _, _ = parse_uri(prompt_path)
-        if backend in ['', None]:
-            raise ValueError(
-                f'prompt_path_str must start with s3:// etc if using object storage')
+    Args:
+        prompt_path (str): Path for text file
+        prompt_delimiter (Optional str): Delimiter for text file
+            If not provided, assumes the prompt file is a single prompt (non-delimited)
 
-        local_path = prompt_path.split('/')[-1]
-        get_file(path=prompt_path, destination=local_path, overwrite=True)
+    Returns:
+        List of prompt string(s)
+    """
+    backend, _, _ = parse_uri(prompt_path)
+    if backend in ['', None]:
+        raise ValueError(
+            f'prompt_path_str must start with s3:// etc if using object storage'
+        )
 
-        with open(local_path, 'r') as f:
-            prompt_string = f.read()
+    local_path = prompt_path.split('/')[-1]
+    get_file(path=prompt_path, destination=local_path, overwrite=True)
 
-        if prompt_delimiter is None:
-            return [prompt_string]
-        return [i for i in prompt_string.split(prompt_delimiter) if i]
+    with open(local_path, 'r') as f:
+        prompt_string = f.read()
+
+    if prompt_delimiter is None:
+        return [prompt_string]
+    return [i for i in prompt_string.split(prompt_delimiter) if i]
 
 
 def load_prompts_from_dataset(dataset_path: str,

@@ -278,7 +278,10 @@ def main(args: Namespace) -> None:
             print(f'\nTokenizing prompts...')
             maybe_synchronize()
             encode_start = time.time()
-            encoded_inp = tokenizer(batch, return_tensors='pt', padding=True, truncation=True)
+            encoded_inp = tokenizer(batch,
+                                    return_tensors='pt',
+                                    padding=True,
+                                    truncation=True)
             for key, value in encoded_inp.items():
                 encoded_inp[key] = value.to(model.device)
             maybe_synchronize()

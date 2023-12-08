@@ -79,8 +79,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             eos_token (Optional[str], optional): The eos token. Defaults to '<|endoftext|>'.
             bos_token (Optional[str], optional): The bos token. Defaults to '<|endoftext|>'.
             pad_token (Optional[str], optional): The pad token. Defaults to None.
-            errors (`str`, *optional*):
-                Paradigm to follow when decoding bytes to UTF-8. See
+            errors (`str`, *optional*): Paradigm to follow when decoding bytes to UTF-8. See
                 [bytes.decode](https://docs.python.org/3/library/stdtypes.html#bytes.decode) for more information.
                 Defaults to `"replace"`.
         """
@@ -258,7 +257,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     def convert_tokens_to_string(self, tokens: List[str]) -> str:
         """Converts a sequence of tokens (string) in a single string."""
         text = ''.join(tokens)
-        text = bytearray([self.byte_decoder[c] for c in text]).decode('utf-8', errors=self.errors)
+        text = bytearray([self.byte_decoder[c] for c in text
+                         ]).decode('utf-8', errors=self.errors)
         return text
 
     def build_inputs_with_special_tokens(

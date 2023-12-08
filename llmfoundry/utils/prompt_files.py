@@ -8,7 +8,7 @@ from composer.utils import get_file, parse_uri
 from datasets import load_dataset
 
 PROMPTFILE_PREFIX = 'file::'
-PROMPTDATASET_PREFIX = 'dataset::'
+PROMPTDATASET_PREFIX = 'hf://'
 
 
 def load_prompts(prompts: List[str],
@@ -25,11 +25,15 @@ def load_prompts(prompts: List[str],
     """
     prompt_strings = []
     for prompt in prompts:
+        backend, _, _ = parse_uri(prompt)
         if prompt.startswith(PROMPTFILE_PREFIX):
             prompts = load_prompts_from_file(prompt, prompt_delimiter)
             prompt_strings.extend(prompts)
         elif prompt.startswith(PROMPTDATASET_PREFIX):
             prompts = load_prompts_from_dataset(prompt, prompt_delimiter)
+            prompt_strings.extend(prompts)
+        elif backend not in ['', None]:
+            prompts = load_prompts_from_remote(prompt, prompt_delimiter)
             prompt_strings.extend(prompts)
         else:
             prompt_strings.append(prompt)
@@ -52,26 +56,46 @@ def load_prompts_from_file(prompt_path: str,
         raise ValueError(f'prompt_path_str must start with {PROMPTFILE_PREFIX}')
 
     _, prompt_file_path = prompt_path.split(PROMPTFILE_PREFIX, maxsplit=1)
-    backend, _, _ = parse_uri(prompt_file_path)
-    if backend in ['', None]:
-        # local file
-        prompt_file_path = os.path.expanduser(prompt_file_path)
-        if not os.path.isfile(prompt_file_path):
-            raise FileNotFoundError(
-                f'{prompt_file_path=} does not match any existing files.')
-        else:
-            local_path = prompt_file_path
-    else:
-        # file in object storage
-        local_path = prompt_file_path.split('/')[-1]
-        get_file(path=prompt_file_path, destination=local_path)
+    # local file
+    prompt_file_path = os.path.expanduser(prompt_file_path)
+    if not os.path.isfile(prompt_file_path):
+        raise FileNotFoundError(
+            f'{prompt_file_path=} does not match any existing files.')
 
-    with open(local_path, 'r') as f:
+    with open(prompt_file_path, 'r') as f:
         prompt_string = f.read()
 
     if prompt_delimiter is None:
         return [prompt_string]
     return [i for i in prompt_string.split(prompt_delimiter) if i]
+
+
+def load_prompts_from_remote(prompt_path: str,
+                             prompt_delimiter: Optional[str] = None) -> List[str]:
+        """Load a set of prompts from object storage.
+    
+        Args:
+            prompt_path (str): Path for text file
+            prompt_delimiter (Optional str): Delimiter for text file
+                If not provided, assumes the prompt file is a single prompt (non-delimited)
+
+        Returns:
+            List of prompt string(s)
+        """
+        backend, _, _ = parse_uri(prompt_path)
+        if backend in ['', None]:
+            raise ValueError(
+                f'prompt_path_str must start with s3:// etc if using object storage')
+
+        local_path = prompt_path.split('/')[-1]
+        get_file(path=prompt_path, destination=local_path)
+
+        with open(local_path, 'r') as f:
+            prompt_string = f.read()
+
+        if prompt_delimiter is None:
+            return [prompt_string]
+        return [i for i in prompt_string.split(prompt_delimiter) if i]
 
 
 def load_prompts_from_dataset(dataset_path: str,

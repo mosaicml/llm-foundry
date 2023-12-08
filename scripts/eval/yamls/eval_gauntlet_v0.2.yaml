@@ -84,12 +84,6 @@ eval_gauntlet:
     - name: simple_arithmetic_nospaces
       num_fewshot: 5
       random_baseline: 0.0
-    # - name: math_qa
-    #   num_fewshot: 10
-    #   random_baseline: 0.25
-    # - name: logi_qa
-    #   num_fewshot: 10
-    #   random_baseline: 0.25
     - name: aqua
       num_fewshot: 3
       random_baseline: 0.0

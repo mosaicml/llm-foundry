@@ -157,17 +157,6 @@ icl_tasks:
   num_fewshot: [5]
   icl_task_type: language_modeling
 -
-  label: math_qa
-  dataset_uri: eval/local_data/symbolic_problem_solving/math_qa.jsonl
-  num_fewshot: [10]
-  icl_task_type: multiple_choice
--
-  label: logi_qa
-  dataset_uri: eval/local_data/symbolic_problem_solving/logi_qa.jsonl
-  num_fewshot: [10]
-  icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
--
   label: pubmed_qa_labeled
   dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl
   num_fewshot: [10]

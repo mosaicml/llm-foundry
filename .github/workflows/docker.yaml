@@ -17,12 +17,6 @@ jobs:
     strategy:
       matrix:
         include:
-        - name: '1.13.1_cu117'
-          base_image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
-          dep_groups: '[gpu]'
-        - name: '2.0.1_cu118'
-          base_image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
-          dep_groups: '[gpu]'
         - name: '2.1.0_cu121'
           base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
           dep_groups: '[gpu]'

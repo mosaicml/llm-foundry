@@ -174,7 +174,7 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
         # Gets copied per worker and we cannot check the waste for child processes.
         'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0,
     })

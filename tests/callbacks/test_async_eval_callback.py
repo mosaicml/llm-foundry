@@ -81,10 +81,12 @@ def test_get_eval_parameters():
     with pytest.raises(
             Exception,
             match='Missing the following required parameters for async eval:'):
-        get_eval_parameters({}, 'checkpoints/file', RUN_NAME)
+        get_eval_parameters({}, 'checkpoints/file', RUN_NAME,
+                            Time(0, TimeUnit.EPOCH))
 
     # minimal example
-    params = get_eval_parameters(BASIC_PARAMS, 'checkpoints/file', RUN_NAME)
+    params = get_eval_parameters(BASIC_PARAMS, 'checkpoints/file', RUN_NAME,
+                                 Time(0, TimeUnit.EPOCH))
     assert params == {
         'device_eval_batch_size':
             2,
@@ -122,7 +124,14 @@ def test_get_eval_parameters():
             },
             'icl_subset_num_batches': 4,
             'loggers': {
-                'loggers_example': 'loggers_example'
+                'wandb': {
+                    'init_kwargs': {
+                        'config': {
+                            'foo': 'bar'
+                        },
+                        'fee': 'bee'
+                    }
+                }
             },
             'precision': 'precision_example',
             'python_log_level': 'debug',
@@ -132,6 +141,7 @@ def test_get_eval_parameters():
         },
         'checkpoints/file',
         RUN_NAME,
+        Time(0, TimeUnit.EPOCH),
     )
     assert params2 == {
         'device_eval_batch_size': 2,
@@ -159,7 +169,17 @@ def test_get_eval_parameters():
         },
         'icl_subset_num_batches': 4,
         'loggers': {
-            'loggers_example': 'loggers_example'
+            'wandb': {
+                'group': 'foo_bar-1234',
+                'init_kwargs': {
+                    'config': {
+                        'eval_interval': 0,
+                        'eval_interval_units': 'ep',
+                        'foo': 'bar'
+                    },
+                    'fee': 'bee'
+                },
+            }
         },
         'precision': 'precision_example',
         'python_log_level': 'debug',
@@ -224,7 +244,7 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
     assert mock_get_run.call_count == 1
     assert mock_get_run.call_args[0][0] == RUN_NAME
 
-    callback.launch_run('checkpoint/path', '1ba')
+    callback.launch_run('checkpoint/path', Time(1, TimeUnit.BATCH))
     assert mock_create_run.call_count == 1
 
     run_config_created = mock_create_run.call_args[0][0]
@@ -300,7 +320,7 @@ def test_async_eval_callback_integrations(mock_create_run: MagicMock,
                          })
     assert mock_get_run.call_count == 1
 
-    callback.launch_run('checkpoint/path', '1ba')
+    callback.launch_run('checkpoint/path', Time(1, TimeUnit.BATCH))
     assert mock_create_run.call_count == 1
     run_config_created = mock_create_run.call_args[0][0]
 

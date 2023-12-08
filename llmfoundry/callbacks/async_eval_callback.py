@@ -103,6 +103,7 @@ def get_eval_parameters(
     parameters: Dict[str, Any],
     checkpoint: str,
     training_run_name: str,
+    interval: Time,
 ) -> Dict[str, Any]:
     """Get the parameters needed for the eval run.
 
@@ -110,6 +111,7 @@ def get_eval_parameters(
         parameters: The parameters from the training run
         checkpoint: The path to the latest checkpoint
         training_run_name: The name of the training run
+        interval: The current Time interval
 
     Returns:
         The parameters needed for the eval run as a dict
@@ -133,6 +135,13 @@ def get_eval_parameters(
     for logger, config in subset_keys.get('loggers', {}).items():
         if logger == 'wandb':
             config['group'] = config.pop('name', training_run_name)
+
+            config['init_kwargs'] = config.pop('init_kwargs', {})
+            config['init_kwargs']['config'] = config['init_kwargs'].pop(
+                'config', {})
+            config['init_kwargs']['config']['eval_interval'] = interval.value
+            config['init_kwargs']['config'][
+                'eval_interval_units'] = interval.unit.value
 
         # mlflow currently does not support grouping, so this will just launch
         # a new mlflow run
@@ -231,6 +240,7 @@ class AsyncEval(Callback):
             parameters=training_config,
             checkpoint='test',
             training_run_name=self.current_run.name,
+            interval=Time(0, self.interval.unit),
         )
         log.info(
             f'Initialized AsyncEval callback. Will generate runs at interval {interval}'
@@ -246,7 +256,7 @@ class AsyncEval(Callback):
         ])
 
         if should_launch_run:
-            current_interval = str(state.timestamp.get(self.interval.unit))
+            current_interval = state.timestamp.get(self.interval.unit)
             checkpoint = get_latest_checkpoint(event, state)
             if not checkpoint:
                 return  # warnings logged in get_latest_checkpoint
@@ -264,7 +274,6 @@ class AsyncEval(Callback):
             self.last_checkpoint = full_checkpoint
 
     def close(self, state: State, logger: Logger) -> None:
-        del state
         del logger
 
         if dist.get_global_rank() != 0:
@@ -278,7 +287,7 @@ class AsyncEval(Callback):
             save_latest_filename = f'latest-rank{rank}.pt'
 
         checkpoint = f'{self.checkpoint_save_folder}/{save_latest_filename}'
-        self.launch_run(checkpoint, 'final')
+        self.launch_run(checkpoint, state.timestamp.get(self.interval.unit))
 
     def _get_current_run(self) -> Run:
         if os.environ.get(MOSAICML_PLATFORM_ENV_VAR,
@@ -296,7 +305,7 @@ class AsyncEval(Callback):
         # Allows the MapiException to be raised if the run doesn't exist
         return get_run(run_name, include_details=True)
 
-    def launch_run(self, checkpoint: str, current_interval: str) -> Run:
+    def launch_run(self, checkpoint: str, current_interval: Time) -> Run:
         log.info(f'Launching eval run for {checkpoint} at {current_interval}')
 
         cfg = self.current_run.submitted_config
@@ -305,12 +314,13 @@ class AsyncEval(Callback):
             'cluster': self.current_run.cluster,
         }
 
-        run_name = get_run_name(self.current_run.name, current_interval)
+        run_name = get_run_name(self.current_run.name, str(current_interval))
 
         params = get_eval_parameters(
             parameters=self.training_config,
             checkpoint=checkpoint,
             training_run_name=self.current_run.name,
+            interval=current_interval,
         )
         params['run_name'] = run_name
 

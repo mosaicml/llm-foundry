@@ -140,7 +140,7 @@ def evaluate_model(
         callbacks.append(eval_gauntlet_callback)
 
     loggers: List[LoggerDestination] = [
-        build_logger(name, logger_cfg)
+        build_logger(name, om.to_container(logger_cfg, resolve=True))
         for name, logger_cfg in loggers_cfg.items()
     ]
 

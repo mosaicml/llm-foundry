@@ -130,6 +130,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
         self.byte_encoder = bytes_to_unicode()
         self.byte_decoder = {v: k for k, v in self.byte_encoder.items()}
+        self.errors = errors
 
         self.decoder: Dict[int, str] = {}
         for i in range(self.encoding.n_vocab):

@@ -10,7 +10,6 @@ import numpy as np
 import torch
 from composer.utils import using_torch_2
 from omegaconf import DictConfig
-from streaming.base.util import clean_stale_shared_memory
 from transformers import PreTrainedTokenizerBase
 
 log = logging.getLogger(__name__)

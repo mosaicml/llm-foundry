@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import Mock, patch
 
-import numpy as np
 import pytest
 import torch
 from composer.utils import dist, reproducibility, using_torch_2

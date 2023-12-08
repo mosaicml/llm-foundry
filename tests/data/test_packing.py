@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import torch
-from composer.utils import dist, reproducibility, using_torch_2
+from composer.utils import dist, reproducibility
 from omegaconf import DictConfig
 from pytest import approx
 from streaming import MDSWriter
@@ -212,7 +212,7 @@ def test_packing_with_dataloader(packing_ratio: Any):
         # Gets copied per worker and we cannot check the waste for child processes.
         'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0,
     })

@@ -85,21 +85,14 @@ Something missing? Contribute with a PR!
 
 
 # Hardware and Software Requirements
-This codebase has been tested with PyTorch 1.13.1 and PyTorch 2.0.1 on systems with NVIDIA A100s and H100s.
+This codebase has been tested with PyTorch 2.1 with NVIDIA A100s and H100s.
 This codebase may also work on systems with other devices, such as consumer NVIDIA cards and AMD cards, but we are not actively testing these systems.
 If you have success/failure using LLM Foundry on other systems, please let us know in a Github issue and we will update the support matrix!
 
 | Device         | Torch Version | Cuda Version | Status                       |
 | -------------- | ------------- | ------------ | ---------------------------- |
-| A100-40GB/80GB | 1.13.1        | 11.7         | :white_check_mark: Supported |
-| A100-40GB/80GB | 2.0.1         | 11.7, 11.8   | :white_check_mark: Supported |
-| A100-40GB/80GB | 2.1.0         | 11.8, 12.1   | :white_check_mark: Supported |
-| H100-80GB      | 1.13.1        | 11.7         | :x: Not Supported            |
-| H100-80GB      | 2.0.1         | 11.8         | :white_check_mark: Supported |
+| A100-40GB/80GB | 2.1.0         | 12.1         | :white_check_mark: Supported |
 | H100-80GB      | 2.1.0         | 12.1         | :white_check_mark: Supported |
-| A10-24GB       | 1.13.1        | 11.7         | :construction: In Progress   |
-| A10-24GB       | 2.0.1         | 11.7, 11.8   | :construction: In Progress   |
-| MI250          | 2.0.1         | ROCm 5.4     | :construction: In Progress   |
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.
@@ -113,11 +106,7 @@ You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117
 
 | Docker Image                                           | Torch Version | Cuda Version      | LLM Foundry dependencies installed? |
 | ------------------------------------------------------ | ------------- | ----------------- | ----------------------------------- |
-| `mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04` | 1.13.1        | 11.7 (Infiniband) | No                                  |
-| `mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04`  | 2.0.1         | 11.8 (Infiniband) | No                                  |
 | `mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04`  | 2.1.0         | 12.1 (Infiniband) | No                                  |
-| `mosaicml/llm-foundry:1.13.1_cu117-latest`             | 1.13.1        | 11.7 (Infiniband) | Yes                                 |
-| `mosaicml/llm-foundry:2.0.1_cu118-latest`              | 2.0.1         | 11.8 (Infiniband) | Yes                                 |
 | `mosaicml/llm-foundry:2.1.0_cu121-latest`              | 2.1.0         | 12.1 (Infiniband) | Yes (flash attention v1)            |
 | `mosaicml/llm-foundry:2.1.0_cu121_flash2-latest`       | 2.1.0         | 12.1 (Infiniband) | Yes (flash attention v2)            |
 | `mosaicml/llm-foundry:2.1.0_cu121_aws-latest`          | 2.1.0         | 12.1 (EFA)        | Yes (flash attention v1)            |

@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 import pytest
 import torch
 import transformers
-from composer.utils import dist, using_torch_2
+from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
@@ -272,7 +272,7 @@ def test_finetuning_dataloader(decoder_only_format: bool,
         'drop_last': False,
         'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0
     }
@@ -569,7 +569,7 @@ def test_malformed_data(
         },
         'drop_last': False,
         'num_workers': 0,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'pin_memory': False,
         'persistent_workers': False,
         'timeout': 0
@@ -679,7 +679,7 @@ def test_token_counting_func_dataloader_setting(
     common_args = {
         'drop_last': False,
         'num_workers': 0,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'pin_memory': False,
         'persistent_workers': False,
         'timeout': 0

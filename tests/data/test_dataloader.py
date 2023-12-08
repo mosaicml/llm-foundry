@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 import pytest
 import torch
 import transformers
-from composer.utils import dist, using_torch_2
+from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
@@ -21,6 +21,9 @@ from streaming import MDSWriter
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data import build_dataloader
+from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
+                                              _ALLOWED_RESPONSE_KEYS,
+                                              _tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
@@ -269,7 +272,7 @@ def test_finetuning_dataloader(decoder_only_format: bool,
         'drop_last': False,
         'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0
     }
@@ -355,16 +358,47 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
         error_context = pytest.raises(ValueError, match='Your dataset')
     if invalid_dataset:
-        error_context = pytest.raises(
-            TypeError,
-            match='Unable to tokenize example because "prompt" was not a string'
-        )
+        error_context = pytest.raises(TypeError,
+                                      match='Unable to tokenize example')
 
     with error_context:
         _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
 
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
+
+
+def test_tokenize_example_malformed():
+    no_keys = {}
+    no_prompt_key = {'response': 'response'}
+    no_response_key = {'prompt': 'prompt'}
+    extra_keys_with_prompt = {'prompt': 'prompt', 'extra': 'extra'}
+    extra_keys_with_response = {'response': 'response', 'extra': 'extra'}
+    multiple_allowed_response_keys = {
+        'prompt': 'prompt',
+        'response': 'response',
+        'completion': 'completion'
+    }
+
+    malformed_examples = [
+        no_keys, no_prompt_key, no_response_key, extra_keys_with_prompt,
+        extra_keys_with_response, multiple_allowed_response_keys
+    ]
+
+    for example in malformed_examples:
+        with pytest.raises(KeyError):
+            _tokenize_formatted_example(example, MagicMock())
+
+
+def test_tokenize_example_well_formed():
+    tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
+
+    for prompt_key in _ALLOWED_PROMPT_KEYS:
+        for response_key in _ALLOWED_RESPONSE_KEYS:
+            example = {prompt_key: 'prompt', response_key: 'response'}
+            tokenized_example = _tokenize_formatted_example(example, tokenizer)
+            assert 'input_ids' in tokenized_example
+            assert 'labels' in tokenized_example
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'data'])
@@ -535,7 +569,7 @@ def test_malformed_data(
         },
         'drop_last': False,
         'num_workers': 0,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'pin_memory': False,
         'persistent_workers': False,
         'timeout': 0
@@ -645,7 +679,7 @@ def test_token_counting_func_dataloader_setting(
     common_args = {
         'drop_last': False,
         'num_workers': 0,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'pin_memory': False,
         'persistent_workers': False,
         'timeout': 0

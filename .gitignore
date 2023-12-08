@@ -150,3 +150,8 @@ dmypy.json
 
 # notebooks
 notebooks/
+
+# artifacts from training
+**/*.pt
+**/mlruns/*
+**/tokenizer-save-dir-*/**

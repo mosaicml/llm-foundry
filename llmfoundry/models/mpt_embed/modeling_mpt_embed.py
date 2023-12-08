@@ -178,27 +178,23 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
                 f'Specified loss_fn={self.loss_fn} not recognized. `loss_fn` must be one of [`fused_crossentropy`, `torch_crossentropy`].'
             )
 
-    def format_queries_batch(self, batch):
+    def format_queries_batch(self, batch, last_hidden_state):
         """ Format `queries` by selecting every other pair from the batch 
         JP: Note that there could be a better way to do this
         """
         queries = {}
         for key in batch.keys():
-            # old queries[key] = batch[key][:,0::2,:].reshape(batch[key].size(0), -1)
-            queries[key] = batch[key][0::2,:] # no need to reshape.reshape(batch[key].size(0), -1)
-        
-        return queries
+            queries[key] = batch[key][0::2, :] # no need to reshape.reshape(batch[key].size(0), -1)
+            
+        return queries, last_hidden_state[0::2, :, :]
     
-    def format_passages_batch(self, batch):
+    def format_passages_batch(self, batch, last_hidden_state):
         """ Format `passages` by selecting every other pair from the batch """
         passages = {}
         for key in batch.keys():
-            #passages[key] = batch[key][:,1::2,:].reshape(batch[key].size(0), -1)
             passages[key] = batch[key][1::2,:] #.reshape(batch[key].size(0), -1)
         
-        return passages
-    
-
+        return passages, last_hidden_state[1::2, :, :]
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
         if self.model.transformer.prefix_lm:
@@ -240,7 +236,7 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             inputs_embeds=batch.get('inputs_embeds', None),
         )
     
-    def _compute_scores(self, batch) -> Tuple:
+    def _compute_scores(self, batch, outputs) -> Tuple:
 
         """
         Run Pairs through the encoder separately in two passes, designated as q (query) and p (passage)
@@ -252,8 +248,8 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         BERT formula to keep track of sentences A and sentences B in the next sentence prediction objective
         function. For now we split even and odd rows
         """
-        queries_batch = self.format_queries_batch(batch)
-        passages_batch = self.format_passages_batch(batch)
+        (queries_batch, queries_last_hidden_state) = self.format_queries_batch(batch, outputs.hidden_states)
+        (passages_batch, passages_last_hidden_state) = self.format_passages_batch(batch, outputs.hidden_states)
         
         
         # print(self.tokenizer.decode(queries_batch['input_ids'][0]))
@@ -265,29 +261,6 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         #
         # in order to access the final output of the hidden states, we can do hidden_states[-1]
         
-        # JP changed to match current standard for MPTModel
-        q_encoder_outputs = self.model(
-                                        input_ids=queries_batch['input_ids'],
-                                        attention_mask=queries_batch.get('attention_mask', None),
-                                        prefix_mask=queries_batch.get('prefix_mask', None),
-                                        sequence_id=queries_batch.get('sequence_id', None),
-                                        inputs_embeds=queries_batch.get('inputs_embeds', None),
-                                    )
-
-        p_encoder_outputs = self.model(
-                                        input_ids=passages_batch['input_ids'],
-                                        attention_mask=passages_batch.get('attention_mask', None),
-                                        prefix_mask=passages_batch.get('prefix_mask', None),
-                                        sequence_id=passages_batch.get('sequence_id', None),
-                                        inputs_embeds=passages_batch.get('inputs_embeds', None),
-                                    )
-                                    # was previously
-                                    #     token_type_ids=passages_batch.get('token_type_ids', None),
-                                    #     attention_mask=passages_batch.get('attention_mask', None),
-                                    #     position_ids=passages_batch.get('position_ids', None),
-                                    #     masked_tokens_mask=passages_batch.get('masked_tokens_mask', None),
-                                    # )
-
         # JP: Note we went from p_encoder_outputs.masked_fill to q_encoder_outputs.hidden_states.masked_fill
         # Might need to do hidden_states[-1] to only select activations from the last layer
         #
@@ -296,10 +269,10 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         # q_last_hidden also has shape [16,128,768]. q_pooled_outputs should be [16,768]
         
         # print('\nq_encoder_outputs.hidden_states[-1].shape: ', q_encoder_outputs.hidden_states[-1].shape)
-        q_last_hidden = q_encoder_outputs.hidden_states.masked_fill(~queries_batch.get('attention_mask', None)[..., None].bool(), 0.0)
+        q_last_hidden = queries_last_hidden_state.masked_fill(~queries_batch.get('attention_mask', None)[..., None].bool(), 0.0)
         q_pooled_outputs = q_last_hidden.sum(dim=1) / queries_batch.get('attention_mask', None).sum(dim=1)[..., None]
         
-        p_last_hidden = p_encoder_outputs.hidden_states.masked_fill(~passages_batch.get('attention_mask', None)[..., None].bool(), 0.0)
+        p_last_hidden = passages_last_hidden_state.masked_fill(~passages_batch.get('attention_mask', None)[..., None].bool(), 0.0)
         p_pooled_outputs = p_last_hidden.sum(dim=1) / passages_batch.get('attention_mask', None).sum(dim=1)[..., None]
         
         #print('>>p_pooled_outputs shape:',p_pooled_outputs.shape)
@@ -355,7 +328,7 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
     def loss(self, outputs: CausalLMOutputWithPast,
              batch: Mapping) -> torch.Tensor:
         
-        scores, labels = self._compute_scores(batch)
+        scores, labels = self._compute_scores(batch, outputs)
                 
         loss = self.loss_fn(scores, labels)
 

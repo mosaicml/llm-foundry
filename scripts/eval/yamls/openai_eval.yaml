@@ -8,27 +8,24 @@ models:
     name: openai_causal_lm
     version: davinci
   tokenizer:
-    name: openai
+    name: tiktoken
     kwargs:
-      name: davinci
--
-  model_name: openai/gpt-4
-  model:
-    name: openai_chat
-    version: gpt-4
-  tokenizer:
-    name: openai
-    kwargs:
-      name: gpt-4
+      model_name: davinci
 -
   model_name: openai/gpt-3.5-turbo
   model:
     name: openai_chat
     version: gpt-3.5-turbo
   tokenizer:
-    name: openai
+    name: tiktoken
     kwargs:
-      name: gpt-3.5-turbo
+      model_name: gpt-3.5-turbo
 
-icl_tasks: 'eval/yamls/lm_tasks.yaml'
-eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+icl_tasks: 
+-
+  label: jeopardy
+  dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  has_categories: true

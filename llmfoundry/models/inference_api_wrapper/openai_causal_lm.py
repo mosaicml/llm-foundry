@@ -162,6 +162,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         # than what the continuation would expect.
         # Get around this issue by retokenizing the batch to remove spacing from the continuation as well as
         # decoding the whole continuation at once.
+        padding_tok = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id else self.tokenizer.eos_token_id
         output_logits_batch = []
         batch = self.rebatch(batch)
         for tokens, cont_idxs in zip(batch['input_ids'],
@@ -183,7 +184,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 output_logits = torch.cat([output_logits, next_logit_tensor])
             padding = torch.nn.functional.one_hot(
                 torch.full((seqlen - output_logits.shape[0],),
-                           self.tokenizer.pad_token_id),
+                           padding_tok),
                 num_classes=self.tokenizer.vocab_size)
             output_logits = torch.cat([output_logits, padding])
             output_logits_batch.append(output_logits)

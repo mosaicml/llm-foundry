@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Copied from https://github.com/Dao-AILab/flash-attention/blob/v1.0.9/flash_attn/losses/cross_entropy.py
+# Copied from https://github.com/Dao-AILab/flash-attention/blob/f1a73d074002226c42ce65a1df170ecff9f022c0/flash_attn/losses/cross_entropy.py
 # type: ignore
 
 # Inspired by https://github.com/NVIDIA/apex/blob/master/apex/transformer/tensor_parallel/cross_entropy.py
@@ -24,14 +24,16 @@ if 'all_gather_into_tensor' not in dir(torch.distributed):
 class SoftmaxCrossEntropyLossFn(torch.autograd.Function):
 
     @staticmethod
-    def forward(ctx,
-                logits,
-                labels,
-                smoothing=0.0,
-                ignored_index=-100,
-                inplace_backward=False,
-                process_group=None):
-        """Forward function for the softmax cross entropy loss.
+    def forward(
+        ctx,
+        logits,
+        labels,
+        smoothing=0.0,
+        ignored_index=-100,
+        inplace_backward=False,
+        process_group=None,
+    ):
+        """The forward function for softmax cross entropy loss.
 
         logits: (batch, vocab_size)
         labels: (batch,)
@@ -105,8 +107,8 @@ class SoftmaxCrossEntropyLossFn(torch.autograd.Function):
             if smoothing == 0.0:
                 losses += lse - lse_local
             else:
-                losses += ((1 - smoothing) * (lse - lse_local) + smoothing *
-                           (lse - lse_allgather.sum(dim=0)))
+                losses += (1 - smoothing) * (lse - lse_local) + smoothing * (
+                    lse - lse_allgather.sum(dim=0))
             losses.masked_fill_(ignored_mask, 0)
 
         ctx.save_for_backward(logits, lse, labels_local)
@@ -129,12 +131,14 @@ class SoftmaxCrossEntropyLossFn(torch.autograd.Function):
 
 class CrossEntropyLoss(nn.Module):
 
-    def __init__(self,
-                 ignore_index=-100,
-                 reduction='mean',
-                 label_smoothing=0.0,
-                 inplace_backward=False,
-                 process_group=None):
+    def __init__(
+        self,
+        ignore_index=-100,
+        reduction='mean',
+        label_smoothing=0.0,
+        inplace_backward=False,
+        process_group=None,
+    ):
         super().__init__()
         if reduction not in ['mean', 'none']:
             raise NotImplementedError(
@@ -148,11 +152,14 @@ class CrossEntropyLoss(nn.Module):
     def forward(self, input, target):
         assert input.is_cuda and target.is_cuda
         # SoftmaxCrossEntropyLoss implicitly casts to float
-        loss = SoftmaxCrossEntropyLossFn.apply(input, target,
-                                               self.label_smoothing,
-                                               self.ignore_index,
-                                               self.inplace_backward,
-                                               self.process_group)
+        loss = SoftmaxCrossEntropyLossFn.apply(
+            input,
+            target,
+            self.label_smoothing,
+            self.ignore_index,
+            self.inplace_backward,
+            self.process_group,
+        )
         if self.reduction == 'mean':
             return loss.sum() / (target != self.ignore_index).sum()
         else:

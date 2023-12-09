@@ -5,6 +5,7 @@ import argparse
 import logging
 import os
 import time
+import random
 
 import urllib.parse
 import pandas as pd
@@ -19,6 +20,8 @@ import subprocess
 
 import patch # Monkey Patching for SparkConnectClient
 import requests
+import pyarrow as pa
+import lz4.frame
 
 
 log = logging.getLogger(__name__)
@@ -50,11 +53,63 @@ def get_args(signed, json_output_path):
         yield (i, r.url, json_output_path)
 
 def download_json(i, url, json_output_path):
-    data =requests.get(url).json()
-    pd.DataFrame.from_dict(data).to_json(os.path.join(json_output_path, 'part_'+str(i)+'.json'))
+    for attempt in range(3):
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                pd.DataFrame.from_dict(data).to_json(os.path.join(json_output_path, 'part_'+str(i)+'.json'))
+                break  # Break the loop if the request is successful
+            else:
+                print(f"Attempt {attempt + 1} failed with status code {response.status_code}")
+        except requests.RequestException as e:
+            print(f"An error occurred: {e}")
+
+        time.sleep(random.randint(1, 5))
+
+        if attempt == retries - 1:
+            raise RuntimeError("Failed to download after 3 attempts")
+
 
 def download_json_starargs(args: Tuple):
     return download_json(*args)
+
+
+def download_arrow(i, url, json_output_path):
+    resp = requests.get(url)
+    if resp.status_code == 200:
+        try:
+            # Debug: Check the first few bytes of the response
+            print("First 100 bytes of response:", resp.content[:100])
+
+            # Decompress the data
+            decompressed_data = lz4.frame.decompress(resp.content)
+
+        except RuntimeError as e:
+            print("Decompression error:", e)
+            print("Response headers:", resp.headers)
+            # Optionally, write the raw response to a file for analysis
+            with open("raw_response_data.bin", "wb") as file:
+                file.write(resp.content)
+            raise
+
+#def download_arrow(i, url, json_output_path):
+#    resp = requests.get(url)
+#    if resp.status_code == 200:
+#        # The data is lz4 compressed arrow format.
+#        # Decompress the data
+#        decompressed_data = lz4.frame.decompress(resp.content)
+#
+#        # Convert the decompressed data into a PyArrow table
+#        reader = pa.ipc.open_stream(decompressed_data)
+#        table = reader.read_all()
+#
+#        # Convert the PyArrow table into a pandas DataFrame
+#        df = table.to_pandas()
+#        df.to_json(os.path.join(json_output_path, 'part_'+str(i)+'.json'))
+
+def download_arrow_starargs(args: Tuple):
+    return download_arrow(*args)
 
 def fetch_data_starargs(args: Tuple):
     return fetch_data(*args)
@@ -115,24 +170,20 @@ def fetch(method,
     obj = urllib.parse.urlparse(json_output_path)
 
     if method == 'dbconnect':
-        #df = run_query(f"SELECT * FROM {tablename}", method, cursor, sparkSession, collect=False)
         print('partitions = ', partitions)
-        df = sparkSession.table("main.tpcds_sf100_delta.store_sales")
+        df = sparkSession.table(tablename) # "main.tpcds_sf100_delta.store_sales")
 
-        #dbfs_cache = 'dbfs:/' + json_output_path.lstrip('/')
-        #df.repartition(partitions).write.mode("overwrite").json(dbfs_cache)
-        #print(f"downloading from {dbfs_cache} to {json_output_path}")
-        #subprocess.run(f"databricks fs cp -r {dbfs_cache} {json_output_path}", shell=True, capture_output=True, text=True)
-        #subprocess.run(f"databricks fs rm -r {dbfs_cache}", shell=True, capture_output=True, text=True)
-        signed, rows, overflow = df.collect_cf("json")
-        print(len(signed))
-        print(signed)
-        print(rows)
-        print(overflow)
-
+        # Running the query and collecting the data as arrow.
+        signed, rows, overflow = df.collect_cf("json") # "arrow")
+        print(f"len(signed) = {len(signed)}")
         args = get_args(signed, json_output_path)
-        with ProcessPoolExecutor(max_workers=partitions) as executor:
-            list(executor.map(download_json_starargs, args))
+        # Stopping the SparkSession to avoid spilling connection state into the subprocesses.
+        sparkSession.stop()
+        #with ProcessPoolExecutor(max_workers=partitions) as executor:
+            #list(executor.map(download_arrow_starargs, args))
+            #list(executor.map(download_json_starargs, args))
+        with Pool(partitions) as p:
+            p.map(download_json_starargs, args)
 
     elif method == 'dbsql':
         ans = run_query(query, method, cursor, sparkSession, collect=True)
@@ -187,7 +238,9 @@ def fetch_DT(*args: Any, **kwargs: Any):
     else:
         method = 'dbconnect'
         session_id = str(uuid4())
+        #sparkSession = DatabricksSession.builder.host(args.DATABRICKS_HOST).token(args.DATABRICKS_TOKEN)._cluster_id("0704-124501-tsc2fxq").getOrCreate()
         sparkSession = DatabricksSession.builder.host(args.DATABRICKS_HOST).token(args.DATABRICKS_TOKEN).header("x-databricks-session-id", session_id).getOrCreate()
+        #sparkSession = DatabricksSession.builder.remote(host =args.DATABRICKS_HOST, token =args.DATABRICKS_TOKEN, cluster_id ="0704-124501-tsc2fxq").getOrCreate()
 
     fetch(method, args.delta_table_name, args.json_output_path, args.batch_size, args.partitions, sparkSession, dbsql)
 

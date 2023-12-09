@@ -80,8 +80,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
                     [output_logits,
                      next_logit_tensor.reshape(1, -1)])
             padding = torch.nn.functional.one_hot(
-                torch.full((seqlen - output_logits.shape[0],),
-                           padding_tok),
+                torch.full((seqlen - output_logits.shape[0],), padding_tok),
                 num_classes=self.tokenizer.vocab_size)
             output_logits = torch.cat([output_logits, padding])
             output_logits_batch.append(output_logits)

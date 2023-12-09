@@ -972,12 +972,12 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
             try:
-                from llmfoundry.models.layers.cross_entropy_loss import CrossEntropyLoss as FusedCrossEntropyLoss
-                # NOTE: The following is the original import statement from flash_attn library, which we have currently replaced with a copy pasted code from the same library's version 1.0.9. The reason is that flash_attn's version 2.3.2 has a bug in their Cross Entropy Loss that throws an illegal memory access error at long sequence lengths.
+                from llmfoundry.models.layers.cross_entropy_loss import \
+                    CrossEntropyLoss as FusedCrossEntropyLoss
 
+                # NOTE: The following is the original import statement from flash_attn library, which we have currently replaced with a copy pasted code from the same library's version 1.0.9. The reason is that flash_attn's version 2.3.2 has a bug in their Cross Entropy Loss that throws an illegal memory access error at long sequence lengths.
                 # from flash_attn.losses.cross_entropy import \
                 #     CrossEntropyLoss as FusedCrossEntropyLoss
-                
                 # TODO: Once the flash_attn library is updated to fix the bug in their Cross Entropy Loss, we can revert back to the original import statement.
 
                 self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)

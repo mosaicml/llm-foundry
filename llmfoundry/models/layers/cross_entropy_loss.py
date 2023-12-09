@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Originally copied from https://github.com/Dao-AILab/flash-attention/blob/v1.0.9/flash_attn/losses/cross_entropy.py
+# Copied from https://github.com/Dao-AILab/flash-attention/blob/v1.0.9/flash_attn/losses/cross_entropy.py
 # type: ignore
 
 # Inspired by https://github.com/NVIDIA/apex/blob/master/apex/transformer/tensor_parallel/cross_entropy.py

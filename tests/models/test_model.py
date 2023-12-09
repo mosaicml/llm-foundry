@@ -350,7 +350,8 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     [('torch', torch.float16), ('torch', torch.bfloat16),
      pytest.param('flash', torch.float16, marks=pytest.mark.gpu),
      pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu)])
-def test_determinism(attn_impl: str, precision: torch.dtype):
+@pytest.mark.parametrize('ffn_type', ['mptmlp', 'mptgeglu'])
+def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str):
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
@@ -358,6 +359,10 @@ def test_determinism(attn_impl: str, precision: torch.dtype):
     test_cfg.model.attn_config = {
         'attn_impl': attn_impl,
     }
+    if hasattr(test_cfg.model, 'ffn_config'):
+        test_cfg.model.ffn_config['ffn_type'] = ffn_type
+    else:
+        test_cfg.model.setdefault('ffn_config', {'ffn_type': ffn_type})
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 

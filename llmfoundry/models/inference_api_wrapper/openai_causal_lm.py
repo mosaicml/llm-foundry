@@ -31,7 +31,9 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
-        assert os.getenv('OPENAI_API_KEY') is not None, "No OpenAI API Key found. Ensure it is saved as an environmental variable called OPENAI_API_KEY."
+        assert os.getenv(
+            'OPENAI_API_KEY'
+        ) is not None, 'No OpenAI API Key found. Ensure it is saved as an environmental variable called OPENAI_API_KEY.'
         try:
             import openai
         except ImportError as e:
@@ -45,7 +47,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
     def generate_completion(self, prompt: str, num_tokens: int):
         raise NotImplementedError()
 
-    def process_result(self, completion: Optional[dict]):
+    def process_result(self, completion):  # pyright: ignore
         raise NotImplementedError()
 
     def get_next_token_logit_tensor(self, prompt: str, num_tokens: int = 1):
@@ -69,13 +71,14 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 completion = self.generate_completion(prompt, num_tokens)
                 break
             except RateLimitError as e:
-                if 'You exceeded your current quota' in str(e._message):
+                if 'You exceeded your current quota' in str(
+                        e._message):  # pyright: ignore
                     raise e
                 delay *= 2 * (1 + random.random())
                 sleep(delay)
                 continue
             except Exception as e:
-                print(f"Found Exception: {e}")
+                print(f'Found Exception: {e}')
                 # TODO: Why continue on unspecified Exception?
                 continue
         return completion
@@ -88,8 +91,16 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
         self.generate_completion = lambda prompt, num_tokens: self.client.chat.completions.create(
             model=self.model_name,
-            messages=[{'role': 'system', 'content': model_cfg.get('sytsem_role_prompt', 'Please complete the following text: ')},
-                      { 'role': 'user', 'content': prompt }],
+            messages=[{
+                'role':
+                    'system',
+                'content':
+                    model_cfg.get('sytsem_role_prompt',
+                                  'Please complete the following text: ')
+            }, {
+                'role': 'user',
+                'content': prompt
+            }],
             max_tokens=num_tokens,
             temperature=0.0)
 
@@ -187,11 +198,11 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
         return torch.stack(output_logits_batch).to(batch['input_ids'].device)
 
-    def process_result(self, completion):
-        # assert isinstance(completion, ChatCompletion)
-        if len(completion.choices) > 0:
+    def process_result(self, completion):  # pyright: ignore
+        if len(completion.choices) > 0:  # pyright: ignore
             tensors = []
-            for t in self.tokenizer(completion.choices[0].message.content)['input_ids']:
+            for t in self.tokenizer(completion.choices[0].message.content
+                                   )['input_ids']:  # pyright: ignore
                 tensors.append(
                     self.tokenizer.construct_logit_tensor(
                         {self.tokenizer.decode([t]): 0.0}))
@@ -217,10 +228,9 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
             logprobs=5,
             temperature=0.0)
 
-    def process_result(self, completion):
+    def process_result(self, completion):  # pyright: ignore
         if completion is None:
             raise ValueError("Couldn't generate model output")
-
         if len(completion.choices[0].logprobs.top_logprobs[0]) > 0:
             tensor = self.tokenizer.construct_logit_tensor(
                 dict(completion.choices[0].logprobs.top_logprobs[0]))

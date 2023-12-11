@@ -4,26 +4,34 @@
 import math
 import os
 import pathlib
+import sys
+from typing import Callable
+from unittest.mock import ANY, MagicMock, patch
+
+from composer import Trainer
+from composer.loggers import MLFlowLogger
+from composer.utils import dist, get_device, using_torch_2
+
+from llmfoundry.callbacks import HuggingFaceCheckpointer
+from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
+
+# Add repo root to path so we can import scripts and test it
+repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(repo_dir)
 import shutil
 from argparse import Namespace
-from typing import Callable, Optional, cast
-from unittest.mock import ANY, MagicMock, patch
+from typing import Optional, cast
 
 import pytest
 import torch
 import transformers
-from composer import Trainer
-from composer.loggers import MLFlowLogger
-from composer.utils import dist, get_device
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.data.finetuning import build_finetuning_dataloader
-from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_optimizer, build_tokenizer
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset

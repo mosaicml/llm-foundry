@@ -14,7 +14,7 @@ import torch
 import transformers
 from composer import Trainer
 from composer.loggers import MLFlowLogger
-from composer.utils import dist, get_device, using_torch_2
+from composer.utils import dist, get_device
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
@@ -497,7 +497,7 @@ def test_huggingface_conversion_callback(
         'drop_last': False,
         'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0
     }

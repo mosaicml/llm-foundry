@@ -212,15 +212,17 @@ def build_callback(
         if config is None:
             raise ValueError(
                 'Parameters config is required for async eval callback')
-        return AsyncEval(**kwargs, training_config=config)
+
+        config_dict = {
+            k: v if isinstance(v, str) else om.to_container(v, resolve=True)
+            for k, v in kwargs.items()
+        }
+        return AsyncEval(**kwargs, training_config=config_dict)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
-    for k, v in kwargs.items():
-        print(k, v, type(k), type(v))
-
     kwargs_dict = {
         k: v if isinstance(v, str) else om.to_container(v, resolve=True)
         for k, v in kwargs.items()

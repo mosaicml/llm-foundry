@@ -43,7 +43,7 @@ def to_cf(self: SparkConnectClient, plan: pb2.Plan, type: str = "json"):
         type=cloud_pb2.ResultOptions.TYPE_CLOUD,
         cloudOptions=cloud_pb2.ResultOptions.CloudOptions(
             format=format,
-            useCompression=False,
+            useCompression=True,
         ))
     cloud_option = any_pb2.Any()
     cloud_option.Pack(ro)

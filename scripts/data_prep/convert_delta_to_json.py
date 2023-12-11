@@ -75,38 +75,38 @@ def download_json_starargs(args: Tuple):
     return download_json(*args)
 
 
-def download_arrow(i, url, json_output_path):
-    resp = requests.get(url)
-    if resp.status_code == 200:
-        try:
-            # Debug: Check the first few bytes of the response
-            print("First 100 bytes of response:", resp.content[:100])
-
-            # Decompress the data
-            decompressed_data = lz4.frame.decompress(resp.content)
-
-        except RuntimeError as e:
-            print("Decompression error:", e)
-            print("Response headers:", resp.headers)
-            # Optionally, write the raw response to a file for analysis
-            with open("raw_response_data.bin", "wb") as file:
-                file.write(resp.content)
-            raise
-
 #def download_arrow(i, url, json_output_path):
 #    resp = requests.get(url)
 #    if resp.status_code == 200:
-#        # The data is lz4 compressed arrow format.
-#        # Decompress the data
-#        decompressed_data = lz4.frame.decompress(resp.content)
+#        try:
+#            # Debug: Check the first few bytes of the response
+#            print("First 100 bytes of response:", resp.content[:100])
 #
-#        # Convert the decompressed data into a PyArrow table
-#        reader = pa.ipc.open_stream(decompressed_data)
-#        table = reader.read_all()
+#            # Decompress the data
+#            decompressed_data = lz4.frame.decompress(resp.content)
 #
-#        # Convert the PyArrow table into a pandas DataFrame
-#        df = table.to_pandas()
-#        df.to_json(os.path.join(json_output_path, 'part_'+str(i)+'.json'))
+#        except RuntimeError as e:
+#            print("Decompression error:", e)
+#            print("Response headers:", resp.headers)
+#            # Optionally, write the raw response to a file for analysis
+#            with open("raw_response_data.bin", "wb") as file:
+#                file.write(resp.content)
+#            raise
+
+def download_arrow(i, url, json_output_path):
+    resp = requests.get(url)
+    if resp.status_code == 200:
+        # The data is lz4 compressed arrow format.
+        # Decompress the data
+        decompressed_data = lz4.frame.decompress(resp.content)
+
+        # Convert the decompressed data into a PyArrow table
+        reader = pa.ipc.open_stream(decompressed_data)
+        table = reader.read_all()
+
+        # Convert the PyArrow table into a pandas DataFrame
+        df = table.to_pandas()
+        df.to_json(os.path.join(json_output_path, 'part_'+str(i)+'.json'))
 
 def download_arrow_starargs(args: Tuple):
     return download_arrow(*args)
@@ -179,11 +179,11 @@ def fetch(method,
         args = get_args(signed, json_output_path)
         # Stopping the SparkSession to avoid spilling connection state into the subprocesses.
         sparkSession.stop()
-        #with ProcessPoolExecutor(max_workers=partitions) as executor:
-            #list(executor.map(download_arrow_starargs, args))
+        with ProcessPoolExecutor(max_workers=partitions) as executor:
+            list(executor.map(download_arrow_starargs, args))
             #list(executor.map(download_json_starargs, args))
-        with Pool(partitions) as p:
-            p.map(download_json_starargs, args)
+        #with Pool(partitions) as p:
+        #    p.map(download_json_starargs, args)
 
     elif method == 'dbsql':
         ans = run_query(query, method, cursor, sparkSession, collect=True)

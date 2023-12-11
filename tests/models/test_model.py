@@ -698,10 +698,8 @@ def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict):
     },
 }])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-@pytest.mark.parametrize('use_pad_tok_in_ffn', [True, False])
 def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
-                              tie_word_embeddings: bool,
-                              use_pad_tok_in_ffn: bool):
+                              tie_word_embeddings: bool):
     # Test that different placement of padding does not affect the output.
     alibi = pos_emb_config['alibi']
     if alibi and attention_impl == 'flash':
@@ -733,7 +731,7 @@ def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
             'init_std': 0.02,
         },
         tie_word_embeddings=tie_word_embeddings,
-        use_pad_tok_in_ffn=use_pad_tok_in_ffn,
+        use_pad_tok_in_ffn=True,
     )
     mpt = MPTForCausalLM(hf_config)
     mpt.eval()

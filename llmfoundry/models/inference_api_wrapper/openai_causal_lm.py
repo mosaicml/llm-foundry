@@ -93,6 +93,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
             max_tokens=num_tokens,
             temperature=0.0)
 
+    # TODO: Do we still need retokenize, rebatch, and eval_forward?
     def retokenize(self, tokens: List[int], cont_idxs: List[int]):
         """Chat API will never respond with a word-initial space.
 
@@ -209,21 +210,20 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
         # TODO: this will be deprecated
-        self.generate_completion = lambda prompt, num_tokens: self.client.chat.completions.create(
+        self.generate_completion = lambda prompt, num_tokens: self.client.completions.create(
             model=self.model_name,
-            messages=[{'role': 'system', 'content':'Please complete the following text: '},
-                      { 'role': 'user', 'content': prompt }],
+            prompt=prompt,
             max_tokens=num_tokens,
+            logprobs=5,
             temperature=0.0)
 
-    def process_result(self, completion: Optional[dict]):
+    def process_result(self, completion):
         if completion is None:
             raise ValueError("Couldn't generate model output")
 
-        assert isinstance(completion, dict)
-        if len(completion['choices'][0]['logprobs']['top_logprobs']) > 0:
+        if len(completion.choices[0].logprobs.top_logprobs[0]) > 0:
             tensor = self.tokenizer.construct_logit_tensor(
-                dict(completion['choices'][0]['logprobs']['top_logprobs'][0]))
+                dict(completion.choices[0].logprobs.top_logprobs[0]))
             return tensor
         else:
             # the model sometimes stops early even though we are still requesting tokens!

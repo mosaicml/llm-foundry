@@ -837,6 +837,45 @@ def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
                 batched_output[1, :],
                 atol=1e-6 if attention_impl == 'torch' else 1e-8)
 
+        try:
+            from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
+        except:
+            unpad_input, pad_input = None, None
+
+        if unpad_input is not None and pad_input is not None:
+            # Checking numerical precision with pad_token ffn
+            for block in mpt.transformer.blocks:
+                # Flip the padding usage in the model
+                block.use_pad_tok_in_ffn = not block.use_pad_tok_in_ffn
+
+            right_padding_output_pad_flipped = mpt(
+                right_padding_input_ids,
+                attention_mask=right_padding_attention_mask).logits
+            middle_padding_output_pad_flipped = mpt(
+                middle_padding_input_ids,
+                attention_mask=middle_padding_attention_mask).logits
+            left_padding_output_pad_flipped = mpt(
+                left_padding_input_ids,
+                attention_mask=left_padding_attention_mask).logits
+
+            pad_vs_unpad_rtol = 1e-5
+            pad_vs_unpad_atol = 1e-6
+            assert torch.allclose(right_padding_output[0, :3],
+                                  right_padding_output_pad_flipped[0, :3],
+                                  rtol=pad_vs_unpad_rtol,
+                                  atol=pad_vs_unpad_atol)
+
+            assert torch.allclose(middle_padding_output[0, [0, 1, 5]],
+                                  middle_padding_output_pad_flipped[0,
+                                                                    [0, 1, 5]],
+                                  rtol=pad_vs_unpad_rtol,
+                                  atol=pad_vs_unpad_atol)
+
+            assert torch.allclose(left_padding_output[0, 3:],
+                                  left_padding_output_pad_flipped[0, 3:],
+                                  rtol=pad_vs_unpad_rtol,
+                                  atol=pad_vs_unpad_atol)
+
 
 @pytest.mark.parametrize('attention_impl', ['torch', 'triton'])
 def test_advanced_mask_building(attention_impl: str):

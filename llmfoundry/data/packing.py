@@ -1,13 +1,17 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
+import os
+import tempfile
 from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
-from composer.utils import using_torch_2
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
+
+log = logging.getLogger(__name__)
 
 
 class BinPackCollator:
@@ -290,8 +294,13 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     # Set the seed so that auto packing is deterministic.
     reproducibility.seed_all(0)
 
+    max_seq_len = dataloader_cfg.dataset.max_seq_len
+    # If max_seq_len is very small, skip profiling and select packing ratio of 1.
+    if max_seq_len <= 100:
+        return 1
+
     min_ratio = 1
-    max_ratio = dataloader_cfg.dataset.max_seq_len / 100
+    max_ratio = max_seq_len / 100
     profiling_results = profile_packing(dataloader_cfg, tokenizer, min_ratio,
                                         max_ratio, num_packing_ratios,
                                         device_batch_size)
@@ -300,7 +309,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     # profiling_results are sorted from smallest to largest packing_ratio.
     packing_ratio = 1
     for packing_ratio_candidate, _, waste in profiling_results:
-        if waste > 0:
+        if waste is None or waste > 0:
             break
         packing_ratio = packing_ratio_candidate
 
@@ -319,9 +328,10 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
 
 
 def profile_packing(
-        dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-        min_ratio: float, max_ratio: float, num_packing_ratios: int,
-        device_batch_size: int) -> Iterable[Tuple[float, float, float]]:
+    dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+    min_ratio: float, max_ratio: float, num_packing_ratios: int,
+    device_batch_size: int
+) -> Iterable[Tuple[float, Optional[float], Optional[float]]]:
     """Generator function that profiles example packing across packing ratios.
 
     Args:
@@ -348,8 +358,12 @@ def profile_packing(
     dataloader_cfg.dataset.packing_ratio = None
     dataloader_cfg.drop_last = False
     dataloader_cfg.num_workers = 0
-    dataloader_cfg.prefetch_factor = None if using_torch_2() else 2
+    dataloader_cfg.prefetch_factor = None
     dataloader_cfg.persistent_workers = False
+
+    # If streaming dataset, use a temporary local folder for profiling
+    if dataloader_cfg.dataset.get('remote') is not None:
+        dataloader_cfg.dataset.local = tempfile.TemporaryDirectory().name
 
     # Determine the packing_ratio values we'll try
     packing_ratios, raw_batch_sizes = [], []
@@ -383,7 +397,7 @@ def profile_packing(
                 batches[idx].update({key: split})
         return batches
 
-    def profile(raw_batch_size: int) -> Tuple[float, float]:
+    def profile(raw_batch_size: int) -> Tuple[Optional[float], Optional[float]]:
         packer = BinPackCollator(
             collator=lambda x: x,
             target_batch_size=device_batch_size,
@@ -396,9 +410,15 @@ def profile_packing(
         for batch in split_big_batch(raw_batch_size):
             if batch['input_ids'].shape[0] < device_batch_size:
                 continue
-            _ = packer.pack(batch)
+            packer.pack(batch)
 
-        # Return the padding / waste stats over that bunch of data
+        if packer.n_packed_examples == 0:
+            log.debug(
+                'No examples packed during profiling. Dataset is smaller than device batch size.'
+            )
+            return None, None
+
+        # Return the padding and waste stats over that bunch of data
         padding_percent = 100 * (1 - packer.efficiency)
         waste_percent = 100 * packer.waste
         return padding_percent, waste_percent

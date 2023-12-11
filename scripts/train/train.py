@@ -531,8 +531,10 @@ def main(cfg: DictConfig) -> Trainer:
     ## Evaluation
     print('Building eval loader...')
     eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
+    # TODO: evaluators should not be built at all if use_async_eval is True
+    # This will be fixed when eval_loader support is fully added to AsyncEval
     evaluators, _, eval_gauntlet_callback = build_evaluators(
-        eval_loader_config,  # TODO: async eval should not even call eval loader
+        eval_loader_config,
         icl_tasks_config if not use_async_eval else None,
         eval_gauntlet_config if not use_async_eval else None,
         tokenizer=tokenizer,

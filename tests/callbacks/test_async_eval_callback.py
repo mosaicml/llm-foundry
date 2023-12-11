@@ -81,12 +81,10 @@ def test_get_eval_parameters():
     with pytest.raises(
             Exception,
             match='Missing the following required parameters for async eval:'):
-        get_eval_parameters({}, 'checkpoints/file', RUN_NAME,
-                            Time(0, TimeUnit.EPOCH))
+        get_eval_parameters({}, 'checkpoints/file', RUN_NAME)
 
     # minimal example
-    params = get_eval_parameters(BASIC_PARAMS, 'checkpoints/file', RUN_NAME,
-                                 Time(0, TimeUnit.EPOCH))
+    params = get_eval_parameters(BASIC_PARAMS, 'checkpoints/file', RUN_NAME)
     assert params == {
         'device_eval_batch_size':
             2,
@@ -126,9 +124,6 @@ def test_get_eval_parameters():
             'loggers': {
                 'wandb': {
                     'init_kwargs': {
-                        'config': {
-                            'foo': 'bar'
-                        },
                         'fee': 'bee'
                     }
                 }
@@ -141,7 +136,6 @@ def test_get_eval_parameters():
         },
         'checkpoints/file',
         RUN_NAME,
-        Time(0, TimeUnit.EPOCH),
     )
     assert params2 == {
         'device_eval_batch_size': 2,
@@ -172,11 +166,6 @@ def test_get_eval_parameters():
             'wandb': {
                 'group': 'foo_bar-1234',
                 'init_kwargs': {
-                    'config': {
-                        'eval_interval': 0,
-                        'eval_interval_units': 'ep',
-                        'foo': 'bar'
-                    },
                     'fee': 'bee'
                 },
             }
@@ -244,14 +233,23 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
     assert mock_get_run.call_count == 1
     assert mock_get_run.call_args[0][0] == RUN_NAME
 
-    callback.launch_run('checkpoint/path', Time(1, TimeUnit.BATCH))
+    launch_time = Time(1, TimeUnit.BATCH)
+    callback.launch_run('checkpoint/path', launch_time)
     assert mock_create_run.call_count == 1
 
     run_config_created = mock_create_run.call_args[0][0]
     assert run_config_created.name == 'eval-1ba-foo_bar'
     assert run_config_created.image == 'fake-image'
 
-    print(run_config_created)
+    metadata = run_config_created.metadata
+    assert 'eval_timestamp' in metadata
+    assert isinstance(metadata['eval_timestamp'], int)
+    assert metadata['eval_timestamp'] == launch_time.value
+
+    assert 'eval_timestamp_unit' in metadata
+    assert isinstance(metadata['eval_timestamp_unit'], str)
+    assert metadata['eval_timestamp_unit'] == launch_time.unit.value
+
     assert 'cd llm-foundry/scripts' in run_config_created.command
 
     integrations = run_config_created.integrations

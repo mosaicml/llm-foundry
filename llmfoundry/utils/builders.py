@@ -160,7 +160,7 @@ def build_icl_data_and_gauntlet(
 def build_callback(
     name: str,
     kwargs: Union[DictConfig, Dict[str, Any]],
-    config: Any = None,
+    config: Dict[str, Any] = None,
 ) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()

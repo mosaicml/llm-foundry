@@ -103,7 +103,6 @@ def get_eval_parameters(
     parameters: Dict[str, Any],
     checkpoint: str,
     training_run_name: str,
-    interval: Time,
 ) -> Dict[str, Any]:
     """Get the parameters needed for the eval run.
 
@@ -111,7 +110,6 @@ def get_eval_parameters(
         parameters: The parameters from the training run
         checkpoint: The path to the latest checkpoint
         training_run_name: The name of the training run
-        interval: The current Time interval
 
     Returns:
         The parameters needed for the eval run as a dict
@@ -135,13 +133,6 @@ def get_eval_parameters(
     for logger, config in subset_keys.get('loggers', {}).items():
         if logger == 'wandb':
             config['group'] = config.pop('name', training_run_name)
-
-            config['init_kwargs'] = config.pop('init_kwargs', {})
-            config['init_kwargs']['config'] = config['init_kwargs'].pop(
-                'config', {})
-            config['init_kwargs']['config']['eval_interval'] = interval.value
-            config['init_kwargs']['config'][
-                'eval_interval_units'] = interval.unit.value
 
         # mlflow currently does not support grouping, so this will just launch
         # a new mlflow run
@@ -240,7 +231,6 @@ class AsyncEval(Callback):
             parameters=training_config,
             checkpoint='test',
             training_run_name=self.current_run.name,
-            interval=Time(0, self.interval.unit),
         )
         log.info(
             f'Initialized AsyncEval callback. Will generate runs at interval {interval}'
@@ -320,7 +310,6 @@ class AsyncEval(Callback):
             parameters=self.training_config,
             checkpoint=checkpoint,
             training_run_name=self.current_run.name,
-            interval=current_interval,
         )
         params['run_name'] = run_name
 
@@ -358,6 +347,12 @@ class AsyncEval(Callback):
                 'pip_install': '-e .[gpu]',
                 'ssh_clone': False,
             })
+
+        # This will record the timestamp and make it available for grouping
+        # and plotting in wandb
+        metadata = cfg.metadata
+        metadata['eval_timestamp'] = current_interval.value
+        metadata['eval_timestamp_unit'] = current_interval.unit.value
 
         # TODO: This just runs an eval run, but we also want to attach the
         # deployment, which would require a hf conversion and parametrizing the

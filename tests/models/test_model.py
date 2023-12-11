@@ -831,9 +831,13 @@ def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
                 batched_output[1, :],
                 atol=1e-6 if attention_impl == 'torch' else 1e-8)
 
-        if torch.cuda.is_available():
-            # Checking numerical precision with pad_token ffn
+        try:
             from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
+        except:
+            unpad_input, pad_input = None, None
+
+        if unpad_input is not None and pad_input is not None:
+            # Checking numerical precision with pad_token ffn
             for block in mpt.transformer.blocks:
                 # Flip the padding usage in the model
                 block.use_pad_tok_in_ffn = not block.use_pad_tok_in_ffn

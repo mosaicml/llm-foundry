@@ -831,7 +831,6 @@ def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
                 batched_output[1, :],
                 atol=1e-6 if attention_impl == 'torch' else 1e-8)
 
-        # This is needed to gate cpu tests
         if torch.cuda.is_available():
             # Checking numerical precision with pad_token ffn
             from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip

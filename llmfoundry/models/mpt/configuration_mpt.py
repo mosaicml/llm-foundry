@@ -300,5 +300,5 @@ class MPTConfig(PretrainedConfig):
                 from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
             except:
                 raise ImportError(
-                    'In order to avoid using `use_pad_tok_in_ffn`, please install flash-attn==1.0.9 or flash-attn==2.3.2'
+                    'In order to not use `use_pad_tok_in_ffn`, please install flash-attn==1.0.9 or flash-attn==2.3.2'
                 )

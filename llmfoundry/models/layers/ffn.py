@@ -19,7 +19,7 @@ except:
 
 log = logging.getLogger(__name__)
 
-ignore_expr_log_msg = '`expansion_ratio` (=%d) ignored when `ffn_hidden_size` (=%d) is specified.'
+_IGNORE_EXPR_LOG_MSG = '`expansion_ratio` (=%d) ignored when `ffn_hidden_size` (=%d) is specified.'
 
 
 class MPTMLP(nn.Module):

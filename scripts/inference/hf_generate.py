@@ -65,6 +65,7 @@ def parse_args() -> Namespace:
         ],
         help='List of generation prompts or list of delimited files. Use syntax ' +\
              f'"{utils.PROMPTFILE_PREFIX}/path/to/prompt.txt" to load prompt(s) contained in a txt file. ' +\
+             f'You can load a file from an object store without a prefix, e.g. "s3://bucket/path/to/prompt.txt". ' +\
              f'\nUse syntax "{utils.PROMPTDATASET_PREFIX}org/dataset" to load prompts from a HF dataset. '
         )
     parser.add_argument(

@@ -5,12 +5,12 @@ import math
 import os
 import pathlib
 import sys
-from typing import Callable
+from typing import Callable, Optional, cast
 from unittest.mock import ANY, MagicMock, patch
 
 from composer import Trainer
 from composer.loggers import MLFlowLogger
-from composer.utils import dist, get_device, using_torch_2
+from composer.utils import dist, get_device
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
@@ -20,7 +20,6 @@ repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(repo_dir)
 import shutil
 from argparse import Namespace
-from typing import Optional, cast
 
 import pytest
 import torch

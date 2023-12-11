@@ -160,7 +160,7 @@ def build_icl_data_and_gauntlet(
 def build_callback(
     name: str,
     kwargs: Union[DictConfig, Dict[str, Any]],
-    config: Optional[Dict[str, Any]] = None,
+    config: Any = None,
 ) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()
@@ -213,11 +213,7 @@ def build_callback(
             raise ValueError(
                 'Parameters config is required for async eval callback')
 
-        config_dict = {
-            k: v if isinstance(v, str) else om.to_container(v, resolve=True)
-            for k, v in kwargs.items()
-        }
-        return AsyncEval(**kwargs, training_config=config_dict)
+        return AsyncEval(**kwargs, training_config=config)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

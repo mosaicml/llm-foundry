@@ -5,6 +5,7 @@
 
 import logging
 import os
+import random
 from time import sleep
 from typing import Any, Dict, List, Optional, Union
 
@@ -30,6 +31,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
+        assert os.getenv('OPENAI_API_KEY') is not None, "No OpenAI API Key found. Ensure it is saved as an environmental variable called OPENAI_API_KEY."
         try:
             import openai
         except ImportError as e:
@@ -37,7 +39,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 extra_deps_group='openai',
                 conda_package='openai',
                 conda_channel='conda-forge') from e
-        openai.api_key = os.getenv('OPENAI_API_KEY')
+        self.client = openai.OpenAI()
         self.model_name = model_cfg['version']
 
     def generate_completion(self, prompt: str, num_tokens: int):
@@ -52,7 +54,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
     def try_generate_completion(self, prompt: str, num_tokens: int):
         try:
-            from openai.error import RateLimitError
+            from openai import RateLimitError
         except ImportError as e:
             raise MissingConditionalImportError(
                 extra_deps_group='openai',
@@ -60,18 +62,21 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 conda_channel='conda-forge') from e
         tries = 0
         completion = None
+        delay = 1
         while tries < MAX_RETRIES:
             tries += 1
             try:
-
                 completion = self.generate_completion(prompt, num_tokens)
                 break
             except RateLimitError as e:
                 if 'You exceeded your current quota' in str(e._message):
                     raise e
-                sleep(60)
+                delay *= 2 * (1 + random.random())
+                sleep(delay)
                 continue
-            except Exception:
+            except Exception as e:
+                print(f"Found Exception: {e}")
+                # TODO: Why continue on unspecified Exception?
                 continue
         return completion
 
@@ -80,20 +85,11 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
-        try:
-            import openai
-        except ImportError as e:
-            raise MissingConditionalImportError(
-                extra_deps_group='openai',
-                conda_package='openai',
-                conda_channel='conda-forge') from e
 
-        self.generate_completion = lambda prompt, num_tokens: openai.ChatCompletion.create(
-            self.model_name,
-            messages=[{
-                'role': 'user',
-                'content': prompt
-            }],
+        self.generate_completion = lambda prompt, num_tokens: self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[{'role': 'system', 'content': model_cfg.get('sytsem_role_prompt', 'Please complete the following text: ')},
+                      { 'role': 'user', 'content': prompt }],
             max_tokens=num_tokens,
             temperature=0.0)
 
@@ -190,12 +186,11 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
         return torch.stack(output_logits_batch).to(batch['input_ids'].device)
 
-    def process_result(self, completion: Optional[dict]):
-        assert isinstance(completion, dict)
-        if len(completion['choices']) > 0:
+    def process_result(self, completion):
+        # assert isinstance(completion, ChatCompletion)
+        if len(completion.choices) > 0:
             tensors = []
-            for t in self.tokenizer(completion['choices'][0]['message']
-                                    ['content'])['input_ids']:
+            for t in self.tokenizer(completion.choices[0].message.content)['input_ids']:
                 tensors.append(
                     self.tokenizer.construct_logit_tensor(
                         {self.tokenizer.decode([t]): 0.0}))
@@ -213,19 +208,12 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
-        try:
-            import openai
-        except ImportError as e:
-            raise MissingConditionalImportError(
-                extra_deps_group='openai',
-                conda_package='openai',
-                conda_channel='conda-forge') from e
-
-        self.generate_completion = lambda prompt, num_tokens: openai.Completion.create(
-            engine=self.model_name,
-            prompt=prompt,
-            max_tokens=1,
-            logprobs=5,
+        # TODO: this will be deprecated
+        self.generate_completion = lambda prompt, num_tokens: self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[{'role': 'system', 'content':'Please complete the following text: '},
+                      { 'role': 'user', 'content': prompt }],
+            max_tokens=num_tokens,
             temperature=0.0)
 
     def process_result(self, completion: Optional[dict]):

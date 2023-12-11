@@ -26,7 +26,7 @@ if __name__ == '__main__':
             help='Path to the YAML that defines the workload to profile.')
         parser.add_argument('--num-devices',
                             type=int,
-                            default=None,
+                            required=True,
                             help='How many devices your run will use.')
         parser.add_argument('--min',
                             type=float,

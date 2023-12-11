@@ -15,7 +15,7 @@ import torch.nn as nn
 try:  # This try...except is needed because hf transformers library requires it
     import xentropy_cuda_lib
 except Exception as e:
-    raise e
+    xentropy_cuda_lib = None
 
 # `all_gather_into_tensor` and `reduce_scatter_tensor` are new placeholders for
 # `_all_gather_base` and `_reduce_scatter_base`. They require the most recent
@@ -49,7 +49,6 @@ class SoftmaxCrossEntropyLossFn(torch.autograd.Function):
         world_size = 1 if process_group is None else torch.distributed.get_world_size(
             process_group)
         ctx.total_classes = world_size * vocab_size
-
         if world_size == 1:
             losses, lse = xentropy_cuda_lib.forward(logits, labels, smoothing)
             losses.masked_fill_(labels == ignored_index, 0)
@@ -144,6 +143,10 @@ class CrossEntropyLoss(nn.Module):
         process_group=None,
     ):
         super().__init__()
+        if xentropy_cuda_lib is None:
+            raise ValueError(
+                'xentropy_cuda_lib is None, probably because importing xentropy_cuda_lib failed.'
+            )
         if reduction not in ['mean', 'none']:
             raise NotImplementedError(
                 "Only support reduction = 'mean' or 'none'")

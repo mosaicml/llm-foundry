@@ -419,7 +419,7 @@ class MPTModel(MPTPreTrainedModel):
             attn_bias = attn_bias.masked_fill(
                 ~attention_mask.view(-1, 1, 1, s_k), min_val)
 
-        return attn_bias, None
+        return attn_bias, attention_mask
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
                            prefix_mask: torch.Tensor) -> torch.Tensor:

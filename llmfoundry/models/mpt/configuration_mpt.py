@@ -60,6 +60,7 @@ class MPTConfig(PretrainedConfig):
         init_config: Dict = init_config_defaults,
         fc_type: str = 'torch',
         tie_word_embeddings: bool = True,
+        use_pad_tok_in_ffn: bool = True,
         verbose: Optional[int] = None,
         **kwargs: Any,
     ):
@@ -131,6 +132,7 @@ class MPTConfig(PretrainedConfig):
                 See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
             fc_type (str): choose fc layer implementation. Options: torch and te. te layers support fp8 when using H100 GPUs.
             tie_word_embeddings (bool): Whether to tie the input embedding and output layers.
+            use_pad_tok_in_ffn (bool): Whether to forward the pad token in the feedforward networks.
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -151,6 +153,7 @@ class MPTConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.init_config = init_config
         self.fc_type = fc_type
+        self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
         if verbose is not None:
             warnings.warn(
                 DeprecationWarning(
@@ -292,3 +295,10 @@ class MPTConfig(PretrainedConfig):
             self.ffn_config['fc_type'] = self.fc_type
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
             self.ffn_config['bias'] = not self.no_bias
+        if not self.use_pad_tok_in_ffn:
+            try:
+                from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
+            except:
+                raise ImportError(
+                    'In order to set `use_pad_tok_in_ffn=False`, please install flash-attn==1.0.9 or flash-attn==2.3.2'
+                )

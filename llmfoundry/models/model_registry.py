@@ -13,7 +13,7 @@ COMPOSER_MODEL_REGISTRY = {
     'hf_causal_lm': ComposerHFCausalLM,
     'hf_prefix_lm': ComposerHFPrefixLM,
     'hf_t5': ComposerHFT5,
-    'trtllm': TRTLLMEvalWrapper
+    'trtllm': TRTLLMEvalWrapper,
     'openai_causal_lm': OpenAICausalLMEvalWrapper,
     'openai_chat': OpenAIChatAPIEvalWrapper
 }

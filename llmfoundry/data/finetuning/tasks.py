@@ -41,7 +41,6 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
 from composer.utils import dist
-from omegaconf import DictConfig
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
@@ -54,6 +53,7 @@ _ALLOWED_PROMPT_KEYS = {'prompt'}
 _DOWNLOADED_FT_DATASETS_DIRPATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.realpath(__file__)))), 'downloaded_finetuning')
+_SUPPORTED_EXTENSIONS = ['.csv', '.parquet', '.jsonl']
 
 
 def _tokenize_formatted_example(
@@ -370,15 +370,17 @@ class DatasetConstructor:
                     hf_hub.snapshot_download(
                         dataset_name,
                         repo_type='dataset',
-                        allow_patterns=['*.csv', '*.jsonl', '*.parquet'],
+                        allow_patterns=[
+                            '*' + ext for ext in _SUPPORTED_EXTENSIONS
+                        ],
                         token=hf_kwargs.get('token', None),
                         local_dir_use_symlinks=False,
                         local_dir=local_dataset_dir)
                     if not os.path.exists(local_dataset_dir) or len(
                             os.listdir(local_dataset_dir)) == 0:
                         raise FileNotFoundError(
-                            f'safe_load is set to True. No data files with safe extensions (.csv, .jsonl, .parquet) '
-                            + 'found for dataset {dataset_name}. ')
+                            f'safe_load is set to True. No data files with safe extensions {_SUPPORTED_EXTENSIONS} '
+                            + f'found for dataset {dataset_name}. ')
                     dataset_name = local_dataset_dir
 
                 # dataset_name is a local dir path. Make sure to use the abspath.
@@ -387,8 +389,7 @@ class DatasetConstructor:
                 # Ensure that the local dir contains only allowed file types.
                 for _, _, files in os.walk(dataset_name):
                     for file in files:
-                        if Path(file).suffix not in ('.csv', '.jsonl',
-                                                     '.parquet'):
+                        if Path(file).suffix not in _SUPPORTED_EXTENSIONS:
                             raise ValueError(
                                 f'Dataset at local path {dataset_name} contains invalid file types. '
                                 +

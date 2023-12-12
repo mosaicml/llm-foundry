@@ -13,6 +13,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.tasks import (_DOWNLOADED_FT_DATASETS_DIRPATH,
+                                              _SUPPORTED_EXTENSIONS,
                                               dataset_constructor)
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.data.text_data import get_tokens_per_batch_func
@@ -304,7 +305,6 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     Raises:
         FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.
     """
-    supported_extensions = ['jsonl', 'csv', 'parquet']
     # HF datasets does not support a split with dashes, so we replace dashes
     # with underscores in the destination split.
     destination_split = split.replace('-', '_')
@@ -313,7 +313,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
         destination_split if destination_split != 'data' else 'data_not',
     )
     os.makedirs(finetune_dir, exist_ok=True)
-    for extension in supported_extensions:
+    for extension in _SUPPORTED_EXTENSIONS:
         name = f'{remote_path.strip("/")}/{split}.{extension}'
         destination = str(
             os.path.abspath(
@@ -329,14 +329,14 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
             try:
                 get_file(path=name, destination=destination, overwrite=True)
             except FileNotFoundError as e:
-                if extension == supported_extensions[-1]:
+                if extension == _SUPPORTED_EXTENSIONS[-1]:
                     files_searched = [
                         f'{remote_path}/{split}.{ext}'
-                        for ext in supported_extensions
+                        for ext in _SUPPORTED_EXTENSIONS
                     ]
                     raise FileNotFoundError(
                         f'Could not find a file with any of ' + \
-                        f'the supported extensions: {supported_extensions}\n' + \
+                        f'the supported extensions: {_SUPPORTED_EXTENSIONS}\n' + \
                         f'at {files_searched}'
                     ) from e
                 else:

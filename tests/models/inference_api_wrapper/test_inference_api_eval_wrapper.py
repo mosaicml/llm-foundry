@@ -15,7 +15,7 @@ from llmfoundry.utils.builders import build_icl_evaluators
 
 
 @pytest.fixture(scope='module')
-def openai_api_key_env_var() -> pytest.fixture():
+def openai_api_key_env_var() -> str:
     os.environ['OPENAI_API_KEY'] = 'dummy'
     return os.environ['OPENAI_API_KEY']
 

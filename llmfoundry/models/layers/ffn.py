@@ -4,8 +4,7 @@
 """MPT Blocks used for the MPT Model."""
 
 import logging
-from copy import deepcopy
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -19,7 +18,23 @@ except:
 
 log = logging.getLogger(__name__)
 
-_IGNORE_EXPR_LOG_MSG = '`expansion_ratio` (=%d) ignored when `ffn_hidden_size` (=%d) is specified.'
+
+def _resolve_ffn_hidden_and_exp_ratio(
+    d_model: int,
+    expansion_ratio: Union[int, float],
+    ffn_hidden_size: Optional[int] = None,
+) -> tuple[Union[int, float], int]:
+    if ffn_hidden_size is not None:
+        log.info(
+            f'`expansion_ratio` (={expansion_ratio}) ignored when `ffn_hidden_size` (={ffn_hidden_size}) is specified.'
+        )
+    else:
+        ffn_hidden_size = int(d_model * expansion_ratio)
+        if ffn_hidden_size != d_model * expansion_ratio:
+            raise ValueError(
+                f'`d_model * expansion_ratio` ({ffn_hidden_size}) must be an integer.'
+            )
+    return expansion_ratio, ffn_hidden_size
 
 
 class MPTMLP(nn.Module):
@@ -27,23 +42,15 @@ class MPTMLP(nn.Module):
     def __init__(
         self,
         d_model: int,
-        expansion_ratio: int,
+        expansion_ratio: Union[int, float],
         fc_type: str = 'torch',
         ffn_hidden_size: Optional[int] = None,
         device: Optional[str] = None,
         bias: bool = True,
     ):
         super().__init__()
-        if ffn_hidden_size is not None:
-            log.info(ignore_expr_log_msg % (expansion_ratio, ffn_hidden_size))
-        else:
-            ffn_hidden_size = d_model * expansion_ratio
-            if ffn_hidden_size != int(ffn_hidden_size):
-                raise ValueError(
-                    f'`d_model * expansion_ratio` ({ffn_hidden_size}) must be an integer.'
-                )
-            ffn_hidden_size = int(ffn_hidden_size)
-
+        expansion_ratio, ffn_hidden_size = _resolve_ffn_hidden_and_exp_ratio(
+            d_model, expansion_ratio, ffn_hidden_size)
         self.fc_kwargs: dict[str, Any] = {
             'bias': bias,
         }
@@ -69,10 +76,28 @@ class MPTMLP(nn.Module):
 
 class MPTGeGLU(MPTMLP):
 
-    def __init__(self, **kwargs: Any):
-        super().__init__(**kwargs)
-        self.gate = deepcopy(self.up_proj)
-        self.gate.reset_parameters()
+    def __init__(
+        self,
+        d_model: int,
+        expansion_ratio: Union[int, float],
+        fc_type: str = 'torch',
+        ffn_hidden_size: Optional[int] = None,
+        device: Optional[str] = None,
+        bias: bool = True,
+    ):
+        super().__init__(
+            d_model=d_model,
+            expansion_ratio=expansion_ratio,
+            fc_type=fc_type,
+            ffn_hidden_size=ffn_hidden_size,
+            device=device,
+            bias=bias,
+        )
+        self.gate = FC_CLASS_REGISTRY[fc_type](
+            d_model,
+            self.up_proj.out_features,
+            **self.fc_kwargs,
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.down_proj(self.act(self.up_proj(x)) * self.gate(x))
@@ -90,7 +115,7 @@ if te is not None:
 
 def build_ffn(
     d_model: int,
-    expansion_ratio: int,
+    expansion_ratio: Union[int, float],
     fc_type: str = 'torch',
     ffn_hidden_size: Optional[int] = None,
     device: Optional[str] = None,
@@ -113,10 +138,8 @@ def build_ffn(
         )
     elif ffn_type == 'te_ln_mlp':
         assert te is not None
-        if ffn_hidden_size is not None:
-            log.info(ignore_expr_log_msg % (expansion_ratio, ffn_hidden_size))
-        else:
-            ffn_hidden_size = d_model * expansion_ratio
+        _, ffn_hidden_size = _resolve_ffn_hidden_and_exp_ratio(
+            d_model, expansion_ratio, ffn_hidden_size)
         return te.LayerNormMLP(
             hidden_size=d_model,
             ffn_hidden_size=ffn_hidden_size,

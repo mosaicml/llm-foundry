@@ -552,10 +552,10 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         assert block.norm_2.weight.shape == torch.Size([d_model])
         assert isinstance(block.ffn.up_proj, nn.Linear)
         assert block.ffn.up_proj.weight.shape == torch.Size(
-            [hf_config.d_model * hf_config.expansion_ratio, hf_config.d_model])
+            [int(hf_config.d_model * hf_config.expansion_ratio), hf_config.d_model])
         assert isinstance(block.ffn.down_proj, nn.Linear)
         assert block.ffn.down_proj.weight.shape == torch.Size(
-            [hf_config.d_model, hf_config.d_model * hf_config.expansion_ratio])
+            [hf_config.d_model, int(hf_config.d_model * hf_config.expansion_ratio)])
         assert block.resid_attn_dropout.p == 0.2
         assert block.resid_ffn_dropout.p == 0.2
 

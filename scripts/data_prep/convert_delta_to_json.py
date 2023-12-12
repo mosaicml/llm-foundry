@@ -13,6 +13,7 @@ import pandas as pd
 from databricks import sql
 from typing import Any, Optional, List, Tuple
 from databricks.connect import DatabricksSession
+from databricks.sdk import WorkspaceClient
 from uuid import uuid4
 from pyspark.sql.types import Row
 from concurrent.futures import ProcessPoolExecutor
@@ -24,6 +25,7 @@ import requests
 import pyarrow as pa
 import lz4.frame
 
+MINIUM_DBR_VERSION = 14.1.0
 
 log = logging.getLogger(__name__)
 
@@ -251,6 +253,10 @@ def fetch_DT(*args: Any, **kwargs: Any):
         else:
             # IMPORTANT: make sure cluster has runtime newer than 14.1.0, the databricks-connect client version.
             compute_id = args.cluster_id # "1115-130834-ms4m0yv"
+            w = WorkspaceClient()
+            res = w.clusters.get(cluster_id="0704-124501-tsc2fxq")
+            runtime_version = res.spark_version.split('-scala')[0].replace('x-snapshot', '0')
+            assert version.parse(runtime_version) >= version.parse(MINIUM_DBR_VERSION), "You need at least {MINIMUM_DBR_VERSION} to use Databricks-connect to read delta table for FT API"
             sparkSession = DatabricksSession.builder.remote(host =args.DATABRICKS_HOST, token =args.DATABRICKS_TOKEN, cluster_id = compute_id).getOrCreate()
 
     fetch(method, args.delta_table_name, args.json_output_path, args.batch_size, args.partitions, sparkSession, dbsql)
@@ -299,7 +305,7 @@ if __name__ == '__main__':
                         help=
                         'number of partitions allowed to use')
     parser.add_argument('--cluster_id',
-                        required=False,
+                        required=True,
                         type=str,
                         default=None,
                         help=

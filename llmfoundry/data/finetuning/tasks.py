@@ -53,7 +53,7 @@ _ALLOWED_PROMPT_KEYS = {'prompt'}
 _DOWNLOADED_FT_DATASETS_DIRPATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.realpath(__file__)))), 'downloaded_finetuning')
-_SUPPORTED_EXTENSIONS = ['.csv', '.parquet', '.jsonl']
+_SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
 
 
 def _is_empty_or_nonexistent(dirpath: str):

@@ -26,6 +26,7 @@ from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
                                               _ALLOWED_RESPONSE_KEYS,
                                               _DOWNLOADED_FT_DATASETS_DIRPATH,
+                                              _SUPPORTED_EXTENSIONS,
                                               _tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
@@ -346,7 +347,7 @@ def test_finetuning_dataloader_safe_load(hf_name: str,
         ]
         assert len(downloaded_files) > 0
         assert all(
-            Path(file).suffix in ('.csv', '.parquet', '.jsonl')
+            Path(file).suffix in _SUPPORTED_EXTENSIONS
             for file in downloaded_files)
 
 
@@ -485,12 +486,13 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
 
 
 def mock_get_file(path: str, destination: str, overwrite: bool = False):
-    make_tiny_ft_dataset(path=destination, size=16)
+    if Path(destination).suffix == '.jsonl':
+        make_tiny_ft_dataset(path=destination, size=16)
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'custom-dash', 'data'])
 def test_finetuning_dataloader_custom_split_remote(
-        tmp_path: pathlib.Path, split: str, monkeypatch: pytest.MonkeyPatch):
+        split: str, monkeypatch: pytest.MonkeyPatch):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
 

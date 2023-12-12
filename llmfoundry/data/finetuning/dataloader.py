@@ -317,9 +317,8 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
         name = f'{remote_path.strip("/")}/{split}{extension}'
         destination = str(
             os.path.abspath(
-                os.path.join(
-                    finetune_dir, 'data',
-                    f'{split}-00000-of-00001{extension}')))
+                os.path.join(finetune_dir, 'data',
+                             f'{split}-00000-of-00001{extension}')))
 
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file

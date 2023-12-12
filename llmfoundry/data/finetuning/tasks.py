@@ -35,9 +35,11 @@ import importlib
 import logging
 import os
 import warnings
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import datasets as hf_datasets
+import huggingface_hub as hf_hub
 from composer.utils import dist
 from omegaconf import DictConfig
 from streaming import StreamingDataset
@@ -49,6 +51,9 @@ __all__ = ['dataset_constructor']
 
 _ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 _ALLOWED_PROMPT_KEYS = {'prompt'}
+_DOWNLOADED_FT_DATASETS_DIRPATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.realpath(__file__)))), 'downloaded_finetuning')
 
 
 def _tokenize_formatted_example(
@@ -239,8 +244,9 @@ class DatasetConstructor:
         print('\n'.join(tasks))
 
     def get_preprocessing_fn_from_dict(
-        self, mapping: Union[Dict, DictConfig]
-    ) -> Callable[[Dict[str, Any]], Dict[str, str]]:
+            self,
+            mapping: Dict[str,
+                          str]) -> Callable[[Dict[str, Any]], Dict[str, str]]:
         """Get a preprocessing function from a dictionary.
 
         The dictionary maps column names in the dataset to "prompt" and "response".
@@ -325,8 +331,10 @@ class DatasetConstructor:
         return preprocessing_fn
 
     def build_from_hf(
-        self, cfg: DictConfig, max_seq_len: int,
-        tokenizer: PreTrainedTokenizerBase
+        self, dataset_name: str, split: Optional[str], safe_load: bool,
+        max_seq_len: int, preprocessing_fn: Optional[Callable[[dict[str, Any]],
+                                                              dict[str, str]]],
+        tokenizer: PreTrainedTokenizerBase, hf_kwargs: Dict[str, Any]
     ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
                hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
@@ -341,20 +349,6 @@ class DatasetConstructor:
         Returns:
             Dataset: The tokenized dataset.
         """
-        dataset_name = cfg.hf_name
-        # HF datasets does not support a split with dashes,so we replace split
-        # dashes with underscore.
-        split = cfg.split.replace('-', '_')
-        kwargs = cfg.get('hf_kwargs', {})
-        proto_preprocessing_fn = cfg.get('preprocessing_fn')
-        if isinstance(proto_preprocessing_fn, dict) or isinstance(
-                proto_preprocessing_fn, DictConfig):
-            preprocessing_fn = self.get_preprocessing_fn_from_dict(
-                proto_preprocessing_fn)
-        else:
-            preprocessing_fn = self.get_preprocessing_fn_from_str(
-                proto_preprocessing_fn, dataset_name)
-
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
 
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
@@ -368,9 +362,41 @@ class DatasetConstructor:
         error: Optional[Exception] = None
         filtered_dataset = None
         try:
+            if safe_load:
+                if not os.path.isdir(dataset_name):
+                    # Safely load a dataset from HF Hub with restricted file types.
+                    local_dataset_dir = os.path.join(
+                        _DOWNLOADED_FT_DATASETS_DIRPATH, dataset_name)
+                    hf_hub.snapshot_download(
+                        dataset_name,
+                        repo_type='dataset',
+                        allow_patterns=['*.csv', '*.jsonl', '*.parquet'],
+                        token=hf_kwargs.get('token', None),
+                        local_dir_use_symlinks=False,
+                        local_dir=local_dataset_dir)
+                    if not os.path.exists(local_dataset_dir) or len(
+                            os.listdir(local_dataset_dir)) == 0:
+                        raise FileNotFoundError(
+                            f'safe_load is set to True. No data files with safe extensions (.csv, .jsonl, .parquet) '
+                            + 'found for dataset {dataset_name}. ')
+                    dataset_name = local_dataset_dir
+
+                # dataset_name is a local dir path. Make sure to use the abspath.
+                dataset_name = os.path.abspath(dataset_name)
+
+                # Ensure that the local dir contains only allowed file types.
+                for _, _, files in os.walk(dataset_name):
+                    for file in files:
+                        if Path(file).suffix not in ('.csv', '.jsonl',
+                                                     '.parquet'):
+                            raise ValueError(
+                                f'Dataset at local path {dataset_name} contains invalid file types. '
+                                +
+                                'Allowed file types are: .csv, .jsonl, and .parquet.'
+                            )
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,
-                                               **kwargs)
+                                               **hf_kwargs)
 
             def dataset_mapper(example: Dict):
                 if preprocessing_fn is not None:

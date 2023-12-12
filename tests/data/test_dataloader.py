@@ -7,7 +7,7 @@ import random
 import shutil
 import tempfile
 from argparse import Namespace
-from typing import Literal, Optional, Union
+from typing import ContextManager, Literal, Optional, Union
 from unittest.mock import MagicMock
 
 import pytest
@@ -22,7 +22,7 @@ from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
-                                              _ALLOWED_RESPONSE_KEYS,
+                                              _ALLOWED_RESPONSE_KEYS, _DOWNLOADED_FT_DATASETS_DIRPATH,
                                               _tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
@@ -30,6 +30,8 @@ from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
 from llmfoundry.utils.builders import build_tokenizer
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 from tests.data_utils import make_tiny_ft_dataset
+from pathlib import Path
+from contextlib import nullcontext as does_not_raise
 
 
 def get_config(conf_path: str = 'yamls/mpt/125m.yaml'):
@@ -304,6 +306,43 @@ def test_finetuning_dataloader(decoder_only_format: bool,
         batch_ix += 1
         if batch_ix >= 3:
             break
+
+@pytest.mark.parametrize('hf_name, expectation', 
+                         [
+                            ('HuggingFaceH4/databricks_dolly_15k', does_not_raise()), 
+                            ('squad', pytest.raises(FileNotFoundError))
+                          ])
+def test_finetuning_dataloader_safe_load(hf_name: str, expectation: ContextManager):
+    cfg = DictConfig({
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': hf_name,
+            'split': 'train',
+            'max_seq_len': 8,
+            'decoder_only_format': True,
+            'shuffle': True,
+            'safe_load': True,
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        'pin_memory': False,
+        'prefetch_factor': None,
+        'persistent_workers': False,
+        'timeout': 0
+    })
+
+
+    tokenizer = build_tokenizer('gpt2', {})
+
+    with expectation:
+        _ = build_finetuning_dataloader(cfg, tokenizer, 1)
+
+    # If no raised errors, we should expect downlaoded files with only safe file types.
+    if expectation == does_not_raise():
+        download_dir = os.path.join(_DOWNLOADED_FT_DATASETS_DIRPATH, hf_name)
+        downloaded_files = [file for _, _, files in os.walk(download_dir) for file in files]
+        assert len(downloaded_files) > 0 
+        assert all(Path(file).suffix in ('.csv', '.parquet', '.jsonl') for file in downloaded_files)
 
 
 @pytest.mark.world_size(2)

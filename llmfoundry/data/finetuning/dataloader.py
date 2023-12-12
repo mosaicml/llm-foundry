@@ -173,7 +173,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             dataset_name_or_path = _download_remote_hf_dataset(
                 remote_path=dataset_name_or_path, split=split)
 
-        # Initialize preprocessing function.
+        # Get the preprocessing function.
         proto_preprocessing_fn = cfg.dataset.get('preprocessing_fn')
 
         preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_dict(dict(proto_preprocessing_fn)) \

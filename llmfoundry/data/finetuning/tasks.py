@@ -56,6 +56,10 @@ _DOWNLOADED_FT_DATASETS_DIRPATH = os.path.join(
 _SUPPORTED_EXTENSIONS = ['.csv', '.parquet', '.jsonl']
 
 
+def _is_empty_or_nonexistent(dirpath: str):
+    return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
+
+
 def _tokenize_formatted_example(
         example: Dict[str, Any],
         tokenizer: PreTrainedTokenizerBase) -> Dict[str, List[int]]:
@@ -364,37 +368,41 @@ class DatasetConstructor:
         try:
             if safe_load:
                 if not os.path.isdir(dataset_name):
-                    # Safely load a dataset from HF Hub with restricted file types.
+                    # dataset_name is not a local dir path, download if needed.
                     local_dataset_dir = os.path.join(
                         _DOWNLOADED_FT_DATASETS_DIRPATH, dataset_name)
-                    hf_hub.snapshot_download(
-                        dataset_name,
-                        repo_type='dataset',
-                        allow_patterns=[
-                            '*' + ext for ext in _SUPPORTED_EXTENSIONS
-                        ],
-                        token=hf_kwargs.get('token', None),
-                        local_dir_use_symlinks=False,
-                        local_dir=local_dataset_dir)
-                    if not os.path.exists(local_dataset_dir) or len(
-                            os.listdir(local_dataset_dir)) == 0:
-                        raise FileNotFoundError(
-                            f'safe_load is set to True. No data files with safe extensions {_SUPPORTED_EXTENSIONS} '
-                            + f'found for dataset {dataset_name}. ')
+
+                    if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
+                        # Safely load a dataset from HF Hub with restricted file types.
+                        hf_hub.snapshot_download(
+                            dataset_name,
+                            repo_type='dataset',
+                            allow_patterns=[
+                                '*' + ext for ext in _SUPPORTED_EXTENSIONS
+                            ],
+                            token=hf_kwargs.get('token', None),
+                            local_dir_use_symlinks=False,
+                            local_dir=local_dataset_dir)
+                        if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
+                            raise FileNotFoundError(
+                                f'safe_load is set to True. No data files with safe extensions {_SUPPORTED_EXTENSIONS} '
+                                + f'found for dataset {dataset_name}. ')
+                    # Set dataset_name to the downloaded location.
                     dataset_name = local_dataset_dir
 
-                # dataset_name is a local dir path. Make sure to use the abspath.
+                # dataset_name is a local dir path. Use the abspath to prevent confusion.
                 dataset_name = os.path.abspath(dataset_name)
 
                 # Ensure that the local dir contains only allowed file types.
-                for _, _, files in os.walk(dataset_name):
-                    for file in files:
-                        if Path(file).suffix not in _SUPPORTED_EXTENSIONS:
-                            raise ValueError(
-                                f'Dataset at local path {dataset_name} contains invalid file types. '
-                                +
-                                'Allowed file types are: .csv, .jsonl, and .parquet.'
-                            )
+                dataset_files = [
+                    f for _, _, files in os.walk(dataset_name) for f in files
+                ]
+                if not all(
+                        Path(f).suffix in _SUPPORTED_EXTENSIONS
+                        for f in dataset_files):
+                    raise ValueError(
+                        f'Dataset at local path {dataset_name} contains invalid file types. '
+                        + 'Allowed file types are: .csv, .jsonl, and .parquet.')
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,
                                                **hf_kwargs)

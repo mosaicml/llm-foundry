@@ -341,7 +341,6 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
                 else:
                     log.debug(
                         f'Could not find {name}, looking for another extension')
-                continue
 
             os.makedirs(os.path.dirname(signal_file_path), exist_ok=True)
             with open(signal_file_path, 'wb') as f:
@@ -358,7 +357,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
             os.remove(signal_file_path)
         dist.barrier()
 
-        return finetune_dir
+    return finetune_dir
 
 
 def _build_collate_fn(

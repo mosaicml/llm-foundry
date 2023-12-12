@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 from typing import Dict
 from unittest.mock import patch
 
@@ -11,6 +12,12 @@ from llmfoundry.models.inference_api_wrapper import (OpenAICausalLMEvalWrapper,
                                                      OpenAIChatAPIEvalWrapper)
 from llmfoundry.tokenizers import TiktokenTokenizerWrapper
 from llmfoundry.utils.builders import build_icl_evaluators
+
+
+@pytest.fixture(scope='module')
+def openai_api_key_env_var() -> pytest.fixture():
+    os.environ['OPENAI_API_KEY'] = 'dummy'
+    return os.environ['OPENAI_API_KEY']
 
 
 def load_icl_config():
@@ -86,7 +93,7 @@ def mock_create(**kwargs: Dict[str, str]):
         return MockCompletion(' ')
 
 
-def test_openai_api_eval_wrapper(tmp_path: str):
+def test_openai_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
     _ = pytest.importorskip('openai')
 
     model_name = 'davinci'
@@ -116,7 +123,7 @@ def test_openai_api_eval_wrapper(tmp_path: str):
         assert acc == 0.5
 
 
-def test_chat_api_eval_wrapper(tmp_path: str):
+def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
     _ = pytest.importorskip('openai')
 
     model_name = 'gpt-3.5-turbo'

@@ -364,9 +364,7 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
     for key in logger_keys:
         # dl_name is either 2-tuple (benchmark_name, num_fewshot)
         # or 3-tuple (benchmark_name, num_fewshot, subcategory)
-        dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
-        if 'Accuracy' not in metric_name:
-            continue
+        dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]        
 
         metric = trainer.state.eval_metrics.get('/'.join(dl_name),
                                                 {}).get(metric_name, None)
@@ -388,8 +386,8 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
         })
 
     df = pd.DataFrame(columns=[
-        'Category', 'Benchmark', 'Subtask', 'Accuracy', 'Number few shot',
-        'Model'
+        'Category', 'Benchmark', 'Subtask',
+        'Score', 'Metric name', 'Number few shot', 'Model'
     ])
 
     for num_shot in results:
@@ -401,7 +399,8 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                         'Category': benchmark_to_taxonomy.get(benchmark, ''),
                         'Benchmark': benchmark,
                         'Subtask': None,
-                        'Accuracy': subscores[0]['val'],
+                        'Score': subscores[0]['val'],
+                        'Metric name': metric,
                         'Number few shot': num_shot,
                         'Model': model_name
                     }
@@ -414,8 +413,9 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                             benchmark,
                         'Subtask':
                             'Average',
-                        'Accuracy':
+                        'Score':
                             sum(s['val'] for s in subscores) / len(subscores),
+                        'Metric name': metric,  
                         'Number few shot':
                             num_shot,
                         'Model':
@@ -430,8 +430,9 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                                 None,
                             'Subtask':
                                 sub['subcat'],
-                            'Accuracy':
+                            'Score':
                                 sub['val'],
+                            'Metric name': metric,
                             'Number few shot':
                                 num_shot,
                             'Model':

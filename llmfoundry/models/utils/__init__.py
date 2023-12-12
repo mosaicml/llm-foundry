@@ -7,8 +7,8 @@ from llmfoundry.models.utils.hf_prefixlm_converter import (
     add_bidirectional_mask_if_missing, convert_hf_causal_lm_to_prefix_lm)
 from llmfoundry.models.utils.meta_init_context import (init_empty_weights,
                                                        init_on_device)
-from llmfoundry.models.utils.param_init_fns import (  # type: ignore
-    MODEL_INIT_REGISTRY, generic_param_init_fn_)
+from llmfoundry.models.utils.param_init_fns import (MODEL_INIT_REGISTRY,
+                                                    generic_param_init_fn_)
 
 __all__ = [
     'AutoTokenizerForMOD',

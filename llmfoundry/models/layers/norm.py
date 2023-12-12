@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Type, Union
 import torch
 
 
-def _cast_if_autocast_enabled(tensor: torch.Tensor):
+def _cast_if_autocast_enabled(tensor: torch.Tensor) -> torch.Tensor:
     if torch.is_autocast_enabled():
         if tensor.device.type == 'cuda':
             dtype = torch.get_autocast_gpu_dtype()
@@ -36,7 +36,7 @@ class LPLayerNorm(torch.nn.LayerNorm):
             dtype=dtype,
         )
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         module_device = x.device
         downcast_x = _cast_if_autocast_enabled(x)
         downcast_weight = _cast_if_autocast_enabled(
@@ -55,7 +55,7 @@ class LPLayerNorm(torch.nn.LayerNorm):
 
 def rms_norm(x: torch.Tensor,
              weight: Optional[torch.Tensor] = None,
-             eps: float = 1e-5):
+             eps: float = 1e-5) -> torch.Tensor:
     output = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + eps)
     if weight is not None:
         return output * weight
@@ -80,7 +80,7 @@ class RMSNorm(torch.nn.Module):
         else:
             self.register_parameter('weight', None)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return rms_norm(x.float(), self.weight, self.eps).to(dtype=x.dtype)
 
 
@@ -102,7 +102,7 @@ class LPRMSNorm(RMSNorm):
             device=device,
         )
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         downcast_x = _cast_if_autocast_enabled(x)
         downcast_weight = _cast_if_autocast_enabled(
             self.weight) if self.weight is not None else self.weight

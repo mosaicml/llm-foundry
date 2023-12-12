@@ -10,7 +10,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 NUM_SENTINEL_TOKENS: int = 100
 
 
-def adapt_tokenizer_for_denoising(tokenizer: PreTrainedTokenizerBase):
+def adapt_tokenizer_for_denoising(tokenizer: PreTrainedTokenizerBase) -> None:
     """Adds sentinel tokens and padding token (if missing).
 
     Expands the tokenizer vocabulary to include sentinel tokens
@@ -49,7 +49,8 @@ class AutoTokenizerForMOD(AutoTokenizer):
     """
 
     @classmethod
-    def from_pretrained(cls, *args: Any, **kwargs: Any):
+    def from_pretrained(cls, *args: Any,
+                        **kwargs: Any) -> PreTrainedTokenizerBase:
         """See `AutoTokenizer.from_pretrained` docstring."""
         tokenizer = super().from_pretrained(*args, **kwargs)
         adapt_tokenizer_for_denoising(tokenizer)

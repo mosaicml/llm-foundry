@@ -10,13 +10,15 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
+from composer.core.data_spec import DataSpec
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.data.packing import BinPackWrapper
-from llmfoundry.data.text_data import StreamingTextDataset
+from llmfoundry.data.packing import BinPackCollator
+from llmfoundry.data.text_data import (StreamingTextDataset,
+                                       get_tokens_per_batch_func)
 from llmfoundry.models import utils
 
 __all__ = ['MixtureOfDenoisersCollator', 'build_text_denoising_dataloader']
@@ -269,11 +271,11 @@ class MixtureOfDenoisersCollator:
                 '`span_mean_lengths_and_ratios` and/or `sequence_mask_ratios`.')
 
     @property
-    def smallest_max_raw_length(self):
+    def smallest_max_raw_length(self) -> int:
         return int(self._smallest_max_raw_length)
 
     @property
-    def largest_max_raw_length(self):
+    def largest_max_raw_length(self) -> int:
         return int(self._largest_max_raw_length)
 
     def __call__(self, examples: List[Dict[str,
@@ -353,7 +355,7 @@ def build_text_denoising_dataloader(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-) -> DataLoader[Dict]:
+) -> DataSpec:
     """Constructor function for a Mixture of Denoisers dataloader.
 
     This function constructs a dataloader that can be used to train an
@@ -373,19 +375,25 @@ def build_text_denoising_dataloader(
             cfg.dataset.max_seq_len (int): The maximum length of sequences
                 in the batch. See :class:`MixtureOfDenoisersCollator` docstring
                 for details.
-            cfg.dataset.packing_ratio (float, optional): If provided, this invokes
+            cfg.dataset.packing_ratio (Optional[float, Literal['auto']]): If provided, this invokes
                 a collator wrapper that packs device_batch_size*packing_ratio
                 raw examples into device_batch_size packed examples. This helps
                 minimize padding while preserving sequence integrity.
                 This adds `sequence_id` to the batch, which indicates which unique
                 sequence each token belongs to.
+
+                If set to 'auto', packing_ratio is profiled and the highest observed packing ratio with
+                zero waste is selected.
+                In practice, this may result in > 0 waste because profiling is done on only a portion
+                of the dataset.
+
                 Note: Using this feature will not change device_batch_size but it
                     will determine the number of raw examples consumed by the dataloader
                     per batch. Some examples may be discarded if they do not fit when
                     packing.
                     Select packing_ratio **carefully** based on the dataset
                     statistics, max_seq_len, and tolerance for discarding samples!
-                    The packing code in `./packing.py` provides a script that can help
+                    The script `scripts/misc/profile_packing.py` can help
                     you choose the best packing_ratio.
             See :class:`StreamingTextDataset` for info on other standard config
                 options within `cfg.dataset`.
@@ -417,7 +425,7 @@ def build_text_denoising_dataloader(
             that the dataloader will produce.
 
     Note:
-        You can run the script inside `./packing.py` to quickly test the
+        You can use the script `scripts/misc/profile_packing.py` to quickly test the
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """
@@ -469,13 +477,13 @@ def build_text_denoising_dataloader(
         remote=cfg.dataset.get('remote'),
         split=cfg.dataset.get('split'),
         shuffle=cfg.dataset.get('shuffle', False),
-        predownload=cfg.dataset.get('predownload', 100_000),
+        predownload=cfg.dataset.get('predownload', None),
         keep_zip=cfg.dataset.get('keep_zip', False),
         download_retry=cfg.dataset.get('download_retry', 2),
         download_timeout=cfg.dataset.get('download_timeout', 60),
-        validate_hash=cfg.dataset.get('validate_hash'),
+        validate_hash=cfg.dataset.get('validate_hash', None),
         shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
-        num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', 128),
+        num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', None),
         batch_size=device_batch_size,
     )
 
@@ -490,7 +498,7 @@ def build_text_denoising_dataloader(
             raise NotImplementedError(
                 'On-the-fly packing is currently only supported for decoder-only formats.'
             )
-        collate_fn = BinPackWrapper(
+        collate_fn = BinPackCollator(
             collator=collate_fn,
             target_batch_size=device_batch_size,
             max_seq_len=cfg.dataset.max_seq_len,
@@ -506,7 +514,7 @@ def build_text_denoising_dataloader(
             'but cfg.dataset.packing_ratio has not been set. Please set ' +\
             'the latter to turn on packing or remove the former from the config.')
 
-    return DataLoader(
+    dl = DataLoader(
         dataset,
         collate_fn=collate_fn,
         batch_size=device_batch_size,
@@ -517,6 +525,12 @@ def build_text_denoising_dataloader(
         persistent_workers=cfg.get('persistent_workers', False),
         timeout=cfg.get('timeout', 0),
     )
+
+    token_counting_func = get_tokens_per_batch_func(
+        pad_token_id=tokenizer.pad_token_id,
+        decoder_only=cfg.mixture_of_denoisers.decoder_only_format)
+
+    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 
 
 def noise_token_sequence(
@@ -613,7 +627,8 @@ def noise_token_sequence(
 
 def _get_max_starting_length(max_length: int, mask_ratio: float,
                              mean_span_length: float, n_prefix_tokens: int,
-                             decoder_only_format: bool, context_eos: bool):
+                             decoder_only_format: bool,
+                             context_eos: bool) -> int:
     """Get max num raw tokens that will fit max_length."""
 
     def sequence_stats(length: int):
@@ -677,8 +692,7 @@ def _sample_mask_array(length: int, mask_ratio: float,
         """
         span_markers = np.less(np.arange(total_tokens - 1), num_spans -
                                1)[np.random.permutation(total_tokens - 1)]
-        span_start_indicator = np.concatenate([[0],
-                                               span_markers])  # type: ignore
+        span_start_indicator = np.concatenate([np.array([0]), span_markers])
         span_id = np.cumsum(span_start_indicator).reshape(-1, 1)
         spans = np.arange(num_spans).reshape(1, -1)
         span_lengths = np.sum(span_id == spans, axis=0)
@@ -715,13 +729,13 @@ def _apply_mask(tokens: Union[torch.Tensor, Sequence[int], np.ndarray],
 
         # Ensure there's an end-of-sentence token at the end
         if ensure_eos and (noised_tokens[-1] != eos_token_id):
-            noised_tokens = np.concatenate([noised_tokens,
-                                            [eos_token_id]])  # type: ignore
+            noised_tokens = np.concatenate(
+                [noised_tokens, np.array([eos_token_id])])
 
         return noised_tokens
 
     # Masking at previous token
-    prev_token_mask = np.concatenate([[0], mask[:-1]])  # type: ignore
+    prev_token_mask = np.concatenate([np.array([0]), mask[:-1]])
 
     # Decompose mask into start-of-span mask and non-start-of-span mask
     start_of_noise_span_token = np.logical_and(mask,
@@ -740,8 +754,8 @@ def _apply_mask(tokens: Union[torch.Tensor, Sequence[int], np.ndarray],
 
     # Ensure there's an end-of-sentence token at the end
     if ensure_eos and (noised_tokens[-1] != eos_token_id):
-        noised_tokens = np.concatenate([noised_tokens,
-                                        [eos_token_id]])  # type: ignore
+        noised_tokens = np.concatenate(
+            [noised_tokens, np.array([eos_token_id])])
     return noised_tokens
 
 
@@ -869,7 +883,9 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_name=tokenizer_name,
                                 tokenizer_kwargs=tokenizer_kwargs)
 
-    loader = build_text_denoising_dataloader(cfg, tokenizer, device_batch_size)
+    loader = build_text_denoising_dataloader(cfg, tokenizer,
+                                             device_batch_size).dataloader
+    assert isinstance(loader, DataLoader)
     assert isinstance(loader.dataset, StreamingTextDataset)
 
     print(f'\n\nTRUNCATING TO: {loader.dataset.max_seq_len}\n\n')

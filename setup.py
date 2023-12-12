@@ -47,12 +47,12 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,mlflow]>=0.16.1,<0.17',
+    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.17.1,<0.18',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
-    'transformers>=4.32,<4.33',
-    'mosaicml-streaming>=0.5.1,<0.6',
-    'torch>=1.13.1,<2.1.1',
-    'datasets==2.10.1',
+    'transformers>=4.34.1,<4.35',
+    'mosaicml-streaming>=0.7.1,<0.8',
+    'torch>=2.1,<2.1.1',
+    'datasets>=2.14.5,<2.15',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
     'einops==0.5.0',
@@ -64,6 +64,10 @@ install_requires = [
     'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
+    'boto3>=1.21.45,<2',
+    'huggingface-hub>=0.17.0,<1.0',
+    'beautifulsoup4>=4.12.2,<5',  # required for model download utils
+    'tenacity>=8.2.3,<9',
 ]
 
 extra_deps = {}
@@ -79,27 +83,48 @@ extra_deps['dev'] = [
     'hf_transfer==0.1.3',
 ]
 
+extra_deps['databricks'] = [
+    'mosaicml[databricks]>=0.17.1,<0.18',
+]
+
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.16.1,<0.17',
+    'mosaicml[tensorboard]>=0.17.1,<0.18',
 ]
 
 extra_deps['gpu'] = [
-    'flash-attn==v1.0.3.post0',
-    'mosaicml-turbo==0.0.3',
+    'flash-attn==1.0.9',
+    'mosaicml-turbo==0.0.4',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy',
+    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
+]
+extra_deps['gpu-flash2'] = [
+    'flash-attn==2.3.2',
+    'mosaicml-turbo==0.0.4',
+    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
+    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v2.3.2#subdirectory=csrc/xentropy',
 ]
 
 extra_deps['peft'] = [
     'loralib==0.1.1',  # lora core
     'bitsandbytes==0.39.1',  # 8bit
-    'scipy>=1.10.0,<=1.11.0',  # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
+    # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
+    'scipy>=1.10.0,<=1.11.0',
     # TODO: pin peft when it stabilizes.
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'peft==0.4.0',
 ]
 
-extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
+extra_deps['openai'] = [
+    'openai==0.27.8',
+    'tiktoken==0.4.0',
+]
+extra_deps['all-cpu'] = set(
+    dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
+extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
+                        if key not in {'gpu-flash2', 'all-cpu'})
+extra_deps['all-flash2'] = set(dep for key, deps in extra_deps.items()
+                               for dep in deps
+                               if key not in {'gpu', 'all', 'all-cpu'})
 
 setup(
     name=_PACKAGE_NAME,

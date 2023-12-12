@@ -10,6 +10,7 @@ utility functions that are present in multiple scripts.
 """
 
 import json
+import logging
 import os
 import random
 import string
@@ -18,7 +19,10 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 import sentencepiece as spm
-from transformers import AutoTokenizer, PreTrainedTokenizer
+from transformers import (AutoTokenizer, PreTrainedTokenizer,
+                          PreTrainedTokenizerFast)
+
+log = logging.getLogger(__name__)
 
 
 def _get_weight_data_type(data_type: str):
@@ -32,8 +36,9 @@ def _get_weight_data_type(data_type: str):
 
 # TODO: move this functionality to composer once the bug fixes are upstreamed
 def get_hf_tokenizer_from_composer_state_dict(
-        state_dict: Dict[str, Any],
-        tokenizer_save_dir: Optional[str] = None
+    state_dict: Dict[str, Any],
+    trust_remote_code: bool,
+    tokenizer_save_dir: Optional[str] = None,
 ) -> Optional[PreTrainedTokenizer]:
     if 'state' not in state_dict:
         raise RuntimeError(
@@ -82,13 +87,28 @@ def get_hf_tokenizer_from_composer_state_dict(
                 with open(tokenizer_file_path, 'wb') as _tmp_file:
                     _tmp_file.write(s.serialized_model_proto())
 
-        hf_tokenizer = AutoTokenizer.from_pretrained(tokenizer_save_dir)
+        hf_tokenizer = load_tokenizer(tokenizer_save_dir,
+                                      trust_remote_code=trust_remote_code)
 
         # remove 'name_or_path'
         hf_tokenizer.name_or_path = ''
         hf_tokenizer.init_kwargs['name_or_path'] = ''
 
     return hf_tokenizer
+
+
+def load_tokenizer(
+    tokenizer_save_dir: str, trust_remote_code: bool
+) -> Union[PreTrainedTokenizer, PreTrainedTokenizerFast]:
+    try:
+        return AutoTokenizer.from_pretrained(
+            tokenizer_save_dir, trust_remote_code=trust_remote_code)
+    except ValueError as e:
+        raise ValueError(
+            f'Got error while loading tokenizer with trust_remote_code={trust_remote_code}: {e}. '
+            +
+            'If accessing a tokenizer defined outside of the transformers module,'
+            + ' please use --trust_remote_code.')
 
 
 def _write_zero_bias(weight_name: str, weight_file_path: str,
@@ -106,7 +126,7 @@ def _write_zero_bias(weight_name: str, weight_file_path: str,
         raise RuntimeError(
             f'Cannot write zero bias for {weight_name}. Input is not a weight tensor'
         )
-    print(f'zero bias for weight: {weight_name}')
+    log.debug(f'zero bias for weight: {weight_name}')
     bias_file_path = weight_file_path.replace('.weight', '.bias')
     bias = np.zeros(bias_shape, dtype=np.float32)
     bias.tofile(bias_file_path)
@@ -114,7 +134,7 @@ def _write_zero_bias(weight_name: str, weight_file_path: str,
 
 def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
                                tensor_name: str, config: Dict[str, Any],
-                               data: np.ndarray):
+                               data: np.ndarray) -> None:
     """Convert each MPT weight to a FasterTransformer compatible format.
 
     Args:
@@ -228,7 +248,7 @@ def convert_and_save_ft_weights(named_params: dict,
                                 config: dict,
                                 infer_gpu_num: int = 1,
                                 weight_data_type: str = 'fp32',
-                                save_dir: str = ''):
+                                save_dir: str = '') -> None:
     """Convert a Composer MPT checkpoint to a FasterTransformer format.
 
     Args:
@@ -259,10 +279,10 @@ def convert_and_save_ft_weights(named_params: dict,
     }
 
     for name, param in named_params.items():
-        print(f'Working on parameter {name} ...')
+        log.debug(f'Working on parameter {name} ...')
         data = param.detach().cpu().numpy().astype(np_weight_data_type)
         if name.find('weight') == -1 and name.find('bias') == -1:
-            print(f'found a parameter name that is not handled: {name}')
+            log.debug(f'found a parameter name that is not handled: {name}')
             continue
         if name == 'transformer.wpe.weight':
             assert data.shape == (

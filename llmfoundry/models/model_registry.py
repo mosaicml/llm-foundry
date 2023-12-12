@@ -3,7 +3,9 @@
 
 from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                   ComposerHFT5)
-from llmfoundry.models.inference_api_wrapper import TRTLLMEvalWrapper
+from llmfoundry.models.inference_api_wrapper import (OpenAICausalLMEvalWrapper,
+                                                     OpenAIChatAPIEvalWrapper,
+                                                     TRTLLMEvalWrapper)
 from llmfoundry.models.mpt import ComposerMPTCausalLM
 
 COMPOSER_MODEL_REGISTRY = {
@@ -12,4 +14,6 @@ COMPOSER_MODEL_REGISTRY = {
     'hf_prefix_lm': ComposerHFPrefixLM,
     'hf_t5': ComposerHFT5,
     'trtllm': TRTLLMEvalWrapper
+    'openai_causal_lm': OpenAICausalLMEvalWrapper,
+    'openai_chat': OpenAIChatAPIEvalWrapper
 }

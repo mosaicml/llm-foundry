@@ -24,9 +24,12 @@ class MPTMLP(nn.Module):
         expansion_ratio: int,
         fc_type: str = 'torch',
         device: Optional[str] = None,
+        bias: bool = True,
     ):
         super().__init__()
-        fc_kwargs = {}
+        fc_kwargs: dict[str, Any] = {
+            'bias': bias,
+        }
         if fc_type != 'te':
             fc_kwargs['device'] = device
         self.up_proj = FC_CLASS_REGISTRY[fc_type](
@@ -40,9 +43,9 @@ class MPTMLP(nn.Module):
             d_model,
             **fc_kwargs,
         )
-        self.down_proj._is_residual = True  # type: ignore
+        self.down_proj._is_residual = True
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.down_proj(self.act(self.up_proj(x)))
 
 
@@ -60,8 +63,9 @@ def build_ffn(
     expansion_ratio: int,
     fc_type: str = 'torch',
     device: Optional[str] = None,
+    bias: bool = True,
     **kwargs: Any,
-):
+) -> nn.Module:
     ffn_type = kwargs.pop('ffn_type')
     if ffn_type == 'mptmlp':
         if len(kwargs) > 0:
@@ -72,12 +76,14 @@ def build_ffn(
             expansion_ratio=expansion_ratio,
             fc_type=fc_type,
             device=device,
+            bias=bias,
         )
     elif ffn_type == 'te_ln_mlp':
         assert te is not None
         return te.LayerNormMLP(
             hidden_size=d_model,
             ffn_hidden_size=d_model * expansion_ratio,
+            bias=bias,
             **kwargs,
         )
 

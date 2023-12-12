@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
-from typing import Union
+from typing import Tuple, Union
 
 import datasets as hf_datasets
 import torch
+from composer.core.data_spec import DataSpec
 from composer.utils import dist, get_file, parse_uri
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
@@ -13,7 +14,8 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.tasks import dataset_constructor
-from llmfoundry.data.packing import BinPackWrapper
+from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
+from llmfoundry.data.text_data import get_tokens_per_batch_func
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ _HF_IGNORE_INDEX = -100
 
 def build_finetuning_dataloader(cfg: DictConfig,
                                 tokenizer: PreTrainedTokenizerBase,
-                                device_batch_size: int) -> DataLoader:
+                                device_batch_size: int) -> DataSpec:
     """Builds a finetuning dataloader for training or evaluating.
 
     The underlying dataset can be built through one of two code paths:
@@ -72,20 +74,26 @@ def build_finetuning_dataloader(cfg: DictConfig,
             cfg.dataset.allow_pad_trimming (bool, optional): Whether to allow
                 the collator to trim padding. See :class:`Seq2SeqFinetuningCollator`
                 docstring for details. Default: ``False``.
-            cfg.dataset.packing_ratio (float, optional): If provided, this invokes
-                a collator wrapper that packs `device_batch_size*packing_ratio`
-                raw examples into `device_batch_size` packed examples. This helps
+            cfg.dataset.packing_ratio (Optional[float, Literal['auto']]): If provided, this invokes
+                a collator wrapper that packs device_batch_size*packing_ratio
+                raw examples into device_batch_size packed examples. This helps
                 minimize padding while preserving sequence integrity.
                 This adds `sequence_id` to the batch, which indicates which unique
                 sequence each token belongs to.
+
+                If set to 'auto', packing_ratio is profiled and the highest observed packing ratio with
+                zero waste is selected.
+                In practice, this may result in > 0 waste because profiling is done on only a portion
+                of the dataset.
+
                 Note: Using this feature will not change device_batch_size but it
                     will determine the number of raw examples consumed by the dataloader
                     per batch. Some examples may be discarded if they do not fit when
                     packing.
-                    Select `packing_ratio` **carefully** based on the dataset
-                    statistics, `max_seq_len`, and tolerance for discarding samples!
-                    The packing code in `../packing.py` provides a script that can help
-                    you choose the best `packing_ratio`.
+                    Select packing_ratio **carefully** based on the dataset
+                    statistics, max_seq_len, and tolerance for discarding samples!
+                    The script `scripts/misc/profile_packing.py` can help
+                    you choose the best packing_ratio.
             cfg.dataset.shuffle (bool): Whether to shuffle the dataset.
             ___
             See :class:`StreamingFinetuningDataset` for info on other standard config
@@ -104,14 +112,14 @@ def build_finetuning_dataloader(cfg: DictConfig,
         A pytorch dataloader
 
     Note:
-        You can run the script inside `../packing.py` to quickly test the
+        You can run the script inside `scripts/misc/profile_packing.py` to quickly test the
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """
     _validate_config(cfg.dataset)
 
     # Use EOS as the pad token if none exists
-    if tokenizer.pad_token is None:  # type: ignore
+    if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
     dataset = None  # for pyright
@@ -128,20 +136,22 @@ def build_finetuning_dataloader(cfg: DictConfig,
             epoch_size=cfg.dataset.get('epoch_size', None),
             predownload=cfg.dataset.get('predownload', None),
             cache_limit=cfg.dataset.get('cache_limit', None),
-            partition_algo=cfg.dataset.get('partition_algo', 'orig'),
+            partition_algo=cfg.dataset.get('partition_algo', 'relaxed'),
             num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', None),
             batch_size=device_batch_size,
             shuffle=cfg.dataset.get('shuffle', False),
-            shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1b'),
+            shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1e'),
             shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
-            shuffle_block_size=cfg.dataset.get('shuffle_block_size', 1 << 18),
+            shuffle_block_size=cfg.dataset.get('shuffle_block_size', None),
             sampling_method=cfg.dataset.get('sampling_method', 'balanced'),
+            sampling_granularity=cfg.dataset.get('sampling_granularity', 1),
+            batching_method=cfg.dataset.get('batching_method', 'random'),
         )
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
-            cfg.dataset, tokenizer, device_batch_size)
+            cfg, tokenizer, device_batch_size)
 
-        return DataLoader(
+        dl = DataLoader(
             dataset,
             collate_fn=collate_fn,
             batch_size=dataloader_batch_size,
@@ -170,7 +180,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             )
 
         collate_fn, dataloader_batch_size = _build_collate_fn(
-            cfg.dataset, tokenizer, device_batch_size)
+            cfg, tokenizer, device_batch_size)
 
         if cfg.drop_last:
             world_size = dist.get_world_size()
@@ -191,7 +201,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
                     )
 
         assert dataset is not None
-        return DataLoader(
+        dl = DataLoader(
             dataset,
             collate_fn=collate_fn,
             batch_size=dataloader_batch_size,
@@ -206,8 +216,13 @@ def build_finetuning_dataloader(cfg: DictConfig,
             timeout=cfg.get('timeout', 0),
         )
 
+    token_counting_func = get_tokens_per_batch_func(
+        pad_token_id=tokenizer.pad_token_id)
 
-def _validate_config(dataset_cfg: DictConfig):
+    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
+
+
+def _validate_config(dataset_cfg: DictConfig) -> None:
     """Validates the dataset configuration.
 
     Makes sure that the dataset is properly configured for either
@@ -291,20 +306,31 @@ def _build_hf_dataset_from_remote(
         FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.
     """
     supported_extensions = ['jsonl', 'csv', 'parquet']
+    # HF datasets does not support a split with dashes, so we replace dashes
+    # with underscores in the destination split.
+    destination_split = cfg.dataset.split.replace('-', '_')
     finetune_dir = os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        f'downloaded_finetuning_data/{cfg.dataset.split}')
+        os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
+        'downloaded_finetuning',
+        destination_split if destination_split != 'data' else 'data_not',
+    )
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in supported_extensions:
         name = f'{cfg.dataset.hf_name.strip("/")}/{cfg.dataset.split}.{extension}'
         destination = str(
-            os.path.abspath(f'{finetune_dir}/{cfg.dataset.split}.{extension}'))
+            os.path.abspath(
+                os.path.join(
+                    finetune_dir, 'data',
+                    f'{destination_split}-00000-of-00001.{extension}')))
+
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file
-        signal_file_path = os.path.join(finetune_dir, '.the_eagle_has_landed')
+        signal_file_path = os.path.join(
+            finetune_dir, f'.node_{dist.get_node_rank()}_local_rank0_completed')
         if dist.get_local_rank() == 0:
             try:
-                get_file(name, destination, overwrite=True)
+                get_file(path=name, destination=destination, overwrite=True)
             except FileNotFoundError as e:
                 if extension == supported_extensions[-1]:
                     files_searched = [
@@ -317,7 +343,7 @@ def _build_hf_dataset_from_remote(
                         f'at {files_searched}'
                     ) from e
                 else:
-                    print(
+                    log.debug(
                         f'Could not find {name}, looking for another extension')
                 continue
 
@@ -337,7 +363,7 @@ def _build_hf_dataset_from_remote(
         dist.barrier()
 
         cfg.dataset.hf_name = finetune_dir
-        print(cfg.dataset)
+        log.info(cfg.dataset)
         dataset = dataset_constructor.build_from_hf(
             cfg.dataset,
             max_seq_len=cfg.dataset.max_seq_len,
@@ -346,24 +372,40 @@ def _build_hf_dataset_from_remote(
         return dataset
 
 
-def _build_collate_fn(dataset_cfg: DictConfig,
-                      tokenizer: PreTrainedTokenizerBase,
-                      device_batch_size: int):
+def _build_collate_fn(
+    dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+    device_batch_size: int
+) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
+    dataset_cfg = dataloader_cfg.dataset
+    max_seq_len = dataset_cfg.max_seq_len
+
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,
-        max_seq_len=dataset_cfg.max_seq_len,
+        max_seq_len=max_seq_len,
         decoder_only_format=dataset_cfg.decoder_only_format,
         allow_pad_trimming=dataset_cfg.get('allow_pad_trimming', False),
     )
 
     packing_ratio = dataset_cfg.get('packing_ratio')
+    max_leftover_bins_to_keep = dataset_cfg.get('max_leftover_bins_to_keep')
     if packing_ratio is None:
-        if dataset_cfg.get('max_leftover_bins_to_keep') is not None:
+        if max_leftover_bins_to_keep is not None:
             raise ValueError(
                 'dataset.max_leftover_bins_to_keep has been defined, ' +\
                 'but dataset.packing_ratio has not been set. Please set ' +\
                 'the latter to turn on packing or remove the former from the config.')
         return collate_fn, device_batch_size
+
+    if packing_ratio == 'auto':
+        packing_ratio = auto_packing_ratio(dataloader_cfg, tokenizer,
+                                           device_batch_size)
+
+    if isinstance(packing_ratio, str):
+        raise ValueError(
+            'dataset.packing_ratio must be a float or "auto", but it was set to '
+            + f'{packing_ratio}.')
+
+    log.info(f'Using packing ratio {packing_ratio}')
 
     if packing_ratio == 1.0:
         return collate_fn, device_batch_size
@@ -375,13 +417,13 @@ def _build_collate_fn(dataset_cfg: DictConfig,
             'On-the-fly packing is currently only supported for decoder-only formats.'
         )
 
-    collate_fn = BinPackWrapper(
+    collate_fn = BinPackCollator(
         collator=collate_fn,
         target_batch_size=device_batch_size,
-        max_seq_len=dataset_cfg.max_seq_len,
+        max_seq_len=max_seq_len,
         pad_token_id=tokenizer.pad_token_id,
         padding_side=tokenizer.padding_side,
-        max_leftover_bins_to_keep=dataset_cfg.get('max_leftover_bins_to_keep'),
+        max_leftover_bins_to_keep=max_leftover_bins_to_keep,
     )
     n_examples_to_pack = int(device_batch_size * packing_ratio)
     return collate_fn, n_examples_to_pack
@@ -428,7 +470,8 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     device_batch_size = 2
-    dataloader = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+    dataloader = build_finetuning_dataloader(cfg, tokenizer,
+                                             device_batch_size).dataloader
 
     packing = cfg.dataset.get('packing_ratio') is not None
 

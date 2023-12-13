@@ -19,11 +19,21 @@ except:
 log = logging.getLogger(__name__)
 
 
-def _resolve_ffn_hidden_and_exp_ratio(
+def resolve_ffn_hidden_and_exp_ratio(
     d_model: int,
     expansion_ratio: Union[int, float],
     ffn_hidden_size: Optional[int] = None,
-) -> tuple[Union[int, float], int]:
+) -> int:
+    """Resolve the hidden size of the feed-forward network.
+
+    Args:
+        d_model (int): The dimension of the input and output of the feed-forward network.
+        expansion_ratio (Union[int, float]): The expansion ratio of the feed-forward network.
+        ffn_hidden_size (Optional[int]): The hidden size of the feed-forward network.
+
+    Returns:
+        int: The hidden size of the feed-forward network.
+    """
     if ffn_hidden_size is not None:
         log.info(
             f'`expansion_ratio` (={expansion_ratio}) ignored when `ffn_hidden_size` (={ffn_hidden_size}) is specified.'
@@ -32,9 +42,9 @@ def _resolve_ffn_hidden_and_exp_ratio(
         ffn_hidden_size = int(d_model * expansion_ratio)
         if ffn_hidden_size != d_model * expansion_ratio:
             raise ValueError(
-                f'`d_model * expansion_ratio` ({ffn_hidden_size}) must be an integer.'
+                f'`d_model * expansion_ratio` (={d_model * expansion_ratio}) must be an integer.'
             )
-    return expansion_ratio, ffn_hidden_size
+    return ffn_hidden_size
 
 
 class MPTMLP(nn.Module):
@@ -49,7 +59,7 @@ class MPTMLP(nn.Module):
         bias: bool = True,
     ):
         super().__init__()
-        expansion_ratio, ffn_hidden_size = _resolve_ffn_hidden_and_exp_ratio(
+        ffn_hidden_size = resolve_ffn_hidden_and_exp_ratio(
             d_model, expansion_ratio, ffn_hidden_size)
         self.fc_kwargs: dict[str, Any] = {
             'bias': bias,
@@ -138,7 +148,7 @@ def build_ffn(
         )
     elif ffn_type == 'te_ln_mlp':
         assert te is not None
-        _, ffn_hidden_size = _resolve_ffn_hidden_and_exp_ratio(
+        ffn_hidden_size = resolve_ffn_hidden_and_exp_ratio(
             d_model, expansion_ratio, ffn_hidden_size)
         return te.LayerNormMLP(
             hidden_size=d_model,

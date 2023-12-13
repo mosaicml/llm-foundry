@@ -7,7 +7,7 @@ import logging
 import os
 import random
 from time import sleep
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import torch
 from composer.core.types import Batch
@@ -59,7 +59,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
     def try_generate_completion(self, prompt: str, num_tokens: int):
         try:
-            from openai import RateLimitError, APITimeoutError
+            from openai import APITimeoutError, RateLimitError
         except ImportError as e:
             raise MissingConditionalImportError(
                 extra_deps_group='openai',
@@ -84,7 +84,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 delay *= 2 * (1 + random.random())
                 sleep(delay)
                 continue
-          
+
         return completion
 
 
@@ -203,6 +203,9 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         return torch.stack(output_logits_batch).to(batch['input_ids'].device)
 
     def process_result(self, completion: Optional[ChatCompletion]):
+        if completion is None:
+            raise ValueError("Couldn't generate model output")
+
         if len(completion.choices) > 0:
             tensors = []
             for t in self.tokenizer(
@@ -236,9 +239,10 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
         if completion is None:
             raise ValueError("Couldn't generate model output")
 
-        assert isinstance(completion, Completion)
-        assert isinstance(completion.choices[0].logprobs, Logprobs)
-        assert isinstance(completion.choices[0].logprobs.top_logprobs, list)
+        if TYPE_CHECKING:
+            assert isinstance(completion, Completion)
+            assert isinstance(completion.choices[0].logprobs, Logprobs)
+            assert isinstance(completion.choices[0].logprobs.top_logprobs, list)
 
         if len(completion.choices[0].logprobs.top_logprobs[0]) > 0:
             tensor = self.tokenizer.construct_logit_tensor(

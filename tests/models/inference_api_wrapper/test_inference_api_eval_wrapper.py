@@ -44,19 +44,19 @@ def load_icl_config():
 class MockTopLogProb:
 
     def __init__(self, expected_token: str) -> None:
-        setattr(self, 'top_logprobs', [{expected_token: 0}])
+        self.top_logprobs = [{expected_token: 0}]
 
 
 class MockLogprob:
 
     def __init__(self, expected_token: str) -> None:
-        setattr(self, 'logprobs', MockTopLogProb(expected_token))
+        self.logprobs = MockTopLogProb(expected_token)
 
 
 class MockCompletion:
 
     def __init__(self, expected_token: str) -> None:
-        setattr(self, 'choices', [MockLogprob(expected_token)])
+        self.choices = [MockLogprob(expected_token)]
 
 
 class MockContent:

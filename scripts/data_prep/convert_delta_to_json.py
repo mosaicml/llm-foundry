@@ -13,7 +13,6 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import List, Optional, Tuple, Union
 from uuid import uuid4
 
-import databricks
 import google.protobuf.any_pb2 as any_pb2
 import lz4.frame
 import pandas as pd

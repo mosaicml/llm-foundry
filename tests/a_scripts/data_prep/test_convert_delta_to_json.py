@@ -4,14 +4,12 @@
 # copyright 2022 mosaicml llm foundry authors
 # spdx-license-identifier: apache-2.0
 
-import os
-import sys
-from typing import Any
-
 import unittest
+from argparse import Namespace
+from typing import Any
 from unittest.mock import MagicMock, patch
 
-from scripts.data_prep.convert_delta_to_json import stream_delta_to_json
+from scripts.data_prep.convert_delta_to_json import fetch_DT
 
 
 class TestStreamDeltaToJson():
@@ -42,15 +40,14 @@ class TestStreamDeltaToJson():
                                             [column_response_item],
                                             [data_response_item]]
 
-        stream_delta_to_json(
-                server_hostname = 'test_host',
-                access_token = 'test_token',
-                http_path = 'test_http_path',
-                tablename = 'test_table',
-                json_output_path = 'test_output_path'
-        )
+        args = Namespace(DATABRICKS_HOST='test_host',
+                         DATABRICKS_TOKEN='test_token',
+                         http_path='test_http_path',
+                         tablename='test_table',
+                         json_output_path='test_output_path',
+                         cluster_id='test_cluster_id')
 
-
+        fetch_DT(args)
         mock_connect.assert_called_once_with(server_hostname='test_host',
                                              http_path='test_http_path',
                                              access_token='test_token')

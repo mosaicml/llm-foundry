@@ -19,7 +19,7 @@ except:
 log = logging.getLogger(__name__)
 
 
-def resolve_ffn_hidden_and_exp_ratio(
+def resolve_ffn_hidden_size(
     d_model: int,
     expansion_ratio: Union[int, float],
     ffn_hidden_size: Optional[int] = None,
@@ -42,7 +42,7 @@ def resolve_ffn_hidden_and_exp_ratio(
         ffn_hidden_size = int(d_model * expansion_ratio)
         if ffn_hidden_size != d_model * expansion_ratio:
             raise ValueError(
-                f'`d_model * expansion_ratio` (={d_model * expansion_ratio}) must be an integer.'
+                f'`d_model * expansion_ratio` must be an integer ({d_model=}; {expansion_ratio=}; {d_model * expansion_ratio=}).'
             )
     return ffn_hidden_size
 
@@ -59,8 +59,8 @@ class MPTMLP(nn.Module):
         bias: bool = True,
     ):
         super().__init__()
-        ffn_hidden_size = resolve_ffn_hidden_and_exp_ratio(
-            d_model, expansion_ratio, ffn_hidden_size)
+        ffn_hidden_size = resolve_ffn_hidden_size(d_model, expansion_ratio,
+                                                  ffn_hidden_size)
         self.fc_kwargs: dict[str, Any] = {
             'bias': bias,
         }
@@ -148,8 +148,8 @@ def build_ffn(
         )
     elif ffn_type == 'te_ln_mlp':
         assert te is not None
-        ffn_hidden_size = resolve_ffn_hidden_and_exp_ratio(
-            d_model, expansion_ratio, ffn_hidden_size)
+        ffn_hidden_size = resolve_ffn_hidden_size(d_model, expansion_ratio,
+                                                  ffn_hidden_size)
         return te.LayerNormMLP(
             hidden_size=d_model,
             ffn_hidden_size=ffn_hidden_size,

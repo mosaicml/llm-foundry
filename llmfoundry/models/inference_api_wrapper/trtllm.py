@@ -175,9 +175,33 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
                                len(expected_cont_tokens))
 
             output_dict = self.decoder.decode(
-                input_ids, input_lengths, self.sampling_config)
+                input_ids, input_lengths, self.sampling_config, return_dict=True)
+            
+            context_logits = output_dict['context_logits']
+            context_logits = context_logits.squeeze()
+            output_logits_list = output_dict['generation_logits']
+            for i in range(len(output_logits_list)):
+                output_logits_list[i] = output_logits_list[i].squeeze()
+            print("Context logits:", context_logits.shape)
+            print("Output logits list:", output_logits_list)
+            print("Output logits 0 shape:", output_logits_list[0].shape)
+            output_logits_tensor = torch.stack(output_logits_list)
+            print("Output logits stacked:", output_logits_tensor.shape)
+            combined_logits = torch.cat([context_logits, output_logits_tensor])
+            print("Combined logits shape:", combined_logits.shape)
+            
+            padding = torch.nn.functional.one_hot(
+                torch.full(
+                    (seqlen - combined_logits.shape[0],),
+                    self.PAD_ID,
+                    device=combined_logits.device
+                ),
+                num_classes=self.vocab_size)
+            padded_combined_logits = torch.cat([combined_logits, padding])
 
-            return output_dict['generation_logits']
+            output_logits_batch.append(padded_combined_logits)
+
+            return torch.stack(output_logits_batch).to(batch['input_ids'].device)
 
             #print("Decoded output:", self.tokenizer.decode(output_ids[0][0][cont_idxs[0]:].tolist()))
             """

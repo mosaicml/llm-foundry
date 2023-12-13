@@ -202,7 +202,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
         return torch.stack(output_logits_batch).to(batch['input_ids'].device)
 
-    def process_result(self, completion: ChatCompletion):
+    def process_result(self, completion: Optional[ChatCompletion]):
         if len(completion.choices) > 0:
             tensors = []
             for t in self.tokenizer(

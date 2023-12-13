@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: f1_score # v0.4.0
+  git_branch: v0.4.0
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
@@ -12,9 +12,9 @@ command: |
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: mpt-eval
-gpu_num: 32
-gpu_type: a100_40gb
-cluster: r7z2  # replace with your cluster here!
+gpu_num: 8
+# gpu_type:
+# cluster:  # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
@@ -31,7 +31,7 @@ parameters:
     model_name: mosaicml/mpt-7b-instruct
     # Tokenizer
     tokenizer:
-      name: mosaicml/mpt-7b-instruct
+      name: EleutherAI/gpt-neox-20b
       kwargs:
         model_max_length: ${max_seq_len}
 
@@ -50,34 +50,5 @@ parameters:
     limit_all_gathers: True
 
 
-  # icl_tasks: 'eval/yamls/tasks_v0.2.yaml'
-  # eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'
-  icl_tasks:
-  -
-    label: quac
-    dataset_uri: eval/local_data/free_response/quac.jsonl
-    num_fewshot: [0]
-    icl_task_type: question_answering
-    metric_names:
-    - 'InContextLearningGenerationF1Score'
-  -
-    label: natural_questions_closed
-    dataset_uri: eval/local_data/free_response/natural_questions_closed.jsonl
-    num_fewshot: [0]
-    icl_task_type: question_answering
-    metric_names:
-    - 'InContextLearningGenerationF1Score' 
-  -
-    label: natural_questions_openbook_short
-    dataset_uri: eval/local_data/free_response/natural_questions_openbook_short.jsonl
-    num_fewshot: [0]
-    icl_task_type: question_answering
-    metric_names:
-    - 'InContextLearningGenerationF1Score' 
-  -
-    label: narrativeqa
-    dataset_uri: eval/local_data/free_response/narrativeqa.jsonl
-    num_fewshot: [0]
-    icl_task_type: question_answering
-    metric_names:
-    - 'InContextLearningGenerationF1Score' 
+  icl_tasks: 'eval/yamls/tasks_v0.2.yaml'
+  eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'

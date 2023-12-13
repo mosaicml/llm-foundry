@@ -23,6 +23,9 @@ __all__ = [
     'OpenAICausalLMEvalWrapper',
     'OpenAIChatAPIEvalWrapper',
 ]
+from openai.types.chat.chat_completion import ChatCompletion
+from openai.types.completion import Completion
+from openai.types.completion_choice import Logprobs
 
 MAX_RETRIES = 10
 
@@ -56,7 +59,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
     def try_generate_completion(self, prompt: str, num_tokens: int):
         try:
-            from openai import RateLimitError
+            from openai import RateLimitError, APITimeoutError
         except ImportError as e:
             raise MissingConditionalImportError(
                 extra_deps_group='openai',
@@ -77,10 +80,11 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 delay *= 2 * (1 + random.random())
                 sleep(delay)
                 continue
-            except Exception as e:
-                print(f'Found Exception: {e}')
-                # TODO: Why continue on unspecified Exception?
+            except APITimeoutError as e:
+                delay *= 2 * (1 + random.random())
+                sleep(delay)
                 continue
+          
         return completion
 
 
@@ -198,11 +202,11 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
         return torch.stack(output_logits_batch).to(batch['input_ids'].device)
 
-    def process_result(self, completion):  # pyright: ignore
-        if len(completion.choices) > 0:  # pyright: ignore
+    def process_result(self, completion: ChatCompletion):
+        if len(completion.choices) > 0:
             tensors = []
-            for t in self.tokenizer(completion.choices[0].message.content
-                                   )['input_ids']:  # pyright: ignore
+            for t in self.tokenizer(
+                    completion.choices[0].message.content)['input_ids']:
                 tensors.append(
                     self.tokenizer.construct_logit_tensor(
                         {self.tokenizer.decode([t]): 0.0}))
@@ -228,9 +232,14 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
             logprobs=5,
             temperature=0.0)
 
-    def process_result(self, completion):  # pyright: ignore
+    def process_result(self, completion: Optional[Completion]):
         if completion is None:
             raise ValueError("Couldn't generate model output")
+
+        assert isinstance(completion, Completion)
+        assert isinstance(completion.choices[0].logprobs, Logprobs)
+        assert isinstance(completion.choices[0].logprobs.top_logprobs, list)
+
         if len(completion.choices[0].logprobs.top_logprobs[0]) > 0:
             tensor = self.tokenizer.construct_logit_tensor(
                 dict(completion.choices[0].logprobs.top_logprobs[0]))

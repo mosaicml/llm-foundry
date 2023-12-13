@@ -1,12 +1,15 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
-
-from collections import Counter
-import string
-from composer.metrics import InContextLearningMetric
-import torch
-from torch import Tensor
-from typing import Any, Dict, List, Optional
 import re
+import string
+from collections import Counter
+from typing import Any, Dict, List, Optional
+
+import torch
+from composer.metrics import InContextLearningMetric
+from torch import Tensor
+
 
 class InContextLearningGenerationF1Score(InContextLearningMetric):
     r"""Computes F1 score for In-context learning (ICL) generation (QA) tasks.
@@ -36,31 +39,34 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
     def __init__(self, dist_sync_on_step: bool = False):
         # state from multiple processes
         super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.add_state('correct', default=torch.tensor(0.), dist_reduce_fx='sum')
+        self.add_state('correct',
+                       default=torch.tensor(0.),
+                       dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
 
-    def normalize_answer(self, answer):
-        """
-        Taken from the official evaluation script for v1.1 of the SQuAD dataset.
+    def normalize_answer(self, answer: str):
+        """Taken from official evaluation script for v1.1 of the SQuAD.
+
         Lower text and remove punctuation, articles and extra whitespace.
         """
 
-        def remove_articles(text):
-            return re.sub(r"\b(a|an|the)\b", " ", text)
+        def remove_articles(text: str):
+            return re.sub(r'\b(a|an|the)\b', ' ', text)
 
-        def white_space_fix(text):
-            return " ".join(text.split())
+        def white_space_fix(text: str):
+            return ' '.join(text.split())
 
-        def remove_punc(text):
+        def remove_punc(text: str):
             exclude = set(string.punctuation)
-            return "".join(ch for ch in text if ch not in exclude)
+            return ''.join(ch for ch in text if ch not in exclude)
 
-        def lower(text):
+        def lower(text: str):
             return text.lower()
 
         return white_space_fix(remove_articles(remove_punc(lower(answer))))
 
-    def update(self, batch: Optional[Dict[str, Any]], outputs: List[str], labels: List[List[str]]):
+    def update(self, batch: Optional[Dict[str, Any]], outputs: List[str],
+               labels: List[List[str]]):
         if batch is None:
             batch = {}
         for sample_output, sample_labels in zip(outputs, labels):
@@ -80,9 +86,8 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
 
             self.correct += torch.tensor(max_f1)
             self.total += torch.tensor(1.0)
-       
+
     def compute(self):
         assert isinstance(self.correct, Tensor)
         assert isinstance(self.total, Tensor)
         return self.correct / self.total
-

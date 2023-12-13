@@ -115,7 +115,7 @@ extra_deps['peft'] = [
 ]
 
 extra_deps['openai'] = [
-    'openai==1.3.8',
+    'openai==0.27.8',
     'tiktoken==0.4.0',
 ]
 extra_deps['all-cpu'] = set(
@@ -143,5 +143,5 @@ setup(
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,
-    python_requires='>=3.7',
+    python_requires='>=3.9',
 )

@@ -17,13 +17,13 @@ from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
                                   InContextLearningMultipleChoiceAccuracy,
                                   InContextLearningQAAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
-from llmfoundry.eval.metrics.nlp import InContextLearningGenerationF1Score
 from composer.utils import dist
 from omegaconf import DictConfig
 from torch import nn
 from transformers import (AutoConfig, AutoModelForCausalLM,
                           PreTrainedTokenizerBase)
 
+from llmfoundry.eval.metrics.nlp import InContextLearningGenerationF1Score
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed

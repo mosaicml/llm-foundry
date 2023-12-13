@@ -12,7 +12,7 @@ command: |
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: mpt-eval
-gpu_num: 16
+gpu_num: 32
 gpu_type: a100_40gb
 cluster: r7z2  # replace with your cluster here!
 
@@ -31,7 +31,7 @@ parameters:
     model_name: mosaicml/mpt-7b-instruct
     # Tokenizer
     tokenizer:
-      name: EleutherAI/gpt-neox-20b
+      name: mosaicml/mpt-7b-instruct
       kwargs:
         model_max_length: ${max_seq_len}
 
@@ -56,7 +56,28 @@ parameters:
   -
     label: quac
     dataset_uri: eval/local_data/free_response/quac.jsonl
-    num_fewshot: [0, 1, 3, 5]
+    num_fewshot: [0]
+    icl_task_type: question_answering
+    metric_names:
+    - 'InContextLearningGenerationF1Score'
+  -
+    label: natural_questions_closed
+    dataset_uri: eval/local_data/free_response/natural_questions_closed.jsonl
+    num_fewshot: [0]
+    icl_task_type: question_answering
+    metric_names:
+    - 'InContextLearningGenerationF1Score' 
+  -
+    label: natural_questions_openbook_short
+    dataset_uri: eval/local_data/free_response/natural_questions_openbook_short.jsonl
+    num_fewshot: [0]
+    icl_task_type: question_answering
+    metric_names:
+    - 'InContextLearningGenerationF1Score' 
+  -
+    label: narrativeqa
+    dataset_uri: eval/local_data/free_response/narrativeqa.jsonl
+    num_fewshot: [0]
     icl_task_type: question_answering
     metric_names:
     - 'InContextLearningGenerationF1Score' 

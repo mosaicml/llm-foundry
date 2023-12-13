@@ -35,7 +35,7 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import Row
 
-MINIUM_DBR_VERSION = '14.1.0'
+MINIMUM_DBR_VERSION = '14.1.0'
 
 log = logging.getLogger(__name__)
 
@@ -370,14 +370,14 @@ def fetch_DT(args: Namespace):
                     'x-databricks-session-id', session_id).getOrCreate()
         else:
             # IMPORTANT: make sure cluster has runtime newer than 14.1.0, the databricks-connect client version.
-            compute_id = args.cluster_id  # "1115-130834-ms4m0yv"
+            compute_id = args.cluster_id  # "1115-130834-ms4m0yv" - valid 14.1.0
             w = WorkspaceClient()
-            res = w.clusters.get(cluster_id='0704-124501-tsc2fxq')
+            res = w.clusters.get(cluster_id=comput_id)# '0704-124501-tsc2fxq' - invalid 12.2.x
             runtime_version = res.spark_version.split('-scala')[0].replace(
-                'x-snapshot', '0')
+                'x-snapshot', '0').replace('x', '0')
             assert version.parse(runtime_version) >= version.parse(
-                MINIUM_DBR_VERSION
-            ), 'You need at least {MINIMUM_DBR_VERSION} to use Databricks-connect to read delta table for FT API'
+                MINIMUM_DBR_VERSION
+            ), f'You need at least {MINIMUM_DBR_VERSION} to use Databricks-connect to read delta table for FT API but got {res.spark_version}'
             sparkSession = DatabricksSession.builder.remote(
                 host=args.DATABRICKS_HOST,
                 token=args.DATABRICKS_TOKEN,

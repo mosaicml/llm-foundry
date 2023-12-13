@@ -70,7 +70,7 @@ class MPTConfig(PretrainedConfig):
             d_model (int): The size of the embedding dimension of the model.
             n_heads (int): The number of attention heads.
             n_layers (int): The number of layers in the model.
-            expansion_ratio (int, float): The ratio of the up/down scale in the ffn.
+            expansion_ratio (Union[int, float]): The ratio of the up/down scale in the ffn.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
             resid_pdrop (float): The dropout probability applied to the attention output before combining with residual.

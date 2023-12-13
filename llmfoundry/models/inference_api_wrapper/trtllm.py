@@ -182,13 +182,17 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
             output_logits_list = output_dict['generation_logits']
             for i in range(len(output_logits_list)):
                 output_logits_list[i] = output_logits_list[i].squeeze()
-            print("Context logits:", context_logits.shape)
-            print("Output logits list:", output_logits_list)
-            print("Output logits 0 shape:", output_logits_list[0].shape)
-            output_logits_tensor = torch.stack(output_logits_list)
-            print("Output logits stacked:", output_logits_tensor.shape)
-            combined_logits = torch.cat([context_logits, output_logits_tensor])
-            print("Combined logits shape:", combined_logits.shape)
+            # print("Context logits:", context_logits.shape)
+            # print("Output logits list:", output_logits_list)
+            if len(output_logits_list) > 0:
+                # print("Output logits 0 shape:", output_logits_list[0].shape)
+                output_logits_tensor = torch.stack(output_logits_list)
+                # print("Output logits stacked:", output_logits_tensor.shape)
+                combined_logits = torch.cat([context_logits, output_logits_tensor])
+            else:
+                combined_logits = context_logits
+
+            # print("Combined logits shape:", combined_logits.shape)
             
             padding = torch.nn.functional.one_hot(
                 torch.full(
@@ -199,12 +203,14 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
                 num_classes=self.vocab_size)
             padded_combined_logits = torch.cat([combined_logits, padding])
 
+            # print("Padded combined logits shape:", padded_combined_logits.shape)
+
             output_logits_batch.append(padded_combined_logits)
+            
+        return torch.stack(output_logits_batch).to(batch['input_ids'].device)
 
-            return torch.stack(output_logits_batch).to(batch['input_ids'].device)
-
-            #print("Decoded output:", self.tokenizer.decode(output_ids[0][0][cont_idxs[0]:].tolist()))
-            """
+        #print("Decoded output:", self.tokenizer.decode(output_ids[0][0][cont_idxs[0]:].tolist()))
+        """
             # Old logits logic, back before TRT-LLM natively returned logits
             output_logits = torch.nn.functional.one_hot(
                 torch.tensor(tokens[1:cont_idxs[0]], device='cuda'),
@@ -226,5 +232,5 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
             #print("Output logits shape:", output_logits.shape)
             output_logits_batch.append(output_logits)
             
-            return torch.stack(output_logits_batch).to(batch['input_ids'].device)
-            """
+        return torch.stack(output_logits_batch).to(batch['input_ids'].device)
+        """

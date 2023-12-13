@@ -21,6 +21,7 @@ import pyspark.sql.connect.proto as pb2
 # PB2 stuff
 import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
 import requests
+import databricks
 from databricks import sql
 from databricks.connect import DatabricksSession
 from databricks.sdk import WorkspaceClient
@@ -32,6 +33,8 @@ from pyspark.sql.connect.client.reattach import \
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import Row
+from databricks.sql.client import Connection as Connection
+from databricks.sql.client import Cursor as Cursor
 
 MINIUM_DBR_VERSION = '14.1.0'
 
@@ -141,7 +144,7 @@ def iterative_combine_jsons(json_directory: str, output_file: str):
 
 def run_query(q: str,
               method: str,
-              cursor: Optional[sql.client.Cursor] = None,
+              cursor: Optional[Cursor] = None,
               spark: Optional[SparkSession] = None,
               collect: bool = True) -> Optional[Union[List[Row], DataFrame]]:
 
@@ -220,7 +223,7 @@ def download_arrow_starargs(args: Tuple):
     return download_arrow(*args)
 
 
-def fetch_data(method: str, cursor: Optional[sql.client.Cursor],
+def fetch_data(method: str, cursor: Optional[Cursor],
                sparkSession: Optional[SparkSession], s: int, e: int,
                order_by: str, tablename: str, columns_str: str,
                json_output_path: str):
@@ -259,7 +262,7 @@ def fetch(
     batch_size: int = 1 << 30,
     partitions: int = 1,
     sparkSession: Optional[SparkSession] = None,
-    dbsql: Optional[sql.client.Connection] = None,
+    dbsql: Optional[Connection] = None,
 ):
     """Fetch UC delta table with databricks-connnect as JSONL.
 

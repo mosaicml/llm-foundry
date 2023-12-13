@@ -15,45 +15,28 @@ from scripts.data_prep.convert_delta_to_json import fetch_DT
 class TestStreamDeltaToJson():
 
     @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
-    @patch('scripts.data_prep.convert_delta_to_json.pd.DataFrame.to_json')
-    def test_stream_delta_to_json(self, mock_to_json: Any, mock_connect: Any):
+    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
+    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
+    @patch('scripts.data_prep.convert_delta_to_json.fetch')
+    def test_stream_delta_to_json(self, mock_fetch, mock_combine_jsons, mock_makedirs, mock_sql_connect):
 
-        # Mock database connection and cursor
-        mock_cursor = MagicMock()
-        mock_connection = MagicMock()
-        mock_connection.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_connection
-
-        # Mock fetchall response
-        count_response = MagicMock()
-        count_response.asDict.return_value = {'COUNT(*)': 3}
-        column_response_item = MagicMock()
-        column_response_item.asDict.return_value = {
-            'COLUMN_NAME': 'name'
-        }  # Assuming SHOW COLUMNS query returns this format
-        data_response_item = MagicMock()
-        data_response_item.asDict.return_value = {
-            'name': 'test',
-            'id': 1
-        }  # Assuming SELECT query returns this format
-        mock_cursor.fetchall.side_effect = [[count_response],
-                                            [column_response_item],
-                                            [data_response_item]]
-
-        args = Namespace(DATABRICKS_HOST='test_host',
-                         DATABRICKS_TOKEN='test_token',
-                         http_path='test_http_path',
-                         tablename='test_table',
-                         json_output_path='test_output_path',
-                         cluster_id='test_cluster_id')
+        args = MagicMock()
+        args.delta_table_name = 'test_table'
+        args.json_output_path = '/path/to/json'
+        args.DATABRICKS_HOST = 'test_host'
+        args.DATABRICKS_TOKEN = 'test_token'
+        args.http_path = 'test_path'
+        args.batch_size = 1000
+        args.partitions = 1
+        args.cluster_id = None
+        args.debug = False
 
         fetch_DT(args)
-        mock_connect.assert_called_once_with(server_hostname='test_host',
-                                             http_path='test_http_path',
-                                             access_token='test_token')
-        mock_to_json.assert_called()
-        mock_cursor.close.assert_called()
-        mock_connection.close.assert_called()
+        mock_sql_connect.assert_called_once_with(server_hostname='test_host', http_path='test_path', access_token='test_token')
+        mock_makedirs.assert_called_once_with('/path/to/json', exist_ok=True)
+        mock_fetch.assert_called_once()
+        mock_combine_jsons.assert_called_once_with('/path/to/json', '/path/to/json/combined.jsonl')
+
 
 if __name__ == '__main__':
     unittest.main()

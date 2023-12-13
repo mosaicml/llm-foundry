@@ -7,7 +7,7 @@ from collections import Counter
 from typing import Any, Dict, List, Optional
 
 import torch
-from composer.metrics import InContextLearningMetric
+from composer.metrics.nlp import InContextLearningMetric
 from torch import Tensor
 
 

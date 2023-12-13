@@ -4,6 +4,7 @@
 # copyright 2022 mosaicml llm foundry authors
 # spdx-license-identifier: apache-2.0
 
+import unittest
 from argparse import Namespace
 from typing import Any
 from unittest.mock import MagicMock, patch

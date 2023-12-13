@@ -419,7 +419,7 @@ class MPTModel(MPTPreTrainedModel):
             attn_bias = attn_bias.masked_fill(
                 ~attention_mask.view(-1, 1, 1, s_k), min_val)
 
-        return attn_bias, None
+        return attn_bias, attention_mask
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
                            prefix_mask: torch.Tensor) -> torch.Tensor:
@@ -973,7 +973,11 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
             try:
-                from flash_attn.losses.cross_entropy import \
+                # NOTE: The following is the original import statement from flash_attn library, which we have currently replaced with a copy pasted code from the same library's version 1.0.9. The reason is that using the CE loss from FA v2.3.2 results in an illegal memory access error at long sequence lengths (github issue: https://github.com/Dao-AILab/flash-attention/issues/714).
+                # from flash_attn.losses.cross_entropy import \
+                #     CrossEntropyLoss as FusedCrossEntropyLoss
+                # TODO: Once the problem with using FA v2's CE loss at longer sequence lengths is resolved (github issue: https://github.com/Dao-AILab/flash-attention/issues/714), revert back to directly importing the CE loss from FA library.
+                from llmfoundry.models.layers.cross_entropy_loss import \
                     CrossEntropyLoss as FusedCrossEntropyLoss
 
                 self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)

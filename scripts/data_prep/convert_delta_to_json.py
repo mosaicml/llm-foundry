@@ -35,7 +35,7 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import Row
 
-MINIMUM_DBR_VERSION = '14.1.0'
+MINIMUM_DBR_VERSION = '14.0.0'
 
 log = logging.getLogger(__name__)
 

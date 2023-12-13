@@ -34,69 +34,60 @@ def load_icl_config():
     })
 
 
-class MockTopLogProb:
-
-    def __init__(self, expected_token: str) -> None:
-        setattr(self, 'top_logprobs', [{expected_token: 0}])
-
-
-class MockLogprob:
-
-    def __init__(self, expected_token: str) -> None:
-        setattr(self, 'logprobs', MockTopLogProb(expected_token))
-
-
-class MockCompletion:
-
-    def __init__(self, expected_token: str) -> None:
-        setattr(self, 'choices', [MockLogprob(expected_token)])
-
-
-class MockContent:
-
-    def __init__(self, expected_token: str) -> None:
-        setattr(self, 'content', expected_token)
-
-
-class MockMessage:
-
-    def __init__(self, expected_token: str) -> None:
-        setattr(self, 'message', MockContent(expected_token))
-
-
-class MockChatCompletion:
-
-    def __init__(self, expected_token: str) -> None:
-        setattr(self, 'choices', [MockMessage(expected_token)])
-
-
 def mock_create(**kwargs: Dict[str, str]):
     prompt = kwargs['prompt']
     if prompt == 'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer:':  # pyright: ignore[reportUnnecessaryComparison]
-        return MockCompletion(' Tre')
-
+        return {
+            'choices': [{
+                'logprobs': {
+                    'top_logprobs': [{
+                        ' Tre': 0,
+                    }],
+                },
+            }],
+        }
     elif prompt == 'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Tre':  # pyright: ignore[reportUnnecessaryComparison]
-        return MockCompletion('ason')
-
+        return {
+            'choices': [{
+                'logprobs': {
+                    'top_logprobs': [{
+                        'ason': 0,
+                    }],
+                },
+            }],
+        }
     elif prompt == 'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Treason':  # pyright: ignore[reportUnnecessaryComparison]
-        return MockCompletion('!')
-
+        return {
+            'choices': [{
+                'logprobs': {
+                    'top_logprobs': [{
+                        '!': 0,
+                    }],
+                },
+            }],
+        }
     else:
         # dummy token to make sure the model is incorrect on any other prompt
-        return MockCompletion(' ')
+        return {
+            'choices': [{
+                'logprobs': {
+                    'top_logprobs': [{
+                        ' ': 0,
+                    }],
+                },
+            }],
+        }
 
 
 def test_openai_api_eval_wrapper(tmp_path: str):
     _ = pytest.importorskip('openai')
-
-    model_name = 'davinci'
-    tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
-                                         pad_token='<|endoftext|>')
-    model = OpenAICausalLMEvalWrapper(model_cfg={'version': model_name},
-                                      tokenizer=tokenizer)
-    with patch.object(model, 'client') as mock:
-        mock.completions.create = mock_create
-
+    with patch('openai.Completion') as mock:
+        mock.create = mock_create
+        model_name = 'davinci'
+        tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
+                                             pad_token='<|endoftext|>')
+        model = OpenAICausalLMEvalWrapper(model_cfg={'version': model_name},
+                                          tokenizer=tokenizer)
         task_cfg = load_icl_config()
         evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
                                              tokenizer,
@@ -118,16 +109,20 @@ def test_openai_api_eval_wrapper(tmp_path: str):
 
 def test_chat_api_eval_wrapper(tmp_path: str):
     _ = pytest.importorskip('openai')
-
-    model_name = 'gpt-3.5-turbo'
-    tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
-                                         pad_token='<|endoftext|>')
-    chatmodel = OpenAIChatAPIEvalWrapper(model_cfg={'version': model_name},
-                                         tokenizer=tokenizer)
-    with patch.object(chatmodel, 'client') as mock:
-        mock.chat.completions.create.return_value = MockChatCompletion(
-            'Treason!')
-
+    with patch('openai.ChatCompletion') as mock:
+        mock.create.return_value = {
+            'choices': [{
+                'message': {
+                    'role': 'assistant',
+                    'content': 'Treason!'
+                },
+            }],
+        }
+        model_name = 'gpt-3.5-turbo'
+        tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
+                                             pad_token='<|endoftext|>')
+        chatmodel = OpenAIChatAPIEvalWrapper(model_cfg={'version': model_name},
+                                             tokenizer=tokenizer)
         task_cfg = load_icl_config()
         evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
                                              tokenizer,

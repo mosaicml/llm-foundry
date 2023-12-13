@@ -5,7 +5,6 @@
 
 import logging
 import os
-import random
 from time import sleep
 from typing import Any, Dict, List, Optional, Union
 
@@ -31,9 +30,6 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
-        assert os.getenv(
-            'OPENAI_API_KEY'
-        ) is not None, 'No OpenAI API Key found. Ensure it is saved as an environmental variable called OPENAI_API_KEY.'
         try:
             import openai
         except ImportError as e:
@@ -41,13 +37,13 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 extra_deps_group='openai',
                 conda_package='openai',
                 conda_channel='conda-forge') from e
-        self.client = openai.OpenAI()
+        openai.api_key = os.getenv('OPENAI_API_KEY')
         self.model_name = model_cfg['version']
 
     def generate_completion(self, prompt: str, num_tokens: int):
         raise NotImplementedError()
 
-    def process_result(self, completion):  # pyright: ignore
+    def process_result(self, completion: Optional[dict]):
         raise NotImplementedError()
 
     def get_next_token_logit_tensor(self, prompt: str, num_tokens: int = 1):
@@ -56,7 +52,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
     def try_generate_completion(self, prompt: str, num_tokens: int):
         try:
-            from openai import RateLimitError
+            from openai.error import RateLimitError
         except ImportError as e:
             raise MissingConditionalImportError(
                 extra_deps_group='openai',
@@ -64,22 +60,18 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 conda_channel='conda-forge') from e
         tries = 0
         completion = None
-        delay = 1
         while tries < MAX_RETRIES:
             tries += 1
             try:
+
                 completion = self.generate_completion(prompt, num_tokens)
                 break
             except RateLimitError as e:
-                if 'You exceeded your current quota' in str(
-                        e._message):  # pyright: ignore
+                if 'You exceeded your current quota' in str(e._message):
                     raise e
-                delay *= 2 * (1 + random.random())
-                sleep(delay)
+                sleep(60)
                 continue
-            except Exception as e:
-                print(f'Found Exception: {e}')
-                # TODO: Why continue on unspecified Exception?
+            except Exception:
                 continue
         return completion
 
@@ -88,23 +80,23 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
+        try:
+            import openai
+        except ImportError as e:
+            raise MissingConditionalImportError(
+                extra_deps_group='openai',
+                conda_package='openai',
+                conda_channel='conda-forge') from e
 
-        self.generate_completion = lambda prompt, num_tokens: self.client.chat.completions.create(
-            model=self.model_name,
+        self.generate_completion = lambda prompt, num_tokens: openai.ChatCompletion.create(
+            self.model_name,
             messages=[{
-                'role':
-                    'system',
-                'content':
-                    model_cfg.get('sytsem_role_prompt',
-                                  'Please complete the following text: ')
-            }, {
                 'role': 'user',
                 'content': prompt
             }],
             max_tokens=num_tokens,
             temperature=0.0)
 
-    # TODO: Do we still need retokenize, rebatch, and eval_forward?
     def retokenize(self, tokens: List[int], cont_idxs: List[int]):
         """Chat API will never respond with a word-initial space.
 
@@ -170,7 +162,6 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         # than what the continuation would expect.
         # Get around this issue by retokenizing the batch to remove spacing from the continuation as well as
         # decoding the whole continuation at once.
-        padding_tok = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id else self.tokenizer.eos_token_id
         output_logits_batch = []
         batch = self.rebatch(batch)
         for tokens, cont_idxs in zip(batch['input_ids'],
@@ -191,18 +182,20 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
             if next_logit_tensor is not None:
                 output_logits = torch.cat([output_logits, next_logit_tensor])
             padding = torch.nn.functional.one_hot(
-                torch.full((seqlen - output_logits.shape[0],), padding_tok),
+                torch.full((seqlen - output_logits.shape[0],),
+                           self.tokenizer.pad_token_id),
                 num_classes=self.tokenizer.vocab_size)
             output_logits = torch.cat([output_logits, padding])
             output_logits_batch.append(output_logits)
 
         return torch.stack(output_logits_batch).to(batch['input_ids'].device)
 
-    def process_result(self, completion):  # pyright: ignore
-        if len(completion.choices) > 0:  # pyright: ignore
+    def process_result(self, completion: Optional[dict]):
+        assert isinstance(completion, dict)
+        if len(completion['choices']) > 0:
             tensors = []
-            for t in self.tokenizer(completion.choices[0].message.content
-                                   )['input_ids']:  # pyright: ignore
+            for t in self.tokenizer(completion['choices'][0]['message']
+                                    ['content'])['input_ids']:
                 tensors.append(
                     self.tokenizer.construct_logit_tensor(
                         {self.tokenizer.decode([t]): 0.0}))
@@ -220,20 +213,29 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
-        # TODO: this will be deprecated
-        self.generate_completion = lambda prompt, num_tokens: self.client.completions.create(
-            model=self.model_name,
+        try:
+            import openai
+        except ImportError as e:
+            raise MissingConditionalImportError(
+                extra_deps_group='openai',
+                conda_package='openai',
+                conda_channel='conda-forge') from e
+
+        self.generate_completion = lambda prompt, num_tokens: openai.Completion.create(
+            engine=self.model_name,
             prompt=prompt,
-            max_tokens=num_tokens,
+            max_tokens=1,
             logprobs=5,
             temperature=0.0)
 
-    def process_result(self, completion):  # pyright: ignore
+    def process_result(self, completion: Optional[dict]):
         if completion is None:
             raise ValueError("Couldn't generate model output")
-        if len(completion.choices[0].logprobs.top_logprobs[0]) > 0:
+
+        assert isinstance(completion, dict)
+        if len(completion['choices'][0]['logprobs']['top_logprobs']) > 0:
             tensor = self.tokenizer.construct_logit_tensor(
-                dict(completion.choices[0].logprobs.top_logprobs[0]))
+                dict(completion['choices'][0]['logprobs']['top_logprobs'][0]))
             return tensor
         else:
             # the model sometimes stops early even though we are still requesting tokens!

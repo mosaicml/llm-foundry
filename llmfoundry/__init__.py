@@ -39,9 +39,10 @@ except ImportError as e:
         is_cuda_available = False
 
     extras = '.[gpu]' if is_cuda_available else '.'
-    raise ImportError(
-        f'Please make sure to pip install {extras} to get the requirements for the LLM example.'
-    ) from e
+    print("ImportError:", e)
+    # raise ImportError(
+    #    f'Please make sure to pip install {extras} to get the requirements for the LLM example.'
+    #) from e
 
 __all__ = [
     'build_text_denoising_dataloader',

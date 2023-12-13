@@ -10,3 +10,4 @@ __all__ = [
     'OpenAIChatAPIEvalWrapper',
     'InferenceAPIEvalWrapper',
     'TRTLLMEvalWrapper',
+]

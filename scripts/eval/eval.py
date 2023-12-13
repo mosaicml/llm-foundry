@@ -19,7 +19,7 @@ from omegaconf import OmegaConf as om
 from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
 
-from llmfoundry.models import MPTForCausalLM
+# from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_evaluators, build_logger,

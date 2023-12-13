@@ -70,6 +70,7 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
         if batch is None:
             batch = {}
         for sample_output, sample_labels in zip(outputs, labels):
+            sample_output = sample_output.split('\n')[0]
             prediction_tokens = self.normalize_answer(sample_output).split()
             max_f1 = 0
             for label in sample_labels:

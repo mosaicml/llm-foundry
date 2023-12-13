@@ -372,7 +372,7 @@ def fetch_DT(args: Namespace):
             # IMPORTANT: make sure cluster has runtime newer than 14.1.0, the databricks-connect client version.
             compute_id = args.cluster_id  # "1115-130834-ms4m0yv" - valid 14.1.0
             w = WorkspaceClient()
-            res = w.clusters.get(cluster_id=comput_id)# '0704-124501-tsc2fxq' - invalid 12.2.x
+            res = w.clusters.get(cluster_id=compute_id)# '0704-124501-tsc2fxq' - invalid 12.2.x
             runtime_version = res.spark_version.split('-scala')[0].replace(
                 'x-snapshot', '0').replace('x', '0')
             assert version.parse(runtime_version) >= version.parse(

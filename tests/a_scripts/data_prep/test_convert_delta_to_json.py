@@ -53,3 +53,6 @@ class TestStreamDeltaToJson():
         mock_to_json.assert_called()
         mock_cursor.close.assert_called()
         mock_connection.close.assert_called()
+
+if __name__ == '__main__':
+    unittest.main()

@@ -16,8 +16,6 @@ from uuid import uuid4
 import google.protobuf.any_pb2 as any_pb2
 import lz4.frame
 import pandas as pd
-# Monkey Patching for SparkConnectClient
-import patch  # pyright: ignore
 import pyarrow as pa
 import pyspark.sql.connect.proto as pb2
 # PB2 stuff

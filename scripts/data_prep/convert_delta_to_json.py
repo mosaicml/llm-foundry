@@ -141,7 +141,7 @@ def iterative_combine_jsons(json_directory: str, output_file: str):
 
 def run_query(q: str,
               method: str,
-              cursor: Optional[sql.Client.Cursor] = None,
+              cursor: Optional[sql.client.Cursor] = None,
               spark: Optional[SparkSession] = None,
               collect: bool = True) -> Optional[Union[List[Row], DataFrame]]:
 
@@ -220,7 +220,7 @@ def download_arrow_starargs(args: Tuple):
     return download_arrow(*args)
 
 
-def fetch_data(method: str, cursor: Optional[sql.Client.Cursor],
+def fetch_data(method: str, cursor: Optional[sql.client.Cursor],
                sparkSession: Optional[SparkSession], s: int, e: int,
                order_by: str, tablename: str, columns_str: str,
                json_output_path: str):
@@ -259,7 +259,7 @@ def fetch(
     batch_size: int = 1 << 30,
     partitions: int = 1,
     sparkSession: Optional[SparkSession] = None,
-    dbsql: Optional[sql.Client.Connection] = None,
+    dbsql: Optional[sql.client.Connection] = None,
 ):
     """Fetch UC delta table with databricks-connnect as JSONL.
 

@@ -13,6 +13,7 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import List, Optional, Tuple, Union
 from uuid import uuid4
 
+import databricks
 import google.protobuf.any_pb2 as any_pb2
 import lz4.frame
 import pandas as pd
@@ -21,10 +22,11 @@ import pyspark.sql.connect.proto as pb2
 # PB2 stuff
 import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
 import requests
-import databricks
 from databricks import sql
 from databricks.connect import DatabricksSession
 from databricks.sdk import WorkspaceClient
+from databricks.sql.client import Connection as Connection
+from databricks.sql.client import Cursor as Cursor
 from packaging import version
 from pyspark.sql import SparkSession
 from pyspark.sql.connect.client.core import SparkConnectClient
@@ -33,8 +35,6 @@ from pyspark.sql.connect.client.reattach import \
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import Row
-from databricks.sql.client import Connection as Connection
-from databricks.sql.client import Cursor as Cursor
 
 MINIUM_DBR_VERSION = '14.1.0'
 

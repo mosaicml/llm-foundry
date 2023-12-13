@@ -41,8 +41,9 @@ class InferenceAPIEvalWrapper(ComposerModel):
 
     def get_metrics(self, is_train: bool = False):
         if is_train:
-            raise NotImplementedError(
-                'You cannot use inference wrappers for training')
+            metrics = {} # Cannot use inference wrappers for training
+            # raise NotImplementedError(
+            #    'You cannot use inference wrappers for training')
         else:
             metrics = self.eval_metrics
 

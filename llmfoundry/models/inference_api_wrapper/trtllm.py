@@ -19,6 +19,7 @@ __all__ = ['TRTLLMEvalWrapper']
 try:
     import tensorrt_llm
     from tensorrt_llm.runtime import ModelConfig, SamplingConfig
+    from tensorrt_llm.quantization import QuantMode
     TRT_LLM_INSTALLED = True
 except ImportError:
     TRT_LLM_INSTALLED = False
@@ -32,8 +33,11 @@ def check_if_trt_llm_installed():
 
 
 # From tensorrt_llm/examples/{model_name}/build.py
-def get_engine_name(model: str, dtype: str, tp_size: int, rank: int):
-    return '{}_{}_tp{}_rank{}.engine'.format(model, dtype, tp_size, rank)
+def get_engine_name(model: str, dtype: str, tp_size: int, pp_size: int, rank: int):
+    if pp_size == 1:
+        return '{}_{}_tp{}_rank{}.engine'.format(model, dtype, tp_size, rank)
+    return '{}_{}_tp{}_pp{}_rank{}.engine'.format(model, dtype, tp_size,
+                                                  pp_size, rank)
 
 
 class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
@@ -54,37 +58,67 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
         config_path = engine_dir / 'config.json'
         with open(config_path, 'r') as f:
             config = json.load(f)
+        
+        dtype = config['builder_config']['precision']
+        tp_size = config['builder_config']['tensor_parallel']
+        pp_size = config['builder_config'].get('pipeline_parallel', 1)
+        world_size = tp_size * pp_size
 
-        # Set vars from config
-        use_gpt_attention_plugin = config['plugin_config'][
-            'gpt_attention_plugin']
+        assert world_size == tensorrt_llm.mpi_world_size(), \
+            f'Engine world size ({world_size}) != Runtime world size ({tensorrt_llm.mpi_world_size()})'
+        
+        num_heads = config['builder_config']['num_heads'] // tp_size
+        hidden_size = config['builder_config']['hidden_size'] // tp_size
+        vocab_size = config['builder_config']['vocab_size']
+        num_layers = config['builder_config']['num_layers']
+        use_gpt_attention_plugin = bool(
+            config['plugin_config']['gpt_attention_plugin'])
         remove_input_padding = config['plugin_config']['remove_input_padding']
         #if remove_input_padding:
         #    raise ValueError(
         #        'TRT-LLM Evaluation Wrapper does not support remove_input_padding.'
         #    )
-        dtype = config['builder_config']['precision']
-        world_size = config['builder_config']['tensor_parallel']
-        assert world_size == tensorrt_llm.mpi_world_size(), \
-            f'Engine world size ({world_size}) != Runtime world size ({tensorrt_llm.mpi_world_size()})'
-        num_heads = config['builder_config']['num_heads'] // world_size
-        hidden_size = config['builder_config']['hidden_size'] // world_size
-        vocab_size = config['builder_config']['vocab_size']
-        num_layers = config['builder_config']['num_layers']
-        multi_query_mode = config['builder_config']['multi_query_mode']
-        paged_kv_cache = config['builder_config'].get('paged_kv_cache', False)
-        tokens_per_block = config['builder_config'].get('tokens_per_block', 64)
-        use_prompt_tuning = config['builder_config'].get(
-            'use_prompt_tuning', False)
-        # Add quant mode here
+       
+        num_kv_heads = config['builder_config'].get('num_kv_heads', num_heads)
+        paged_kv_cache = config['plugin_config']['paged_kv_cache']
+        tokens_per_block = config['plugin_config']['tokens_per_block']
+        use_custom_all_reduce = config['plugin_config'].get('use_custom_all_reduce',
+                                                            False)
+
+        quant_mode = QuantMode(config['builder_config']['quant_mode'])
+        if config['builder_config'].get('multi_query_mode', False):
+            tensorrt_llm.logger.warning(
+                "`multi_query_mode` config is deprecated. Please rebuild the engine."
+            )
+            num_kv_heads = 1
+        num_kv_heads = (num_kv_heads + tp_size - 1) // tp_size
+
+        model_config = tensorrt_llm.runtime.ModelConfig(
+            vocab_size=vocab_size,
+            num_layers=num_layers,
+            num_heads=num_heads,
+            num_kv_heads=num_kv_heads,
+            hidden_size=hidden_size,
+            paged_kv_cache=paged_kv_cache,
+            tokens_per_block=tokens_per_block,
+            gpt_attention_plugin=use_gpt_attention_plugin,
+            remove_input_padding=remove_input_padding,
+            use_custom_all_reduce=use_custom_all_reduce,
+            dtype=dtype,
+            quant_mode=quant_mode,
+            gather_all_token_logits=True)
+
 
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
 
         # Device and rank
         runtime_rank = tensorrt_llm.mpi_rank()
-        runtime_mapping = tensorrt_llm.Mapping(world_size, runtime_rank)
-        torch.cuda.set_device(runtime_rank % runtime_mapping.gpus_per_node)
+        runtime_mapping = tensorrt_llm.Mapping(world_size,
+                                           runtime_rank,
+                                           tp_size=tp_size,
+                                           pp_size=pp_size)
+        torch.cuda.set_device(runtime_rank % runtime_mapping.gpus_per_node)        
 
         # Tokenization and sampling
         self.END_ID = model_cfg.get('eos_token_id', self.tokenizer.eos_token_id)
@@ -92,36 +126,26 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
         if self.PAD_ID == None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
-
+            self.PAD_ID = self.tokenizer.eos_token_id
+          
         print('EOS TOKEN:', self.END_ID)
         print('Pad token:', self.PAD_ID)
 
         self.sampling_config = SamplingConfig(end_id=self.END_ID,
                                               pad_id=self.PAD_ID,
-                                              num_beams=1)
+                                              num_beams=1,
+                                              return_dict=True)
 
         # Load TRT engine
-        engine_name = get_engine_name(model_cfg['version'], dtype, world_size,
+        engine_name = get_engine_name(model_cfg['version'], dtype, tp_size, pp_size,
                                       runtime_rank)
         serialize_path = engine_dir / engine_name
         with open(serialize_path, 'rb') as f:
             engine_buffer = f.read()
 
-        # Initialize generation session for model
-        trt_model_config = ModelConfig(
-            num_heads=num_heads,
-            hidden_size=self.hidden_size,
-            vocab_size=self.vocab_size,
-            num_layers=num_layers,
-            gpt_attention_plugin=use_gpt_attention_plugin,
-            multi_query_mode=multi_query_mode,
-            remove_input_padding=remove_input_padding,
-            paged_kv_cache=paged_kv_cache,
-            tokens_per_block=tokens_per_block,
-            use_prompt_tuning=use_prompt_tuning,
-            gather_all_token_logits = True)
         self.decoder = tensorrt_llm.runtime.GenerationSession(
-            trt_model_config, engine_buffer, runtime_mapping)
+            model_config, engine_buffer, runtime_mapping)
+
 
     def eval_forward(self, batch, outputs: Optional[Any] = None):
         # If the batch mode is generate, we will generate a requested number of tokens using the underlying

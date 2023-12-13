@@ -33,8 +33,8 @@ trt_gpt_config = {
             }
         }
     ],
-    'icl_tasks': './eval/yamls/tasks_v0.2.yaml',
-    'eval_gauntlet': './eval/yamls/eval_gauntlet_v0.2.yaml',
+    'icl_tasks': './eval/yamls/mini_tasks_v0.2.yaml',
+    'eval_gauntlet': './eval/yamls/mini_eval_gauntlet_v0.2.yaml',
 }
 
 trt_llama_config = {

@@ -47,7 +47,8 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.17.1,<0.18',
+    # 'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.17.1,<0.18',
+    'mosaicml[libcloud,wandb,mlflow,oci,gcs]@git+https://github.com/mosaicml/composer.git@jerry/mlflow-objectstore',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
     'transformers>=4.34.1,<4.35',
     'mosaicml-streaming>=0.7.1,<0.8',

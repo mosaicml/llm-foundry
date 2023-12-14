@@ -43,10 +43,10 @@ Result = namedtuple(
     'Result', ['url', 'row_count', 'compressed_size', 'uncompressed_size'
               ])  # pyright: ignore
 
-
 # This is a monkey patch on top of the DB Connect package that allows
 # the client to fetch the results in different formats from the server. To be
 # able to use the code make sure this module is not overriden by DB Connect classes.
+
 
 def to_cf(self: SparkConnectClient, plan: pb2.Plan, type: str = 'json'):
     """Executes plan object return as cloud fetch presigned URLS.
@@ -106,10 +106,12 @@ def to_cf(self: SparkConnectClient, plan: pb2.Plan, type: str = 'json'):
 
 SparkConnectClient.to_cf = to_cf  # pyright: ignore
 
+
 def collect_as_cf(self: DataFrame,
                   type: str = 'json') -> Tuple[List[Result], int, bool]:
     query = self._plan.to_proto(self._session.client)  # pyright: ignore
     return self._session.client.to_cf(query, type)  # pyright: ignore
+
 
 DataFrame.collect_cf = collect_as_cf  # pyright: ignore
 
@@ -220,6 +222,7 @@ def download_arrow(ipart: int, url: str, json_output_path: str):
 
 def download_arrow_starargs(args: Tuple):
     return download_arrow(*args)
+
 
 def fetch_data(method: str, cursor: Optional[Cursor],
                sparkSession: Optional[SparkSession], s: int, e: int,

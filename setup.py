@@ -85,7 +85,8 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.17.1,<0.18',
+    # 'mosaicml[databricks]>=0.17.1,<0.18',
+    'mosaicml[databricks]@git+https://github.com/mosaicml/composer.git@jerry/mlflow-objectstore',
 ]
 
 extra_deps['tensorboard'] = [

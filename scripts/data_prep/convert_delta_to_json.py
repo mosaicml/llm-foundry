@@ -13,12 +13,12 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import List, Optional, Tuple, Union
 from uuid import uuid4
 
+# PB2 stuff
 import google.protobuf.any_pb2 as any_pb2
 import lz4.frame
 import pandas as pd
 import pyarrow as pa
 import pyspark.sql.connect.proto as pb2
-# PB2 stuff
 import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
 import requests
 from databricks import sql
@@ -32,7 +32,7 @@ from pyspark.sql.connect.client.core import SparkConnectClient
 from pyspark.sql.connect.client.reattach import \
     ExecutePlanResponseReattachableIterator
 from pyspark.sql.connect.dataframe import DataFrame
-from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
 
 MINIMUM_DBR_VERSION = '14.0.0'
@@ -141,11 +141,13 @@ def iterative_combine_jsons(json_directory: str, output_file: str):
     print('JSON files have been combined into a JSONL file.')
 
 
-def run_query(q: str,
-              method: str,
-              cursor: Optional[Cursor] = None,
-              spark: Optional[SparkSession] = None,
-              collect: bool = True) -> Optional[Union[List[Row], DataFrame]]:
+def run_query(
+    q: str,
+    method: str,
+    cursor: Optional[Cursor] = None,
+    spark: Optional[SparkSession] = None,
+    collect: bool = True
+) -> Optional[Union[List[Row], DataFrame, SparkDataFrame]]:
 
     assert method in ['dbsql', 'dbconnect'], f'Unrecognized method: {method}'
     if method == 'dbsql':
@@ -166,23 +168,24 @@ def run_query(q: str,
     return None
 
 
-def get_args(signed: List, json_output_path: str):
+def get_args(signed: List, json_output_path: str, columns: List):
     for i, r in enumerate(signed):
-        yield (i, r.url, json_output_path)
+        yield (i, r.url, json_output_path, columns)
 
 
 def download_json(ipart: int,
                   url: str,
                   json_output_path: str,
+                  columns: List,
                   max_retry: int = 3):
     for attempt in range(max_retry):
         try:
             response = requests.get(url)
             if response.status_code == 200:
                 data = response.json()
-                pd.DataFrame.from_dict(data).to_json(
-                    os.path.join(json_output_path,
-                                 'part_' + str(ipart) + '.json'))
+                pd.DataFrame(data, columns=columns).to_json(os.path.join(
+                    json_output_path, 'part_' + str(ipart) + '.json'),
+                                                            orient='records')
                 break  # Break the loop if the request is successful
             else:
                 print(
@@ -304,16 +307,16 @@ def fetch(
             tablename)  # "main.tpcds_sf100_delta.store_sales")
 
         # Running the query and collecting the data as arrow.
-        signed, _, _ = df.collect_cf('arrow')  # pyright: ignore
+        signed, _, _ = df.collect_cf('json')  # pyright: ignore
         print(f'len(signed) = {len(signed)}')
 
-        args = get_args(signed, json_output_path)
+        args = get_args(signed, json_output_path, columns)
 
         # Stopping the SparkSession to avoid spilling connection state into the subprocesses.
         sparkSession.stop()
 
         with ProcessPoolExecutor(max_workers=partitions) as executor:
-            list(executor.map(download_arrow_starargs, args))
+            list(executor.map(download_json_starargs, args))
 
     elif method == 'dbsql' and cursor:
         for start in range(0, nrows, batch_size):
@@ -372,7 +375,8 @@ def fetch_DT(args: Namespace):
             # IMPORTANT: make sure cluster has runtime newer than 14.1.0, the databricks-connect client version.
             compute_id = args.cluster_id  # "1115-130834-ms4m0yv" - valid 14.1.0
             w = WorkspaceClient()
-            res = w.clusters.get(cluster_id=compute_id)# '0704-124501-tsc2fxq' - invalid 12.2.x
+            res = w.clusters.get(
+                cluster_id=compute_id)  # '0704-124501-tsc2fxq' - invalid 12.2.x
             runtime_version = res.spark_version.split('-scala')[0].replace(
                 'x-snapshot', '0').replace('x', '0')
             assert version.parse(runtime_version) >= version.parse(
@@ -433,7 +437,7 @@ if __name__ == '__main__':
                         help='number of partitions allowed to use')
     parser.add_argument(
         '--cluster_id',
-        required=True,
+        required=False,
         type=str,
         default=None,
         help=

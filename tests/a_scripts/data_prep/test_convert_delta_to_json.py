@@ -106,22 +106,27 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         self.assertEqual(result, 'result')
 
     @patch('scripts.data_prep.convert_delta_to_json.requests.get')
-    @patch('scripts.data_prep.convert_delta_to_json.pd.DataFrame.from_dict')
+    @patch('scripts.data_prep.convert_delta_to_json.pd.DataFrame.to_json')
     @patch('scripts.data_prep.convert_delta_to_json.os.path.join',
            return_value='/fake/path/part_1.json')
     @patch('scripts.data_prep.convert_delta_to_json.time.sleep'
           )  # Mock sleep to speed up the test
     def test_download_json_success(self, mock_sleep: Any, mock_join: Any,
-                                   mock_from_dict: Any, mock_get: Any):
+                                   mock_to_json: Any, mock_get: Any):
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {'data': 'test'}
+        mock_response.json.return_value = [['val1.1', 'val1.2'],
+                                           ['val2.1', 'val2.2']]
         mock_get.return_value = mock_response
 
-        download_json(1, 'http://fakeurl.com/data', '/fake/path')
+        download_json(1, 'http://fakeurl.com/data', '/fake/path', ['A', 'B'])
+
+        mock_get.assert_called_with('http://fakeurl.com/data')
+        mock_join.assert_called_with('/fake/path', 'part_1.json')
+        mock_to_json.assert_called_with('/fake/path/part_1.json',
+                                        orient='records')
 
         mock_get.assert_called_once_with('http://fakeurl.com/data')
-        mock_from_dict.assert_called_once_with({'data': 'test'})
 
 
 if __name__ == '__main__':

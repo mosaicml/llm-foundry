@@ -630,12 +630,12 @@ def test_token_counting_func(pad_token_id: int, batch_size: int,
             decoder_batch_strings.append(' '.join(['hello'] * sample_length))
             decoder_expected_token_count += sample_length
             expected_token_count += sample_length
-        batch_tokenized['decoder_input_ids'] = gptt(
+        batch_tokenized['decoder_attention_mask'] = gptt(
             decoder_batch_strings, padding=True,
-            return_tensors='pt')['input_ids']
+            return_tensors='pt')['attention_mask']
 
     token_counting_func = get_tokens_per_batch_func(
-        pad_token_id, decoder_only=not add_decoder_input_ids)
+        decoder_only=not add_decoder_input_ids)
 
     actual_token_count = token_counting_func(batch_tokenized)
 
@@ -654,7 +654,7 @@ def test_token_counting_func_dataloader_setting(
         model_max_length: int, padding_side: str,
         monkeypatch: pytest.MonkeyPatch):
     gptt = transformers.AutoTokenizer.from_pretrained('gpt2')
-    gptt.pad_token_id = pad_token_id
+    gptt.pad_token_id = pad_token_id if pad_token_id is not None else gptt.eos_token_id
     gptt.model_max_length = model_max_length
     gptt.padding_side = padding_side
 
@@ -662,19 +662,25 @@ def test_token_counting_func_dataloader_setting(
     expected_token_count = 0
     for _ in range(batch_size):
         sample_length = random.randint(
-            1,
-            model_max_length) if pad_token_id is not None else model_max_length
+            1, model_max_length //
+            4) if pad_token_id is not None else model_max_length // 4
         batch_strings.append(' '.join(['hello'] * sample_length))
         expected_token_count += sample_length
 
-    batch_tokenized = gptt(batch_strings,
-                           padding=True if pad_token_id is not None else False,
-                           return_tensors='pt')
+    batch_tokenized = [
+        gptt(b, padding=True if pad_token_id is not None else False)
+        for b in batch_strings
+    ]
 
     if dataloader_type == 'denoising':
-        batch_tokenized['decoder_input_ids'] = batch_tokenized[
-            'input_ids'].clone()
+        expected_token_count += 2 * batch_size  # for the two eos tokens
+        expected_token_count += 5 * batch_size  # for the corruption prefix tokens
+
+    if dataloader_type in {'finetuning-hf', 'finetuning-streaming'}:
+        for b in batch_tokenized:
+            b['labels'] = b['input_ids'].copy()
         expected_token_count *= 2
+        expected_token_count += 1 * batch_size  # for the eos token
 
     common_args = {
         'drop_last': False,
@@ -735,8 +741,10 @@ def test_token_counting_func_dataloader_setting(
             },
             **common_args
         })
+        ds_mock = MagicMock()
+        ds_mock.tokenizer = gptt
         monkeypatch.setattr('llmfoundry.data.text_data.StreamingTextDataset',
-                            lambda *args, **kwargs: MagicMock())
+                            lambda *args, **kwargs: ds_mock)
         dl = build_text_dataloader(cfg, gptt, batch_size)
     elif dataloader_type == 'denoising':
         cfg = DictConfig({
@@ -754,7 +762,7 @@ def test_token_counting_func_dataloader_setting(
             },
             'mixture_of_denoisers': {
                 'decoder_only_format': False,
-                'span_mean_lengths_and_ratios': [[3, .15], [8, .5]],
+                'span_mean_lengths_and_ratios': None,
                 'sequence_mask_ratios': 0.25,
             },
             **common_args
@@ -767,7 +775,8 @@ def test_token_counting_func_dataloader_setting(
 
     cfg = om.create(cfg)
 
-    actual_token_count = dl.get_num_tokens_in_batch(batch_tokenized)
+    batch_collated = dl.dataloader.collate_fn(batch_tokenized)  # type: ignore
+    actual_token_count = dl.get_num_tokens_in_batch(batch_collated)
 
     assert actual_token_count == expected_token_count
 

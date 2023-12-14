@@ -69,7 +69,7 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
                labels: List[List[str]]):
         if batch is None:
             batch = {}
-        for sample_output, sample_labels in zip(outputs, labels):
+        for prompt_tensor, sample_output, sample_labels in zip(batch['input_ids'], outputs, labels):
             stripped_sample_output = sample_output.split('\n')[0]
             prediction_tokens = self.normalize_answer(stripped_sample_output).split()
             max_f1 = 0
@@ -86,6 +86,7 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
                 max_f1 = max(max_f1, f1)
 
             self.response_cache.append({
+                'prompt': prompt_tensor.tolist(),
                 'output':  sample_output,
                 'processed_output': stripped_sample_output,
                 'labels': sample_labels[0],

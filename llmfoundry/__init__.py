@@ -4,6 +4,9 @@
 import torch
 
 try:
+    import warnings
+    warnings.filterwarnings("ignore", category=UserWarning, module="bitsandbytes")
+
     # Before importing any transformers models, we need to disable transformers flash attention if
     # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
     # gated import otherwise.

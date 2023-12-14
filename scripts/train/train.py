@@ -39,7 +39,6 @@ from llmfoundry.utils.logging_utils import SpecificWarningFilter
 log = logging.getLogger(__name__)
 
 transformers_logging.enable_default_handler()
-warnings.filterwarnings("ignore", category=UserWarning, module="bitsandbytes")
 
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""

@@ -178,7 +178,7 @@ def scaled_multihead_dot_product_attention(
                                               min_val)
 
     # attn_weight = torch.softmax(attn_weight, dim=-1)
-    attn_weight = F.relu(attn_weight) / attn_weight.shape[-1]
+    attn_weight = F.relu(attn_weight) ** 2 / attn_weight.shape[-1]
 
     if dropout_p:
         attn_weight = torch.nn.functional.dropout(attn_weight,

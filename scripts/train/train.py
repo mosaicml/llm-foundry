@@ -39,8 +39,6 @@ from llmfoundry.utils.config_utils import (log_config, pop_config,
 log = logging.getLogger(__name__)
 
 transformers_logging.enable_default_handler()
-transformers_logging.disable_progress_bar()
-hf_datasets.logging.disable_progress_bar()
 
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""

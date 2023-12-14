@@ -367,9 +367,11 @@ class DatasetConstructor:
             with dist.local_rank_zero_download_and_wait(signal_file_path):
                 pass
 
-        hf_tokenization_logger = logging.getLogger('transformers.tokenization_utils_base')
+        hf_tokenization_logger = logging.getLogger(
+            'transformers.tokenization_utils_base')
         sequence_length_warning_filter = SpecificWarningFilter(
-            'Token indices sequence length is longer than the specified maximum sequence length')
+            'Token indices sequence length is longer than the specified maximum sequence length'
+        )
 
         # We will trim examples later in the collate_fn, so we want to silence this warning from Hugging Face
         hf_tokenization_logger.addFilter(sequence_length_warning_filter)

@@ -5,14 +5,17 @@ import torch
 
 try:
     import warnings
-    warnings.filterwarnings("ignore", category=UserWarning, module="bitsandbytes")
+    warnings.filterwarnings('ignore',
+                            category=UserWarning,
+                            module='bitsandbytes')
 
     import logging
 
     from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
     # Filter out Hugging Face warning
-    hf_dynamic_modules_logger = logging.getLogger('transformers.dynamic_module_utils')
+    hf_dynamic_modules_logger = logging.getLogger(
+        'transformers.dynamic_module_utils')
     new_files_warning_filter = SpecificWarningFilter(
         'A new version of the following files was downloaded from')
 

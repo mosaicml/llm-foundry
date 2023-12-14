@@ -39,6 +39,7 @@ log = logging.getLogger(__name__)
 
 transformers_logging.enable_default_handler()
 
+
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""
     loaders = [cfg.train_loader]
@@ -265,8 +266,8 @@ def main(cfg: DictConfig) -> Trainer:
                                           default_value=None)
         if eval_gauntlet_config is not None:
             warnings.warn(
-                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`', DeprecationWarning
-            )
+                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`',
+                DeprecationWarning)
     icl_subset_num_batches: Optional[int] = pop_config(cfg,
                                                        'icl_subset_num_batches',
                                                        must_exist=False,

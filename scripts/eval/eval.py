@@ -28,6 +28,7 @@ from llmfoundry.utils.config_utils import pop_config, process_init_device
 
 log = logging.getLogger(__name__)
 
+
 def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     num_retries: int) -> ComposerModel:
     try:
@@ -117,7 +118,7 @@ def evaluate_model(
     icl_subset_num_batches: Optional[int],
 ):
 
-    log.info(f'Evaluating model: {model_cfg.model_name}', flush=True)
+    log.info(f'Evaluating model: {model_cfg.model_name}')
     # Build tokenizer and model
     tokenizer_cfg: Dict[str,
                         Any] = om.to_container(model_cfg.tokenizer,

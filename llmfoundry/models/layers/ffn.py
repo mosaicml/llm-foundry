@@ -20,27 +20,31 @@ except:
 
 log = logging.getLogger(__name__)
 
-ffn_act_fn_default = {
+_FFN_ACT_FN_DEFAULT = {
     'name': 'gelu',
     'approximate': 'none',
 }
 
 
-def resolve_ffn_act_fn(config: Optional[dict] = None) -> Callable:
+def resolve_ffn_act_fn(
+    config: Optional[dict] = None,) -> Callable[[torch.Tensor], torch.Tensor]:
     """Resolve the activation function for the feed-forward network.
 
     Args:
         config (Optional[dict]): The configuration dictionary for the activation function.
 
     Returns:
-        Callable: The activation function.
+        Callable[[torch.Tensor], torch.Tensor]: The activation function.
     """
-    config = deepcopy(config or ffn_act_fn_default)
+    config = deepcopy(config or _FFN_ACT_FN_DEFAULT)
     name = config.pop('name')
     if not hasattr(torch.nn.functional, name):
         raise ValueError(f'Unrecognised activation function name ({name}).')
     act = getattr(torch.nn.functional, name)
     return partial(act, **config)
+
+
+_DEFAULT_ACT_FN = resolve_ffn_act_fn(_FFN_ACT_FN_DEFAULT)
 
 
 def resolve_ffn_hidden_size(
@@ -79,7 +83,7 @@ class MPTMLP(nn.Module):
         expansion_ratio: Union[int, float],
         fc_type: str = 'torch',
         ffn_hidden_size: Optional[int] = None,
-        ffn_act_fn: Optional[dict] = None,
+        act_fn: Callable[[torch.Tensor], torch.Tensor] = _DEFAULT_ACT_FN,
         device: Optional[str] = None,
         bias: bool = True,
     ):
@@ -97,7 +101,7 @@ class MPTMLP(nn.Module):
             ffn_hidden_size,
             **self.fc_kwargs,
         )
-        self.act = resolve_ffn_act_fn(ffn_act_fn)
+        self.act = act_fn
         self.down_proj = FC_CLASS_REGISTRY[fc_type](
             ffn_hidden_size,
             d_model,
@@ -117,7 +121,7 @@ class MPTGeGLU(MPTMLP):
         expansion_ratio: Union[int, float],
         fc_type: str = 'torch',
         ffn_hidden_size: Optional[int] = None,
-        ffn_act_fn: Optional[dict] = None,
+        act_fn: Callable[[torch.Tensor], torch.Tensor] = _DEFAULT_ACT_FN,
         device: Optional[str] = None,
         bias: bool = True,
     ):
@@ -126,7 +130,7 @@ class MPTGeGLU(MPTMLP):
             expansion_ratio=expansion_ratio,
             fc_type=fc_type,
             ffn_hidden_size=ffn_hidden_size,
-            ffn_act_fn=ffn_act_fn,
+            act_fn=act_fn,
             device=device,
             bias=bias,
         )
@@ -170,8 +174,8 @@ def build_ffn(
             d_model=d_model,
             expansion_ratio=expansion_ratio,
             fc_type=fc_type,
+            act_fn=resolve_ffn_act_fn(ffn_act_fn),
             ffn_hidden_size=ffn_hidden_size,
-            ffn_act_fn=ffn_act_fn,
             device=device,
             bias=bias,
         )

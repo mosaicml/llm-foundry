@@ -95,7 +95,7 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
             self.total += torch.tensor(1.0)
 
     def compute(self):
-        super.compute()
+        super().compute()
         assert isinstance(self.correct, Tensor)
         assert isinstance(self.total, Tensor)
         return self.correct / self.total

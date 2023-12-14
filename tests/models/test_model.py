@@ -359,6 +359,10 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     {
         'name': 'silu'
     },
+    {
+        'name': 'relu',
+        'inplace': True,
+    },
     pytest.param({'name': 'relu5'},
                  marks=pytest.mark.xfail(reason='invalid choice.',
                                          strict=True)),

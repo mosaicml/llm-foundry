@@ -36,14 +36,14 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
     # Make torchmetrics call update only once
     full_state_update = False
 
-    def __init__(self, dist_sync_on_step: bool = False):
+    def __init__(self, dist_sync_on_step: bool = False, cache_responses=True):
         # state from multiple processes
-        super().__init__(dist_sync_on_step=dist_sync_on_step)
+        super().__init__(dist_sync_on_step=dist_sync_on_step, cache_responses=cache_responses)
         self.add_state('correct',
                        default=torch.tensor(0.),
                        dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
-
+       
     def normalize_answer(self, answer: str):
         """Taken from official evaluation script for v1.1 of the SQuAD.
 
@@ -70,8 +70,8 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
         if batch is None:
             batch = {}
         for sample_output, sample_labels in zip(outputs, labels):
-            sample_output = sample_output.split('\n')[0]
-            prediction_tokens = self.normalize_answer(sample_output).split()
+            stripped_sample_output = sample_output.split('\n')[0]
+            prediction_tokens = self.normalize_answer(stripped_sample_output).split()
             max_f1 = 0
             for label in sample_labels:
                 references_tokens = self.normalize_answer(label).split()
@@ -85,10 +85,17 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
                     f1 = (2 * precision * recall) / (precision + recall)
                 max_f1 = max(max_f1, f1)
 
+            self.response_cache.append({
+                'output':  sample_output,
+                'processed_output': stripped_sample_output,
+                'labels': sample_labels[0],
+                'f1': max_f1
+            })
             self.correct += torch.tensor(max_f1)
             self.total += torch.tensor(1.0)
 
     def compute(self):
+        super.compute()
         assert isinstance(self.correct, Tensor)
         assert isinstance(self.total, Tensor)
         return self.correct / self.total

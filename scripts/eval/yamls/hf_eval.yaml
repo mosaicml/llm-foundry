@@ -3,7 +3,7 @@ seed: 1
 precision: fp32
 
 # If you are using one model, put it here:
-model_name_or_path: mosaicml/mpt-7b-instruct
+model_name_or_path: togethercomputer/RedPajama-INCITE-Base-3B-v1
 # otherwise, write a block for each model you want to test in the `models` section
 
 models:
@@ -49,6 +49,7 @@ icl_tasks:
     dataset_uri: eval/local_data/free_response/quac.jsonl
     num_fewshot: [0]
     icl_task_type: question_answering
+    continuation_delimiter: "\nAnswer: "
     metric_names:
     - 'InContextLearningGenerationF1Score'
 -

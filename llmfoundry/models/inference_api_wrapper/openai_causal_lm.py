@@ -108,7 +108,6 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
             max_tokens=num_tokens,
             temperature=0.0)
 
-    # TODO: Do we still need retokenize, rebatch, and eval_forward?
     def retokenize(self, tokens: List[int], cont_idxs: List[int]):
         """Chat API will never respond with a word-initial space.
 

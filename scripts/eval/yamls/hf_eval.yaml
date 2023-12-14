@@ -73,3 +73,9 @@ icl_tasks:
   icl_task_type: question_answering
   metric_names:
   - 'InContextLearningGenerationF1Score'
+
+callbacks:
+  eval_output_logging:
+      print_only_incorrect: false
+      subset_sample: 100
+      output_directory: s3://mosaicml-internal-checkpoints-test/test_f1_score_mpt30b

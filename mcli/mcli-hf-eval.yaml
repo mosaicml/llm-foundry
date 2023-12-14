@@ -1,12 +1,14 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: f1_score # v0.4.0
+  git_branch: debug_f1_score # v0.4.0
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
 
 command: |
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/bmosaicml/composer.git@error_logging_callback
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
@@ -80,3 +82,10 @@ parameters:
     icl_task_type: question_answering
     metric_names:
     - 'InContextLearningGenerationF1Score'
+   
+    
+  callbacks:
+    eval_output_logging:
+      subset_sample: -1
+      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_f1_mpt30b
+

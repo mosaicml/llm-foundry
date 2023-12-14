@@ -88,7 +88,11 @@ extra_deps['databricks'] = [
 ]
 
 extra_deps['tensorboard'] = [
+<<<<<<< HEAD
     'mosaicml[tensorboard]>=0.17.1,<0.18',
+=======
+    # 'mosaicml[tensorboard]>=0.16.1,<0.17',
+>>>>>>> output_eval_logging
 ]
 
 extra_deps['gpu'] = [

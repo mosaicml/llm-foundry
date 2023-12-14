@@ -182,14 +182,6 @@ def main(cfg: DictConfig) -> Trainer:
         'torch.distributed.*_base is a private function and will be deprecated.*'
     )
 
-    # Filter out Hugging Face warning
-    hf_dynamic_modules_logger = logging.getLogger('transformers.dynamic_module_utils')
-    new_files_warning_filter = SpecificWarningFilter(
-        'A new version of the following files was downloaded from')
-
-    # We will trim examples later in the collate_fn, so we want to silence this warning from Hugging Face
-    hf_dynamic_modules_logger.addFilter(new_files_warning_filter)
-
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)
 

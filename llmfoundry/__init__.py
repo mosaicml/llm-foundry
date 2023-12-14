@@ -7,6 +7,16 @@ try:
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="bitsandbytes")
 
+    import logging
+
+    # Filter out Hugging Face warning
+    hf_dynamic_modules_logger = logging.getLogger('transformers.dynamic_module_utils')
+    new_files_warning_filter = SpecificWarningFilter(
+        'A new version of the following files was downloaded from')
+
+    # We will trim examples later in the collate_fn, so we want to silence this warning from Hugging Face
+    hf_dynamic_modules_logger.addFilter(new_files_warning_filter)
+
     # Before importing any transformers models, we need to disable transformers flash attention if
     # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
     # gated import otherwise.

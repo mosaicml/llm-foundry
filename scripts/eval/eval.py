@@ -344,13 +344,13 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
             eval_gauntlet_df = pd.concat(
                 [eval_gauntlet_df, pd.DataFrame([row])], ignore_index=True)
 
-            log.info(f'Printing gauntlet results for all models')
+            print(f'Printing gauntlet results for all models')
 
-            log.info(
+            print(
                 eval_gauntlet_df.sort_values(
                     list(eval_gauntlet_callback.averages.keys())[0],
                     ascending=False).to_markdown(index=False))
-        log.info(f'Printing complete results for all models')
+        print(f'Printing complete results for all models')
         assert models_df is not None
         print(models_df.to_markdown(index=False))
 

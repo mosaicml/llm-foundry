@@ -14,9 +14,10 @@ import torch
 from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
 from composer.loggers import Logger, MLFlowLogger
-from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.models import HuggingFaceModel
-from composer.utils import dist, format_name_with_dist_and_time, parse_uri
+from composer.utils import (dist, format_name_with_dist_and_time,
+                            maybe_create_remote_uploader_downloader_from_uri,
+                            parse_uri)
 from composer.utils.misc import create_interval_scheduler
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
@@ -53,12 +54,11 @@ class HuggingFaceCheckpointer(Callback):
         save_interval: Union[str, int, Time],
         huggingface_folder_name: str = 'ba{batch}',
         precision: str = 'float32',
-        overwrite: bool = False,
+        overwrite: bool = True,
         mlflow_registered_model_name: Optional[str] = None,
         mlflow_logging_config: Optional[dict] = None,
     ):
-        self.backend, self.bucket_name, self.save_dir_format_str = parse_uri(
-            save_folder)
+        _, _, self.save_dir_format_str = parse_uri(save_folder)
         self.overwrite = overwrite
         self.precision = precision
         self.dtype = {
@@ -74,12 +74,13 @@ class HuggingFaceCheckpointer(Callback):
         if self.mlflow_registered_model_name is not None:
             # Both the metadata and the task are needed in order for mlflow
             # and databricks optimized model serving to work
-            if 'metadata' not in mlflow_logging_config:
-                mlflow_logging_config['metadata'] = {
-                    'task': 'llm/v1/completions'
-                }
-            if 'task' not in mlflow_logging_config:
-                mlflow_logging_config['task'] = 'text-generation'
+            default_metadata = {'task': 'llm/v1/completions'}
+            passed_metadata = mlflow_logging_config.get('metadata', {})
+            mlflow_logging_config['metadata'] = {
+                **default_metadata,
+                **passed_metadata
+            }
+            mlflow_logging_config.setdefault('task', 'text-generation')
         self.mlflow_logging_config = mlflow_logging_config
 
         self.huggingface_folder_name_fstr = os.path.join(
@@ -93,13 +94,10 @@ class HuggingFaceCheckpointer(Callback):
         self.save_interval = save_interval
         self.check_interval = create_interval_scheduler(
             save_interval, include_end_of_training=True)
-        self.upload_to_object_store = (self.backend != '')
-        if self.upload_to_object_store:
-            self.remote_ud = RemoteUploaderDownloader(
-                bucket_uri=f'{self.backend}://{self.bucket_name}',
-                num_concurrent_uploads=4)
-        else:
-            self.remote_ud = None
+        self.remote_ud = maybe_create_remote_uploader_downloader_from_uri(
+            save_folder, loggers=[])
+        if self.remote_ud is not None:
+            self.remote_ud._num_concurrent_uploads = 4
 
         self.last_checkpoint_batch: Optional[Time] = None
         self.mlflow_loggers = []
@@ -115,7 +113,7 @@ class HuggingFaceCheckpointer(Callback):
                 raise ValueError(
                     f'`HuggingFaceCheckpointer` is only compatible with `HuggingFaceModel`s. '
                     + f'Got {type(state.model)} instead.')
-            if self.upload_to_object_store and self.remote_ud is not None:
+            if self.remote_ud is not None:
                 self.remote_ud.init(state, logger)
                 state.callbacks.append(self.remote_ud)
 
@@ -169,7 +167,7 @@ class HuggingFaceCheckpointer(Callback):
                 self.huggingface_folder_name_fstr), state.run_name,
             state.timestamp)
         dir_context_mgr = tempfile.TemporaryDirectory(
-        ) if self.upload_to_object_store else contextlib.nullcontext(
+        ) if self.remote_ud is not None else contextlib.nullcontext(
             enter_result=save_dir)
 
         with dir_context_mgr as temp_save_dir:
@@ -206,7 +204,7 @@ class HuggingFaceCheckpointer(Callback):
                         state_dict[k] = v.to(dtype=self.dtype)
 
             if dist.get_global_rank() == 0:
-                log.debug('Saving Hugging Face checkpoint to disk')
+                log.debug('Saving Hugging Face checkpoint in global rank 0')
 
                 copied_config = copy.deepcopy(original_model.config)
                 if copied_config.model_type == 'mpt':
@@ -233,11 +231,8 @@ class HuggingFaceCheckpointer(Callback):
                     log.debug('Editing MPT files for HuggingFace compatibility')
                     edit_files_for_hf_compatibility(temp_save_dir)
 
-                if self.upload_to_object_store:
-                    assert self.remote_ud is not None
-                    log.info(
-                        f'Uploading HuggingFace formatted checkpoint to {self.backend}://{self.bucket_name}/{save_dir}'
-                    )
+                if self.remote_ud is not None:
+                    log.info(f'Uploading HuggingFace formatted checkpoint')
                     for filename in os.listdir(temp_save_dir):
                         self.remote_ud.upload_file(
                             state=state,

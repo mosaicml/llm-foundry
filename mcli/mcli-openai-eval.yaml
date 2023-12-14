@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.3.0
+  git_branch: v0.4.0
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu,openai]"
   ssh_clone: false # Should be true if using a private repo
@@ -16,7 +16,7 @@ run_name: openai-eval
 # gpu_type: #
 cluster: # replace with your cluster here!
 
-image: mosaicml/llm-foundry:2.0.1_cu118-latest
+image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:

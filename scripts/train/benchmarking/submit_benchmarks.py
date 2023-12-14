@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 import yaml
-from mcli.models.run_config import SchedulingConfig
-from mcli.sdk import RunConfig, create_run, get_clusters
+
+from mcli import RunConfig, SchedulingConfig, create_run, get_clusters
 
 
 def _get_cluster_info():
@@ -398,7 +398,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         {
             'integration_type': 'git_repo',
             'git_repo': 'mosaicml/llm-foundry',
-            'git_branch': 'v0.3.0',
+            'git_branch': 'v0.4.0',
             'pip_install': '-e .[gpu]',
         },
         {
@@ -470,9 +470,11 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         parameters['model']['fc_type'] = 'te'
     # Create run config mcli sdk/api
     config = RunConfig(name=name,
-                       gpu_type=gpu_type,
-                       gpu_num=gpu_num,
-                       cluster=cluster,
+                       compute={
+                           'cluster': cluster,
+                           'gpu_type': gpu_type,
+                           'gpus': gpu_num
+                       },
                        image=args.image,
                        integrations=integrations,
                        command=command,

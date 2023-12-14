@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.3.0
+  git_branch: v0.4.0
   # git_commit: # OR use your commit hash
   pip_install: -e .[gpu]
   ssh_clone: false # Should be true if using a private repo
@@ -127,7 +127,6 @@ parameters:
     activation_checkpointing_reentrant: false
     activation_cpu_offload: false
     limit_all_gathers: true
-    verbose: false
 
   # Logging
   progress_bar: false
@@ -140,6 +139,8 @@ parameters:
     lr_monitor: {}
     memory_monitor: {}
     runtime_estimator: {}
+
+  load_weights_only: true # Only load the weights, not the optimizer state, LR schedule, etc
 
 #   loggers:
 #     wandb: {}

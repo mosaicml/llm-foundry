@@ -72,7 +72,7 @@ def to_cf(self: SparkConnectClient, plan: pb2.Plan, type: str = 'json'):
         type=cloud_pb2.ResultOptions.TYPE_CLOUD,
         cloudOptions=cloud_pb2.ResultOptions.CloudOptions(
             format=format,
-            useCompression=True,
+            useCompression=False,
         ))
     cloud_option = any_pb2.Any()
     cloud_option.Pack(ro)
@@ -203,15 +203,20 @@ def download_json_starargs(args: Tuple):
     return download_json(*args)
 
 
-def download_arrow(ipart: int, url: str, json_output_path: str):
+def download_arrow(ipart: int,
+                   url: str,
+                   json_output_path: str,
+                   compressed: bool = False):
     resp = requests.get(url)
     if resp.status_code == 200:
-        # The data is lz4 compressed arrow format.
-        # Decompress the data
-        decompressed_data = lz4.frame.decompress(resp.content)
-
-        # Convert the decompressed data into a PyArrow table
-        reader = pa.ipc.open_stream(decompressed_data)
+        if compressed:
+            # The data is lz4 compressed arrow format.
+            # Decompress the data
+            decompressed_data = lz4.frame.decompress(resp.content)
+            # Convert the decompressed data into a PyArrow table
+            reader = pa.ipc.open_stream(decompressed_data)
+        else:
+            reader = pa.ipc.open_stream(resp.content)
         table = reader.read_all()
 
         # Convert the PyArrow table into a pandas DataFrame
@@ -261,7 +266,7 @@ def fetch(
     tablename: str,
     json_output_path: str,
     batch_size: int = 1 << 30,
-    partitions: int = 1,
+    processes: int = 1,
     sparkSession: Optional[SparkSession] = None,
     dbsql: Optional[Connection] = None,
 ):
@@ -272,7 +277,7 @@ def fetch(
         tablename (str): catalog.scheme.tablename on UC
         json_output_path (str): path to write the result json file to
         batch_size (int): number of rows that dbsql fetches each time to avoid OOM
-        partitions (int): max number of processes to use to parallelize the fetch
+        processes (int): max number of processes to use to parallelize the fetch
         sparkSession (pyspark.sql.sparksession): spark session
         dbsql (databricks.sql.connect): dbsql session
     """
@@ -301,7 +306,7 @@ def fetch(
         ) from e
 
     if method == 'dbconnect' and sparkSession:
-        print('partitions = ', partitions)
+        print('processes = ', processes)
         df = sparkSession.table(
             tablename)  # "main.tpcds_sf100_delta.store_sales")
 
@@ -314,7 +319,7 @@ def fetch(
         # Stopping the SparkSession to avoid spilling connection state into the subprocesses.
         sparkSession.stop()
 
-        with ProcessPoolExecutor(max_workers=partitions) as executor:
+        with ProcessPoolExecutor(max_workers=processes) as executor:
             list(executor.map(download_json_starargs, args))
 
     elif method == 'dbsql' and cursor:
@@ -387,7 +392,7 @@ def fetch_DT(args: Namespace):
                 cluster_id=compute_id).getOrCreate()
 
     fetch(method, args.delta_table_name, args.json_output_path, args.batch_size,
-          args.partitions, sparkSession, dbsql)
+          args.processes, sparkSession, dbsql)
 
     if dbsql is not None:
         dbsql.close()
@@ -401,11 +406,10 @@ if __name__ == '__main__':
     parser = ArgumentParser(
         description=
         'Download delta table from UC and convert to json to save local')
-    parser.add_argument(
-        '--delta_table_name',
-        required=True,
-        type=str,
-        help='UC table of format <catalog>.<schema>.<table name>')
+    parser.add_argument('--delta_table_name',
+                        required=True,
+                        type=str,
+                        help='UC table <catalog>.<schema>.<table name>')
     parser.add_argument('--json_output_path',
                         required=True,
                         type=str,
@@ -418,22 +422,20 @@ if __name__ == '__main__':
                         required=False,
                         type=str,
                         help='DATABRICKS_TOKEN')
-    parser.add_argument(
-        '--http_path',
-        required=False,
-        type=str,
-        help=
-        'http_path from either dedicated cluster or serverless sql warehouse')
+    parser.add_argument('--http_path',
+                        required=False,
+                        type=str,
+                        help='http_path is set then dbsql method is used')
     parser.add_argument('--batch_size',
                         required=False,
                         type=int,
-                        default=1 << 20,
-                        help='chunk of rows to transmit a time')
-    parser.add_argument('--partitions',
+                        default=1 << 30,
+                        help='row chunks to transmit a time to avoid OOM')
+    parser.add_argument('--processes',
                         required=False,
                         type=int,
                         default=1,
-                        help='number of partitions allowed to use')
+                        help='number of processes allowed to use')
     parser.add_argument(
         '--cluster_id',
         required=True,

@@ -352,9 +352,10 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
      pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu)])
 @pytest.mark.parametrize('ffn_type', ['mptmlp', 'mptgeglu'])
 @pytest.mark.parametrize('ffn_act_fn', [
+    None,
     {
         'name': 'gelu',
-        'approximate': 'none',
+        'approximate': 'tanh',
     },
     {
         'name': 'silu',
@@ -543,9 +544,10 @@ def test_opt_wrapping():
     (2, 256),
 ])
 @pytest.mark.parametrize('ffn_act_fn', [
+    None,
     {
         'name': 'gelu',
-        'approximate': 'none',
+        'approximate': 'tanh',
     },
     {
         'name': 'silu',

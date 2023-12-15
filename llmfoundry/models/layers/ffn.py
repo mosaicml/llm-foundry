@@ -32,30 +32,19 @@ def resolve_ffn_act_fn(
 
     Args:
         config (Optional[dict]): The configuration dictionary for the activation function.
-            The dict config must specify a 'function' or the 'name' of a function.
-            If 'function' is specified, a Callable function is expected. If 'name' is
-            specified, the name is expected to be the name of a `torch.nn.functional`
+            The dict config must specify the 'name' of a torch.nn.functional activation
             function. All of other key values pairs are bound to the function as a partial.
 
     Returns:
         Callable[[torch.Tensor], torch.Tensor]: The activation function.
     """
-    config = deepcopy(config or _FFN_ACT_FN_DEFAULT)
-
-    if 'function' in config.keys():
-        act = config.pop('function')
-        if not isinstance(act, Callable):
-            raise ValueError(f'act `function` ({act}) must be Callable.')
-    elif 'name' in config.keys():
-        name = config.pop('name')
-        if not hasattr(torch.nn.functional, name):
-            raise ValueError(f'Unrecognised activation function name ({name}).')
-        act = getattr(torch.nn.functional, name)
-    else:
-        raise ValueError(
-            f'FFN activation function config must specify either `function` or function `name`.'
-        )
-
+    if config is None:
+        config = _FFN_ACT_FN_DEFAULT
+    config = deepcopy(config)
+    name = config.pop('name')
+    if not hasattr(torch.nn.functional, name):
+        raise ValueError(f'Unrecognised activation function name ({name}).')
+    act = getattr(torch.nn.functional, name)
     return partial(act, **config)
 
 

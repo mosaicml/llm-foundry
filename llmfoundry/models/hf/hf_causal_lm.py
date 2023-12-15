@@ -107,21 +107,21 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 om_model_config.pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
-                # attn_implementation=requested_attention_implementation,
+                attn_implementation=requested_attention_implementation,
             )
-            config._flash_attn_2_enabled = use_flash_attention_2
+            # config._flash_attn_2_enabled = use_flash_attention_2
 
             # This is not ideal, however Hugging Face's _autoset_attn_implementation function
             # forces you to load the model in fp16/bf16 if you want to use flash attention. Rather than loading
             # the model and then casting it back to fp32, we are monkeypatching their check.
             # https://github.com/huggingface/transformers/issues/28052
-            # def _autoset_attn_implementation_monkeypatch(
-            #         cls, config, *args, **kwargs):  # type: ignore
-            #     config._attn_implementation = requested_attention_implementation
-            #     return config
+            def _autoset_attn_implementation_monkeypatch(
+                    cls, config, *args, **kwargs):  # type: ignore
+                config._attn_implementation = requested_attention_implementation
+                return config
 
-            # PreTrainedModel._autoset_attn_implementation = classmethod(
-            #     _autoset_attn_implementation_monkeypatch)
+            PreTrainedModel._autoset_attn_implementation = classmethod(
+                _autoset_attn_implementation_monkeypatch)
 
             # set config overrides
             for k, v in om_model_config.get('config_overrides', {}).items():

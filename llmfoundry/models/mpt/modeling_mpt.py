@@ -45,7 +45,9 @@ from transformers.models.llama.modeling_llama import \
 from transformers.models.llama.modeling_llama import \
     LlamaRotaryEmbedding as HFRotaryEmbedding
 
-from llmfoundry.models.layers.attention import attn_bias_shape, build_attn_bias
+from llmfoundry.models.layers.attention import (ATTN_CLASS_REGISTRY,
+                                                attn_bias_shape,
+                                                build_attn_bias)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY as FC_CLASS_REGISTRY
@@ -128,6 +130,114 @@ def gen_rotary_embedding(rope_head_dim: int, rope_impl: str, rope_theta: int,
                 'cpu'  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
             )
     raise ValueError('rope_impl needs to be either dail or hf')
+
+
+def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
+                                 attn_uses_sequence_id: bool, attn_impl: str,
+                                 attention_mask: Union[torch.Tensor, None]):
+    """Generates the attention mask used for sequence masking in FA v2.
+
+    Only supports sequence id based sparse attention for no attention masking or attention masking with right padding.
+    In case of left padding:
+        1. Training with left padding is not supported in MPT (see https://github.com/mosaicml/llm-foundry/blob/1eecd4cb8e734499f77f6a35f657b8b20c0adfcb/llmfoundry/models/mpt/modeling_mpt.py#L407).
+        2. For generation with left padding, we only have a single sequence id per sample, so we don't need sequence id based sparse attention.
+
+    Args:
+        sequence_id (Union[None, torch.Tensor]): Tensor containing the sequence id for each token. Shape (batch_size, seq_len).
+        S (int): Sequence length
+        attn_uses_sequence_id (bool): Whether the attention uses sequence id based masking.
+        attn_impl (str): Attention implementation. This function is only creates attention_mask_in_length for flash attention.
+        attention_mask (Union[torch.Tensor, None]): Attention mask tensor of shape (batch_size, seq_len)
+
+    Returns:
+        attention_mask_in_length: (batch, seqlen), int, a nonzero number (e.g., 1, 2, 3, etc.) means length of concatenated sequence in b-th batch, and 0 means none. For example, if batch = 3 and seqlen = 6, the attention_mask_in_length is:
+            ```
+            [
+            [2, 3, 0, 0, 0, 0],
+            [3, 2, 0, 0, 0, 0],
+            [6, 0, 0, 0, 0, 0]
+            ]
+            ```
+        , which refers to the 3D-attention mask:
+            ```
+            [
+            [
+                [1, 0, 0, 0, 0, 0],
+                [1, 1, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 1, 1, 0, 0],
+                [0, 0, 1, 1, 1, 0],
+                [0, 0, 0, 0, 0, 1]
+            ],
+            [
+                [1, 0, 0, 0, 0, 0],
+                [1, 1, 0, 0, 0, 0],
+                [1, 1, 1, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 1, 1, 0],
+                [0, 0, 0, 0, 0, 1]
+            ],
+            [
+                [1, 0, 0, 0, 0, 0],
+                [1, 1, 0, 0, 0, 0],
+                [1, 1, 1, 0, 0, 0],
+                [1, 1, 1, 1, 0, 0],
+                [1, 1, 1, 1, 1, 0],
+                [1, 1, 1, 1, 1, 1]
+            ]
+            ]
+            ```.
+            (The description above is taken verbatim from https://github.com/Dao-AILab/flash-attention/blob/9356a1c0389660d7e231ff3163c1ac17d9e3824a/flash_attn/bert_padding.py#L125 .)
+    """
+    attention_mask_in_length = None
+    if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl
+                                                                == 'flash'):
+        # Check if sequence has left padding. If yes, raise an error.
+        if (attention_mask is not None) and (attention_mask[:, 0].sum() !=
+                                             attention_mask.shape[0]):
+            raise NotImplementedError(
+                'Left padding is not supported with flash attention when attn_uses_sequence_id is set to True.'
+            )
+        if S != sequence_id.shape[-1]:
+            raise ValueError(
+                f'Sequence length ({S}) does not match length of sequences in sequence_id ({sequence_id.shape[-1]}).'
+            )
+        attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
+        if attention_mask is not None:
+            attention_mask_in_length = attention_mask_in_length.masked_fill(
+                ~attention_mask.unsqueeze(-1), 0)
+        attention_mask_in_length = attention_mask_in_length.sum(dim=1)
+        attention_mask_in_length = torch.nn.functional.pad(
+            attention_mask_in_length,
+            (0, S - attention_mask_in_length.shape[-1]),
+            mode='constant',
+            value=0)
+
+    return attention_mask_in_length
+
+
+def apply_sequence_id(attn_bias: torch.Tensor, sequence_id: torch.LongTensor,
+                      max_seq_len: int) -> torch.Tensor:
+    seq_len = sequence_id.shape[-1]
+    if seq_len > max_seq_len:
+        raise ValueError(
+            f'sequence_id sequence length cannot exceed max_seq_len={max_seq_len}'
+        )
+
+    # select seq_len subset of attn mask
+    attn_bias = attn_bias[..., :seq_len, :seq_len]
+
+    # Restrict attention to tokens that share the same value
+    # in sequence_id
+    cannot_attend = torch.logical_not(
+        torch.eq(
+            sequence_id.view(-1, seq_len, 1),
+            sequence_id.view(-1, 1, seq_len),
+        )).unsqueeze(1)
+    min_val = torch.finfo(attn_bias.dtype).min
+    attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
+
+    return attn_bias
 
 
 class MPTPreTrainedModel(PreTrainedModel):
@@ -231,10 +341,11 @@ class MPTModel(MPTPreTrainedModel):
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
 
-    def get_input_embeddings(self) -> nn.Embedding:
+    def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
         return self.wte
 
-    def set_input_embeddings(self, value: nn.Embedding) -> None:
+    def set_input_embeddings(
+            self, value: Union[SharedEmbedding, nn.Embedding]) -> None:
         self.wte = value
 
     @torch.no_grad()
@@ -283,7 +394,8 @@ class MPTModel(MPTPreTrainedModel):
         # If using torch or triton, we incorporate sequence_id (if appropriate)
         if self.attn_uses_sequence_id and sequence_id is not None:
             assert isinstance(attn_bias, torch.Tensor)  # pyright
-            attn_bias = self._apply_sequence_id(attn_bias, sequence_id)
+            attn_bias = apply_sequence_id(attn_bias, sequence_id,
+                                          self.config.max_seq_len)
 
         # If using torch or triton, we incorporate attention_mask. This will output
         # None in place of attention_mask since it will not be further needed in the
@@ -307,7 +419,7 @@ class MPTModel(MPTPreTrainedModel):
             attn_bias = attn_bias.masked_fill(
                 ~attention_mask.view(-1, 1, 1, s_k), min_val)
 
-        return attn_bias, None
+        return attn_bias, attention_mask
 
     def _apply_prefix_mask(self, attn_bias: torch.Tensor,
                            prefix_mask: torch.Tensor) -> torch.Tensor:
@@ -340,32 +452,9 @@ class MPTModel(MPTPreTrainedModel):
 
         return attn_bias
 
-    def _apply_sequence_id(self, attn_bias: torch.Tensor,
-                           sequence_id: torch.LongTensor) -> torch.Tensor:
-        seq_len = sequence_id.shape[-1]
-        if seq_len > self.config.max_seq_len:
-            raise ValueError(
-                f'sequence_id sequence length cannot exceed max_seq_len={self.config.max_seq_len}'
-            )
-
-        # select seq_len subset of attn mask
-        attn_bias = attn_bias[..., :seq_len, :seq_len]
-
-        # Restrict attention to tokens that share the same value
-        # in sequence_id
-        cannot_attend = torch.logical_not(
-            torch.eq(
-                sequence_id.view(-1, seq_len, 1),
-                sequence_id.view(-1, 1, seq_len),
-            )).unsqueeze(1)
-        min_val = torch.finfo(attn_bias.dtype).min
-        attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
-
-        return attn_bias
-
     def forward(
         self,
-        input_ids: torch.LongTensor,
+        input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         prefix_mask: Optional[torch.ByteTensor] = None,
@@ -409,11 +498,6 @@ class MPTModel(MPTPreTrainedModel):
                 'prefix_mask is a required argument when MPT is configured with prefix_lm=True.'
             )
 
-        # Raise a not implemented error if input_embeds is not None (this is an arg in huggingface transformers and we need to support it for PEFT)
-        if inputs_embeds is not None:
-            raise NotImplementedError(
-                'inputs_embeds is not implemented for MPT.')
-
         if self.training:
             if self.attn_uses_sequence_id and sequence_id is None:
                 raise ValueError(
@@ -427,14 +511,25 @@ class MPTModel(MPTPreTrainedModel):
                     'This input will be ignored. If you want the model to use `sequence_id`, set attn_uses_sequence_id to True.'
                 )
 
-        S = input_ids.size(1)
+        if input_ids is not None and inputs_embeds is not None:
+            raise ValueError(
+                'You cannot specify both input_ids and inputs_embeds.')
+        elif input_ids is not None:
+            S = input_ids.size(1)
+            x = self.wte(input_ids)
+            input_device = input_ids.device
+        elif inputs_embeds is not None:
+            S = inputs_embeds.size(1)
+            x = inputs_embeds
+            input_device = inputs_embeds.device
+        else:
+            raise ValueError('You must specify input_ids or inputs_embeds')
 
         assert (
             S <= self.config.max_seq_len
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
         rotary_emb_w_meta_info = None
-        x = self.wte(input_ids)
         if self.learned_pos_emb or self.rope:
             past_position = 0
             if past_key_values is not None:
@@ -464,7 +559,7 @@ class MPTModel(MPTPreTrainedModel):
                     past_position,
                     S + past_position,
                     dtype=torch.long,
-                    device=input_ids.device,
+                    device=input_device,
                 ).unsqueeze(0)
                 if attention_mask is not None:
                     # adjust the position indices to account for padding tokens
@@ -506,7 +601,12 @@ class MPTModel(MPTPreTrainedModel):
             prefix_mask=prefix_mask,
             sequence_id=sequence_id,
         )
-
+        attention_mask_in_length = gen_attention_mask_in_length(
+            sequence_id=sequence_id,
+            S=S,
+            attn_uses_sequence_id=self.attn_uses_sequence_id,
+            attn_impl=self.attn_impl,
+            attention_mask=attention_mask)
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
         if use_cache and past_key_values is None:
@@ -529,6 +629,7 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
+                attention_mask_in_length=attention_mask_in_length,
             )
             if presents is not None:
                 presents += (present,)
@@ -574,13 +675,19 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     def __init__(self, config: MPTConfig):
         super().__init__(config)
-        if not config.tie_word_embeddings:
-            raise ValueError(
-                'MPTForCausalLM only supports tied word embeddings')
-
         log.info(f'Instantiating an MPTForCausalLM model from {__file__}')
 
         self.transformer: MPTModel = MPTModel(config)
+
+        self.lm_head = None
+        if not config.tie_word_embeddings:
+            self.lm_head = nn.Linear(
+                config.d_model,
+                config.vocab_size,
+                bias=False,
+                device=config.init_device,
+            )
+            self.lm_head._fsdp_wrap = True
 
         for child in self.transformer.children():
             if isinstance(child, torch.nn.ModuleList):
@@ -602,19 +709,38 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     )
             self.logit_scale = logit_scale
 
-    def get_input_embeddings(self) -> nn.Embedding:
-        return self.transformer.wte
+    def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
+        return self.transformer.get_input_embeddings()
 
     def set_input_embeddings(
             self, value: Union[SharedEmbedding, nn.Embedding]) -> None:
-        self.transformer.wte = value
+        self.transformer.set_input_embeddings(value)
 
-    def get_output_embeddings(self) -> nn.Embedding:
-        return self.transformer.wte
+    def get_output_embeddings(
+            self) -> Union[SharedEmbedding, nn.Embedding, nn.Linear]:
+        if self.lm_head is not None:
+            return self.lm_head
+        return self.transformer.get_input_embeddings()
 
     def set_output_embeddings(
-            self, new_embeddings: Union[SharedEmbedding, nn.Embedding]) -> None:
-        self.transformer.wte = new_embeddings
+        self, new_embeddings: Union[SharedEmbedding, nn.Embedding,
+                                    nn.Linear]) -> None:
+        if self.lm_head is not None:
+            self.lm_head = new_embeddings
+        else:
+            if not isinstance(new_embeddings, (SharedEmbedding, nn.Embedding)):
+                raise ValueError(
+                    'new_embeddings must be an instance of SharedEmbedding ' +
+                    f'or nn.Embedding, but got {type(new_embeddings)}.')
+            warnings.warn(
+                'Using `set_output_embeddings` to set the embedding layer of ' +
+                'MPTForCausalLM with tied weights. Given weights are tied, ' +
+                'using `set_input_embeddings` is recommended over using ' +
+                '`set_output_embeddings`.')
+            self.transformer.set_input_embeddings(new_embeddings)
+
+    def tie_weights(self) -> None:
+        self.lm_head = None
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder
@@ -624,7 +750,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     def forward(
         self,
-        input_ids: torch.LongTensor,
+        input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         prefix_mask: Optional[torch.ByteTensor] = None,
@@ -641,11 +767,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
         use_cache = (use_cache
                      if use_cache is not None else self.config.use_cache)
 
-        # if input_embeds is not none, raise a not implemented error
-        if inputs_embeds is not None:
-            raise NotImplementedError(
-                'inputs_embeds has to be None (for hf/peft support).')
-        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.transformer(
             input_ids=input_ids,
             past_key_values=past_key_values,
@@ -656,14 +777,17 @@ class MPTForCausalLM(MPTPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             use_cache=use_cache,
+            inputs_embeds=inputs_embeds,
         )
 
-        # move outputs to same device as weights for token embedding
-        # needed to support HF `device_map`
-        logits = self.transformer.wte(
-            outputs.last_hidden_state.to(self.transformer.wte.weight.device),
-            True,
-        )
+        if self.lm_head is not None:
+            logits = self.lm_head(outputs.last_hidden_state)
+        else:
+            # move outputs to same device as weights for token embedding
+            # needed to support HF `device_map`
+            out = outputs.last_hidden_state
+            out = out.to(self.transformer.wte.weight.device)
+            logits = self.transformer.wte(out, True)
 
         if self.logit_scale is not None:
             if self.logit_scale == 0:
@@ -705,7 +829,41 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
-        return isinstance(module, MPTBlock)
+        act_ckpt_list = getattr(self.config, 'activation_checkpointing_target',
+                                None) or ['MPTBlock']
+        if isinstance(act_ckpt_list, str):
+            act_ckpt_list = [act_ckpt_list]
+        elif not isinstance(act_ckpt_list, list):
+            raise ValueError(
+                f'activation_checkpointing_target must be either a single string or a list, but got {type(act_ckpt_list)}'
+            )
+
+        if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
+            if len(act_ckpt_list) > 1:
+                log.info(
+                    'Activation checkpointing MPTBlock only (ignoring other sub-block modules specified in activation_checkpointing_target).'
+                )
+            return isinstance(module, MPTBlock)
+
+        mod_types = ()
+        for mod_name in act_ckpt_list:
+            if mod_name.lower() == 'mptblock':
+                mod_types += (MPTBlock,)
+            elif mod_name in ATTN_CLASS_REGISTRY:
+                mod_types += (ATTN_CLASS_REGISTRY[mod_name],)
+            elif mod_name in FFN_CLASS_REGISTRY:
+                mod_types += (FFN_CLASS_REGISTRY[mod_name],)
+            elif mod_name in NORM_CLASS_REGISTRY:
+                mod_types += (NORM_CLASS_REGISTRY[mod_name],)
+            else:
+                msg = ', '.join(
+                    list(ATTN_CLASS_REGISTRY.keys()) +
+                    list(FFN_CLASS_REGISTRY.keys()) +
+                    list(NORM_CLASS_REGISTRY.keys()) + ['MPTBlock'])
+                raise ValueError(
+                    f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option out of available options {msg}.'
+                )
+        return isinstance(module, mod_types)
 
     def prepare_inputs_for_generation(
         self,
@@ -715,10 +873,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
         inputs_embeds: Optional[torch.Tensor] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        if inputs_embeds is not None:
-            raise NotImplementedError(
-                'inputs_embeds is not implemented for MPT yet')
-
         attention_mask = kwargs['attention_mask'].bool()
         if attention_mask[:, -1].sum() != attention_mask.shape[0]:
             raise NotImplementedError(
@@ -729,6 +883,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         else:
             sequence_id = None
 
+        # only last token for inputs_ids if past is defined in kwargs
         if past_key_values is not None:
             input_ids = input_ids[:, -1].unsqueeze(-1)
 
@@ -742,14 +897,20 @@ class MPTForCausalLM(MPTPreTrainedModel):
         else:
             prefix_mask = None
 
-        return {
-            'input_ids': input_ids,
+        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
+        if inputs_embeds is not None and past_key_values is None:
+            model_inputs = {'inputs_embeds': inputs_embeds}
+        else:
+            model_inputs = {'input_ids': input_ids}
+
+        model_inputs.update({
             'attention_mask': attention_mask,
             'prefix_mask': prefix_mask,
             'sequence_id': sequence_id,
             'past_key_values': past_key_values,
             'use_cache': kwargs.get('use_cache', True),
-        }
+        })
+        return model_inputs
 
     @staticmethod
     def _reorder_cache(
@@ -811,7 +972,11 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
             try:
-                from flash_attn.losses.cross_entropy import \
+                # NOTE: The following is the original import statement from flash_attn library, which we have currently replaced with a copy pasted code from the same library's version 1.0.9. The reason is that using the CE loss from FA v2.3.2 results in an illegal memory access error at long sequence lengths (github issue: https://github.com/Dao-AILab/flash-attention/issues/714).
+                # from flash_attn.losses.cross_entropy import \
+                #     CrossEntropyLoss as FusedCrossEntropyLoss
+                # TODO: Once the problem with using FA v2's CE loss at longer sequence lengths is resolved (github issue: https://github.com/Dao-AILab/flash-attention/issues/714), revert back to directly importing the CE loss from FA library.
+                from llmfoundry.models.layers.cross_entropy_loss import \
                     CrossEntropyLoss as FusedCrossEntropyLoss
 
                 self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
@@ -840,7 +1005,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             add_bidirectional_mask_if_missing(batch)
         # Note: prefix_mask is only used if model.prefix_lm is True
         return self.model(
-            input_ids=batch['input_ids'],
+            input_ids=batch.get('input_ids', None),
             attention_mask=batch.get('attention_mask', None),
             prefix_mask=batch.get('bidirectional_mask', None),
             sequence_id=batch.get('sequence_id', None),
@@ -859,7 +1024,11 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         # assume the backward pass is approximately 2x the forward pass
 
         bs, msl = batch['input_ids'].shape[0:2]
-        params_flops_per_token = 2 * self.n_active_params
+        params = self.n_active_params
+        if not self.model.transformer.config.tie_word_embeddings:
+            # embedding layers are lookup tables, therefore are not counted in the FLOP computation
+            params -= self.model.transformer.wte.weight.numel()
+        params_flops_per_token = 2 * params
         params_flops_per_seq = params_flops_per_token * msl
         attn_flops_per_seq = (self.model.config.n_layers * 2 * 2 *
                               (self.model.config.d_model * (msl**2)))

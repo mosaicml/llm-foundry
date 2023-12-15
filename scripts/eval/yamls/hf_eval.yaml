@@ -43,11 +43,11 @@ device_eval_batch_size: 4
 #   forward_prefetch: True
 #   limit_all_gathers: True
 
-icl_tasks: 'eval/yamls/tasks_light.yaml'
-eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
 
 callbacks:
   eval_output_logging:
       print_only_incorrect: false
       subset_sample: 100
       output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b
+icl_tasks: 'eval/yamls/tasks_v0.1.yaml'
+eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'

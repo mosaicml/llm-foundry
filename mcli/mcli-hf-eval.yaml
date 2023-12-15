@@ -13,12 +13,12 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: output-logger-test
-gpu_num: 8
-gpu_type: a100_80gb
-cluster: r1z1 # replace with your cluster here!
+run_name: gsm8k-debug
+gpu_num: 32
+gpu_type: a100_40gb
+cluster: r7z2 # replace with your cluster here!
 
-image: mosaicml/llm-foundry:2.0.1_cu118-latest
+image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
@@ -30,16 +30,16 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: mosaicml/mpt-30b
     # Tokenizer
     tokenizer:
-      name:  mosaicml/mpt-7b-instruct
+      name:  mosaicml/mpt-30b
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path:  mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path:  mosaicml/mpt-30b
       init_device: mixed
       pretrained: true
       use_auth_token: false
@@ -52,17 +52,18 @@ parameters:
     limit_all_gathers: True
 
 
-  icl_tasks:
-  -
-    label: jeopardy
-    dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
-    num_fewshot: [10]
-    icl_task_type: language_modeling
-    continuation_delimiter: "\nAnswer: " # this separates questions from answers
-    has_categories: true
-    
+
   callbacks:
     eval_output_logging:
       subset_sample: -1
-      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_7b
+      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b_base_gsm8k
 
+  icl_tasks:
+  -
+    label: gsm8k
+    dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k.jsonl
+    num_fewshot: [8]
+    icl_task_type: question_answering
+    cot_delimiter: ' #### '
+    continuation_delimiter: "\nA: Let's think step by step. "
+    question_prelimiter: "Q: "

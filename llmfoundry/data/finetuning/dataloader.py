@@ -136,13 +136,13 @@ def build_finetuning_dataloader(cfg: DictConfig,
             epoch_size=cfg.dataset.get('epoch_size', None),
             predownload=cfg.dataset.get('predownload', None),
             cache_limit=cfg.dataset.get('cache_limit', None),
-            partition_algo=cfg.dataset.get('partition_algo', 'orig'),
+            partition_algo=cfg.dataset.get('partition_algo', 'relaxed'),
             num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', None),
             batch_size=device_batch_size,
             shuffle=cfg.dataset.get('shuffle', False),
-            shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1b'),
+            shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1e'),
             shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
-            shuffle_block_size=cfg.dataset.get('shuffle_block_size', 1 << 18),
+            shuffle_block_size=cfg.dataset.get('shuffle_block_size', None),
             sampling_method=cfg.dataset.get('sampling_method', 'balanced'),
             sampling_granularity=cfg.dataset.get('sampling_granularity', 1),
             batching_method=cfg.dataset.get('batching_method', 'random'),
@@ -216,8 +216,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             timeout=cfg.get('timeout', 0),
         )
 
-    token_counting_func = get_tokens_per_batch_func(
-        pad_token_id=tokenizer.pad_token_id)
+    token_counting_func = get_tokens_per_batch_func()
 
     return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 

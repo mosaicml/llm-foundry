@@ -32,6 +32,10 @@ def resolve_ffn_act_fn(
 
     Args:
         config (Optional[dict]): The configuration dictionary for the activation function.
+            The dict config must specify a 'function' or the 'name' of a function.
+            If 'function' is specified, a Callable function is expected. If 'name' is
+            specified, the name is expected to be the name of a `torch.nn.functional`
+            function. All of other key values pairs are bound to the function as a partial.
 
     Returns:
         Callable[[torch.Tensor], torch.Tensor]: The activation function.
@@ -196,7 +200,8 @@ def build_ffn(
                                                   ffn_hidden_size)
         if ffn_act_fn is not None:
             raise ValueError(
-                f'te block does not support custom activation functions.')
+                f'Transformer Engine block does not support custom activation functions.'
+            )
         return te.LayerNormMLP(
             hidden_size=d_model,
             ffn_hidden_size=ffn_hidden_size,

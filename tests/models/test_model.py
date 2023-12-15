@@ -354,10 +354,10 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
 @pytest.mark.parametrize('ffn_act_fn', [
     {
         'name': 'gelu',
-        'approximate': 'none'
+        'approximate': 'none',
     },
     {
-        'name': 'silu'
+        'name': 'silu',
     },
     {
         'name': 'relu',
@@ -545,10 +545,14 @@ def test_opt_wrapping():
 @pytest.mark.parametrize('ffn_act_fn', [
     {
         'name': 'gelu',
-        'approximate': 'none'
+        'approximate': 'none',
     },
     {
-        'name': 'silu'
+        'name': 'silu',
+    },
+    {
+        'name': 'relu',
+        'inplace': True,
     },
     pytest.param({'name': 'relu5'},
                  marks=pytest.mark.xfail(reason='invalid choice.',

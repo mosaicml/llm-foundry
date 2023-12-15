@@ -216,8 +216,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             timeout=cfg.get('timeout', 0),
         )
 
-    token_counting_func = get_tokens_per_batch_func(
-        pad_token_id=tokenizer.pad_token_id)
+    token_counting_func = get_tokens_per_batch_func()
 
     return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 

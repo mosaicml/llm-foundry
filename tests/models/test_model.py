@@ -350,7 +350,8 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     [('torch', torch.float16), ('torch', torch.bfloat16),
      pytest.param('flash', torch.float16, marks=pytest.mark.gpu),
      pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu)])
-def test_determinism(attn_impl: str, precision: torch.dtype):
+@pytest.mark.parametrize('ffn_type', ['mptmlp', 'mptgeglu'])
+def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str):
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
@@ -358,6 +359,10 @@ def test_determinism(attn_impl: str, precision: torch.dtype):
     test_cfg.model.attn_config = {
         'attn_impl': attn_impl,
     }
+    if hasattr(test_cfg.model, 'ffn_config'):
+        test_cfg.model.ffn_config['ffn_type'] = ffn_type
+    else:
+        test_cfg.model.setdefault('ffn_config', {'ffn_type': ffn_type})
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
@@ -509,14 +514,21 @@ def test_opt_wrapping():
 @pytest.mark.parametrize('norm_type', NORM_CLASS_REGISTRY.keys())
 @pytest.mark.parametrize('no_bias', [False, True])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
+@pytest.mark.parametrize('expansion_ratio,ffn_hidden_size', [
+    (2, None),
+    (1.231, None),
+    (2, 128),
+    (2, 256),
+])
+def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
+                      expansion_ratio: Union[int, float], ffn_hidden_size: int):
     # Test that the config constructs the model as expected.
     hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
+        expansion_ratio=expansion_ratio,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
@@ -526,13 +538,24 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         norm_type=norm_type,
         no_bias=no_bias,
         tie_word_embeddings=tie_word_embeddings,
+        ffn_config={
+            'ffn_type': 'mptmlp',
+            'ffn_hidden_size': ffn_hidden_size,
+        },
     )
+    if hf_config.d_model * hf_config.expansion_ratio != int(
+            hf_config.d_model * hf_config.expansion_ratio):
+        pytest.xfail('d_model * expansion_ratio must be an integer.')
+
     mpt = MPTForCausalLM(hf_config)
 
     assert mpt.config.d_model == 128
     assert mpt.config.n_heads == 4
     assert mpt.config.n_layers == 2
-    assert mpt.config.expansion_ratio == 2
+    if ffn_hidden_size is None:
+        assert mpt.config.expansion_ratio == expansion_ratio
+    else:
+        assert mpt.config.ffn_config['ffn_hidden_size'] == ffn_hidden_size
     assert mpt.config.max_seq_len == 2048
 
     assert mpt.transformer.wte.weight.shape == torch.Size(
@@ -546,6 +569,8 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
     assert len(mpt.transformer.blocks) == 2
 
     d_model = hf_config.d_model
+    if ffn_hidden_size is None:
+        ffn_hidden_size = int(hf_config.d_model * hf_config.expansion_ratio)
     for block in mpt.transformer.blocks:
         assert isinstance(block, MPTBlock)
         assert block.norm_1.weight.shape == torch.Size([d_model])
@@ -553,10 +578,10 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         assert block.norm_2.weight.shape == torch.Size([d_model])
         assert isinstance(block.ffn.up_proj, nn.Linear)
         assert block.ffn.up_proj.weight.shape == torch.Size(
-            [hf_config.d_model * hf_config.expansion_ratio, hf_config.d_model])
+            [ffn_hidden_size, hf_config.d_model])
         assert isinstance(block.ffn.down_proj, nn.Linear)
         assert block.ffn.down_proj.weight.shape == torch.Size(
-            [hf_config.d_model, hf_config.d_model * hf_config.expansion_ratio])
+            [hf_config.d_model, ffn_hidden_size])
         assert block.resid_attn_dropout.p == 0.2
         assert block.resid_ffn_dropout.p == 0.2
 

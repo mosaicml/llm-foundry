@@ -108,7 +108,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
                 attn_implementation=requested_attention_implementation,
-                use_cache=False, # Necessary due to https://github.com/huggingface/transformers/issues/28056
+                use_cache=
+                False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
             )
 
             # This is not ideal, however Hugging Face's _autoset_attn_implementation function

@@ -21,7 +21,6 @@ from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
-from transformers.utils import logging as transformers_logging
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM)
@@ -36,9 +35,6 @@ from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            update_batch_size_info)
 
 log = logging.getLogger(__name__)
-
-transformers_logging.enable_default_handler()
-transformers_logging.enable_explicit_format()
 
 
 def validate_config(cfg: DictConfig):

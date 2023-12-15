@@ -23,9 +23,11 @@ __all__ = [
     'OpenAICausalLMEvalWrapper',
     'OpenAIChatAPIEvalWrapper',
 ]
-from openai.types.chat.chat_completion import ChatCompletion
-from openai.types.completion import Completion
-from openai.types.completion_choice import Logprobs
+
+if TYPE_CHECKING:
+    from openai.types.chat.chat_completion import ChatCompletion
+    from openai.types.completion import Completion
+    from openai.types.completion_choice import Logprobs
 
 MAX_RETRIES = 10
 
@@ -99,7 +101,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 'role':
                     'system',
                 'content':
-                    model_cfg.get('sytsem_role_prompt',
+                    model_cfg.get('system_role_prompt',
                                   'Please complete the following text: ')
             }, {
                 'role': 'user',
@@ -201,7 +203,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
         return torch.stack(output_logits_batch).to(batch['input_ids'].device)
 
-    def process_result(self, completion: Optional[ChatCompletion]):
+    def process_result(self, completion: Optional['ChatCompletion']):
         if completion is None:
             raise ValueError("Couldn't generate model output")
 
@@ -234,7 +236,7 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
             logprobs=5,
             temperature=0.0)
 
-    def process_result(self, completion: Optional[Completion]):
+    def process_result(self, completion: Optional['Completion']):
         if completion is None:
             raise ValueError("Couldn't generate model output")
 

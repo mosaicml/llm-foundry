@@ -38,6 +38,7 @@ from llmfoundry.utils.config_utils import (log_config, pop_config,
 log = logging.getLogger(__name__)
 
 transformers_logging.enable_default_handler()
+transformers_logging.enable_explicit_format()
 
 
 def validate_config(cfg: DictConfig):

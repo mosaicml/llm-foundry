@@ -228,7 +228,8 @@ def test_flash2(model_name: str, use_flash_attention_2: bool):
         model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg, tokenizer)
 
         # check that it actually used flash attention 2
-        assert model.model.config._flash_attn_2_enabled if use_flash_attention_2 else not model.model.config._flash_attn_2_enabled
+        assert model.model.config._attn_implementation == (
+            'flash_attention_2' if use_flash_attention_2 else 'eager')
         attention_layer = rgetattr(
             rgetattr(model, attention_layers_attr)[0], attention_attr)
         assert isinstance(attention_layer, flash_attn_class)

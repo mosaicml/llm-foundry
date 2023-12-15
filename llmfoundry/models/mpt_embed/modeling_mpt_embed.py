@@ -292,8 +292,8 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
 
         is_distributed = self.config.to_dict().get("is_distributed", True)
         
-        if q_pooled_outputs.shape[0] < p_pooled_outputs.shape[0]:
-            q_pooled_outputs = q_pooled_outputs.repeat(p_pooled_outputs.shape[0], 1)
+        # if q_pooled_outputs.shape[0] < p_pooled_outputs.shape[0]:
+        #     q_pooled_outputs = q_pooled_outputs.repeat(p_pooled_outputs.shape[0], 1)
         
         if is_distributed:
             # All Gather is included
@@ -306,6 +306,9 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         
         all_scores, all_labels = self.full_contrastive_scores_and_labels(queries=all_q_pooled_outputs, 
                                                                          passages=all_p_pooled_outputs)
+        
+        all_labels = torch.arange(all_scores.size(0), device=q_pooled_outputs.device, dtype=torch.long)
+        all_labels = all_labels * (p_pooled_outputs.size(0) // q_pooled_outputs.size(0))
         
         scale = 1 / self.temperature
         

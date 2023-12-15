@@ -101,7 +101,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 'role':
                     'system',
                 'content':
-                    model_cfg.get('sytsem_role_prompt',
+                    model_cfg.get('system_role_prompt',
                                   'Please complete the following text: ')
             }, {
                 'role': 'user',

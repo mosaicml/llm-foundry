@@ -88,8 +88,8 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
             self.response_cache.append({
                 'prompt': prompt_tensor.tolist(),
                 'output':  sample_output,
-                'processed_output': stripped_sample_output,
-                'labels': sample_labels[0],
+                'processed_output': self.normalize_answer(stripped_sample_output),
+                'labels': self.normalize_answer(sample_labels[0]),
                 'f1': max_f1
             })
             self.correct += torch.tensor(max_f1)

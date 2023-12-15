@@ -303,9 +303,6 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             # No All Gather
             all_q_pooled_outputs = q_pooled_outputs
             all_p_pooled_outputs = p_pooled_outputs
-            
-        print(all_q_pooled_outputs)
-        print(all_p_pooled_outputs)
         
         all_scores, all_labels = self.full_contrastive_scores_and_labels(queries=all_q_pooled_outputs, 
                                                                          passages=all_p_pooled_outputs)

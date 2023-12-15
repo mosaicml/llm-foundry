@@ -203,7 +203,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
         return torch.stack(output_logits_batch).to(batch['input_ids'].device)
 
-    def process_result(self, completion: Optional[ChatCompletion]):
+    def process_result(self, completion: Optional['ChatCompletion']):
         if completion is None:
             raise ValueError("Couldn't generate model output")
 
@@ -236,7 +236,7 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
             logprobs=5,
             temperature=0.0)
 
-    def process_result(self, completion: Optional[Completion]):
+    def process_result(self, completion: Optional['Completion']):
         if completion is None:
             raise ValueError("Couldn't generate model output")
 

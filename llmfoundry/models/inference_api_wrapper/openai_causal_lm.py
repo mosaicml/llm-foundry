@@ -23,9 +23,11 @@ __all__ = [
     'OpenAICausalLMEvalWrapper',
     'OpenAIChatAPIEvalWrapper',
 ]
-from openai.types.chat.chat_completion import ChatCompletion
-from openai.types.completion import Completion
-from openai.types.completion_choice import Logprobs
+
+if TYPE_CHECKING:
+    from openai.types.chat.chat_completion import ChatCompletion
+    from openai.types.completion import Completion
+    from openai.types.completion_choice import Logprobs
 
 MAX_RETRIES = 10
 

@@ -1940,7 +1940,7 @@ def test_hf_init(tmp_path: pathlib.Path,
     precision = Precision('amp_bf16')
 
     hf_config = MPTConfig(
-        init_device=init_device,
+        init_device='cpu',
         d_model=32,
         n_heads=4,
         n_layers=1,

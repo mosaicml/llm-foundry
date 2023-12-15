@@ -117,26 +117,18 @@ DataFrame.collect_cf = collect_as_cf  # pyright: ignore
 
 
 def iterative_combine_jsons(json_directory: str, output_file: str):
-    """Combine json files in json_directory into one big jsonl file.
+    """Combine jsonl files in json_directory into one big jsonl file.
 
     Args:
         json_directory(str): directory containing the JSON files
         output_file(str): output JSONL file
     """
-    json_files = [f for f in os.listdir(json_directory) if f.endswith('.json')]
-
-    def read_json(file_path: str):
-        with open(file_path, 'r', encoding='utf-8') as file:
-            return json.load(file)
-
-    with open(output_file, 'w', encoding='utf-8') as outfile:
-        for json_file in json_files:
-            full_path = os.path.join(json_directory, json_file)
-            json_obj = read_json(full_path)
-            json.dump(json_obj, outfile, ensure_ascii=False)
-            outfile.write(
-                '\n')  # Write a newline character after each JSON object
-
+    json_files = [f for f in os.listdir(json_directory) if f.endswith('.jsonl')]
+    with open(output_file, 'w') as outfile:
+        for file_name in json_files:
+            with open(os.path.join(json_directory, file_name), 'r') as infile:
+                for line in infile:
+                    outfile.write(line)
     print('JSON files have been combined into a JSONL file.')
 
 
@@ -171,44 +163,20 @@ def get_args(signed: List, json_output_path: str, columns: List):
     for i, r in enumerate(signed):
         yield (i, r.url, json_output_path, columns)
 
-
-def download_json(ipart: int,
-                  url: str,
-                  json_output_path: str,
-                  columns: List,
-                  max_retry: int = 3):
-    for attempt in range(max_retry):
-        try:
-            response = requests.get(url)
-            if response.status_code == 200:
-                data = response.json()
-                pd.DataFrame(data, columns=columns).to_json(os.path.join(
-                    json_output_path, 'part_' + str(ipart) + '.json'),
-                                                            orient='records')
-                break  # Break the loop if the request is successful
-            else:
-                print(
-                    f'Attempt {attempt + 1} failed with status code {response.status_code}'
-                )
-        except requests.RequestException as e:
-            print(f'An error occurred: {e}')
-
-        time.sleep(random.randint(1, 5))
-
-        if attempt == max_retry - 1:
-            raise RuntimeError(f'Failed to download after {max_retry} attempts')
-
-
-def download_json_starargs(args: Tuple):
-    return download_json(*args)
-
-
-def download_arrow(ipart: int,
-                   url: str,
-                   json_output_path: str,
-                   compressed: bool = False):
+def download(ipart: int,
+             url: str,
+             json_output_path: str,
+             columns: Optional[List] = None,
+             resp_format: str = "arrow",
+             compressed: bool = False):
     resp = requests.get(url)
     if resp.status_code == 200:
+        if resp_format == "json":
+            data = resp.json()
+            pd.DataFrame(data, columns=columns).to_json(os.path.join(
+                json_output_path, 'part_' + str(ipart) + '.jsonl'), orient='records', lines=True)
+            return
+
         if compressed:
             # The data is lz4 compressed arrow format.
             # Decompress the data
@@ -217,17 +185,15 @@ def download_arrow(ipart: int,
             reader = pa.ipc.open_stream(decompressed_data)
         else:
             reader = pa.ipc.open_stream(resp.content)
+            print("I am here")
         table = reader.read_all()
 
         # Convert the PyArrow table into a pandas DataFrame
         df = table.to_pandas()
-        df.to_json(
-            os.path.join(json_output_path, 'part_' + str(ipart) + '.json'))
+        df.to_json(os.path.join(json_output_path, 'part_' + str(ipart) + '.jsonl'), orient='records', lines=True, force_ascii=False)
 
-
-def download_arrow_starargs(args: Tuple):
-    return download_arrow(*args)
-
+def download_starargs(args: Tuple):
+    return download(*args)
 
 def fetch_data(method: str, cursor: Optional[Cursor],
                sparkSession: Optional[SparkSession], s: int, e: int,
@@ -258,7 +224,7 @@ def fetch_data(method: str, cursor: Optional[Cursor],
         records = [r.asDict() for r in ans]  # pyright: ignore
         pdf = pd.DataFrame.from_dict(records)
 
-    pdf.to_json(os.path.join(json_output_path, f'part_{s+1}_{e}.json'))
+    pdf.to_json(os.path.join(json_output_path, f'part_{s+1}_{e}.jsonl'))
 
 
 def fetch(
@@ -310,8 +276,8 @@ def fetch(
         df = sparkSession.table(
             tablename)  # "main.tpcds_sf100_delta.store_sales")
 
-        # Running the query and collecting the data as arrow.
-        signed, _, _ = df.collect_cf('json')  # pyright: ignore
+        # Running the query and collecting the data as arrow or json.
+        signed, _, _ = df.collect_cf('arrow')  # pyright: ignore
         print(f'len(signed) = {len(signed)}')
 
         args = get_args(signed, json_output_path, columns)
@@ -320,7 +286,7 @@ def fetch(
         sparkSession.stop()
 
         with ProcessPoolExecutor(max_workers=processes) as executor:
-            list(executor.map(download_json_starargs, args))
+            list(executor.map(download_starargs, args))
 
     elif method == 'dbsql' and cursor:
         for start in range(0, nrows, batch_size):

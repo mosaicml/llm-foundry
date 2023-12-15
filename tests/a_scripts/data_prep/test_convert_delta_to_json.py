@@ -8,7 +8,7 @@ import unittest
 from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
-from scripts.data_prep.convert_delta_to_json import (download_json, fetch_DT,
+from scripts.data_prep.convert_delta_to_json import (download, fetch_DT,
                                                      iterative_combine_jsons,
                                                      run_query)
 
@@ -111,7 +111,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
            return_value='/fake/path/part_1.json')
     @patch('scripts.data_prep.convert_delta_to_json.time.sleep'
           )  # Mock sleep to speed up the test
-    def test_download_json_success(self, mock_sleep: Any, mock_join: Any,
+    def test_download_success(self, mock_sleep: Any, mock_join: Any,
                                    mock_to_json: Any, mock_get: Any):
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -119,12 +119,12 @@ class TestConverDeltaToJsonl(unittest.TestCase):
                                            ['val2.1', 'val2.2']]
         mock_get.return_value = mock_response
 
-        download_json(1, 'http://fakeurl.com/data', '/fake/path', ['A', 'B'])
+        download(1, 'http://fakeurl.com/data', '/fake/path', ['A', 'B'], resp_format='json')
 
         mock_get.assert_called_with('http://fakeurl.com/data')
         mock_join.assert_called_with('/fake/path', 'part_1.json')
         mock_to_json.assert_called_with('/fake/path/part_1.json',
-                                        orient='records')
+                                        orient='records', lines=True)
 
         mock_get.assert_called_once_with('http://fakeurl.com/data')
 

@@ -183,18 +183,25 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         JP: Note that there could be a better way to do this
         """
         queries = {}
+        step_size = self.config.to_dict().get("pos_step_size", 2)
         for key in batch.keys():
-            queries[key] = batch[key][0::2, :] # no need to reshape.reshape(batch[key].size(0), -1)
+            queries[key] = batch[key][0::step_size, :] # no need to reshape.reshape(batch[key].size(0), -1)
             
-        return queries, last_hidden_state[0::2, :, :]
+        return queries, last_hidden_state[0::step_size, :, :]
     
     def format_passages_batch(self, batch, last_hidden_state):
         """ Format `passages` by selecting every other pair from the batch """
         passages = {}
+        step_size = self.config.to_dict().get("pos_step_size", 2)
+
         for key in batch.keys():
-            passages[key] = batch[key][1::2,:] #.reshape(batch[key].size(0), -1)
+            pattern = torch.arange(1, step_size)
+            num_blocks = batch[key].size(0) // step_size
+            index = pattern + torch.arange(0, num_blocks * step_size, step_size).unsqueeze(1)
+            index = index.view(-1)
+            passages[key] = batch[key][index] #.reshape(batch[key].size(0), -1)
         
-        return passages, last_hidden_state[1::2, :, :]
+        return passages, last_hidden_state[index, :, :]
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
         if self.model.transformer.prefix_lm:
@@ -283,13 +290,22 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         q_pooled_outputs = q_pooled_outputs.contiguous() # Why do we need to make this contiguous?
         p_pooled_outputs = p_pooled_outputs.contiguous() # Why do we need to make this contiguous?
 
-        # All Gather is included
-        all_q_pooled_outputs = dist_gather_tensor(q_pooled_outputs)
-        all_p_pooled_outputs = dist_gather_tensor(p_pooled_outputs)
+        is_distributed = self.config.to_dict().get("is_distributed", True)
         
-        # No All Gather
-        #all_q_pooled_outputs = q_pooled_outputs
-        #all_p_pooled_outputs = p_pooled_outputs
+        if q_pooled_outputs.shape[0] < p_pooled_outputs.shape[0]:
+            q_pooled_outputs = q_pooled_outputs.repeat(p_pooled_outputs.shape[0], 1)
+        
+        if is_distributed:
+            # All Gather is included
+            all_q_pooled_outputs = dist_gather_tensor(q_pooled_outputs)
+            all_p_pooled_outputs = dist_gather_tensor(p_pooled_outputs)
+        else:
+            # No All Gather
+            all_q_pooled_outputs = q_pooled_outputs
+            all_p_pooled_outputs = p_pooled_outputs
+            
+        print(all_q_pooled_outputs)
+        print(all_p_pooled_outputs)
         
         all_scores, all_labels = self.full_contrastive_scores_and_labels(queries=all_q_pooled_outputs, 
                                                                          passages=all_p_pooled_outputs)

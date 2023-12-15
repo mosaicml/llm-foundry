@@ -4,6 +4,7 @@
 """Build a StreamingTextDataset dataset and dataloader for training."""
 
 import os
+import pickle
 from itertools import islice
 from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
                     Union, cast)
@@ -184,14 +185,26 @@ class StreamingPairsDataset(StreamingDataset):
     def __getitem__(self,
                     idx: int) -> Union[Dict[str, List[int]], torch.Tensor]:
         sample = super().__getitem__(idx)
-        
+        text_samples = []
         # JP: We use this sample to separate text_a column from text_b column
         text_samples = [sample[item] for item in sample if item.startswith("text_")]
         
-        if len(text_samples) == 0:
-             raise RuntimeError(
-                'StreamingPairsDataset needs samples to have columns that start with `text_`'
-            )
+        if len(text_samples) == 0 \
+            and sample["query_text"] \
+            and sample["positive_passage"] \
+            and sample["negative_passages"]:
+            # CJ: this is gross, I'm sorry
+            text_samples.append(sample["query_text"])
+            text_samples.append(sample["positive_passage"])
+            for negative_sample in pickle.loads(sample["negative_passages"]):
+                text_samples.append(negative_sample)
+            
+            
+            # Migth be "positive_passage" and "negative_passages"
+            
+            #  raise RuntimeError(
+            #     'StreamingPairsDataset needs samples to have columns that start with `text_`'
+            # )
         # JP len of size 2
         # attention mask is created here!
         token_samples = self._tokenize(text_samples)

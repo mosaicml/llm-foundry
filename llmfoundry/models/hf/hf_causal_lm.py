@@ -109,6 +109,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 use_auth_token=use_auth_token,
                 # attn_implementation=requested_attention_implementation,
             )
+            config._flash_attn_2_enabled = use_flash_attention_2
 
             # This is not ideal, however Hugging Face's _autoset_attn_implementation function
             # forces you to load the model in fp16/bf16 if you want to use flash attention. Rather than loading

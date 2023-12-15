@@ -110,6 +110,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 attn_implementation=requested_attention_implementation,
                 use_cache=False,
             )
+
             # config._flash_attn_2_enabled = use_flash_attention_2
 
             # This is not ideal, however Hugging Face's _autoset_attn_implementation function

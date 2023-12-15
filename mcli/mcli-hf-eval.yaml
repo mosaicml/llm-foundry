@@ -1,7 +1,11 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
+<<<<<<< HEAD
   git_branch: output_eval_logging
+=======
+  git_branch: v0.4.0
+>>>>>>> main
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
@@ -18,7 +22,7 @@ gpu_num: 8
 gpu_type: a100_80gb
 cluster: r1z1 # replace with your cluster here!
 
-image: mosaicml/llm-foundry:2.0.1_cu118-latest
+image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
@@ -52,17 +56,11 @@ parameters:
     limit_all_gathers: True
 
 
-  icl_tasks:
-  -
-    label: jeopardy
-    dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
-    num_fewshot: [10]
-    icl_task_type: language_modeling
-    continuation_delimiter: "\nAnswer: " # this separates questions from answers
-    has_categories: true
-    
+
   callbacks:
     eval_output_logging:
       subset_sample: -1
       output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_7b
 
+  icl_tasks: 'eval/yamls/tasks_v0.2.yaml'
+  eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'

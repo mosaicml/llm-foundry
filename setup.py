@@ -47,11 +47,11 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.16.4,<0.17',
+    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.17.1,<0.18',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
     'transformers>=4.34.1,<4.35',
-    'mosaicml-streaming>=0.6,<0.7',
-    'torch>=1.13.1,<2.1.1',
+    'mosaicml-streaming>=0.7.1,<0.8',
+    'torch>=2.1,<2.1.1',
     'datasets>=2.14.5,<2.15',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
@@ -84,11 +84,11 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]',
+    'mosaicml[databricks]>=0.17.1,<0.18',
 ]
 
 extra_deps['tensorboard'] = [
-    # 'mosaicml[tensorboard]>=0.16.1,<0.17',
+    'mosaicml[tensorboard]>=0.17.1,<0.18',
 ]
 
 extra_deps['gpu'] = [
@@ -115,7 +115,7 @@ extra_deps['peft'] = [
 ]
 
 extra_deps['openai'] = [
-    'openai==0.27.8',
+    'openai==1.3.8',
     'tiktoken==0.4.0',
 ]
 extra_deps['all-cpu'] = set(
@@ -143,5 +143,5 @@ setup(
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,
-    python_requires='>=3.7',
+    python_requires='>=3.9',
 )

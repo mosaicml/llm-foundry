@@ -6,8 +6,8 @@
 import argparse
 import time
 
-from mcli.sdk import (RunConfig, RunStatus, create_run, follow_run_logs,
-                      wait_for_run_status)
+from mcli import (RunConfig, RunStatus, create_run, follow_run_logs,
+                  wait_for_run_status)
 
 if __name__ == '__main__':
 
@@ -54,6 +54,9 @@ if __name__ == '__main__':
                         type=int,
                         default=1800,
                         help='Timeout for run (in seconds)')
+    parser.add_argument('--deps_group',
+                        type=str,
+                        help='Dependency group to install')
     args = parser.parse_args()
 
     name = args.name
@@ -89,7 +92,7 @@ if __name__ == '__main__':
     clear_tmp_path_flag = '-o tmp_path_retention_policy=none'
     command += f'''
 
-    pip install --upgrade --user .[all]
+    pip install --upgrade --user .[{args.deps_group}]
 
     export COMMON_ARGS="-v --durations=20 -m '{args.pytest_markers}' {clear_tmp_path_flag}"
 
@@ -104,13 +107,25 @@ if __name__ == '__main__':
 
     config = RunConfig(
         name=name,
-        cluster=args.cluster,
-        gpu_type=args.gpu_type,
-        gpu_num=args.gpu_num,
+        compute={
+            'cluster': args.cluster,
+            'gpu_type': args.gpu_type,
+            'gpus': args.gpu_num
+        },
         image=args.image,
         integrations=[git_integration],
         command=command,
         scheduling={'max_duration': args.timeout / 60 / 60},
+        env_variables=[
+            {
+                'key': 'MOSAICML_PLATFORM',
+                'value': 'False',
+            },
+            {
+                'key': 'PYTHONUNBUFFERED',
+                'value': '1',
+            },
+        ],
     )
 
     # Create run
@@ -127,7 +142,7 @@ if __name__ == '__main__':
         print(line, end='')
 
     print('[GHA] Run completed. Waiting for run to finish...')
-    run = wait_for_run_status(run, status='completed')
+    run = wait_for_run_status(run, status=RunStatus.COMPLETED)
 
-    # Fail if command exited with non-zero exit code or timed out
-    assert run.status == RunStatus.COMPLETED
+    # Fail if command exited with non-zero exit code or timed out (didn't reach COMPLETED)
+    assert run.status == RunStatus.COMPLETED, f'Run did not complete: {run.status} ({run.reason})'

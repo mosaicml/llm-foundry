@@ -1,10 +1,13 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import functools
 import logging
 import os
+import re
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from collections import OrderedDict
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 from composer import algorithms
@@ -25,18 +28,99 @@ from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
+from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
                                   HuggingFaceCheckpointer, LayerFreezing,
                                   MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
+from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
 log = logging.getLogger(__name__)
+
+
+def build_evaluators(
+    eval_loader_config: Optional[Union[DictConfig, ListConfig]],
+    icl_tasks_config: Optional[Union[str, ListConfig]],
+    eval_gauntlet_config: Optional[Union[str, DictConfig]],
+    *,
+    tokenizer: PreTrainedTokenizerBase,
+    device_eval_batch_size: int,
+    icl_seq_len: int,
+    icl_subset_num_batches: Optional[int],
+) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
+
+    evaluators = []
+    if eval_loader_config is not None:
+        evaluators = build_eval_loaders(
+            eval_loader_config,
+            tokenizer,
+            device_eval_batch_size,
+        )
+
+    logger_keys = []
+    eval_gauntlet_callback = None
+    if icl_tasks_config is not None:
+        icl_evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
+            icl_tasks_config,
+            eval_gauntlet_config,
+            tokenizer,
+            device_eval_batch_size,
+            icl_seq_len,
+            icl_subset_num_batches,
+        )
+        evaluators.extend(icl_evaluators)
+
+    return evaluators, logger_keys, eval_gauntlet_callback
+
+
+def build_eval_loaders(
+    eval_loader_config: Union[DictConfig, ListConfig],
+    tokenizer: PreTrainedTokenizerBase,
+    device_eval_batch_size: int,
+) -> List[Evaluator]:
+    evaluators: List[Evaluator] = []
+    if isinstance(eval_loader_config, ListConfig):
+        eval_configs: ListConfig = eval_loader_config
+        is_multi_eval = True
+    else:
+        eval_configs = ListConfig([eval_loader_config])
+        is_multi_eval = False
+
+    for eval_config in eval_configs:
+        eval_dataloader = build_dataloader(eval_config, tokenizer,
+                                           device_eval_batch_size)
+        eval_loader: Evaluator = Evaluator(
+            label=f'eval/{eval_config.label}' if is_multi_eval else 'eval',
+            dataloader=eval_dataloader,
+            # Load the eval data to fail fast. metrics will get added
+            # later in add_metrics_to_eval_loaders, after the model is loaded
+            metric_names=[],
+        )
+        evaluators.append(eval_loader)
+    return evaluators
+
+
+def add_metrics_to_eval_loaders(
+    evaluators: List[Evaluator],
+    metrics: Dict[str, Metric],
+) -> List[Evaluator]:
+    metric_names = list(metrics.keys())
+    eval_loaders, other_evaluators = [], []
+    for evaluator in evaluators:
+        if evaluator.metric_names == []:
+            evaluator.metric_names = metric_names
+            eval_loaders.append(evaluator)
+        else:
+            other_evaluators.append(evaluator)
+
+    # Put the base eval_loaders first
+    return eval_loaders + other_evaluators
 
 
 def build_icl_data_and_gauntlet(
@@ -73,7 +157,8 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
-def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
+def build_callback(name: str, kwargs: Union[DictConfig, Dict[str,
+                                                             Any]]) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
@@ -117,6 +202,8 @@ def build_callback(name: str, kwargs: Dict[str, Any]) -> Callback:
     elif name == 'early_stopper':
         return EarlyStopper(**kwargs)
     elif name == 'hf_checkpointer':
+        if isinstance(kwargs, DictConfig):
+            kwargs = om.to_object(kwargs)  # pyright: ignore
         return HuggingFaceCheckpointer(**kwargs)
     elif name == 'eval_output_logging':
         return EvalOutputLogging(**kwargs)
@@ -154,18 +241,121 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
         raise ValueError(f'Not sure how to build algorithm: {name}')
 
 
+def _extract_param_groups(
+    model: torch.nn.Module,
+    optimizer_config: Dict[str, Any],
+) -> Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]:
+    """Extracts parameter groups defined in the optimizer config.
+
+    The optimizer_config defines the optimizer args. It can additionally have key
+    `disable_grad` which is a string or list of strings. If a string matches a
+    parameter name, then that parameter will have `requires_grad=False`. This is
+    useful for freezing parameters. It can additionally have a key
+    `param_groups` which is a list of dicts. In this dict, key `param_str_match`
+    defines a string; if a parameter name contains this string, then it will be
+    in this parameter group. This is useful for grouping parameters together.
+    The dict can also contain any other key that is a valid optimizer arg.
+    Note: to handle name overlap conflicts, params are assigned to parameter
+    groups and added to `param_groups` in the order that `param_str_match` appear
+    in `param_groups`.
+
+    Usage
+    To disable gradient for all parameters that contain the string "norm" or "bias":
+    ```
+    optimizer_config: {
+        "name": "decoupled_lionw",
+        "lr": 1e-3,
+        "weight_decay": 1e-2,
+        "betas": [0.9, 0.999],
+        "eps": 1e-8,
+        "disable_grad": ["norm", "bias"]
+    }
+    ```
+
+    To create and modify the optimizer parameters for all parameters that contain
+    the string "norm" and "bias" separately:
+    ```
+    optimizer_config: {
+        "name": "decoupled_lionw",
+        "lr": 1e-3,
+        "weight_decay": 1e-2,
+        "betas": [0.9, 0.999],
+        "eps": 1e-8,
+        "param_groups": [
+            {
+                "param_str_match": "norm",
+                "lr": 1e-4,
+                "weight_decay": 0.0,
+            },
+            {
+                "param_str_match": "bias",
+                "lr": 5e-4,
+                "weight_decay": 0.0,
+            },
+        ],
+    }
+    ```
+
+    Args:
+        model (torch.nn.Module): model to extract parameters from
+        optimizer_config (Dict[str, Any]): optimizer config
+
+    Returns:
+        Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]: an iterable of
+            torch.Tensor's or dict's. Specifies what Tensors should be optimized
+            and their param groupings.
+    """
+    if 'disable_grad' in optimizer_config.keys():
+        str_matches = optimizer_config.pop('disable_grad')
+        if isinstance(str_matches, str):
+            str_matches = [str_matches]
+        for str_match in str_matches:
+            for n, p in model.named_parameters():
+                if re.search(str_match, n):
+                    p.requires_grad = False
+                    log.debug(f'Setting `{n}.requires_grad = False`.')
+
+    param_groups_config = optimizer_config.pop('param_groups', None)
+    if param_groups_config is not None:
+        params = []
+        param_dict = OrderedDict((n, p) for n, p in model.named_parameters())
+
+        log.debug(f'Default optimizer settings: {optimizer_config}.')
+        for param_group_config in param_groups_config:
+            str_match = param_group_config.pop('param_str_match')
+            filter_fn = functools.partial(re.search, str_match)
+            param_names = [n for n in param_dict.keys() if filter_fn(n)]
+            group_params = {'params': [param_dict.pop(n) for n in param_names]}
+            group_params.update(param_group_config)
+
+            log.debug(
+                f'Creating optimizer param_group with parameters: {param_names} ' +\
+                f'(extracted using {str_match=}). The param_group optimizer ' +\
+                f'setting overrides are: {param_group_config}.')
+
+            params.append(group_params)
+
+        params.insert(0, {'params': param_dict.values()})
+        return params
+
+    return model.parameters()
+
+
 def build_optimizer(model: torch.nn.Module, name: str,
                     optimizer_config: Dict[str, Any]) -> Optimizer:
+
+    params = _extract_param_groups(model, optimizer_config)
+
     if name == 'decoupled_adamw':
-        return DecoupledAdamW(model.parameters(), **optimizer_config)
+        return DecoupledAdamW(params, **optimizer_config)
     elif name == 'decoupled_lionw':
-        return DecoupledLionW(model.parameters(), **optimizer_config)
+        return DecoupledLionW(params, **optimizer_config)
     elif name == 'clip_lion':
-        return DecoupledClipLion(model.parameters(), **optimizer_config)
+        return DecoupledClipLion(params, **optimizer_config)
     elif name == 'adalr_lion':
-        return DecoupledAdaLRLion(model.parameters(), **optimizer_config)
+        return DecoupledAdaLRLion(params, **optimizer_config)
     elif name == 'decoupled_lionw_8b':
-        return DecoupledLionW_8bit(model.parameters(), **optimizer_config)
+        return DecoupledLionW_8bit(params, **optimizer_config)
     else:
         raise ValueError(f'Not sure how to build optimizer: {name}')
 
@@ -192,9 +382,11 @@ def build_tokenizer(
 
     signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
 
-    # Make sure the tokenizer files are downloaded and cached first by local rank 0
-    with dist.local_rank_zero_download_and_wait(signal_file_path):
-        pass
+    if dist.is_available() and dist.is_initialized(
+    ) and dist.get_world_size() > 1:
+        # Make sure the tokenizer files are downloaded and cached first by local rank 0
+        with dist.local_rank_zero_download_and_wait(signal_file_path):
+            pass
 
     if tokenizer_name.startswith('tiktoken'):
         tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
@@ -210,14 +402,16 @@ def build_tokenizer(
             int(1e30),
         )
 
-    if dist.get_local_rank() == 0:
-        with open(signal_file_path, 'wb') as f:
-            f.write(b'local_rank0_completed_tokenizer_setup')
+    if dist.is_available() and dist.is_initialized(
+    ) and dist.get_world_size() > 1:
+        if dist.get_local_rank() == 0:
+            with open(signal_file_path, 'wb') as f:
+                f.write(b'local_rank0_completed_tokenizer_setup')
 
-    dist.barrier()
+        dist.barrier()
 
-    if dist.get_local_rank() == 0:
-        os.remove(signal_file_path)
+        if dist.get_local_rank() == 0:
+            os.remove(signal_file_path)
 
     return tokenizer
 
@@ -314,11 +508,12 @@ def build_icl_evaluators(
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
+                question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
                 pass_at_k=icl_cfg.pass_at_k,
                 generations_per_sample=icl_cfg.num_beams,
                 has_categories=icl_cfg.get('has_categories', False),
-            )
+                cot_delimiter=icl_cfg.get('cot_delimiter', ''))
             if hasattr(
                     icl_cfg,
                     'has_categories') and icl_cfg.has_categories and isinstance(

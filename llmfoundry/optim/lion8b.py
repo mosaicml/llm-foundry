@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import torch
 
@@ -58,15 +58,17 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             device, or b) step() is executed on a non-CUDA parameter.
     """
 
-    def __init__(self,
-                 params: Iterable[torch.Tensor],
-                 lr: float = 1e-3,
-                 betas: Tuple[float, float] = (0.9, 0.99),
-                 weight_decay: float = 0,
-                 quantize: bool = True,
-                 compress_state_dict: bool = False,
-                 error_correction: bool = False,
-                 _fused: bool = True):  # XXX this flag is mostly for testing...
+    def __init__(
+            self,
+            params: Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]],
+            lr: float = 1e-3,
+            betas: Tuple[float, float] = (0.9, 0.99),
+            weight_decay: float = 0,
+            quantize: bool = True,
+            compress_state_dict: bool = False,
+            error_correction: bool = False,
+            _fused: bool = True,  # XXX this flag is mostly for testing...
+    ):
 
         if lr < 0.0:
             raise ValueError('Invalid learning rate: {}'.format(lr))

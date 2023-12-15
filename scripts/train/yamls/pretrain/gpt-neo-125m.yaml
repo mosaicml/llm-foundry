@@ -34,7 +34,6 @@ train_loader:
     remote: ${data_remote}
     split: train
     shuffle: true
-    tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
     shuffle_seed: ${global_seed}
   drop_last: true
@@ -47,7 +46,6 @@ eval_loader:
     remote: ${data_remote}
     split: val
     shuffle: false
-    tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
     shuffle_seed: ${global_seed}
   drop_last: false
@@ -94,7 +92,6 @@ fsdp_config:
   activation_checkpointing_reentrant: false
   activation_cpu_offload: false
   limit_all_gathers: true
-  verbose: false
 
 # Logging
 progress_bar: false

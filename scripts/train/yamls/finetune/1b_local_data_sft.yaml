@@ -111,7 +111,6 @@ fsdp_config:
   activation_checkpointing_reentrant: false
   activation_cpu_offload: false
   limit_all_gathers: true
-  verbose: false
 
 # Logging
 progress_bar: false
@@ -137,3 +136,4 @@ callbacks:
 # Load from remote object store
 # REPLACE THE BELOW with you own checkpoint!
 load_path: oci://my-bucket/my-folder/mpt-1b/checkpoints/some_checkpoint.pt
+load_weights_only: true # Only load the weights, not the optimizer state, LR schedule, etc

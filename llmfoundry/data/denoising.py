@@ -477,13 +477,13 @@ def build_text_denoising_dataloader(
         remote=cfg.dataset.get('remote'),
         split=cfg.dataset.get('split'),
         shuffle=cfg.dataset.get('shuffle', False),
-        predownload=cfg.dataset.get('predownload', 100_000),
+        predownload=cfg.dataset.get('predownload', None),
         keep_zip=cfg.dataset.get('keep_zip', False),
         download_retry=cfg.dataset.get('download_retry', 2),
         download_timeout=cfg.dataset.get('download_timeout', 60),
-        validate_hash=cfg.dataset.get('validate_hash'),
+        validate_hash=cfg.dataset.get('validate_hash', None),
         shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
-        num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', 128),
+        num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', None),
         batch_size=device_batch_size,
     )
 
@@ -527,7 +527,6 @@ def build_text_denoising_dataloader(
     )
 
     token_counting_func = get_tokens_per_batch_func(
-        pad_token_id=tokenizer.pad_token_id,
         decoder_only=cfg.mixture_of_denoisers.decoder_only_format)
 
     return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)

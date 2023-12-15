@@ -108,6 +108,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
                 attn_implementation=requested_attention_implementation,
+                use_cache=False,
             )
             # config._flash_attn_2_enabled = use_flash_attention_2
 

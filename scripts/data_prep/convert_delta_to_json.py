@@ -150,7 +150,9 @@ def run_query(
         spark (SparkSession): spark session
         collect (bool): whether to get the underlying data from spark dataframe
     """
-    assert method in ['dbsql', 'dbconnect'], f'Unrecognized method: {method}'
+    if method not in ['dbsql', 'dbconnect']:
+        raise ValueError(f'Unrecognized method: {method}')
+
     if method == 'dbsql':
         if cursor is None:
             raise ValueError(f'cursor cannot be None if using method dbsql')
@@ -378,9 +380,11 @@ def fetch_DT(args: Namespace) -> None:
                 cluster_id=compute_id)  # '0704-124501-tsc2fxq' - invalid 12.2.x
             runtime_version = res.spark_version.split('-scala')[0].replace(
                 'x-snapshot', '0').replace('x', '0')
-            assert version.parse(runtime_version) >= version.parse(
-                MINIMUM_DBR_VERSION
-            ), f'You need at least {MINIMUM_DBR_VERSION} to use Databricks-connect to read delta table for FT API but got {res.spark_version}'
+            if version.parse(runtime_version) < version.parse(
+                    MINIMUM_DBR_VERSION):
+                raise RuntimeError(
+                    f'You need at least {MINIMUM_DBR_VERSION} to use Databricks-connect to read delta table for FT API but got {res.spark_version}'
+                )
             sparkSession = DatabricksSession.builder.remote(
                 host=args.DATABRICKS_HOST,
                 token=args.DATABRICKS_TOKEN,

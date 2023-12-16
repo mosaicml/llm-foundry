@@ -1,16 +1,14 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import json
 import logging
 import os
-import random
 import time
 import urllib.parse
 from argparse import ArgumentParser, Namespace
 from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
-from typing import List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 from uuid import uuid4
 
 # PB2 stuff
@@ -48,7 +46,9 @@ Result = namedtuple(
 # able to use the code make sure this module is not overriden by DB Connect classes.
 
 
-def to_cf(self: SparkConnectClient, plan: pb2.Plan, type: str = 'json'):
+def to_cf(self: SparkConnectClient,
+          plan: pb2.Plan,
+          type: str = 'json') -> Tuple[List[Result], int, bool]:
     """Executes plan object return as cloud fetch presigned URLS.
 
     It can handle the current outptu formats that are supported by the server.
@@ -116,7 +116,7 @@ def collect_as_cf(self: DataFrame,
 DataFrame.collect_cf = collect_as_cf  # pyright: ignore
 
 
-def iterative_combine_jsons(json_directory: str, output_file: str):
+def iterative_combine_jsons(json_directory: str, output_file: str) -> None:
     """Combine jsonl files in json_directory into one big jsonl file.
 
     Args:
@@ -139,7 +139,15 @@ def run_query(
     spark: Optional[SparkSession] = None,
     collect: bool = True
 ) -> Optional[Union[List[Row], DataFrame, SparkDataFrame]]:
+    """Run SQL query via databricks-connect or databricks-sql.
 
+    Args:
+        q (str): sql query
+        method (str): select from dbsql and dbconnect
+        cursor (Cursor): connection.cursor
+        spark (SparkSession): spark session
+        collect (bool): whether to get the underlying data from spark dataframe
+    """
     assert method in ['dbsql', 'dbconnect'], f'Unrecognized method: {method}'
     if method == 'dbsql':
         if cursor is None:
@@ -159,22 +167,35 @@ def run_query(
     return None
 
 
-def get_args(signed: List, json_output_path: str, columns: List):
+def get_args(signed: List, json_output_path: str, columns: List) -> Iterable:
     for i, r in enumerate(signed):
         yield (i, r.url, json_output_path, columns)
+
 
 def download(ipart: int,
              url: str,
              json_output_path: str,
              columns: Optional[List] = None,
-             resp_format: str = "arrow",
-             compressed: bool = False):
+             resp_format: str = 'arrow',
+             compressed: bool = False) -> None:
+    """Thread download presigned url and save to jsonl locally.
+
+    Args:
+        ipart (int): presigned url id
+        url (str): presigned url
+        json_output_path (str): directory to save the ipart_th segment of dataframe
+        columns (list): schema to save to json
+        resp_format (str): whether to use arrow or json when collect
+        compressed (bool): if data is compressed before downloading. Need decompress if compressed=True.
+    """
     resp = requests.get(url)
     if resp.status_code == 200:
-        if resp_format == "json":
+        if resp_format == 'json':
             data = resp.json()
             pd.DataFrame(data, columns=columns).to_json(os.path.join(
-                json_output_path, 'part_' + str(ipart) + '.jsonl'), orient='records', lines=True)
+                json_output_path, 'part_' + str(ipart) + '.jsonl'),
+                                                        orient='records',
+                                                        lines=True)
             return
 
         if compressed:
@@ -185,20 +206,25 @@ def download(ipart: int,
             reader = pa.ipc.open_stream(decompressed_data)
         else:
             reader = pa.ipc.open_stream(resp.content)
-            print("I am here")
         table = reader.read_all()
 
         # Convert the PyArrow table into a pandas DataFrame
         df = table.to_pandas()
-        df.to_json(os.path.join(json_output_path, 'part_' + str(ipart) + '.jsonl'), orient='records', lines=True, force_ascii=False)
+        df.to_json(os.path.join(json_output_path,
+                                'part_' + str(ipart) + '.jsonl'),
+                   orient='records',
+                   lines=True,
+                   force_ascii=False)
 
-def download_starargs(args: Tuple):
+
+def download_starargs(args: Tuple) -> None:
     return download(*args)
+
 
 def fetch_data(method: str, cursor: Optional[Cursor],
                sparkSession: Optional[SparkSession], s: int, e: int,
                order_by: str, tablename: str, columns_str: str,
-               json_output_path: str):
+               json_output_path: str) -> None:
     query = f"""
     WITH NumberedRows AS (
         SELECT
@@ -235,7 +261,7 @@ def fetch(
     processes: int = 1,
     sparkSession: Optional[SparkSession] = None,
     dbsql: Optional[Connection] = None,
-):
+) -> None:
     """Fetch UC delta table with databricks-connnect as JSONL.
 
     Args:
@@ -298,7 +324,7 @@ def fetch(
         cursor.close()
 
 
-def fetch_DT(args: Namespace):
+def fetch_DT(args: Namespace) -> None:
     """Fetch UC Delta Table to local as jsonl."""
     log.info(f'Start .... Convert delta to json')
 

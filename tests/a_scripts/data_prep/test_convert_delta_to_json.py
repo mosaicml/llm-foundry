@@ -25,7 +25,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
 
         args = MagicMock()
         args.delta_table_name = 'test_table'
-        args.json_output_path = '/path/to/json'
+        args.json_output_path = '/path/to/jsonl'
         args.DATABRICKS_HOST = 'test_host'
         args.DATABRICKS_TOKEN = 'test_token'
         args.http_path = 'test_path'
@@ -38,17 +38,17 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         mock_sql_connect.assert_called_once_with(server_hostname='test_host',
                                                  http_path='test_path',
                                                  access_token='test_token')
-        mock_makedirs.assert_called_once_with('/path/to/json', exist_ok=True)
+        mock_makedirs.assert_called_once_with('/path/to/jsonl', exist_ok=True)
         mock_fetch.assert_called_once()
         mock_combine_jsons.assert_called_once_with(
-            '/path/to/json', '/path/to/json/combined.jsonl')
+            '/path/to/jsonl', '/path/to/jsonl/combined.jsonl')
 
     @patch('scripts.data_prep.convert_delta_to_json.os.listdir')
     @patch('builtins.open',
            new_callable=mock_open,
            read_data='{"key": "value"}')
     def test_iterative_combine_jsons(self, mock_file: Any, mock_listdir: Any):
-        mock_listdir.return_value = ['file1.json', 'file2.json']
+        mock_listdir.return_value = ['file1.jsonl', 'file2.jsonl']
         json_directory = '/fake/dir'
         output_file = '/fake/output.jsonl'
 
@@ -75,7 +75,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         call('\n')
         --------------------
         """
-        self.assertEqual(mock_file().write.call_count, 12)
+        self.assertEqual(mock_file().write.call_count, 2)
 
     @patch('scripts.data_prep.convert_delta_to_json.SparkSession')
     def test_run_query_dbconnect(self, mock_spark: Any):
@@ -108,26 +108,26 @@ class TestConverDeltaToJsonl(unittest.TestCase):
     @patch('scripts.data_prep.convert_delta_to_json.requests.get')
     @patch('scripts.data_prep.convert_delta_to_json.pd.DataFrame.to_json')
     @patch('scripts.data_prep.convert_delta_to_json.os.path.join',
-           return_value='/fake/path/part_1.json')
+           return_value='/fake/path/part_1.jsonl')
     @patch('scripts.data_prep.convert_delta_to_json.time.sleep'
           )  # Mock sleep to speed up the test
     def test_download_success(self, mock_sleep: Any, mock_join: Any,
-                                   mock_to_json: Any, mock_get: Any):
+                              mock_to_json: Any, mock_get: Any):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = [['val1.1', 'val1.2'],
                                            ['val2.1', 'val2.2']]
         mock_get.return_value = mock_response
 
-        download(1, 'http://fakeurl.com/data', '/fake/path', ['A', 'B'], resp_format='json')
+        download(1,
+                 'http://fakeurl.com/data',
+                 '/fake/path', ['A', 'B'],
+                 resp_format='json')
 
         mock_get.assert_called_with('http://fakeurl.com/data')
-        mock_join.assert_called_with('/fake/path', 'part_1.json')
-        mock_to_json.assert_called_with('/fake/path/part_1.json',
-                                        orient='records', lines=True)
+        mock_join.assert_called_with('/fake/path', 'part_1.jsonl')
+        mock_to_json.assert_called_with('/fake/path/part_1.jsonl',
+                                        orient='records',
+                                        lines=True)
 
         mock_get.assert_called_once_with('http://fakeurl.com/data')
-
-
-if __name__ == '__main__':
-    unittest.main()

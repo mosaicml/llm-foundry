@@ -34,6 +34,8 @@ from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
 
+log = logging.getLogger(__name__)
+
 
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""
@@ -138,17 +140,17 @@ def build_composer_peft_model(
             + f'Error encountered: {e}')
 
     # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
-    print('Building Lora config...')
+    log.info('Building Lora config...')
     lora_cfg = LoraConfig(**lora_args)
 
-    print('Building model from HuggingFace checkpoint...')
+    log.info('Building model from HuggingFace checkpoint...')
     model = MPTForCausalLM.from_pretrained(pretrained_model_name_or_path,
                                            trust_remote_code=True)
-    print('Model built!')
+    log.info('Model built!')
 
-    print('Adding Lora modules...')
+    log.info('Adding Lora modules...')
     model = get_peft_model(model, lora_cfg)
-    print('Lora modules added!')
+    log.info('Lora modules added!')
 
     model = ComposerHFCausalLM(model, tokenizer)
 
@@ -163,7 +165,7 @@ def print_trainable_parameters(model: torch.nn.Module) -> None:
         all_param += param.numel()
         if param.requires_grad:
             trainable_params += param.numel()
-    print(
+    log.info(
         f'trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}'
     )
 
@@ -260,9 +262,9 @@ def main(cfg: DictConfig) -> Trainer:
                                           must_exist=False,
                                           default_value=None)
         if eval_gauntlet_config is not None:
-            print(
-                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`'
-            )
+            warnings.warn(
+                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`',
+                DeprecationWarning)
     icl_subset_num_batches: Optional[int] = pop_config(cfg,
                                                        'icl_subset_num_batches',
                                                        must_exist=False,
@@ -398,7 +400,7 @@ def main(cfg: DictConfig) -> Trainer:
         autoresume_default = True
 
     if cfg.get('autoresume') is None and autoresume_default:
-        print('As run_name, save_folder, and save_latest_filename are set, \
+        log.info('As run_name, save_folder, and save_latest_filename are set, \
                 changing autoresume default to True...')
 
     autoresume: bool = pop_config(cfg,
@@ -514,7 +516,7 @@ def main(cfg: DictConfig) -> Trainer:
     ] if algorithm_configs else None
 
     # Dataloaders
-    print('Building train loader...')
+    log.info('Building train loader...')
     train_loader = build_dataloader(
         train_loader_config,
         tokenizer,
@@ -525,7 +527,7 @@ def main(cfg: DictConfig) -> Trainer:
         mosaicml_logger.log_metrics({'data_validated': time.time()})
 
     ## Evaluation
-    print('Building eval loader...')
+    log.info('Building eval loader...')
     eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
     evaluators, _, eval_gauntlet_callback = build_evaluators(
         eval_loader_config,
@@ -541,7 +543,7 @@ def main(cfg: DictConfig) -> Trainer:
         callbacks.append(eval_gauntlet_callback)
 
     # Build Model
-    print('Initializing model...')
+    log.info('Initializing model...')
     with init_context:
         if lora_config is not None:  # frozen model + trainable lora modules
             model: ComposerHFCausalLM = build_composer_peft_model(
@@ -570,7 +572,7 @@ def main(cfg: DictConfig) -> Trainer:
         evaluators = add_metrics_to_eval_loaders(evaluators, train_metrics)
 
     # Build the Trainer
-    print('Building trainer...')
+    log.info('Building trainer...')
     trainer = Trainer(
         run_name=run_name,
         seed=seed,
@@ -609,7 +611,7 @@ def main(cfg: DictConfig) -> Trainer:
         compile_config=compile_config,
     )
 
-    print('Logging config')
+    log.info('Logging config')
     log_config(logged_cfg)
     torch.cuda.empty_cache()
     gc.collect()
@@ -618,10 +620,10 @@ def main(cfg: DictConfig) -> Trainer:
     if eval_first and trainer.state.timestamp.batch.value == 0:
         trainer.eval()
 
-    print('Starting training...')
+    log.info('Starting training...')
     trainer.fit()
 
-    print('Done.')
+    log.info('Done.')
     return trainer
 
 

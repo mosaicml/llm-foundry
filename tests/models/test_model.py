@@ -351,7 +351,25 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
      pytest.param('flash', torch.float16, marks=pytest.mark.gpu),
      pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu)])
 @pytest.mark.parametrize('ffn_type', ['mptmlp', 'mptgeglu'])
-def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str):
+@pytest.mark.parametrize('ffn_act_fn', [
+    None,
+    {
+        'name': 'gelu',
+        'approximate': 'tanh',
+    },
+    {
+        'name': 'silu',
+    },
+    {
+        'name': 'relu',
+        'inplace': True,
+    },
+    pytest.param({'name': 'relu5'},
+                 marks=pytest.mark.xfail(reason='invalid choice.',
+                                         strict=True)),
+])
+def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
+                     ffn_act_fn: dict):
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
@@ -363,6 +381,7 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str):
         test_cfg.model.ffn_config['ffn_type'] = ffn_type
     else:
         test_cfg.model.setdefault('ffn_config', {'ffn_type': ffn_type})
+    test_cfg.model.ffn_config['ffn_act_fn'] = ffn_act_fn
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
@@ -516,12 +535,34 @@ def test_opt_wrapping():
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @pytest.mark.parametrize('expansion_ratio,ffn_hidden_size', [
     (2, None),
-    (1.231, None),
+    pytest.param(1.231,
+                 None,
+                 marks=pytest.mark.xfail(
+                     reason='d_model * expansion_ratio must be an integer.',
+                     strict=True)),
     (2, 128),
     (2, 256),
 ])
+@pytest.mark.parametrize('ffn_act_fn', [
+    None,
+    {
+        'name': 'gelu',
+        'approximate': 'tanh',
+    },
+    {
+        'name': 'silu',
+    },
+    {
+        'name': 'relu',
+        'inplace': True,
+    },
+    pytest.param({'name': 'relu5'},
+                 marks=pytest.mark.xfail(reason='invalid choice.',
+                                         strict=True)),
+])
 def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
-                      expansion_ratio: Union[int, float], ffn_hidden_size: int):
+                      expansion_ratio: Union[int, float], ffn_hidden_size: int,
+                      ffn_act_fn: dict):
     # Test that the config constructs the model as expected.
     hf_config = MPTConfig(
         init_device='cpu',
@@ -541,11 +582,9 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
         ffn_config={
             'ffn_type': 'mptmlp',
             'ffn_hidden_size': ffn_hidden_size,
+            'ffn_act_fn': ffn_act_fn,
         },
     )
-    if hf_config.d_model * hf_config.expansion_ratio != int(
-            hf_config.d_model * hf_config.expansion_ratio):
-        pytest.xfail('d_model * expansion_ratio must be an integer.')
 
     mpt = MPTForCausalLM(hf_config)
 
@@ -1901,7 +1940,7 @@ def test_hf_init(tmp_path: pathlib.Path,
     precision = Precision('amp_bf16')
 
     hf_config = MPTConfig(
-        init_device=init_device,
+        init_device='cpu',
         d_model=32,
         n_heads=4,
         n_layers=1,

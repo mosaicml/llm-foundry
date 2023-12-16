@@ -41,6 +41,8 @@ Result = namedtuple(
     'Result', ['url', 'row_count', 'compressed_size', 'uncompressed_size'
               ])  # pyright: ignore
 
+cf_collect_type = 'arrow'  # optionally change to json if arrow fails
+
 # This is a monkey patch on top of the DB Connect package that allows
 # the client to fetch the results in different formats from the server. To be
 # able to use the code make sure this module is not overriden by DB Connect classes.
@@ -167,9 +169,10 @@ def run_query(
     return None
 
 
-def get_args(signed: List, json_output_path: str, columns: List) -> Iterable:
+def get_args(signed: List, json_output_path: str, columns: List,
+             cf_collect_type: str) -> Iterable:
     for i, r in enumerate(signed):
-        yield (i, r.url, json_output_path, columns)
+        yield (i, r.url, json_output_path, columns, cf_collect_type)
 
 
 def download(ipart: int,
@@ -306,7 +309,7 @@ def fetch(
         signed, _, _ = df.collect_cf('arrow')  # pyright: ignore
         print(f'len(signed) = {len(signed)}')
 
-        args = get_args(signed, json_output_path, columns)
+        args = get_args(signed, json_output_path, columns, cf_collect_type)
 
         # Stopping the SparkSession to avoid spilling connection state into the subprocesses.
         sparkSession.stop()

@@ -232,7 +232,7 @@ def build_hf_dataset(
     else:
         if not isinstance(tokenizer, PreTrainedTokenizerBase):
             raise ValueError(
-                f'{tokenizer=} must be of type PreTrainedTokenizerBase')
+                f'{tokenizer} must be of type PreTrainedTokenizerBase')
         if max_length is None:
             raise ValueError(f'max_length must be set.')
         if bos_text + eos_text == '':

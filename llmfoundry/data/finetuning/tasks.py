@@ -44,6 +44,8 @@ from composer.utils import dist
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
+from llmfoundry.utils.logging_utils import SpecificWarningFilter
+
 log = logging.getLogger(__name__)
 
 __all__ = ['dataset_constructor']
@@ -245,7 +247,7 @@ class DatasetConstructor:
 
     def print_registered_tasks(self) -> None:
         tasks = sorted(self._task_preprocessing_registry.keys())
-        print('\n'.join(tasks))
+        log.info('\n'.join(tasks))
 
     def get_preprocessing_fn_from_dict(
             self,
@@ -363,6 +365,15 @@ class DatasetConstructor:
             with dist.local_rank_zero_download_and_wait(signal_file_path):
                 pass
 
+        hf_tokenization_logger = logging.getLogger(
+            'transformers.tokenization_utils_base')
+        sequence_length_warning_filter = SpecificWarningFilter(
+            'Token indices sequence length is longer than the specified maximum sequence length'
+        )
+
+        # We will trim examples later in the collate_fn, so we want to silence this warning from Hugging Face
+        hf_tokenization_logger.addFilter(sequence_length_warning_filter)
+
         error: Optional[Exception] = None
         filtered_dataset = None
         try:
@@ -468,6 +479,9 @@ class DatasetConstructor:
             log.error('Error during data prep')
             raise error
         log.debug('All ranks finished data prep')
+
+        hf_tokenization_logger.removeFilter(sequence_length_warning_filter)
+
         assert filtered_dataset is not None
         return filtered_dataset
 

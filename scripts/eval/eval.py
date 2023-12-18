@@ -26,6 +26,8 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import pop_config, process_init_device
 
+log = logging.getLogger(__name__)
+
 
 def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     num_retries: int) -> ComposerModel:
@@ -65,7 +67,7 @@ def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
             if retries >= num_retries:
                 raise e
             else:
-                print(
+                log.info(
                     f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
                 )
 
@@ -89,7 +91,7 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                 if retries >= num_retries:
                     raise e
                 else:
-                    print(
+                    log.info(
                         f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
                     )
 
@@ -116,7 +118,7 @@ def evaluate_model(
     icl_subset_num_batches: Optional[int],
 ):
 
-    print(f'Evaluating model: {model_cfg.model_name}', flush=True)
+    log.info(f'Evaluating model: {model_cfg.model_name}')
     # Build tokenizer and model
     tokenizer_cfg: Dict[str,
                         Any] = om.to_container(model_cfg.tokenizer,
@@ -200,7 +202,7 @@ def evaluate_model(
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     b = time.time()
-    print(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
+    log.info(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
     return (trainer, logger_keys, eval_gauntlet_callback, eval_gauntlet_df)
 
 
@@ -215,7 +217,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                           must_exist=False,
                                           default_value=None)
         if eval_gauntlet_config:
-            print(
+            warnings.warn(
                 'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`'
             )
 

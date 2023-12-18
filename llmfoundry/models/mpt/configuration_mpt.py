@@ -295,6 +295,10 @@ class MPTConfig(PretrainedConfig):
             self.ffn_config['fc_type'] = self.fc_type
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
             self.ffn_config['bias'] = not self.no_bias
+            if 'ffn_act_fn' in self.ffn_config.keys():
+                raise ValueError(
+                    f'Transformer Engine block does not support custom activation functions.'
+                )
         if not self.use_pad_tok_in_ffn:
             try:
                 from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip

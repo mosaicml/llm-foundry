@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import copy
 import logging
 import os
 import sys
@@ -119,6 +120,7 @@ def evaluate_model(
     eval_gauntlet_df: Optional[pd.DataFrame],
     icl_subset_num_batches: Optional[int],
     metadata: Optional[Dict[str, str]],
+    logged_config: DictConfig,
 ):
 
     log.info(f'Evaluating model: {model_cfg.model_name}')
@@ -213,8 +215,8 @@ def evaluate_model(
         python_log_level=python_log_level,
     )
 
-    log.info('Logging config')
-    log_config(loggers_cfg)
+    log.info('Evaluation config:')
+    log_config(logged_config)
 
     log.info(f'Starting eval for {model_cfg.model_name}...')
     if torch.cuda.is_available():
@@ -231,6 +233,10 @@ def evaluate_model(
 
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     om.resolve(cfg)
+
+    # Create copy of config for logging
+    logged_cfg: DictConfig = copy.deepcopy(cfg)
+
     model_configs: ListConfig = pop_config(cfg, 'models', must_exist=True)
     eval_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(
         cfg, 'eval_gauntlet', must_exist=False, default_value=None)
@@ -345,7 +351,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              precision=precision,
              eval_gauntlet_df=eval_gauntlet_df,
              icl_subset_num_batches=icl_subset_num_batches,
-             metadata=metadata)
+             metadata=metadata,
+             logged_config=logged_cfg)
         trainers.append(trainer)
 
         if eval_gauntlet_callback is not None:

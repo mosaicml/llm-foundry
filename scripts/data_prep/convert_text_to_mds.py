@@ -256,8 +256,8 @@ def is_remote_path(path: str) -> bool:
     Args:
         path (str): path to check
     """
-    backend, bucket, _ = parse_uri(path)
-    return backend != '' and bucket != ''
+    backend, _, _ = parse_uri(path)
+    return backend != ''
 
 
 def is_already_processed(output_root: str, args_str: str,

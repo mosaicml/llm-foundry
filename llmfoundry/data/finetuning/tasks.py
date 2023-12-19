@@ -421,7 +421,7 @@ class DatasetConstructor:
                         for f in dataset_files):
                     raise ValueError(
                         f'Dataset at local path {dataset_name} contains invalid file types. '
-                        + 'Allowed file types are: .csv, .jsonl, and .parquet.')
+                        + f'Allowed file types are: {SUPPORTED_EXTENSIONS}')
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,
                                                **hf_kwargs)

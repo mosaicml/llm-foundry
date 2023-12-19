@@ -328,6 +328,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
         if dist.get_local_rank() == 0:
             try:
                 get_file(path=name, destination=destination, overwrite=True)
+                break
             except FileNotFoundError as e:
                 if extension == SUPPORTED_EXTENSIONS[-1]:
                     files_searched = [
@@ -347,18 +348,16 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_download')
 
-        # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
+        # Avoid the collective call until the local rank zero has finished trying to download the dataset
         # so that we don't timeout for large downloads. This syncs all processes on the node
         with dist.local_rank_zero_download_and_wait(signal_file_path):
-            # Then, wait to ensure every node has finished downloading the checkpoint
+            # Then, wait to ensure every node has finished trying to download the dataset
             dist.barrier()
 
         # clean up signal file
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
         dist.barrier()
-
-        break
 
     return finetune_dir
 

@@ -60,9 +60,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(self, om_model_config: Union[DictConfig,
-                                              transformers.PreTrainedModel,
-                                              nn.Module],
+    def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
         # set up training and eval metrics
         train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
@@ -157,7 +155,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             init_device = om_model_config.get('init_device', 'cpu')
 
             # Get the device we want to initialize, and use the
-            # reolved version to initialize the HF model
+            # resolved version to initialize the HF model
             resolved_init_device = hf_get_init_device(init_device)
 
             # We need to have all non-zero local ranks be not-pretrained
@@ -260,13 +258,18 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             raise ValueError(
                 f'om_model_config must be either a DictConfig, PeftModel, or PreTrainedModel, but got {type(om_model_config)}'
             )
+        
+        peft_config = om_model_config.get('peft_config', None)
 
-        composer_model = super().__init__(model=model,
-                                          shift_labels=True,
-                                          tokenizer=tokenizer,
-                                          metrics=train_metrics,
-                                          eval_metrics=eval_metrics,
-                                          z_loss=z_loss,
-                                          init_device=init_device)
+        composer_model = super().__init__(
+            model=model,
+            shift_labels=True,
+            tokenizer=tokenizer,
+            metrics=train_metrics,
+            eval_metrics=eval_metrics,
+            z_loss=z_loss,
+            init_device=init_device,
+            peft_config=peft_config,
+        )
 
         return composer_model

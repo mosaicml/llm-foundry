@@ -127,36 +127,6 @@ def build_composer_model(model_cfg: DictConfig,
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
 
-def build_composer_peft_model(
-        pretrained_model_name_or_path: str, lora_args: Dict[str, Any],
-        tokenizer: PreTrainedTokenizerBase) -> ComposerHFCausalLM:
-    try:
-        from peft import LoraConfig, get_peft_model
-    except ImportError as e:
-        raise ImportError(
-            'Error importing from peft. Please verify that peft and peft utils '
-            +
-            'are installed by running `pip install -e .[peft]` from `llm-foundry/`. '
-            + f'Error encountered: {e}')
-
-    # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
-    log.info('Building Lora config...')
-    lora_cfg = LoraConfig(**lora_args)
-
-    log.info('Building model from HuggingFace checkpoint...')
-    model = MPTForCausalLM.from_pretrained(pretrained_model_name_or_path,
-                                           trust_remote_code=True)
-    log.info('Model built!')
-
-    log.info('Adding Lora modules...')
-    model = get_peft_model(model, lora_cfg)
-    log.info('Lora modules added!')
-
-    model = ComposerHFCausalLM(model, tokenizer)
-
-    return model
-
-
 def print_trainable_parameters(model: torch.nn.Module) -> None:
     # Prints the number of trainable parameters in the model.
     trainable_params = 0
@@ -545,13 +515,7 @@ def main(cfg: DictConfig) -> Trainer:
     # Build Model
     log.info('Initializing model...')
     with init_context:
-        if lora_config is not None:  # frozen model + trainable lora modules
-            model: ComposerHFCausalLM = build_composer_peft_model(
-                model_config.pretrained_model_name_or_path, lora_config['args'],
-                tokenizer)
-            print_trainable_parameters(model)  # should not be 100%
-        else:  # standard model
-            model = build_composer_model(model_config, tokenizer)
+        model = build_composer_model(model_config, tokenizer)
 
         if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
             model = model.to(dtype=torch.bfloat16)

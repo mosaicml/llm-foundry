@@ -43,6 +43,11 @@ from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
 log = logging.getLogger(__name__)
 
+try:
+    import tensorrt_llm
+    TENSORRT_LLM = True
+except:
+    TENSORRT_LLM = False
 
 def build_evaluators(
     eval_loader_config: Optional[Union[DictConfig, ListConfig]],
@@ -491,9 +496,13 @@ def build_icl_evaluators(
             metric_names = list(icl_cfg.metric_names)
             # TODO: fix Composer bug when copying local paths and destination exists
             destination_path = f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl'
-            if dist.get_local_rank() == 0 and os.path.exists(destination_path):
-                os.remove(destination_path)
-            dist.barrier()
+            if TENSORRT_LLM:
+                if tensorrt_llm.mpi_rank() == 0 and os.path.exists(destination_path):
+                    os.remove(destination_path)
+            else:
+                if dist.get_global_rank() == 0 and os.path.exists(destination_path):
+                    os.remove(destination_path)
+                dist.barrier()
 
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,

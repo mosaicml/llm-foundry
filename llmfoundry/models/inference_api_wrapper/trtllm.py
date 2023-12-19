@@ -118,7 +118,8 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
                                            runtime_rank,
                                            tp_size=tp_size,
                                            pp_size=pp_size)
-        torch.cuda.set_device(runtime_rank % runtime_mapping.gpus_per_node)        
+        self.device_num = runtime_rank % runtime_mapping.gpus_per_node
+        torch.cuda.set_device(self.device_num)
 
         # Tokenization and sampling
         self.END_ID = model_cfg.get('eos_token_id', self.tokenizer.eos_token_id)
@@ -144,7 +145,10 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
             engine_buffer = f.read()
 
         self.decoder = tensorrt_llm.runtime.GenerationSession(
-            model_config, engine_buffer, runtime_mapping)
+            model_config, engine_buffer, runtime_mapping, debug_mode=False)
+
+        print("!!! Initialized generation session for rank:", runtime_rank)        
+        torch.cuda.synchronize()
 
 
     def eval_forward(self, batch, outputs: Optional[Any] = None):
@@ -161,27 +165,35 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
             expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
 
             prompt = tokens[:cont_idxs[0]]
-            input_ids = torch.tensor([prompt], dtype=torch.int, device='cuda')
+            
+            
+            input_ids = torch.tensor([prompt], dtype=torch.int, device="cuda:" + str(self.device_num))
             input_lengths = torch.tensor([input_ids.size(1)],
                                          dtype=torch.int,
-                                         device='cuda')
-            #print("prompt:", self.tokenizer.decode(prompt))
+                                         device="cuda:"+ str(self.device_num))
+            # print("prompt:", self.tokenizer.decode(prompt))
+            # print("Input device:", input_ids.get_device())
             #print("Input ids data:", input_ids, len(input_ids), input_ids[0].shape)
             #print("Input lengths:", input_lengths)
             #print(cont_idxs[0])
             #print("Expected continuation tokens:", len(expected_cont_tokens))
-            self.decoder.setup(input_lengths.size(0),
+            with torch.no_grad():
+                self.decoder.setup(input_lengths.size(0),
                                torch.max(input_lengths).item(),
                                len(expected_cont_tokens))
 
-            output_dict = self.decoder.decode(
-                input_ids, input_lengths, self.sampling_config, return_dict=True)
+                output_dict = self.decoder.decode(
+                    input_ids, input_lengths, self.sampling_config, return_dict=True)
             
+            torch.cuda.synchronize()
+
             context_logits = output_dict['context_logits']
             context_logits = context_logits.squeeze()
             output_logits_list = output_dict['generation_logits']
+            # print("Output ids:", output_dict['output_ids'][0][0][cont_idxs[0]:].tolist())
             for i in range(len(output_logits_list)):
                 output_logits_list[i] = output_logits_list[i].squeeze()
+                print("Output ids:", self.tokenizer.decode(output_dict['output_ids'][0][0].tolist()))
             # print("Context logits:", context_logits.shape)
             # print("Output logits list:", output_logits_list)
             if len(output_logits_list) > 0:

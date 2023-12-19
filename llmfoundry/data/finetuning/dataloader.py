@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
-from llmfoundry.data.finetuning.tasks import (_DOWNLOADED_FT_DATASETS_DIRPATH,
-                                              _SUPPORTED_EXTENSIONS,
+from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
+                                              SUPPORTED_EXTENSIONS,
                                               dataset_constructor)
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.data.text_data import get_tokens_per_batch_func
@@ -175,10 +175,12 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
         # Get the preprocessing function.
         proto_preprocessing_fn = cfg.dataset.get('preprocessing_fn')
-
-        preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_dict(dict(proto_preprocessing_fn)) \
-                if isinstance(proto_preprocessing_fn,(dict, DictConfig)) \
-                else dataset_constructor.get_preprocessing_fn_from_str(proto_preprocessing_fn, dataset_name_or_path)
+        if isinstance(proto_preprocessing_fn, (dict, DictConfig)):
+            preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_dict(
+                dict(proto_preprocessing_fn))
+        else:
+            preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_str(
+                proto_preprocessing_fn, dataset_name_or_path)
 
         # Build dataset from HF.
         dataset = dataset_constructor.build_from_hf(
@@ -308,11 +310,11 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
         FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.
     """
     finetune_dir = os.path.join(
-        _DOWNLOADED_FT_DATASETS_DIRPATH,
+        DOWNLOADED_FT_DATASETS_DIRPATH,
         split if split != 'data' else 'data_not',
     )
     os.makedirs(finetune_dir, exist_ok=True)
-    for extension in _SUPPORTED_EXTENSIONS:
+    for extension in SUPPORTED_EXTENSIONS:
         name = f'{remote_path.strip("/")}/{split}{extension}'
         destination = str(
             os.path.abspath(
@@ -327,14 +329,14 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
             try:
                 get_file(path=name, destination=destination, overwrite=True)
             except FileNotFoundError as e:
-                if extension == _SUPPORTED_EXTENSIONS[-1]:
+                if extension == SUPPORTED_EXTENSIONS[-1]:
                     files_searched = [
                         f'{remote_path}/{split}{ext}'
-                        for ext in _SUPPORTED_EXTENSIONS
+                        for ext in SUPPORTED_EXTENSIONS
                     ]
                     raise FileNotFoundError(
                         f'Could not find a file with any of ' + \
-                        f'the supported extensions: {_SUPPORTED_EXTENSIONS}\n' + \
+                        f'the supported extensions: {SUPPORTED_EXTENSIONS}\n' + \
                         f'at {files_searched}'
                     ) from e
                 else:
@@ -355,6 +357,8 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
         dist.barrier()
+
+        break
 
     return finetune_dir
 

@@ -25,8 +25,8 @@ from llmfoundry import (build_finetuning_dataloader,
 from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
                                               _ALLOWED_RESPONSE_KEYS,
-                                              _DOWNLOADED_FT_DATASETS_DIRPATH,
-                                              _SUPPORTED_EXTENSIONS,
+                                              DOWNLOADED_FT_DATASETS_DIRPATH,
+                                              SUPPORTED_EXTENSIONS,
                                               _tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
@@ -341,13 +341,13 @@ def test_finetuning_dataloader_safe_load(hf_name: str,
 
     # If no raised errors, we should expect downlaoded files with only safe file types.
     if expectation == does_not_raise():
-        download_dir = os.path.join(_DOWNLOADED_FT_DATASETS_DIRPATH, hf_name)
+        download_dir = os.path.join(DOWNLOADED_FT_DATASETS_DIRPATH, hf_name)
         downloaded_files = [
             file for _, _, files in os.walk(download_dir) for file in files
         ]
         assert len(downloaded_files) > 0
         assert all(
-            Path(file).suffix in _SUPPORTED_EXTENSIONS
+            Path(file).suffix in SUPPORTED_EXTENSIONS
             for file in downloaded_files)
 
 
@@ -488,6 +488,9 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
 def mock_get_file(path: str, destination: str, overwrite: bool = False):
     if Path(destination).suffix == '.jsonl':
         make_tiny_ft_dataset(path=destination, size=16)
+    else:
+        raise FileNotFoundError(
+            f'Test error in mock_get_file. {path} does not exist.')
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'custom-dash', 'data'])

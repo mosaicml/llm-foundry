@@ -52,13 +52,21 @@ __all__ = ['dataset_constructor']
 
 _ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 _ALLOWED_PROMPT_KEYS = {'prompt'}
-_DOWNLOADED_FT_DATASETS_DIRPATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.realpath(__file__)))), 'downloaded_finetuning')
-_SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
+DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
+    os.path.join(os.path.realpath(__file__), os.pardir, os.pardir, os.pardir,
+                 '.downloaded_finetuning'))
+SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
 
 
-def _is_empty_or_nonexistent(dirpath: str):
+def _is_empty_or_nonexistent(dirpath: str) -> bool:
+    """Check if a directory is empty or non-existent.
+
+    Args:
+        dirpath (str): Directory path to check.
+
+    Returns
+        True if directory is empty or non-existent. False otherwise.
+    """
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
@@ -381,7 +389,7 @@ class DatasetConstructor:
                 if not os.path.isdir(dataset_name):
                     # dataset_name is not a local dir path, download if needed.
                     local_dataset_dir = os.path.join(
-                        _DOWNLOADED_FT_DATASETS_DIRPATH, dataset_name)
+                        DOWNLOADED_FT_DATASETS_DIRPATH, dataset_name)
 
                     if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
                         # Safely load a dataset from HF Hub with restricted file types.
@@ -389,14 +397,14 @@ class DatasetConstructor:
                             dataset_name,
                             repo_type='dataset',
                             allow_patterns=[
-                                '*' + ext for ext in _SUPPORTED_EXTENSIONS
+                                '*' + ext for ext in SUPPORTED_EXTENSIONS
                             ],
                             token=hf_kwargs.get('token', None),
                             local_dir_use_symlinks=False,
                             local_dir=local_dataset_dir)
                         if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
                             raise FileNotFoundError(
-                                f'safe_load is set to True. No data files with safe extensions {_SUPPORTED_EXTENSIONS} '
+                                f'safe_load is set to True. No data files with safe extensions {SUPPORTED_EXTENSIONS} '
                                 + f'found for dataset {dataset_name}. ')
                     # Set dataset_name to the downloaded location.
                     dataset_name = local_dataset_dir
@@ -409,7 +417,7 @@ class DatasetConstructor:
                     f for _, _, files in os.walk(dataset_name) for f in files
                 ]
                 if not all(
-                        Path(f).suffix in _SUPPORTED_EXTENSIONS
+                        Path(f).suffix in SUPPORTED_EXTENSIONS
                         for f in dataset_files):
                     raise ValueError(
                         f'Dataset at local path {dataset_name} contains invalid file types. '

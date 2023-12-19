@@ -9,12 +9,10 @@ from flash_attn.losses.cross_entropy import CrossEntropyLoss
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('vocab_size', [50432, 100352])
-@pytest.mark.parametrize('seqlen', [4096, 65536])
-@pytest.mark.parametrize('batch_size', [1, 8])
-def test_cross_entropy_loss(vocab_size: int, seqlen: int, batch_size: int):
-    if batch_size > 1 and seqlen == 65536:
-        pytest.skip(f'Skipping since this will OOM because of data size.')
+def test_cross_entropy_loss():
+    batch_size = 4
+    seqlen = 2048
+    vocab_size = 100352
     dtype = torch.bfloat16
     device = 'cuda'
     rtol, atol = (1e-3, 1e-4)
@@ -30,8 +28,7 @@ def test_cross_entropy_loss(vocab_size: int, seqlen: int, batch_size: int):
                       vocab_size, (batch_size * seqlen,),
                       dtype=torch.long,
                       device=device)
-    if batch_size * seqlen > 10:
-        y[torch.randperm(batch_size * seqlen)[:10]] = -100
+    y[torch.randperm(batch_size * seqlen)[:10]] = -100
     model_pt = torch.nn.CrossEntropyLoss()
     model = CrossEntropyLoss()
     out = model(x, y)

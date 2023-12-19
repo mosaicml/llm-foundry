@@ -328,11 +328,10 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
         if dist.get_local_rank() == 0:
             try:
                 get_file(path=name, destination=destination, overwrite=True)
-                break
             except FileNotFoundError as e:
                 if extension == SUPPORTED_EXTENSIONS[-1]:
                     files_searched = [
-                        f'{remote_path}/{split}{ext}'
+                        f'{cfg.dataset.hf_name}/{cfg.dataset.split}{ext}'
                         for ext in SUPPORTED_EXTENSIONS
                     ]
                     raise FileNotFoundError(
@@ -343,6 +342,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
                 else:
                     log.debug(
                         f'Could not find {name}, looking for another extension')
+                continue
 
             os.makedirs(os.path.dirname(signal_file_path), exist_ok=True)
             with open(signal_file_path, 'wb') as f:
@@ -358,7 +358,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
         dist.barrier()
-
+        break
     return finetune_dir
 
 

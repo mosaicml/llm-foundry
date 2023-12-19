@@ -7,11 +7,13 @@ integrations:
   ssh_clone: false # Should be true if using a private repo
 
 command: |
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/bmosaicml/composer.git@error_logging_callback
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: mpt-eval
+run_name: gsm8k-debug
 gpu_num: 32
 gpu_type: a100_40gb
 cluster: r7z2 # replace with your cluster here!
@@ -31,13 +33,13 @@ parameters:
     model_name: mosaicml/mpt-30b
     # Tokenizer
     tokenizer:
-      name: mosaicml/mpt-30b
+      name:  mosaicml/mpt-30b
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-30b
+      pretrained_model_name_or_path:  mosaicml/mpt-30b
       init_device: mixed
       pretrained: true
       use_auth_token: false
@@ -59,3 +61,9 @@ parameters:
     cot_delimiter: 'The answer is '
     continuation_delimiter: "\n\nA:"
     question_prelimiter: ""
+
+  callbacks:
+    eval_output_logging:
+      subset_sample: -1
+      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b_base_gsm8k
+

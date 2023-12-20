@@ -9,7 +9,7 @@ This callback is currently experimental. The API may change in the future.
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 from composer.callbacks import CheckpointSaver
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -261,7 +261,8 @@ class AsyncEval(Callback):
         self.check_interval = validate_check_interval(check_interval, self.interval)
 
         # Keep track of checkpoints by interval that have already been evaled
-        self.checkpoints_evaled: Dict[Time, str] = {}
+        # Format: {interval: (checkpoint, run_name)}
+        self.checkpoints_evaled: Dict[Time, Tuple[str, str]] = {}
 
         # Scheduling is based on the check interval, while _get_checkpoints_and_launch_runs
         # will only launch runs at the interval
@@ -293,18 +294,26 @@ class AsyncEval(Callback):
                 break
 
         if not checkpointer:
-            log.warning('No checkpoint saver callback found')
+            log.warning('No checkpoint saver callback found. Skipping eval')
             return
 
         if not checkpointer.saved_checkpoints:
-            log.warning('No saved checkpoints found on the checkpointer')
+            log.debug('No saved checkpoints found on the checkpointer. Skipping eval')
             return
 
         new_checkpoints = 0
 
         found_checkpoints = set(list_remote_objects(self.checkpoint_save_folder))
         print('found_checkpoints', found_checkpoints)
+        print('saved_checkpoints', checkpointer.saved_checkpoints)
+
+        if not found_checkpoints:
+            log.debug('No saved checkpoints found yet on remote. Skipping eval')
+            return
+        
         for checkpoint in checkpointer.saved_checkpoints:
+
+            # TODO shard checkpoints
             filename = Path(checkpoint).parts[-1]
             full_checkpoint = f'{self.checkpoint_save_folder}/{checkpoint}'
             interval = get_interval_from_checkpoint(filename, self.interval.unit)
@@ -322,8 +331,8 @@ class AsyncEval(Callback):
                     log.debug(f'Checkpoint {checkpoint} not fully uploaded, skipping')
                     continue
 
-            self.launch_run(full_checkpoint, interval)
-            self.checkpoints_evaled[interval] = full_checkpoint
+            eval_run = self.launch_run(full_checkpoint, interval)
+            self.checkpoints_evaled[interval] = (full_checkpoint, eval_run.name)
             new_checkpoints += 1
         
         log.debug(f'Launched {new_checkpoints} new eval runs')
@@ -340,7 +349,6 @@ class AsyncEval(Callback):
         ])
 
         if should_launch_run:
-            log.debug('Checking for new checkpoints to eval')
             self._get_checkpoints_and_launch_runs(state)
 
     def close(self, state: State, logger: Logger) -> None:
@@ -348,9 +356,13 @@ class AsyncEval(Callback):
 
         if dist.get_global_rank() != 0:
             return
+        
+        # Eval any remaining checkpoints
+        self._get_checkpoints_and_launch_runs(state)
 
-        timestamp = state.timestamp.get(self.interval.unit)
-        if timestamp not in self.checkpoints_evaled:
+        # Eval the latest checkpoint
+        latest_timestamp = state.timestamp.get(self.interval.unit)
+        if latest_timestamp not in self.checkpoints_evaled:
             save_latest_filename = self.training_config.get('save_latest_filename',
                                                             None)
 
@@ -360,12 +372,12 @@ class AsyncEval(Callback):
 
             checkpoint = f'{self.checkpoint_save_folder}/{save_latest_filename}'
 
-            self.launch_run(checkpoint, timestamp)
-            self.checkpoints_evaled[timestamp] = checkpoint
+            eval_run = self.launch_run(checkpoint, latest_timestamp)
+            self.checkpoints_evaled[latest_timestamp] = (checkpoint, eval_run.name)
 
         log.info(f'AsyncEval callback finished. Launched {len(self.checkpoints_evaled)} eval runs:')
-        for interval, checkpoint in self.checkpoints_evaled.items():
-            log.info(f'  {interval}: {checkpoint}')
+        for interval, (checkpoint, run_name) in self.checkpoints_evaled.items():
+            log.info(f'  {interval}: {checkpoint}, {run_name}')
 
     def _get_current_run(self) -> Run:
         if os.environ.get(MOSAICML_PLATFORM_ENV_VAR,

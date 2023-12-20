@@ -68,5 +68,5 @@ parameters:
   callbacks:
     eval_output_logging:
       subset_sample: -1
-      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b_base_gsm8k
+      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b_base_gsm8k_early_stopping
 

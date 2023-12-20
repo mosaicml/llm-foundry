@@ -304,8 +304,10 @@ class AsyncEval(Callback):
         new_checkpoints = 0
 
         found_checkpoints = set(list_remote_objects(self.checkpoint_save_folder))
+        print('self.checkpoint_save_folder', self.checkpoint_save_folder)
         print('found_checkpoints', found_checkpoints)
         print('saved_checkpoints', checkpointer.saved_checkpoints)
+        print('self.checkpoints_evaled', self.checkpoints_evaled)
 
         if not found_checkpoints:
             log.debug('No saved checkpoints found yet on remote. Skipping eval')
@@ -323,9 +325,8 @@ class AsyncEval(Callback):
                 interval_path = Path(checkpoint).parts[-1]
 
             interval = get_interval_from_checkpoint(interval_path, self.interval.unit)
-            full_checkpoint = f'{self.checkpoint_save_folder}/{checkpoint}'
-
             if self.interval.value % interval.value != 0:
+                log.debug(f'Checkpoint {checkpoint} ({interval}) is not at an eval interval ({self.interval}), skipping')
                 continue  # Skip checkpoints when save interval is more frequent than eval interval
             
             if interval in self.checkpoints_evaled:
@@ -339,8 +340,8 @@ class AsyncEval(Callback):
                     log.debug(f'Checkpoint {checkpoint} not fully uploaded, skipping')
                     continue
 
-            eval_run = self.launch_run(full_checkpoint, interval)
-            self.checkpoints_evaled[interval] = (full_checkpoint, eval_run.name)
+            eval_run = self.launch_run(checkpoint, interval)
+            self.checkpoints_evaled[interval] = (checkpoint, eval_run.name)
             new_checkpoints += 1
         
         log.debug(f'Launched {new_checkpoints} new eval runs')

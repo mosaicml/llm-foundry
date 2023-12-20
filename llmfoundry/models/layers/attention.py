@@ -35,7 +35,7 @@ def is_flash_v1_installed():
     return version.parse(flash_attn.__version__) < version.parse('2.0.0')
 
 
-def check_transformers_version(hf_version: str):
+def is_transformers_version_gte(hf_version: str) -> bool:
     return version.parse(transformers.__version__) >= version.parse(hf_version)
 
 

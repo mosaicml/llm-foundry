@@ -31,7 +31,7 @@ if is_flash_v2_installed():
         from flash_attn.layers.rotary import \
             RotaryEmbedding as DAILRotaryEmbedding
     except Exception as e:
-        raise e
+        pass #raise e
 
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om

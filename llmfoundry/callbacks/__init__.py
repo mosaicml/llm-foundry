@@ -31,3 +31,6 @@ __all__ = [
     'HuggingFaceCheckpointer',
     'AsyncEval',
 ]
+
+import catalogue
+callbacks = catalogue.create("llmfoundry", "callbacks")

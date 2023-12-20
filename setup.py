@@ -68,6 +68,7 @@ install_requires = [
     'huggingface-hub>=0.17.0,<1.0',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
+    'catalogue>=2.0,<3'
 ]
 
 extra_deps = {}
@@ -105,13 +106,13 @@ extra_deps['gpu-flash2'] = [
 ]
 
 extra_deps['peft'] = [
-    'loralib==0.1.1',  # lora core
-    'bitsandbytes==0.39.1',  # 8bit
+    # 'loralib==0.1.1',  # lora core
+    # 'bitsandbytes==0.39.1',  # 8bit
     # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
-    'scipy>=1.10.0,<=1.11.0',
+    # 'scipy>=1.10.0,<=1.11.0',
     # TODO: pin peft when it stabilizes.
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'peft==0.4.0',
+    'peft>=0.5,<0.6',
 ]
 
 extra_deps['openai'] = [

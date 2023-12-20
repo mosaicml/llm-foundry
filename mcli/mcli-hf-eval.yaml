@@ -61,6 +61,9 @@ parameters:
     cot_delimiter: 'The answer is '
     continuation_delimiter: "\n\nA:"
     question_prelimiter: ""
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
 
   callbacks:
     eval_output_logging:

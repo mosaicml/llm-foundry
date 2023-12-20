@@ -85,7 +85,6 @@ def get_interval_from_checkpoint(checkpoint: str, unit: TimeUnit) -> Time:
     Returns:
         The interval time
     """
-
     if unit == TimeUnit.EPOCH:
         val = checkpoint.split('-')[0].replace('ep', '')
     elif unit == TimeUnit.BATCH:
@@ -308,13 +307,6 @@ class AsyncEval(Callback):
 
         found_checkpoints = set(list_remote_objects(
             self.checkpoint_save_folder))
-        # self.checkpoint_save_folder s3://.../anna/asyncsharded
-        # found_checkpoints {'anna/asyncsharded/ep0-ba2/__6_0.distcp', 'anna/asyncsharded/ep0-ba2/__2_0.distcp', 'anna/asyncsharded/ep0-ba2/__1_0.distcp', 'anna/asyncsharded/ep0-ba2/__4_0.distcp', 'anna/asyncsharded/latest-rank0.pt.symlink', 'anna/asyncsharded/ep0-ba4/.metadata', 'anna/asyncsharded/ep0-ba2/__3_0.distcp', 'anna/asyncsharded/ep0-ba2/.metadata', 'anna/asyncsharded/ep0-ba2/__5_0.distcp', 'anna/asyncsharded/ep0-ba2/__7_0.distcp', 'anna/asyncsharded/ep0-ba2/__0_0.distcp'}
-        # saved_checkpoints ['anna/asyncsharded/ep0-ba2/__0_0.distcp']
-        print('self.checkpoint_save_folder', self.checkpoint_save_folder)
-        print('found_checkpoints', found_checkpoints)
-        print('saved_checkpoints', checkpointer.saved_checkpoints)
-        print('self.checkpoints_evaled', self.checkpoints_evaled)
 
         if not found_checkpoints:
             log.debug('No saved checkpoints found yet on remote. Skipping eval')

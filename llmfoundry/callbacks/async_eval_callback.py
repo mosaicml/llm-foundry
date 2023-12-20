@@ -301,9 +301,10 @@ class AsyncEval(Callback):
             log.debug('No saved checkpoints found on the checkpointer. Skipping eval')
             return
 
-        new_checkpoints = 0
-
         found_checkpoints = set(list_remote_objects(self.checkpoint_save_folder))
+        # self.checkpoint_save_folder s3://.../anna/asyncsharded
+        # found_checkpoints {'anna/asyncsharded/ep0-ba2/__6_0.distcp', 'anna/asyncsharded/ep0-ba2/__2_0.distcp', 'anna/asyncsharded/ep0-ba2/__1_0.distcp', 'anna/asyncsharded/ep0-ba2/__4_0.distcp', 'anna/asyncsharded/latest-rank0.pt.symlink', 'anna/asyncsharded/ep0-ba4/.metadata', 'anna/asyncsharded/ep0-ba2/__3_0.distcp', 'anna/asyncsharded/ep0-ba2/.metadata', 'anna/asyncsharded/ep0-ba2/__5_0.distcp', 'anna/asyncsharded/ep0-ba2/__7_0.distcp', 'anna/asyncsharded/ep0-ba2/__0_0.distcp'}
+        # saved_checkpoints ['anna/asyncsharded/ep0-ba2/__0_0.distcp']
         print('self.checkpoint_save_folder', self.checkpoint_save_folder)
         print('found_checkpoints', found_checkpoints)
         print('saved_checkpoints', checkpointer.saved_checkpoints)
@@ -314,7 +315,6 @@ class AsyncEval(Callback):
             return
         
         for checkpoint in checkpointer.saved_checkpoints:
-
             # Get the part of the path that contains the interval. This is 
             # different for sharded checkpoints (which are saved in a folder)
             if state.fsdp_elastic_sharded_enabled:
@@ -333,18 +333,20 @@ class AsyncEval(Callback):
                 continue  # Skip checkpoints that have already been evaled
 
             if state.fsdp_elastic_sharded_enabled:
-                log.error('todo')
-                # raise NotImplementedError("TODO")
+                log.error('todo') 
+                # 8 (or N gpus if partial) and a metadata file
+                # __0_0.distcp - __7_0.distcp
+
             else:
                 if checkpoint not in found_checkpoints:
                     log.debug(f'Checkpoint {checkpoint} not fully uploaded, skipping')
                     continue
 
+            # TODO: load_path looks like anna/asyncsharded/ep0-ba2/__0_0.distcp.symlink and not s3://.../anna/asyncsharded/ep0-ba2
+            # anna/async/ep0-ba2-rank0.pt -> s3://.../anna/async/ep0-ba2-rank0.pt
+
             eval_run = self.launch_run(checkpoint, interval)
             self.checkpoints_evaled[interval] = (checkpoint, eval_run.name)
-            new_checkpoints += 1
-        
-        log.debug(f'Launched {new_checkpoints} new eval runs')
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         del logger

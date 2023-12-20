@@ -100,7 +100,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             if use_flash_attention_2 and not is_flash_v2_installed():
                 raise ValueError(
                     'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
-                    + 'Please install flash_attn==2.3.2`.')
+                    + 'Please install flash_attn==2.3.6`.')
 
             requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
             config = AutoConfig.from_pretrained(

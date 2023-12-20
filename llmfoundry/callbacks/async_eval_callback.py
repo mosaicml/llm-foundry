@@ -313,10 +313,17 @@ class AsyncEval(Callback):
         
         for checkpoint in checkpointer.saved_checkpoints:
 
-            # TODO shard checkpoints
-            filename = Path(checkpoint).parts[-1]
+            # Get the part of the path that contains the interval. This is 
+            # different for sharded checkpoints (which are saved in a folder)
+            if state.fsdp_elastic_sharded_enabled:
+                # eg {save_folder}/ep0-ba1/.
+                interval_path = Path(checkpoint).parts[-2]
+            else:
+                # eg {save_folder}/ep0-ba1-rank0.pt
+                interval_path = Path(checkpoint).parts[-1]
+
+            interval = get_interval_from_checkpoint(interval_path, self.interval.unit)
             full_checkpoint = f'{self.checkpoint_save_folder}/{checkpoint}'
-            interval = get_interval_from_checkpoint(filename, self.interval.unit)
 
             if self.interval.value % interval.value != 0:
                 continue  # Skip checkpoints when save interval is more frequent than eval interval
@@ -325,7 +332,8 @@ class AsyncEval(Callback):
                 continue  # Skip checkpoints that have already been evaled
 
             if state.fsdp_elastic_sharded_enabled:
-                raise NotImplementedError("TODO")
+                log.error('todo')
+                # raise NotImplementedError("TODO")
             else:
                 if checkpoint not in found_checkpoints:
                     log.debug(f'Checkpoint {checkpoint} not fully uploaded, skipping')

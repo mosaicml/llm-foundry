@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 import torch
 import torch.nn as nn
+import transformers
 from einops import rearrange
 from packaging import version
 from torch import nn
@@ -32,6 +33,10 @@ def is_flash_v1_installed():
     except:
         return False
     return version.parse(flash_attn.__version__) < version.parse('2.0.0')
+
+
+def is_transformers_version_gte(hf_version: str) -> bool:
+    return version.parse(transformers.__version__) >= version.parse(hf_version)
 
 
 # Before importing any transformers models, we need to disable transformers flash attention if
@@ -227,7 +232,7 @@ def flash_attn_fn(
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
     except:
         raise RuntimeError(
-            'Please install flash-attn==1.0.9 or flash-attn==2.3.2')
+            'Please install flash-attn==1.0.9 or flash-attn==2.3.6')
 
     check_valid_inputs(query, key, value)
 
@@ -344,7 +349,7 @@ def flash_attn_fn(
             window_size=(sliding_window_size, sliding_window_size))
     else:
         raise RuntimeError(
-            'flash-attn==1.0.9 or flash-attn==2.3.2 is required.')
+            'flash-attn==1.0.9 or flash-attn==2.3.6 is required.')
 
     output = bert_padding.pad_input(
         rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,
@@ -627,14 +632,20 @@ class GroupedQueryAttention(nn.Module):
                 value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
             elif rotary_emb_w_meta_info['impl'] == 'hf':
                 (cos, sin) = rotary_emb(value, seq_len)
-                # The following two transposes should be removed once the transformers library allows for the specification of the dimension for heads in the call to apply_rotary_pos_emb
-                query = query.transpose(1, 2)
-                key = key.transpose(1, 2)
-                query, key = apply_rotary_pos_emb(query, key, cos, sin,
-                                                  offset_info)
-                # The following two transposes should be removed once the transformers library allows for the specification of the dimension for heads in the call to apply_rotary_pos_emb
-                query = query.transpose(1, 2)
-                key = key.transpose(1, 2)
+                if is_transformers_version_gte('4.36'):
+                    query, key = apply_rotary_pos_emb(query,
+                                                      key,
+                                                      cos,
+                                                      sin,
+                                                      offset_info,
+                                                      unsqueeze_dim=2)
+                else:
+                    query = query.transpose(1, 2)
+                    key = key.transpose(1, 2)
+                    query, key = apply_rotary_pos_emb(query, key, cos, sin,
+                                                      offset_info)
+                    query = query.transpose(1, 2)
+                    key = key.transpose(1, 2)
 
             query = query.view(bsz, seqlen, self.d_model)
             key = key.view(bsz, seqlen, self.kv_n_heads * self.head_dim)

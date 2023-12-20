@@ -58,7 +58,7 @@ install_requires = [
     'einops==0.5.0',
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
-    'mosaicml-cli>=0.3,<1',
+    'mosaicml-cli>=0.5.27,<1',
     'onnx==1.14.0',
     'onnxruntime==1.15.1',
     'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
@@ -98,10 +98,8 @@ extra_deps['gpu'] = [
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
 ]
 extra_deps['gpu-flash2'] = [
-    'flash-attn==2.3.2',
+    'flash-attn==2.3.6',
     'mosaicml-turbo==0.0.4',
-    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v2.3.2#subdirectory=csrc/xentropy',
 ]
 
 extra_deps['peft'] = [

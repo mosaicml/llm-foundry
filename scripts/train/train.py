@@ -441,6 +441,7 @@ def main(cfg: DictConfig) -> Trainer:
         logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
 
     # Initialize context
+    print('fsdp_config', fsdp_config)
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
 

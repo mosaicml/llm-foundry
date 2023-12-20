@@ -232,7 +232,7 @@ def flash_attn_fn(
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
     except:
         raise RuntimeError(
-            'Please install flash-attn==1.0.9 or flash-attn==2.3.2')
+            'Please install flash-attn==1.0.9 or flash-attn==2.3.6')
 
     check_valid_inputs(query, key, value)
 
@@ -349,7 +349,7 @@ def flash_attn_fn(
             window_size=(sliding_window_size, sliding_window_size))
     else:
         raise RuntimeError(
-            'flash-attn==1.0.9 or flash-attn==2.3.2 is required.')
+            'flash-attn==1.0.9 or flash-attn==2.3.6 is required.')
 
     output = bert_padding.pad_input(
         rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,

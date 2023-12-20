@@ -325,7 +325,7 @@ class AsyncEval(Callback):
                 interval_path = Path(checkpoint).parts[-1]
 
             interval = get_interval_from_checkpoint(interval_path, self.interval.unit)
-            if self.interval.value % interval.value != 0:
+            if interval.value % self.interval.value != 0:
                 log.debug(f'Checkpoint {checkpoint} ({interval}) is not at an eval interval ({self.interval}), skipping')
                 continue  # Skip checkpoints when save interval is more frequent than eval interval
             

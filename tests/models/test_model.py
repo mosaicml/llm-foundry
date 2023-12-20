@@ -422,22 +422,16 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('ce_loss_implementation',
-                         ['FA_v1_copied', 'FA_imported'])
-def test_loss_fn(ce_loss_implementation: str):
+def test_loss_fn():
     """Tests the Fused CrossEntropy vs torch.nn.CrossEntropy loss function.
 
     We provide non-zero tolerances to account for small numerics differences
     between the two loss implementations.
     """
-    if ce_loss_implementation == 'FA_imported':
-        try:
-            from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
-        except:
-            pytest.skip('Fused cross entropy was not installed')
-    else:
-        from llmfoundry.models.layers.cross_entropy_loss import \
-            CrossEntropyLoss as FusedCrossEntropyLoss
+    try:
+        from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
+    except:
+        pytest.skip('Fused cross entropy was not installed')
 
     # run numerical test in pure fp32
     from torch.backends import cuda, cudnn

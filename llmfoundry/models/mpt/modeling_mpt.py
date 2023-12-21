@@ -47,7 +47,7 @@ from transformers.models.llama.modeling_llama import \
 
 from llmfoundry.models.layers.attention import (ATTN_CLASS_REGISTRY,
                                                 attn_bias_shape,
-                                                build_attn_bias)
+                                                build_attn_bias, gen_slopes)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY as FC_CLASS_REGISTRY
@@ -214,6 +214,13 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
             value=0)
 
     return attention_mask_in_length
+
+
+def gen_alibi_slopes(batch_size: int, n_heads: int, alibi_bias_max: int,
+                     device: torch.device) -> torch.Tensor:
+    return gen_slopes(n_heads=n_heads,
+                      alibi_bias_max=alibi_bias_max,
+                      device=device).squeeze(dim=(2, 3)).expand(batch_size, -1)
 
 
 def apply_sequence_id(attn_bias: torch.Tensor, sequence_id: torch.LongTensor,
@@ -607,6 +614,17 @@ class MPTModel(MPTPreTrainedModel):
             attn_uses_sequence_id=self.attn_uses_sequence_id,
             attn_impl=self.attn_impl,
             attention_mask=attention_mask)
+
+        alibi_slopes = None
+        if self.alibi and self.attn_impl == 'flash':
+            alibi_slopes = gen_alibi_slopes(batch_size=x.shape[0],
+                                            n_heads=self.config.n_heads,
+                                            alibi_bias_max=self.alibi_bias_max,
+                                            device=x.device)
+
+        attention_mask = attention_mask_in_length if attention_mask_in_length is not None else attention_mask
+        attention_mask_type = 'in_length' if attention_mask_in_length is not None else 'boolean'
+        attn_bias = alibi_slopes if alibi_slopes is not None else attn_bias
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
         if use_cache and past_key_values is None:
@@ -629,7 +647,7 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
-                attention_mask_in_length=attention_mask_in_length,
+                attention_mask_type=attention_mask_type,
             )
             if presents is not None:
                 presents += (present,)

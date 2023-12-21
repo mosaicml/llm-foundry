@@ -256,9 +256,6 @@ def flash_attn_fn(
 
         past_key_value = (key, value)
 
-    if attn_bias is not None:
-        raise NotImplementedError(f'attn_bias not implemented for flash attn.')
-
     batch_size, seqlen = query.shape[:2]
 
     if attention_mask_in_length is None:
@@ -333,6 +330,24 @@ def flash_attn_fn(
             softmax_scale=softmax_scale,
             causal=reset_is_causal,
             return_attn_probs=needs_weights)
+    elif is_flash_v2_installed(
+            v2_version='2.3.6'
+    ):  # TODO: Change to 2.3.7 and do not merge before 2.3.7 is released!
+        output_unpad = flash_attn_interface.flash_attn_varlen_func(
+            q=query_unpad,
+            k=key_unpad,
+            v=value_unpad,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_k=max_seqlen_k,
+            dropout_p=dropout_p,
+            softmax_scale=softmax_scale,
+            causal=reset_is_causal,
+            return_attn_probs=needs_weights,
+            window_size=(sliding_window_size, sliding_window_size),
+            alibi_slopes=attn_bias,
+        )
     elif is_flash_v2_installed():
         output_unpad = flash_attn_interface.flash_attn_varlen_func(
             q=query_unpad,
@@ -586,7 +601,7 @@ class GroupedQueryAttention(nn.Module):
         rotary_emb_w_meta_info: Optional[dict] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
-        attention_mask_in_length: Optional[torch.Tensor] = None,
+        attention_mask_type: str = 'boolean',
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
             torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
@@ -603,7 +618,7 @@ class GroupedQueryAttention(nn.Module):
             dim=2,
         )
 
-        key_padding_mask = attention_mask
+        key_padding_mask = attention_mask if attention_mask_type == 'boolean' else None
 
         if self.qk_ln:
             # Applying layernorm to qk
@@ -653,9 +668,13 @@ class GroupedQueryAttention(nn.Module):
         extra_attn_kwargs = {}
         if self.attn_impl == 'flash':
             extra_attn_kwargs = {
-                'attention_mask_in_length': attention_mask_in_length,
-                'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
-                'sliding_window_size': self.sliding_window_size,
+                'attention_mask_in_length':
+                    attention_mask
+                    if attention_mask_type == 'in_length' else None,
+                'should_repeat_kv_for_gqa':
+                    not is_flash_v2_installed(),
+                'sliding_window_size':
+                    self.sliding_window_size,
             }
 
         context, attn_weights, past_key_value = self.attn_fn(

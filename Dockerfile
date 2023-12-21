@@ -11,3 +11,8 @@ RUN git clone -b main https://github.com/mosaicml/llm-foundry.git
 RUN pip install --no-cache-dir "./llm-foundry${DEP_GROUPS}"
 RUN pip uninstall -y llm-foundry
 RUN rm -rf llm-foundry
+
+RUN git clone https://github.com/Dao-AILab/flash-attention.git
+RUN cd flash-attention
+RUN MAX_JOBS=4 python setup.py install
+RUN cd ..

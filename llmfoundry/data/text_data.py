@@ -306,15 +306,13 @@ def build_text_dataloader(
     # and if tokenizing on the fly, we require that the tokenizer has a pad token.
     token_counting_func = None
     if tokenizer.pad_token_id is not None:
-        token_counting_func = get_tokens_per_batch_func(
-            pad_token_id=tokenizer.pad_token_id)
+        token_counting_func = get_tokens_per_batch_func()
 
     return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 
 
-def get_tokens_per_batch_func(pad_token_id: int,
-                              decoder_only: bool = True
-                             ) -> Callable[[Batch], int]:
+def get_tokens_per_batch_func(
+        decoder_only: bool = True) -> Callable[[Batch], int]:
     """Returns a callable that counts the number of tokens in a batch.
 
     Args:
@@ -327,25 +325,24 @@ def get_tokens_per_batch_func(pad_token_id: int,
     """
 
     def get_num_samples_in_batch(batch: Batch) -> int:
-        if not isinstance(batch, Mapping) or 'input_ids' not in batch:
+        if not isinstance(batch, Mapping) or 'attention_mask' not in batch:
             raise ValueError(
-                'get_tokens_per_batch_func() requires a batch with an input_ids key'
+                'get_tokens_per_batch_func() requires a batch with an attention_mask key'
             )
 
-        if not decoder_only and 'decoder_input_ids' not in batch:
+        if not decoder_only and 'decoder_attention_mask' not in batch:
             raise ValueError(
-                'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_input_ids key'
+                'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_attention_mask key'
             )
 
         # Count number of non padding tokens in batch
-        input_ids_tokens = int(
-            torch.sum(batch['input_ids'] != pad_token_id).item())
+        input_ids_tokens = int(torch.sum(batch['attention_mask']).item())
 
         # For encoder decoder models only
         decoder_input_ids_tokens = 0
         if not decoder_only:
             decoder_input_ids_tokens = int(
-                torch.sum(batch['decoder_input_ids'] != pad_token_id).item())
+                torch.sum(batch['decoder_attention_mask']).item())
 
         return input_ids_tokens + decoder_input_ids_tokens
 

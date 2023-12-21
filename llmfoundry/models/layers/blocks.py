@@ -12,6 +12,11 @@ from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
+try:
+    from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
+except:
+    unpad_input, pad_input = None, None
+
 attn_config_defaults: Dict = {
     'attn_type': 'multihead_attention',
     'attn_pdrop': 0.0,
@@ -53,6 +58,7 @@ class MPTBlock(nn.Module):
         fc_type: str = 'torch',
         device: Optional[str] = None,
         no_bias: bool = False,
+        use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
     ):
         if attn_config is None:
@@ -105,6 +111,8 @@ class MPTBlock(nn.Module):
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)
         self.resid_ffn_dropout = nn.Dropout(resid_pdrop)
 
+        self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
+
     def forward(
         self,
         x: torch.Tensor,
@@ -132,6 +140,14 @@ class MPTBlock(nn.Module):
         m = x
         if self.norm_2 is not None:
             m = self.norm_2(x)
+        batch_size, seq_len = m.size()[:2]
+        indices = None
+        if not self.use_pad_tok_in_ffn:
+            assert unpad_input is not None
+            m, indices, _, _ = unpad_input(m, attention_mask)
         n = self.ffn(m)
+        if not self.use_pad_tok_in_ffn:
+            assert pad_input is not None
+            n = pad_input(n, indices, batch_size, seq_len)
         x = x + self.resid_ffn_dropout(n)
         return x, attn_weights, past_key_value

@@ -350,7 +350,26 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     [('torch', torch.float16), ('torch', torch.bfloat16),
      pytest.param('flash', torch.float16, marks=pytest.mark.gpu),
      pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu)])
-def test_determinism(attn_impl: str, precision: torch.dtype):
+@pytest.mark.parametrize('ffn_type', ['mptmlp', 'mptgeglu'])
+@pytest.mark.parametrize('ffn_act_fn', [
+    None,
+    {
+        'name': 'gelu',
+        'approximate': 'tanh',
+    },
+    {
+        'name': 'silu',
+    },
+    {
+        'name': 'relu',
+        'inplace': True,
+    },
+    pytest.param({'name': 'relu5'},
+                 marks=pytest.mark.xfail(reason='invalid choice.',
+                                         strict=True)),
+])
+def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
+                     ffn_act_fn: dict):
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
@@ -358,6 +377,11 @@ def test_determinism(attn_impl: str, precision: torch.dtype):
     test_cfg.model.attn_config = {
         'attn_impl': attn_impl,
     }
+    if hasattr(test_cfg.model, 'ffn_config'):
+        test_cfg.model.ffn_config['ffn_type'] = ffn_type
+    else:
+        test_cfg.model.setdefault('ffn_config', {'ffn_type': ffn_type})
+    test_cfg.model.ffn_config['ffn_act_fn'] = ffn_act_fn
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
@@ -503,14 +527,43 @@ def test_opt_wrapping():
 @pytest.mark.parametrize('norm_type', NORM_CLASS_REGISTRY.keys())
 @pytest.mark.parametrize('no_bias', [False, True])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
+@pytest.mark.parametrize('expansion_ratio,ffn_hidden_size', [
+    (2, None),
+    pytest.param(1.231,
+                 None,
+                 marks=pytest.mark.xfail(
+                     reason='d_model * expansion_ratio must be an integer.',
+                     strict=True)),
+    (2, 128),
+    (2, 256),
+])
+@pytest.mark.parametrize('ffn_act_fn', [
+    None,
+    {
+        'name': 'gelu',
+        'approximate': 'tanh',
+    },
+    {
+        'name': 'silu',
+    },
+    {
+        'name': 'relu',
+        'inplace': True,
+    },
+    pytest.param({'name': 'relu5'},
+                 marks=pytest.mark.xfail(reason='invalid choice.',
+                                         strict=True)),
+])
+def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
+                      expansion_ratio: Union[int, float], ffn_hidden_size: int,
+                      ffn_act_fn: dict):
     # Test that the config constructs the model as expected.
     hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
         n_heads=4,
         n_layers=2,
-        expansion_ratio=2,
+        expansion_ratio=expansion_ratio,
         max_seq_len=2048,
         emb_pdrop=0.1,
         resid_pdrop=0.2,
@@ -520,13 +573,22 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         norm_type=norm_type,
         no_bias=no_bias,
         tie_word_embeddings=tie_word_embeddings,
+        ffn_config={
+            'ffn_type': 'mptmlp',
+            'ffn_hidden_size': ffn_hidden_size,
+            'ffn_act_fn': ffn_act_fn,
+        },
     )
+
     mpt = MPTForCausalLM(hf_config)
 
     assert mpt.config.d_model == 128
     assert mpt.config.n_heads == 4
     assert mpt.config.n_layers == 2
-    assert mpt.config.expansion_ratio == 2
+    if ffn_hidden_size is None:
+        assert mpt.config.expansion_ratio == expansion_ratio
+    else:
+        assert mpt.config.ffn_config['ffn_hidden_size'] == ffn_hidden_size
     assert mpt.config.max_seq_len == 2048
 
     assert mpt.transformer.wte.weight.shape == torch.Size(
@@ -540,6 +602,8 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
     assert len(mpt.transformer.blocks) == 2
 
     d_model = hf_config.d_model
+    if ffn_hidden_size is None:
+        ffn_hidden_size = int(hf_config.d_model * hf_config.expansion_ratio)
     for block in mpt.transformer.blocks:
         assert isinstance(block, MPTBlock)
         assert block.norm_1.weight.shape == torch.Size([d_model])
@@ -547,10 +611,10 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool):
         assert block.norm_2.weight.shape == torch.Size([d_model])
         assert isinstance(block.ffn.up_proj, nn.Linear)
         assert block.ffn.up_proj.weight.shape == torch.Size(
-            [hf_config.d_model * hf_config.expansion_ratio, hf_config.d_model])
+            [ffn_hidden_size, hf_config.d_model])
         assert isinstance(block.ffn.down_proj, nn.Linear)
         assert block.ffn.down_proj.weight.shape == torch.Size(
-            [hf_config.d_model, hf_config.d_model * hf_config.expansion_ratio])
+            [hf_config.d_model, ffn_hidden_size])
         assert block.resid_attn_dropout.p == 0.2
         assert block.resid_ffn_dropout.p == 0.2
 
@@ -830,6 +894,45 @@ def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
                 middle_padding_output[0],
                 batched_output[1, :],
                 atol=1e-6 if attention_impl == 'torch' else 1e-8)
+
+        try:
+            from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
+        except:
+            unpad_input, pad_input = None, None
+
+        if unpad_input is not None and pad_input is not None:
+            # Checking numerical precision with pad_token ffn
+            for block in mpt.transformer.blocks:
+                # Flip the padding usage in the model
+                block.use_pad_tok_in_ffn = not block.use_pad_tok_in_ffn
+
+            right_padding_output_pad_flipped = mpt(
+                right_padding_input_ids,
+                attention_mask=right_padding_attention_mask).logits
+            middle_padding_output_pad_flipped = mpt(
+                middle_padding_input_ids,
+                attention_mask=middle_padding_attention_mask).logits
+            left_padding_output_pad_flipped = mpt(
+                left_padding_input_ids,
+                attention_mask=left_padding_attention_mask).logits
+
+            pad_vs_unpad_rtol = 1e-5
+            pad_vs_unpad_atol = 1e-6
+            assert torch.allclose(right_padding_output[0, :3],
+                                  right_padding_output_pad_flipped[0, :3],
+                                  rtol=pad_vs_unpad_rtol,
+                                  atol=pad_vs_unpad_atol)
+
+            assert torch.allclose(middle_padding_output[0, [0, 1, 5]],
+                                  middle_padding_output_pad_flipped[0,
+                                                                    [0, 1, 5]],
+                                  rtol=pad_vs_unpad_rtol,
+                                  atol=pad_vs_unpad_atol)
+
+            assert torch.allclose(left_padding_output[0, 3:],
+                                  left_padding_output_pad_flipped[0, 3:],
+                                  rtol=pad_vs_unpad_rtol,
+                                  atol=pad_vs_unpad_atol)
 
 
 @pytest.mark.parametrize('attention_impl', ['torch', 'triton'])
@@ -1831,7 +1934,7 @@ def test_hf_init(tmp_path: pathlib.Path,
     precision = Precision('amp_bf16')
 
     hf_config = MPTConfig(
-        init_device=init_device,
+        init_device='cpu',
         d_model=32,
         n_heads=4,
         n_layers=1,

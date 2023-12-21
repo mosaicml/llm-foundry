@@ -43,7 +43,7 @@ class MPTConfig(PretrainedConfig):
         d_model: int = 2048,
         n_heads: int = 16,
         n_layers: int = 24,
-        expansion_ratio: int = 4,
+        expansion_ratio: Union[int, float] = 4,
         max_seq_len: int = 2048,
         vocab_size: int = 50368,
         resid_pdrop: float = 0.0,
@@ -60,6 +60,7 @@ class MPTConfig(PretrainedConfig):
         init_config: Dict = init_config_defaults,
         fc_type: str = 'torch',
         tie_word_embeddings: bool = True,
+        use_pad_tok_in_ffn: bool = True,
         verbose: Optional[int] = None,
         **kwargs: Any,
     ):
@@ -69,7 +70,7 @@ class MPTConfig(PretrainedConfig):
             d_model (int): The size of the embedding dimension of the model.
             n_heads (int): The number of attention heads.
             n_layers (int): The number of layers in the model.
-            expansion_ratio (int): The ratio of the up/down scale in the ffn.
+            expansion_ratio (Union[int, float]): The ratio of the up/down scale in the ffn.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
             resid_pdrop (float): The dropout probability applied to the attention output before combining with residual.
@@ -106,7 +107,7 @@ class MPTConfig(PretrainedConfig):
                     factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling.type.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
-                ffn_type (str): type of ffn to use. Options: mptmlp, te_ln_mlp
+                ffn_type (str): type of ffn to use. Options: mptmlp, mptgeglu, te_ln_mlp
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
@@ -131,6 +132,7 @@ class MPTConfig(PretrainedConfig):
                 See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
             fc_type (str): choose fc layer implementation. Options: torch and te. te layers support fp8 when using H100 GPUs.
             tie_word_embeddings (bool): Whether to tie the input embedding and output layers.
+            use_pad_tok_in_ffn (bool): Whether to forward the pad token in the feedforward networks.
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -151,6 +153,7 @@ class MPTConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.init_config = init_config
         self.fc_type = fc_type
+        self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
         if verbose is not None:
             warnings.warn(
                 DeprecationWarning(
@@ -288,7 +291,18 @@ class MPTConfig(PretrainedConfig):
                     + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
                     'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
                 )
-        if self.ffn_config['ffn_type'] == 'mptmlp':
+        if self.ffn_config['ffn_type'] in ['mptmlp', 'mptgeglu']:
             self.ffn_config['fc_type'] = self.fc_type
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
             self.ffn_config['bias'] = not self.no_bias
+            if 'ffn_act_fn' in self.ffn_config.keys():
+                raise ValueError(
+                    f'Transformer Engine block does not support custom activation functions.'
+                )
+        if not self.use_pad_tok_in_ffn:
+            try:
+                from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
+            except:
+                raise ImportError(
+                    'In order to set `use_pad_tok_in_ffn=False`, please install flash-attn==1.0.9 or flash-attn==2.3.6'
+                )

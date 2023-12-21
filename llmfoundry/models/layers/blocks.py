@@ -119,10 +119,9 @@ class MPTBlock(nn.Module):
         past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         rotary_emb_w_meta_info: Optional[Dict] = None,
-        attention_mask: Optional[torch.ByteTensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
         is_causal: bool = True,
         output_attentions: bool = False,
-        attention_mask_in_length: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
             torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
@@ -134,7 +133,6 @@ class MPTBlock(nn.Module):
             attention_mask=attention_mask,
             is_causal=is_causal,
             needs_weights=output_attentions,
-            attention_mask_in_length=attention_mask_in_length,
         )
         x = x + self.resid_attn_dropout(b)
         m = x
@@ -144,7 +142,9 @@ class MPTBlock(nn.Module):
         indices = None
         if not self.use_pad_tok_in_ffn:
             assert unpad_input is not None
-            m, indices, _, _ = unpad_input(m, attention_mask)
+            m, indices, _, _ = unpad_input(
+                m, attention_mask
+            )  # TODO: Handle the case of attention_mask is attention_mask_in_length
         n = self.ffn(m)
         if not self.use_pad_tok_in_ffn:
             assert pad_input is not None

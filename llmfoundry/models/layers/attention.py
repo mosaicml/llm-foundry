@@ -601,6 +601,7 @@ class GroupedQueryAttention(nn.Module):
         rotary_emb_w_meta_info: Optional[dict] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
+        attention_mask_type: str = 'boolean',
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
             torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
@@ -617,7 +618,7 @@ class GroupedQueryAttention(nn.Module):
             dim=2,
         )
 
-        key_padding_mask = attention_mask
+        key_padding_mask = attention_mask if attention_mask_type == 'boolean' else None
 
         if self.qk_ln:
             # Applying layernorm to qk
@@ -667,9 +668,13 @@ class GroupedQueryAttention(nn.Module):
         extra_attn_kwargs = {}
         if self.attn_impl == 'flash':
             extra_attn_kwargs = {
-                'attention_mask_in_length': attention_mask,
-                'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
-                'sliding_window_size': self.sliding_window_size,
+                'attention_mask_in_length':
+                    attention_mask
+                    if attention_mask_type == 'in_length' else None,
+                'should_repeat_kv_for_gqa':
+                    not is_flash_v2_installed(),
+                'sliding_window_size':
+                    self.sliding_window_size,
             }
 
         context, attn_weights, past_key_value = self.attn_fn(

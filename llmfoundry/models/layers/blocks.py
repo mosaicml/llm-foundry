@@ -122,6 +122,7 @@ class MPTBlock(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
         is_causal: bool = True,
         output_attentions: bool = False,
+        attention_mask_type: str = 'boolean',
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
             torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
@@ -133,6 +134,7 @@ class MPTBlock(nn.Module):
             attention_mask=attention_mask,
             is_causal=is_causal,
             needs_weights=output_attentions,
+            attention_mask_type=attention_mask_type,
         )
         x = x + self.resid_attn_dropout(b)
         m = x

@@ -328,7 +328,7 @@ def get_tokens_per_batch_func(
         if not isinstance(batch, Mapping) or ('attention_mask' not in batch and
                                               'input_ids' not in batch):
             raise ValueError(
-                'get_tokens_per_batch_func() requires a batch with an attention_mask key'
+                'get_tokens_per_batch_func() requires a batch with an attention_mask key or an input_ids key'
             )
 
         if not decoder_only and 'decoder_attention_mask' not in batch:

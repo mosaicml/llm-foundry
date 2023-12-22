@@ -24,6 +24,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM)
+from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_algorithm, build_callback,
@@ -475,9 +476,12 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Callbacks
     callbacks: List[Callback] = [
-        build_callback(str(name), callback_cfg)
+        build_callback(str(name), callback_cfg, om.to_container(logged_cfg))
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
+
+    use_async_eval = any(
+        isinstance(callback, AsyncEval) for callback in callbacks)
 
     # Algorithms
     algorithms = [
@@ -499,17 +503,19 @@ def main(cfg: DictConfig) -> Trainer:
     ## Evaluation
     log.info('Building eval loader...')
     eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
+    # TODO: evaluators should not be built at all if use_async_eval is True
+    # This will be fixed when eval_loader support is fully added to AsyncEval
     evaluators, _, eval_gauntlet_callback = build_evaluators(
         eval_loader_config,
-        icl_tasks_config,
-        eval_gauntlet_config,
+        icl_tasks_config if not use_async_eval else None,
+        eval_gauntlet_config if not use_async_eval else None,
         tokenizer=tokenizer,
         device_eval_batch_size=device_eval_batch_size,
         icl_seq_len=eval_icl_seq_len,
         icl_subset_num_batches=icl_subset_num_batches,
     )
 
-    if eval_gauntlet_callback is not None:
+    if eval_gauntlet_callback is not None and not use_async_eval:
         callbacks.append(eval_gauntlet_callback)
 
     # Build Model

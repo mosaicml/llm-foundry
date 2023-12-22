@@ -9,7 +9,8 @@ from llmfoundry.models.layers import attention
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.mpt.modeling_mpt import (apply_sequence_id,
                                                 gen_attention_mask_in_length,
-                                                gen_rotary_embedding)
+                                                gen_rotary_embedding,
+                                                gen_alibi_slopes,)
 
 
 def allclose_helper(t0: torch.Tensor,
@@ -74,9 +75,8 @@ def test_attn_impl(attn_impl_0: str,
     """
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
-    if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'):
-        pytest.skip('flash attn does not support alibi')
-
+    if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash') and not is_flash_v2_installed(v2_version='v2.3.6'): # TODO: Should be v2.3.7
+        pytest.skip('flash attention v2.3.6 and lower do not support alibi.')
     if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):
         pytest.skip('dail implementation of rope requires flash attention 2.')
@@ -154,6 +154,11 @@ def test_attn_impl(attn_impl_0: str,
                 attn_bias,
                 sequence_id,  # type: ignore
                 s)
+        if attn_impl == 'flash':
+            attn_bias = gen_alibi_slopes(batch_size=n,
+                                         n_heads=cfg.n_heads,
+                                         alibi_bias_max=8,
+                                         device=device)
 
         return attn_bias
 

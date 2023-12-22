@@ -5,11 +5,17 @@
 # which is MIT licensed
 
 import functools
-from typing import Any, Iterable, List, Optional
+from typing import Any, Iterable, List, Optional, Union
 
 import torch
 from transformers import PreTrainedModel
 from transformers.models.opt.modeling_opt import OPTDecoder
+
+try:
+    from peft import PeftModel
+    peft_model_type = PeftModel
+except ImportError:
+    peft_model_type = None
 
 
 # helper functions
@@ -86,13 +92,13 @@ def hf_get_hidden_layers(model: PreTrainedModel) -> Any:
         - transformer.blocks: (MPTForCausalLM)
     """
     hidden_layers_attrs = (
-        'transformer.h',  # BLOOM, GPT2, GPTJ
-        'model.decoder.layers',  # OPT
-        'gpt_neox.layers',  # GPTNeoX
+        'h',  # BLOOM, GPT2, GPTJ
+        'decoder.layers',  # OPT
+        'layers',  # GPTNeoX
         'block',  # T5, BART, Pegasus (from encoder)
         'layers',  # ProphetNet, Marian (from encoder)
-        'model.layers',  # LLaMa
-        'transformer.blocks',  # MPT
+        'layers',  # LLaMa
+        'blocks',  # MPT
     )
     layers = findattr(model, hidden_layers_attrs)
     if layers is None:
@@ -129,19 +135,20 @@ def prepare_hf_model_for_fsdp(model: PreTrainedModel,
         prepare_hf_causal_lm_model_for_fsdp(model, init_device)
 
 
-def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
+def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel, peft_model_type],
                                         init_device: Optional[str]) -> None:
     """FSDP wrap a HuggingFace decoder.
 
     Wrap any model for FSDP which follows one of the 3 existing conventions from
     HuggingFace for decoder-only LLMs.
     """
+    assert model is not None
     causal_base_model = hf_get_causal_base_model(model)
 
     # OPT has an extra layer of wrapping, so special case here
     if isinstance(causal_base_model, OPTDecoder):
         model.model._fsdp_wrap = False
-    model_block = hf_get_hidden_layers(model)
+    model_block = hf_get_hidden_layers(causal_base_model)
     lm_head = model.get_output_embeddings()
     # some models (OPT) implement .get_input_embeddings for the causal subclass
     # but all of them implement it for the base model
@@ -159,6 +166,7 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
                 f'Unable to FSDP-wrap this model! `{mod_name}` does not ' +
                 'follow common layer/weight naming conventions.')
     block_type = type(model_block[0])
+    # TODO: delete this
     if init_device == 'mixed':
         # For FSDP with models with different device initializations, `mixed`, which
         # initializes the model on rank 0 on `cpu` and on all other ranks on `meta,``
@@ -194,6 +202,16 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
             causal_base_model._fsdp_wrap = False
             tied_embeddings._fsdp_wrap = False
             lm_head._fsdp_wrap = False
+
+    if hasattr(model, 'peft_type'):
+        peft_type = model.peft_type.lower()
+        active_adapters = [adapter.lower() for adapter in model.active_adapters]
+        for name, module in model.named_modules():
+            if peft_type in name.lower() and any(adapter in name.lower() for adapter in active_adapters):
+                has_parameters = any(True for _ in module.parameters())
+                has_buffers = any(True for _ in module.buffers())
+                if has_parameters or has_buffers:
+                    module._fsdp_wrap = True
 
     # FSDP Wrap and Activation Checkpoint every model block
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)

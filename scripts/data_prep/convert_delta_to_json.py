@@ -32,19 +32,18 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
 
-MINIMUM_DBR_VERSION = '14.0.0'
+MINIMUM_DBR_VERSION = '14.1.0'
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 Result = namedtuple(
     'Result', ['url', 'row_count', 'compressed_size', 'uncompressed_size'
               ])  # pyright: ignore
 
-cf_collect_type = 'arrow'  # optionally change to json if arrow fails
-
-# This is a monkey patch on top of the DB Connect package that allows
-# the client to fetch the results in different formats from the server. To be
-# able to use the code make sure this module is not overriden by DB Connect classes.
+# ``collect_as_cf`` is an addon new feature monkey patch on top of the DB Connect package.
+# It allows the client to fetch the results in different formats from the server.
+# To be able to use the code make sure this module is not overriden by DB Connect classes.
 
 
 def to_cf(self: SparkConnectClient,
@@ -52,9 +51,19 @@ def to_cf(self: SparkConnectClient,
           type: str = 'json') -> Tuple[List[Result], int, bool]:
     """Executes plan object return as cloud fetch presigned URLS.
 
-    It can handle the current outptu formats that are supported by the server.
+    It can handle the current output formats that are supported by the server.
     In contrast to the regular API methods of the client, this method does not
     return the schema and drops all other responses.
+
+    Args:
+       plan (pb2.Plan): The plan object to be executed by spark.
+       type (str): The output format of the result, supported formats are 'json', 'csv', and 'arrow'.
+    Returns:
+       Tuple[List[Result], int, bool]: A tuple containing:
+           - A list of Result namedtuples, each containing a URL, row count, compressed size,
+             and uncompressed size of the part of the result.
+           - Total row count of all parts of the result.
+           - A boolean indicating whether the result is truncated or overflowed.
     """
     req = self._execute_plan_request_with_metadata()
     req.plan.CopyFrom(plan)
@@ -67,7 +76,7 @@ def to_cf(self: SparkConnectClient,
     elif type == 'arrow':
         format = cloud_pb2.ResultOptions.CloudOptions.FORMAT_ARROW
     else:
-        raise Exception('Invalid type')
+        raise Exception(f'Only formats json, csv, and arrow are supported. Got invalid type {type}')
 
     ro = cloud_pb2.ResultOptions(
         type=cloud_pb2.ResultOptions.TYPE_CLOUD,
@@ -85,7 +94,6 @@ def to_cf(self: SparkConnectClient,
                                                        self._retry_policy,
                                                        self._builder.metadata())
     # Iterate over the response
-
     result = []
     row_count = 0
     is_overflow = False
@@ -94,7 +102,8 @@ def to_cf(self: SparkConnectClient,
         if response.HasField('extension') and response.extension.Is(
                 cloud_pb2.CloudResultBatch.DESCRIPTOR):
             batch = cloud_pb2.CloudResultBatch()
-            assert response.extension.Is(cloud_pb2.CloudResultBatch.DESCRIPTOR)
+            if not response.extension.Is(cloud_pb2.CloudResultBatch.DESCRIPTOR):
+                raise ValueError("Response extension is not of type CloudResultBatch.")
             response.extension.Unpack(batch)
             result += [
                 Result(b.url, b.row_count, b.compressed_size,
@@ -110,6 +119,22 @@ SparkConnectClient.to_cf = to_cf  # pyright: ignore
 
 def collect_as_cf(self: DataFrame,
                   type: str = 'json') -> Tuple[List[Result], int, bool]:
+    """Collects the result of the DataFrame's execution plan as cloud fetch presigned URLs.
+
+    This method is a wrapper around the `to_cf` method of SparkConnectClient. It takes the
+    execution plan of the current DataFrame, converts it to a protocol buffer format, and then
+    uses the `to_cf` method to execute the plan and fetch results as presigned URLs.
+
+    Args:
+        type (str): The output format of the result, supported formats are 'json', 'csv', and 'arrow'.
+
+    Returns:
+        Tuple[List[Result], int, bool]: A tuple containing:
+            - A list of Result namedtuples, each containing a URL, row count, compressed size,
+              and uncompressed size of the part of the result.
+            - Total row count of all parts of the result.
+            - A boolean indicating whether the result is truncated or overflowed.
+    """
     query = self._plan.to_proto(self._session.client)  # pyright: ignore
     return self._session.client.to_cf(query, type)  # pyright: ignore
 
@@ -120,9 +145,11 @@ DataFrame.collect_cf = collect_as_cf  # pyright: ignore
 def iterative_combine_jsons(json_directory: str, output_file: str) -> None:
     """Combine jsonl files in json_directory into one big jsonl file.
 
+    This function does not work for nested subdirectories.
+
     Args:
-        json_directory(str): directory containing the JSON files
-        output_file(str): output JSONL file
+        json_directory(str): directory containing the JSONL files
+        output_file(str): path to the output combined JSONL file
     """
     json_files = [f for f in os.listdir(json_directory) if f.endswith('.jsonl')]
     with open(output_file, 'w') as outfile:
@@ -130,50 +157,44 @@ def iterative_combine_jsons(json_directory: str, output_file: str) -> None:
             with open(os.path.join(json_directory, file_name), 'r') as infile:
                 for line in infile:
                     outfile.write(line)
-    print('JSON files have been combined into a JSONL file.')
+    log.info('JSON files have been combined into a JSONL file.')
 
 
 def run_query(
-    q: str,
+    query: str,
     method: str,
     cursor: Optional[Cursor] = None,
     spark: Optional[SparkSession] = None,
     collect: bool = True
-) -> Optional[Union[List[Row], DataFrame, SparkDataFrame]]:
+) -> Union[List[Row], DataFrame, SparkDataFrame]:
     """Run SQL query via databricks-connect or databricks-sql.
 
     Args:
-        q (str): sql query
+        query (str): sql query
         method (str): select from dbsql and dbconnect
-        cursor (Cursor): connection.cursor
-        spark (SparkSession): spark session
+        cursor (Optional[Cursor]): connection.cursor
+        spark (Optional[SparkSession]): spark session
         collect (bool): whether to get the underlying data from spark dataframe
     """
-    if method not in ['dbsql', 'dbconnect']:
-        raise ValueError(f'Unrecognized method: {method}')
-
     if method == 'dbsql':
         if cursor is None:
             raise ValueError(f'cursor cannot be None if using method dbsql')
-        cursor.execute(q)
+        cursor.execute(query)
         if collect:
             return cursor.fetchall()
-
     elif method == 'dbconnect':
         if spark == None:
             raise ValueError(f'sparkSession is required for dbconnect')
-        df = spark.sql(q)
+        df = spark.sql(query)
         if collect:
             return df.collect()
         return df
+    else:
+        raise ValueError(f'Unrecognized method: {method}')
 
-    return None
-
-
-def get_args(signed: List, json_output_path: str, columns: List,
-             cf_collect_type: str) -> Iterable:
+def get_args(signed: List, json_output_path: str, columns: List) -> Iterable:
     for i, r in enumerate(signed):
-        yield (i, r.url, json_output_path, columns, cf_collect_type)
+        yield (i, r.url, json_output_path, columns)
 
 
 def download(ipart: int,
@@ -202,6 +223,7 @@ def download(ipart: int,
                                                         lines=True)
             return
 
+        # When resp_format is arrow:
         if compressed:
             # The data is lz4 compressed arrow format.
             # Decompress the data
@@ -225,10 +247,34 @@ def download_starargs(args: Tuple) -> None:
     return download(*args)
 
 
-def fetch_data(method: str, cursor: Optional[Cursor],
-               sparkSession: Optional[SparkSession], s: int, e: int,
-               order_by: str, tablename: str, columns_str: str,
+def fetch_data(method: str,
+               cursor: Optional[Cursor],
+               sparkSession: Optional[SparkSession],
+               start: int,
+               end: int,
+               order_by: str,
+               tablename: str,
+               columns_str: str,
                json_output_path: str) -> None:
+    """Fetches a specified range of rows from a given table and writes the result to a json file.
+
+    This function executes a SQL query to retrieve a range of rows, determined by 'start' and 'end' indexes,
+    from a specified table and column set. The fetched data is then exported as a JSON file.
+
+    Args:
+        method (str): The method to use for fetching data, either 'dbconnect' or 'dbsql'.
+        cursor (Optional[Cursor]): The cursor object for executing queries in 'dbsql' method.
+        sparkSession (Optional[SparkSession]): The Spark session object for executing queries in 'dbconnect' method.
+        start (int): The starting index for row fetching.
+        end (int): The ending index for row fetching.
+        order_by (str): The column name to use for ordering the rows.
+        tablename (str): The name of the table from which to fetch the data.
+        columns_str (str): The string representation of the columns to select from the table.
+        json_output_path (str): The file path where the resulting JSON file will be saved.
+
+    Returns:
+        None: The function doesn't return any value, but writes the result to a JSONL file.
+    """
     query = f"""
     WITH NumberedRows AS (
         SELECT
@@ -239,17 +285,17 @@ def fetch_data(method: str, cursor: Optional[Cursor],
     )
     SELECT {columns_str}
     FROM NumberedRows
-    WHERE rn BETWEEN {s+1} AND {e}"""
+    WHERE rn BETWEEN {start+1} AND {end}"""
 
     if method == 'dbconnect':
         spark_df = run_query(query, method, cursor, sparkSession, collect=False)
-        if not spark_df:
+        if spark_df is None:
             raise RuntimeError(
                 f'Expect spark dataframe with {query} but got None')
         pdf = spark_df.toPandas()  # pyright: ignore
     else:  #  method == 'dbsql':
         ans = run_query(query, method, cursor, sparkSession, collect=True)
-        if not ans:
+        if ans is None:
             raise RuntimeError(f'Got empty results with {query}')
         records = [r.asDict() for r in ans]  # pyright: ignore
         pdf = pd.DataFrame.from_dict(records)
@@ -283,7 +329,7 @@ def fetch(
         ans = run_query(f'SELECT COUNT(*) FROM {tablename}', method, cursor,
                         sparkSession)
         nrows = [row.asDict() for row in ans][0].popitem()[1]  # pyright: ignore
-        log.info(f'total_rows = {nrows}')
+        log.debug(f'total_rows = {nrows}')
     except Exception as e:
         raise RuntimeError(
             f'Error in get total rows from {tablename}. Restart sparkSession and try again'
@@ -301,16 +347,16 @@ def fetch(
             f'Error in get columns from {tablename}. Restart sparkSession and try again'
         ) from e
 
-    if method == 'dbconnect' and sparkSession:
-        print('processes = ', processes)
+    if method == 'dbconnect' and sparkSession is not None:
+        log.info('processes = ', processes)
         df = sparkSession.table(
             tablename)  # "main.tpcds_sf100_delta.store_sales")
 
         # Running the query and collecting the data as arrow or json.
         signed, _, _ = df.collect_cf('arrow')  # pyright: ignore
-        print(f'len(signed) = {len(signed)}')
+        log.info(f'len(signed) = {len(signed)}')
 
-        args = get_args(signed, json_output_path, columns, cf_collect_type)
+        args = get_args(signed, json_output_path, columns)
 
         # Stopping the SparkSession to avoid spilling connection state into the subprocesses.
         sparkSession.stop()
@@ -318,7 +364,7 @@ def fetch(
         with ProcessPoolExecutor(max_workers=processes) as executor:
             list(executor.map(download_starargs, args))
 
-    elif method == 'dbsql' and cursor:
+    elif method == 'dbsql' and cursor is not None:
         for start in range(0, nrows, batch_size):
             end = min(start + batch_size, nrows)
             fetch_data(method, cursor, sparkSession, start, end, order_by,
@@ -382,7 +428,8 @@ def fetch_DT(args: Namespace) -> None:
             if version.parse(runtime_version) < version.parse(
                     MINIMUM_DBR_VERSION):
                 raise RuntimeError(
-                    f'You need at least {MINIMUM_DBR_VERSION} to use Databricks-connect to read delta table for FT API but got {res.spark_version}'
+                    f'You need at least {MINIMUM_DBR_VERSION} to use Databricks-connect' +
+                    ' to read delta table for FT API but got {res.spark_version}'
                 )
             sparkSession = DatabricksSession.builder.remote(
                 host=args.DATABRICKS_HOST,
@@ -432,7 +479,7 @@ if __name__ == '__main__':
     parser.add_argument('--processes',
                         required=False,
                         type=int,
-                        default=1,
+                        default=os.cpu_count(),
                         help='number of processes allowed to use')
     parser.add_argument(
         '--cluster_id',
@@ -442,9 +489,8 @@ if __name__ == '__main__':
         help=
         'Use serverless if not present. IMPORTANT! make sure cluster has runtime newer than 14.1.0, the databricks-connect client version'
     )
-    parser.add_argument('--debug', type=bool, required=False, default=False)
     args = parser.parse_args()
 
     tik = time.time()
     fetch_DT(args)
-    print('Elapsed time', time.time() - tik)
+    log.info('Elapsed time', time.time() - tik)

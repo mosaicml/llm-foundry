@@ -28,7 +28,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
-            InContextLearningLMAccuracy()
+            InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
@@ -94,18 +94,15 @@ class InferenceAPIEvalWrapper(ComposerModel):
 
     def update_metric(self, batch: Any, outputs: Any, metric: Metric) -> None:
         batch = self.rebatch(batch)
+        metric = metric.to(device=outputs.device)
         self.labels = batch.pop('labels')
         self.labels[:, :-1] = self.labels[:, 1:].clone()
         self.labels[:, -1] = -100
+        # print("Devices:", outputs.get_device(), self.labels.get_device(), metric.device)
         if isinstance(metric, InContextLearningMetric) and batch.get(
                 'mode', None) == 'icl_task':
             assert self.labels is not None
             metric.update(batch, outputs, self.labels)
-            for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
-                cont_tok_pred = outputs[batch_idx].index_select(dim=0, index=cont_idx - 1).argmax(dim=-1)
-                cont_tok_targ = self.labels[batch_idx].index_select(dim=0, index=cont_idx - 1)
-                print("Ground Truth Label:", self.tokenizer.decode(self.labels[batch_idx].tolist()[:-1]))
-                print("Model output:", self.tokenizer.decode(cont_tok_pred))
         else:
             raise NotImplementedError(
                 'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task'

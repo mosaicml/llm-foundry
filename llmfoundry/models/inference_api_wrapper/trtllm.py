@@ -119,6 +119,7 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
                                            tp_size=tp_size,
                                            pp_size=pp_size)
         self.device_num = runtime_rank % runtime_mapping.gpus_per_node
+        self.device = torch.device('cuda:' + str(self.device_num))
         torch.cuda.set_device(self.device_num)
 
         # Tokenization and sampling
@@ -149,6 +150,26 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
 
         print("!!! Initialized generation session for rank:", runtime_rank)        
         torch.cuda.synchronize()
+        
+        # Move metrics to proper device (doesn't help, have to do this in update_metric())
+        # for key, value in self.eval_metrics.items():
+        #    self.eval_metrics[key] = value.to(device=self.device)
+        #    print("Eval metric now at:", self.eval_metrics[key].device) 
+
+    def rebatch(self, batch):
+        """
+        Move tensors in batch to the correct GPU.
+        """
+        if isinstance(batch, dict):
+            for key, value in batch.items():
+                batch[key] = self.rebatch(value)
+            return batch
+        elif isinstance(batch, torch.Tensor):
+            return batch.to(device=self.device)
+        elif isinstance(batch, list):
+            return [self.rebatch(b) for b in batch]
+        
+        return batch
 
 
     def eval_forward(self, batch, outputs: Optional[Any] = None):
@@ -167,10 +188,10 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
             prompt = tokens[:cont_idxs[0]]
             
             
-            input_ids = torch.tensor([prompt], dtype=torch.int, device="cuda:" + str(self.device_num))
+            input_ids = torch.tensor([prompt], dtype=torch.int, device=self.device)
             input_lengths = torch.tensor([input_ids.size(1)],
                                          dtype=torch.int,
-                                         device="cuda:"+ str(self.device_num))
+                                         device=self.device)
             # print("prompt:", self.tokenizer.decode(prompt))
             # print("Input device:", input_ids.get_device())
             #print("Input ids data:", input_ids, len(input_ids), input_ids[0].shape)
@@ -193,7 +214,7 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
             # print("Output ids:", output_dict['output_ids'][0][0][cont_idxs[0]:].tolist())
             for i in range(len(output_logits_list)):
                 output_logits_list[i] = output_logits_list[i].squeeze()
-                print("Output ids:", self.tokenizer.decode(output_dict['output_ids'][0][0].tolist()))
+                # print("Output ids:", self.tokenizer.decode(output_dict['output_ids'][0][0].tolist()))
             # print("Context logits:", context_logits.shape)
             # print("Output logits list:", output_logits_list)
             if len(output_logits_list) > 0:
@@ -219,7 +240,7 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
 
             output_logits_batch.append(padded_combined_logits)
             
-        return torch.stack(output_logits_batch).to(batch['input_ids'].device)
+        return torch.stack(output_logits_batch).to(self.device) #(batch['input_ids'].device)
 
         #print("Decoded output:", self.tokenizer.decode(output_ids[0][0][cont_idxs[0]:].tolist()))
         """

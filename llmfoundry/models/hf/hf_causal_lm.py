@@ -259,7 +259,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 f'om_model_config must be either a DictConfig, PeftModel, or PreTrainedModel, but got {type(om_model_config)}'
             )
         
-        peft_config = om_model_config.get('peft_config', None)
+        from peft import PeftConfig
+        peft_config = PeftConfig(**om_model_config.get('peft_config'))
         peft_type = peft_config.get('peft_type', None)
         assert peft_type == 'lora'
 

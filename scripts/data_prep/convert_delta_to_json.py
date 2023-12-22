@@ -11,7 +11,6 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Iterable, List, Optional, Tuple, Union
 from uuid import uuid4
 
-# PB2 stuff
 import google.protobuf.any_pb2 as any_pb2
 import lz4.frame
 import pandas as pd

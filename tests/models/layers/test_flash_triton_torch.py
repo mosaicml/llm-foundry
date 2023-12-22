@@ -154,7 +154,7 @@ def test_attn_impl(attn_impl_0: str,
                 attn_bias,
                 sequence_id,  # type: ignore
                 s)
-        if attn_impl == 'flash':
+        if alibi and attn_impl == 'flash':
             attn_bias = gen_alibi_slopes(batch_size=n,
                                          n_heads=cfg.n_heads,
                                          alibi_bias_max=8,

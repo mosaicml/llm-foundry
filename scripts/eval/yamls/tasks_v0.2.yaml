@@ -157,11 +157,6 @@ icl_tasks:
   num_fewshot: [5]
   icl_task_type: language_modeling
 -
-  label: pubmed_qa_labeled
-  dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl
-  num_fewshot: [10]
-  icl_task_type: language_modeling
--
   label: squad
   dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
   num_fewshot: [3]

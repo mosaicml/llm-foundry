@@ -616,10 +616,12 @@ class MPTModel(MPTPreTrainedModel):
             attention_mask=attention_mask)
 
         if self.alibi and self.attn_impl == 'flash':
-            attn_bias = gen_alibi_slopes(batch_size=x.shape[0],
-                                            n_heads=self.config.n_heads,
-                                            alibi_bias_max=self.alibi_bias_max,
-                                            device=x.device)
+            attn_bias = gen_alibi_slopes(
+                batch_size=torch.count_nonzero(attention_mask_in_length).item()
+                if attention_mask_in_length is not None else x.shape[0],
+                n_heads=self.config.n_heads,
+                alibi_bias_max=self.alibi_bias_max,
+                device=x.device)
 
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None

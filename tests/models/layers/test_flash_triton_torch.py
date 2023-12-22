@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Union
+
 import pytest
 import torch
 from omegaconf import OmegaConf as om
@@ -8,9 +10,9 @@ from omegaconf import OmegaConf as om
 from llmfoundry.models.layers import attention
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.mpt.modeling_mpt import (apply_sequence_id,
+                                                gen_alibi_slopes,
                                                 gen_attention_mask_in_length,
-                                                gen_rotary_embedding,
-                                                gen_alibi_slopes,)
+                                                gen_rotary_embedding)
 
 
 def allclose_helper(t0: torch.Tensor,
@@ -75,7 +77,9 @@ def test_attn_impl(attn_impl_0: str,
     """
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
-    if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash') and not is_flash_v2_installed(v2_version='v2.3.6'): # TODO: Should be v2.3.7
+    if alibi and (attn_impl_0 == 'flash' or
+                  attn_impl_1 == 'flash') and not is_flash_v2_installed(
+                      v2_version='v2.3.6'):  # TODO: Should be v2.3.7
         pytest.skip('flash attention v2.3.6 and lower do not support alibi.')
     if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):
@@ -127,7 +131,8 @@ def test_attn_impl(attn_impl_0: str,
         # to simulate padding
         attention_mask[:, -s // 3:] = 0
 
-    def gen_bias(attn_impl: str):
+    def gen_bias(attn_impl: str,
+                 attention_mask_in_length: Union[torch.Tensor, None] = None):
         causal = True
         attn_bias = None
         bs = attention.attn_bias_shape(attn_impl,
@@ -155,10 +160,12 @@ def test_attn_impl(attn_impl_0: str,
                 sequence_id,  # type: ignore
                 s)
         if alibi and attn_impl == 'flash':
-            attn_bias = gen_alibi_slopes(batch_size=n,
-                                         n_heads=cfg.n_heads,
-                                         alibi_bias_max=8,
-                                         device=device)
+            attn_bias = gen_alibi_slopes(
+                batch_size=torch.count_nonzero(attention_mask_in_length).item()
+                if attention_mask_in_length is not None else n,
+                n_heads=cfg.n_heads,
+                alibi_bias_max=8,
+                device=device)
 
         return attn_bias
 
@@ -181,7 +188,7 @@ def test_attn_impl(attn_impl_0: str,
     x1.requires_grad = True
 
     with torch.autocast(x0.device.type):
-        attn_bias_0 = gen_bias(attn_impl_0)
+        attn_bias_0 = gen_bias(attn_impl_0, attention_mask_in_length_0)
         rotary_emb_w_meta_info = None
         if rope:
             rotary_embedding = gen_rotary_embedding(
@@ -215,7 +222,7 @@ def test_attn_impl(attn_impl_0: str,
                          rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                          is_causal=True,
                          attention_mask_in_length=attention_mask_in_length_0)
-        attn_bias_1 = gen_bias(attn_impl_1)
+        attn_bias_1 = gen_bias(attn_impl_1, attention_mask_in_length_1)
         y1, _, _ = attn1(x1,
                          past_key_value=None,
                          attn_bias=attn_bias_1,

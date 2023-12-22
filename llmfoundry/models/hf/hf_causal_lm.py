@@ -260,7 +260,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             )
         
         peft_config = om_model_config.get('peft_config', None)
-        peft_type = peft_config.pop('peft_type', None)
+        peft_type = peft_config.get('peft_type', None)
         assert peft_type == 'lora'
 
         composer_model = super().__init__(

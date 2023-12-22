@@ -622,8 +622,6 @@ class MPTModel(MPTPreTrainedModel):
                                             alibi_bias_max=self.alibi_bias_max,
                                             device=x.device)
 
-        attention_mask = attention_mask_in_length if attention_mask_in_length is not None else attention_mask
-        attention_mask_type = 'in_length' if attention_mask_in_length is not None else 'boolean'
         attn_bias = alibi_slopes if alibi_slopes is not None else attn_bias
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
@@ -647,7 +645,7 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
-                attention_mask_type=attention_mask_type,
+                attention_mask_in_length=attention_mask_in_length,
             )
             if presents is not None:
                 presents += (present,)

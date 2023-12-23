@@ -259,9 +259,9 @@ def test_sliding_window(sliding_window_size: int):
 
 @pytest.mark.gpu
 @pytest.mark.skipif(
-    not is_flash_v2_installed(v2_version='v2.4.0'),
+    not is_flash_v2_installed(v2_version='v2.4.0.post1'),
     reason=
-    'ALiBi only supported by Flash Attention after v2.4.0.')
+    'ALiBi only supported by Flash Attention after v2.4.0.post1.')
 @pytest.mark.parametrize('n_heads', [1, 6, 8])
 def test_alibi_bias(n_heads: int):
     # Test that sliding window attention works as expected.

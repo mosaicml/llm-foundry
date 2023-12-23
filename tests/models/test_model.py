@@ -648,7 +648,7 @@ def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict):
     # Testing the output of concatenated sequence with sequence id masking vs individual sequences.
     alibi = pos_emb_config['alibi']
     if alibi and attention_impl == 'flash' and not is_flash_v2_installed(
-            v2_version='v2.4.0'):
+            v2_version='v2.4.0.post1'):
         pytest.skip(f'flash attention below v2.4.0.post1 do not support alibi.')
 
     rope = pos_emb_config['rope']
@@ -768,7 +768,7 @@ def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
     # Test that different placement of padding does not affect the output.
     alibi = pos_emb_config['alibi']
     if alibi and attention_impl == 'flash' and not is_flash_v2_installed(
-            v2_version='v2.4.0'):
+            v2_version='v2.4.0.post1'):
         pytest.skip(f'flash attention below v2.4.0.post1 do not support alibi.')
 
     rope = pos_emb_config['rope']
@@ -1032,7 +1032,7 @@ def test_generate(attention_impl: str, precision: str, pos_emb_config: dict,
     # padding in the input.
     if pos_emb_config[
             'alibi'] and attention_impl == 'flash' and not is_flash_v2_installed(
-                v2_version='v2.4.0'):
+                v2_version='v2.4.0.post1'):
         pytest.skip(f'flash attention below v2.4.0.post1 do not support alibi.')
 
     if pos_emb_config['rope'] and pos_emb_config[
@@ -1283,7 +1283,7 @@ def test_forward_with_cache_and_padding(attn_impl: str, pos_emb_config: dict):
     # Tests that the result is the same with or without padding when using kv caching
     if pos_emb_config[
             'alibi'] and attn_impl == 'flash' and not is_flash_v2_installed(
-                v2_version='v2.4.0'):
+                v2_version='v2.4.0.post1'):
         pytest.skip(f'flash attention below v2.4.0.post1 do not support alibi.')
     if pos_emb_config['rope'] and pos_emb_config[
             'rope_impl'] == 'dail' and not is_flash_v2_installed():
@@ -1422,7 +1422,7 @@ def test_forward_with_cache(attn_impl: str, pos_emb_config: dict,
     # same output.
     if pos_emb_config[
             'alibi'] and attn_impl == 'flash' and not is_flash_v2_installed(
-                v2_version='v2.4.0'):
+                v2_version='v2.4.0.post1'):
         pytest.skip(f'flash attention below v2.4.0.post1 do not support alibi.')
 
     if pos_emb_config['rope'] and pos_emb_config[
@@ -1561,7 +1561,7 @@ def test_generate_with_past_kv(attn_impl: str, pos_emb_config: dict,
                                tie_word_embeddings: bool):
     if pos_emb_config[
             'alibi'] and attn_impl == 'flash' and not is_flash_v2_installed(
-                v2_version='v2.4.0'):
+                v2_version='v2.4.0.post1'):
         pytest.skip(f'flash attention below v2.4.0.post1 do not support alibi.')
     if pos_emb_config['rope'] and pos_emb_config[
             'rope_impl'] == 'dail' and not is_flash_v2_installed():
@@ -1670,7 +1670,7 @@ def test_generation_kwargs_dont_crash(attn_impl: str,
                                       tie_word_embeddings: bool):
     if pos_emb_config[
             'alibi'] and attn_impl == 'flash' and not is_flash_v2_installed(
-                v2_version='v2.4.0'):
+                v2_version='v2.4.0.post1'):
         pytest.skip(f'flash attention below v2.4.0.post1 do not support alibi.')
 
     if pos_emb_config['rope'] and pos_emb_config[
@@ -1861,7 +1861,7 @@ def test_forward_with_output_attentions_and_output_hidden_states(
         attn_impl: str, pos_emb_config: dict):
     if pos_emb_config[
             'alibi'] and attn_impl == 'flash' and not is_flash_v2_installed(
-                v2_version='v2.4.0'):
+                v2_version='v2.4.0.post1'):
         pytest.skip(f'flash attention below v2.4.0.post1 do not support alibi.')
     if attn_impl in ['flash', 'triton']:
         pytest.skip(f'output_attentions only implemented with torch attention.')

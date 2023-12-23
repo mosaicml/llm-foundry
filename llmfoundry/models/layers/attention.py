@@ -330,7 +330,7 @@ def flash_attn_fn(
             softmax_scale=softmax_scale,
             causal=reset_is_causal,
             return_attn_probs=needs_weights)
-    elif is_flash_v2_installed(v2_version='2.4.0'):
+    elif is_flash_v2_installed(v2_version='2.4.0.post1'):
         output_unpad = flash_attn_interface.flash_attn_varlen_func(
             q=query_unpad,
             k=key_unpad,

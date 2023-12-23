@@ -79,7 +79,7 @@ def test_attn_impl(attn_impl_0: str,
     rope = pos_emb_config['rope']
     if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'
                  ) and not is_flash_v2_installed(v2_version='v2.4.0'):
-        pytest.skip('flash attention v2.3.6 and lower do not support alibi.')
+        pytest.skip('flash attention below v2.4.0.post1 do not support alibi.')
     if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):
         pytest.skip('dail implementation of rope requires flash attention 2.')

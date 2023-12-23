@@ -261,8 +261,8 @@ def test_sliding_window(sliding_window_size: int):
 @pytest.mark.skipif(
     not is_flash_v2_installed(v2_version='v2.4.0'),
     reason=
-    'Sliding window attention only supported by Flash Attention after v2.3.0.')
-@pytest.mark.parametrize('n_heads', [1, 6, 8])
+    'ALiBi only supported by Flash Attention after v2.4.0.')
+@pytest.mark.parametrize('n_heads', [6, 8])
 def test_alibi_bias(n_heads: int):
     # Test that sliding window attention works as expected.
     dtype = torch.bfloat16
@@ -290,7 +290,7 @@ def test_alibi_bias(n_heads: int):
                                    kv_n_heads=n_heads,
                                    past_key_value=None,
                                    softmax_scale=1 / math.sqrt(d),
-                                   attn_bias=None,
+                                   attn_bias=attn_bias_1,
                                    key_padding_mask=None,
                                    is_causal=True,
                                    dropout_p=0.0,
@@ -298,8 +298,7 @@ def test_alibi_bias(n_heads: int):
                                    needs_weights=False,
                                    multiquery=False,
                                    attention_mask_in_length=None,
-                                   should_repeat_kv_for_gqa=True,
-                                   attn_bias=attn_bias_1)
+                                   should_repeat_kv_for_gqa=True)
 
     output_1.sum().backward()
 

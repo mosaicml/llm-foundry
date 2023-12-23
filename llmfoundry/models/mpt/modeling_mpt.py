@@ -216,11 +216,11 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
     return attention_mask_in_length
 
 
-def gen_alibi_slopes(batch_size: int, n_heads: int, alibi_bias_max: int,
+def gen_alibi_slopes(n_heads: int, alibi_bias_max: int,
                      device: torch.device) -> torch.Tensor:
     return gen_slopes(n_heads=n_heads,
                       alibi_bias_max=alibi_bias_max,
-                      device=device).squeeze(dim=(2, 3)).expand(batch_size, -1)
+                      device=device).squeeze()
 
 
 def apply_sequence_id(attn_bias: torch.Tensor, sequence_id: torch.LongTensor,
@@ -616,12 +616,9 @@ class MPTModel(MPTPreTrainedModel):
             attention_mask=attention_mask)
 
         if self.alibi and self.attn_impl == 'flash':
-            attn_bias = gen_alibi_slopes(
-                batch_size=torch.count_nonzero(attention_mask_in_length).item()
-                if attention_mask_in_length is not None else x.shape[0],
-                n_heads=self.config.n_heads,
-                alibi_bias_max=self.alibi_bias_max,
-                device=x.device)
+            attn_bias = gen_alibi_slopes(n_heads=self.config.n_heads,
+                                         alibi_bias_max=self.alibi_bias_max,
+                                         device=x.device)
 
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None

@@ -77,9 +77,8 @@ def test_attn_impl(attn_impl_0: str,
     """
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
-    if alibi and (attn_impl_0 == 'flash' or
-                  attn_impl_1 == 'flash') and not is_flash_v2_installed(
-                      v2_version='v2.3.6'):  # TODO: Should be v2.3.7
+    if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'
+                 ) and not is_flash_v2_installed(v2_version='v2.4.0'):
         pytest.skip('flash attention v2.3.6 and lower do not support alibi.')
     if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):
@@ -160,12 +159,9 @@ def test_attn_impl(attn_impl_0: str,
                 sequence_id,  # type: ignore
                 s)
         if alibi and attn_impl == 'flash':
-            attn_bias = gen_alibi_slopes(
-                batch_size=torch.count_nonzero(attention_mask_in_length).item()
-                if attention_mask_in_length is not None else n,
-                n_heads=cfg.n_heads,
-                alibi_bias_max=8,
-                device=device)
+            attn_bias = gen_alibi_slopes(n_heads=cfg.n_heads,
+                                         alibi_bias_max=8,
+                                         device=device)
 
         return attn_bias
 

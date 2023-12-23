@@ -13,7 +13,7 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: gsm8k-debug
+run_name: gsm8k-debug-7b
 gpu_num: 32
 gpu_type: a100_40gb
 cluster: r7z2 # replace with your cluster here!
@@ -30,16 +30,16 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-30b
+    model_name: mosaicml/mpt-7b
     # Tokenizer
     tokenizer:
-      name:  mosaicml/mpt-30b
+      name:  mosaicml/mpt-7b
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path:  mosaicml/mpt-30b
+      pretrained_model_name_or_path:  mosaicml/mpt-7b
       init_device: mixed
       pretrained: true
       use_auth_token: false
@@ -61,6 +61,7 @@ parameters:
     cot_delimiter: 'The answer is '
     continuation_delimiter: "\n\nA:"
     question_prelimiter: ""
+    do_normalization: false
     early_stopping_criteria:
     - "\n\n"
     - "Question:"
@@ -68,5 +69,5 @@ parameters:
   callbacks:
     eval_output_logging:
       subset_sample: -1
-      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b_base_gsm8k_early_stopping
+      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_7b_base_gsm8k_early_stopping
 

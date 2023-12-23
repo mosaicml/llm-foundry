@@ -514,7 +514,8 @@ def build_icl_evaluators(
                 generations_per_sample=icl_cfg.num_beams,
                 has_categories=icl_cfg.get('has_categories', False),
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
-                early_stopping_criteria=icl_cfg.get('early_stopping_criteria', None))
+                early_stopping_criteria=icl_cfg.get('early_stopping_criteria', None),
+                do_normalization=icl_cfg.get('do_normalization', True))
             if hasattr(
                     icl_cfg,
                     'has_categories') and icl_cfg.has_categories and isinstance(

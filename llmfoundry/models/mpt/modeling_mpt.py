@@ -220,7 +220,8 @@ def gen_alibi_slopes(n_heads: int, alibi_bias_max: int,
                      device: torch.device) -> torch.Tensor:
     return gen_slopes(n_heads=n_heads,
                       alibi_bias_max=alibi_bias_max,
-                      device=device).squeeze()
+                      device=device,
+                      return_1d=True)
 
 
 def apply_sequence_id(attn_bias: torch.Tensor, sequence_id: torch.LongTensor,

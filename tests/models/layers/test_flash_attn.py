@@ -260,8 +260,7 @@ def test_sliding_window(sliding_window_size: int):
 @pytest.mark.gpu
 @pytest.mark.skipif(
     not is_flash_v2_installed(v2_version='v2.4.0.post1'),
-    reason=
-    'ALiBi only supported by Flash Attention after v2.4.0.post1.')
+    reason='ALiBi only supported by Flash Attention after v2.4.0.post1.')
 @pytest.mark.parametrize('n_heads', [1, 6, 8])
 def test_alibi_bias(n_heads: int):
     # Test that sliding window attention works as expected.
@@ -282,7 +281,7 @@ def test_alibi_bias(n_heads: int):
     value_1.requires_grad = True
     attn_bias_1 = gen_alibi_slopes(n_heads=n_heads,
                                    alibi_bias_max=8,
-                                   device=device)
+                                   device=torch.device(device))
     output_1, _, _ = flash_attn_fn(query=query_1,
                                    key=key_1,
                                    value=value_1,

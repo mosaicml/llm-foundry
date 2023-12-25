@@ -161,7 +161,7 @@ def test_attn_impl(attn_impl_0: str,
         if alibi and attn_impl == 'flash':
             attn_bias = gen_alibi_slopes(n_heads=cfg.n_heads,
                                          alibi_bias_max=8,
-                                         device=device)
+                                         device=torch.device(device))
 
         return attn_bias
 

@@ -333,7 +333,7 @@ def flash_attn_fn(
     elif is_flash_v2_installed():
         alibi_kwargs = {
             'alibi_slopes': attn_bias
-        } if is_flash_v2_installed(v2_version='2.4.0.post1') else {}
+        } if is_flash_v2_installed(v2_version='v2.4.2') else {}
         output_unpad = flash_attn_interface.flash_attn_varlen_func(
             q=query_unpad,
             k=key_unpad,

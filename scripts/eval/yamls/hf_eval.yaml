@@ -8,19 +8,19 @@ model_name_or_path: EleutherAI/gpt-neo-125m
 
 models:
 -
-  model_name: EleutherAI/gpt-neo-125m
-  # Tokenizer
-  tokenizer:
-    name:  EleutherAI/gpt-neo-125m
-    kwargs:
-      model_max_length: ${max_seq_len}
+    model_name: mosaicml/mpt-7b
+    # Tokenizer
+    tokenizer:
+      name: mosaicml/mpt-7b
+      kwargs:
+        model_max_length: ${max_seq_len}
 
-  model:
-    name: hf_causal_lm
-    pretrained_model_name_or_path:  EleutherAI/gpt-neo-125m
-    init_device: cpu
-    pretrained: true
-    use_auth_token: false
+    model:
+      name: hf_causal_lm
+      pretrained_model_name_or_path: mosaicml/mpt-7b
+      init_device: cpu
+      pretrained: true
+      use_auth_token: false
 # # if you are evaluating more than one model, list them all as YAML blocks without variable interpolation
 # -
 #   model_name: mosaicml/mpt-7b
@@ -50,18 +50,13 @@ device_eval_batch_size: 4
 icl_tasks:
 -
   label: gsm8k
-  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k_prepended_8shot_small.jsonl
+  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
   num_fewshot: [0]
   icl_task_type: question_answering
   cot_delimiter: 'The answer is '
   continuation_delimiter: "\n\nA:"
   question_prelimiter: ""
+  do_normalization: false
   early_stopping_criteria:
   - "\n\n"
   - "Question:"
-
-# callbacks:
-#   eval_output_logging:
-#     subset_sample: -1
-#     output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b_base_gsm8k_early_stopping
-

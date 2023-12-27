@@ -8,7 +8,7 @@ integrations:
 
 command: |
   pip uninstall mosaicml -y
-  pip install git+https://github.com/bmosaicml/composer.git@error_logging_callback
+  pip install git+https://github.com/bmosaicml/composer.git@add_custom_stopping_criteria
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
@@ -30,16 +30,16 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b
+    model_name: mosaicml/mpt-30b
     # Tokenizer
     tokenizer:
-      name:  mosaicml/mpt-7b
+      name: mosaicml/mpt-30b
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path:  mosaicml/mpt-7b
+      pretrained_model_name_or_path: mosaicml/mpt-30b
       init_device: mixed
       pretrained: true
       use_auth_token: false
@@ -66,8 +66,4 @@ parameters:
     - "\n\n"
     - "Question:"
 
-  callbacks:
-    eval_output_logging:
-      subset_sample: -1
-      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_7b_base_gsm8k_early_stopping
-
+ 

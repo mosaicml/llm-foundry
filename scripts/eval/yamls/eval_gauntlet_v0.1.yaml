@@ -121,12 +121,6 @@ eval_gauntlet:
     - name: gsm8k
       num_fewshot: 3
       random_baseline: 0.0
-    - name: math_simple
-      num_fewshot: 3
-      random_baseline: 0.0
-    - name: math_complex
-      num_fewshot: 3
-      random_baseline: 0.0
     - name: svamp
       num_fewshot: 3
       random_baseline: 0

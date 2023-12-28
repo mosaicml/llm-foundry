@@ -11,9 +11,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 from composer import algorithms
-from composer.callbacks import (EarlyStopper, Generate, LRMonitor, MemoryMonitor,
-                                OptimizerMonitor, RuntimeEstimator,
-                                SpeedMonitor)
+from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
+                                MemoryMonitor, OptimizerMonitor,
+                                RuntimeEstimator, SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -494,7 +494,6 @@ def build_icl_evaluators(
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
                 os.remove(destination_path)
             dist.barrier()
-            print(f'Stopping criteria: {icl_cfg.get("early_stopping_criteria", None)}')
             early_stopping_criteria = icl_cfg.get('early_stopping_criteria', None)
             early_stopping_criteria = list(early_stopping_criteria) if early_stopping_criteria is not None else None
             dataloaders = get_icl_task_dataloader(

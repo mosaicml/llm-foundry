@@ -8,19 +8,16 @@ model_name_or_path: EleutherAI/gpt-neo-125m
 
 models:
 -
-    model_name: mosaicml/mpt-7b
-    # Tokenizer
-    tokenizer:
-      name: mosaicml/mpt-7b
-      kwargs:
-        model_max_length: ${max_seq_len}
-
-    model:
-      name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b
-      init_device: cpu
-      pretrained: true
-      use_auth_token: false
+  model_name: ${model_name_or_path}
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: ${model_name_or_path}
+    init_device: mixed
+    pretrained: true
+  tokenizer:
+    name: ${model_name_or_path}
+    kwargs:
+      model_max_length: ${max_seq_len}
 # # if you are evaluating more than one model, list them all as YAML blocks without variable interpolation
 # -
 #   model_name: mosaicml/mpt-7b
@@ -46,17 +43,5 @@ device_eval_batch_size: 4
 #   forward_prefetch: True
 #   limit_all_gathers: True
 
-
-icl_tasks:
--
-  label: gsm8k
-  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  cot_delimiter: 'The answer is '
-  continuation_delimiter: "\n\nA:"
-  question_prelimiter: ""
-  do_normalization: false
-  early_stopping_criteria:
-  - "\n\n"
-  - "Question:"
+icl_tasks: 'eval/yamls/tasks_v0.1.yaml'
+eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'

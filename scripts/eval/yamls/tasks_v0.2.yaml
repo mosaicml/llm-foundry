@@ -13,12 +13,12 @@ icl_tasks:
   icl_task_type: question_answering
 -
   label: gsm8k
-  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
-  num_fewshot: [0]
+  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k.jsonl
+  num_fewshot: [8, 5]
   icl_task_type: question_answering
-  cot_delimiter: 'The answer is '
-  continuation_delimiter: "\n\nA:"
-  question_prelimiter: ""
+  cot_delimiter: ' #### '
+  continuation_delimiter: "\nA: Let's think step by step. "
+  question_prelimiter: "Q: "
 -
   label: agi_eval_sat_math
   dataset_uri: eval/local_data/symbolic_problem_solving/agi_eval_sat_math.jsonl

@@ -8,7 +8,7 @@ import tempfile
 from argparse import ArgumentParser, Namespace
 from concurrent.futures import ProcessPoolExecutor
 from glob import glob
-from typing import Iterable, List, Tuple, cast
+from typing import Iterable, List, Optional, Tuple, cast
 
 import psutil
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
@@ -109,11 +109,6 @@ def parse_args() -> Namespace:
         parser.error(
             'When setting --concat_tokens, you must specify a --tokenizer')
 
-    # now that we have validated them, change BOS/EOS to strings
-    if parsed.bos_text is None:
-        parsed.bos_text = ''
-    if parsed.eos_text is None:
-        parsed.eos_text = ''
     return parsed
 
 
@@ -328,13 +323,13 @@ def convert_text_to_mds(
     output_folder: str,
     input_folder: str,
     concat_tokens: int,
-    eos_text: str,
-    bos_text: str,
     no_wrap: bool,
     compression: str,
     processes: int,
     args_str: str,
     reprocess: bool,
+    bos_text: Optional[str] = None,
+    eos_text: Optional[str] = None,
 ):
     """Convert a folder of text files to MDS format.
 
@@ -343,14 +338,21 @@ def convert_text_to_mds(
         output_folder (str): Folder to write MDS shards to
         input_folder (str): Folder of text files to process
         concat_tokens (int): Concantenate up to this many tokens
-        eos_text (str): Textend to append to each example to separate concatenated samples
-        bos_text (str): Text to prepend to each example to separate concatenated samples
         no_wrap: (bool): Whether to let text examples wrap across multiple training examples
         compression (str): The compression algorithm to use for MDS writing
         processes (int): The number of processes to use.
         args_str (str): String representation of the arguments
         reprocess (bool): Whether to always reprocess the given folder of text files
+        bos_text (Optional[str]): Text to prepend to each example to separate concatenated samples
+            If None, default to using the tokenizer's specified bos_text.
+        eos_text (Optional[str]): Text end to append to each example to separate concatenated samples
+            If None, default to using the tokenizer's specified eos_text.
     """
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    bos_text = tokenizer.bos_token if bos_text is None else bos_text
+    eos_text = tokenizer.eos_token if eos_text is None else eos_text
+    assert bos_text is not None and eos_text is not None  # for pyright
+
     is_remote_output = is_remote_path(output_folder)
 
     object_names = get_object_names(input_folder)

@@ -13,7 +13,7 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: gsm8k-debug-7b
+run_name: gsm8k-debug-30b
 gpu_num: 32
 gpu_type: a100_40gb
 cluster: r7z2 # replace with your cluster here!
@@ -25,7 +25,7 @@ parameters:
   dist_timeout: 6000
   seed: 1
   max_seq_len: 2048
-  device_eval_batch_size: 4
+  device_eval_batch_size: 1
   precision: amp_fp16
 
   models:

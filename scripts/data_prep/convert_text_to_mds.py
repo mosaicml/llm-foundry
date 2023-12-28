@@ -222,7 +222,8 @@ def download_and_convert(
                                                output_folder=tmp_dir,
                                                object_store=object_store)
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                                  add_bos_token=False)
+                                                  add_bos_token=False,
+                                                  add_eos_token=False)
         tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
 
         # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up
@@ -363,7 +364,7 @@ def convert_text_to_mds(
         tokenizer_eos = tokenizer.eos_token
         eos_text = tokenizer_eos if tokenizer_eos is not None else ''
 
-    assert bos_text is not None and eos_text is not None # for pyright
+    assert bos_text is not None and eos_text is not None  # for pyright
 
     is_remote_output = is_remote_path(output_folder)
 

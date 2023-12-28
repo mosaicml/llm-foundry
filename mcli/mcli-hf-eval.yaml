@@ -24,7 +24,7 @@ image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 parameters:
   dist_timeout: 6000
   seed: 1
-  max_seq_len: 1024
+  max_seq_len: 2048
   device_eval_batch_size: 4
   precision: amp_fp16
 
@@ -65,5 +65,76 @@ parameters:
     early_stopping_criteria:
     - "\n\n"
     - "Question:"
+  -
+    label: math_complex
+    dataset_uri: eval/local_data/symbolic_problem_solving/math_complex_soln.jsonl
+    num_fewshot: [3]
+    icl_task_type: question_answering
+    cot_delimiter: 'The answer is '
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: "Question: "
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
+  -
+    label: math_simple
+    dataset_uri: eval/local_data/symbolic_problem_solving/math_simple_soln.jsonl
+    num_fewshot: [3]
+    icl_task_type: question_answering
+    cot_delimiter: 'The answer is '
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: "Question: "
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
+  - 
+    label: math_all
+    dataset_uri: eval/local_data/symbolic_problem_solving/math.jsonl
+    num_fewshot: [3]
+    icl_task_type: question_answering
+    cot_delimiter: 'The answer is '
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: "Question: "
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
+  -
+    label: agi_eval_sat_math
+    dataset_uri: eval/local_data/symbolic_problem_solving/agi_eval_sat_math.jsonl
+    num_fewshot: [3]
+    icl_task_type: question_answering
+    cot_delimiter: 'The answer is '
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: "Question: "
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
+  -
+    label: aqua
+    dataset_uri: eval/local_data/symbolic_problem_solving/aqua.jsonl
+    num_fewshot: [3]
+    icl_task_type: question_answering
+    cot_delimiter: 'The answer is '
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: "Question: "
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
+  -
+    label: svamp
+    dataset_uri: eval/local_data/symbolic_problem_solving/svamp.jsonl
+    num_fewshot: [5]
+    icl_task_type: question_answering
+    cot_delimiter: 'The answer is '
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: "Question: "
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
 
- 

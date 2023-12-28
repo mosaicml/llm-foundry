@@ -20,6 +20,24 @@ icl_tasks:
   continuation_delimiter: "\nA: Let's think step by step. "
   question_prelimiter: "Q: "
 -
+  label: math_complex
+  dataset_uri: eval/local_data/symbolic_problem_solving/math_complex_soln.jsonl
+  num_fewshot: [3]
+  icl_task_type: question_answering
+  cot_delimiter: ' #### '
+  continuation_delimiter: "\nA: Let's think step by step. "
+  question_prelimiter: "Q: "
+  has_categories: true
+-
+  label: math_simple
+  dataset_uri: eval/local_data/symbolic_problem_solving/math_simple_soln.jsonl
+  num_fewshot: [3]
+  icl_task_type: question_answering
+  cot_delimiter: ' #### '
+  continuation_delimiter: "\nA: Let's think step by step. "
+  question_prelimiter: "Q: "
+  has_categories: true
+-
   label: agi_eval_sat_math
   dataset_uri: eval/local_data/symbolic_problem_solving/agi_eval_sat_math.jsonl
   num_fewshot: [3]

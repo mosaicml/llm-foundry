@@ -221,7 +221,8 @@ def download_and_convert(
         downloading_iter = DownloadingIterable(object_names=file_names,
                                                output_folder=tmp_dir,
                                                object_store=object_store)
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
+                                                  add_bos_token=False)
         tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
 
         # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up
@@ -344,14 +345,25 @@ def convert_text_to_mds(
         args_str (str): String representation of the arguments
         reprocess (bool): Whether to always reprocess the given folder of text files
         bos_text (Optional[str]): Text to prepend to each example to separate concatenated samples
-            If None, default to using the tokenizer's specified bos_text.
+            If None, use the tokenizer's bos_token if tokenizer.add_bos_token is True, otherwise use an empty string.
         eos_text (Optional[str]): Text end to append to each example to separate concatenated samples
-            If None, default to using the tokenizer's specified eos_text.
+            If None, use the tokenizer's eos_token.
     """
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-    bos_text = tokenizer.bos_token if bos_text is None else bos_text
-    eos_text = tokenizer.eos_token if eos_text is None else eos_text
-    assert bos_text is not None and eos_text is not None  # for pyright
+
+    if bos_text is None:
+        if hasattr(tokenizer, 'add_bos_token'):
+            if tokenizer.add_bos_token:
+                tokenizer_bos = tokenizer.bos_token
+                bos_text = tokenizer_bos if tokenizer_bos is not None else ''
+        else:
+            bos_text = ''
+
+    if eos_text is None:
+        tokenizer_eos = tokenizer.eos_token
+        eos_text = tokenizer_eos if tokenizer_eos is not None else ''
+
+    assert bos_text is not None and eos_text is not None # for pyright
 
     is_remote_output = is_remote_path(output_folder)
 

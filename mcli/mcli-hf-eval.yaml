@@ -30,16 +30,16 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-30b
+    model_name: mosaicml/mpt-7b
     # Tokenizer
     tokenizer:
-      name: mosaicml/mpt-30b
+      name: mosaicml/mpt-7b
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-30b
+      pretrained_model_name_or_path: mosaicml/mpt-7b
       init_device: mixed
       pretrained: true
       use_auth_token: false

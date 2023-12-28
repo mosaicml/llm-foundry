@@ -351,6 +351,7 @@ def convert_text_to_mds(
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     bos_text = tokenizer.bos_token if bos_text is None else bos_text
     eos_text = tokenizer.eos_token if eos_text is None else eos_text
+    assert bos_text is not None and eos_text is not None  # for pyright
 
     is_remote_output = is_remote_path(output_folder)
 

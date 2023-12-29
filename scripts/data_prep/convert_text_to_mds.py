@@ -353,10 +353,9 @@ def convert_text_to_mds(
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
     if bos_text is None:
-        if hasattr(tokenizer, 'add_bos_token'):
-            if tokenizer.add_bos_token:
-                tokenizer_bos = tokenizer.bos_token
-                bos_text = tokenizer_bos if tokenizer_bos is not None else ''
+        if hasattr(tokenizer, 'add_bos_token') and tokenizer.add_bos_token:
+            tokenizer_bos = tokenizer.bos_token
+            bos_text = tokenizer_bos if tokenizer_bos is not None else ''
         else:
             bos_text = ''
 

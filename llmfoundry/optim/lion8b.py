@@ -277,7 +277,7 @@ class _MaybeQuantizedTensor:
                     f'on device {data.device} with shape {data.shape}.')
             self.data = None
             assert self._f_encode is not None  # pyright
-            self.quantized, self.scales = self._f_encode(data)
+            self.quantized, self.scales, _ = self._f_encode(data)
         else:
             self.data = data.to(dtype=torch.float32)
             self.quantized = None

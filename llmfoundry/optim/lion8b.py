@@ -235,7 +235,7 @@ class _MaybeQuantizedTensor:
         self._f_encode = None
         self._f_decode = None
         if self._try_quantize:
-            from turbo import dequantize8b, quantize8b
+            from turbo import dequantize_signed, quantize_signed
             self._f_encode = quantize8b
             self._f_decode = dequantize8b
 

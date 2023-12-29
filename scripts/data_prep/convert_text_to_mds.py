@@ -346,7 +346,7 @@ def convert_text_to_mds(
         args_str (str): String representation of the arguments
         reprocess (bool): Whether to always reprocess the given folder of text files
         bos_text (Optional[str]): Text to prepend to each example to separate concatenated samples
-            If None, use the tokenizer's bos_token if tokenizer.add_bos_token is True, otherwise use an empty string.
+            If None and tokenizer.add_bos_token is True, use the tokenizer's bos_token, otherwise use an empty string.
         eos_text (Optional[str]): Text end to append to each example to separate concatenated samples
             If None, use the tokenizer's eos_token.
     """

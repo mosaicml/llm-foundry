@@ -107,7 +107,7 @@ class MPTConfig(PretrainedConfig):
                     factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling.type.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
-                ffn_type (str): type of ffn to use. Options: mptmlp, mptgeglu, te_ln_mlp
+                ffn_type (str): type of ffn to use. Options: mptmlp, mptglu, te_ln_mlp
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
@@ -291,7 +291,7 @@ class MPTConfig(PretrainedConfig):
                     + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
                     'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
                 )
-        if self.ffn_config['ffn_type'] in ['mptmlp', 'mptgeglu']:
+        if self.ffn_config['ffn_type'] in ['mptmlp', 'mptglu']:
             self.ffn_config['fc_type'] = self.fc_type
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
             self.ffn_config['bias'] = not self.no_bias

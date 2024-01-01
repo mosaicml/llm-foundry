@@ -350,7 +350,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     [('torch', torch.float16), ('torch', torch.bfloat16),
      pytest.param('flash', torch.float16, marks=pytest.mark.gpu),
      pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu)])
-@pytest.mark.parametrize('ffn_type', ['mptmlp', 'mptgeglu'])
+@pytest.mark.parametrize('ffn_type', ['mptmlp', 'mptglu'])
 @pytest.mark.parametrize('ffn_act_fn', [
     None,
     {

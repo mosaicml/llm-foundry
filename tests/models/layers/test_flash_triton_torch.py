@@ -8,9 +8,8 @@ import torch
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.layers import attention
-from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.attention import gen_slopes, is_flash_v2_installed
 from llmfoundry.models.mpt.modeling_mpt import (apply_sequence_id,
-                                                gen_alibi_slopes,
                                                 gen_attention_mask_in_length,
                                                 gen_rotary_embedding)
 
@@ -159,9 +158,10 @@ def test_attn_impl(attn_impl_0: str,
                 sequence_id,  # type: ignore
                 s)
         if alibi and attn_impl == 'flash':
-            attn_bias = gen_alibi_slopes(n_heads=cfg.n_heads,
-                                         alibi_bias_max=8,
-                                         device=torch.device(device))
+            attn_bias = gen_slopes(n_heads=cfg.n_heads,
+                                   alibi_bias_max=8,
+                                   device=torch.device(device),
+                                   return_1d=True)
 
         return attn_bias
 

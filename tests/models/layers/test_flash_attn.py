@@ -7,10 +7,9 @@ import pytest
 import torch
 
 from llmfoundry.models.layers import attention
-from llmfoundry.models.layers.attention import (flash_attn_fn,
+from llmfoundry.models.layers.attention import (flash_attn_fn, gen_slopes,
                                                 is_flash_v2_installed,
                                                 triton_flash_attn_fn)
-from llmfoundry.models.mpt.modeling_mpt import gen_alibi_slopes
 
 
 @pytest.mark.gpu
@@ -279,9 +278,10 @@ def test_alibi_bias(n_heads: int):
     value_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(dtype=dtype,
                                                          device=device)
     value_1.requires_grad = True
-    attn_bias_1 = gen_alibi_slopes(n_heads=n_heads,
-                                   alibi_bias_max=8,
-                                   device=torch.device(device))
+    attn_bias_1 = gen_slopes(n_heads=n_heads,
+                             alibi_bias_max=8,
+                             device=torch.device(device),
+                             return_1d=True)
     output_1, _, _ = flash_attn_fn(query=query_1,
                                    key=key_1,
                                    value=value_1,

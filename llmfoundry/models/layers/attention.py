@@ -256,6 +256,10 @@ def flash_attn_fn(
 
         past_key_value = (key, value)
 
+    if attn_bias is not None and not is_flash_v2_installed(v2_version='v2.4.2'):
+        raise NotImplementedError(
+            f'attn_bias not implemented for Flash Attention below v2.4.2.')
+
     batch_size, seqlen = query.shape[:2]
 
     if attention_mask_in_length is None:

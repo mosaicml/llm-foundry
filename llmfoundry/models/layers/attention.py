@@ -354,7 +354,7 @@ def flash_attn_fn(
             **alibi_kwargs)
     else:
         raise RuntimeError(
-            'flash-attn==1.0.9 or flash-attn==2.3.6 is required.')
+            'flash-attn==1.0.9 or flash-attn==2.4.2 is required.')
 
     output = bert_padding.pad_input(
         rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,

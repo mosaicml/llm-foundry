@@ -117,7 +117,7 @@ class MPTMLP(nn.Module):
         return self.down_proj(self.act(self.up_proj(x)))
 
 
-class MPTGeGLU(MPTMLP):
+class MPTGLU(MPTMLP):
 
     def __init__(
         self,
@@ -138,19 +138,19 @@ class MPTGeGLU(MPTMLP):
             device=device,
             bias=bias,
         )
-        self.gate = FC_CLASS_REGISTRY[fc_type](
+        self.gate_proj = FC_CLASS_REGISTRY[fc_type](
             d_model,
             self.up_proj.out_features,
             **self.fc_kwargs,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.down_proj(self.act(self.up_proj(x)) * self.gate(x))
+        return self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x))
 
 
 FFN_CLASS_REGISTRY = {
     'mptmlp': MPTMLP,
-    'mptgeglu': MPTGeGLU,
+    'mptglu': MPTGLU,
 }
 
 if te is not None:
@@ -169,10 +169,10 @@ def build_ffn(
     **kwargs: Any,
 ) -> nn.Module:
     ffn_type = kwargs.pop('ffn_type')
-    if ffn_type in ['mptmlp', 'mptgeglu']:
+    if ffn_type in ['mptmlp', 'mptglu']:
         if len(kwargs) > 0:
             raise ValueError(
-                f'MPTMLP (or MPTGeGLU) got an unexpected keyword argument: {kwargs}'
+                f'MPTMLP (or MPTGLU) got an unexpected keyword argument: {kwargs}'
             )
         return FFN_CLASS_REGISTRY[ffn_type](
             d_model=d_model,

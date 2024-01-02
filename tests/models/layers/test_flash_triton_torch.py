@@ -1,7 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Union
 
 import pytest
 import torch
@@ -78,7 +77,7 @@ def test_attn_impl(attn_impl_0: str,
     rope = pos_emb_config['rope']
     if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'
                  ) and not is_flash_v2_installed(v2_version='v2.4.2'):
-        pytest.skip('flash attention below v2.4.2 do not support alibi.')
+        pytest.skip('flash attention below v2.4.2 does not support alibi.')
     if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):
         pytest.skip('dail implementation of rope requires flash attention 2.')
@@ -129,8 +128,7 @@ def test_attn_impl(attn_impl_0: str,
         # to simulate padding
         attention_mask[:, -s // 3:] = 0
 
-    def gen_bias(attn_impl: str,
-                 attention_mask_in_length: Union[torch.Tensor, None] = None):
+    def gen_bias(attn_impl: str):
         causal = True
         attn_bias = None
         bs = attention.attn_bias_shape(attn_impl,
@@ -184,7 +182,7 @@ def test_attn_impl(attn_impl_0: str,
     x1.requires_grad = True
 
     with torch.autocast(x0.device.type):
-        attn_bias_0 = gen_bias(attn_impl_0, attention_mask_in_length_0)
+        attn_bias_0 = gen_bias(attn_impl_0)
         rotary_emb_w_meta_info = None
         if rope:
             rotary_embedding = gen_rotary_embedding(
@@ -218,7 +216,7 @@ def test_attn_impl(attn_impl_0: str,
                          rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                          is_causal=True,
                          attention_mask_in_length=attention_mask_in_length_0)
-        attn_bias_1 = gen_bias(attn_impl_1, attention_mask_in_length_1)
+        attn_bias_1 = gen_bias(attn_impl_1)
         y1, _, _ = attn1(x1,
                          past_key_value=None,
                          attn_bias=attn_bias_1,

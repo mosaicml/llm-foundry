@@ -14,29 +14,32 @@ from composer import Trainer
 from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
 from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
+                                              MOSAICML_PLATFORM_ENV_VAR,)
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
-                               cyclic_schedule)
+                               cyclic_schedule,)
 from composer.utils import dist, get_device, reproducibility
+from composer.utils.json_log_formatter import JsonLogFormatter
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
-                        MPTForCausalLM)
+                        MPTForCausalLM,)
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_algorithm, build_callback,
                                        build_evaluators, build_logger,
                                        build_optimizer, build_scheduler,
-                                       build_tokenizer)
+                                       build_tokenizer,)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
-                                           update_batch_size_info)
+                                           update_batch_size_info,)
 
 log = logging.getLogger(__name__)
-
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setFormatter(JsonLogFormatter(rank=os.getenv('RANK')))
+log.addHandler(stdout_handler)
 
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""

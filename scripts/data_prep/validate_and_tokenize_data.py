@@ -139,6 +139,10 @@ def check_HF_datasets(dataset_names_with_splits):
 
 # COMMAND ----------
 
+from streaming.base.storage.upload import CloudUploader
+from streaming.base.storage.download import download_file
+import json 
+
 def integrity_check(out: Union[str, Tuple[str, str]]):
     """Check if the index file has integrity.
 
@@ -565,9 +569,6 @@ def is_hf_dataset_path(path):
 
     return bool(re.match(pattern, path))
 
-
-
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -677,16 +678,23 @@ tokenizer_kwargs = {'model_max_length': cfg.dataset.max_seq_len}
 tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
 device_batch_size = 1
-dataloader = build_finetuning_dataloader(cfg, tokenizer,
-                                         device_batch_size).dataloader
+dataspec = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+dataloader = dataspec.dataloader 
+token_counting_func = dataspec.get_num_tokens_in_batch
 
 total_tokens = 0
 for batch in dataloader:
-    if len(batch['input_ids']) == 0: #  (check labels as well if exist):
-        raise ValueError('input_ids is empty')
+    total_tokens += token_counting_func(batch)
+    
+    # if len(batch['input_ids']) == 0: #  (check labels as well if exist):
+    #     raise ValueError('input_ids is empty')
 
-    batch_tokens = batch['input_ids'] # (add 'labels' as well if exist)
-    batch_token_count = sum([len(tokens) for tokens in batch_tokens])
-    total_tokens += batch_token_count
+    # batch_tokens = batch['input_ids'] # (add 'labels' as well if exist)
+    # batch_token_count = sum([len(tokens) for tokens in batch_tokens])
+    # total_tokens += batch_token_count
 
 print("Total number of tokens:", total_tokens)
+
+# COMMAND ----------
+
+

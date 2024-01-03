@@ -11,7 +11,9 @@ from unittest import mock
 import pytest
 import torch
 import torch.nn as nn
+from torch.distributed._tensor.api import DTensor
 from accelerate import init_empty_weights
+from composer import Trainer
 from composer.core.precision import Precision, get_precision_context
 from composer.optim import DecoupledAdamW
 from composer.trainer.dist_strategy import prepare_fsdp_module
@@ -30,6 +32,7 @@ from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
+from llmfoundry.models.mpt.modeling_mpt import rearrange_tensor
 from llmfoundry.utils import build_tokenizer
 
 
@@ -2033,3 +2036,99 @@ def test_head_dim_8_triton_mqa_attn(batch_size: int = 2):
         output = model(batch)
 
     assert not torch.isnan(output.logits).any()
+
+@pytest.mark.world_size(2)
+@pytest.mark.gpu
+def test_tp_qkvo():
+    # Note: we need the RNG state in this test to ensure that weights
+    # are initialized with the same values in both models. Without it,
+    # even with a random seed, the weights will be different since the
+    # RNG state changes with each init.
+    rng_state = reproducibility.get_rng_state()
+
+    local_world_size = dist.get_local_world_size()
+    sharded_model_cfg = {
+        'name': 'mpt_causal_lm',
+        'init_device': 'cpu',
+        'd_model': 128,
+        'n_heads': 4, # head size 32
+        'n_layers': 2,
+        'expansion_ratio': 1,
+        'max_seq_len': 16,
+        'vocab_size': 50368,
+        'attn_config': {
+            'attn_type': 'multihead_attention',
+            'alibi': False,
+            'attn_impl': 'torch',
+            'tensor_parallel_qkvo': True,
+            'tp_world_size': local_world_size 
+        }
+    }
+
+    # Create the same model config, but with TP turned off
+    full_model_cfg = copy.deepcopy(sharded_model_cfg)
+    full_model_cfg['attn_config']['tensor_parallel_qkvo'] = False
+    del full_model_cfg['attn_config']['tp_world_size']
+
+    sharded_model_cfg = om.create(sharded_model_cfg)
+    full_model_cfg = om.create(full_model_cfg)
+
+    sharded_model = COMPOSER_MODEL_REGISTRY[sharded_model_cfg.name](sharded_model_cfg)
+    reproducibility.load_rng_state(rng_state)
+    
+    full_model = COMPOSER_MODEL_REGISTRY[full_model_cfg.name](full_model_cfg)
+
+    fsdp_config = {
+       'sharding_strategy': 'NO_SHARD',
+       'mixed_precision': 'DEFAULT'
+    }
+    # The trainer is used to wrap the model in FSDP, which can be used
+    # alongside with TP for 2D parallelism
+    trainer = Trainer(
+        model=sharded_model,
+        fsdp_config=fsdp_config,
+    )
+
+    trainer = Trainer(
+        model=full_model,
+        fsdp_config=fsdp_config,
+    )
+
+    sharded_transformer_blocks = sharded_model.model.transformer.blocks
+    full_transformer_blocks = full_model.model.transformer.blocks
+    for sharded_block, full_block in zip(sharded_transformer_blocks, full_transformer_blocks):
+        sharded_attn_module = sharded_block._fsdp_wrapped_module.attn
+        full_attn_module = full_block._fsdp_wrapped_module.attn
+
+        # Check that all attention module weights are DTensors
+        assert isinstance(sharded_attn_module.Wqkv.weight, DTensor)
+        assert isinstance(sharded_attn_module.out_proj.weight, DTensor)
+
+        Wqkv_local = sharded_attn_module.Wqkv.weight._local_tensor
+        out_proj_local = sharded_attn_module.out_proj.weight._local_tensor
+
+        # Wqkv is colwise-sharded, so its output dimension (dim 0 since torch
+        # stores everything along the transpose) is sharded along the device mesh
+        assert Wqkv_local.shape[0] * local_world_size == sharded_model_cfg.d_model * 3
+
+        # The out projection is rowwise-sharded, so its input dimension (dim 1)
+        # is sharded along the device mesh
+        assert out_proj_local.shape[1] * local_world_size == sharded_model_cfg.d_model
+    
+        Wqkv_interleaved = rearrange_tensor(
+            full_attn_module.Wqkv.weight, 
+            local_world_size,
+            sharded_model_cfg.d_model,
+            sharded_model_cfg.d_model // sharded_model_cfg.n_heads,
+            sharded_model_cfg.n_heads
+        )
+        # Check that the sharded output weights are the same as the full model
+        # weights:
+        #   rank 0 should have the top half of out proj and the left half of Wqkv
+        #   rank 1 should have the bottom half of out proj and the right half of Wqkv
+        if dist.get_local_rank() == 0:
+            assert torch.equal(out_proj_local, full_attn_module.out_proj.weight[:, :out_proj_local.shape[1]])
+            assert torch.equal(Wqkv_local, Wqkv_interleaved[:Wqkv_local.shape[0], :])
+        else:
+            assert torch.equal(out_proj_local, full_attn_module.out_proj.weight[:, out_proj_local.shape[1]:])
+            assert torch.equal(Wqkv_local, Wqkv_interleaved[Wqkv_local.shape[0]:, :])

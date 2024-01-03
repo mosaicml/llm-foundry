@@ -7,7 +7,6 @@ import warnings
 from typing import Any, Dict, Optional, Union
 
 from transformers import PretrainedConfig
-
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.blocks import attn_config_defaults
 
@@ -83,6 +82,8 @@ class MPTConfig(PretrainedConfig):
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
                 clip_qkv (Optional[float]): If not None, clip the queries, keys, and values in the attention layer to
                     this value.
+                tensor_parallel_qkvo (bool): Whether to implement tensor parallel attention projections
+                tp_world_size (Optional[Int]): Must be set if tensor_parallel_qkvo is True. The number of GPUs to use for tensor parallelism.
                 softmax_scale (Optional[float]): If not None, scale the softmax in the attention layer by this value. If None,
                     use the default scale of ``1/sqrt(d_keys)``.
                 prefix_lm (Optional[bool]): Whether the model should operate as a Prefix LM. This requires passing an

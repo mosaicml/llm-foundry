@@ -153,6 +153,9 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
 
         # Temperature for InfoNCELoss
         self.temperature = resolved_om_model_config.get('temperature', 1)
+        
+        step_size = self.config.to_dict().get("pos_step_size", 2)
+        self.pattern = torch.arange(1, step_size, device=model.device)
 
         self.n_active_params = sum(p.numel() for p in self.parameters())
 
@@ -194,12 +197,12 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         passages = {}
         step_size = self.config.to_dict().get("pos_step_size", 2)
 
+        # Index on a variable step size
         for key in batch.keys():
-            pattern = torch.arange(1, step_size)
             num_blocks = batch[key].size(0) // step_size
-            index = pattern + torch.arange(0, num_blocks * step_size, step_size).unsqueeze(1)
-            index = index.view(-1)
-            passages[key] = batch[key][index] #.reshape(batch[key].size(0), -1)
+            index = torch.arange(1, num_blocks * step_size + 1, device=last_hidden_state.device).view(num_blocks, step_size)
+            index = index[:, :step_size - 1].reshape(-1)
+            passages[key] = batch[key][index]
         
         return passages, last_hidden_state[index, :, :]
 

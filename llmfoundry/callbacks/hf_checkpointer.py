@@ -8,7 +8,7 @@ import math
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 import torch
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -32,31 +32,40 @@ class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
 
     Args:
-        save_folder (str): Top level folder to save checkpoints to (can be a URI). It is likely that
-            this would be the same as your save_folder.
-        save_interval: Union[str, int, Time]: The interval describing how often checkpoints should be
-            saved. If an integer, it will be assumed to be in :attr:`.TimeUnit.EPOCH`.
-            Otherwise, the unit must be either :attr:`.TimeUnit.EPOCH`, :attr:`.TimeUnit.BATCH`,
+        save_folder (str): Top level folder to save checkpoints to (can be a
+            URI). It is likely that this would be the same as your save_folder.
+        save_interval: Union[str, int, Time]: The interval describing how often
+            checkpoints should be saved. If an integer, it will be assumed to be
+            in :attr:`.TimeUnit.EPOCH`. Otherwise, the unit must be either
+            :attr:`.TimeUnit.EPOCH`, :attr:`.TimeUnit.BATCH`,
             :attr:`.TimeUnit.TOKEN`, or :attr:`.TimeUnit.SAMPLE`.
-        huggingface_folder_name (str): Folder to save each checkpoint under (can be a format string). Default is ``ba{batch}``.
-        precision: The precision to save the model in. Default is ``float32``. Options are ``bfloat16``, ``float16``, or ``float32``.
+        huggingface_folder_name (str): Folder to save each checkpoint under (can
+            be a format string). Default is ``ba{batch}``.
+        precision: The precision to save the model in. Default is ``float32``.
+            Options are ``bfloat16``, ``float16``, or ``float32``.
         overwrite (bool): Whether to overwrite previous checkpoints.
-        mlflow_registered_model_name (Optional[str]): The name to register the model under in the MLflow model registry. If ``None``, the model will not
-            be registered. Default is ``None``.
-        mlflow_logging_config (Optional[dict]): A dictionary of config arguments that will get passed along to the MLflow ``save_model`` call.
-            Expected to contain ``metadata`` and ``task`` keys. If either is unspecified, the defaults are ``'text-generation'`` and
+        mlflow_registered_model_name (Optional[str]): The name to register the
+            model under in the MLflow model registry. If ``None``, the model
+            will not be registered. Default is ``None``.
+        mlflow_logging_config (Optional[dict]): A dictionary of config arguments
+            that will get passed along to the MLflow ``save_model`` call.
+            Expected to contain ``metadata`` and ``task`` keys. If either is
+            unspecified, the defaults are ``'text-generation'`` and
             ``{'task': 'llm/v1/completions'}`` respectively.
+        flatten_imports (Sequence[str]): A sequence of import prefixes that will
+            be flattened when editing MPT files.
     """
 
     def __init__(
-        self,
-        save_folder: str,
-        save_interval: Union[str, int, Time],
-        huggingface_folder_name: str = 'ba{batch}',
-        precision: str = 'float32',
-        overwrite: bool = True,
-        mlflow_registered_model_name: Optional[str] = None,
-        mlflow_logging_config: Optional[dict] = None,
+            self,
+            save_folder: str,
+            save_interval: Union[str, int, Time],
+            huggingface_folder_name: str = 'ba{batch}',
+            precision: str = 'float32',
+            overwrite: bool = True,
+            mlflow_registered_model_name: Optional[str] = None,
+            mlflow_logging_config: Optional[dict] = None,
+            flatten_imports: Sequence[str] = ('llmfoundry',),
     ):
         _, _, self.save_dir_format_str = parse_uri(save_folder)
         self.overwrite = overwrite
@@ -66,6 +75,7 @@ class HuggingFaceCheckpointer(Callback):
             'float16': torch.float16,
             'bfloat16': torch.bfloat16,
         }[precision]
+        self.flatten_imports = flatten_imports
 
         # mlflow config setup
         self.mlflow_registered_model_name = mlflow_registered_model_name
@@ -91,7 +101,7 @@ class HuggingFaceCheckpointer(Callback):
         if isinstance(save_interval, int):
             save_interval = Time(save_interval, TimeUnit.EPOCH)
 
-        self.save_interval = save_interval
+        self.save_interval: Time = save_interval
         self.check_interval = create_interval_scheduler(
             save_interval, include_end_of_training=True)
         self.remote_ud = maybe_create_remote_uploader_downloader_from_uri(
@@ -229,7 +239,10 @@ class HuggingFaceCheckpointer(Callback):
                 # Only need to edit files for MPT because it has custom code
                 if original_model.config.model_type == 'mpt':
                     log.debug('Editing MPT files for HuggingFace compatibility')
-                    edit_files_for_hf_compatibility(temp_save_dir)
+                    edit_files_for_hf_compatibility(
+                        temp_save_dir,
+                        self.flatten_imports,
+                    )
 
                 if self.remote_ud is not None:
                     log.info(f'Uploading HuggingFace formatted checkpoint')

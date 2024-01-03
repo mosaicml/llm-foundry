@@ -47,10 +47,10 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.17.1,<0.18',
+    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.17.2,<0.18',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.36,<4.37',
-    'mosaicml-streaming>=0.7.1,<0.8',
+    'mosaicml-streaming>=0.7.2,<0.8',
     'torch>=2.1,<2.1.1',
     'datasets==2.15.0',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
@@ -84,24 +84,22 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.17.1,<0.18',
+    'mosaicml[databricks]>=0.17.2,<0.18',
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.17.1,<0.18',
+    'mosaicml[tensorboard]>=0.17.2,<0.18',
 ]
 
 extra_deps['gpu'] = [
     'flash-attn==1.0.9',
-    'mosaicml-turbo==0.0.4',
+    'mosaicml-turbo==0.0.7',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
 ]
 extra_deps['gpu-flash2'] = [
-    'flash-attn==2.3.2',
-    'mosaicml-turbo==0.0.4',
-    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v2.3.2#subdirectory=csrc/xentropy',
+    'flash-attn==2.3.6',
+    'mosaicml-turbo==0.0.7',
 ]
 
 extra_deps['peft'] = [

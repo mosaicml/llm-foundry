@@ -39,22 +39,22 @@
 # MAGIC - The inputs to this validation script is assumed to be the same or a subset of the FT API arguments, i.e., a configuration like below. Is this a valid assumption?
 # MAGIC ```
 # MAGIC cfg = {
-# MAGIC model: str,
-# MAGIC train_data_path: str,
-# MAGIC save_folder: str,
-# MAGIC *,
-# MAGIC task_type: Optional[str] = "INSTRUCTION_FINETUNE",
-# MAGIC eval_data_path: Optional[str] = None,
-# MAGIC eval_prompts: Optional[List[str]] = None,
-# MAGIC custom_weights_path: Optional[str] = None,
-# MAGIC training_duration: Optional[str] = None,
-# MAGIC learning_rate: Optional[float] = None,
-# MAGIC context_length: Optional[int] = None,
-# MAGIC experiment_trackers: Optional[List[Dict]] = None,
-# MAGIC data_prep_config: Optional[Dict] = None,
-# MAGIC disable_credentials_check: Optional[bool] = None,
-# MAGIC timeout: Optional[float] = 10,
-# MAGIC future: Literal[False] = False,
+# MAGIC     model: str,
+# MAGIC     train_data_path: str,
+# MAGIC     save_folder: str,
+# MAGIC     *,
+# MAGIC     task_type: Optional[str] = "INSTRUCTION_FINETUNE",
+# MAGIC     eval_data_path: Optional[str] = None,
+# MAGIC     eval_prompts: Optional[List[str]] = None,
+# MAGIC     custom_weights_path: Optional[str] = None,
+# MAGIC     training_duration: Optional[str] = None,
+# MAGIC     learning_rate: Optional[float] = None,
+# MAGIC     context_length: Optional[int] = None,
+# MAGIC     experiment_trackers: Optional[List[Dict]] = None,
+# MAGIC     data_prep_config: Optional[Dict] = None,
+# MAGIC     disable_credentials_check: Optional[bool] = None,
+# MAGIC     timeout: Optional[float] = 10,
+# MAGIC     future: Literal[False] = False,
 # MAGIC }
 # MAGIC ```
 
@@ -76,20 +76,24 @@ from torch.utils.data import DataLoader
 from streaming import StreamingDataset
 import numpy as np
 from omegaconf import OmegaConf as om
+from argparse import Namespace
+from typing import Union, Tuple 
+from llmfoundry.utils import build_tokenizer
+import torch 
 
 # COMMAND ----------
 
 FT_API_args = Namespace(
     model = 'EleutherAI/gpt-neox-20b',
-    train_data_path: str,
-    save_folder: str,
-    task_type: Optional[str] = "INSTRUCTION_FINETUNE",
+    train_data_path = 'tatsu-lab/alpaca', # 'mosaicml/dolly_hhrlhf/train', # tatsu-lab/alpaca/train',
+    save_folder = 'dbfs:/databricks/mlflow-tracking/EXPERIMENT_ID/RUN_ID/artifacts/checkpoints',
+    task_type = "INSTRUCTION_FINETUNE",
     eval_data_path = None,
     eval_prompts = None,
     custom_weights_path = None,
     training_duration = None,
     learning_rate = None,
-    context_length = None,
+    context_length = 2048,
     experiment_trackers = None,
     disable_credentials_check = None,
     # Extra argument to add to FT API
@@ -562,6 +566,21 @@ def is_hf_dataset_path(path):
     return bool(re.match(pattern, path))
 
 
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Validate and token Count
+
+# COMMAND ----------
+
+os.environ['HF_ASSETS_CACHE'] = '/tmp/'
+os.environ['HF_HOME'] = '/tmp/'
+os.environ['HF_HUB_CACHE'] = '/tmp/'
+os.environ['HF_DATASETS_CACHE'] = '/tmp/'
+
+
 def create_om_cfg(FT_API_args):
     task_type = FT_API_args.task_type
     train_data_path = FT_API_args.train_data_path
@@ -570,13 +589,13 @@ def create_om_cfg(FT_API_args):
 
     common_args = {
         'drop_last': False,
-        'num_workers': 0,
-        'prefetch_factor': None,
+        'num_workers': 2,
+        'prefetch_factor': 2,
         'pin_memory': False,
         'persistent_workers': False,
         'timeout': 0
     }
-    if task == 'INSTRUCTION_FINETUNE':
+    if task_type == 'INSTRUCTION_FINETUNE':
         cfg = om.create({
             'dataset': {
                 'hf_name': train_data_path,
@@ -609,25 +628,30 @@ def create_om_cfg(FT_API_args):
         tokenizer_name=model,
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
-
+    
     return cfg, tokenizer
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ## Validate and token Count
+# build cfg from the inputs
 
-# COMMAND ----------
+if FT_API_args.task_type == 'INSTRUCTION_FINETUNE':
+    # check if train_data_path is a valid HF dataset url with splits.
+    # load dataset.info and see if HF tokens are correctly set.
+    # check_HF_datasets()
 
-if task_type == 'INSTRUCTION_FINETUNE':
-  # check if train_data_path is a valid HF dataset url with splits.
-  # load dataset.info and see if HF tokens are correctly set.
-    check_HF_datasets()
-
-elif task_type == 'CONTINUED_PRETRAIN':
-  # check if train_data_path is a valid object store that composer supports
-
-  # Run convert_text_to_mds.py and dump MDS dataset to "save_folder"
+    cfg, tokenizer = create_om_cfg(FT_API_args)
+    
+elif FT_API_args.task_type == 'CONTINUED_PRETRAIN':
+    # check if train_data_path is a valid object store that composer supports
+    cfg, tokenizer = create_om_cfg(FT_API_args)
+    
+    input_folder = FT_API_args.train_data_path
+    output_folder = FT_API_args.save_folder 
+    concat_tokens = FT_API_args.context_length
+    tokenizer_name = FT_API_args.model
+    
+    # Run convert_text_to_mds.py and dump MDS dataset to "save_folder"
     args = parse_args(tokenizer, concat_tokens, output_folder, input_folder)
     convert_text_to_mds(tokenizer_name=args.tokenizer,
                         output_folder=args.output_folder,
@@ -640,18 +664,12 @@ elif task_type == 'CONTINUED_PRETRAIN':
                         processes=args.processes,
                         reprocess=args.reprocess,
                         args_str=_args_str(args))
-
 else:
-    raise ValueError(f"task_type can only be INSTRUCTION_FINETUNE or Continued_Pretraining but got {task_type} instead!")
+    raise ValueError(f"task_type can only be INSTRUCTION_FINETUNE or Continued_Pretraining but got {FT_API_args.task_type} instead!")
   # Run a few checks on resulted MDS datasets
   # 1. no shards in output_folder
   # 2. check shard completeness by downloading and inspecting index.json
 
-import torch
-from omegaconf import OmegaConf as om
-from llmfoundry.utils import build_tokenizer
-
-# build cfg from the inputs
 
 from llmfoundry.data.finetuning import build_finetuning_dataloader
 tokenizer_name = 'EleutherAI/gpt-neox-20b'
@@ -664,141 +682,11 @@ dataloader = build_finetuning_dataloader(cfg, tokenizer,
 
 total_tokens = 0
 for batch in dataloader:
-    if len(batch['input_ids']) == 0 (check labels as well if exist):
-        raise Error
+    if len(batch['input_ids']) == 0: #  (check labels as well if exist):
+        raise ValueError('input_ids is empty')
 
-    batch_tokens = batch['input_ids'] (add 'labels' as well if exist)
-    batch_token_count = sum(len(tokens) for tokens in batch_tokens)
+    batch_tokens = batch['input_ids'] # (add 'labels' as well if exist)
+    batch_token_count = sum([len(tokens) for tokens in batch_tokens])
     total_tokens += batch_token_count
 
 print("Total number of tokens:", total_tokens)
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC # DEPRECATED BELOW
-
-# COMMAND ----------
-
-# If running on databricks notebook, the url can only be a Volume path.
-# Make sure this is compliant to https://github.com/mosaicml/llm-foundry/blob/1191267195367b5ec6093ed7854b8f6daf1be2d3/llmfoundry/data/text_data.py#L174-L178
-
-# raw dataset location you will point FT API to.
-# It can be a local path or a remote path (s3/gcs/oci/dbfs:Volume)
-dataset_url = 'tatsu-lab/alpaca' # "s3://xxxxx" or "HF name"
-preprocessing_fn = 'llmfoundry.data.finetuning.tasks:alpaca_preprocessing_function'
-
-# dataset schema with tokens
-tokenized_table_schema = {'tokens': bytes, 'id': np.int64}
-tokenizer = 'EleutherAI/gpt-neox-20b'
-tokenizer_kwargs = {'model_max_length': 2048}
-
-output_folder ='/Volumes/main/mosaic_hackathon/managed-volume/output'
-input_folder = ''
-eos_text = '<|endoftext|>'
-
-
-# COMMAND ----------
-
-if not dataset_url:
-  raise ValueError("dataset_url needs to be set at this point!")
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-def check_cloud_datasets(dataset_url, job):
-
-    suffix = '.txt' if job==Job.CPT else '.jsonl'
-
-    object_store = maybe_create_object_store_from_uri(dataset_url)
-
-    if object_store is not None:
-        _, _, folder_prefix = parse_uri(dataset_url)
-        names = [
-            name for name in object_store.list_objects(folder_prefix)
-            if name.endswith(suffix)
-        ]
-    else:
-        # input_folder is a local folder
-        names = [
-            text_file for dirpath, _, _ in os.walk(input_folder)
-            for text_file in glob(os.path.join(dirpath, '*.' + suffix))
-        ]
-    assert len(names) > 0, f"No {suffix} files found in {dataset_url}."
-    return names
-
-check_cloud_datasets(dataset_url, job)
-
-
-# COMMAND ----------
-
-def validate_and_count_tokens(dataset_url, cfg, job):
-    if job == Job.IFT:
-      # for IFT, basic data processing to see (1) well-formed JSONL and (2) strip of empty tokens
-        import torch
-        from omegaconf import OmegaConf as om
-        from llmfoundry.utils import build_tokenizer
-
-        tokenizer_name = 'EleutherAI/gpt-neox-20b'
-        tokenizer_kwargs = {'model_max_length': cfg.dataset.max_seq_len}
-        tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
-        device_batch_size = 2
-        dataloader = build_finetuning_dataloader(cfg, tokenizer,
-                                                device_batch_size).dataloader
-
-        packing = cfg.dataset.get('packing_ratio') is not None
-
-        for i, batch in enumerate(dataloader):
-            if i >= 5:
-                break
-            print(f'-----Batch {i}-----')
-            for k, v in batch.items():
-                if isinstance(v, torch.Tensor):
-                    print(k, v.shape)
-                else:
-                    print(k, v)
-    else: # job == Job.CPT:
-        # for CPT, strip empty txt files
-        print("Make sure the script is running within llmfoundry")
-        convert_text_to_mds(tokenizer = tokenizer ,
-                            concat_tokens = tokenizer_kwargs['model_max_length'],
-                            output_folder = output_folder,
-                            input_folder = input_folder,
-                            eos_text = '<|endoftext|>')
-
-        dataset=StreamingDataset(local='/Volumes/datasets/default/byod/cpt_poc/output/') # output has the streaming shards
-        dataloader = DataLoader(dataset)
-        sample = next(iter(dataloader))
-        b = np.asarray(sample['tokens']).tobytes()
-        token_ids = np.frombuffer(b, dtype=np.int64)
-        n_token_per_sample = len(token_ids)
-        print('total_tokens = ', n_token_per_sample * dataset.num_samples)
-
-validate_and_count_tokens() # print overall stats of dataset
-
-# COMMAND ----------
-
-

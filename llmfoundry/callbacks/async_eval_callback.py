@@ -255,7 +255,7 @@ class AsyncEval(Callback):
         checkpointer_checkpoints: List[str],
         remote_files: List[str],
     ):
-        """Identify checkpoints are ready to be evaled based on remote files
+        """Identify checkpoints ready to be evaled based on remote files.
 
         This has special logic for sharded checkpoints to consider checkpoints composed
         of multiple shards (one per gpu) and metadata
@@ -263,7 +263,7 @@ class AsyncEval(Callback):
         Args:
             checkpointer_checkpoints: The checkpoints from the checkpointer state
             remote_files: List of remote files in the save folder
-        
+
         Returns:
             List of checkpoints that are complete and ready to be evaled
         """
@@ -298,14 +298,14 @@ class AsyncEval(Callback):
         checkpointer_checkpoints: List[str],
         remote_checkpoints: List[str],
     ):
-        """Identify checkpoints are ready to be evaled based on remote checkpoints
+        """Identify checkpoints ready to be evaled based on remote checkpoints.
 
         This is much simpler than the sharded case, because there is only one file
 
         Args:
             checkpointer_checkpoints: The checkpoints from the checkpointer state
             remote_checkpoints: List of remote checkpoints in the save folder
-        
+
         Returns:
             List of checkpoints that are complete and ready to be evaled
         """
@@ -439,6 +439,15 @@ class AsyncEval(Callback):
         return get_run(run_name, include_details=True)
 
     def launch_run(self, checkpoint: str, current_interval: Time) -> Run:
+        """Launch a new eval run.
+
+        Args:
+            checkpoint: The checkpoint to eval
+            current_interval: The interval of the checkpoint
+
+        Returns:
+            The launched run (mcli.Run type)
+        """
         log.info(f'Launching eval run for {checkpoint} at {current_interval}')
 
         cfg = self.current_run.submitted_config

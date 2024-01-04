@@ -329,3 +329,71 @@ def test_async_eval_callback_integrations(mock_create_run: MagicMock,
 
     custom_path = run_config_created.integrations[0]['path']
     assert f'cd {custom_path}/scripts' in run_config_created.command
+
+
+@patch('llmfoundry.callbacks.async_eval_callback.dist.get_world_size',
+       return_value=4)
+def test_get_ready_sharded_checkpoints(mocked_get_world_size: MagicMock):
+    assert not AsyncEval._get_ready_sharded_checkpoints([], [])
+    assert not AsyncEval._get_ready_sharded_checkpoints(
+        ['save_folder/ep0-ba1/__0_0.distcp'],
+        [],
+    )
+    assert not AsyncEval._get_ready_sharded_checkpoints(
+        [],
+        ['save_folder/ep0-ba1/__0_0.distcp'],
+    )
+
+    checkpointer_checkpoints = [
+        'save_folder/ep0-ba1/__0_0.distcp',
+        'save_folder/ep0-ba2/__0_0.distcp',
+    ]
+    remote_files = [
+        # ba1 is ready
+        'save_folder/ep0-ba1/__0_0.distcp',
+        'save_folder/ep0-ba1/__1_0.distcp',
+        'save_folder/ep0-ba1/__2_0.distcp',
+        'save_folder/ep0-ba1/__3_0.distcp',
+        'save_folder/ep0-ba1/.metadata',
+        # ba2 is missing shard 2
+        'save_folder/ep0-ba2/__0_0.distcp',
+        'save_folder/ep0-ba2/__1_0.distcp',
+        'save_folder/ep0-ba2/__3_0.distcp',
+        'save_folder/ep0-ba2/.metadata',
+        # ba3 is missing metadata
+        'save_folder/ep0-ba3/__0_0.distcp',
+        'save_folder/ep0-ba3/__1_0.distcp',
+        'save_folder/ep0-ba3/__2_0.distcp',
+        'save_folder/ep0-ba3/__3_0.distcp',
+    ]
+    res = AsyncEval._get_ready_sharded_checkpoints(
+        checkpointer_checkpoints,
+        remote_files,
+    )
+    assert res == ['ep0-ba1']
+
+
+def test_get_ready_single_checkpoints():
+    assert not AsyncEval._get_ready_single_checkpoints([], [])
+    assert not AsyncEval._get_ready_single_checkpoints(
+        ['save_folder/ep0-ba1-rank0.pt'],
+        [],
+    )
+    assert not AsyncEval._get_ready_single_checkpoints(
+        [],
+        ['save_folder/ep0-ba1-rank0.pt'],
+    )
+
+    checkpointer_checkpoints = [
+        'save_folder/ep0-ba1-rank0.pt',
+        'save_folder/ep0-ba2-rank0.pt',
+    ]
+    remote_checkpoints = [
+        'save_folder/ep0-ba1-rank0.pt',
+    ]
+
+    res = AsyncEval._get_ready_single_checkpoints(
+        checkpointer_checkpoints,
+        remote_checkpoints,
+    )
+    assert res == ['ep0-ba1-rank0.pt']

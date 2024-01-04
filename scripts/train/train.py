@@ -216,7 +216,7 @@ def main(cfg: DictConfig) -> Trainer:
             train_cfg.python_log_level.upper(),
         )  # Train script
 
-    device: bool = pop_config(
+    device: Optional[str] = pop_config(
         cfg,
         'device',
         must_exist=False,
@@ -561,5 +561,4 @@ if __name__ == '__main__':
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
     assert isinstance(cfg, DictConfig)
-    print (cfg)
     main(cfg)

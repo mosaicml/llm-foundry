@@ -299,7 +299,7 @@ class AsyncEval(Callback):
         remote_checkpoints: List[str],
     ):
         """Identify checkpoints are ready to be evaled based on remote checkpoints
-        
+
         This is much simpler than the sharded case, because there is only one file
 
         Args:

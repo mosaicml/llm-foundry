@@ -112,8 +112,8 @@ def load_tokenizer(
 
 
 def _write_zero_bias(weight_name: str, weight_file_path: str,
-                     bias_shape: Union[Tuple[int, ...], int],
-                     np_data_type: np.dtype) -> None:
+                     bias_shape: Union[Tuple[int, ...],
+                                       int], np_data_type: np.dtype) -> None:
     """Write zeros for bias when converting MPT to FasterTransformer weights.
 
     MPT model might not have bias while FT expects bias.
@@ -158,7 +158,9 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
         save_path = os.path.join(save_dir, f'model.{tensor_name}.bin')
         data.tofile(save_path)
         if 'weight' in tensor_name and config['no_bias']:
-            _write_zero_bias(tensor_name, save_path, data.shape[-1], np_weight_data_type)
+            _write_zero_bias(tensor_name, save_path, data.shape[-1],
+                             np_weight_data_type
+                            )  # pyright: ignore [reportGeneralTypeIssues]
 
     elif tensor_name.find('attention.dense.weight') != -1:
         assert data.shape == (
@@ -173,7 +175,9 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
         if config['no_bias']:
             fake_weight_path = os.path.join(save_dir,
                                             f'model.{tensor_name}.bin')
-            _write_zero_bias(tensor_name, fake_weight_path, data.shape[-1], np_weight_data_type)
+            _write_zero_bias(tensor_name, fake_weight_path, data.shape[-1],
+                             np_weight_data_type
+                            )  # pyright: ignore [reportGeneralTypeIssues]
 
     elif tensor_name.find('mlp.dense_4h_to_h.weight') != -1:
         assert data.shape == (
@@ -188,7 +192,9 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
         if config['no_bias']:
             fake_weight_path = os.path.join(save_dir,
                                             f'model.{tensor_name}.bin')
-            _write_zero_bias(tensor_name, fake_weight_path, data.shape[-1], np_weight_data_type)
+            _write_zero_bias(tensor_name, fake_weight_path, data.shape[-1],
+                             np_weight_data_type
+                            )  # pyright: ignore [reportGeneralTypeIssues]
 
     elif tensor_name.find('mlp.dense_h_to_4h.weight') != -1:
         assert data.shape == (
@@ -203,7 +209,8 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
             split_vals[j].tofile(save_path)
             if config['no_bias']:
                 _write_zero_bias(tensor_name, save_path,
-                                 split_vals[j].shape[-1], np_weight_data_type)
+                                 split_vals[j].shape[-1], np_weight_data_type
+                                )  # pyright: ignore [reportGeneralTypeIssues]
 
     elif tensor_name.find('mlp.dense_h_to_4h.bias') != -1:
         assert data.shape == (
@@ -241,7 +248,9 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
             split_vals[j].tofile(save_path)
             if config['no_bias']:
                 _write_zero_bias(tensor_name, save_path,
-                                 (3, split_vals[j].shape[-1]), np_weight_data_type)
+                                 (3, split_vals[j].shape[-1]),
+                                 np_weight_data_type
+                                )  # pyright: ignore [reportGeneralTypeIssues]
 
     else:
         raise RuntimeError(f'Tensor with name {tensor_name} is not handled')
@@ -309,7 +318,12 @@ def convert_and_save_ft_weights(named_params: dict,
                                      'model.final_layernorm.weight.bin')
             data.tofile(save_path)
             if config['no_bias']:
-                _write_zero_bias(name, save_path, data.shape[-1], np_weight_data_type)
+                _write_zero_bias(
+                    name,
+                    save_path,
+                    data.shape[-1],
+                    np_weight_data_type  # pyright: ignore [reportGeneralTypeIssues]
+                )
         elif name == 'transformer.lm_head.weight':
             data.tofile(os.path.join(save_dir, 'model.lm_head.weight.bin'))
         else:
@@ -318,5 +332,11 @@ def convert_and_save_ft_weights(named_params: dict,
                     new_name = name.replace('transformer.blocks.',
                                             'layers.').replace(
                                                 mpt_pattern, ft_pattern)
-                    _convert_weight_to_ft_each(save_dir, infer_gpu_num,
-                                               new_name, config, data, np_weight_data_type)
+                    _convert_weight_to_ft_each(
+                        save_dir,
+                        infer_gpu_num,
+                        new_name,
+                        config,
+                        data,
+                        np_weight_data_type  # pyright: ignore [reportGeneralTypeIssues]
+                    )

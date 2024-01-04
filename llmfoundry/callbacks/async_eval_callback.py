@@ -9,8 +9,9 @@ This callback is currently experimental. The API may change in the future.
 import logging
 import os
 import warnings
+from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from composer.callbacks import CheckpointSaver
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -249,6 +250,85 @@ class AsyncEval(Callback):
         log.info('Initialized AsyncEval callback. Will generate runs at ' +
                  f'interval {interval}, checking at {self.check_interval}')
 
+    def _get_ready_sharded_checkpoints(
+        self,
+        checkpointer_checkpoints: List[str],
+        remote_files: List[str],
+    ):
+        """
+        Determine which checkpoints from the checkpointer are ready to be evaled,
+        based on which shards have been uploaded to the remote checkpoint folder.
+
+        This has special logic for sharded checkpoints to consider checkpoints composed
+        of multiple shards (one per gpu) and metadata
+
+        Args:
+            checkpointer_checkpoints: The checkpoints from the checkpointer state
+            remote_files: List of remote files in the save folder
+        
+        Returns:
+            List of checkpoints that are complete and ready to be evaled
+        """
+
+        # Count the number of shards for each checkpoint group
+        remote_file_group_counts = Counter()
+        for f in remote_files:
+            interval_path = Path(f).parts[-2]
+            remote_file_group_counts[interval_path] += 1
+
+        # Check if all shards are present for each checkpoint group
+        checkpoints_to_eval = []
+        for checkpoint in checkpointer_checkpoints:
+            # eg {save_folder}/ep0-ba1/.
+            interval_path = Path(checkpoint).parts[-2]
+
+            # expecting one shard per gpu + 1 for metadata
+            expected_shard_count = dist.get_world_size() + 1
+            if remote_file_group_counts[interval_path] != expected_shard_count:
+                log.debug(
+                    f'Checkpoint {checkpoint} not fully uploaded (missing shards '
+                    +
+                    f'{remote_file_group_counts[interval_path]}/{expected_shard_count}), skipping'
+                )
+                continue
+
+            checkpoints_to_eval.append(interval_path)
+
+        return checkpoints_to_eval
+
+    def _get_ready_single_checkpoints(
+        self,
+        checkpointer_checkpoints: List[str],
+        remote_checkpoints: List[str],
+    ):
+        """
+        Determine which checkpoints from the checkpointer are ready to be evaled,
+        based on which checkpoints have been uploaded
+
+        This is much simpler than the sharded case, because there is only one file
+
+        Args:
+            checkpointer_checkpoints: The checkpoints from the checkpointer state
+            remote_checkpoints: List of remote checkpoints in the save folder
+        
+        Returns:
+            List of checkpoints that are complete and ready to be evaled
+        """
+        unique_remote_checkpoints = set(remote_checkpoints)
+
+        checkpoints_to_eval = []
+        for checkpoint in checkpointer_checkpoints:
+            # eg {save_folder}/ep0-ba1-rank0.pt
+            interval_path = Path(checkpoint).parts[-1]
+
+            if checkpoint not in unique_remote_checkpoints:
+                log.debug(
+                    f'Checkpoint {checkpoint} not fully uploaded, skipping')
+                continue
+
+            checkpoints_to_eval.append(interval_path)
+        return checkpoints_to_eval
+
     def _get_checkpoints_and_launch_runs(self, state: State):
         """Get the latest checkpoint from the training run.
 
@@ -273,62 +353,31 @@ class AsyncEval(Callback):
                 'No saved checkpoints found on the checkpointer. Skipping eval')
             return
 
-        found_checkpoints = set(list_remote_objects(
-            self.checkpoint_save_folder))
+        remote_checkpoints = list_remote_objects(self.checkpoint_save_folder)
 
-        if not found_checkpoints:
+        if not remote_checkpoints:
             log.debug('No saved checkpoints found yet on remote. Skipping eval')
             return
 
-        for checkpoint in checkpointer.saved_checkpoints:
-            # Get the part of the path that contains the interval. This is
-            # different for sharded checkpoints (which are saved in a folder)
-            if state.fsdp_elastic_sharded_enabled:
-                # eg {save_folder}/ep0-ba1/.
-                interval_path = Path(checkpoint).parts[-2]
-            else:
-                # eg {save_folder}/ep0-ba1-rank0.pt
-                interval_path = Path(checkpoint).parts[-1]
+        if state.fsdp_elastic_sharded_enabled:
+            checkpoints_to_eval = self._get_ready_sharded_checkpoints(
+                checkpointer.saved_checkpoints, remote_checkpoints)
+        else:
+            checkpoints_to_eval = self._get_ready_single_checkpoints(
+                checkpointer.saved_checkpoints, remote_checkpoints)
 
-            interval = get_interval_from_checkpoint(interval_path,
+        for checkpoint_interval_path in checkpoints_to_eval:
+            interval = get_interval_from_checkpoint(checkpoint_interval_path,
                                                     self.interval.unit)
             if interval.value % self.interval.value != 0:
                 log.debug(
-                    f'Checkpoint {checkpoint} ({interval}) is not at an eval interval ({self.interval}), skipping'
+                    f'Checkpoint {checkpoint_interval_path} ({interval}) is not at an eval interval ({self.interval}), skipping'
                 )
                 continue
-
             if interval in self.checkpoints_evaled:
                 continue  # Skip checkpoints that have already been evaled
 
-            # Check if the checkpoint is fully uploaded. If not, skip it until upload is complete
-            if state.fsdp_elastic_sharded_enabled:
-                # checkpoint is something like folder/ep0-ba4/__0_0.distcp
-                checkpoint_folder = '/'.join(checkpoint.split('/')[:-1])
-
-                if f'{checkpoint_folder}/.metadata' not in found_checkpoints:
-                    log.debug(
-                        f'Checkpoint {checkpoint} not fully uploaded (missing metadata), skipping'
-                    )
-                    continue
-
-                for i in range(dist.get_world_size()):
-                    proc = i % 8
-                    rank = i // 8
-                    shard_name = f'__{proc}_{rank}.distcp'
-                    if f'{checkpoint_folder}/{shard_name}' not in found_checkpoints:
-                        log.debug(
-                            f'Checkpoint {checkpoint} not fully uploaded (missing shard {shard_name}), skipping'
-                        )
-                        continue
-
-            else:
-                if checkpoint not in found_checkpoints:
-                    log.debug(
-                        f'Checkpoint {checkpoint} not fully uploaded, skipping')
-                    continue
-
-            full_checkpoint_path = f'{self.checkpoint_save_folder}/{interval_path}'
+            full_checkpoint_path = f'{self.checkpoint_save_folder}/{checkpoint_interval_path}'
             eval_run = self.launch_run(full_checkpoint_path, interval)
             self.checkpoints_evaled[interval] = (full_checkpoint_path,
                                                  eval_run.name)

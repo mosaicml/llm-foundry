@@ -24,6 +24,11 @@
 </p>
 <br />
 
+---
+## :warning: This is an experimental branch for Intel Gaudi devices. Not all features are supported, [see notes below](#intel-gaudi) :warning:
+
+
+
 # LLM Foundry
 
 This repository contains code for training, finetuning, evaluating, and deploying LLMs for inference with [Composer](https://github.com/mosaicml/composer) and the [MosaicML platform](https://forms.mosaicml.com/demo?utm_source=github.com&utm_medium=referral&utm_campaign=llm-foundry). Designed to be easy-to-use, efficient _and_ flexible, this codebase enables rapid experimentation with the latest techniques.
@@ -115,6 +120,7 @@ If you have success/failure using LLM Foundry on other systems, please let us kn
 | -------------- | ------------- | ------------ | ---------------------------- |
 | A100-40GB/80GB | 2.3.1         | 12.1         | :white_check_mark: Supported |
 | H100-80GB      | 2.3.1         | 12.1         | :white_check_mark: Supported |
+| Gaudi2         | 2.3.1         | SynapseAI >= 1.17.0 | :construction: In Progress   |
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.
@@ -205,6 +211,32 @@ Notes:
 Support for LLM Foundry on Intel Gaudi devices is experimental, please use the branch `habana_alpha` and see the [README on that branch](https://github.com/mosaicml/llm-foundry/blob/habana_alpha) which has [install instructions and known issues.](https://github.com/mosaicml/llm-foundry/tree/habana_alpha?tab=readme-ov-file#intel-gaudi)
 
 For training and inference performance results on Intel Gaudi2 accelerators, see our blog: https://www.databricks.com/blog/llm-training-and-inference-intel-gaudi2-ai-accelerators
+
+
+### Intel Gaudi
+
+In [our testing of Intel Gaudi2 accelerators](https://www.databricks.com/blog/llm-training-and-inference-intel-gaudi2-ai-accelerators), we used the following steps:
+
+1. Use a public docker image from Habana: https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#pull-and-launch-docker-image-habana-vault, with SynapseAI version >= 1.12.1
+2. Install Habana's DeepSpeed fork using instructions here: https://docs.habana.ai/en/latest/PyTorch/DeepSpeed/Getting_Started_with_DeepSpeed/Getting_Started_with_DeepSpeed.html?highlight=deepspeed
+3. Install this branch of LLM Foundry by cloning locally and running `pip install -e .[gpu]`
+2. Modify your training YAMLs to use Gaudi-specific hparams, see this [script](./scripts/ds_gaudi.sh) for an example of how to make the modifications in your command line, or see this fully specified [Gaudi2 training YAML](./scripts/train/yamls/pretrain/mpt-1b-gaudi2.yaml).
+  * Use `device: hpu`
+  * Use `model.init_device: hpu`
+  * Use `model.loss_fn: torch_crossentropy`
+  * Change `model.attn_impl:` to either `torch`, or `habana_fused_sdpa`
+  * Do NOT use `fsdp_config`, either comment out or set to `null`
+  * Use `deepspeed_config`, either ZeRO-2 or ZeRO-3, for training larger models
+
+
+Known issues / limitations as of (1/4/24):
+1. FSDP is not yet supported, use DeepSpeed for training larger models.
+2. Checkpoint conversion script from DeepSpeed format to HF format is not yet implemented, but should be similar to [this script](./scripts/inference/convert_composer_to_hf.py)
+3. ALiBi is not fully tested with `attn_impl: habana_fused_sdpa`, but should work with `attn_impl: torch`
+4. WandB logger may not work, due to an issue with `dist.broadcast_object_list` in Composer. Fix in progress.
+5. Initialization of larger models with DeepSpeed may OOM, and requires `deepspeed.zero.Init` context manager. Fix in progress.
+6. If you find new issues with Intel Gaudi2, please open a Github Issue and tag @abhi-mosaic
+
 
 
 # Quickstart

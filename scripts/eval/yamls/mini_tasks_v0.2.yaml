@@ -1,8 +1,21 @@
 icl_tasks:
+#-
+#  label: jeopardy
+#  dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl
+#  num_fewshot: [3]
+#  icl_task_type: language_modeling
+#  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+#  has_categories: true
 -
-  label: jeopardy
-  dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl
+  label: triviaqa_sm_sub
+  dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl
   num_fewshot: [3]
-  icl_task_type: language_modeling
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
-  has_categories: true
+  icl_task_type: question_answering
+#-
+#  label: gsm8k
+#  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k.jsonl
+#  num_fewshot: [8, 5]
+#  icl_task_type: question_answering
+#  cot_delimiter: ' #### '
+#  continuation_delimiter: "\nA: Let's think step by step. "
+#  question_prelimiter: "Q: "

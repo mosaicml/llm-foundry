@@ -1,17 +1,10 @@
 icl_tasks:
 -
-  label: jeopardy
-  dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl
-  num_fewshot: [3]
-  icl_task_type: language_modeling
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
-  has_categories: true
--
   label: triviaqa_sm_sub
   dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl
   num_fewshot: [3]
   icl_task_type: question_answering
-#BROKEN
+#BROKEN: https://github.com/mosaicml/llm-foundry/pull/824
 #-
 #  label: gsm8k
 #  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k.jsonl
@@ -42,11 +35,6 @@ icl_tasks:
 #  continuation_delimiter: "\nUsing the formula below:\n"
 #  cot_delimiter: ' #### '
 #  question_prelimiter: "Q: "
--
-  label: bigbench_qa_wikidata
-  dataset_uri: eval/local_data/world_knowledge/bigbench_qa_wikidata.jsonl
-  num_fewshot: [3]
-  icl_task_type: language_modeling
 -
   label: arc_easy
   dataset_uri: eval/local_data/world_knowledge/arc_easy.jsonl
@@ -103,16 +91,6 @@ icl_tasks:
   num_fewshot: [0]
   icl_task_type: multiple_choice
 -
-  label: bigbench_dyck_languages
-  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_dyck_languages.jsonl
-  num_fewshot: [5]
-  icl_task_type: language_modeling
--
-  label: lambada_openai
-  dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
-  num_fewshot: [0]
-  icl_task_type: language_modeling
--
   label: hellaswag
   dataset_uri: eval/local_data/language_understanding/hellaswag.jsonl
   num_fewshot: [0, 10]
@@ -138,36 +116,6 @@ icl_tasks:
   num_fewshot: [5]
   icl_task_type: multiple_choice
 -
-  label: bigbench_cs_algorithms
-  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_cs_algorithms.jsonl
-  num_fewshot: [10]
-  icl_task_type: language_modeling
--
-  label: bigbench_operators
-  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl
-  num_fewshot: [3]
-  icl_task_type: language_modeling
--
-  label: simple_arithmetic_nospaces
-  dataset_uri: eval/local_data/symbolic_problem_solving/simple_arithmetic_nospaces.jsonl
-  num_fewshot: [5]
-  icl_task_type: language_modeling
--
-  label: simple_arithmetic_withspaces
-  dataset_uri: eval/local_data/symbolic_problem_solving/simple_arithmetic_withspaces.jsonl
-  num_fewshot: [5]
-  icl_task_type: language_modeling
--
-  label: pubmed_qa_labeled
-  dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl
-  num_fewshot: [10]
-  icl_task_type: language_modeling
--
-  label: squad
-  dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
-  num_fewshot: [3]
-  icl_task_type: language_modeling
--
   label: agi_eval_lsat_rc
   dataset_uri: eval/local_data/reading_comprehension/agi_eval_lsat_rc.jsonl
   num_fewshot: [5]
@@ -177,11 +125,6 @@ icl_tasks:
   dataset_uri: eval/local_data/reading_comprehension/agi_eval_lsat_lr.jsonl
   num_fewshot: [5]
   icl_task_type: multiple_choice
--
-  label: coqa
-  dataset_uri: eval/local_data/reading_comprehension/coqa.jsonl
-  num_fewshot: [0]
-  icl_task_type: language_modeling
 -
   label: boolq
   dataset_uri: eval/local_data/reading_comprehension/boolq.jsonl

@@ -24,6 +24,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
 
         self.tokenizer = tokenizer
         self.labels = None
+        self.device = None
         # set up training and eval metrics
         eval_metrics = [
             LanguageCrossEntropy(),
@@ -94,11 +95,16 @@ class InferenceAPIEvalWrapper(ComposerModel):
 
     def update_metric(self, batch: Any, outputs: Any, metric: Metric) -> None:
         batch = self.rebatch(batch)
-        metric = metric.to(device=outputs.device)
+        metric = metric.to(device=self.device)
+
         self.labels = batch.pop('labels')
+        if isinstance(metric, InContextLearningQAAccuracy):
+            # Labels are strings, not tokens, for QA tasks.
+            metric.update(outputs, self.labels, batch)
+            return
+        
         self.labels[:, :-1] = self.labels[:, 1:].clone()
         self.labels[:, -1] = -100
-        # print("Devices:", outputs.get_device(), self.labels.get_device(), metric.device)
         if isinstance(metric, InContextLearningMetric) and batch.get(
                 'mode', None) == 'icl_task':
             assert self.labels is not None

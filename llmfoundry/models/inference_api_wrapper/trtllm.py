@@ -111,6 +111,7 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
 
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
+        self.max_seq_len = 2048 #TODO: Do Not hardcode
 
         # Device and rank
         runtime_rank = tensorrt_llm.mpi_rank()
@@ -177,16 +178,80 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
         # model's generate function. Strings will be returned from eval_forward
         output_logits_batch = []
         batch = self.rebatch(batch)
+
+        # Question-answering tasks
+        if 'continuation_indices' not in batch:
+            # batch['continuation_indices'] = torch.tensor([], dtype=torch.int, device=self.device)
+            # print("Batch:", batch)
+            output_strs = []
+
+            for tokens in batch['input_ids']:
+                seqlen = tokens.shape[0]
+                prompt = tokens.tolist()
+                eos_occurence = (tokens == 2).nonzero(as_tuple=True)[0]
+                end_prompt_idx = len(prompt)
+                if eos_occurence.shape[0] >= 1:
+                    end_prompt_idx = eos_occurence[0]
+                prompt = prompt[:end_prompt_idx]
+                input_ids = torch.tensor([prompt], dtype=torch.int, device=self.device)
+                input_lengths = torch.tensor([input_ids.size(1)], dtype=torch.int, device=self.device)
+                #print("prompt:", self.tokenizer.decode(prompt))
+                #print("promp tokens:", prompt)
+                #print("Input lengths:", input_lengths)
+                #print("Generation Length:", batch['generation_length'])
+                
+                with torch.no_grad():
+                    self.decoder.setup(input_lengths.size(0),
+                                        torch.max(input_lengths).item(),
+                                        batch['generation_length'])
+
+                    output_dict = self.decoder.decode(input_ids, input_lengths, self.sampling_config, return_dict=True)
+                    output_logits_list = output_dict['generation_logits']
+                
+                for i in range(len(output_logits_list)):
+                    output_logits_list[i] = output_logits_list[i].squeeze()
+                
+                #print("Shape:", output_dict['output_ids'].shape)
+                decoded_str = self.tokenizer.decode(output_dict['output_ids'][0][0].tolist()[len(prompt):])
+                output_strs.append(decoded_str)
+                #print("Decoded OUTPUT:", decoded_str)
+                #print("-------------")
+                # print("Output ids:", output_dict['output_ids'][0][0].tolist())
+                """
+                context_logits = output_dict['context_logits'].squeeze()
+                output_logits_tensor = torch.stack(output_logits_list)
+                print("Context logits shape:", context_logits.shape)
+                print("Output logits shape:", output_logits_tensor.shape)
+                combined_logits = torch.cat([context_logits, output_logits_tensor])
+                                
+                padding = torch.nn.functional.one_hot(
+                    torch.full(
+                        (self.max_seq_len - combined_logits.shape[0],),
+                        self.PAD_ID,
+                        device=self.device
+                    ),
+                    num_classes=self.vocab_size)
+                padded_combined_logits = torch.cat([combined_logits, padding])
+
+                output_logits_batch.append(padded_combined_logits)
+                """
+            return output_strs
+
+        # Language modeling and multiple choice tasks
         for tokens, cont_idxs in zip(batch['input_ids'],
                                      batch['continuation_indices']):
 
             seqlen = tokens.shape[0]
             tokens = tokens.tolist()
+            # print("Continuation indices:", cont_idxs)
             cont_idxs = cont_idxs.tolist()
-            expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
+            if len(cont_idxs) > 1:
+                expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
+                prompt = tokens[:cont_idxs[0]]
+            else:
+                prompt = tokens
+                expected_cont_tokens = [tokens[-1]]
 
-            prompt = tokens[:cont_idxs[0]]
-            
             
             input_ids = torch.tensor([prompt], dtype=torch.int, device=self.device)
             input_lengths = torch.tensor([input_ids.size(1)],
@@ -243,27 +308,3 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
         return torch.stack(output_logits_batch).to(self.device) #(batch['input_ids'].device)
 
         #print("Decoded output:", self.tokenizer.decode(output_ids[0][0][cont_idxs[0]:].tolist()))
-        """
-            # Old logits logic, back before TRT-LLM natively returned logits
-            output_logits = torch.nn.functional.one_hot(
-                torch.tensor(tokens[1:cont_idxs[0]], device='cuda'),
-                num_classes=self.vocab_size)
-
-            for i in range(len(output_logits_list)):
-                output_logits_list[i] = output_logits_list[i].squeeze()
-
-            next_logit_tensor = torch.stack(output_logits_list)
-            output_logits = torch.cat([output_logits, next_logit_tensor])
-            #print(output_logits.shape)
-            #print(output_ids[0][0][cont_idxs[0]:].tolist())
-            padding = torch.nn.functional.one_hot(torch.full(
-                (seqlen - output_logits.shape[0],),
-                self.PAD_ID,
-                device=output_logits.device),
-                                                  num_classes=self.vocab_size)
-            output_logits = torch.cat([output_logits, padding])
-            #print("Output logits shape:", output_logits.shape)
-            output_logits_batch.append(output_logits)
-            
-        return torch.stack(output_logits_batch).to(batch['input_ids'].device)
-        """

@@ -209,10 +209,10 @@ def main(cfg: DictConfig) -> Trainer:
                                                  'dist_timeout',
                                                  must_exist=False,
                                                  default_value=600.0)
-    device: bool = pop_config(cfg,
-                              'device',
-                              must_exist=False,
-                              default_value=None)
+    device: Optional[str] = pop_config(cfg,
+                                       'device',
+                                        must_exist=False,
+                                        default_value=None)
     dist.initialize_dist(get_device(device), timeout=dist_timeout)
 
     # Get global and device batch size information from distributed/single node setting
@@ -663,5 +663,4 @@ if __name__ == '__main__':
     cfg = om.merge(yaml_cfg, cli_cfg)
     om.resolve(cfg)
     assert isinstance(cfg, DictConfig)
-    print (cfg)
     main(cfg)

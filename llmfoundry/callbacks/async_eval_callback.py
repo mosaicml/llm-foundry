@@ -258,7 +258,6 @@ class AsyncEval(Callback):
         """
         Determine which checkpoints from the checkpointer are ready to be evaled,
         based on which shards have been uploaded to the remote checkpoint folder.
-
         This has special logic for sharded checkpoints to consider checkpoints composed
         of multiple shards (one per gpu) and metadata
 
@@ -269,7 +268,6 @@ class AsyncEval(Callback):
         Returns:
             List of checkpoints that are complete and ready to be evaled
         """
-
         # Count the number of shards for each checkpoint group
         remote_file_group_counts = Counter()
         for f in remote_files:
@@ -303,9 +301,8 @@ class AsyncEval(Callback):
     ):
         """
         Determine which checkpoints from the checkpointer are ready to be evaled,
-        based on which checkpoints have been uploaded
-
-        This is much simpler than the sharded case, because there is only one file
+        based on which checkpoints have been uploaded. This is much simpler than 
+        the sharded case, because there is only one file
 
         Args:
             checkpointer_checkpoints: The checkpoints from the checkpointer state

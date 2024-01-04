@@ -247,7 +247,7 @@ class AsyncEval(Callback):
         )
 
         log.info('Initialized AsyncEval callback. Will generate runs at ' +
-                 f'interval {interval}, checking at {check_interval}')
+                 f'interval {interval}, checking at {self.check_interval}')
 
     def _get_checkpoints_and_launch_runs(self, state: State):
         """Get the latest checkpoint from the training run.

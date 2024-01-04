@@ -217,7 +217,7 @@ For training and inference performance results on Intel Gaudi2 accelerators, see
 
 In [our testing of Intel Gaudi2 accelerators](https://www.databricks.com/blog/llm-training-and-inference-intel-gaudi2-ai-accelerators), we used the following steps:
 
-1. Use a public docker image from Habana: https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#pull-and-launch-docker-image-habana-vault, with SynapseAI version >= 1.12.1
+1. Use a public docker image from Habana: https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#pull-and-launch-docker-image-habana-vault, with SynapseAI version >= 1.13
 2. Install Habana's DeepSpeed fork using instructions here: https://docs.habana.ai/en/latest/PyTorch/DeepSpeed/Getting_Started_with_DeepSpeed/Getting_Started_with_DeepSpeed.html?highlight=deepspeed
 3. Install this branch of LLM Foundry by cloning locally and running `pip install -e .[gpu]`
 2. Modify your training YAMLs to use Gaudi-specific hparams, see this [script](./scripts/ds_gaudi.sh) for an example of how to make the modifications in your command line, or see this fully specified [Gaudi2 training YAML](./scripts/train/yamls/pretrain/mpt-1b-gaudi2.yaml).

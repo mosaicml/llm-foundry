@@ -108,7 +108,7 @@ If you have success/failure using LLM Foundry on other systems, please let us kn
 | A10-24GB       | 1.13.1        | 11.7         | :construction: In Progress   |
 | A10-24GB       | 2.0.1         | 11.7, 11.8   | :construction: In Progress   |
 | MI250          | 2.0.1         | ROCm 5.4     | :construction: In Progress   |
-| Gaudi2         | 2.0.1         | SynapseAI >= 1.12.1 | :construction: In Progress   |
+| Gaudi2         | 2.1.0         | SynapseAI >= 1.13 | :construction: In Progress   |
 
 
 ## MosaicML Docker Images
@@ -206,7 +206,7 @@ Notes:
 
 In [our testing of Intel Gaudi2 accelerators](https://www.databricks.com/blog/llm-training-and-inference-intel-gaudi2-ai-accelerators), we used the following steps:
 
-1. Use a public docker image from Habana: https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#pull-and-launch-docker-image-habana-vault, with SynapseAI version >= 1.12.1
+1. Use a public docker image from Habana: https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#pull-and-launch-docker-image-habana-vault, with SynapseAI version >= 1.13
 2. Install Habana's DeepSpeed fork using instructions here: https://docs.habana.ai/en/latest/PyTorch/DeepSpeed/Getting_Started_with_DeepSpeed/Getting_Started_with_DeepSpeed.html?highlight=deepspeed
 3. Install this branch of LLM Foundry by cloning locally and running `pip install -e .[gpu]`
 2. Modify your training YAMLs to use Gaudi-specific hparams, see this [script](./scripts/ds_gaudi.sh) for an example of how to make the modifications in your command line, or see this fully specified [Gaudi2 training YAML](./scripts/train/yamls/pretrain/mpt-1b-gaudi2.yaml).

@@ -63,7 +63,7 @@ from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 # Otherwise, certain modules are missing.
 # isort: off
 from llmfoundry.models.utils.adapt_tokenizer import (
-    AutoTokenizerForMOD,  # type: ignore (see note),
+    AutoTokenizerForMOD,  # type: ignore (see note)
     adapt_tokenizer_for_denoising,  # type: ignore (see note)
 )
 from llmfoundry.models.utils.hf_prefixlm_converter import (

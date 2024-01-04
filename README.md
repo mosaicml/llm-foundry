@@ -24,6 +24,11 @@
 </p>
 <br />
 
+---
+## :warning: This is an experimental branch for Intel Gaudi devices. Not all features are supported, [see notes below](#intel-gaudi) :warning:
+
+
+
 # LLM Foundry
 
 This repository contains code for training, finetuning, evaluating, and deploying LLMs for inference with [Composer](https://github.com/mosaicml/composer) and the [MosaicML platform](https://forms.mosaicml.com/demo?utm_source=github.com&utm_medium=referral&utm_campaign=llm-foundry). Designed to be easy-to-use, efficient _and_ flexible, this codebase is designed to enable rapid experimentation with the latest techniques.
@@ -75,6 +80,9 @@ Tutorial videos from the community:
 Something missing? Contribute with a PR!
 
 # Latest News
+* [Blog: LLM Training and Inference with Intel Gaudi2 AI Accelerators](https://www.databricks.com/blog/llm-training-and-inference-intel-gaudi2-ai-accelerators)
+* [Blog: Training LLMs at Scale with AMD MI250 GPUs](https://www.databricks.com/blog/training-llms-scale-amd-mi250-gpus)
+* [Blog: Training LLMs with AMD MI250 GPUs and MosaicML](https://www.mosaicml.com/blog/amd-mi250)
 * [Blog: MPT-30B: Raising the bar for open-source foundation models](https://www.mosaicml.com/blog/mpt-30b)
 * [Blog: Introducing MPT-7B](https://www.mosaicml.com/blog/mpt-7b)
 * [Blog: Benchmarking LLMs on H100](https://www.mosaicml.com/blog/coreweave-nvidia-h100-part-1)
@@ -100,6 +108,8 @@ If you have success/failure using LLM Foundry on other systems, please let us kn
 | A10-24GB       | 1.13.1        | 11.7         | :construction: In Progress   |
 | A10-24GB       | 2.0.1         | 11.7, 11.8   | :construction: In Progress   |
 | MI250          | 2.0.1         | ROCm 5.4     | :construction: In Progress   |
+| Gaudi2         | 2.0.1         | SynapseAI >= 1.12.1 | :construction: In Progress   |
+
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.
@@ -191,6 +201,32 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 Notes:
 1. `attn_impl: triton` does not work.
 1. We don't yet have a docker img where everything works perfectly. You might need to up/downgrade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
+
+### Intel Gaudi
+
+In [our testing of Intel Gaudi2 accelerators](https://www.databricks.com/blog/llm-training-and-inference-intel-gaudi2-ai-accelerators), we used the following steps:
+
+1. Use a public docker image from Habana: https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#pull-and-launch-docker-image-habana-vault, with SynapseAI version >= 1.12.1
+2. Install Habana's DeepSpeed fork using instructions here: https://docs.habana.ai/en/latest/PyTorch/DeepSpeed/Getting_Started_with_DeepSpeed/Getting_Started_with_DeepSpeed.html?highlight=deepspeed
+3. Install this branch of LLM Foundry by cloning locally and running `pip install -e .[gpu]`
+2. Modify your training YAMLs to use Gaudi-specific hparams, see this [script](./scripts/ds_gaudi.sh) for an example of how to make the modifications in your command line, or see this fully specified [Gaudi2 training YAML](./scripts/train/yamls/pretrain/mpt-1b-gaudi2.yaml).
+  * Use `device: hpu`
+  * Use `model.init_device: hpu`
+  * Use `model.loss_fn: torch_crossentropy`
+  * Change `model.attn_impl:` to either `torch`, or `habana_fused_sdpa`
+  * Do NOT use `fsdp_config`, either comment out or set to `null`
+  * Use `deepspeed_config`, either ZeRO-2 or ZeRO-3, for training larger models
+
+
+Known issues / limitations as of (1/4/24):
+1. FSDP is not yet supported, use DeepSpeed for training larger models.
+2. Checkpoint conversion script from DeepSpeed format to HF format is not yet implemented, but should be similar to [this script](./scripts/inference/convert_composer_to_hf.py)
+3. ALiBi is not fully tested with `attn_impl: habana_fused_sdpa`, but should work with `attn_impl: torch`
+4. WandB logger may not work, due to an issue with `dist.broadcast_object_list` in Composer. Fix in progress.
+5. Initialization of larger models with DeepSpeed may OOM, and requires `deepspeed.zero.Init` context manager. Fix in progress.
+6. If you find new issues with Intel Gaudi2, please open a Github Issue and tag @abhi-mosaic
+
+
 
 # Quickstart
 

@@ -55,7 +55,7 @@ install_requires = [
     'datasets==2.15.0',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
-    'einops==0.5.0',
+    'einops>=0.7.0',
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
     'mosaicml-cli>=0.5.27,<1',

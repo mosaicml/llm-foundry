@@ -250,14 +250,13 @@ class AsyncEval(Callback):
         log.info('Initialized AsyncEval callback. Will generate runs at ' +
                  f'interval {interval}, checking at {self.check_interval}')
 
+    @staticmethod
     def _get_ready_sharded_checkpoints(
-        self,
         checkpointer_checkpoints: List[str],
         remote_files: List[str],
     ):
-        """
-        Determine which checkpoints from the checkpointer are ready to be evaled,
-        based on which shards have been uploaded to the remote checkpoint folder.
+        """Identify checkpoints are ready to be evaled based on remote files
+
         This has special logic for sharded checkpoints to consider checkpoints composed
         of multiple shards (one per gpu) and metadata
 
@@ -294,15 +293,14 @@ class AsyncEval(Callback):
 
         return checkpoints_to_eval
 
+    @staticmethod
     def _get_ready_single_checkpoints(
-        self,
         checkpointer_checkpoints: List[str],
         remote_checkpoints: List[str],
     ):
-        """
-        Determine which checkpoints from the checkpointer are ready to be evaled,
-        based on which checkpoints have been uploaded. This is much simpler than 
-        the sharded case, because there is only one file
+        """Identify checkpoints are ready to be evaled based on remote checkpoints
+        
+        This is much simpler than the sharded case, because there is only one file
 
         Args:
             checkpointer_checkpoints: The checkpoints from the checkpointer state

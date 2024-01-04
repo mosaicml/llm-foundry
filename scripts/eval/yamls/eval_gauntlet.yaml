@@ -2,6 +2,27 @@ eval_gauntlet:
   weighting: EQUAL
   subtract_random_baseline: true
   rescale_accuracy: true
+  averages:
+    core_average:
+    - world_knowledge
+    - commonsense_reasoning
+    - language_understanding
+    - symbolic_problem_solving
+    - reading_comprehension
+    - programming
+    lm_task_average:
+    - world_knowledge_lm_task_subscore
+    - commonsense_reasoning_lm_task_subscore
+    - language_understanding_lm_task_subscore
+    - symbolic_problem_solving_lm_task_subscore
+    - reading_comprehension_lm_task_subscore
+    lite_average:
+    - world_knowledge_lite
+    - commonsense_reasoning_lite
+    - language_understanding_lite
+    - symbolic_problem_solving_lite
+    - reading_comprehension_lite
+    - programming_lite
   categories:
   - name: world_knowledge
     benchmarks:
@@ -112,6 +133,32 @@ eval_gauntlet:
     - name: boolq
       num_fewshot: 10
       random_baseline: 0.5
+  # - name: programming
+  #   benchmarks:
+  #   - name: human_eval
+  #     num_fewshot: 0
+  #     random_baseline: 0.0
+  #   - name: human_eval_cpp
+  #     num_fewshot: 0
+  #     random_baseline: 0.0
+  #   - name: human_eval_js
+  #     num_fewshot: 0
+  #     random_baseline: 0.0
+  #   - name: human_eval_return_simple
+  #     num_fewshot: 0
+  #     random_baseline: 0.0
+  #   - name: human_eval_return_complex
+  #     num_fewshot: 0
+  #     random_baseline: 0.0
+  #   - name: human_eval_25
+  #     num_fewshot: 0
+  #     random_baseline: 0.0
+  #   - name: human_eval_50
+  #     num_fewshot: 0
+  #     random_baseline: 0.0
+  #   - name: human_eval_75
+  #     num_fewshot: 0
+  #     random_baseline: 0.0
   - name: world_knowledge_lm_task_subscore
     benchmarks:
     - name: jeopardy

@@ -5,11 +5,13 @@
 
 import logging
 import os
+import warnings
 from typing import Mapping, Union
 
 # required for loading a python model into composer
 import transformers
-from composer.metrics.nlp import (InContextLearningLMAccuracy,
+from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
+                                  InContextLearningLMAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
                                   InContextLearningMCExpectedCalibrationError,
                                   InContextLearningMultipleChoiceAccuracy,
@@ -18,13 +20,12 @@ from composer.metrics.nlp import (InContextLearningLMAccuracy,
 from composer.utils import dist
 from omegaconf import DictConfig
 from torch import nn
-from transformers import (AutoConfig, AutoModelForCausalLM,
+from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
-from llmfoundry.models.layers.llama_attention_monkeypatch import \
-    get_llama_attention_patch_fn
+from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 
 try:
@@ -64,16 +65,14 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                                               nn.Module],
                  tokenizer: PreTrainedTokenizerBase):
         # set up training and eval metrics
-        train_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-        ]
+        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
+            InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError()
         ]
@@ -90,14 +89,40 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     'which is not significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
                 )
 
+            if not om_model_config.get('use_train_metrics', True):
+                train_metrics = []
+
             # load the model config
             trust_remote_code = om_model_config.get('trust_remote_code', True)
             use_auth_token = om_model_config.get('use_auth_token', False)
+            use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
+                                                        False)
+            if use_flash_attention_2 and not is_flash_v2_installed():
+                raise ValueError(
+                    'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
+                    + 'Please install flash_attn==2.3.6`.')
+
+            requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
             config = AutoConfig.from_pretrained(
                 om_model_config.pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
+                attn_implementation=requested_attention_implementation,
+                use_cache=
+                False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
             )
+
+            # This is not ideal, however Hugging Face's _autoset_attn_implementation function
+            # forces you to load the model in fp16/bf16 if you want to use flash attention. Rather than loading
+            # the model and then casting it back to fp32, we are monkeypatching their check.
+            # https://github.com/huggingface/transformers/issues/28052
+            def _autoset_attn_implementation_monkeypatch(
+                    cls, config, *args, **kwargs):  # type: ignore
+                config._attn_implementation = requested_attention_implementation
+                return config
+
+            PreTrainedModel._autoset_attn_implementation = classmethod(
+                _autoset_attn_implementation_monkeypatch)
 
             # set config overrides
             for k, v in om_model_config.get('config_overrides', {}).items():
@@ -107,6 +132,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     )
 
                 attr = getattr(config, k)
+                # attempt to disallow typos in nested configs
                 if isinstance(attr, Mapping):
                     extra_keys = [
                         _k for _k in v.keys() if _k not in attr.keys()
@@ -117,6 +143,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                             f'Extra keys: {extra_keys}. ' +
                             f'Expected (a subset of) keys: {list(attr.keys())}.'
                         )
+                    getattr(config, k).update(v)
+                # necessary case to allow for rope_scaling to be overriden in llama config
+                elif attr is None and isinstance(v, Mapping):
+                    setattr(config, k, {})
                     getattr(config, k).update(v)
                 else:
                     setattr(config, k, v)
@@ -135,6 +165,24 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             if dist.get_local_rank() != 0 and init_device == 'mixed':
                 om_model_config.pretrained = False
 
+            # If the HuggingFace model is coming from a local folder, Hugging Face copies the modules into the
+            # transformers modules cache. On particular systems, this operation seems to cause contention between
+            # the different processes. To avoid this contention, we first create the model (on meta device) on local rank
+            # zero. This will set up the transformers model cache and avoid the future contention.
+            if dist.get_local_rank() == 0 and os.path.isdir(
+                    om_model_config.pretrained_model_name_or_path):
+                with init_empty_weights(include_buffers=False):
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore', UserWarning)
+                        AutoModelForCausalLM.from_pretrained(
+                            om_model_config.pretrained_model_name_or_path,
+                            trust_remote_code=trust_remote_code,
+                            use_auth_token=use_auth_token,
+                            config=config,
+                        )
+
+            dist.barrier()
+
             # initialize the model on the correct device
             if resolved_init_device == 'cpu':
                 if om_model_config.pretrained:
@@ -143,7 +191,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                         trust_remote_code=trust_remote_code,
                         use_auth_token=use_auth_token,
                         load_in_8bit=load_in_8bit,
-                        config=config)
+                        config=config,
+                    )
                 else:
                     model = AutoModelForCausalLM.from_config(
                         config,
@@ -164,7 +213,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     f'init_device="{init_device}" must be either "cpu" or "meta".'
                 )
 
-            signal_file_path = '.local_rank0_completed_autoresume'
+            signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed'
             if dist.get_local_rank() == 0:
                 with open(signal_file_path, 'wb') as f:
                     f.write(b'local_rank0_completed_download')
@@ -193,6 +242,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 )
                 from transformers.models.llama.modeling_llama import \
                     LlamaAttention
+
+                from llmfoundry.models.layers.llama_attention_monkeypatch import \
+                    get_llama_attention_patch_fn
                 LlamaAttention.forward = get_llama_attention_patch_fn(
                     attention_patch_type)
                 model.config.use_cache = False

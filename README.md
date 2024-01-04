@@ -26,7 +26,7 @@
 
 # LLM Foundry
 
-This repository contains code for training, finetuning, evaluating, and deploying LLMs for inference with [Composer](https://github.com/mosaicml/composer) and the [MosaicML platform](https://forms.mosaicml.com/demo?utm_source=github.com&utm_medium=referral&utm_campaign=llm-foundry). Designed to be easy-to-use, efficient _and_ flexible, this codebase is designed to enable rapid experimentation with the latest techniques.
+This repository contains code for training, finetuning, evaluating, and deploying LLMs for inference with [Composer](https://github.com/mosaicml/composer) and the [MosaicML platform](https://forms.mosaicml.com/demo?utm_source=github.com&utm_medium=referral&utm_campaign=llm-foundry). Designed to be easy-to-use, efficient _and_ flexible, this codebase enables rapid experimentation with the latest techniques.
 
 You'll find in this repo:
 * `llmfoundry/` - source code for models, datasets, callbacks, utilities, etc.
@@ -45,15 +45,17 @@ You'll find in this repo:
 Mosaic Pretrained Transformers (MPT) are GPT-style models with some special features -- Flash Attention for efficiency, ALiBi for context length extrapolation, and stability improvements to mitigate loss spikes. As part of MosaicML's Foundation series, we have open-sourced several MPT models:
 
 
-| Model              | Context Length | Download                                           | Demo                                                             | Commercial use? |
-|--------------------|----------------|----------------------------------------------------|------------------------------------------------------------------|-----------------|
-| MPT-30B            | 8192           | https://huggingface.co/mosaicml/mpt-30b            |                                                                  | Yes             |
-| MPT-30B-Instruct   | 8192           | https://huggingface.co/mosaicml/mpt-30b-instruct   |                                                                  | Yes             |
-| MPT-30B-Chat       | 8192           | https://huggingface.co/mosaicml/mpt-30b-chat       | [Demo](https://huggingface.co/spaces/mosaicml/mpt-30b-chat)      | No              |
-| MPT-7B             | 2048           | https://huggingface.co/mosaicml/mpt-7b             |                                                                  | Yes             |
-| MPT-7B-Instruct    | 2048           | https://huggingface.co/mosaicml/mpt-7b-instruct    |                                                                  | Yes             |
-| MPT-7B-Chat        | 2048           | https://huggingface.co/mosaicml/mpt-7b-chat        | [Demo](https://huggingface.co/spaces/mosaicml/mpt-7b-chat)       | No              |
-| MPT-7B-StoryWriter | 65536          | https://huggingface.co/mosaicml/mpt-7b-storywriter |                                                                  | Yes             |
+| Model              | Context Length | Download                                           | Commercial use? |
+| ------------------ | -------------- | -------------------------------------------------- | --------------- |
+| MPT-30B            | 8192           | https://huggingface.co/mosaicml/mpt-30b            | Yes             |
+| MPT-30B-Instruct   | 8192           | https://huggingface.co/mosaicml/mpt-30b-instruct   | Yes             |
+| MPT-30B-Chat       | 8192           | https://huggingface.co/mosaicml/mpt-30b-chat       | No              |
+| MPT-7b-8k          | 8192           | https://huggingface.co/mosaicml/mpt-7b-8k          | Yes             |
+| MPT-7b-8k-Chat | 8192           | https://huggingface.co/mosaicml/mpt-7b-8k-chat         | No              |
+| MPT-7B             | 2048           | https://huggingface.co/mosaicml/mpt-7b             | Yes             |
+| MPT-7B-Instruct    | 2048           | https://huggingface.co/mosaicml/mpt-7b-instruct    | Yes             |
+| MPT-7B-Chat        | 2048           | https://huggingface.co/mosaicml/mpt-7b-chat        | No              |
+| MPT-7B-StoryWriter | 65536          | https://huggingface.co/mosaicml/mpt-7b-storywriter | Yes             |
 
 To try out these models locally, [follow the instructions](https://github.com/mosaicml/llm-foundry/tree/main/scripts/inference#interactive-generation-with-modelgenerate) in `scripts/inference/README.md` to prompt HF models using our [hf_generate.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_generate.py) or [hf_chat.py](https://github.com/mosaicml/llm-foundry/blob/main/scripts/inference/hf_chat.py) scripts.
 
@@ -75,6 +77,8 @@ Tutorial videos from the community:
 Something missing? Contribute with a PR!
 
 # Latest News
+* [Blog: Announcing MPT-7B-8K: 8K Context Length for Document Understanding](https://www.mosaicml.com/blog/long-context-mpt-7b-8k)
+* [Blog: Training LLMs with AMD MI250 GPUs and MosaicML](https://www.mosaicml.com/blog/amd-mi250)
 * [Blog: MPT-30B: Raising the bar for open-source foundation models](https://www.mosaicml.com/blog/mpt-30b)
 * [Blog: Introducing MPT-7B](https://www.mosaicml.com/blog/mpt-7b)
 * [Blog: Benchmarking LLMs on H100](https://www.mosaicml.com/blog/coreweave-nvidia-h100-part-1)
@@ -85,19 +89,14 @@ Something missing? Contribute with a PR!
 
 
 # Hardware and Software Requirements
-This codebase has been tested with PyTorch 1.13.1 and PyTorch 2.0.1 on systems with NVIDIA A100s and H100s.
+This codebase has been tested with PyTorch 2.1 with NVIDIA A100s and H100s.
 This codebase may also work on systems with other devices, such as consumer NVIDIA cards and AMD cards, but we are not actively testing these systems.
 If you have success/failure using LLM Foundry on other systems, please let us know in a Github issue and we will update the support matrix!
 
-| Device                    | Torch Version    | Cuda Version | Status                        |
-|---------------------------|------------------|--------------|-------------------------------|
-| A100-40GB/80GB            | 1.13.1           | 11.7         | :white_check_mark: Supported  |
-| A100-40GB/80GB            | 2.0.1            | 11.7, 11.8   | :white_check_mark: Supported  |
-| H100-80GB                 | 1.13.1           | 11.7         | :x: Not Supported             |
-| H100-80GB                 | 2.0.1            | 11.8         | :white_check_mark: Supported  |
-| A10-24GB                  | 1.13.1           | 11.7         | :construction: In Progress    |
-| A10-24GB                  | 2.0.1            | 11.7, 11.8   | :construction: In Progress    |
-| MI250                     | 2.0.1            | ROCm 5.4     | :construction: In Progress    |
+| Device         | Torch Version | Cuda Version | Status                       |
+| -------------- | ------------- | ------------ | ---------------------------- |
+| A100-40GB/80GB | 2.1.0         | 12.1         | :white_check_mark: Supported |
+| H100-80GB      | 2.1.0         | 12.1         | :white_check_mark: Supported |
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.
@@ -109,19 +108,21 @@ You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117
 
 **Please Note:** The `mosaicml/llm-foundry` images do not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
 
-| Docker Image                                                | Torch Version  | Cuda Version | LLM Foundry dependencies installed? |
-|-------------------------------------------------------------|----------------|--------------|-------------------------------------|
-| `mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04`      | 1.13.1         | 11.7         | No                                  |
-| `mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04`       | 2.0.1          | 11.8         | No                                  |
-| `mosaicml/llm-foundry:1.13.1_cu117-latest`                  | 1.13.1         | 11.7         | Yes                                 |
-| `mosaicml/llm-foundry:2.0.1_cu118-latest`                   | 2.0.1          | 11.8         | Yes                                 |
+| Docker Image                                           | Torch Version | Cuda Version      | LLM Foundry dependencies installed? |
+| ------------------------------------------------------ | ------------- | ----------------- | ----------------------------------- |
+| `mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04`  | 2.1.0         | 12.1 (Infiniband) | No                                  |
+| `mosaicml/llm-foundry:2.1.0_cu121-latest`              | 2.1.0         | 12.1 (Infiniband) | Yes (flash attention v1)            |
+| `mosaicml/llm-foundry:2.1.0_cu121_flash2-latest`       | 2.1.0         | 12.1 (Infiniband) | Yes (flash attention v2)            |
+| `mosaicml/llm-foundry:2.1.0_cu121_aws-latest`          | 2.1.0         | 12.1 (EFA)        | Yes (flash attention v1)            |
+| `mosaicml/llm-foundry:2.1.0_cu121_flash2_aws-latest`   | 2.1.0         | 12.1 (EFA)        | Yes (flash attention v2)            |
 
 
 # Installation
 
-This assumes you already have PyTorch and CMake installed.
+This assumes you already have PyTorch, CMake, and packaging installed. If not, you can install them with `pip install cmake packaging torch`.
 
 To get started, clone the repo and set up your environment. Instructions to do so differ slightly depending on whether you're using Docker.
+
 ### With Docker (recommended)
 
 We *strongly* recommend working with LLM Foundry inside a Docker container (see our recommended Docker image above). If you are doing so, follow these steps to clone the repo and install the requirements.
@@ -176,14 +177,14 @@ source llmfoundry-venv-amd/bin/activate
 
 # installs
 pip install cmake packaging torch
-pip install -e .  # this installs some things which are not needed but they dont hurt
+pip install -e .  # This installs some things that are not needed but they don't hurt
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.4.2
 ```
 **Lastly**, install the ROCm enabled flash attention (instructions [here](https://github.com/ROCmSoftwarePlatform/flash-attention/tree/flash_attention_for_rocm2#amd-gpurocm-support)).
 
 Notes:
 1. `attn_impl: triton` does not work.
-1. We don't yet have a docker img where everything works perfectly. You might need to up/down grade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
+1. We don't yet have a Docker image where everything works perfectly. You might need to up/downgrade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
 
 # Quickstart
 
@@ -223,7 +224,7 @@ python inference/convert_composer_to_hf.py \
   # --hf_repo_for_upload user-org/repo-name
 
 # Evaluate the model on a subset of tasks
-python eval/eval.py \
+composer eval/eval.py \
   eval/yamls/hf_eval.yaml \
   icl_tasks=eval/yamls/copa.yaml \
   model_name_or_path=mpt-125m-hf
@@ -237,7 +238,7 @@ python inference/hf_generate.py \
     "Here's a quick recipe for baking chocolate chip cookies: Start by"
 ```
 
-Note: the `composer` command used above to train the model refers to [Composer](https://github.com/mosaicml/composer) library's distributed launcher.
+Note: the `composer` command used above to train the model refers to the [Composer](https://github.com/mosaicml/composer) library's distributed launcher.
 
 If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
 

@@ -1,39 +1,57 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import copy
+import gc
 import logging
 import os
 import sys
+import time
 import warnings
 from typing import Any, Dict, List, Optional, Union
 
 import torch
 from composer import Trainer
-from composer.core import Evaluator
 from composer.core.callback import Callback
+from composer.loggers import MosaicMLLogger
+from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
+                                              MOSAICML_PLATFORM_ENV_VAR)
+from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
+                               cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
-                        MPTForCausalLM, build_finetuning_dataloader,
-                        build_text_denoising_dataloader)
-from llmfoundry.data.text_data import build_text_dataloader
-from llmfoundry.utils.builders import (build_algorithm, build_callback,
-                                       build_icl_data_and_gauntlet,
-                                       build_logger, build_optimizer,
-                                       build_scheduler, build_tokenizer)
+                        MPTForCausalLM)
+from llmfoundry.callbacks import AsyncEval
+from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
+                                       build_algorithm, build_callback,
+                                       build_evaluators, build_logger,
+                                       build_optimizer, build_scheduler,
+                                       build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
+
+log = logging.getLogger(__name__)
 
 
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""
     loaders = [cfg.train_loader]
     if 'eval_loader' in cfg:
-        loaders.append(cfg.eval_loader)
+        eval_loader = cfg.eval_loader
+        if isinstance(eval_loader, ListConfig):
+            for loader in eval_loader:
+                if loader.label is None:
+                    raise ValueError(
+                        'When specifying multiple evaluation datasets, each one must include the \
+                            `label` attribute.')
+                loaders.append(loader)
+        else:
+            loaders.append(eval_loader)
     for loader in loaders:
         if loader.name == 'text':
             if cfg.model.name in ['hf_prefix_lm', 'hf_t5']:
@@ -123,17 +141,17 @@ def build_composer_peft_model(
             + f'Error encountered: {e}')
 
     # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
-    print('Building Lora config...')
+    log.info('Building Lora config...')
     lora_cfg = LoraConfig(**lora_args)
 
-    print('Building model from HuggingFace checkpoint...')
+    log.info('Building model from HuggingFace checkpoint...')
     model = MPTForCausalLM.from_pretrained(pretrained_model_name_or_path,
                                            trust_remote_code=True)
-    print('Model built!')
+    log.info('Model built!')
 
-    print('Adding Lora modules...')
+    log.info('Adding Lora modules...')
     model = get_peft_model(model, lora_cfg)
-    print('Lora modules added!')
+    log.info('Lora modules added!')
 
     model = ComposerHFCausalLM(model, tokenizer)
 
@@ -148,33 +166,9 @@ def print_trainable_parameters(model: torch.nn.Module) -> None:
         all_param += param.numel()
         if param.requires_grad:
             trainable_params += param.numel()
-    print(
+    log.info(
         f'trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}'
     )
-
-
-def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-                     device_batch_size: int):
-    if cfg.name == 'text':
-        return build_text_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-    elif cfg.name == 'text_denoising':
-        return build_text_denoising_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-    elif cfg.name == 'finetuning':
-        return build_finetuning_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
-        )
-    else:
-        raise ValueError(f'Not sure how to build dataloader with config: {cfg}')
 
 
 def main(cfg: DictConfig) -> Trainer:
@@ -200,6 +194,12 @@ def main(cfg: DictConfig) -> Trainer:
     if max_split_size_mb is not None:
         os.environ[
             'PYTORCH_CUDA_ALLOC_CONF'] = f'max_split_size_mb:{max_split_size_mb}'
+
+    # Set CUDA lazy loading
+    # This can save a bit of memory if not all modules are needed
+    cuda_load_lazy: bool = cfg.pop('cuda_load_lazy', False)
+    if cuda_load_lazy:
+        os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
 
     # Set seed first
     seed: int = pop_config(cfg, 'seed', must_exist=True)
@@ -245,10 +245,8 @@ def main(cfg: DictConfig) -> Trainer:
                                                        must_exist=False,
                                                        default_value=None,
                                                        convert=True)
-    eval_loader_config: Optional[DictConfig] = pop_config(cfg,
-                                                          'eval_loader',
-                                                          must_exist=False,
-                                                          default_value=None)
+    eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(
+        cfg, 'eval_loader', must_exist=False, default_value=None)
     icl_tasks_config: Optional[Union[ListConfig,
                                      str]] = pop_config(cfg,
                                                         'icl_tasks',
@@ -265,9 +263,9 @@ def main(cfg: DictConfig) -> Trainer:
                                           must_exist=False,
                                           default_value=None)
         if eval_gauntlet_config is not None:
-            print(
-                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`'
-            )
+            warnings.warn(
+                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`',
+                DeprecationWarning)
     icl_subset_num_batches: Optional[int] = pop_config(cfg,
                                                        'icl_subset_num_batches',
                                                        must_exist=False,
@@ -376,19 +374,36 @@ def main(cfg: DictConfig) -> Trainer:
                                          'load_weights_only',
                                          must_exist=False,
                                          default_value=False)
+    load_strict_model_weights: bool = pop_config(cfg,
+                                                 'load_strict_model_weights',
+                                                 must_exist=False,
+                                                 default_value=True)
     load_ignore_keys: Optional[List[str]] = pop_config(cfg,
                                                        'load_ignore_keys',
                                                        must_exist=False,
                                                        default_value=None)
+    compile_config: Optional[Dict[str, Any]] = pop_config(cfg,
+                                                          'compile_config',
+                                                          must_exist=False,
+                                                          default_value=None)
+    metadata: Optional[Dict[str, str]] = pop_config(cfg,
+                                                    'metadata',
+                                                    must_exist=False,
+                                                    default_value=None,
+                                                    convert=True)
+
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
     if logged_cfg.get('run_name', None) is not None \
         and save_folder is not None \
         and not save_overwrite \
         and not save_weights_only:
-        print('As run_name, save_folder, and save_latest_filename are set, \
-                changing autoresume default to True...')
         autoresume_default = True
+
+    if cfg.get('autoresume') is None and autoresume_default:
+        log.info('As run_name, save_folder, and save_latest_filename are set, \
+                changing autoresume default to True...')
+
     autoresume: bool = pop_config(cfg,
                                   'autoresume',
                                   must_exist=False,
@@ -442,13 +457,61 @@ def main(cfg: DictConfig) -> Trainer:
     loggers = [
         build_logger(str(name), logger_cfg)
         for name, logger_cfg in logger_configs.items()
-    ] if logger_configs else None
+    ] if logger_configs else []
+
+    mosaicml_logger = next(
+        (logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
+        None)
+    if mosaicml_logger is None:
+        if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
+        ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
+            # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
+            mosaicml_logger = MosaicMLLogger()
+            loggers.append(mosaicml_logger)
+
+    if metadata is not None:
+        # Flatten the metadata for logging
+        logged_cfg.pop('metadata', None)
+        logged_cfg.update(metadata, merge=True)
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_metrics(metadata)
+            mosaicml_logger._flush_metadata(force_flush=True)
+
+    # Profiling
+    profiler: Optional[Profiler] = None
+    profiler_cfg: Optional[DictConfig] = pop_config(cfg,
+                                                    'profiler',
+                                                    must_exist=False,
+                                                    convert=False,
+                                                    default_value=None)
+    if profiler_cfg:
+        profiler_schedule_cfg: Dict = pop_config(profiler_cfg,
+                                                 'schedule',
+                                                 must_exist=True,
+                                                 convert=True)
+        profiler_schedule = cyclic_schedule(**profiler_schedule_cfg)
+        # Only support json trace handler
+        profiler_trace_handlers: List[TraceHandler] = []
+        profiler_trace_cfg: Optional[Dict] = pop_config(profiler_cfg,
+                                                        'json_trace_handler',
+                                                        must_exist=False,
+                                                        default_value=None,
+                                                        convert=True)
+        if profiler_trace_cfg:
+            profiler_trace_handlers.append(
+                JSONTraceHandler(**profiler_trace_cfg))
+        profiler = Profiler(**profiler_cfg,
+                            trace_handlers=profiler_trace_handlers,
+                            schedule=profiler_schedule)
 
     # Callbacks
     callbacks: List[Callback] = [
-        build_callback(str(name), callback_cfg)
+        build_callback(str(name), callback_cfg, om.to_container(logged_cfg))
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
+
+    use_async_eval = any(
+        isinstance(callback, AsyncEval) for callback in callbacks)
 
     # Algorithms
     algorithms = [
@@ -457,39 +520,36 @@ def main(cfg: DictConfig) -> Trainer:
     ] if algorithm_configs else None
 
     # Dataloaders
-    print('Building train loader...')
+    log.info('Building train loader...')
     train_loader = build_dataloader(
         train_loader_config,
         tokenizer,
         device_train_batch_size,
     )
+
+    if mosaicml_logger is not None:
+        mosaicml_logger.log_metrics({'data_validated': time.time()})
+
     ## Evaluation
-    print('Building eval loader...')
-    evaluators = []
-    eval_loader = None
-    if eval_loader_config is not None:
-        eval_dataloader = build_dataloader(eval_loader_config, tokenizer,
-                                           device_eval_batch_size)
-        eval_loader = Evaluator(
-            label='eval',
-            dataloader=eval_dataloader,
-            metric_names=[],  # we will add these after model is created
-        )
+    log.info('Building eval loader...')
+    eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
+    # TODO: evaluators should not be built at all if use_async_eval is True
+    # This will be fixed when eval_loader support is fully added to AsyncEval
+    evaluators, _, eval_gauntlet_callback = build_evaluators(
+        eval_loader_config,
+        icl_tasks_config if not use_async_eval else None,
+        eval_gauntlet_config if not use_async_eval else None,
+        tokenizer=tokenizer,
+        device_eval_batch_size=device_eval_batch_size,
+        icl_seq_len=eval_icl_seq_len,
+        icl_subset_num_batches=icl_subset_num_batches,
+    )
 
-    eval_gauntlet_callback = None
-
-    if icl_tasks_config is not None:
-        icl_evaluators, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
-            icl_tasks_config, eval_gauntlet_config, tokenizer,
-            device_eval_batch_size, icl_seq_len if icl_seq_len else max_seq_len,
-            icl_subset_num_batches)
-        evaluators.extend(icl_evaluators)
-
-    if eval_gauntlet_callback is not None:
+    if eval_gauntlet_callback is not None and not use_async_eval:
         callbacks.append(eval_gauntlet_callback)
 
     # Build Model
-    print('Initializing model...')
+    log.info('Initializing model...')
     with init_context:
         if lora_config is not None:  # frozen model + trainable lora modules
             model: ComposerHFCausalLM = build_composer_peft_model(
@@ -514,14 +574,11 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Now add the eval metrics
     if eval_loader_config is not None:
-        assert eval_loader is not None
-        assert model.train_metrics is not None
-        eval_metric_names = list(model.train_metrics.keys())
-        eval_loader.metric_names = eval_metric_names
-        evaluators.insert(0, eval_loader)  # Put the base eval_loader first
+        train_metrics = model.get_metrics(is_train=True)
+        evaluators = add_metrics_to_eval_loaders(evaluators, train_metrics)
 
     # Build the Trainer
-    print('Building trainer...')
+    log.info('Building trainer...')
     trainer = Trainer(
         run_name=run_name,
         seed=seed,
@@ -551,24 +608,28 @@ def main(cfg: DictConfig) -> Trainer:
         save_weights_only=save_weights_only,
         load_path=load_path,
         load_weights_only=load_weights_only,
+        load_strict_model_weights=load_strict_model_weights,
         load_ignore_keys=load_ignore_keys,
         autoresume=autoresume,
         python_log_level=python_log_level,
         dist_timeout=dist_timeout,
+        profiler=profiler,
+        compile_config=compile_config,
     )
 
-    print('Logging config')
+    log.info('Logging config')
     log_config(logged_cfg)
     torch.cuda.empty_cache()
+    gc.collect()
 
     # Eval first if requested
     if eval_first and trainer.state.timestamp.batch.value == 0:
         trainer.eval()
 
-    print('Starting training...')
+    log.info('Starting training...')
     trainer.fit()
 
-    print('Done.')
+    log.info('Done.')
     return trainer
 
 

@@ -11,6 +11,8 @@ from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
 import numpy as np
 import torch
 import transformers
+from composer.core.data_spec import DataSpec
+from composer.core.types import Batch
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
@@ -44,12 +46,12 @@ class StreamingTextDataset(StreamingDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             `False``.
-        epoch_size (int, optional): Number of samples to draw per epoch balanced across all
+        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced across all
             streams. If ``None``, takes its value from the total number of underlying samples.
             Provide this field if you are weighting streams relatively to target a larger or
             smaller epoch size. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
+            iterating. If ``None``, its value is set to ``8 * batch_size``. Defaults to ``None``.
         cache_limit (Union[int, str], optional) - Maximum size in bytes of this StreamingDataset's
             shard cache. Before downloading a shard, the least recently used resident shard(s) may
             be evicted (deleted from the local cache) in order to stay under the limit. Set to None
@@ -57,15 +59,19 @@ class StreamingTextDataset(StreamingDataset):
             bytes (e.g., 100b, 64kb, 77mb, and so on). Defaults to None.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
-            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
-            initial run.
+            resumption. If ``None``, this is interpreted as 64 times the number of physical
+            nodes of the initial run if ``shuffle_algo`` is ``py1s`` or ``py2s``, and simply the
+            number of physical nodes of the initial run otherwise. Defaults to ``None``.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1e``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
+        shuffle_block_size (int, optional): Unit of shuffle. A canonical node's samples are split
+            into blocks of this size, and samples within each block are shuffled. If ``None``, its
+            value is calculated as ``max(4_000_000 // num_canonical_nodes), 1 << 18)``. Defaults to
+            ``None``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
         sampling_granularity (int): When picking samples for a stream's final partial repeat,
@@ -87,16 +93,16 @@ class StreamingTextDataset(StreamingDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 epoch_size: Optional[int] = None,
-                 predownload: int = 100_000,
+                 epoch_size: Optional[Union[int, str]] = None,
+                 predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
-                 partition_algo: str = 'orig',
+                 partition_algo: str = 'relaxed',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1b',
+                 shuffle_algo: str = 'py1e',
                  shuffle_seed: int = 9176,
-                 shuffle_block_size: int = 1 << 18,
+                 shuffle_block_size: Optional[int] = None,
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  batching_method: str = 'random',
@@ -237,7 +243,7 @@ def build_text_dataloader(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-) -> DataLoader:
+) -> DataSpec:
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
     if cfg.dataset.get('group_method', None) is not None:
         raise NotImplementedError(
@@ -281,7 +287,7 @@ def build_text_dataloader(
             eos_token_id=eos_token_id,
             bos_token_id=bos_token_id)
 
-    return DataLoader(
+    dl = DataLoader(
         dataset,
         collate_fn=collate_fn,
         batch_size=device_batch_size,
@@ -292,6 +298,59 @@ def build_text_dataloader(
         persistent_workers=cfg.get('persistent_workers', True),
         timeout=cfg.get('timeout', 0),
     )
+
+    # If we pretokenized, we may not have padding, in which case the
+    # tokenizer may not have a pad_token_id. In this case, we can
+    # just use the default token counting function. This is correct
+    # because we do not support training on pretokenized data with padding,
+    # and if tokenizing on the fly, we require that the tokenizer has a pad token.
+    token_counting_func = None
+    if tokenizer.pad_token_id is not None:
+        token_counting_func = get_tokens_per_batch_func()
+
+    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
+
+
+def get_tokens_per_batch_func(
+        decoder_only: bool = True) -> Callable[[Batch], int]:
+    """Returns a callable that counts the number of tokens in a batch.
+
+    Args:
+        pad_token_id (int): The id of the padding token.
+        decoder_only (bool, optional): Whether to expect the batch to just contain ``input_ids`` (decoder only)
+            or to also contain ``decoder_input_ids`` (encoder decoder). Defaults to ``True``.
+
+    Returns:
+        Callable[[Batch], int]: A callable that counts the number of tokens in a batch.
+    """
+
+    def get_num_samples_in_batch(batch: Batch) -> int:
+        if not isinstance(batch, Mapping) or ('attention_mask' not in batch and
+                                              'input_ids' not in batch):
+            raise ValueError(
+                'get_tokens_per_batch_func() requires a batch with an attention_mask key or an input_ids key'
+            )
+
+        if not decoder_only and 'decoder_attention_mask' not in batch:
+            raise ValueError(
+                'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_attention_mask key'
+            )
+
+        # Count number of non padding tokens in batch
+        if 'attention_mask' in batch:
+            input_ids_tokens = int(torch.sum(batch['attention_mask']).item())
+        else:
+            input_ids_tokens = batch['input_ids'].numel()
+
+        # For encoder decoder models only
+        decoder_input_ids_tokens = 0
+        if not decoder_only:
+            decoder_input_ids_tokens = int(
+                torch.sum(batch['decoder_attention_mask']).item())
+
+        return input_ids_tokens + decoder_input_ids_tokens
+
+    return get_num_samples_in_batch
 
 
 # Helpful to test if your dataloader is working locally
@@ -353,7 +412,8 @@ if __name__ == '__main__':
     tokenizer_kwargs = {'model_max_length': args.max_seq_len}
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
-    loader = build_text_dataloader(cfg, tokenizer, device_batch_size)
+    loader = build_text_dataloader(cfg, tokenizer, device_batch_size).dataloader
+    assert isinstance(loader, DataLoader)
     assert isinstance(loader.dataset, StreamingTextDataset)
     tokenizer = loader.dataset.tokenizer
 

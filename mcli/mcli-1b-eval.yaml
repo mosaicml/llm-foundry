@@ -1,8 +1,8 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  # git_branch: # Specify your git branch
-  git_commit: 186dd19888a8c8874584f9e78619f3fb0348309f # TODO: repin after next release
+  git_branch: v0.4.0
+  # git_commit: # OR use your commit hash
   pip_install: -e .[gpu]
   ssh_clone: false # Should be true if using a private repo
 
@@ -33,7 +33,7 @@ parameters:
         model_max_length: ${max_seq_len}
     model:
       name: mpt_causal_lm
-      init_device: meta
+      init_device: mixed
       d_model: 2048
       n_heads: 16 # Modified 24->16 so that d_head == 128 to satisfy FlashAttention
       n_layers: 24
@@ -55,5 +55,5 @@ parameters:
     forward_prefetch: True
     limit_all_gathers: True
 
-  icl_tasks: 'eval/yamls/tasks.yaml'
-  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+  icl_tasks: 'eval/yamls/tasks_v0.2.yaml'
+  eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'

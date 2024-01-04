@@ -22,6 +22,32 @@ class Weighting(Enum):
     LOG_SAMPLE_SZ = 3
 
 
+def calculate_named_averages(average_names: Dict[str, list],
+                             category_scores: Dict[str, float]):
+    """Calculates the named averages based off the raw category scores.
+
+    For each named average, take a simple average of all the category scores associated with that named average.
+
+    Args:
+        average_names (dict[str, list]):  Contains a mapping of named averages to which category scores that average should consist of.
+        category_scores (dict[str, float]): Contains the raw scores corresponding to each category.
+    """
+    average_scores = {}
+    for avg_name, category_list in average_names.items():
+        composite_subset = {
+            category: score
+            for category, score in category_scores.items()
+            if category in category_list
+        }
+        if len(composite_subset.values()) > 0:
+            average_scores[avg_name] = sum(composite_subset.values()) / len(
+                composite_subset.values())
+        else:
+            average_scores[avg_name] = 0
+
+    return average_scores
+
+
 class EvalGauntlet(Callback):
     """The EvalGauntlet aggregates ICL eval results.
 
@@ -31,9 +57,9 @@ class EvalGauntlet(Callback):
     Args:
         logger_keys (list): These are the exact keys that the individual benchmark metrics will be
                             logged under in the logger after eval
-        tasks (dict): This contains the list of categories, as well as the subtasks within them, the
+        categories (dict): This contains the list of categories, as well as the subtasks within them, the
                       random baseline accuracy of each subtask, and the number of fewshot examples
-                      used for the task. See `llmfoundry/scripts/eval/yamls/eval_gauntlet.yaml` to see the structure.
+                      used for the task. See `llmfoundry/scripts/eval/yamls/eval_gauntlet_v0.2.yaml` to see the structure.
         weighting (Weighting): The weighting scheme used to balance different tasks within each category.
                                Either assign them all equal weight, assign them weight proportional
                                to the dataset size, or assign them weight proportional to the log2 of the dataset size.
@@ -43,6 +69,7 @@ class EvalGauntlet(Callback):
         rescale_accuracy (bool): Flag determining whether to rescale the accuracy on each benchmark
                                  by (1-random_baseline_accuracy) before aggregating. Using this ensures that all benchmarks max out at 1.0.
         benchmark_sizes (Optional[dict]): Optional data on benchmark sizes, used when not relying on equal weighting.
+        averages (Optional[dict]): Optional dictionary specifying a mapping from a average names to lists of categories used produce each named average.
     """
 
     def __init__(self,
@@ -51,7 +78,8 @@ class EvalGauntlet(Callback):
                  weighting: str = 'EQUAL',
                  subtract_random_baseline: bool = True,
                  rescale_accuracy: bool = True,
-                 benchmark_sizes: Optional[dict] = None):
+                 benchmark_sizes: Optional[dict] = None,
+                 averages: Optional[dict] = None):
         if isinstance(logger_keys, dict):
             raise ValueError(
                 'logger_keys now requires a list type as input, not a dict')
@@ -66,13 +94,12 @@ class EvalGauntlet(Callback):
             )
 
         self.categories = categories
+        self.category_names = [conf.get('name') for conf in self.categories]
         self.weighting = Weighting[weighting]
         self.subtract_random_baseline = subtract_random_baseline
         self.rescale_accuracy = rescale_accuracy
         self.logger_keys = logger_keys
-
         for category in self.categories:
-
             for benchmark in category['benchmarks']:
                 bench_name = f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
 
@@ -95,7 +122,20 @@ class EvalGauntlet(Callback):
                 assert weight is not None
                 benchmark['weighting'] = weight
 
-    def compute_averages(self, state: State) -> Dict[str, float]:
+        self.averages = {}
+        if averages is not None:
+            self.averages = averages
+        else:
+            # if no averages spec provided, simply average everything
+            self.averages['default_average'] = self.category_names
+
+        for avg_name in self.averages:
+            if avg_name in self.category_names:
+                raise ValueError(
+                    f'Found average name `{avg_name}` used as category name. Average names and category names must be non-overlapping.'
+                )
+
+    def extract_metrics_from_state(self, state: State) -> Dict[str, float]:
         results = {}
 
         for key in self.logger_keys:
@@ -121,23 +161,22 @@ class EvalGauntlet(Callback):
         return {k: sum(v) / len(v) for k, v in results.items()}
 
     def eval_after_all(self, state: State, logger: Logger) -> Dict[str, float]:
-        new_metrics = self.compute_averages(state)
-        if len(new_metrics) == 0:
+        computed_metrics = self.extract_metrics_from_state(state)
+        if len(computed_metrics) == 0:
             return {}
-        composite_scores = {}
-
+        category_scores = {}
         for category in self.categories:
             missing_metrics = []
-            composite_scores[category['name']] = []
+            category_scores[category['name']] = []
             for benchmark in category['benchmarks']:
                 key = f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
 
-                if key not in new_metrics:
+                if key not in computed_metrics:
                     log.warning(
                         f'Could not find results for benchmark: {benchmark}.')
                     missing_metrics.append(key)
                 else:
-                    score = new_metrics[key]
+                    score = computed_metrics[key]
 
                     if self.subtract_random_baseline:
                         score -= benchmark['random_baseline']
@@ -145,7 +184,7 @@ class EvalGauntlet(Callback):
                     if self.rescale_accuracy and self.subtract_random_baseline:
                         score /= 1.0 - benchmark['random_baseline']
 
-                    composite_scores[category['name']].append({
+                    category_scores[category['name']].append({
                         'name': benchmark['name'],
                         'score': score,
                         'weighting': benchmark['weighting']
@@ -155,23 +194,22 @@ class EvalGauntlet(Callback):
                 log.warning(
                     f"Removing category `{category['name']}` from scores because benchmarks were missing: {missing_metrics}"
                 )
-                del composite_scores[category['name']]
+                del category_scores[category['name']]
                 continue
             total_weight = sum(
-                k['weighting'] for k in composite_scores[category['name']])
-            composite_scores[category['name']] = sum(
+                k['weighting'] for k in category_scores[category['name']])
+            category_scores[category['name']] = sum(
                 k['score'] * (k['weighting'] / total_weight)
-                for k in composite_scores[category['name']])
+                for k in category_scores[category['name']])
 
-        composite_scores = {
+        named_averages = calculate_named_averages(self.averages,
+                                                  category_scores)
+        category_scores.update(named_averages)
+        category_scores = {
             f'icl/metrics/eval_gauntlet/{k}': v
-            for k, v in composite_scores.items()
+            for k, v in category_scores.items()
         }
-
-        composite_scores['icl/metrics/eval_gauntlet/average'] = sum(
-            composite_scores.values()) / len(composite_scores.values()) if len(
-                composite_scores.values()) > 0 else 0
         if logger is not None:
-            logger.log_metrics(composite_scores)
+            logger.log_metrics(category_scores)
 
-        return composite_scores
+        return category_scores

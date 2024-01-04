@@ -1,8 +1,8 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: # use your branch
-  # git_commit: 29d65cc26853c09f6de7542978056ddb0b07e98c # OR use your commit hash
+  git_branch: v0.4.0
+  # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu,openai]"
   ssh_clone: false # Should be true if using a private repo
 
@@ -12,11 +12,11 @@ command: |
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: openai-eval
-# gpu_num: #
-# gpu_type: #
+gpu_num: #
+gpu_type: #
 cluster: # replace with your cluster here!
 
-image: mosaicml/llm-foundry:2.0.1_cu118-latest
+image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
@@ -25,41 +25,22 @@ parameters:
   device_eval_batch_size: 4
   models:
   -
-    model_name: openai/davinci
-    model:
-      name: openai_causal_lm
-      version: davinci
-    tokenizer:
-      name: openai
-      kwargs:
-        name: davinci
-  -
-    model_name: openai/ada
-    model:
-      name: openai_causal_lm
-      version: ada
-    tokenizer:
-      name: openai
-      kwargs:
-        name: ada
-  -
-    model_name: openai/gpt-4
-    model:
-      name: openai_chat
-      version: gpt-4
-    tokenizer:
-      name: openai
-      kwargs:
-        name: gpt-4
-  -
     model_name: openai/gpt-3.5-turbo
     model:
       name: openai_chat
       version: gpt-3.5-turbo
     tokenizer:
-      name: openai
+      name: tiktoken
       kwargs:
-        name: gpt-3.5-turbo
+        model_name: gpt-3.5-turbo
+  -
+    model_name: openai/davinci
+    model:
+      name: openai_causal_lm
+      version: davinci
+    tokenizer:
+      name: tiktoken
+      kwargs:
+        model_name: davinci
 
-  icl_tasks: 'eval/yamls/lm_tasks.yaml'
-  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+  icl_tasks: 'eval/yamls/lm_tasks_v0.2.yaml'

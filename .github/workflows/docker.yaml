@@ -3,6 +3,12 @@ on:
   push:
     branches:
     - main
+  pull_request:
+    branches:
+    - main
+    paths:
+    - ./Dockerfile
+    - .github/workflows/docker.yaml
   workflow_dispatch: {}
 jobs:
   docker-build:
@@ -11,11 +17,18 @@ jobs:
     strategy:
       matrix:
         include:
-        - name: '1.13.1_cu117'
-          base_image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
-        - name: '2.0.1_cu118'
-          base_image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
-
+        - name: '2.1.0_cu121'
+          base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
+          dep_groups: '[gpu]'
+        - name: '2.1.0_cu121_flash2'
+          base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
+          dep_groups: '[gpu-flash2]'
+        - name: '2.1.0_cu121_aws'
+          base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04-aws
+          dep_groups: '[gpu]'
+        - name: '2.1.0_cu121_flash2_aws'
+          base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04-aws
+          dep_groups: '[gpu-flash2]'
     steps:
     - name: Maximize Build Space on Worker
       uses: easimon/maximize-build-space@v4
@@ -50,13 +63,30 @@ jobs:
         GIT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
         echo "IMAGE_TAG=${GIT_SHA}" >> ${GITHUB_ENV}
 
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "Triggered by pull_request event."
+          STAGING_REPO="mosaicml/ci-staging"
+          IMAGE_TAG="${STAGING_REPO}:${{matrix.name}}-${GIT_SHA}"
+          IMAGE_CACHE="${STAGING_REPO}:${{matrix.name}}-buildcache"
+        else
+          # Triggered by push or workflow_dispatch event
+          echo "Triggered by ${{ github.event_name }} event, releasing to prod"
+          PROD_REPO="mosaicml/llm-foundry"
+          IMAGE_TAG="${PROD_REPO}:${{matrix.name}}-${GIT_SHA},${PROD_REPO}:${{matrix.name}}-latest"
+          IMAGE_CACHE="${PROD_REPO}:${{matrix.name}}-buildcache"
+        fi
+
+        echo "IMAGE_TAG=${IMAGE_TAG}" >> ${GITHUB_ENV}
+        echo "IMAGE_CACHE=${IMAGE_CACHE}" >> ${GITHUB_ENV}
+
     - name: Build and Push the Docker Image
       uses: docker/build-push-action@v3
       with:
         context: .
-        tags: mosaicml/llm-foundry:${{ matrix.name }}-latest,
-          mosaicml/llm-foundry:${{ matrix.name }}-${{ env.IMAGE_TAG }}
+        tags: ${{ env.IMAGE_TAG }}
         push: true
-        cache-from: type=registry,ref=mosaicml/llm-foundry:${{ matrix.name }}-buildcache
-        cache-to: type=registry,ref=mosaicml/llm-foundry:${{ matrix.name }}-buildcache,mode=max
-        build-args: BASE_IMAGE=${{ matrix.base_image }}
+        cache-from: type=registry,ref=${{ env.IMAGE_CACHE }}
+        cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max
+        build-args: |
+          BASE_IMAGE=${{ matrix.base_image }}
+          DEP_GROUPS=${{ matrix.dep_groups }}

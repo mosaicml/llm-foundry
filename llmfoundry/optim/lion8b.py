@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import torch
 
@@ -53,20 +53,23 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             by retaining information across optimizer steps.
 
     Raises:
-        NotImplemenetedError - If any of `quantize`, `compress_state_dict`,
+        NotImplementedError - If any of `quantize`, `compress_state_dict`,
             or `error_correction` are `True` and either a) there is no CUDA
             device, or b) step() is executed on a non-CUDA parameter.
     """
 
-    def __init__(self,
-                 params: Iterable[torch.Tensor],
-                 lr: float = 1e-3,
-                 betas: Tuple[float, float] = (0.9, 0.99),
-                 weight_decay: float = 0,
-                 quantize: bool = True,
-                 compress_state_dict: bool = False,
-                 error_correction: bool = False,
-                 _fused: bool = True):  # XXX this flag is mostly for testing...
+    def __init__(
+            self,
+            params: Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]],
+            lr: float = 1e-3,
+            betas: Tuple[float, float] = (0.9, 0.99),
+            weight_decay: float = 0,
+            quantize: bool = True,
+            compress_state_dict: bool = False,
+            error_correction: bool = False,
+            _fused: bool = True,  # XXX this flag is mostly for testing...
+    ):
+
         if lr < 0.0:
             raise ValueError('Invalid learning rate: {}'.format(lr))
         if not 0.0 <= betas[0] <= 1.0:
@@ -131,11 +134,19 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                 mom, try_quantize=self._quantize)
         need_errs = (p.dtype != torch.float32) and self._error_correction
         if state.get('errors') is None and need_errs:
-            state['errors'] = torch.zeros(p.shape,
-                                          dtype=torch.uint8,
-                                          device=p.device)
+            numel = p.numel()
+            numel += numel % 2  # ensure even number of bytes
+            errors = torch.zeros(numel, dtype=torch.uint8, device=p.device)
+            # as of torch 2.1, FSDP can't shard ints for no reason
+            state['errors'] = errors.view(torch.bfloat16)
         decay_factor = hparams['weight_decay']
         decay_factor *= hparams['lr'] / hparams['initial_lr']
+        errors: Optional[torch.Tensor] = None
+        if 'errors' in state:
+            errors = state['errors']
+            assert errors is not None  # pyright
+            errors = errors.view(dtype=torch.uint8)
+            errors = errors[:p.numel()].view(p.shape)  # strip padding + reshape
         _lion8b_step(momentums=state['exp_avg'],
                      weights=p,
                      grads=p.grad,
@@ -144,7 +155,7 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                      lr=hparams['lr'],
                      weight_decay=decay_factor,
                      fused=hparams['fused'],
-                     errors=state.get('errors'))
+                     errors=errors)
 
     def __setstate__(self, state: Dict[str, Dict[str, Any]]) -> None:
         # we override this function to quantize optimizer states when
@@ -166,7 +177,8 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                 # we need to cast back to the correct dtype since optimizer
                 # load_state_dict casts to param dtype for fp params; see
                 # https://github.com/pytorch/pytorch/blob/a25eee1d77d93079614fab3ea4ac66e64fb2343b/torch/optim/optimizer.py#L626C7-L626C7 # noqa
-                errs = param_state['errors'].to(dtype=torch.uint8)
+                errs = param_state['errors'].to(dtype=torch.uint8).view(
+                    torch.bfloat16)
                 new_state['errors'] = errs
             opt_state[param_id] = new_state
         super().__setstate__(state)
@@ -192,6 +204,11 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
                     qtensor.state_dict(
                         name='exp_avg',
                         allow_quantized=self._compress_state_dict))
+            if 'errors' in param_state:
+                # fsdp apparently needs the states to be the same shape
+                # as the params
+                param_state['errors'] = param_state['errors'].view(
+                    torch.uint8).to(dtype=torch.bfloat16)
             opt_state[param_id] = param_state
         return d
 
@@ -218,9 +235,9 @@ class _MaybeQuantizedTensor:
         self._f_encode = None
         self._f_decode = None
         if self._try_quantize:
-            from turbo import dequantize8b, quantize8b
-            self._f_encode = quantize8b
-            self._f_decode = dequantize8b
+            from turbo import dequantize_signed, quantize_signed
+            self._f_encode = quantize_signed
+            self._f_decode = dequantize_signed
 
         if data is not None:
             self.set_data(data)
@@ -260,7 +277,7 @@ class _MaybeQuantizedTensor:
                     f'on device {data.device} with shape {data.shape}.')
             self.data = None
             assert self._f_encode is not None  # pyright
-            self.quantized, self.scales = self._f_encode(data)
+            self.quantized, self.scales, _ = self._f_encode(data)
         else:
             self.data = data.to(dtype=torch.float32)
             self.quantized = None

@@ -1,10 +1,44 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
-from typing import Any, Dict, List, Optional, Tuple, Union
+from functools import lru_cache
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from transformers import PreTrainedTokenizer
+
+DEFAULT_SYSTEM_PROMPT = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
+
+
+# Taken from
+# https://github.com/huggingface/transformers/blob/8aca43bdb3cb9a5020f6d57589d85679dc873b1c/src/transformers/models/gpt2/tokenization_gpt2.py#L62-L84
+@lru_cache()
+def bytes_to_unicode():
+    """Returns list of utf-8 byte and a mapping to unicode strings.
+
+    We specifically avoids mapping to whitespace/control characters the bpe code
+    barfs on.
+
+    The reversible bpe codes work on unicode strings. This means you need a
+    large # of unicode characters in your vocab if you want to avoid UNKs. When
+    you're at something like a 10B token dataset you end up needing around 5K
+    for decent coverage. This is a significant percentage of your normal, say,
+    32K bpe vocab. To avoid that, we want lookup tables between utf-8 bytes and
+    unicode strings.
+    """
+    bs = (list(range(ord('!'),
+                     ord('~') + 1)) + list(range(ord('¡'),
+                                                 ord('¬') + 1)) +
+          list(range(ord('®'),
+                     ord('ÿ') + 1)))
+    cs = bs[:]
+    n = 0
+    for b in range(2**8):
+        if b not in bs:
+            bs.append(b)
+            cs.append(2**8 + n)
+            n += 1
+    cs = [chr(n) for n in cs]
+    return dict(zip(bs, cs))
 
 
 class TiktokenTokenizerWrapper(PreTrainedTokenizer):
@@ -21,11 +55,14 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                  model_name: Optional[str] = None,
                  encoding_name: Optional[str] = None,
                  add_bos_token: bool = False,
+                 add_eos_token: bool = False,
+                 use_default_system_prompt: bool = False,
                  unk_token: Optional[str] = '<|endoftext|>',
                  eos_token: Optional[str] = '<|endoftext|>',
                  bos_token: Optional[str] = '<|endoftext|>',
                  pad_token: Optional[str] = None,
-                 **kwargs: Dict[str, Any]):
+                 errors: str = 'replace',
+                 **kwargs: Any):
         """Constructor creates a tiktoken tokenizer to use as the underlying.
 
         tokenizer.
@@ -36,16 +73,38 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             encoding_name (Optional[str], optional): The name of the encoding to load from tiktoken. Defaults to None.
                 Either model_name or encoding_name must be set, but not both.
             add_bos_token (bool, optional): Whether to add bos tokens. Defaults to False.
+            add_eos_token (bool, optional): Whether to add eos tokens. Defaults to False.
+            use_default_system_prompt (bool, optional): Use the default system prompt or not. Defaults to False.
             unk_token (Optional[str], optional): The unk token. Defaults to '<|endoftext|>'.
             eos_token (Optional[str], optional): The eos token. Defaults to '<|endoftext|>'.
             bos_token (Optional[str], optional): The bos token. Defaults to '<|endoftext|>'.
             pad_token (Optional[str], optional): The pad token. Defaults to None.
+            errors (str, optional): Paradigm to follow when decoding bytes to UTF-8. See
+                [bytes.decode](https://docs.python.org/3/library/stdtypes.html#bytes.decode) for more information.
+                Defaults to `"replace"`.
         """
         try:
             import tiktoken
         except:
             raise ImportError(
                 'You need to install tiktoken to use TiktokenTokenizerWrapper.')
+
+        # Workaround to make tiktokenizer picklable.
+        # https://github.com/huggingface/datasets/issues/5536#issuecomment-1682309347
+        # There is an open PR from HF to add this to tiktoken: https://github.com/openai/tiktoken/pull/181
+        import copyreg
+        import functools
+
+        from tiktoken import Encoding  # type: ignore (thirdParty)
+
+        def pickle_Encoding(enc: Encoding):
+            return (functools.partial(Encoding,
+                                      enc.name,
+                                      pat_str=enc._pat_str,
+                                      mergeable_ranks=enc._mergeable_ranks,
+                                      special_tokens=enc._special_tokens), ())
+
+        copyreg.pickle(Encoding, pickle_Encoding)
 
         if model_name is not None and encoding_name is not None:
             raise ValueError(
@@ -66,14 +125,42 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 'You need to specify either model_name or encoding_name.')
 
         self.add_bos_token = add_bos_token
+        self.add_eos_token = add_eos_token
+        self.use_default_system_prompt = use_default_system_prompt
+
+        self.byte_encoder = bytes_to_unicode()
+        self.byte_decoder = {v: k for k, v in self.byte_encoder.items()}
+        self.errors = errors
+
+        self.decoder: Dict[int, str] = {}
+        for i in range(self.encoding.n_vocab):
+            try:
+                self.encoding.decode_single_token_bytes(i)
+            except KeyError:
+                continue
+            # Taken from
+            # https://gist.github.com/xenova/a452a6474428de0182b17605a98631ee
+            decoding = ''.join([
+                bytes_to_unicode()[ord(char)] for char in
+                self.encoding.decode_single_token_bytes(i).decode('latin-1')
+            ])
+            self.decoder[i] = decoding
+
+        self.encoder: Dict[str, int] = {}
+        for i in range(self.encoding.n_vocab):
+            if i in self.decoder:
+                self.encoder[self.decoder[i]] = i
 
         super().__init__(model_name=model_name,
                          encoding_name=encoding_name,
                          add_bos_token=add_bos_token,
+                         add_eos_token=add_eos_token,
+                         use_default_system_prompt=use_default_system_prompt,
                          unk_token=unk_token,
                          eos_token=eos_token,
                          bos_token=bos_token,
                          pad_token=pad_token,
+                         errors=errors,
                          **kwargs)
 
     @property
@@ -85,111 +172,109 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     def is_fast(self) -> bool:
         return False
 
+    @property
+    def default_chat_template(self):
+        """Chat ML Template for User/Assistant.
+
+        Pinning default Chat ML template in case defaults change.
+        """
+        template = (
+            "{% if messages[0]['role'] == 'system' %}"
+            '{% set loop_messages = messages[1:] %}'
+            "{% set system_message = messages[0]['content'] %}"
+            "{% elif USE_DEFAULT_PROMPT == true and not 'system' in messages[0]['role'] %}"
+            '{% set loop_messages = messages %}'
+            "{% set system_message = 'DEFAULT_SYSTEM_PROMPT' %}"
+            '{% else %}'
+            '{% set loop_messages = messages %}'
+            '{% set system_message = false %}'
+            '{% endif %}'
+            '{% for message in loop_messages %}'
+            '{% if loop.index0 == 0 %}'
+            '{% if system_message != false %}'
+            "{{ '<|im_start|>system\n' + system_message.strip() + '\n'}}"
+            '{% endif %}'
+            "{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' }}"
+            '{% else %}'
+            "{{ '\n' + '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' }}"
+            '{% endif %}'
+            '{% if (add_generation_prompt == true) %}'
+            "{{ '\n' + '<|im_start|>' + 'assistant' + '\n' }}"
+            "{% elif (message['role'] == 'assistant') %}"
+            '{{ eos_token }}'
+            '{% endif %}'
+            '{% endfor %}')
+        template = template.replace(
+            'USE_DEFAULT_PROMPT',
+            'true' if self.use_default_system_prompt else 'false')
+        template = template.replace('DEFAULT_SYSTEM_PROMPT',
+                                    DEFAULT_SYSTEM_PROMPT)
+        return template
+
     def get_vocab(self) -> Dict[str, int]:
         """Returns vocab as a dict."""
-        vocab = {}
-        for i in range(self.vocab_size):
-            try:
-                # need to try this first, so that we get a proper KeyError,
-                # otherwise it crashes in the rust code
-                _ = self.encoding.decode_single_token_bytes(i)
-                vocab[self.encoding.decode([i])] = i
-            except KeyError:
-                pass
+        # As far as I can tell, we don't require get_vocab to completely work,
+        # but when using additional_special_tokens, Hugging Face determines the next
+        # token index to add with len(self.get_vocab()) so we need the _size_ of this dictionary to be correct.
+        vocab_clone = self.encoder.copy()
+        extra_id_index = 0
+        candidate_extra_id = f'<extra_id_{extra_id_index}>'
+        indices_to_fill_in = {i for i in range(self.vocab_size)} - set(
+            vocab_clone.values())
 
-        return vocab
+        # Add enough indices to make get_vocab() the right length
+        for index_to_add in indices_to_fill_in:
+            # Make sure we don't overwrite a token that already exists
+            while candidate_extra_id in vocab_clone:
+                extra_id_index += 1
+                candidate_extra_id = f'<extra_id_{extra_id_index}>'
 
-    def _tokenize(self, text: str) -> List[int]:
-        """Returns a tokenized string.
+            # Get an index to add and add the item
+            vocab_clone[candidate_extra_id] = index_to_add
 
-        Note: We have slightly redefined the expected contract between this method and
-        the _convert_token_to_id method. Normally, this method turns a string, into a list of strings,
-        and then the _convert_token_to_id method turns that list of strings into a list of integers.
-        However, not all vocab indices can be decoded into a string, so instead we just return the integers
-        from this function, and have adjusted the _convert_token_to_id method to handle integers as well as strings.
-        The only use of _tokenize that I could find was in this way, so this _should_ be safe.
-        """
+        return vocab_clone
+
+    def _tokenize(self, text: str) -> List[str]:
+        """Returns a tokenized string."""
         if not isinstance(text, str):
             raise ValueError(
                 f'Expected a string input to _tokenize but got {type(text)}.')
 
-        tokens = [t for t in self.encoding.encode(text, allowed_special='all')]
+        tokens = [
+            self.decoder[t]
+            for t in self.encoding.encode(text, allowed_special='all')
+        ]
 
         return tokens
 
-    def _convert_token_to_id(self, token: Union[int, str]) -> int:
-        """Converts a token (str) into an id using the vocab."""
-        if isinstance(token, int):
-            return token
+    def _convert_token_to_id(self, token: str) -> Optional[int]:
+        """Converts a token (str) in an id using the vocab."""
+        return self.encoder.get(token, self.encoder.get(self.unk_token))
 
-        return self.encoding.encode(token, allowed_special='all')[0]
-
-    def _convert_id_to_token(self, index: int) -> str:
-        """Converts an index (integer) into a token (str) using the vocab."""
-        return self.encoding.decode([index])
+    def _convert_id_to_token(self, index: int) -> Optional[str]:
+        """Converts an index (integer) in a token (str) using the vocab."""
+        return self.decoder.get(index)
 
     def convert_tokens_to_string(self, tokens: List[str]) -> str:
         """Converts a sequence of tokens (string) in a single string."""
-        return ''.join(tokens)
-
-    def convert_ids_to_tokens(
-            self,
-            ids: Union[int, List[int]],
-            skip_special_tokens: bool = False) -> Union[str, List[str]]:
-        """Converts a single index or a sequence of indices into a token or a.
-
-        sequence of tokens, using the vocabulary and added tokens.
-
-        Args:
-            ids (`int` or `List[int]`):
-                The token id (or token ids) to convert to tokens.
-            skip_special_tokens (`bool`, *optional*, defaults to `False`):
-                Whether or not to remove special tokens in the decoding.
-
-        Returns:
-            `str` or `List[str]`: The decoded token(s).
-        """
-        if isinstance(ids, int):
-            if ids in self.added_tokens_decoder:
-                return self.added_tokens_decoder[ids]
-
-            return self._convert_id_to_token(ids)
-
-        # current_stream will collect multiple tokens, and then separately add items
-        # for each added token. This is done so that decode works properly with token ids
-        # that cannot be represented naively in utf-8.
-        tokens = []
-        current_stream = []
-        for index in ids:
-            if skip_special_tokens and index in self.all_special_ids:
-                continue
-
-            if index in self.added_tokens_decoder:
-                tokens.append(self.encoding.decode(current_stream))
-                current_stream = []
-                tokens.append(self.added_tokens_decoder[index])
-            else:
-                current_stream.append(index)
-
-        if len(current_stream) > 0:
-            tokens.append(self.encoding.decode(current_stream))
-        return tokens
+        text = ''.join(tokens)
+        text = bytearray([self.byte_decoder[c] for c in text
+                         ]).decode('utf-8', errors=self.errors)
+        return text
 
     def build_inputs_with_special_tokens(
             self,
             token_ids_0: List[int],
             token_ids_1: Optional[List[int]] = None) -> List[int]:
-        if self.add_bos_token:
-            bos_token_ids = [self.bos_token_id]
-        else:
-            bos_token_ids = []
+        bos_token_id = [self.bos_token_id] if self.add_bos_token else []
+        eos_token_id = [self.eos_token_id] if self.add_eos_token else []
 
-        output = bos_token_ids + token_ids_0
+        output = bos_token_id + token_ids_0 + eos_token_id
 
-        if token_ids_1 is None:
-            return output
+        if token_ids_1 is not None:
+            output = output + bos_token_id + token_ids_1 + eos_token_id
 
-        return output + bos_token_ids + token_ids_1
+        return output
 
     def get_special_tokens_mask(
             self,
@@ -221,15 +306,13 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 token_ids_1=token_ids_1,
                 already_has_special_tokens=True)
 
-        if not self.add_bos_token:
-            return super().get_special_tokens_mask(
-                token_ids_0=token_ids_0,
-                token_ids_1=token_ids_1,
-                already_has_special_tokens=False)
+        bos_token_id = [1] if self.add_bos_token else []
+        eos_token_id = [1] if self.add_eos_token else []
 
         if token_ids_1 is None:
-            return [1] + ([0] * len(token_ids_0))
-        return [1] + ([0] * len(token_ids_0)) + [1] + ([0] * len(token_ids_1))
+            return bos_token_id + ([0] * len(token_ids_0)) + eos_token_id
+        return (bos_token_id + ([0] * len(token_ids_0)) + eos_token_id +
+                bos_token_id + ([0] * len(token_ids_1)) + eos_token_id)
 
     def create_token_type_ids_from_sequences(
             self,

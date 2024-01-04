@@ -122,6 +122,7 @@ def _write_zero_bias(weight_name: str, weight_file_path: str,
         weight_name (str): Name of the weight tensor.
         weight_file_path (str): Output path for storing the weight (NOT zero bias).
         bias_shape (Union[Tuple[int, ...], int]): Shape of the bias array.
+        np_data_type (np.dtype): The data type for bias.
     """
     if 'weight' not in weight_file_path:
         raise RuntimeError(

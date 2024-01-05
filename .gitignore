@@ -155,3 +155,4 @@ notebooks/
 **/*.pt
 **/mlruns/*
 **/tokenizer-save-dir-*/**
+**/.downloaded_finetuning/

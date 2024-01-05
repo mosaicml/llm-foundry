@@ -7,7 +7,7 @@ import pytest
 import torch
 
 from llmfoundry.models.layers import attention
-from llmfoundry.models.layers.attention import (flash_attn_fn, gen_slopes,
+from llmfoundry.models.layers.attention import (flash_attn_fn, gen_slopes, attn_bias_shape
                                                 is_flash_v2_installed,
                                                 triton_flash_attn_fn)
 

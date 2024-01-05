@@ -6,8 +6,9 @@ import math
 import pytest
 import torch
 
-from llmfoundry.models.layers import attention
-from llmfoundry.models.layers.attention import (flash_attn_fn, gen_slopes, attn_bias_shape
+from llmfoundry.models.layers.attention import (attn_bias_shape,
+                                                build_attn_bias, flash_attn_fn,
+                                                gen_slopes,
                                                 is_flash_v2_installed,
                                                 triton_flash_attn_fn)
 
@@ -311,16 +312,16 @@ def test_alibi_bias(n_heads: int):
 
     def gen_bias():
         causal = True
-        bs = attention.attn_bias_shape('triton',
-                                       n_heads,
-                                       seqlen_1,
-                                       True,
-                                       prefix_lm=False,
-                                       use_sequence_id=False,
-                                       causal=causal)
+        bs = attn_bias_shape('triton',
+                             n_heads,
+                             seqlen_1,
+                             True,
+                             prefix_lm=False,
+                             use_sequence_id=False,
+                             causal=causal)
 
         attn_bias = torch.zeros(*bs, device=device)
-        attn_bias = attention.build_attn_bias(
+        attn_bias = build_attn_bias(
             'triton',
             attn_bias,
             n_heads,

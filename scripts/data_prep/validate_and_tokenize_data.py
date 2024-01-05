@@ -83,6 +83,11 @@ import torch
 
 # COMMAND ----------
 
+# MAGIC %md 
+# MAGIC ## User Defines the Cell Below
+
+# COMMAND ----------
+
 FT_API_args = Namespace(
     model = 'EleutherAI/gpt-neox-20b',
     train_data_path = 'tatsu-lab/alpaca', # 'mosaicml/dolly_hhrlhf/train', # tatsu-lab/alpaca/train',
@@ -103,79 +108,15 @@ FT_API_args = Namespace(
     future = False,
 )
 
+os.environ['HF_ASSETS_CACHE'] = '/tmp/'
+os.environ['HF_HOME'] = '/tmp/'
+os.environ['HF_HUB_CACHE'] = '/tmp/'
+os.environ['HF_DATASETS_CACHE'] = '/tmp/'
+
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Utility Functions
-
-# COMMAND ----------
-
-def check_HF_datasets(dataset_names_with_splits):
-    from huggingface_hub import dataset_info
-    from datasets import get_dataset_split_names
-    import os
-    token = os.environ.get("HUGGING_FACE_HUB_TOKEN")
-    for dataset_name_with_split in dataset_names_with_splits:
-        dataset_name, split = os.path.split(dataset_name_with_split)
-        # make sure we have a dataset and split
-        if not dataset_name or not split:
-            return False, f"Failed to load Hugging Face dataset {dataset_name_with_split}. Please ensure that you include the split name (e.g. 'mosaicml/dolly_hhrlhf/train')."
-        # check user access to the dataset
-        try:
-            info = dataset_info(dataset_name)
-        except:
-            token_warning = ""
-            if not token:
-                token_warning = " If this is a private dataset, please set your HUGGING_FACE_HUB_TOKEN using: mcli create secret hf."
-            return False, f"Failed to load Hugging Face dataset {dataset_name_with_split}. Please ensure that the dataset exists and that you have access to it. Remember to include the split name (e.g. 'mosaicml/dolly_hhrlhf/train')." + token_warning
-        # check that split exists
-        try:
-            splits = get_dataset_split_names(dataset_name)
-        except:  # error raised in the case of multiple subsets
-            return False, f"Failed to load Hugging Face dataset {dataset_name_with_split}. Please make sure that the split is valid and that your dataset does not have subsets."
-        if split not in splits:
-            return False, f"Failed to load Hugging Face dataset {dataset_name_with_split}. Split not found."
-    return True, ""
-
-# COMMAND ----------
-
-from streaming.base.storage.upload import CloudUploader
-from streaming.base.storage.download import download_file
-import json 
-
-def integrity_check(out: Union[str, Tuple[str, str]]):
-    """Check if the index file has integrity.
-
-       If index is a cloud url, first download it to a temp local file.
-
-    Args:
-        out (Union[str, Tuple[str,str]]): MDS dataset path
-    """
-
-    def get_expected(mds_root: str):
-        n_shard_files = 0
-        cu = CloudUploader.get(mds_root, exist_ok=True, keep_local=True)
-        for o in cu.list_objects():
-            if o.endswith('.mds'):
-                n_shard_files += 1
-        return n_shard_files
-
-    cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        if cu.remote:
-            download_file(os.path.join(cu.remote, 'index.json'),
-                          os.path.join(temp_dir, 'index.json'),
-                          timeout=60)
-            expected_n_shard_files = get_expected(cu.remote)
-            local_merged_index_path = os.path.join(temp_dir, 'index.json')
-        else:
-            local_merged_index_path = os.path.join(cu.local, 'index.json')
-            expected_n_shard_files = get_expected(cu.local)
-
-        merged_index = json.load(open(local_merged_index_path, 'r'))
-        n_shard_files = len({b['raw_data']['basename'] for b in merged_index['shards']})
-        assert n_shard_files == expected_n_shard_files, f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
+# MAGIC ## Adapted from llmfoundry/scripts/data_prep/convert_text_to_mds.py
 
 # COMMAND ----------
 
@@ -555,6 +496,76 @@ def _args_str(original_args: Namespace) -> str:
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ## Validate Inputs and Count tokens
+
+# COMMAND ----------
+
+from streaming.base.storage.upload import CloudUploader
+from streaming.base.storage.download import download_file
+import json 
+
+def integrity_check(out: Union[str, Tuple[str, str]]):
+    """Check if the index file has integrity.
+
+       If index is a cloud url, first download it to a temp local file.
+
+    Args:
+        out (Union[str, Tuple[str,str]]): MDS dataset path
+    """
+
+    def count_shards(mds_root: str):
+        n_shard_files = 0
+        cu = CloudUploader.get(mds_root, exist_ok=True, keep_local=True)
+        for o in cu.list_objects():
+            if o.endswith('.mds'):
+                n_shard_files += 1
+        return n_shard_files
+
+    cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        if cu.remote:
+            download_file(os.path.join(cu.remote, 'index.json'),
+                          os.path.join(temp_dir, 'index.json'),
+                          timeout=60)
+            actual_n_shard_files = count_shards(cu.remote)
+            local_merged_index_path = os.path.join(temp_dir, 'index.json')
+        else:
+            local_merged_index_path = os.path.join(cu.local, 'index.json')
+            actual_n_shard_files = count_shards(cu.local)
+
+        merged_index = json.load(open(local_merged_index_path, 'r'))
+        n_shard_files = len({b['raw_data']['basename'] for b in merged_index['shards']})
+        return n_shard_files == actual_n_shard_files
+        
+def check_HF_datasets(dataset_names_with_splits):
+    from huggingface_hub import dataset_info
+    from datasets import get_dataset_split_names
+    import os
+    token = os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    for dataset_name_with_split in dataset_names_with_splits:
+        dataset_name, split = os.path.split(dataset_name_with_split)
+        # make sure we have a dataset and split
+        if not dataset_name or not split:
+            return False, f"Failed to load Hugging Face dataset {dataset_name_with_split}. Please ensure that you include the split name (e.g. 'mosaicml/dolly_hhrlhf/train')."
+        # check user access to the dataset
+        try:
+            info = dataset_info(dataset_name)
+        except:
+            token_warning = ""
+            if not token:
+                token_warning = " If this is a private dataset, please set your HUGGING_FACE_HUB_TOKEN using: mcli create secret hf."
+            return False, f"Failed to load Hugging Face dataset {dataset_name_with_split}. Please ensure that the dataset exists and that you have access to it. Remember to include the split name (e.g. 'mosaicml/dolly_hhrlhf/train')." + token_warning
+        # check that split exists
+        try:
+            splits = get_dataset_split_names(dataset_name)
+        except:  # error raised in the case of multiple subsets
+            return False, f"Failed to load Hugging Face dataset {dataset_name_with_split}. Please make sure that the split is valid and that your dataset does not have subsets."
+        if split not in splits:
+            return False, f"Failed to load Hugging Face dataset {dataset_name_with_split}. Split not found."
+    return True, ""
+    
 def is_hf_dataset_path(path):
     """Check if a given string is a dataset path used by Hugging Face.
 
@@ -568,19 +579,6 @@ def is_hf_dataset_path(path):
     pattern = r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(/[\w]+)?/?$"
 
     return bool(re.match(pattern, path))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Validate and token Count
-
-# COMMAND ----------
-
-os.environ['HF_ASSETS_CACHE'] = '/tmp/'
-os.environ['HF_HOME'] = '/tmp/'
-os.environ['HF_HUB_CACHE'] = '/tmp/'
-os.environ['HF_DATASETS_CACHE'] = '/tmp/'
-
 
 def create_om_cfg(FT_API_args):
     task_type = FT_API_args.task_type
@@ -638,8 +636,10 @@ def create_om_cfg(FT_API_args):
 
 if FT_API_args.task_type == 'INSTRUCTION_FINETUNE':
     # check if train_data_path is a valid HF dataset url with splits.
+    if not is_hf_dataset_path(FT_API_args.train_data_path):
+        raise ValueError(f"Input path {FT_API_args.train_data_path} is not supported. It needs to be a valid Huggingface dataset path.")
     # load dataset.info and see if HF tokens are correctly set.
-    # check_HF_datasets()
+    check_HF_datasets(FT_API_args.train_data_path)
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
     
@@ -665,6 +665,11 @@ elif FT_API_args.task_type == 'CONTINUED_PRETRAIN':
                         processes=args.processes,
                         reprocess=args.reprocess,
                         args_str=_args_str(args))
+    
+    # Check if the MDS dataset is integral by checking index.json
+    if integrity_check(args.output_folder):
+        raise RuntimeError(f"{args.output_folder} has mismatched number of shard files between merged index.json and actual shards!")
+        
 else:
     raise ValueError(f"task_type can only be INSTRUCTION_FINETUNE or Continued_Pretraining but got {FT_API_args.task_type} instead!")
   # Run a few checks on resulted MDS datasets
@@ -686,13 +691,6 @@ total_tokens = 0
 for batch in dataloader:
     total_tokens += token_counting_func(batch)
     
-    # if len(batch['input_ids']) == 0: #  (check labels as well if exist):
-    #     raise ValueError('input_ids is empty')
-
-    # batch_tokens = batch['input_ids'] # (add 'labels' as well if exist)
-    # batch_token_count = sum([len(tokens) for tokens in batch_tokens])
-    # total_tokens += batch_token_count
-
 print("Total number of tokens:", total_tokens)
 
 # COMMAND ----------

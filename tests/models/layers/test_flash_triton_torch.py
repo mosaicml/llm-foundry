@@ -6,7 +6,8 @@ import torch
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.layers import attention
-from llmfoundry.models.layers.attention import gen_slopes, is_flash_v2_installed
+from llmfoundry.models.layers.attention import (check_alibi_support, gen_slopes,
+                                                is_flash_v2_installed)
 from llmfoundry.models.mpt.modeling_mpt import (apply_sequence_id,
                                                 gen_attention_mask_in_length,
                                                 gen_rotary_embedding)
@@ -20,7 +21,7 @@ def allclose_helper(t0: torch.Tensor,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl_0,attn_impl_1', [
+@pytest.mark.parametrize('attn_impl_0, attn_impl_1', [
     ('flash', 'triton'),
     ('flash', 'torch'),
     ('triton', 'torch'),
@@ -74,8 +75,8 @@ def test_attn_impl(attn_impl_0: str,
     """
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
-    if alibi and (attn_impl_0 == 'flash' or attn_impl_1 == 'flash'
-                 ) and not is_flash_v2_installed(v2_version='v2.4.2'):
+    if alibi and not (check_alibi_support(attn_impl_0) and
+                      check_alibi_support(attn_impl_1)):
         pytest.skip('flash attention below v2.4.2 does not support alibi.')
     if rope and (pos_emb_config['rope_impl']
                  == 'dail') and (not is_flash_v2_installed()):

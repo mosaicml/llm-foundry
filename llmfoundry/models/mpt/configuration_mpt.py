@@ -8,7 +8,8 @@ from typing import Any, Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
-from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.attention import (check_alibi_support,
+                                                is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import attn_config_defaults
 
 # NOTE: All utils are imported directly even if unused so that
@@ -220,10 +221,8 @@ class MPTConfig(PretrainedConfig):
                 'attn_impl'] not in ['torch', 'triton']:
             raise NotImplementedError(
                 'prefix_lm only implemented with torch and triton attention.')
-        if self.attn_config['alibi'] and not (
-                self.attn_config['attn_impl'] in ['torch', 'triton'] or
-            (self.attn_config['attn_impl'] == 'flash' and
-             is_flash_v2_installed(v2_version='v2.4.2'))):
+        if self.attn_config['alibi'] and not check_alibi_support(
+                self.attn_config['attn_impl']):
             raise NotImplementedError(
                 'alibi only implemented with torch, triton, and flash (v2.4.2 or higher) attention.'
             )

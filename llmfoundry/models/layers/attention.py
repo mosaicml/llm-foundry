@@ -39,6 +39,11 @@ def is_transformers_version_gte(hf_version: str) -> bool:
     return version.parse(transformers.__version__) >= version.parse(hf_version)
 
 
+def check_alibi_support(attention_impl: str) -> bool:
+    return attention_impl != 'flash' or is_flash_v2_installed(
+        v2_version='v2.4.2')
+
+
 # Before importing any transformers models, we need to disable transformers flash attention if
 # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
 # gated import otherwise.
@@ -336,7 +341,7 @@ def flash_attn_fn(
             return_attn_probs=needs_weights)
     elif is_flash_v2_installed():
         alibi_kwargs = {}
-        if is_flash_v2_installed(v2_version='v2.4.2'):
+        if check_alibi_support('flash'):
             alibi_kwargs = {'alibi_slopes': alibi_slopes}
         elif alibi_slopes is not None:
             raise ValueError(

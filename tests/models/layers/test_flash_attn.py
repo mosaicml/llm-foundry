@@ -7,8 +7,9 @@ import pytest
 import torch
 
 from llmfoundry.models.layers.attention import (attn_bias_shape,
-                                                build_attn_bias, flash_attn_fn,
-                                                gen_slopes,
+                                                build_attn_bias,
+                                                check_alibi_support,
+                                                flash_attn_fn, gen_slopes,
                                                 is_flash_v2_installed,
                                                 triton_flash_attn_fn)
 
@@ -259,7 +260,7 @@ def test_sliding_window(sliding_window_size: int):
 
 @pytest.mark.gpu
 @pytest.mark.skipif(
-    not is_flash_v2_installed(v2_version='v2.4.2'),
+    not check_alibi_support('flash'),
     reason='ALiBi only supported by Flash Attention after v2.4.2.')
 @pytest.mark.parametrize('n_heads', [1, 6, 8])
 def test_alibi_bias(n_heads: int):

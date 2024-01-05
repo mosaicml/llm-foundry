@@ -64,7 +64,7 @@
 
 # COMMAND ----------
 
-dbutils.library.restartPython()
+# dbutils.library.restartPython()
 
 # COMMAND ----------
 
@@ -77,13 +77,14 @@ from streaming import StreamingDataset
 import numpy as np
 from omegaconf import OmegaConf as om
 from argparse import Namespace
-from typing import Union, Tuple 
+from typing import Union, Tuple
 from llmfoundry.utils import build_tokenizer
-import torch 
+from huggingface_hub import dataset_info
+from datasets import get_dataset_split_names
 
 # COMMAND ----------
 
-# MAGIC %md 
+# MAGIC %md
 # MAGIC ## User Defines the Cell Below
 
 # COMMAND ----------
@@ -503,7 +504,7 @@ def _args_str(original_args: Namespace) -> str:
 
 from streaming.base.storage.upload import CloudUploader
 from streaming.base.storage.download import download_file
-import json 
+import json
 
 def integrity_check(out: Union[str, Tuple[str, str]]):
     """Check if the index file has integrity.
@@ -538,11 +539,8 @@ def integrity_check(out: Union[str, Tuple[str, str]]):
         merged_index = json.load(open(local_merged_index_path, 'r'))
         n_shard_files = len({b['raw_data']['basename'] for b in merged_index['shards']})
         return n_shard_files == actual_n_shard_files
-        
+
 def check_HF_datasets(dataset_names_with_splits):
-    from huggingface_hub import dataset_info
-    from datasets import get_dataset_split_names
-    import os
     token = os.environ.get("HUGGING_FACE_HUB_TOKEN")
     for dataset_name_with_split in dataset_names_with_splits:
         dataset_name, split = os.path.split(dataset_name_with_split)
@@ -565,7 +563,7 @@ def check_HF_datasets(dataset_names_with_splits):
         if split not in splits:
             return False, f"Failed to load Hugging Face dataset {dataset_name_with_split}. Split not found."
     return True, ""
-    
+
 def is_hf_dataset_path(path):
     """Check if a given string is a dataset path used by Hugging Face.
 
@@ -576,7 +574,7 @@ def is_hf_dataset_path(path):
         bool: True if the string is a dataset path, False otherwise.
     """
     # Regular expression to match the dataset path pattern
-    pattern = r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(/[\w]+)?/?$"
+    pattern = r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/?(train|validation|test)?/?$"
 
     return bool(re.match(pattern, path))
 
@@ -627,72 +625,74 @@ def create_om_cfg(FT_API_args):
         tokenizer_name=model,
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
-    
+
     return cfg, tokenizer
 
 # COMMAND ----------
 
 # build cfg from the inputs
+def main():
+    if FT_API_args.task_type == 'INSTRUCTION_FINETUNE':
+        # check if train_data_path is a valid HF dataset url with splits.
+        if not is_hf_dataset_path(FT_API_args.train_data_path):
+            raise ValueError(f"Input path {FT_API_args.train_data_path} is not supported. It needs to be a valid Huggingface dataset path.")
+        # load dataset.info and see if HF tokens are correctly set.
+        check_HF_datasets(FT_API_args.train_data_path)
 
-if FT_API_args.task_type == 'INSTRUCTION_FINETUNE':
-    # check if train_data_path is a valid HF dataset url with splits.
-    if not is_hf_dataset_path(FT_API_args.train_data_path):
-        raise ValueError(f"Input path {FT_API_args.train_data_path} is not supported. It needs to be a valid Huggingface dataset path.")
-    # load dataset.info and see if HF tokens are correctly set.
-    check_HF_datasets(FT_API_args.train_data_path)
+        cfg, tokenizer = create_om_cfg(FT_API_args)
 
-    cfg, tokenizer = create_om_cfg(FT_API_args)
-    
-elif FT_API_args.task_type == 'CONTINUED_PRETRAIN':
-    # check if train_data_path is a valid object store that composer supports
-    cfg, tokenizer = create_om_cfg(FT_API_args)
-    
-    input_folder = FT_API_args.train_data_path
-    output_folder = FT_API_args.save_folder 
-    concat_tokens = FT_API_args.context_length
-    tokenizer_name = FT_API_args.model
-    
-    # Run convert_text_to_mds.py and dump MDS dataset to "save_folder"
-    args = parse_args(tokenizer, concat_tokens, output_folder, input_folder)
-    convert_text_to_mds(tokenizer_name=args.tokenizer,
-                        output_folder=args.output_folder,
-                        input_folder=args.input_folder,
-                        concat_tokens=args.concat_tokens,
-                        eos_text=args.eos_text,
-                        bos_text=args.bos_text,
-                        no_wrap=args.no_wrap,
-                        compression=args.compression,
-                        processes=args.processes,
-                        reprocess=args.reprocess,
-                        args_str=_args_str(args))
-    
-    # Check if the MDS dataset is integral by checking index.json
-    if integrity_check(args.output_folder):
-        raise RuntimeError(f"{args.output_folder} has mismatched number of shard files between merged index.json and actual shards!")
-        
-else:
-    raise ValueError(f"task_type can only be INSTRUCTION_FINETUNE or Continued_Pretraining but got {FT_API_args.task_type} instead!")
-  # Run a few checks on resulted MDS datasets
-  # 1. no shards in output_folder
-  # 2. check shard completeness by downloading and inspecting index.json
+    elif FT_API_args.task_type == 'CONTINUED_PRETRAIN':
+        # check if train_data_path is a valid object store that composer supports
+        cfg, tokenizer = create_om_cfg(FT_API_args)
+
+        input_folder = FT_API_args.train_data_path
+        output_folder = FT_API_args.save_folder
+        concat_tokens = FT_API_args.context_length
+        tokenizer_name = FT_API_args.model
+
+        # Run convert_text_to_mds.py and dump MDS dataset to "save_folder"
+        args = parse_args(tokenizer, concat_tokens, output_folder, input_folder)
+        convert_text_to_mds(tokenizer_name=args.tokenizer,
+                            output_folder=args.output_folder,
+                            input_folder=args.input_folder,
+                            concat_tokens=args.concat_tokens,
+                            eos_text=args.eos_text,
+                            bos_text=args.bos_text,
+                            no_wrap=args.no_wrap,
+                            compression=args.compression,
+                            processes=args.processes,
+                            reprocess=args.reprocess,
+                            args_str=_args_str(args))
+
+        # Check if the MDS dataset is integral by checking index.json
+        if integrity_check(args.output_folder):
+            raise RuntimeError(f"{args.output_folder} has mismatched number of shard files between merged index.json and actual shards!")
+
+    else:
+        raise ValueError(f"task_type can only be INSTRUCTION_FINETUNE or Continued_Pretraining but got {FT_API_args.task_type} instead!")
+      # Run a few checks on resulted MDS datasets
+      # 1. no shards in output_folder
+      # 2. check shard completeness by downloading and inspecting index.json
 
 
-from llmfoundry.data.finetuning import build_finetuning_dataloader
-tokenizer_name = 'EleutherAI/gpt-neox-20b'
-tokenizer_kwargs = {'model_max_length': cfg.dataset.max_seq_len}
-tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+    from llmfoundry.data.finetuning import build_finetuning_dataloader
+    tokenizer_name = 'EleutherAI/gpt-neox-20b'
+    tokenizer_kwargs = {'model_max_length': cfg.dataset.max_seq_len}
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
-device_batch_size = 1
-dataspec = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
-dataloader = dataspec.dataloader 
-token_counting_func = dataspec.get_num_tokens_in_batch
+    device_batch_size = 1
+    dataspec = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+    dataloader = dataspec.dataloader
+    token_counting_func = dataspec.get_num_tokens_in_batch
 
-total_tokens = 0
-for batch in dataloader:
-    total_tokens += token_counting_func(batch)
-    
-print("Total number of tokens:", total_tokens)
+    total_tokens = 0
+    for batch in dataloader:
+        total_tokens += token_counting_func(batch)
+
+    print("Total number of tokens:", total_tokens)
 
 # COMMAND ----------
 
 
+if __name__ == '__main__':
+    main()

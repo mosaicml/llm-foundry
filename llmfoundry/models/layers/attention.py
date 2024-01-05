@@ -226,6 +226,7 @@ def flash_attn_fn(
     attention_mask_in_length: Optional[torch.Tensor] = None,
     should_repeat_kv_for_gqa: Optional[bool] = True,
     sliding_window_size: int = -1,
+    alibi_slopes: Optional[torch.Tensor] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
@@ -256,9 +257,8 @@ def flash_attn_fn(
 
         past_key_value = (key, value)
 
-    if attn_bias is not None and not is_flash_v2_installed(v2_version='v2.4.2'):
-        raise NotImplementedError(
-            f'attn_bias not implemented for Flash Attention below v2.4.2.')
+    if attn_bias is not None:
+        raise NotImplementedError(f'attn_bias not implemented for flash attn.')
 
     batch_size, seqlen = query.shape[:2]
 
@@ -335,9 +335,12 @@ def flash_attn_fn(
             causal=reset_is_causal,
             return_attn_probs=needs_weights)
     elif is_flash_v2_installed():
-        alibi_kwargs = {
-            'alibi_slopes': attn_bias
-        } if is_flash_v2_installed(v2_version='v2.4.2') else {}
+        alibi_kwargs = {}
+        if is_flash_v2_installed(v2_version='v2.4.2'):
+            alibi_kwargs = {'alibi_slopes': alibi_slopes}
+        elif alibi_slopes is not None:
+            raise ValueError(
+                'alibi_slopes is only supported for flash-attn>=2.4.2')
         output_unpad = flash_attn_interface.flash_attn_varlen_func(
             q=query_unpad,
             k=key_unpad,
@@ -592,6 +595,7 @@ class GroupedQueryAttention(nn.Module):
         is_causal: bool = True,
         needs_weights: bool = False,
         attention_mask_in_length: Optional[torch.Tensor] = None,
+        alibi_slopes: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
             torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
@@ -661,6 +665,7 @@ class GroupedQueryAttention(nn.Module):
                 'attention_mask_in_length': attention_mask_in_length,
                 'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
                 'sliding_window_size': self.sliding_window_size,
+                'alibi_slopes': alibi_slopes,
             }
 
         context, attn_weights, past_key_value = self.attn_fn(

@@ -154,11 +154,6 @@ def test_attn_impl(attn_impl_0: str,
                 attn_bias,
                 sequence_id,  # type: ignore
                 s)
-        if alibi and attn_impl == 'flash':
-            attn_bias = gen_slopes(n_heads=cfg.n_heads,
-                                   alibi_bias_max=8,
-                                   device=torch.device(device),
-                                   return_1d=True)
 
         return attn_bias
 
@@ -182,6 +177,12 @@ def test_attn_impl(attn_impl_0: str,
 
     with torch.autocast(x0.device.type):
         attn_bias_0 = gen_bias(attn_impl_0)
+        alibi_slopes_0 = None
+        if alibi and attn_impl_0 == 'flash':
+            alibi_slopes_0 = gen_slopes(n_heads=cfg.n_heads,
+                                        alibi_bias_max=8,
+                                        device=torch.device(device),
+                                        return_1d=True)
         rotary_emb_w_meta_info = None
         if rope:
             rotary_embedding = gen_rotary_embedding(
@@ -214,15 +215,23 @@ def test_attn_impl(attn_impl_0: str,
                          attention_mask=attention_mask,
                          rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                          is_causal=True,
-                         attention_mask_in_length=attention_mask_in_length_0)
+                         attention_mask_in_length=attention_mask_in_length_0,
+                         alibi_slopes=alibi_slopes_0)
         attn_bias_1 = gen_bias(attn_impl_1)
+        alibi_slopes_1 = None
+        if alibi and attn_impl_1 == 'flash':
+            alibi_slopes_1 = gen_slopes(n_heads=cfg.n_heads,
+                                        alibi_bias_max=8,
+                                        device=torch.device(device),
+                                        return_1d=True)
         y1, _, _ = attn1(x1,
                          past_key_value=None,
                          attn_bias=attn_bias_1,
                          attention_mask=attention_mask,
                          rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                          is_causal=True,
-                         attention_mask_in_length=attention_mask_in_length_1)
+                         attention_mask_in_length=attention_mask_in_length_1,
+                         alibi_slopes=alibi_slopes_1)
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)
 

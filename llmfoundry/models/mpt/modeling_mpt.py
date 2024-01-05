@@ -608,11 +608,12 @@ class MPTModel(MPTPreTrainedModel):
             attn_impl=self.attn_impl,
             attention_mask=attention_mask)
 
+        alibi_slopes = None  # alibi_slopes will only be used by flash attention for ALiBi
         if self.alibi and self.attn_impl == 'flash':
-            attn_bias = gen_slopes(n_heads=self.config.n_heads,
-                                   alibi_bias_max=self.alibi_bias_max,
-                                   device=x.device,
-                                   return_1d=True)
+            alibi_slopes = gen_slopes(n_heads=self.config.n_heads,
+                                      alibi_bias_max=self.alibi_bias_max,
+                                      device=x.device,
+                                      return_1d=True)
 
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
@@ -637,6 +638,7 @@ class MPTModel(MPTPreTrainedModel):
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
                 attention_mask_in_length=attention_mask_in_length,
+                alibi_slopes=alibi_slopes,
             )
             if presents is not None:
                 presents += (present,)

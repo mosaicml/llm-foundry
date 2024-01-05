@@ -278,10 +278,10 @@ def test_alibi_bias(n_heads: int):
     value_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(dtype=dtype,
                                                          device=device)
     value_1.requires_grad = True
-    attn_bias_1 = gen_slopes(n_heads=n_heads,
-                             alibi_bias_max=8,
-                             device=torch.device(device),
-                             return_1d=True)
+    alibi_slopes_1 = gen_slopes(n_heads=n_heads,
+                                alibi_bias_max=8,
+                                device=torch.device(device),
+                                return_1d=True)
     output_1, _, _ = flash_attn_fn(query=query_1,
                                    key=key_1,
                                    value=value_1,
@@ -289,7 +289,7 @@ def test_alibi_bias(n_heads: int):
                                    kv_n_heads=n_heads,
                                    past_key_value=None,
                                    softmax_scale=1 / math.sqrt(d),
-                                   attn_bias=attn_bias_1,
+                                   attn_bias=None,
                                    key_padding_mask=None,
                                    is_causal=True,
                                    dropout_p=0.0,
@@ -297,7 +297,8 @@ def test_alibi_bias(n_heads: int):
                                    needs_weights=False,
                                    multiquery=False,
                                    attention_mask_in_length=None,
-                                   should_repeat_kv_for_gqa=True)
+                                   should_repeat_kv_for_gqa=True,
+                                   alibi_slopes=alibi_slopes_1)
 
     output_1.sum().backward()
 

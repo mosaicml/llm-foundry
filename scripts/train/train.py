@@ -510,8 +510,7 @@ def main(cfg: DictConfig) -> Trainer:
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
 
-    use_async_eval = any(
-        isinstance(callback, AsyncEval) for callback in callbacks)
+    use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
 
     # Algorithms
     algorithms = [
@@ -531,22 +530,22 @@ def main(cfg: DictConfig) -> Trainer:
         mosaicml_logger.log_metrics({'data_validated': time.time()})
 
     ## Evaluation
-    log.info('Building eval loader...')
-    eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
-    # TODO: evaluators should not be built at all if use_async_eval is True
-    # This will be fixed when eval_loader support is fully added to AsyncEval
-    evaluators, _, eval_gauntlet_callback = build_evaluators(
-        eval_loader_config,
-        icl_tasks_config if not use_async_eval else None,
-        eval_gauntlet_config if not use_async_eval else None,
-        tokenizer=tokenizer,
-        device_eval_batch_size=device_eval_batch_size,
-        icl_seq_len=eval_icl_seq_len,
-        icl_subset_num_batches=icl_subset_num_batches,
-    )
-
-    if eval_gauntlet_callback is not None and not use_async_eval:
-        callbacks.append(eval_gauntlet_callback)
+    if use_async_eval:
+        evaluators = []
+    else:
+        log.info('Building eval loader...')
+        eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
+        evaluators, _, eval_gauntlet_callback = build_evaluators(
+            eval_loader_config,
+            icl_tasks_config,
+            eval_gauntlet_config,
+            tokenizer=tokenizer,
+            device_eval_batch_size=device_eval_batch_size,
+            icl_seq_len=eval_icl_seq_len,
+            icl_subset_num_batches=icl_subset_num_batches,
+        )
+        if eval_gauntlet_callback is not None:
+            callbacks.append(eval_gauntlet_callback)
 
     # Build Model
     log.info('Initializing model...')
@@ -573,7 +572,7 @@ def main(cfg: DictConfig) -> Trainer:
     optimizer = build_optimizer(model, optimizer_name, optimizer_config)
 
     # Now add the eval metrics
-    if eval_loader_config is not None:
+    if eval_loader_config is not None and not use_async_eval:
         train_metrics = model.get_metrics(is_train=True)
         evaluators = add_metrics_to_eval_loaders(evaluators, train_metrics)
 
@@ -623,7 +622,7 @@ def main(cfg: DictConfig) -> Trainer:
     gc.collect()
 
     # Eval first if requested
-    if eval_first and trainer.state.timestamp.batch.value == 0:
+    if eval_first and trainer.state.timestamp.batch.value == 0 and not use_async_eval:
         trainer.eval()
 
     log.info('Starting training...')

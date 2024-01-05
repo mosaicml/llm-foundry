@@ -11,10 +11,10 @@ from composer.core import Time, TimeUnit
 from llmfoundry.callbacks.async_eval_callback import (AsyncEval,
                                                       get_eval_parameters,
                                                       get_run_name,
+                                                      validate_eval_run_config,
                                                       validate_interval)
 from mcli import Run, RunConfig, RunStatus
 
-# here
 RUN_NAME = 'foo_bar-1234'
 BASIC_PARAMS = {
     'save_interval': '1ba',
@@ -189,6 +189,38 @@ def test_validate_interval():
     assert validate_interval(2, 2) == two_epochs
     assert validate_interval(two_epochs, two_epochs) == two_epochs
     assert validate_interval('2ep', two_epochs) == two_epochs
+
+
+def test_validate_eval_run_config():
+    assert validate_eval_run_config(None) == {}
+    assert validate_eval_run_config({}) == {}
+
+    with pytest.raises(ValueError):
+        validate_eval_run_config({'foo': 'bar'})
+
+    with pytest.raises(TypeError):
+        validate_eval_run_config({'scheduling': []})
+
+    with pytest.raises(TypeError):
+        validate_eval_run_config({'scheduling': {'priority': []}})
+
+    with pytest.raises(TypeError):
+        validate_eval_run_config({'image': []})
+
+    valid_config = {
+        'image': 'example_image',
+        'command': 'example_command',
+        'compute': {
+            'gpus': 1,
+            'cluster': 'example_cluster',
+        },
+        'scheduling': {
+            'priority': 'high',
+            'preemptible': True,
+        },
+    }
+    res = validate_eval_run_config(valid_config)
+    assert res == valid_config
 
 
 FAKE_RUN = Run(

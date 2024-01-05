@@ -11,6 +11,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
+from omegaconf import OmegaConf as om
+from omegaconf import DictConfig
 from composer.callbacks import CheckpointSaver
 from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.loggers import Logger
@@ -19,7 +21,7 @@ from composer.loggers.mosaicml_logger import (MOSAICML_PLATFORM_ENV_VAR,
 from composer.utils import dist
 from composer.utils.misc import create_interval_scheduler
 
-from mcli import ComputeConfig, Run, RunConfig, create_run, get_run
+from mcli import Run, RunConfig, create_run, get_run
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +35,7 @@ REQUIRED_PARAMS_FOR_EVAL = {
 OPTIONAL_PARAMS_FOR_EVAL = {
     'dist_timeout',
     'eval_gauntlet',
+    'eval_loader',
     'fsdp_config',
     'icl_subset_num_batches',
     'loggers',
@@ -185,6 +188,46 @@ def validate_interval(interval: Union[str, int, Time],
     return result
 
 
+def validate_eval_run_config(
+        eval_run_config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if eval_run_config is None:
+        return {}
+
+    if isinstance(eval_run_config, DictConfig):
+        eval_run_config = om.to_container(eval_run_config)
+
+    supported_keys = {'image', 'command', 'compute', 'scheduling'}
+    for key in eval_run_config:
+        if key not in supported_keys:
+            raise ValueError(
+                f'Unsupported eval run config key {key}. Supported keys: {supported_keys}'
+            )
+
+    for dict_field in ('scheduling', 'compute'):
+        if dict_field in eval_run_config and not isinstance(
+                eval_run_config[dict_field], dict):
+            raise TypeError(
+                f'Eval run {dict_field} must be a dict. ' +
+                f'Got {eval_run_config[dict_field]} ({type(eval_run_config[dict_field])})'
+            )
+        for value in eval_run_config.get(dict_field, {}).values():
+
+            if not (isinstance(value, int) or isinstance(value, str)):
+                raise TypeError(
+                    f'Eval run {dict_field} values must be integers or ' +
+                    f'strings. Got {value} ({type(value)})')
+
+    for str_field in ('image', 'command'):
+        if str_field in eval_run_config and not isinstance(
+                eval_run_config[str_field], str):
+            raise TypeError(
+                f'Eval run {str_field} must be a string. Got ' +
+                f'{eval_run_config[str_field]} ({type(eval_run_config[str_field])})'
+            )
+
+    return eval_run_config
+
+
 class AsyncEval(Callback):
     """Run the eval loop asynchronously as part of a MosaicML platform run.
 
@@ -196,16 +239,28 @@ class AsyncEval(Callback):
             launched. If an integer, it will be assumed to be in :attr:`.TimeUnit.EPOCH`.
             Otherwise, the unit must be either :attr:`.TimeUnit.EPOCH`, :attr:`.TimeUnit.BATCH`,
             :attr:`.TimeUnit.TOKEN`, or :attr:`.TimeUnit.SAMPLE`.
-        compute: Optional[Union[ComputeConfig, Dict[str, Any]]]: The compute configuration to
-            use for the eval run. If not provided, the same cluster as the current run and a
-            single, full GPU node will be used.
+        eval_run_config: Optional[Dict[str, Any]]: A subset of mcli run config values to use 
+            for the eval run. If not specified, any fields from run config will be created 
+            dynamically from the training run config and the interval. The following fields 
+            are supported:
+            - ``image``: Image of the eval run. Default: same as training run
+            - ``command``: Command to run for the eval run. Default: calls 
+                `composer scripts/eval/eval.py $PARAMETERS`. If custom setup is needed,
+                the command should include calling the eval script with $PARAMETERS
+            - ``compute``: Compute to use for the eval run. Default: same cluster as
+                the training run and a single node (8 GPUs)
+            - ``scheduling``: Scheduling to use for the eval run. Default: same as training run
+
+            All fields are optional, but if specified, must be valid for a mcli run config. We 
+            provide this optional config to give you the most flexibility in customizing the eval
+            run, but it is recommended to use the default values unless you have a specific reason
     """
 
     def __init__(
         self,
         training_config: Dict[str, Any],
         interval: Union[str, int, Time],
-        compute: Optional[Union[ComputeConfig, Dict[str, Any]]] = None,
+        eval_run_config: Optional[Dict[str, Any]] = None,
     ):
 
         for required in ('save_interval', 'save_folder'):
@@ -214,6 +269,7 @@ class AsyncEval(Callback):
 
         self.checkpoint_save_folder = training_config['save_folder']
         self.training_config = training_config
+        self.eval_run_config = validate_eval_run_config(eval_run_config)
         self.interval = validate_interval(interval,
                                           self.training_config['save_interval'])
         self.check_interval = create_interval_scheduler(
@@ -222,7 +278,6 @@ class AsyncEval(Callback):
             # (which is the most important) is evaled after it is written
             include_end_of_training=False,
         )
-        self.compute = compute
         self.last_checkpoint: Optional[str] = None
 
         # Run these during init to fail fast in any of the error cases
@@ -235,6 +290,8 @@ class AsyncEval(Callback):
         log.info(
             f'Initialized AsyncEval callback. Will generate runs at interval {interval}'
         )
+
+        # TODO: potentially support eval_subset_num_batches & eval_first
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         del logger
@@ -357,12 +414,16 @@ class AsyncEval(Callback):
         # TODO: This just runs an eval run, but we also want to attach the
         # deployment, which would require a hf conversion and parametrizing the
         # dependent_deployment in the run config
-        command = f'cd {installation_path}/scripts \n composer eval/eval.py $PARAMETERS'
+        default_command = f'cd {installation_path}/scripts \n composer eval/eval.py $PARAMETERS'
         run_config = RunConfig(
             name=run_name,
-            image=self.current_run.image,
-            compute=self.compute or default_compute,
-            command=command,
+            image=self.eval_run_config.get('image', self.current_run.image),
+            command=self.eval_run_config.get('command', default_command),
+            compute=self.eval_run_config.get('compute', default_compute),
+            scheduling=self.eval_run_config.get(
+                'scheduling',
+                self.current_run.submitted_config.scheduling,
+            ),
             integrations=integrations,
             env_variables=cfg.env_variables,
             metadata=cfg.metadata,

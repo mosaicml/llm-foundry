@@ -27,6 +27,7 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.utils.config_utils import pop_config
 
 try:
     from peft.peft_model import PeftModel
@@ -260,7 +261,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             )
         
         from peft import LoraConfig
-        peft_config = om_model_config.get('peft_config')
+        peft_config = pop_config(om_model_config, 'peft_config', must_exist=False, convert=True)
         peft_type = peft_config.pop('peft_type', None)
         peft_config = LoraConfig(**peft_config)
 

@@ -47,15 +47,15 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.17.1,<0.18',
+    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.17.2,<0.18',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.36,<4.37',
-    'mosaicml-streaming>=0.7.1,<0.8',
+    'mosaicml-streaming>=0.7.2,<0.8',
     'torch>=2.1,<2.1.1',
     'datasets==2.15.0',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
-    'einops==0.5.0',
+    'einops==0.7.0',
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
     'mosaicml-cli>=0.5.27,<1',
@@ -84,11 +84,11 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.17.1,<0.18',
+    'mosaicml[databricks]>=0.17.2,<0.18',
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.17.1,<0.18',
+    'mosaicml[tensorboard]>=0.17.2,<0.18',
 ]
 
 extra_deps['gpu'] = [

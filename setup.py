@@ -76,7 +76,7 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'pre-commit>=3.2.0,<3',
+    'pre-commit>=3.2.0,<4',
     'pytest>=7.2.1,<8',
     'pytest_codeblocks>=0.16.1,<0.17',
     'pytest-cov>=4,<5',

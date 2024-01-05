@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from composer.callbacks import CheckpointSaver
-from composer.core import Callback, Event, State, Time, TimeUnit
+from composer.core import Callback, Event, State, Time, Timestamp, TimeUnit
 from composer.loggers import Logger
 from composer.loggers.mosaicml_logger import (MOSAICML_PLATFORM_ENV_VAR,
                                               RUN_NAME_ENV_VAR)
@@ -72,30 +72,6 @@ def get_run_name(training_run_name: str, current_interval: str) -> str:
         name_without_uuid_suffix = new_name
 
     return f'{RUN_NAME_PREFIX}-{current_interval}-{name_without_uuid_suffix}'
-
-
-SUPPORTED_UNITS = {TimeUnit.EPOCH, TimeUnit.BATCH}
-
-
-def get_interval_from_checkpoint(checkpoint: str, unit: TimeUnit) -> Time:
-    """Get the interval from a checkpoint name.
-
-    Args:
-        checkpoint: The name of the checkpoint
-        unit: The unit of the interval
-
-    Returns:
-        The interval time
-    """
-    if unit == TimeUnit.EPOCH:
-        val = checkpoint.split('-')[0].replace('ep', '')
-    elif unit == TimeUnit.BATCH:
-        val = checkpoint.split('-')[1].replace('ba', '')
-    else:
-        raise ValueError(
-            f'Unsupported unit {unit}. Must be in {SUPPORTED_UNITS}')
-
-    return Time(int(val), unit)
 
 
 def get_eval_parameters(
@@ -170,10 +146,6 @@ def validate_interval(interval: Union[str, int, Time],
         result: Time = Time(interval, TimeUnit.EPOCH)
     else:
         result: Time = interval
-
-    if result.unit not in SUPPORTED_UNITS:
-        raise ValueError(
-            f'Async eval interval must be in units {SUPPORTED_UNITS}')
 
     if new_save_interval.unit != result.unit:
         raise ValueError(
@@ -252,20 +224,20 @@ class AsyncEval(Callback):
 
     @staticmethod
     def _get_ready_sharded_checkpoints(
-        checkpointer_checkpoints: List[str],
+        checkpointer_checkpoints: Dict[str, Timestamp],
         remote_files: List[str],
-    ):
+    ) -> Dict[str, Timestamp]:
         """Identify checkpoints ready to be evaled based on remote files.
 
         This has special logic for sharded checkpoints to consider checkpoints composed
         of multiple shards (one per gpu) and metadata
 
         Args:
-            checkpointer_checkpoints: The checkpoints from the checkpointer state
+            checkpointer_checkpoints: All checkpoints from the checkpointer state
             remote_files: List of remote files in the save folder
 
         Returns:
-            List of checkpoints that are complete and ready to be evaled
+            Dict of checkpoints that are complete and ready to be evaled
         """
         # Count the number of shards for each checkpoint group
         remote_file_group_counts = Counter()
@@ -274,8 +246,8 @@ class AsyncEval(Callback):
             remote_file_group_counts[interval_path] += 1
 
         # Check if all shards are present for each checkpoint group
-        checkpoints_to_eval = []
-        for checkpoint in checkpointer_checkpoints:
+        checkpoints_to_eval = {}
+        for checkpoint, interval in checkpointer_checkpoints.items():
             # eg {save_folder}/ep0-ba1/.
             interval_path = Path(checkpoint).parts[-2]
 
@@ -289,30 +261,30 @@ class AsyncEval(Callback):
                 )
                 continue
 
-            checkpoints_to_eval.append(interval_path)
+            checkpoints_to_eval[interval_path] = interval
 
         return checkpoints_to_eval
 
     @staticmethod
     def _get_ready_single_checkpoints(
-        checkpointer_checkpoints: List[str],
+        checkpointer_checkpoints: Dict[str, Timestamp],
         remote_checkpoints: List[str],
-    ):
+    ) -> Dict[str, Timestamp]:
         """Identify checkpoints ready to be evaled based on remote checkpoints.
 
         This is much simpler than the sharded case, because there is only one file
 
         Args:
-            checkpointer_checkpoints: The checkpoints from the checkpointer state
+            checkpointer_checkpoints: All checkpoints from the checkpointer state
             remote_checkpoints: List of remote checkpoints in the save folder
 
         Returns:
-            List of checkpoints that are complete and ready to be evaled
+            Dict of checkpoints that are complete and ready to be evaled
         """
         unique_remote_checkpoints = set(remote_checkpoints)
 
-        checkpoints_to_eval = []
-        for checkpoint in checkpointer_checkpoints:
+        checkpoints_to_eval = {}
+        for checkpoint, interval in checkpointer_checkpoints.items():
             # eg {save_folder}/ep0-ba1-rank0.pt
             interval_path = Path(checkpoint).parts[-1]
 
@@ -321,7 +293,7 @@ class AsyncEval(Callback):
                     f'Checkpoint {checkpoint} not fully uploaded, skipping')
                 continue
 
-            checkpoints_to_eval.append(interval_path)
+            checkpoints_to_eval[interval_path] = interval
         return checkpoints_to_eval
 
     def _get_checkpoints_and_launch_runs(self, state: State):
@@ -343,10 +315,14 @@ class AsyncEval(Callback):
             warnings.warn('No checkpoint saver callback found. Skipping eval')
             return
 
-        if not checkpointer.saved_checkpoints:
+        if not checkpointer.all_saved_checkpoints_to_timestamp:
             log.debug(
                 'No saved checkpoints found on the checkpointer. Skipping eval')
             return
+
+        log.debug(
+            f'Found {len(checkpointer.all_saved_checkpoints_to_timestamp)} ' +
+            f'checkpoints: {checkpointer.all_saved_checkpoints_to_timestamp}')
 
         remote_checkpoints = list_remote_objects(self.checkpoint_save_folder)
 
@@ -356,26 +332,31 @@ class AsyncEval(Callback):
 
         if state.fsdp_elastic_sharded_enabled:
             checkpoints_to_eval = self._get_ready_sharded_checkpoints(
-                checkpointer.saved_checkpoints, remote_checkpoints)
+                checkpointer.all_saved_checkpoints_to_timestamp,
+                remote_checkpoints)
         else:
             checkpoints_to_eval = self._get_ready_single_checkpoints(
-                checkpointer.saved_checkpoints, remote_checkpoints)
+                checkpointer.all_saved_checkpoints_to_timestamp,
+                remote_checkpoints)
 
-        for checkpoint_interval_path in checkpoints_to_eval:
-            interval = get_interval_from_checkpoint(checkpoint_interval_path,
-                                                    self.interval.unit)
-            if interval.value % self.interval.value != 0:
+        for checkpoint_interval_path, checkpoint_timestamp in checkpoints_to_eval.values(
+        ):
+            checkpoint_interval = checkpoint_timestamp.get(self.interval.unit)
+            if checkpoint_interval.value % self.interval.value != 0:
                 log.debug(
-                    f'Checkpoint {checkpoint_interval_path} ({interval}) is not at an eval interval ({self.interval}), skipping'
-                )
+                    f'Checkpoint {checkpoint_interval_path} ({checkpoint_interval}) is '
+                    + f'not at an eval interval ({self.interval}), skipping')
                 continue
-            if interval in self.checkpoints_evaled:
+            if checkpoint_interval in self.checkpoints_evaled:
                 continue  # Skip checkpoints that have already been evaled
 
             full_checkpoint_path = f'{self.checkpoint_save_folder}/{checkpoint_interval_path}'
-            eval_run = self.launch_run(full_checkpoint_path, interval)
-            self.checkpoints_evaled[interval] = (full_checkpoint_path,
-                                                 eval_run.name)
+            eval_run = self.launch_run(full_checkpoint_path,
+                                       checkpoint_interval)
+            self.checkpoints_evaled[checkpoint_interval] = (
+                full_checkpoint_path,
+                eval_run.name,
+            )
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         del logger

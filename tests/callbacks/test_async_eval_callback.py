@@ -6,7 +6,7 @@ from copy import deepcopy
 from unittest.mock import MagicMock, patch
 
 import pytest
-from composer.core import Time, TimeUnit
+from composer.core import Time, Timestamp, TimeUnit
 
 from llmfoundry.callbacks.async_eval_callback import (AsyncEval,
                                                       get_eval_parameters,
@@ -334,20 +334,21 @@ def test_async_eval_callback_integrations(mock_create_run: MagicMock,
 @patch('llmfoundry.callbacks.async_eval_callback.dist.get_world_size',
        return_value=4)
 def test_get_ready_sharded_checkpoints(mocked_get_world_size: MagicMock):
-    assert not AsyncEval._get_ready_sharded_checkpoints([], [])
+    assert not AsyncEval._get_ready_sharded_checkpoints({}, [])
     assert not AsyncEval._get_ready_sharded_checkpoints(
-        ['save_folder/ep0-ba1/__0_0.distcp'],
+        {'save_folder/ep0-ba1/__0_0.distcp': Timestamp(epoch=0, batch=1)},
         [],
     )
     assert not AsyncEval._get_ready_sharded_checkpoints(
-        [],
+        {},
         ['save_folder/ep0-ba1/__0_0.distcp'],
     )
 
-    checkpointer_checkpoints = [
-        'save_folder/ep0-ba1/__0_0.distcp',
-        'save_folder/ep0-ba2/__0_0.distcp',
-    ]
+    checkpointer_checkpoints = {
+        'save_folder/ep0-ba1/__0_0.distcp': Timestamp(epoch=0, batch=1),
+        'save_folder/ep0-ba2/__0_0.distcp': Timestamp(epoch=0, batch=2),
+        'save_folder/ep0-ba3/__0_0.distcp': Timestamp(epoch=0, batch=3),
+    }
     remote_files = [
         # ba1 is ready
         'save_folder/ep0-ba1/__0_0.distcp',
@@ -370,24 +371,24 @@ def test_get_ready_sharded_checkpoints(mocked_get_world_size: MagicMock):
         checkpointer_checkpoints,
         remote_files,
     )
-    assert res == ['ep0-ba1']
+    assert res == {'ep0-ba1': Timestamp(epoch=0, batch=1)}
 
 
 def test_get_ready_single_checkpoints():
-    assert not AsyncEval._get_ready_single_checkpoints([], [])
+    assert not AsyncEval._get_ready_single_checkpoints({}, [])
     assert not AsyncEval._get_ready_single_checkpoints(
-        ['save_folder/ep0-ba1-rank0.pt'],
+        {'save_folder/ep0-ba1-rank0.pt': Timestamp(epoch=0, batch=1)},
         [],
     )
     assert not AsyncEval._get_ready_single_checkpoints(
-        [],
+        {},
         ['save_folder/ep0-ba1-rank0.pt'],
     )
 
-    checkpointer_checkpoints = [
-        'save_folder/ep0-ba1-rank0.pt',
-        'save_folder/ep0-ba2-rank0.pt',
-    ]
+    checkpointer_checkpoints = {
+        'save_folder/ep0-ba1-rank0.pt': Timestamp(epoch=0, batch=1),
+        'save_folder/ep0-ba2-rank0.pt': Timestamp(epoch=0, batch=2),
+    }
     remote_checkpoints = [
         'save_folder/ep0-ba1-rank0.pt',
     ]
@@ -396,4 +397,4 @@ def test_get_ready_single_checkpoints():
         checkpointer_checkpoints,
         remote_checkpoints,
     )
-    assert res == ['ep0-ba1-rank0.pt']
+    assert res == {'ep0-ba1-rank0.pt': Timestamp(epoch=0, batch=1)}

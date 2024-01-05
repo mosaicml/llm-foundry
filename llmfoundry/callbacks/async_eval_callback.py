@@ -339,7 +339,7 @@ class AsyncEval(Callback):
                 checkpointer.all_saved_checkpoints_to_timestamp,
                 remote_checkpoints)
 
-        for checkpoint_interval_path, checkpoint_timestamp in checkpoints_to_eval.values(
+        for checkpoint_interval_path, checkpoint_timestamp in checkpoints_to_eval.items(
         ):
             checkpoint_interval = checkpoint_timestamp.get(self.interval.unit)
             if checkpoint_interval.value % self.interval.value != 0:

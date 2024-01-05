@@ -230,7 +230,7 @@ class HuggingFaceCheckpointer(Callback):
                     base_model = original_model.get_base_model()
                     new_base_model_instance = type(base_model)(copied_config)
 
-                    new_model_instance = type(original_model)(new_base_model_instance, original_model.peft_config)
+                    new_model_instance = type(original_model)(new_base_model_instance, original_model.peft_config['default'])
                 else:
                     new_model_instance = type(original_model)(copied_config)
 

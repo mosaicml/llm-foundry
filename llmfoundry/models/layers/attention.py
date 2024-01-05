@@ -848,3 +848,10 @@ ATTN_CLASS_REGISTRY = {
     'multiquery_attention': MultiQueryAttention,
     'grouped_query_attention': GroupedQueryAttention
 }
+
+try:
+    import transformer_engine.pytorch as te
+
+    ATTN_CLASS_REGISTRY['te_multihead_attention'] = te.MultiheadAttention
+except:
+    pass

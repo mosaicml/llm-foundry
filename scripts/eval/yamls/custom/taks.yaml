@@ -1,0 +1,80 @@
+icl_tasks:
+#-
+#  label: jeopardy
+#  dataset_uri: /llm-foundry/scripts/eval/local_data/world_knowledge/jeopardy_all.jsonl
+#  num_fewshot: [10]
+#  icl_task_type: language_modeling
+#  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+#  has_categories: true
+-
+  label: arc_challenge
+  dataset_uri: /llm-foundry/scripts/eval/local_data/world_knowledge/arc_challenge.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+-
+  label: copa
+  dataset_uri: /llm-foundry/scripts/eval/local_data/commonsense_reasoning/copa.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0]
+  icl_task_type: multiple_choice
+-
+  label: piqa
+  dataset_uri: /llm-foundry/scripts/eval/local_data/commonsense_reasoning/piqa.jsonl  # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+-
+  label: lambada_openai
+  dataset_uri: /llm-foundry/scripts/eval/local_data/language_understanding/lambada_openai.jsonl
+  num_fewshot: [0]
+  icl_task_type: language_modeling
+-
+  label: hellaswag
+  dataset_uri: /llm-foundry/scripts/eval/local_data/language_understanding/hellaswag.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: winograd
+  dataset_uri: /llm-foundry/scripts/eval/local_data/language_understanding/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0]
+  icl_task_type: schema
+-
+  label: bigbench_elementary_math_qa
+  dataset_uri: /llm-foundry/scripts/eval/local_data/symbolic_problem_solving/bigbench_elementary_math_qa.jsonl
+  num_fewshot: [10]
+  icl_task_type: multiple_choice
+-
+  label: bigbench_dyck_languages
+  dataset_uri: /llm-foundry/scripts/eval/local_data/symbolic_problem_solving/bigbench_dyck_languages.jsonl
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: bigbench_operators
+  dataset_uri: /llm-foundry/scripts/eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: bigbench_repeat_copy_logic
+  dataset_uri: /llm-foundry/scripts/eval/local_data/symbolic_problem_solving/bigbench_repeat_copy_logic.jsonl
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: simple_arithmetic_nospaces
+  dataset_uri: /llm-foundry/scripts/eval/local_data/symbolic_problem_solving/simple_arithmetic_nospaces.jsonl
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: simple_arithmetic_withspaces
+  dataset_uri: /llm-foundry/scripts/eval/local_data/symbolic_problem_solving/simple_arithmetic_withspaces.jsonl
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: pubmed_qa_labeled
+  dataset_uri: /llm-foundry/scripts/eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: language_modeling
+-
+  label: squad
+  dataset_uri: /llm-foundry/scripts/eval/local_data/reading_comprehension/squad.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [10]
+  icl_task_type: language_modeling

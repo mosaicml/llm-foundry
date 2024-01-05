@@ -99,6 +99,7 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                     )
 
     assert composer_model is not None
+    
     return composer_model
 
 
@@ -122,7 +123,7 @@ def evaluate_model(
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
 ):
-
+    
     log.info(f'Evaluating model: {model_cfg.model_name}')
     # Build tokenizer and model
     tokenizer_cfg: Dict[str,
@@ -181,7 +182,6 @@ def evaluate_model(
     if eval_loader_config is not None:
         train_metrics = composer_model.get_metrics(is_train=True)
         evaluators = add_metrics_to_eval_loaders(evaluators, train_metrics)
-
     if eval_gauntlet_df is None and eval_gauntlet_callback is not None:
         eval_gauntlet_df = pd.DataFrame(
             columns=['model_name'] +
@@ -214,6 +214,7 @@ def evaluate_model(
         dist_timeout=dist_timeout,
         python_log_level=python_log_level,
     )
+    # return
 
     log.info('Evaluation config:')
     log_config(logged_config)
@@ -404,8 +405,10 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
         # dl_name is either 2-tuple (benchmark_name, num_fewshot)
         # or 3-tuple (benchmark_name, num_fewshot, subcategory)
         dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
-        if 'Accuracy' not in metric_name:
-            continue
+
+        metric_type = 'Accuracy'
+        if 'Perplexity' in metric_name: 
+            metric_type = 'Perplexity'
 
         metric = trainer.state.eval_metrics.get('/'.join(dl_name),
                                                 {}).get(metric_name, None)
@@ -427,7 +430,7 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
         })
 
     df = pd.DataFrame(columns=[
-        'Category', 'Benchmark', 'Subtask', 'Accuracy', 'Number few shot',
+        'Category', 'Benchmark', 'Subtask', metric_type, 'Number few shot',
         'Model'
     ])
 
@@ -440,7 +443,7 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                         'Category': benchmark_to_taxonomy.get(benchmark, ''),
                         'Benchmark': benchmark,
                         'Subtask': None,
-                        'Accuracy': subscores[0]['val'],
+                         metric_type: subscores[0]['val'],
                         'Number few shot': num_shot,
                         'Model': model_name
                     }
@@ -453,7 +456,7 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                             benchmark,
                         'Subtask':
                             'Average',
-                        'Accuracy':
+                        metric_type:
                             sum(s['val'] for s in subscores) / len(subscores),
                         'Number few shot':
                             num_shot,
@@ -469,7 +472,7 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                                 None,
                             'Subtask':
                                 sub['subcat'],
-                            'Accuracy':
+                            metric_type:
                                 sub['val'],
                             'Number few shot':
                                 num_shot,

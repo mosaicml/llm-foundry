@@ -1,0 +1,45 @@
+max_seq_len: 2048
+tokenizer_name: EleutherAI/gpt-neox-20b
+seed: 1
+precision: amp_fp16
+
+models:
+-
+  model_name: mpt_1b
+  # Tokenizer
+  tokenizer:
+    name: ${tokenizer_name}
+    kwargs:
+       model_max_length: ${max_seq_len}
+  model:
+    name: mpt_causal_lm
+    init_device: mixed
+    # Set the below model parameters to match the checkpoint specified with load_path
+    d_model: 2048
+    n_heads: 16
+    n_layers: 24
+    expansion_ratio: 4
+    max_seq_len: ${max_seq_len}
+    vocab_size: 50368
+    attn_config:
+       attn_impl: triton
+       qk_ln: True
+
+  # load_path: /scratch/ubuntu/mpt-1b-curated-.2/latest-rank0.pt  # Add your non-optional Composer checkpoint path here! (must not be empty)
+
+device_eval_batch_size: 16
+
+# FSDP config for model sharding
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: FULL
+  forward_prefetch: True
+  limit_all_gathers: True
+
+icl_tasks: '/fsx/ubuntu/users/amro/llmfoundry_custom/scripts/eval/yamls/custom/taks.yaml'
+# eval_gauntlet: '/scratch/ubuntu/eval/eval_gauntlet.yaml'
+
+# loggers:
+#   wandb:
+#     project: mpt-eval
+#     name: mpt-1b-0.2

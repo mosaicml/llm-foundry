@@ -343,7 +343,7 @@ def test_finetuning_dataloader_safe_load(hf_name: str,
     with expectation:
         _ = build_finetuning_dataloader(cfg, tokenizer, 1)
 
-    # If no raised errors, we should expect downlaoded files with only safe file types.
+    # If no raised errors, we should expect downloaded files with only safe file types.
     if expectation == does_not_raise():
         download_dir = os.path.join(DOWNLOADED_FT_DATASETS_DIRPATH, hf_name)
         downloaded_files = [

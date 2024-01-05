@@ -311,10 +311,11 @@ def test_finetuning_dataloader(decoder_only_format: bool,
 
 
 @pytest.mark.parametrize(
-    'hf_name, expectation',
-    [('HuggingFaceH4/databricks_dolly_15k', does_not_raise()),
-     ('squad', pytest.raises(FileNotFoundError))])
+    'hf_name, hf_revision, expectation',
+    [('HuggingFaceH4/databricks_dolly_15k', None, does_not_raise()),
+     ('squad', '5fe18c', pytest.raises(FileNotFoundError))])
 def test_finetuning_dataloader_safe_load(hf_name: str,
+                                         hf_revision: Optional[str],
                                          expectation: ContextManager):
     cfg = DictConfig({
         'name': 'finetuning',
@@ -325,6 +326,9 @@ def test_finetuning_dataloader_safe_load(hf_name: str,
             'decoder_only_format': True,
             'shuffle': True,
             'safe_load': True,
+            'kwargs': {
+                'revision': hf_revision
+            }
         },
         'drop_last': False,
         'num_workers': 0,

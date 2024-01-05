@@ -400,6 +400,7 @@ class DatasetConstructor:
                                 '*' + ext for ext in SUPPORTED_EXTENSIONS
                             ],
                             token=hf_kwargs.get('token', None),
+                            revision=hf_kwargs.get('revision', None),
                             local_dir_use_symlinks=False,
                             local_dir=local_dataset_dir)
                         if _is_empty_or_nonexistent(dirpath=local_dataset_dir):

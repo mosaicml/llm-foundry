@@ -284,6 +284,41 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
     assert parameters['run_name'] == 'eval-1ba-foo_bar'  # original run
 
 
+@patch('llmfoundry.callbacks.async_eval_callback.get_run',
+       return_value=FAKE_RUN)
+def test_async_eval_state(mock_create_run: MagicMock):
+    callback = AsyncEval(BASIC_PARAMS, interval='2ba')
+
+    assert not callback.checkpoints_evaled
+
+    state_dict = callback.state_dict()
+    assert state_dict['checkpoints_evaled'] == []
+
+    callback.load_state_dict(state_dict)
+    assert not callback.checkpoints_evaled
+
+    callback.checkpoints_evaled = {
+        Time(1, TimeUnit.BATCH): ('checkpoint/path', 'run-name'),
+    }
+    state_dict = callback.state_dict()
+    assert state_dict['checkpoints_evaled'] == [
+        (
+            {
+                'value': 1,
+                'unit': 'ba',
+            },
+            'checkpoint/path',
+            'run-name',
+        ),
+    ]
+
+    callback.checkpoints_evaled = {}
+    callback.load_state_dict(state_dict)
+    assert callback.checkpoints_evaled == {
+        Time(1, TimeUnit.BATCH): ('checkpoint/path', 'run-name'),
+    }
+
+
 INTEGRATION_GIT_LLMFOUNDRY = {
     'integration_type': 'git_repo',
     'git_repo': 'mosaicml/llm-foundry',

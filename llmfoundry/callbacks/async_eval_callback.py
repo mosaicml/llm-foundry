@@ -222,6 +222,30 @@ class AsyncEval(Callback):
         log.info('Initialized AsyncEval callback. Will generate runs at ' +
                  f'interval {interval}, checking at {self.check_interval}')
 
+    def state_dict(self) -> Dict[str, Any]:
+        checkpoints_evaled = []
+        for i, (c, rn) in self.checkpoints_evaled.items():
+            interval_dict = {
+                'value': i.value,
+                'unit': i.unit.value,
+            }
+            checkpoints_evaled.append((interval_dict, c, rn))
+
+        return {
+            'checkpoints_evaled': checkpoints_evaled,
+        }
+
+    def load_state_dict(self, state_dict: Dict[str, Any]):
+        previous_checkpoints_evaled = state_dict.get('checkpoints_evaled', [])
+        if previous_checkpoints_evaled:
+            for (i, c, rn) in previous_checkpoints_evaled:
+                interval = Time(i['value'], TimeUnit(i['unit']))
+                self.checkpoints_evaled[interval] = (c, rn)
+
+            log.info(
+                f'Loaded previous checkpoints evaled: {self.checkpoints_evaled}'
+            )
+
     @staticmethod
     def _get_ready_sharded_checkpoints(
         checkpointer_checkpoints: Dict[str, Timestamp],

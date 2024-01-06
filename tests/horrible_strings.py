@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML LLM Foundry authors
+# Copyright 2022-2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
 # taken from https://github.com/explosion/spaCy/blob/8f0d6b0a8c42e4852bf6e24cdf629043f2f39361/spacy/tests/tokenizer/test_naughty_strings.py#L7

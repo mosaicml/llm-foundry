@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML LLM Foundry authors
+# Copyright 2022-2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
 # TODO: This test directory is called "a_scripts" to enforce that these tests are run

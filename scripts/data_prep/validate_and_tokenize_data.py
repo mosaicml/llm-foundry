@@ -668,6 +668,8 @@ def main():
         if integrity_check(args.output_folder):
             raise RuntimeError(f"{args.output_folder} has mismatched number of shard files between merged index.json and actual shards!")
 
+        print("Converted data for continnued pre-training was saved in: ", args.output_folder)
+
     else:
         raise ValueError(f"task_type can only be INSTRUCTION_FINETUNE or Continued_Pretraining but got {FT_API_args.task_type} instead!")
       # Run a few checks on resulted MDS datasets

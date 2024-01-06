@@ -56,6 +56,7 @@
 # MAGIC     timeout: Optional[float] = 10,
 # MAGIC     future: Literal[False] = False,
 # MAGIC }
+# MAGIC - What null checkings do we want to have?
 # MAGIC ```
 
 # COMMAND ----------

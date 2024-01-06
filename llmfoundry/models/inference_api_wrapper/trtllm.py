@@ -181,10 +181,56 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
 
         # Question-answering tasks
         if 'continuation_indices' not in batch:
-            # batch['continuation_indices'] = torch.tensor([], dtype=torch.int, device=self.device)
-            # print("Batch:", batch)
-            output_strs = []
+            # Batched version
+            batch_size = len(batch['input_ids'])
+            prompt_lens = []
+            output_strs = [] # QA tasks return strings, not logits
+            max_prompt_len = 0
+            
+            for tokens in batch['input_ids']:
+                prompt = tokens.tolist()
+                eos_occurence = (tokens == 2).nonzero(as_tuple=True)[0]
+                end_prompt_idx = len(prompt)
+                if eos_occurence.shape[0] >= 1:
+                    end_prompt_idx = eos_occurence[0]
+                prompt_lens.append(end_prompt_idx)
+                if end_prompt_idx > max_prompt_len:
+                    max_prompt_len = end_prompt_idx
 
+            #if batch_size == 1:
+            #    # Remove pad tokens
+            #    prompt = batch['input_ids'][0].tolist()[:prompt_lens[0]]
+            #    input_ids = torch.tensor([prompt], dtype=torch.int, device=self.device)
+            #    input_lengths = torch.tensor([input_ids.size(1)], dtype=torch.int, device=self.device)
+            # else:
+            # Keep padding
+            input_ids = torch.narrow(batch['input_ids'], 1, 0, max_prompt_len).to(dtype=torch.int, device=self.device) 
+            # input_ids = batch['input_ids'].to(dtype=torch.int, device=self.device)
+            input_lengths = torch.tensor(prompt_lens, dtype=torch.int, device=self.device)
+           
+            #if tensorrt_llm.mpi_rank() == 0:
+            #    print("Prompt:", input_ids[7])
+            #print("Input shape:", input_ids.shape)
+            #print("Input lengths:", input_lengths)
+
+            with torch.no_grad():
+                self.decoder.setup(batch_size,
+                                    input_lengths.max().item(),
+                                    batch['generation_length'])
+                output_dict = self.decoder.decode(input_ids, input_lengths, self.sampling_config, return_dict=True)
+       
+            #if tensorrt_llm.mpi_rank() == 0:
+            #    print("Output:", [output_dict['output_ids'][i][0].tolist()[prompt_lens[i]:prompt_lens[i]+batch['generation_length']] for i in range(batch_size)])
+            # print("Output shape:", output_dict['output_ids'].shape)
+            #inp_len = input_ids.size(1)
+
+            decoded_strs = [self.tokenizer.decode(output_dict['output_ids'][i][0].tolist()[prompt_lens[i]:prompt_lens[i]+batch['generation_length']]) for i in range(batch_size)]
+            output_strs += decoded_strs
+            print("decoded strs:", decoded_strs)
+            return output_strs
+
+            # Non-batched version
+            output_strs = []
             for tokens in batch['input_ids']:
                 seqlen = tokens.shape[0]
                 prompt = tokens.tolist()
@@ -206,10 +252,6 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
                                         batch['generation_length'])
 
                     output_dict = self.decoder.decode(input_ids, input_lengths, self.sampling_config, return_dict=True)
-                    output_logits_list = output_dict['generation_logits']
-                
-                for i in range(len(output_logits_list)):
-                    output_logits_list[i] = output_logits_list[i].squeeze()
                 
                 #print("Shape:", output_dict['output_ids'].shape)
                 decoded_str = self.tokenizer.decode(output_dict['output_ids'][0][0].tolist()[len(prompt):])

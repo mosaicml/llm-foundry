@@ -25,7 +25,7 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_evaluators, build_logger,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import pop_config, process_init_device
-
+import tensorrt_llm
 
 
 def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
@@ -131,6 +131,9 @@ def evaluate_model(
         )
 
     assert composer_model is not None
+
+    if tensorrt_llm.mpi_rank() > 0:
+        loggers = None
 
     trainer = Trainer(
         run_name=run_name,

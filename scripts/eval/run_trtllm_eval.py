@@ -47,7 +47,7 @@ trt_gpt_config = {
 }
 
 
-def get_llama_config(engine_dir, tokenizer_name, icl_tasks=QA_MC_TASKS):
+def get_llama_config(engine_dir, tokenizer_name, icl_tasks=MINI_TASKS):
     return {
         'run_name': 'trtllm-eval',
         'seed': 0,
@@ -105,10 +105,10 @@ def run_eval(config):
     print("OmegaConfig dictionary", om.to_yaml(om_dict_config))
     run_evaluation(om_dict_config)
 
-
-run_eval(llama70b_int8_config)
-run_eval(llama70b_fp16_config)
-run_eval(llama70b_fp8_config)
+#run_eval(llama7b_int8_config)
+#run_eval(llama70b_int8_config)
+#run_eval(llama70b_fp16_config)
+#run_eval(llama70b_fp8_config)
 run_eval(llama70b_smoothquant_config)
 
 

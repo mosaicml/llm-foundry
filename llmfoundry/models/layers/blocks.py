@@ -123,6 +123,7 @@ class MPTBlock(nn.Module):
         is_causal: bool = True,
         output_attentions: bool = False,
         attention_mask_in_length: Optional[torch.Tensor] = None,
+        alibi_slopes: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
             torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
@@ -135,6 +136,7 @@ class MPTBlock(nn.Module):
             is_causal=is_causal,
             needs_weights=output_attentions,
             attention_mask_in_length=attention_mask_in_length,
+            alibi_slopes=alibi_slopes,
         )
         x = x + self.resid_attn_dropout(b)
         m = x

@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 import pytest
 import transformers
 
-from llmfoundry.tokenizers.tiktoken import (TiktokenTokenizerWrapper,
+from llmfoundry.tokenizers.tiktoken import (_DEFAULT_GAP_TOKEN,
+                                            TiktokenTokenizerWrapper,
                                             bytes_to_unicode)
 from tests.a_scripts.inference.test_convert_composer_to_hf import \
     check_hf_tokenizer_equivalence
@@ -338,6 +339,7 @@ def test_additional_special_tokens(model_name: Optional[str],
                                    encoding_name: Optional[str],
                                    tmp_path: pathlib.Path):
     special_token_to_add = '<|im_start|>'
+    input_string = special_token_to_add + ' hello'
     wrapped_tokenizer, _, _ = get_tokenizers_for_testing(
         model_name,
         encoding_name,
@@ -345,11 +347,14 @@ def test_additional_special_tokens(model_name: Optional[str],
         add_bos_token=False,
         add_eos_token=False,
         additional_special_tokens=[special_token_to_add])
-    encoded_outputs = wrapped_tokenizer(special_token_to_add +
-                                        ' hello')['input_ids']
+    encoded_outputs = wrapped_tokenizer(input_string)['input_ids']
 
     assert encoded_outputs[0] == wrapped_tokenizer.vocab_size
     assert len(encoded_outputs) == 2
+
+    decoded_outputs = wrapped_tokenizer.decode(
+        encoded_outputs, spaces_between_special_tokens=False)
+    assert decoded_outputs == input_string
 
 
 @pytest.mark.parametrize('model_name,encoding_name',
@@ -386,3 +391,28 @@ def test_chat_formatting(model_name: Optional[str],
         chat_str = wrapped_tokenizer.apply_chat_template(
             dict_chats, tokenize=False, add_generation_prompt=True)
         assert chat_str == MULTI_TURN_GENERATE_STRING[i]
+
+
+@pytest.mark.parametrize('unk_token,expected_gap_token', [
+    ('<|endoftext|>', '<|endoftext|>'),
+    (None, _DEFAULT_GAP_TOKEN),
+])
+def test_tiktoken_gap(unk_token: Optional[str], expected_gap_token: str):
+    wrapped_tokenizer = TiktokenTokenizerWrapper(
+        model_name='gpt-4',
+        unk_token=unk_token,
+    )
+
+    assert wrapped_tokenizer.decode(
+        [100000, 100256])[-len(expected_gap_token):] == expected_gap_token
+    assert wrapped_tokenizer.decode(100256) == expected_gap_token
+
+
+def test_out_of_range():
+    wrapped_tokenizer = TiktokenTokenizerWrapper(model_name='gpt-4',)
+
+    with pytest.raises(ValueError):
+        wrapped_tokenizer.decode([100277])
+
+    with pytest.raises(ValueError):
+        wrapped_tokenizer.decode([100278])

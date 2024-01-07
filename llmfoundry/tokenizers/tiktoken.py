@@ -254,8 +254,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
     def _convert_id_to_token(self, index: int) -> Optional[str]:
         """Converts an index (integer) in a token (str) using the vocab."""
         # For tokens in either the gap in ids in the tokenizer, or beyond the range of the tokenizer,
-        # we return empty string. This matches the behavior of some Hugging Face tokenizers (e.g. llama, opt),
-        # but not all (e.g. gpt2 which crashes on out of range ids)
+        # we return empty string. This matches the behavior of Hugging Face fast tokenizers,
+        # but not slow tokenizers.
         return self.decoder.get(index, '')
 
     def convert_tokens_to_string(self, tokens: List[str]) -> str:

@@ -7,7 +7,6 @@ import torch
 from transformers import PreTrainedTokenizer
 
 DEFAULT_SYSTEM_PROMPT = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
-_DEFAULT_GAP_TOKEN = '<|gaptoken|>'
 
 
 # Taken from
@@ -254,17 +253,10 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
     def _convert_id_to_token(self, index: int) -> Optional[str]:
         """Converts an index (integer) in a token (str) using the vocab."""
-        # Happy case: index directly points to a token
-        if index in self.decoder:
-            return self.decoder[index]
-        # Gap case: index is in the gap in ids in the tokenizer, so we return either
-        # the unk token or the default gap token
-        elif index < self.encoding.n_vocab:
-            return self.unk_token or _DEFAULT_GAP_TOKEN
-        # Error case: index is outside the range of the tokenizer
-        else:
-            raise ValueError(
-                f'Index {index} is outside of the range of the tokenizer.')
+        # For tokens in either the gap in ids in the tokenizer, or beyond the range of the tokenizer,
+        # we return empty string. This matches the behavior of some Hugging Face tokenizers (e.g. llama, opt),
+        # but not all (e.g. gpt2 which crashes on out of range ids)
+        return self.decoder.get(index, '')
 
     def convert_tokens_to_string(self, tokens: List[str]) -> str:
         """Converts a sequence of tokens (string) in a single string."""

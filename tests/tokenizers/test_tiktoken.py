@@ -7,8 +7,7 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 import pytest
 import transformers
 
-from llmfoundry.tokenizers.tiktoken import (_DEFAULT_GAP_TOKEN,
-                                            TiktokenTokenizerWrapper,
+from llmfoundry.tokenizers.tiktoken import (TiktokenTokenizerWrapper,
                                             bytes_to_unicode)
 from tests.a_scripts.inference.test_convert_composer_to_hf import \
     check_hf_tokenizer_equivalence
@@ -393,26 +392,13 @@ def test_chat_formatting(model_name: Optional[str],
         assert chat_str == MULTI_TURN_GENERATE_STRING[i]
 
 
-@pytest.mark.parametrize('unk_token,expected_gap_token', [
-    ('<|endoftext|>', '<|endoftext|>'),
-    (None, _DEFAULT_GAP_TOKEN),
-])
-def test_tiktoken_gap(unk_token: Optional[str], expected_gap_token: str):
-    wrapped_tokenizer = TiktokenTokenizerWrapper(
-        model_name='gpt-4',
-        unk_token=unk_token,
-    )
-
-    assert wrapped_tokenizer.decode(
-        [100000, 100256])[-len(expected_gap_token):] == expected_gap_token
-    assert wrapped_tokenizer.decode(100256) == expected_gap_token
-
-
-def test_out_of_range():
+def test_tiktoken_out_of_range():
     wrapped_tokenizer = TiktokenTokenizerWrapper(model_name='gpt-4',)
 
-    with pytest.raises(ValueError):
-        wrapped_tokenizer.decode([100277])
+    # For gpt-4, 100256 is less than the vocab size, but is not a valid token
+    assert wrapped_tokenizer.decode([100256]) == ''
+    assert wrapped_tokenizer.decode(100256) == ''
 
-    with pytest.raises(ValueError):
-        wrapped_tokenizer.decode([100278])
+    # For gpt-4, 1000000 is greater than the vocab size
+    assert wrapped_tokenizer.decode([1000000]) == ''
+    assert wrapped_tokenizer.decode(1000000) == ''

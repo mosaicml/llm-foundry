@@ -80,12 +80,13 @@ def parse_args() -> Namespace:
         help=
         'The text to append to each example to separate concatenated examples',
     )
-
-    parser.add_argument('--use_tokenizer_eos',
-                        type=bool,
-                        required=False,
-                        default=False,
-                        help='Use the EOS text from the tokenizer.')
+    parser.add_argument(
+        '--use_tokenizer_eos',
+        required=False,
+        action='store_true',
+        default=False,
+        help='Use the EOS text from the tokenizer.',
+    )
     parser.add_argument(
         '--no_wrap',
         default=False,

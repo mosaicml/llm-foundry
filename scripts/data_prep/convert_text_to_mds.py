@@ -17,8 +17,8 @@ from streaming import MDSWriter
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
-from llmfoundry.data import ConcatTokensDataset
-from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
+from llmfoundry.utils.data_prep_utils import (ConcatTokensFromFilesDataset,
+                                              DownloadingIterable,
                                               merge_shard_groups)
 
 log = logging.getLogger(__name__)
@@ -231,8 +231,8 @@ def download_and_convert(
 
         # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up
         # to the maximum sequence length
-        dataset = ConcatTokensDataset(
-            hf_dataset=downloading_iter,
+        dataset = ConcatTokensFromFilesDataset(
+            files=downloading_iter,
             max_length=concat_tokens,
             tokenizer=tokenizer,
             eos_text=eos_text,

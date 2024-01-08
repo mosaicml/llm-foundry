@@ -39,6 +39,11 @@ def is_transformers_version_gte(hf_version: str) -> bool:
     return version.parse(transformers.__version__) >= version.parse(hf_version)
 
 
+def check_alibi_support(attention_impl: str) -> bool:
+    return attention_impl != 'flash' or is_flash_v2_installed(
+        v2_version='v2.4.2')
+
+
 # Before importing any transformers models, we need to disable transformers flash attention if
 # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
 # gated import otherwise.
@@ -226,6 +231,7 @@ def flash_attn_fn(
     attention_mask_in_length: Optional[torch.Tensor] = None,
     should_repeat_kv_for_gqa: Optional[bool] = True,
     sliding_window_size: int = -1,
+    alibi_slopes: Optional[torch.Tensor] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
@@ -334,6 +340,12 @@ def flash_attn_fn(
             causal=reset_is_causal,
             return_attn_probs=needs_weights)
     elif is_flash_v2_installed():
+        alibi_kwargs = {}
+        if check_alibi_support('flash'):
+            alibi_kwargs = {'alibi_slopes': alibi_slopes}
+        elif alibi_slopes is not None:
+            raise ValueError(
+                'alibi_slopes is only supported for flash-attn>=2.4.2')
         output_unpad = flash_attn_interface.flash_attn_varlen_func(
             q=query_unpad,
             k=key_unpad,
@@ -346,10 +358,11 @@ def flash_attn_fn(
             softmax_scale=softmax_scale,
             causal=reset_is_causal,
             return_attn_probs=needs_weights,
-            window_size=(sliding_window_size, sliding_window_size))
+            window_size=(sliding_window_size, sliding_window_size),
+            **alibi_kwargs)
     else:
         raise RuntimeError(
-            'flash-attn==1.0.9 or flash-attn==2.3.6 is required.')
+            'flash-attn==1.0.9 or flash-attn==2.4.2 is required.')
 
     output = bert_padding.pad_input(
         rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,
@@ -587,6 +600,7 @@ class GroupedQueryAttention(nn.Module):
         is_causal: bool = True,
         needs_weights: bool = False,
         attention_mask_in_length: Optional[torch.Tensor] = None,
+        alibi_slopes: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
             torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
@@ -656,6 +670,7 @@ class GroupedQueryAttention(nn.Module):
                 'attention_mask_in_length': attention_mask_in_length,
                 'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
                 'sliding_window_size': self.sliding_window_size,
+                'alibi_slopes': alibi_slopes,
             }
 
         context, attn_weights, past_key_value = self.attn_fn(
@@ -805,7 +820,8 @@ def build_attn_bias(
 
 def gen_slopes(n_heads: int,
                alibi_bias_max: int = 8,
-               device: Optional[torch.device] = None) -> torch.Tensor:
+               device: Optional[torch.device] = None,
+               return_1d: bool = False) -> torch.Tensor:
     _n_heads = 2**math.ceil(math.log2(n_heads))
     m = torch.arange(1, _n_heads + 1, dtype=torch.float32, device=device)
     m = m.mul(alibi_bias_max / _n_heads)
@@ -816,7 +832,8 @@ def gen_slopes(n_heads: int,
         # Huggingface and FasterTransformer calculate slopes normally,
         # then return this strided concatenation of slopes
         slopes = torch.concat([slopes[1::2], slopes[::2]])[:n_heads]
-
+    if return_1d:
+        return slopes
     return slopes.view(1, n_heads, 1, 1)
 
 

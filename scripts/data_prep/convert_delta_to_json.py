@@ -460,14 +460,6 @@ if __name__ == '__main__':
                         required=True,
                         type=str,
                         help='Local path to save the converted json')
-    parser.add_argument('--DATABRICKS_HOST',
-                        required=False,
-                        type=str,
-                        help='DATABRICKS_HOST')
-    parser.add_argument('--DATABRICKS_TOKEN',
-                        required=False,
-                        type=str,
-                        help='DATABRICKS_TOKEN')
     parser.add_argument('--http_path',
                         required=False,
                         type=str,
@@ -491,6 +483,11 @@ if __name__ == '__main__':
         'Use serverless if not present. IMPORTANT! make sure cluster has runtime newer than 14.1.0, the databricks-connect client version'
     )
     args = parser.parse_args()
+
+    from databricks.sdk import WorkspaceClient
+    w = WorkspaceClient()
+    args.DATABRICKS_HOST = w.config.host
+    args.DATABRICKS_TOKEN = w.config.token
 
     tik = time.time()
     fetch_DT(args)

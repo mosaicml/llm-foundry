@@ -47,7 +47,7 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,mlflow,oci,gcs]@git+https://github.com/mosaicml/composer.git@jerry/mlflow-objectstore-part2',
+    'mosaicml[libcloud,wandb,mlflow,oci,gcs]@git+https://github.com/mosaicml/composer.git@c1f88a0f9a10f1d781e2a8bd79ce3a76a5741998',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.36,<4.37',
     'mosaicml-streaming>=0.7.2,<0.8',
@@ -85,7 +85,7 @@ extra_deps['dev'] = [
 
 extra_deps['databricks'] = [
     # 'mosaicml[databricks]>=0.17.1,<0.18',
-    'mosaicml[databricks]@git+https://github.com/mosaicml/composer.git@jerry/mlflow-objectstore-part2',
+    'mosaicml[databricks]@git+https://github.com/mosaicml/composer.git@c1f88a0f9a10f1d781e2a8bd79ce3a76a5741998',
 ]
 
 extra_deps['tensorboard'] = [

@@ -7,6 +7,8 @@ from glob import glob
 from typing import List, Optional
 
 from composer.utils import ObjectStore
+from torch.utils.data import IterableDataset
+from transformers import PreTrainedTokenizerBase
 
 
 def with_id(basename: str, shard_id: int) -> str:
@@ -107,6 +109,102 @@ class DownloadingIterable:
                                                   filename=output_filename,
                                                   overwrite=True)
 
-            with open(output_filename) as _txt_file:
-                txt = _txt_file.read()
-            yield {'text': txt}
+            yield output_filename
+
+
+class ConcatTokensFromFilesDataset(IterableDataset):
+    """An IterableDataset that returns token samples for MDSWriter.
+
+    Returns dicts of {'tokens': bytes}
+
+    To use data created by this class and written to MDS format:
+
+    ```python
+        import torch
+        from streaming.base import StreamingDataset
+        from transformers import AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained('your/tokenizer')
+        ds = StreamingDataset(local='mds-data-folder', split='val')
+
+        # note, you need to copy the numpy array because the original is non-writeable
+        # and torch does not support non-writeable tensors, so you get a scary warning and
+        # if you do try to write to the tensor you get undefined behavior
+        tokens = torch.from_numpy(np.frombuffer(ds[0]['tokens'], dtype=np.int64).copy())
+        print(tokenizer.decode(tokens))
+    ```
+    """
+
+    def __init__(
+        self,
+        files: list[str],
+        tokenizer: PreTrainedTokenizerBase,
+        max_length: int,
+        bos_text: str,
+        eos_text: str,
+        no_wrap: bool,
+    ):
+        self.files = files
+        self.tokenizer = tokenizer
+        os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+        self.max_length = max_length
+        self.bos_text = bos_text
+        self.eos_text = eos_text
+        self.should_wrap = not no_wrap
+
+        self.bos_tokens = self.tokenizer(self.bos_text,
+                                         truncation=False,
+                                         padding=False,
+                                         add_special_tokens=False)['input_ids']
+        if len(self.bos_tokens) > 1:
+            warnings.warn(
+                f'You specified --concat_tokens with --bos_text, but your BOS text is not tokenizing to one token\
+                , instead we got {self.bos_tokens}. Quit if this was in error.')
+
+        self.eos_tokens = self.tokenizer(self.eos_text,
+                                         truncation=False,
+                                         padding=False,
+                                         add_special_tokens=False)['input_ids']
+        if len(self.eos_tokens) > 1:
+            warnings.warn(
+                f'You specified --concat_tokens with --eos_text, but your EOS text is not tokenizing to one token\
+                , instead we got {self.eos_tokens}. Quit if this was in error.')
+
+        eos_text_provided = self.eos_text != ''
+        bos_text_provided = self.bos_text != ''
+        test_text = self.tokenizer('')
+        if len(test_text['input_ids']) > 0 and (eos_text_provided or
+                                                bos_text_provided):
+            message = 'both eos and bos' if eos_text_provided and bos_text_provided else (
+                'eos_text' if eos_text_provided else 'bos_text')
+            warnings.warn(
+                f'The provided tokenizer adds special tokens, but you also specified {message}. This may result '
+                +
+                'in duplicated special tokens. Please be sure this is what you intend.'
+            )
+
+    def __iter__(self) -> Iterable[Dict[str, bytes]]:
+
+        buffer = []
+        files = ['']
+        for file in files:
+            with open(file, 'r') as f:
+                buffer += self.bos_tokens
+                for chunk in iter(partial(f.read, 1000), ''):
+                    encoded = self.tokenizer(chunk, truncation=False, padding=False)
+                    iids = encoded['input_ids']
+                    buffer += iids
+                    while len(buffer) >= self.max_length:
+                        concat_sample = buffer[:self.max_length]
+                        buffer = buffer[self.max_length:] if self.should_wrap else []
+                        yield {
+                            'tokens': np.asarray(concat_sample).tobytes()
+                        }
+                buffer += self.eos_tokens
+        # Finish up the last of the tokens.
+        while len(buffer) >= self.max_length: 
+            concat_sample = buffer[:self.max_length]
+            buffer = buffer[self.max_length:] if self.should_wrap else []
+            yield {
+                'tokens': np.asarray(concat_sample).tobytes()
+            }

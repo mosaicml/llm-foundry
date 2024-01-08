@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC Copyright 2022 MosaicML LLM Foundry authors
+# MAGIC Copyright 2022 MosaicML LLM Foundry authors.
 # MAGIC SPDX-License-Identifier: Apache-2.0
 
 # COMMAND ----------

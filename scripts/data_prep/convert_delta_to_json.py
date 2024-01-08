@@ -58,6 +58,7 @@ def to_cf(self: SparkConnectClient,
     Args:
        plan (pb2.Plan): The plan object to be executed by spark.
        type (str): The output format of the result, supported formats are 'json', 'csv', and 'arrow'.
+
     Returns:
        Tuple[List[Result], int, bool]: A tuple containing:
            - A list of Result namedtuples, each containing a URL, row count, compressed size,
@@ -76,7 +77,9 @@ def to_cf(self: SparkConnectClient,
     elif type == 'arrow':
         format = cloud_pb2.ResultOptions.CloudOptions.FORMAT_ARROW
     else:
-        raise Exception(f'Only formats json, csv, and arrow are supported. Got invalid type {type}')
+        raise Exception(
+            f'Only formats json, csv, and arrow are supported. Got invalid type {type}'
+        )
 
     ro = cloud_pb2.ResultOptions(
         type=cloud_pb2.ResultOptions.TYPE_CLOUD,
@@ -103,7 +106,8 @@ def to_cf(self: SparkConnectClient,
                 cloud_pb2.CloudResultBatch.DESCRIPTOR):
             batch = cloud_pb2.CloudResultBatch()
             if not response.extension.Is(cloud_pb2.CloudResultBatch.DESCRIPTOR):
-                raise ValueError("Response extension is not of type CloudResultBatch.")
+                raise ValueError(
+                    'Response extension is not of type CloudResultBatch.')
             response.extension.Unpack(batch)
             result += [
                 Result(b.url, b.row_count, b.compressed_size,
@@ -119,7 +123,7 @@ SparkConnectClient.to_cf = to_cf  # pyright: ignore
 
 def collect_as_cf(self: DataFrame,
                   type: str = 'json') -> Tuple[List[Result], int, bool]:
-    """Collects the result of the DataFrame's execution plan as cloud fetch presigned URLs.
+    """Collects DataFrame execution plan as presigned URLs.
 
     This method is a wrapper around the `to_cf` method of SparkConnectClient. It takes the
     execution plan of the current DataFrame, converts it to a protocol buffer format, and then
@@ -166,7 +170,7 @@ def run_query(
     cursor: Optional[Cursor] = None,
     spark: Optional[SparkSession] = None,
     collect: bool = True
-) -> Union[List[Row], DataFrame, SparkDataFrame]:
+) -> Optional[Union[List[Row], DataFrame, SparkDataFrame]]:
     """Run SQL query via databricks-connect or databricks-sql.
 
     Args:
@@ -191,6 +195,7 @@ def run_query(
         return df
     else:
         raise ValueError(f'Unrecognized method: {method}')
+
 
 def get_args(signed: List, json_output_path: str, columns: List) -> Iterable:
     for i, r in enumerate(signed):
@@ -247,16 +252,11 @@ def download_starargs(args: Tuple) -> None:
     return download(*args)
 
 
-def fetch_data(method: str,
-               cursor: Optional[Cursor],
-               sparkSession: Optional[SparkSession],
-               start: int,
-               end: int,
-               order_by: str,
-               tablename: str,
-               columns_str: str,
+def fetch_data(method: str, cursor: Optional[Cursor],
+               sparkSession: Optional[SparkSession], start: int, end: int,
+               order_by: str, tablename: str, columns_str: str,
                json_output_path: str) -> None:
-    """Fetches a specified range of rows from a given table and writes the result to a json file.
+    """Fetches a specified range of rows from a given table to a json file.
 
     This function executes a SQL query to retrieve a range of rows, determined by 'start' and 'end' indexes,
     from a specified table and column set. The fetched data is then exported as a JSON file.
@@ -300,7 +300,7 @@ def fetch_data(method: str,
         records = [r.asDict() for r in ans]  # pyright: ignore
         pdf = pd.DataFrame.from_dict(records)
 
-    pdf.to_json(os.path.join(json_output_path, f'part_{s+1}_{e}.jsonl'))
+    pdf.to_json(os.path.join(json_output_path, f'part_{start+1}_{end}.jsonl'))
 
 
 def fetch(
@@ -428,7 +428,8 @@ def fetch_DT(args: Namespace) -> None:
             if version.parse(runtime_version) < version.parse(
                     MINIMUM_DBR_VERSION):
                 raise RuntimeError(
-                    f'You need at least {MINIMUM_DBR_VERSION} to use Databricks-connect' +
+                    f'You need at least {MINIMUM_DBR_VERSION} to use Databricks-connect'
+                    +
                     ' to read delta table for FT API but got {res.spark_version}'
                 )
             sparkSession = DatabricksSession.builder.remote(

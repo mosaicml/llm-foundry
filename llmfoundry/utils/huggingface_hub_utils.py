@@ -59,7 +59,7 @@ def process_file(
     folder_path: str,
     flatten_imports_prefix: Sequence[str],
 ) -> list[str]:
-    with open(file_path, 'r') as f:
+    with open(file_path, 'r', encoding='utf-8') as f:
         source = f.read()
 
     parent_module_name = None

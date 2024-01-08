@@ -57,6 +57,8 @@
 # MAGIC     future: Literal[False] = False,
 # MAGIC }
 # MAGIC - What null checkings do we want to have?
+# MAGIC - How to map the model to its expected eos_text / bos_text format? [Ref](https://databricks.slack.com/archives/C05K29T9NBF/p1703644153357929?thread_ts=1703643155.904289&cid=C05K29T9NBF)
+# MAGIC - How to automate tokenization for CPT? it is always really standard: sequence -> concat(tok(BOS), tok(sequence), tok(EOS)), and then concatenate sequences. [Ref](https://databricks.slack.com/archives/C05K29T9NBF/p1703698056000399?thread_ts=1703643155.904289&cid=C05K29T9NBF)
 # MAGIC ```
 
 # COMMAND ----------

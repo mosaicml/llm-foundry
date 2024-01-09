@@ -1,16 +1,15 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import glob
 import logging
 import os
+import time
 import urllib.parse
 from argparse import ArgumentParser, Namespace
 from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
-import datasets as hf_datasets
 import google.protobuf.any_pb2 as any_pb2
 import lz4.frame
 import pandas as pd
@@ -31,10 +30,6 @@ from pyspark.sql.connect.client.reattach import \
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
-from streaming.base.converters import dataframe_to_mds
-from transformers import AutoTokenizer
-
-from llmfoundry.data import ConcatTokensDataset
 
 MINIMUM_DBR_VERSION = '14.1.0'
 
@@ -370,100 +365,13 @@ def fetch(
 
     elif method == 'dbsql' and cursor is not None:
         for start in range(0, nrows, batch_size):
+            print('start = ', start)
             end = min(start + batch_size, nrows)
             fetch_data(method, cursor, sparkSession, start, end, order_by,
                        tablename, columns_str, json_output_path)
 
     if cursor is not None:
         cursor.close()
-
-
-def pandas_processing_fn(df: pd.DataFrame,
-                         **args: Any) -> Iterable[Dict[str, bytes]]:
-    """Tokenize helper function for dataframe_to_mds.
-
-    Args:
-        df (pandas.DataFrame): The input pandas DataFrame that needs to be processed.
-        **args : Additional arguments to be passed to the 'process_some_data' function during processing.
-
-    Returns:
-        iterable obj
-    """
-    hf_dataset = hf_datasets.Dataset.from_pandas(df=df)
-    tokenizer = AutoTokenizer.from_pretrained(args['tokenizer'])
-    tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
-    dataset = ConcatTokensDataset(
-        hf_dataset=hf_dataset,
-        max_length=args.get('concat_tokens', None),
-        tokenizer=tokenizer,
-        eos_text=args.get('eos_text', None),
-        bos_text=args.get('bos_text', None),
-        no_wrap=args.get('no_wrap', None),
-    )
-
-    for sample in dataset:  # pyright: ignore
-        yield sample
-
-
-def json_to_mds(json_output_path: str,
-                mds_output_path: str,
-                concat_tokens: int,
-                tokenizer_name: str,
-                eos_text: str = '<|endoftext|>',
-                compression: str = 'zstd',
-                no_wrap: bool = False,
-                bos_text: str = '') -> None:
-    """Convert a local folder of jsonl files into Streaming MDS dataset.
-
-    Args:
-        json_output_path (str): Folder that contains jsonl files to process
-        mds_output_path (str): Folder to write MDS shards to
-        concat_tokens (int): Concantenate up to this many tokens
-        tokenizer_name (str): Name of tokenizer to use
-        eos_text (str): Textend to append to each example to separate concatenated samples
-        compression (str): The compression algorithm to use for MDS writing
-        no_wrap: (bool): Whether to let text examples wrap across multiple training examples
-        bos_text (str): Text to prepend to each example to separate concatenated samples
-    """
-    spark = SparkSession.builder.getOrCreate()  # pyright: ignore
-    file_paths = glob.glob(json_output_path + '/*.jsonl')
-
-    if len(file_paths) == 0:
-        raise FileNotFoundError(f'No jsonl files found in {json_output_path}')
-
-    df = spark.read.json(file_paths)
-    mds_kwargs = {
-        'out': mds_output_path,
-        'columns': {
-            'tokens': 'bytes'
-        },
-        'keep_local': True
-    }
-    udf_kwargs = {
-        'concat_tokens': concat_tokens,
-        'tokenizer': tokenizer_name,
-        'eos_text': eos_text,
-        'compression': compression,
-        'no_wrap': no_wrap,
-        'bos_text': bos_text,
-    }
-
-    dataframe_to_mds(df,
-                     merge_index=True,
-                     mds_kwargs=mds_kwargs,
-                     udf_iterable=pandas_processing_fn,
-                     udf_kwargs=udf_kwargs)
-
-    # Sanity Check
-    import numpy as np
-    from streaming import StreamingDataset
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-    tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
-    dataset = StreamingDataset(local=mds_output_path, shuffle=False)
-    for i in range(5):
-        l = np.frombuffer(dataset[i]['tokens'], dtype=np.int64)
-        print(''.join(tokenizer.decode(l)))
-        print()
 
 
 def fetch_DT(args: Namespace) -> None:
@@ -474,8 +382,6 @@ def fetch_DT(args: Namespace) -> None:
     if obj.scheme != '':
         raise ValueError(
             f'Check the json_output_path and verify it is a local path!')
-    if args.task_type == 'CONTINUED_PRETRAIN' and args.mds_output_path is None:
-        raise ValueError(f'Need to specify mds_output_path along with CPT')
 
     if os.path.exists(args.json_output_path):
         if not os.path.isdir(args.json_output_path) or os.listdir(
@@ -492,13 +398,13 @@ def fetch_DT(args: Namespace) -> None:
     dbsql = None
     sparkSession = None
 
-    if args.http_path is None and args.cluster_id is not None:
-        w = WorkspaceClient()
-        res = w.clusters.get(cluster_id=args.cluster_id)
-        runtime_version = res.spark_version.split('-scala')[0].replace(
-            'x-snapshot', '0').replace('x', '0')
-        if version.parse(runtime_version) >= version.parse(MINIMUM_DBR_VERSION):
-            method = 'dbconnect'
+    w = WorkspaceClient()
+    res = w.clusters.get(cluster_id=args.cluster_id)
+    runtime_version = res.spark_version.split('-scala')[0].replace(
+        'x-snapshot', '0').replace('x', '0')
+    if args.http_path is None and version.parse(
+            runtime_version) >= version.parse(MINIMUM_DBR_VERSION):
+        method = 'dbconnect'
 
     if method == 'dbconnect':
         try:
@@ -513,13 +419,13 @@ def fetch_DT(args: Namespace) -> None:
     else:
         try:
             dbsql = sql.connect(
-                server_hostname=args.DATABRICKS_HOST,
+                server_hostname=args.DATABRICKS_HOST.lstrip('https://'),
                 http_path=args.http_path,
                 access_token=args.DATABRICKS_TOKEN,
             )
         except Exception as e:
             raise RuntimeError(
-                'Failed to create sql connection to db workspace. Check server_hostname and http_path and access token!'
+                'Failed to create sql connection to db workspace. To use sql connect, you need to provide http_path and cluster_id!'
             ) from e
 
     fetch(method, args.delta_table_name, args.json_output_path, args.batch_size,
@@ -528,21 +434,10 @@ def fetch_DT(args: Namespace) -> None:
     if dbsql is not None:
         dbsql.close()
 
-    if args.task_type == 'INSTRUCTION_FINETUNE':
-        # combine downloaded jsonl into one big jsonl for IFT
-        iterative_combine_jsons(
-            args.json_output_path,
-            os.path.join(args.json_output_path, 'combined.jsonl'))
-    else:
-        # convert downloaded jsonl into a MDS dataset for CPT
-        json_to_mds(json_output_path=args.json_output_path,
-                    mds_output_path=args.mds_output_path,
-                    concat_tokens=args.concat_tokens,
-                    tokenizer_name=args.tokenizer,
-                    eos_text=args.eos_text,
-                    compression=args.compression,
-                    no_wrap=args.no_wrap,
-                    bos_text=args.bos_text)
+    # combine downloaded jsonl into one big jsonl for IFT
+    iterative_combine_jsons(
+        args.json_output_path,
+        os.path.join(args.json_output_path, 'combined.jsonl'))
 
 
 if __name__ == '__main__':
@@ -579,66 +474,13 @@ if __name__ == '__main__':
         help=
         'Use serverless if not present. IMPORTANT! make sure cluster has runtime newer than 14.1.0 to use databricks-connect'
     )
-    parser.add_argument('--task_type',
-                        required=True,
-                        type=str,
-                        default='INSTRUCTION_FINETUNE',
-                        help='INSTRUCTION_FINETUNE or CONTINUED_PRETRAIN')
-    parser.add_argument('--mds_output_path',
-                        required=False,
-                        type=str,
-                        help='local or remote paths to save MDS dataset')
-    parser.add_argument(
-        '--compression',
-        type=str,
-        default='zstd',
-        help='The compression algorithm to use for MDS writing',
-    )
-    parser.add_argument(
-        '--concat_tokens',
-        required=True,
-        type=int,
-        help='Convert text to tokens and concatenate up to this many tokens',
-    )
-    parser.add_argument(
-        '--tokenizer',
-        required=False,
-        type=str,
-        help='The name of the tokenizer to use',
-    )
-    parser.add_argument(
-        '--bos_text',
-        type=str,
-        required=False,
-        default=None,
-        help=
-        'The text to prepend to each example to separate concatenated examples',
-    )
-    parser.add_argument(
-        '--eos_text',
-        type=str,
-        required=False,
-        default=None,
-        help=
-        'The text to append to each example to separate concatenated examples',
-    )
-    parser.add_argument(
-        '--no_wrap',
-        default=False,
-        action='store_true',
-        help=
-        'Whether to let text examples wrap across multiple training examples',
-    )
     args = parser.parse_args()
-
-    if args.bos_text is None:
-        args.bos_text = ''
-    if args.eos_text is None:
-        args.eos_text = ''
 
     from databricks.sdk import WorkspaceClient
     w = WorkspaceClient()
     args.DATABRICKS_HOST = w.config.host
     args.DATABRICKS_TOKEN = w.config.token
 
+    tik = time.time()
     fetch_DT(args)
+    log.info('Elapsed time', time.time() - tik)

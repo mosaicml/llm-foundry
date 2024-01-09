@@ -5,8 +5,8 @@ models:
 -
   model_name: mpt-example # required for some reason
   model:
-    name: fmapi_causal_lm # used for lookup in COMPOSER_MODEL_REGISTRY
-    base_url: http://0.0.0.0:8080/v2
+    name: fmapi_chat
+    local: true
 
   tokenizer:
     name: tiktoken

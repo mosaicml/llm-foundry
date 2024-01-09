@@ -49,20 +49,16 @@ def block_until_ready(base_url: str):
 class FMAPIEvalInterface(OpenAIEvalInterface):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer):
-        is_local = model_cfg.get('local', False)
+        is_local = model_cfg.pop('local', False)
         if is_local:
             base_url = os.environ.get('MOSAICML_MODEL_ENDPOINT',
                                       'http://0.0.0.0:8080/v2')
-        elif 'base_url' in model_cfg:
-            base_url = model_cfg['base_url']
-        else:
+            model_cfg['base_url'] = base_url
+            block_until_ready(base_url)
+
+        if 'base_url' not in model_cfg:
             raise ValueError(
                 'Must specify base_url in model_cfg for FMAPIsEvalWrapper')
-
-        model_cfg['base_url'] = base_url
-
-        if is_local:
-            block_until_ready(base_url)
 
         super().__init__(model_cfg, tokenizer)
 

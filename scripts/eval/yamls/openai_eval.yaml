@@ -3,22 +3,19 @@ max_seq_len: 1024
 device_eval_batch_size: 4
 models:
 -
-  model_name: openai/gpt-3.5-turbo
+  model_name: mpt-example # required for some reason
   model:
-    name: openai_chat
-    version: gpt-3.5-turbo
+    name: fmapi_causal_lm # used for lookup in COMPOSER_MODEL_REGISTRY
+    base_url: http://0.0.0.0:8080/v2
+
   tokenizer:
     name: tiktoken
     kwargs:
       model_name: gpt-3.5-turbo
--
-  model_name: openai/davinci
-  model:
-    name: openai_causal_lm
-    version: davinci
-  tokenizer:
-    name: tiktoken
-    kwargs:
-      model_name: davinci
 
-icl_tasks: 'eval/yamls/lm_tasks_v0.2.yaml'
+icl_tasks:
+-
+  label: bigbench_simple_arithmetic
+  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_simple_arithmetic.jsonl
+  num_fewshot: [2] # [10]
+  icl_task_type: language_modeling

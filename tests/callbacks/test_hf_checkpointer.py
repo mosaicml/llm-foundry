@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, List
 from unittest.mock import patch
 
 from composer.core import State, Time, TimeUnit
@@ -25,7 +25,7 @@ def dummy_log_info(log_output: List[str]):
     return _dummy_log_info
 
 
-def dummy_upload_file(*_, **__: Dict[str, Any]):
+def dummy_upload_file(*_, **__: Any):
     pass
 
 

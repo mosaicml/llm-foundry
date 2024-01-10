@@ -35,7 +35,6 @@ from pyspark.sql.types import Row
 MINIMUM_DBR_VERSION = '14.1.0'
 
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 Result = namedtuple(
     'Result', ['url', 'row_count', 'compressed_size', 'uncompressed_size'
@@ -49,7 +48,7 @@ Result = namedtuple(
 def to_cf(self: SparkConnectClient,
           plan: pb2.Plan,
           type: str = 'json') -> Tuple[List[Result], int, bool]:
-    """Executes plan object return as cloud fetch presigned URLS.
+    """Executes the query plans and return as presigned URLS for cloud fetch.
 
     It can handle the current output formats that are supported by the server.
     In contrast to the regular API methods of the client, this method does not
@@ -77,7 +76,7 @@ def to_cf(self: SparkConnectClient,
     elif type == 'arrow':
         format = cloud_pb2.ResultOptions.CloudOptions.FORMAT_ARROW
     else:
-        raise Exception(
+        raise ValueError(
             f'Only formats json, csv, and arrow are supported. Got invalid type {type}'
         )
 
@@ -368,7 +367,7 @@ def fetch(
 
     elif method == 'dbsql' and cursor is not None:
         for start in range(0, nrows, batch_size):
-            print('start = ', start)
+            log.info('start = ', start)
             end = min(start + batch_size, nrows)
             fetch_data(method, cursor, sparkSession, start, end, order_by,
                        tablename, columns_str, json_output_path)

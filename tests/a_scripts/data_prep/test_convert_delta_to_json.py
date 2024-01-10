@@ -11,7 +11,11 @@ from unittest.mock import MagicMock, mock_open, patch
 from scripts.data_prep.convert_delta_to_json import (download, fetch_DT,
                                                      iterative_combine_jsons,
                                                      run_query)
+from argparse import Namespace
+from packaging import version
 
+def mock_cluster_get_response(cluster_id, spark_version):
+    return {'cluster_id': cluster_id, 'spark_version': spark_version}
 
 class TestConverDeltaToJsonl(unittest.TestCase):
 
@@ -19,7 +23,9 @@ class TestConverDeltaToJsonl(unittest.TestCase):
     @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
     @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
     @patch('scripts.data_prep.convert_delta_to_json.fetch')
-    def test_stream_delta_to_json(self, mock_fetch: Any,
+    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
+    def test_stream_delta_to_json(self, mock_workspace_client: Any,
+                                  mock_fetch: Any,
                                   mock_combine_jsons: Any, mock_makedirs: Any,
                                   mock_sql_connect: Any):
 
@@ -31,8 +37,12 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args.http_path = 'test_path'
         args.batch_size = 1000
         args.partitions = 1
-        args.cluster_id = None
+        args.cluster_id = '1234'
         args.debug = False
+
+        mock_cluster_get = MagicMock()
+        mock_cluster_get.return_value = MagicMock(spark_version='14.1.0-scala2.12')
+        mock_workspace_client.return_value.clusters.get = mock_cluster_get
 
         fetch_DT(args)
         mock_sql_connect.assert_called_once_with(server_hostname='test_host',
@@ -131,3 +141,136 @@ class TestConverDeltaToJsonl(unittest.TestCase):
                                         lines=True)
 
         mock_get.assert_called_once_with('http://fakeurl.com/data')
+
+
+    @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
+    @patch('scripts.data_prep.convert_delta_to_json.DatabricksSession')
+    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
+    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
+    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
+    @patch('scripts.data_prep.convert_delta_to_json.fetch')
+    def test_dbconnect_called(self, mock_fetch: Any,
+                              mock_combine_jsons: Any,
+                              mock_makedirs: Any,
+                              mock_workspace_client: Any,
+                              mock_databricks_session: Any,
+                              mock_sql_connect: Any):
+
+        args = MagicMock()
+
+        args.delta_table_name = 'test_table'
+        args.json_output_path = '/path/to/jsonl'
+        # Execute function with http_path=None (should use dbconnect)
+        args.http_path=None
+        args.cluster_id='1234'
+        args.DATABRICKS_HOST='host'
+        args.DATABRICKS_TOKEN='token'
+
+        mock_cluster_response = Namespace(spark_version='14.1.0-scala2.12')
+        mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
+
+        mock_remote = MagicMock()
+        mock_remote.getOrCreate.return_value = MagicMock()  # Mock return value for getOrCreate
+        mock_databricks_session.builder.remote.return_value = mock_remote
+
+        fetch_DT(args)
+        mock_databricks_session.builder.remote.assert_called_once_with(host=args.DATABRICKS_HOST,
+                                                        token=args.DATABRICKS_TOKEN,
+                                                        cluster_id=args.cluster_id)
+
+    @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
+    @patch('scripts.data_prep.convert_delta_to_json.DatabricksSession')
+    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
+    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
+    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
+    @patch('scripts.data_prep.convert_delta_to_json.fetch')
+    def test_sqlconnect_called_dbr13(self, mock_fetch: Any,
+                                     mock_combine_jsons: Any,
+                                     mock_makedirs: Any,
+                                     mock_workspace_client: Any,
+                                     mock_databricks_session: Any,
+                                     mock_sql_connect: Any):
+
+        args = MagicMock()
+
+        args.delta_table_name = 'test_table'
+        args.json_output_path = '/path/to/jsonl'
+        # Execute function with http_path=None (should use dbconnect)
+        args.http_path='test_path'
+        args.cluster_id='1234'
+        args.DATABRICKS_HOST='host'
+        args.DATABRICKS_TOKEN='token'
+
+        mock_cluster_response = Namespace(spark_version='13.0.0-scala2.12')
+        mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
+
+        fetch_DT(args)
+        mock_sql_connect.assert_called_once_with(server_hostname=args.DATABRICKS_HOST,
+                                                 http_path=args.http_path,
+                                                 access_token=args.DATABRICKS_TOKEN)
+
+
+    @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
+    @patch('scripts.data_prep.convert_delta_to_json.DatabricksSession')
+    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
+    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
+    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
+    @patch('scripts.data_prep.convert_delta_to_json.fetch')
+    def test_sqlconnect_called_dbr14(self, mock_fetch: Any,
+                                     mock_combine_jsons: Any,
+                                     mock_makedirs: Any,
+                                     mock_workspace_client: Any,
+                                     mock_databricks_session: Any,
+                                     mock_sql_connect: Any):
+
+        args = MagicMock()
+
+        args.delta_table_name = 'test_table'
+        args.json_output_path = '/path/to/jsonl'
+        # Execute function with http_path=None (should use dbconnect)
+        args.http_path='test_path'
+        args.cluster_id='1234'
+        args.DATABRICKS_HOST='host'
+        args.DATABRICKS_TOKEN='token'
+
+        mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
+        mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
+
+        fetch_DT(args)
+        mock_sql_connect.assert_called_once_with(server_hostname=args.DATABRICKS_HOST,
+                                                 http_path=args.http_path,
+                                                 access_token=args.DATABRICKS_TOKEN)
+
+
+    @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
+    @patch('scripts.data_prep.convert_delta_to_json.DatabricksSession')
+    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
+    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
+    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
+    @patch('scripts.data_prep.convert_delta_to_json.fetch')
+    def test_sqlconnect_called_https(self, mock_fetch: Any,
+                                     mock_combine_jsons: Any,
+                                     mock_makedirs: Any,
+                                     mock_workspace_client: Any,
+                                     mock_databricks_session: Any,
+                                     mock_sql_connect: Any):
+
+        args = MagicMock()
+
+        args.delta_table_name = 'test_table'
+        args.json_output_path = '/path/to/jsonl'
+        # Execute function with http_path=None (should use dbconnect)
+        args.http_path='test_path'
+        args.cluster_id='1234'
+        args.DATABRICKS_HOST='https://test-host'
+        args.DATABRICKS_TOKEN='token'
+
+        mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
+        mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
+
+        fetch_DT(args)
+        mock_sql_connect.assert_called_once_with(server_hostname="test-host",
+                                                 http_path=args.http_path,
+                                                 access_token=args.DATABRICKS_TOKEN)
+
+

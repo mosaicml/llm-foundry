@@ -18,7 +18,6 @@ reproducibility.configure_deterministic_mode()
 
 # Add the path of any pytest fixture files you want to make global
 pytest_plugins = [
-    'tests.fixtures.object_stores',
     'tests.fixtures.autouse',
     'tests.fixtures.models',
     'tests.fixtures.data',

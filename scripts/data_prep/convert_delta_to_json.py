@@ -300,7 +300,9 @@ def fetch_data(method: str, cursor: Optional[Cursor],
         records = [r.asDict() for r in ans]  # pyright: ignore
         pdf = pd.DataFrame.from_dict(records)
 
-    pdf.to_json(os.path.join(json_output_path, f'part_{start+1}_{end}.jsonl'))
+    pdf.to_json(os.path.join(json_output_path, f'part_{start+1}_{end}.jsonl'),
+                orient='records',
+                lines=True)
 
 
 def fetch(
@@ -420,7 +422,9 @@ def fetch_DT(args: Namespace) -> None:
     else:
         try:
             dbsql = sql.connect(
-                server_hostname=re.compile(r"^https?://").sub('', args.DATABRICKS_HOST).strip(), # sqlconnect hangs if hostname starts with https
+                server_hostname=re.compile(r'^https?://').sub(
+                    '', args.DATABRICKS_HOST).strip(
+                    ),  # sqlconnect hangs if hostname starts with https
                 http_path=args.http_path,
                 access_token=args.DATABRICKS_TOKEN,
             )

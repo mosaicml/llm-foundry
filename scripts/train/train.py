@@ -532,6 +532,10 @@ def main(cfg: DictConfig) -> Trainer:
     ## Evaluation
     if use_async_eval:
         evaluators = []
+        if eval_first:
+            raise ValueError(
+                '`eval_first` not currently supported with callback `AsyncEval`'
+            )
     else:
         log.info('Building eval loader...')
         eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len

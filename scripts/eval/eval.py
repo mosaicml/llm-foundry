@@ -118,6 +118,7 @@ def evaluate_model(
     python_log_level: Optional[str],
     precision: str,
     eval_gauntlet_df: Optional[pd.DataFrame],
+    subset_num_batches: int,
     icl_subset_num_batches: Optional[int],
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
@@ -222,7 +223,8 @@ def evaluate_model(
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     a = time.time()
-    trainer.eval(eval_dataloader=evaluators)
+    trainer.eval(eval_dataloader=evaluators,
+                 subset_num_batches=subset_num_batches)
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     b = time.time()
@@ -297,10 +299,14 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                              'loggers',
                                              must_exist=False,
                                              default_value={})
-    icl_subset_num_batches: int = pop_config(cfg,
-                                             'icl_subset_num_batches',
-                                             must_exist=False,
-                                             default_value=None)
+    subset_num_batches: int = pop_config(cfg,
+                                         'subset_num_batches',
+                                         must_exist=False,
+                                         default_value=-1)
+    icl_subset_num_batches: Optional[int] = pop_config(cfg,
+                                                       'icl_subset_num_batches',
+                                                       must_exist=False,
+                                                       default_value=None)
     metadata: Optional[Dict[str, str]] = pop_config(cfg,
                                                     'metadata',
                                                     must_exist=False,
@@ -350,6 +356,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              python_log_level=python_log_level,
              precision=precision,
              eval_gauntlet_df=eval_gauntlet_df,
+             subset_num_batches=subset_num_batches,
              icl_subset_num_batches=icl_subset_num_batches,
              metadata=metadata,
              logged_config=logged_cfg)

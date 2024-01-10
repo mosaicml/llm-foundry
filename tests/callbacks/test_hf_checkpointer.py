@@ -5,6 +5,7 @@ from typing import Any, Callable, List
 from unittest.mock import patch
 
 from composer.core import State, Time, TimeUnit
+from composer.devices import DeviceCPU
 from composer.loggers import Logger
 
 from llmfoundry.callbacks.hf_checkpointer import HuggingFaceCheckpointer
@@ -37,7 +38,7 @@ def assert_checkpoint_saves_to_uri(
     dummy_state = State(model=model,
                         rank_zero_seed=42,
                         run_name='dummy_run',
-                        device='cpu')
+                        device=DeviceCPU())
     dummy_logger = Logger(dummy_state)
     # mock the State and Logger
     logs = []

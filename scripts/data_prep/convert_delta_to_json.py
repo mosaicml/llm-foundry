@@ -3,6 +3,7 @@
 
 import logging
 import os
+import re
 import time
 import urllib.parse
 from argparse import ArgumentParser, Namespace
@@ -419,7 +420,7 @@ def fetch_DT(args: Namespace) -> None:
     else:
         try:
             dbsql = sql.connect(
-                server_hostname=args.DATABRICKS_HOST.lstrip('https://'),
+                server_hostname=re.compile(r"^https?://").sub('', args.DATABRICKS_HOST).strip(), # sqlconnect hangs if hostname starts with https
                 http_path=args.http_path,
                 access_token=args.DATABRICKS_TOKEN,
             )

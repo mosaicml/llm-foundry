@@ -30,7 +30,10 @@ def dummy_log_info(log_output: List[str]):
     lambda *_, **__: None)
 def assert_checkpoint_saves_to_uri(uri: str, build_tiny_hf_mpt: Callable):
     uri_base = uri.split('://')[0]
-    model = build_tiny_hf_mpt()
+    model = build_tiny_hf_mpt(attn_config={
+        'attn_impl': 'triton',
+        'attn_uses_sequence_id': False,
+    })
 
     dummy_state = State(model=model,
                         rank_zero_seed=42,

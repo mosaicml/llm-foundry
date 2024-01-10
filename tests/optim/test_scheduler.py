@@ -88,7 +88,7 @@ def test_scheduler_units_match_error(state_unit: str, warmup_unit: str,
         t_warmup=f'10{warmup_unit}',
         t_scale=f'10{scale_unit}',
         t_cooldown=f'10{cooldown_unit}')
-    with pytest.raises(ValueError, match='does not match'):
+    with pytest.raises(ValueError, match='must match'):
         _ = scheduler(state, 1.0)
 
 

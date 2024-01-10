@@ -16,20 +16,19 @@ __all__ = ['InverseSquareRootWithWarmupScheduler']
 
 def _raise_if_units_dont_match(time: Union[str, Time], t_max: Union[str, Time],
                                name: str) -> None:
-    if isinstance(time, str):
-        time = Time.from_timestring(time)
-    if isinstance(t_max, str):
-        t_max = Time.from_timestring(t_max)
+    time = Time.from_input(time)
+    t_max = Time.from_input(t_max)
 
     assert not isinstance(time, str) and not isinstance(t_max, str)
 
     if time.unit != t_max.unit:
-        raise ValueError(f'{time.unit=} does not match {t_max.unit=}.')
+        raise ValueError(
+            f'{name} (unit {time.unit=}) must match max_duration unit ({t_max.unit=}).'
+        )
 
 
 def _raise_if_units_dur(time: Union[str, Time], name: str) -> None:
-    if isinstance(time, str):
-        time = Time.from_timestring(time)
+    time = Time.from_input(time)
 
     assert not isinstance(time, str)
 

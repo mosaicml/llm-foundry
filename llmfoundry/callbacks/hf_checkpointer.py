@@ -96,14 +96,9 @@ class HuggingFaceCheckpointer(Callback):
         self.huggingface_folder_name_fstr = os.path.join(
             'huggingface', huggingface_folder_name)
 
-        if isinstance(save_interval, str):
-            save_interval = Time.from_timestring(save_interval)
-        if isinstance(save_interval, int):
-            save_interval = Time(save_interval, TimeUnit.EPOCH)
-
-        self.save_interval: Time = save_interval
+        self.save_interval: Time = Time.from_input(save_interval, TimeUnit.EPOCH)
         self.check_interval = create_interval_scheduler(
-            save_interval, include_end_of_training=True)
+            self.save_interval, include_end_of_training=True)
         self.remote_ud = maybe_create_remote_uploader_downloader_from_uri(
             save_folder, loggers=[])
         if self.remote_ud is not None:

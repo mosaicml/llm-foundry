@@ -301,7 +301,7 @@ class AsyncEval(Callback):
             f'Initialized AsyncEval callback. Will generate runs at interval {interval}'
         )
 
-        # TODO: potentially support eval_subset_num_batches & eval_first
+        # TODO: potentially support eval_first
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         del logger

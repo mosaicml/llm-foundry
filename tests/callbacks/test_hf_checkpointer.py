@@ -30,6 +30,9 @@ def dummy_upload_file(*_, **__: Any):
     pass
 
 
+@patch(
+    'composer.loggers.remote_uploader_downloader.RemoteUploaderDownloader.upload_file',
+    lambda *_, **__: None)
 def assert_checkpoint_saves_to_uri(
         uri: str, build_tiny_hf_mpt: Callable[..., ComposerMPTCausalLM]):
     uri_base = uri.split('://')[0]
@@ -45,8 +48,6 @@ def assert_checkpoint_saves_to_uri(
     with patch('logging.Logger.info', dummy_log_info(logs)):
         my_checkpointer = HuggingFaceCheckpointer(
             save_folder=uri, save_interval=dummy_save_interval)
-        if my_checkpointer.remote_ud is not None:
-            my_checkpointer.remote_ud.upload_file = dummy_upload_file
         my_checkpointer._save_checkpoint(dummy_state, dummy_logger)
 
     assert any([uri_base in str(log) for log in logs])

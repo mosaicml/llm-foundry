@@ -244,7 +244,7 @@ class AsyncEval(Callback):
     This callback is currently experimental. The API may change in the future.
 
     Args:
-        training_config: Dict[str, Any]: The config from the training run
+        training_params: Dict[str, Any]: The parameter config from the training run
         interval: Union[str, int, Time]: The interval describing how often eval runs should be
             launched. If an integer, it will be assumed to be in :attr:`.TimeUnit.EPOCH`.
             Otherwise, the unit must be either :attr:`.TimeUnit.EPOCH`, :attr:`.TimeUnit.BATCH`,
@@ -268,20 +268,20 @@ class AsyncEval(Callback):
 
     def __init__(
         self,
-        training_config: Dict[str, Any],
+        training_params: Dict[str, Any],
         interval: Union[str, int, Time],
         eval_run_config: Optional[Dict[str, Any]] = None,
     ):
 
         for required in ('save_interval', 'save_folder'):
-            if required not in training_config:
+            if required not in training_params:
                 raise ValueError(f'{required} required for async eval')
 
-        self.checkpoint_save_folder = training_config['save_folder']
-        self.training_config = training_config
+        self.checkpoint_save_folder = training_params['save_folder']
+        self.training_params = training_params
         self.eval_run_config = validate_eval_run_config(eval_run_config)
         self.interval = validate_interval(interval,
-                                          self.training_config['save_interval'])
+                                          self.training_params['save_interval'])
         self.check_interval = create_interval_scheduler(
             interval,
             # There is a custom close to ensure that the final checkpoint
@@ -293,7 +293,7 @@ class AsyncEval(Callback):
         # Run these during init to fail fast in any of the error cases
         self.current_run = self._get_current_run()
         get_eval_parameters(
-            parameters=training_config,
+            parameters=training_params,
             checkpoint='test',
             training_run_name=self.current_run.name,
         )
@@ -336,7 +336,7 @@ class AsyncEval(Callback):
         if dist.get_global_rank() != 0:
             return
 
-        save_latest_filename = self.training_config.get('save_latest_filename',
+        save_latest_filename = self.training_params.get('save_latest_filename',
                                                         None)
 
         if not save_latest_filename:
@@ -374,7 +374,7 @@ class AsyncEval(Callback):
         run_name = get_run_name(self.current_run.name, str(current_interval))
 
         params = get_eval_parameters(
-            parameters=self.training_config,
+            parameters=self.training_params,
             checkpoint=checkpoint,
             training_run_name=self.current_run.name,
         )

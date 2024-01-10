@@ -488,4 +488,3 @@ if __name__ == '__main__':
     tik = time.time()
     fetch_DT(args)
     log.info('Elapsed time', time.time() - tik)
-    print('Elapsed time', time.time() - tik)

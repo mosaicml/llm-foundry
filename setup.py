@@ -88,7 +88,6 @@ extra_deps['databricks'] = [
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
     'lz4>=4,<5',
-    'pyspark>=3,<4',
 ]
 
 extra_deps['tensorboard'] = [

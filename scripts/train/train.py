@@ -626,7 +626,7 @@ def main(cfg: DictConfig) -> Trainer:
     gc.collect()
 
     # Eval first if requested
-    if eval_first and trainer.state.timestamp.batch.value == 0 and not use_async_eval:
+    if eval_first and trainer.state.timestamp.batch.value == 0:
         trainer.eval()
 
     log.info('Starting training...')

@@ -26,10 +26,6 @@ def dummy_log_info(log_output: List[str]):
     return _dummy_log_info
 
 
-def dummy_upload_file(*_, **__: Any):
-    pass
-
-
 @patch(
     'composer.loggers.remote_uploader_downloader.RemoteUploaderDownloader.upload_file',
     lambda *_, **__: None)

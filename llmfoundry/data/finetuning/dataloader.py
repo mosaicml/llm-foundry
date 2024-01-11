@@ -190,7 +190,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             max_seq_len=cfg.dataset.max_seq_len,
             preprocessing_fn=preprocessing_fn,
             tokenizer=tokenizer,
-            hf_kwargs=cfg.dataset.get('kwargs', {}))
+            hf_kwargs=cfg.dataset.get('hf_kwargs', {}))
 
         # Ensure dataset is large enough.
         if cfg.drop_last:

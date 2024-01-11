@@ -368,7 +368,7 @@ def fetch(
 
     elif method == 'dbsql' and cursor is not None:
         for start in range(0, nrows, batch_size):
-            log.info('start = ', start)
+            log.warning(f"batch {start}")
             end = min(start + batch_size, nrows)
             fetch_data(method, cursor, sparkSession, start, end, order_by,
                        tablename, columns_str, json_output_path)
@@ -401,19 +401,22 @@ def fetch_DT(args: Namespace) -> None:
     dbsql = None
     sparkSession = None
 
-    w = WorkspaceClient()
-    res = w.clusters.get(cluster_id=args.cluster_id)
-    runtime_version = res.spark_version.split('-scala')[0].replace(
-        'x-snapshot', '0').replace('x', '0')
-    if version.parse(runtime_version) < version.parse(
-            MINIMUM_SQ_CONNECT_DBR_VERSION):
-        raise ValueError(
-            f'The minium DBR version required is {MINIMUM_SQ_CONNECT_DBR_VERSION} but got {version.parse(runtime_version)}'
-        )
-
-    if args.http_path is None and version.parse(
-            runtime_version) >= version.parse(MINIMUM_DB_CONNECT_DBR_VERSION):
+    if args.cluster_id == "serverless":
         method = 'dbconnect'
+    else:
+        w = WorkspaceClient()
+        res = w.clusters.get(cluster_id=args.cluster_id)
+        runtime_version = res.spark_version.split('-scala')[0].replace(
+            'x-snapshot', '0').replace('x', '0')
+        if version.parse(runtime_version) < version.parse(
+                MINIMUM_SQ_CONNECT_DBR_VERSION):
+            raise ValueError(
+                f'The minium DBR version required is {MINIMUM_SQ_CONNECT_DBR_VERSION} but got {version.parse(runtime_version)}'
+            )
+
+        if args.http_path is None and version.parse(
+                runtime_version) >= version.parse(MINIMUM_DB_CONNECT_DBR_VERSION):
+            method = 'dbconnect'
 
     if method == 'dbconnect':
         try:

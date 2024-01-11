@@ -135,14 +135,14 @@ def token_counts(FT_API_args):
     cfg, tokenizer = create_om_cfg(FT_API_args)
 
     device_batch_size = 1
-    dataspec, token_lens = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+    dataspec = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
     dataloader = dataspec.dataloader
 
     detected_cpu_count = os.cpu_count() or 1
     detected_cpus_with_margin = detected_cpu_count - 8
     num_cpus_to_use = max(1, detected_cpus_with_margin)
 
-    token_lens = ds.map(
+    token_lens = dataloader.dataset.map(
         get_num_samples_in_batch,
         batched=False,
         num_proc=num_cpus_to_use,

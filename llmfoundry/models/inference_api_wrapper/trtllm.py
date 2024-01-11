@@ -4,10 +4,13 @@
 """Implements a TRT-LLM evaluation model wrapped around a
 :class:`.ComposerModel`."""
 
+import os
+import sys
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, List, Tuple
 
+import warnings
 import torch
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizer
@@ -49,6 +52,10 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
     ):
         check_if_trt_llm_installed()
 
+        if tensorrt_llm.mpi_rank() != 0:
+            f = open(os.devnull, 'w')
+            sys.stdout = f
+            sys.stderr = f 
         super().__init__(model_cfg, tokenizer)
 
         tensorrt_llm.logger.set_level(model_cfg['log_level'])
@@ -74,10 +81,10 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
         use_gpt_attention_plugin = bool(
             config['plugin_config']['gpt_attention_plugin'])
         remove_input_padding = config['plugin_config']['remove_input_padding']
-        #if remove_input_padding:
-        #    raise ValueError(
-        #        'TRT-LLM Evaluation Wrapper does not support remove_input_padding.'
-        #    )
+        if remove_input_padding:
+            raise ValueError(
+                'TRT-LLM Evaluation Wrapper does not support remove_input_padding.'
+            )
        
         num_kv_heads = config['builder_config'].get('num_kv_heads', num_heads)
         paged_kv_cache = config['plugin_config']['paged_kv_cache']
@@ -111,7 +118,6 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
 
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
-        self.max_seq_len = 2048 #TODO: Do Not hardcode
 
         # Device and rank
         runtime_rank = tensorrt_llm.mpi_rank()
@@ -151,11 +157,6 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
 
         print("!!! Initialized generation session for rank:", runtime_rank)        
         torch.cuda.synchronize()
-        
-        # Move metrics to proper device (doesn't help, have to do this in update_metric())
-        # for key, value in self.eval_metrics.items():
-        #    self.eval_metrics[key] = value.to(device=self.device)
-        #    print("Eval metric now at:", self.eval_metrics[key].device) 
 
     def rebatch(self, batch):
         """
@@ -169,24 +170,42 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
             return batch.to(device=self.device)
         elif isinstance(batch, list):
             return [self.rebatch(b) for b in batch]
-        
         return batch
+    
+
+        # Remove potential additional dim, cast to int32
+        batch_input_ids = [
+            x.flatten().type(torch.int32) for x in batch_input_ids
+        ]
+        input_lengths = [x.size(0) for x in batch_input_ids]
+        max_length = max(input_lengths)
+        # Right padding for trt-llm
+        paddings = [
+            torch.ones(max_length - l, dtype=torch.int32, device=self.device) * pad_id
+            for l in input_lengths
+        ]
+        batch_input_ids = [
+            torch.cat([x, pad]) for x, pad in zip(batch_input_ids, paddings)
+        ]
+        batch_input_ids = torch.stack(batch_input_ids)
+        input_lengths = torch.tensor(input_lengths, dtype=torch.int32, device=self.device)
+        return batch_input_ids, input_lengths
 
 
     def eval_forward(self, batch, outputs: Optional[Any] = None):
-        # If the batch mode is generate, we will generate a requested number of tokens using the underlying
-        # model's generate function. Strings will be returned from eval_forward
+        # Run TRTLLM forward pass
         output_logits_batch = []
         batch = self.rebatch(batch)
 
         # Question-answering tasks
         if 'continuation_indices' not in batch:
+            """
             # Batched version
             batch_size = len(batch['input_ids'])
             prompt_lens = []
-            output_strs = [] # QA tasks return strings, not logits
             max_prompt_len = 0
-            
+            # prompt_list = []
+
             for tokens in batch['input_ids']:
                 prompt = tokens.tolist()
                 eos_occurence = (tokens == 2).nonzero(as_tuple=True)[0]
@@ -197,21 +216,12 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
                 if end_prompt_idx > max_prompt_len:
                     max_prompt_len = end_prompt_idx
 
-            #if batch_size == 1:
-            #    # Remove pad tokens
-            #    prompt = batch['input_ids'][0].tolist()[:prompt_lens[0]]
-            #    input_ids = torch.tensor([prompt], dtype=torch.int, device=self.device)
-            #    input_lengths = torch.tensor([input_ids.size(1)], dtype=torch.int, device=self.device)
-            # else:
-            # Keep padding
             input_ids = torch.narrow(batch['input_ids'], 1, 0, max_prompt_len).to(dtype=torch.int, device=self.device) 
-            # input_ids = batch['input_ids'].to(dtype=torch.int, device=self.device)
             input_lengths = torch.tensor(prompt_lens, dtype=torch.int, device=self.device)
            
-            #if tensorrt_llm.mpi_rank() == 0:
-            #    print("Prompt:", input_ids[7])
-            #print("Input shape:", input_ids.shape)
-            #print("Input lengths:", input_lengths)
+            print("Prompt:", input_ids)
+            print("Input shape:", input_ids.shape)
+            print("Input lengths:", input_lengths)
 
             with torch.no_grad():
                 self.decoder.setup(batch_size,
@@ -219,15 +229,14 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
                                     batch['generation_length'])
                 output_dict = self.decoder.decode(input_ids, input_lengths, self.sampling_config, return_dict=True)
        
-            #if tensorrt_llm.mpi_rank() == 0:
-            #    print("Output:", [output_dict['output_ids'][i][0].tolist()[prompt_lens[i]:prompt_lens[i]+batch['generation_length']] for i in range(batch_size)])
-            # print("Output shape:", output_dict['output_ids'].shape)
-            #inp_len = input_ids.size(1)
+            output_ids = [output_dict['output_ids'][i][0].tolist()[prompt_lens[i]:prompt_lens[i]+batch['generation_length']] for i in range(batch_size)]
 
-            decoded_strs = [self.tokenizer.decode(output_dict['output_ids'][i][0].tolist()[prompt_lens[i]:prompt_lens[i]+batch['generation_length']]) for i in range(batch_size)]
-            output_strs += decoded_strs
-            print("decoded strs:", decoded_strs)
-            return output_strs
+            print("Output:", output_ids)
+        
+            decoded_strs = [self.tokenizer.decode(out) for out in output_ids]
+            # print("decoded strs:", decoded_strs)
+            return decoded_strs
+            """
 
             # Non-batched version
             output_strs = []
@@ -259,24 +268,6 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
                 #print("Decoded OUTPUT:", decoded_str)
                 #print("-------------")
                 # print("Output ids:", output_dict['output_ids'][0][0].tolist())
-                """
-                context_logits = output_dict['context_logits'].squeeze()
-                output_logits_tensor = torch.stack(output_logits_list)
-                print("Context logits shape:", context_logits.shape)
-                print("Output logits shape:", output_logits_tensor.shape)
-                combined_logits = torch.cat([context_logits, output_logits_tensor])
-                                
-                padding = torch.nn.functional.one_hot(
-                    torch.full(
-                        (self.max_seq_len - combined_logits.shape[0],),
-                        self.PAD_ID,
-                        device=self.device
-                    ),
-                    num_classes=self.vocab_size)
-                padded_combined_logits = torch.cat([combined_logits, padding])
-
-                output_logits_batch.append(padded_combined_logits)
-                """
             return output_strs
 
         # Language modeling and multiple choice tasks

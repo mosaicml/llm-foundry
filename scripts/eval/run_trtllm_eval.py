@@ -17,35 +17,6 @@ QA_MC_TASKS = './eval/yamls/qa_mc_tasks_v0.2.yaml'
 ALL_TASKS = './eval/yamls/tasks_v0.2.yaml'
 LM_TASKS = './eval/yamls/lm_tasks_v0.2.yaml'
 
-# GPT config is just for quick initial testing purposes
-trt_gpt_config = {
-    'run_name': 'trtllm-eval',
-    'seed': 0,
-    'max_seq_len': 1024,
-    'device_eval_batch_size': 4,
-    'precision': 'amp_fp16',
-    'dist_timeout': 6000,
-    'models':
-    [
-        {
-            'model_name': 'trtllm/gpt',
-            'model':
-            {
-                'name': 'trtllm',
-                'version': 'gpt',
-                'engine_dir': trt_folder_path + 'examples/gpt/engine_outputs',
-                'log_level': 'error'
-            },
-            'tokenizer':
-            {
-                'name': 'gpt2'
-            }
-        }
-    ],
-    'icl_tasks': './eval/yamls/mini_tasks_v0.2.yaml',
-    'eval_gauntlet': './eval/yamls/mini_eval_gauntlet_v0.2.yaml',
-}
-
 
 def get_llama_config(engine_dir, tokenizer_name, icl_tasks=MINI_TASKS):
     return {
@@ -105,10 +76,10 @@ def run_eval(config):
     print("OmegaConfig dictionary", om.to_yaml(om_dict_config))
     run_evaluation(om_dict_config)
 
-#run_eval(llama7b_int8_config)
-#run_eval(llama70b_int8_config)
-#run_eval(llama70b_fp16_config)
+# run_eval(llama7b_int8_config)
+run_eval(llama70b_int8_config)
+# run_eval(llama70b_fp16_config)
 #run_eval(llama70b_fp8_config)
-run_eval(llama70b_smoothquant_config)
+# run_eval(llama70b_smoothquant_config)
 
 

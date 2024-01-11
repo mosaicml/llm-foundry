@@ -242,9 +242,9 @@ def parse_args( tokenizer,
                 eos_text = '',
                 no_wrap = False ,
                 processes = 32,
-                reprocess = False ) -> Namespace:
+                reprocess = True ) -> Namespace:
     parsed = Namespace(tokenizer = tokenizer,
-                       concat_tokens = model_max_length,
+                       concat_tokens = concat_tokens,
                        output_folder = output_folder,
                        input_folder = input_folder,
                        eos_text = eos_text,

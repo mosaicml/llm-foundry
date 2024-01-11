@@ -275,19 +275,15 @@ class TestConverDeltaToJsonl(unittest.TestCase):
             http_path=args.http_path,
             access_token=args.DATABRICKS_TOKEN)
 
-
     @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
     @patch('scripts.data_prep.convert_delta_to_json.DatabricksSession')
     @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
     @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
     @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
     @patch('scripts.data_prep.convert_delta_to_json.fetch')
-    def test_serverless(self, mock_fetch: Any,
-                        mock_combine_jsons: Any,
-                        mock_makedirs: Any,
-                        mock_workspace_client: Any,
-                        mock_databricks_session: Any,
-                        mock_sql_connect: Any):
+    def test_serverless(self, mock_fetch: Any, mock_combine_jsons: Any,
+                        mock_makedirs: Any, mock_workspace_client: Any,
+                        mock_databricks_session: Any, mock_sql_connect: Any):
 
         args = MagicMock()
 
@@ -306,4 +302,3 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         fetch_DT(args)
         assert not mock_sql_connect.called
         assert not mock_databricks_session.builder.remote.called
-

@@ -7,7 +7,6 @@ import logging
 import os
 import shutil
 import subprocess
-from typing import Dict
 
 import yaml
 from huggingface_hub.constants import HUGGINGFACE_HUB_CACHE
@@ -32,8 +31,11 @@ def download_from_oras(model: str, save_dir: str, credentials_dirpath: str,
             f'oras cli command `{ORAS_CLI}` is not found. Please install oras: https://oras.land/docs/installation '
         )
 
-    def validate_and_add_from_secret_file(secrets: Dict[str, str], secret_name: str,
-                                          secret_file_path: str):
+    def validate_and_add_from_secret_file(
+        secrets: dict[str, str],
+        secret_name: str,
+        secret_file_path: str,
+    ):
         try:
             with open(secret_file_path, encoding='utf-8') as f:
                 secrets[secret_name] = f.read()
@@ -47,12 +49,14 @@ def download_from_oras(model: str, save_dir: str, credentials_dirpath: str,
         secrets, 'username', os.path.join(credentials_dirpath, 'username'))
     validate_and_add_from_secret_file(
         secrets, 'password', os.path.join(credentials_dirpath, 'password'))
+    validate_and_add_from_secret_file(
+        secrets, 'registry', os.path.join(credentials_dirpath, 'registry'))
 
     with open(config_file, 'r', encoding='utf-8') as f:
         configs = yaml.safe_load(f.read())
 
-    path = configs['models'][model]
-    hostname = configs['hostname']
+    path = configs[model]
+    hostname = secrets['registry']
 
     def get_oras_cmd_to_run(password: str):
         return [

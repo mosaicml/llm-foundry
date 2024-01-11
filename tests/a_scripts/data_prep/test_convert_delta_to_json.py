@@ -35,6 +35,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args.partitions = 1
         args.cluster_id = '1234'
         args.debug = False
+        args.use_serverless = False
 
         mock_cluster_get = MagicMock()
         mock_cluster_get.return_value = MagicMock(
@@ -159,6 +160,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args.cluster_id = '1234'
         args.DATABRICKS_HOST = 'host'
         args.DATABRICKS_TOKEN = 'token'
+        args.use_serverless = False
 
         mock_cluster_response = Namespace(spark_version='14.1.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
@@ -196,6 +198,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args.cluster_id = '1234'
         args.DATABRICKS_HOST = 'host'
         args.DATABRICKS_TOKEN = 'token'
+        args.use_serverless = False
 
         mock_cluster_response = Namespace(spark_version='13.0.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
@@ -228,6 +231,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args.cluster_id = '1234'
         args.DATABRICKS_HOST = 'host'
         args.DATABRICKS_TOKEN = 'token'
+        args.use_serverless = False
 
         mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
@@ -260,6 +264,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args.cluster_id = '1234'
         args.DATABRICKS_HOST = 'https://test-host'
         args.DATABRICKS_TOKEN = 'token'
+        args.use_serverless = False
 
         mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
@@ -269,3 +274,36 @@ class TestConverDeltaToJsonl(unittest.TestCase):
             server_hostname='test-host',
             http_path=args.http_path,
             access_token=args.DATABRICKS_TOKEN)
+
+
+    @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
+    @patch('scripts.data_prep.convert_delta_to_json.DatabricksSession')
+    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
+    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
+    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
+    @patch('scripts.data_prep.convert_delta_to_json.fetch')
+    def test_serverless(self, mock_fetch: Any,
+                        mock_combine_jsons: Any,
+                        mock_makedirs: Any,
+                        mock_workspace_client: Any,
+                        mock_databricks_session: Any,
+                        mock_sql_connect: Any):
+
+        args = MagicMock()
+
+        args.delta_table_name = 'test_table'
+        args.json_output_path = '/path/to/jsonl'
+        # Execute function with http_path=None (should use dbconnect)
+        args.http_path = 'test_path'
+        args.cluster_id = '1234'
+        args.DATABRICKS_HOST = 'https://test-host'
+        args.DATABRICKS_TOKEN = 'token'
+        args.use_serverless = True
+
+        mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
+        mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
+
+        fetch_DT(args)
+        assert not mock_sql_connect.called
+        assert not mock_databricks_session.builder.remote.called
+

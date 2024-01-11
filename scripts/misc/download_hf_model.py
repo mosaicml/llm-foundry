@@ -65,10 +65,14 @@ def download_from_oras(model: str, save_dir: str, credentials_dirpath: str,
             f'{hostname}/{path}'
         ]
 
-    cmd_to_run = get_oras_cmd_to_run(ORAS_PASSWD_PLACEHOLDER)
-    log.info(f'CMD for oras cli to run: {cmd_to_run}')
+    cmd_to_run_no_password = get_oras_cmd_to_run(ORAS_PASSWD_PLACEHOLDER)
+    log.info(f'CMD for oras cli to run: {cmd_to_run_no_password}')
     cmd_to_run = get_oras_cmd_to_run(secrets['password'])
-    subprocess.run(cmd_to_run, check=True)
+    try:
+        subprocess.run(cmd_to_run, check=True)
+    except subprocess.CalledProcessError as e:
+        # Intercept the error and replace the cmd, which may have sensitive info.
+        raise subprocess.CalledProcessError(e.returncode, cmd_to_run_no_password, e.output, e.stderr)
 
 
 def parse_args() -> argparse.Namespace:

@@ -43,6 +43,7 @@ __all__ = [
     'pop_config',
     'create_om_cfg',
     'token_counts_and_validation',
+    'token_counts',
     'check_HF_datasets',
     'is_hf_dataset_path',
     'is_uc_delta_table',

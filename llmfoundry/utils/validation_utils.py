@@ -97,6 +97,61 @@ def token_counts_and_validation(FT_API_args):
     return total_tokens
 
 
+from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
+                    Union, cast)
+import torch
+
+def get_num_samples_in_batch(batch:dict) -> int:
+    decoder_only = True
+
+    if not isinstance(batch, Mapping) or ('attention_mask' not in batch and
+                                          'input_ids' not in batch):
+        raise ValueError(
+            'get_tokens_per_batch_func() requires a batch with an attention_mask key or an input_ids key'
+        )
+
+    if not decoder_only and 'decoder_attention_mask' not in batch:
+        raise ValueError(
+            'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_attention_mask key'
+        )
+
+    # Count number of non padding tokens in batch
+    if 'attention_mask' in batch:
+        input_ids_tokens = int(sum(batch['attention_mask']))
+    else:
+        input_ids_tokens = batch['input_ids'].numel()
+
+    # For encoder decoder models only
+    decoder_input_ids_tokens = 0
+    if not decoder_only:
+        decoder_input_ids_tokens = int(
+            torch.sum(batch['decoder_attention_mask']).item())
+
+    return {'ntokens': input_ids_tokens + decoder_input_ids_tokens}
+
+def token_counts(FT_API_args):
+    from llmfoundry.data.finetuning import build_finetuning_dataloader
+
+    cfg, tokenizer = create_om_cfg(FT_API_args)
+
+    device_batch_size = 1
+    dataspec, token_lens = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+    dataloader = dataspec.dataloader
+
+    detected_cpu_count = os.cpu_count() or 1
+    detected_cpus_with_margin = detected_cpu_count - 8
+    num_cpus_to_use = max(1, detected_cpus_with_margin)
+
+    token_lens = ds.map(
+        get_num_samples_in_batch,
+        batched=False,
+        num_proc=num_cpus_to_use,
+        desc='List of Token length',
+    )
+
+    return token_lens
+
+
 def check_HF_datasets(dataset_names_with_splits: list):
     token = os.environ.get('HUGGING_FACE_HUB_TOKEN')
     for dataset_name_with_split in dataset_names_with_splits:

@@ -10,6 +10,7 @@ from argparse import ArgumentParser, Namespace
 from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
 from typing import Iterable, List, Optional, Tuple, Union
+from uuid import uuid4
 
 import google.protobuf.any_pb2 as any_pb2
 import lz4.frame
@@ -32,7 +33,8 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
 
-MINIMUM_DBR_VERSION = '14.1.0'
+MINIMUM_DB_CONNECT_DBR_VERSION = '14.1.0'
+MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2.0'
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +65,7 @@ def to_cf(self: SparkConnectClient,
            - A list of Result namedtuples, each containing a URL, row count, compressed size,
              and uncompressed size of the part of the result.
            - Total row count of all parts of the result.
-           - A boolean indicating whether the result is truncated or overflowed.
+           - A boolean indicating whether the result has been truncated.
     """
     req = self._execute_plan_request_with_metadata()
     req.plan.CopyFrom(plan)
@@ -350,8 +352,7 @@ def fetch(
 
     if method == 'dbconnect' and sparkSession is not None:
         log.info('processes = ', processes)
-        df = sparkSession.table(
-            tablename)  # "main.tpcds_sf100_delta.store_sales")
+        df = sparkSession.table(tablename)
 
         # Running the query and collecting the data as arrow or json.
         signed, _, _ = df.collect_cf('arrow')  # pyright: ignore
@@ -404,16 +405,30 @@ def fetch_DT(args: Namespace) -> None:
     res = w.clusters.get(cluster_id=args.cluster_id)
     runtime_version = res.spark_version.split('-scala')[0].replace(
         'x-snapshot', '0').replace('x', '0')
+    if version.parse(runtime_version) < version.parse(
+            MINIMUM_SQ_CONNECT_DBR_VERSION):
+        raise ValueError(
+            f'The minium DBR version required is {MINIMUM_SQ_CONNECT_DBR_VERSION} but got {version.parse(runtime_version)}'
+        )
+
     if args.http_path is None and version.parse(
-            runtime_version) >= version.parse(MINIMUM_DBR_VERSION):
+            runtime_version) >= version.parse(MINIMUM_DB_CONNECT_DBR_VERSION):
         method = 'dbconnect'
 
     if method == 'dbconnect':
         try:
-            sparkSession = DatabricksSession.builder.remote(
-                host=args.DATABRICKS_HOST,
-                token=args.DATABRICKS_TOKEN,
-                cluster_id=args.cluster_id).getOrCreate()
+            if args.cluster_id == 'serverless':
+                session_id = str(uuid4())
+                sparkSession = DatabricksSession.builder.host(
+                    args.DATABRICKS_HOST).token(args.DATABRICKS_TOKEN).header(
+                        'x-databricks-session-id', session_id).getOrCreate()
+
+            else:
+                sparkSession = DatabricksSession.builder.remote(
+                    host=args.DATABRICKS_HOST,
+                    token=args.DATABRICKS_TOKEN,
+                    cluster_id=args.cluster_id).getOrCreate()
+
         except Exception as e:
             raise RuntimeError(
                 'Failed to create databricks connection. Check hostname and access token!'

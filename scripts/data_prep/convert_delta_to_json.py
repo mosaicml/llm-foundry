@@ -332,7 +332,7 @@ def fetch(
         ans = run_query(f'SELECT COUNT(*) FROM {tablename}', method, cursor,
                         sparkSession)
         nrows = [row.asDict() for row in ans][0].popitem()[1]  # pyright: ignore
-        log.debug(f'total_rows = {nrows}')
+        log.info(f'total_rows = {nrows}')
     except Exception as e:
         raise RuntimeError(
             f'Error in get total rows from {tablename}. Restart sparkSession and try again'
@@ -368,7 +368,7 @@ def fetch(
 
     elif method == 'dbsql' and cursor is not None:
         for start in range(0, nrows, batch_size):
-            log.warning(f"batch {start}")
+            log.warning(f'batch {start}')
             end = min(start + batch_size, nrows)
             fetch_data(method, cursor, sparkSession, start, end, order_by,
                        tablename, columns_str, json_output_path)
@@ -401,7 +401,7 @@ def fetch_DT(args: Namespace) -> None:
     dbsql = None
     sparkSession = None
 
-    if args.cluster_id == "serverless":
+    if args.use_serverless:
         method = 'dbconnect'
     else:
         w = WorkspaceClient()
@@ -415,12 +415,13 @@ def fetch_DT(args: Namespace) -> None:
             )
 
         if args.http_path is None and version.parse(
-                runtime_version) >= version.parse(MINIMUM_DB_CONNECT_DBR_VERSION):
+                runtime_version) >= version.parse(
+                    MINIMUM_DB_CONNECT_DBR_VERSION):
             method = 'dbconnect'
 
     if method == 'dbconnect':
         try:
-            if args.cluster_id == 'serverless':
+            if args.use_serverless:
                 session_id = str(uuid4())
                 sparkSession = DatabricksSession.builder.host(
                     args.DATABRICKS_HOST).token(args.DATABRICKS_TOKEN).header(
@@ -494,7 +495,15 @@ if __name__ == '__main__':
         type=str,
         default=None,
         help=
-        'Use serverless if not present. IMPORTANT! make sure cluster has runtime newer than 14.1.0 to use databricks-connect'
+        'cluster id has runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect.'
+    )
+    parser.add_argument(
+        '--use_serverless',
+        required=False,
+        type=bool,
+        default=False,
+        help=
+        'Use serverless or not. Make sure the workspace is entitled with serverless'
     )
     args = parser.parse_args()
 

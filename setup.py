@@ -73,7 +73,7 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'pre-commit>=2.18.1,<3',
+    'pre-commit>=3.4.0,<4',
     'pytest>=7.2.1,<8',
     'pytest_codeblocks>=0.16.1,<0.17',
     'pytest-cov>=4,<5',
@@ -84,7 +84,10 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.17.2,<0.18',
+    'mosaicml[databricks]>=0.17.1,<0.18',
+    'databricks-sql-connector>=3,<4',
+    'databricks-connect==14.1.0',
+    'lz4>=4,<5',
 ]
 
 extra_deps['tensorboard'] = [

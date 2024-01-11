@@ -89,7 +89,7 @@ def token_counts_and_validation(FT_API_args):
     token_counting_func = dataspec.get_num_tokens_in_batch
 
     total_tokens = []
-    for batch in dataloader:
+    for batch in tqdm(dataloader):
         n_batch_tokens = token_counting_func(batch)
         if n_batch_tokens == 0:
             raise ValueError("Empty train sample")

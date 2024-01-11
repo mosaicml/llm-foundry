@@ -5,6 +5,7 @@ import os
 from typing import Tuple, Union
 
 import torch
+import datasets as hf_datasets
 from composer.core.data_spec import DataSpec
 from composer.utils import dist, get_file, parse_uri
 from omegaconf import DictConfig
@@ -26,7 +27,7 @@ _HF_IGNORE_INDEX = -100
 
 def build_finetuning_dataloader(cfg: DictConfig,
                                 tokenizer: PreTrainedTokenizerBase,
-                                device_batch_size: int) -> DataSpec:
+                                device_batch_size: int) -> Tuple[DataSpec, hf_datasets.Dataset]:
     """Builds a finetuning dataloader for training or evaluating.
 
     The underlying dataset can be built through one of two code paths:
@@ -192,6 +193,18 @@ def build_finetuning_dataloader(cfg: DictConfig,
             tokenizer=tokenizer,
             hf_kwargs=cfg.dataset.get('hf_kwargs', {}))
 
+        detected_cpu_count = os.cpu_count() or 1
+        detected_cpus_with_margin = detected_cpu_count - 8
+        num_cpus_to_use = max(1, detected_cpus_with_margin)
+
+        columns_to_remove = []
+        token_lens = dataset.map(
+            lambda ex: len(ex),
+            batched=False,
+            num_proc=num_cpus_to_use,
+            desc='List of Token length',
+        )
+
         # Ensure dataset is large enough.
         if cfg.drop_last:
             world_size = dist.get_world_size()
@@ -231,7 +244,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
     token_counting_func = get_tokens_per_batch_func()
 
-    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
+    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func), token_lens
 
 
 def _validate_config(dataset_cfg: DictConfig) -> None:

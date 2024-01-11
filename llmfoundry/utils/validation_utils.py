@@ -233,7 +233,40 @@ log = logging.getLogger(__name__)
 DONE_FILENAME = '.text_to_mds_conversion_done'
 
 
-def parse_args() -> Namespace:
+def parse_args( tokenizer,
+                concat_tokens,
+                output_folder,
+                input_folder,
+                compression = 'zstd',
+                bos_text = '',
+                eos_text = '',
+                no_wrap = False ,
+                processes = 32,
+                reprocess = False ) -> Namespace:
+    parsed = Namespace(tokenizer = tokenizer,
+                       concat_tokens = model_max_length,
+                       output_folder = output_folder,
+                       input_folder = input_folder,
+                       eos_text = eos_text,
+                       bos_text = bos_text,
+                       no_wrap = no_wrap,
+                       compression = compression,
+                       processes = processes,
+                       reprocess = reprocess)
+    # Make sure we have needed concat options
+    if (parsed.concat_tokens is not None and
+            isinstance(parsed.concat_tokens, int) and parsed.tokenizer is None):
+        parser.error(
+            'When setting --concat_tokens, you must specify a --tokenizer')
+    # now that we have validated them, change BOS/EOS to strings
+    if parsed.bos_text is None:
+        parsed.bos_text = ''
+    if parsed.eos_text is None:
+        parsed.eos_text = ''
+    return parsed
+
+
+def original_parse_args() -> Namespace:
     """Parse commandline arguments."""
     parser = ArgumentParser(
         description=

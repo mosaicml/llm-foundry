@@ -665,3 +665,84 @@ def _args_str(original_args: Namespace) -> str:
     )
 
     return str(args)
+
+
+
+from composer.utils import dist, get_file, parse_uri
+from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
+                                              SUPPORTED_EXTENSIONS,
+                                              dataset_constructor)
+
+def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
+    """Downloads a dataset from a remote object store.
+
+    This function supports 'jsonl', 'csv', and 'parquet' file formats for the dataset. It will attempt to download
+    the dataset, then once it is downloaded, convert it into HuggingFace ``datasets`` format, and then return this
+    dataset.
+
+    The function also ensures synchronicity across multiple processes during the file download. It creates a signal
+    file that is used to synchronize the start of the download across different processes. Once the download is
+    completed, the function removes the signal file.
+
+    Args:
+        hf_name (str): The path of the HuggingFace dataset to download.
+        split (str): The dataset split to download (e.g., 'train', 'validation', 'test').
+
+    Returns:
+        A local directory path where the dataset files are stored.
+
+    Raises:
+        FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.
+    """
+    finetune_dir = os.path.join(
+        DOWNLOADED_FT_DATASETS_DIRPATH,
+        split if split != 'data' else 'data_not',
+    )
+    os.makedirs(finetune_dir, exist_ok=True)
+    for extension in SUPPORTED_EXTENSIONS:
+        name = f'{remote_path.strip("/")}/{split}{extension}'
+        destination = str(
+            os.path.abspath(
+                os.path.join(finetune_dir, 'data',
+                             f'{split}-00000-of-00001{extension}')))
+
+        # Since we don't know exactly what the extension will be, since it is one of a list
+        # use a signal file to wait for instead of the desired file
+        signal_file_path = os.path.join(
+            finetune_dir, f'.node_{dist.get_node_rank()}_local_rank0_completed')
+        if dist.get_local_rank() == 0:
+            try:
+                get_file(path=name, destination=destination, overwrite=True)
+            except FileNotFoundError as e:
+                if extension == SUPPORTED_EXTENSIONS[-1]:
+                    files_searched = [
+                        f'{cfg.dataset.hf_name}/{cfg.dataset.split}{ext}'
+                        for ext in SUPPORTED_EXTENSIONS
+                    ]
+                    raise FileNotFoundError(
+                        f'Could not find a file with any of ' + \
+                        f'the supported extensions: {SUPPORTED_EXTENSIONS}\n' + \
+                        f'at {files_searched}'
+                    ) from e
+                else:
+                    log.debug(
+                        f'Could not find {name}, looking for another extension')
+                continue
+
+            os.makedirs(os.path.dirname(signal_file_path), exist_ok=True)
+            with open(signal_file_path, 'wb') as f:
+                f.write(b'local_rank0_completed_download')
+
+        # Avoid the collective call until the local rank zero has finished trying to download the dataset
+        # so that we don't timeout for large downloads. This syncs all processes on the node
+        with dist.local_rank_zero_download_and_wait(signal_file_path):
+            # Then, wait to ensure every node has finished trying to download the dataset
+            dist.barrier()
+
+        # clean up signal file
+        if dist.get_local_rank() == 0:
+            os.remove(signal_file_path)
+        dist.barrier()
+        break
+    return finetune_dir
+

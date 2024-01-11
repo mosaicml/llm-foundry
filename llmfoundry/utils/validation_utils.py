@@ -36,7 +36,7 @@ def create_om_cfg(FT_API_args: Namespace):
 
     common_args = {
         'drop_last': False,
-        'num_workers': 2,
+        'num_workers': 1,
         'prefetch_factor': 2,
         'pin_memory': False,
         'persistent_workers': False,
@@ -801,3 +801,38 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
         break
     return finetune_dir
 
+
+def plot_token_hist(data, save_plot_path=None):
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    # Figure and Axis Setup
+    plt.figure(figsize=(10, 6))
+    ax = plt.gca()
+
+    # Histogram Plotting
+    data.hist(bins=100, edgecolor='black', color='skyblue', alpha=0.7, ax=ax)
+
+    # Aesthetics
+    plt.title('Histogram of Token Counts')
+    plt.xlabel('Token Count')
+    plt.ylabel('Frequency')
+
+    # Grid and Layout
+    plt.grid(axis='y', alpha=0.75)
+    plt.tight_layout()
+
+    # Statistical Information (optional)
+    mean_val = data.mean()
+    median_val = data.median()
+    plt.axvline(mean_val, color='red', linestyle='dashed', linewidth=1)
+    plt.axvline(median_val, color='green', linestyle='dashed', linewidth=1)
+    min_ylim, max_ylim = plt.ylim()
+    plt.text(mean_val*1.1, max_ylim*0.9, f'Mean: {mean_val:.2f}')
+    plt.text(median_val*1.1, max_ylim*0.8, f'Median: {median_val:.2f}')
+
+    if save_plot_path is not None:
+        plt.savefig(save_plot_path)
+
+    # Show the Plot
+    plt.show()

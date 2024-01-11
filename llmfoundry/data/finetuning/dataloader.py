@@ -199,7 +199,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
         columns_to_remove = []
         token_lens = dataset.map(
-            lambda ex: len(ex),
+            lambda ex: {'ntokens': len(ex)},
             batched=False,
             num_proc=num_cpus_to_use,
             desc='List of Token length',

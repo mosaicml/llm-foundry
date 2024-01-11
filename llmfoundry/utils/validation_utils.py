@@ -142,8 +142,6 @@ def token_counts(FT_API_args):
     detected_cpus_with_margin = detected_cpu_count - 8
     num_cpus_to_use = max(1, detected_cpus_with_margin)
 
-    num_cpus_to_use = 1
-
     token_lens = dataloader.dataset.map(
         get_num_samples_in_batch,
         batched=False,
@@ -804,7 +802,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     return finetune_dir
 
 
-def plot_token_hist(data, save_plot_path=None):
+def plot_hist(data, save_plot_path=None):
     import pandas as pd
     import matplotlib.pyplot as plt
 

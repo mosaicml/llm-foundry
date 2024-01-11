@@ -48,7 +48,7 @@ from transformers.models.llama.modeling_llama import \
 
 from llmfoundry.models.layers.attention import (ATTN_CLASS_REGISTRY,
                                                 attn_bias_shape,
-                                                build_attn_bias)
+                                                build_attn_bias, gen_slopes)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY as FC_CLASS_REGISTRY
@@ -64,7 +64,7 @@ from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 # Otherwise, certain modules are missing.
 # isort: off
 from llmfoundry.models.utils.adapt_tokenizer import (
-    AutoTokenizerForMOD,  # type: ignore (see note),
+    AutoTokenizerForMOD,  # type: ignore (see note)
     adapt_tokenizer_for_denoising,  # type: ignore (see note)
 )
 from llmfoundry.models.utils.hf_prefixlm_converter import (
@@ -331,12 +331,12 @@ class MPTModel(MPTPreTrainedModel):
             for module in self.modules():
                 if hasattr(module, 'bias') and isinstance(
                         module.bias, nn.Parameter):
-                    log.info(f'Removing bias ({module.bias}) from {module}.')
+                    log.info(f'Removing bias from {module=}.')
                     module.register_parameter('bias', None)
 
                 # For transformer engine
                 if hasattr(module, 'use_bias'):
-                    log.info(f'Setting use_bias=False for {module}.')
+                    log.info(f'Setting use_bias=False for {module=}.')
                     module.use_bias = False
 
         log.debug(self)
@@ -608,6 +608,14 @@ class MPTModel(MPTPreTrainedModel):
             attn_uses_sequence_id=self.attn_uses_sequence_id,
             attn_impl=self.attn_impl,
             attention_mask=attention_mask)
+
+        alibi_slopes = None  # alibi_slopes will only be used by flash attention for ALiBi
+        if self.alibi and self.attn_impl == 'flash':
+            alibi_slopes = gen_slopes(n_heads=self.config.n_heads,
+                                      alibi_bias_max=self.alibi_bias_max,
+                                      device=x.device,
+                                      return_1d=True)
+
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
         if use_cache and past_key_values is None:
@@ -631,6 +639,7 @@ class MPTModel(MPTPreTrainedModel):
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
                 attention_mask_in_length=attention_mask_in_length,
+                alibi_slopes=alibi_slopes,
             )
             if presents is not None:
                 presents += (present,)

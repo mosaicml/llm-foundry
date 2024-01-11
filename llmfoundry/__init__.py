@@ -4,6 +4,26 @@
 import torch
 
 try:
+    import warnings
+
+    # bitsandbytes is a very noisy library. A lot of it is print statements that we can't easily suppress,
+    # but we can at least suppress a bunch of spurious warnings.
+    warnings.filterwarnings('ignore',
+                            category=UserWarning,
+                            module='bitsandbytes')
+
+    import logging
+
+    from llmfoundry.utils.logging_utils import SpecificWarningFilter
+
+    # Filter out Hugging Face warning for not using a pinned revision of the model
+    hf_dynamic_modules_logger = logging.getLogger(
+        'transformers.dynamic_module_utils')
+    new_files_warning_filter = SpecificWarningFilter(
+        'A new version of the following files was downloaded from')
+
+    hf_dynamic_modules_logger.addFilter(new_files_warning_filter)
+
     # Before importing any transformers models, we need to disable transformers flash attention if
     # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
     # gated import otherwise.

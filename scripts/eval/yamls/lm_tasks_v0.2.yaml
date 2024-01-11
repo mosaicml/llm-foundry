@@ -56,4 +56,3 @@ icl_tasks:
   dataset_uri: eval/local_data/reading_comprehension/coqa.jsonl
   num_fewshot: [0]
   icl_task_type: language_modeling
-

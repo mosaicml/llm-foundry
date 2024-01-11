@@ -18,7 +18,7 @@ try:
         create_om_cfg, token_counts_and_validation,
         check_HF_datasets, is_hf_dataset_path, is_uc_delta_table,
         pandas_processing_fn, integrity_check, convert_text_to_mds,
-        _args_str)
+        parse_args, _args_str)
 
 except ImportError as e:
     raise ImportError(
@@ -49,5 +49,6 @@ __all__ = [
     'pandas_processing_fn',
     'integrity_check',
     'convert_text_to_mds',
+    'parse_args',
     '_args_str',
 ]

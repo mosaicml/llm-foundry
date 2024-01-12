@@ -202,8 +202,6 @@ def is_uc_delta_table(name: str):
     return '.' in name and '/' not in name and '\\' not in name and len(name.split('.'))==3
 
 
-
-
 def integrity_check(out: Union[str, Tuple[str, str]]):
     """Check if the index file has integrity.
 

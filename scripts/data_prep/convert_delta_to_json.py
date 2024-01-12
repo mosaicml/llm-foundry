@@ -33,8 +33,8 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
 
-MINIMUM_DB_CONNECT_DBR_VERSION = '14.1.0'
-MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2.0'
+MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
+MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
 log = logging.getLogger(__name__)
 
@@ -377,40 +377,23 @@ def fetch(
         cursor.close()
 
 
-def fetch_DT(args: Namespace) -> None:
-    """Fetch UC Delta Table to local as jsonl."""
-    log.info(f'Start .... Convert delta to json')
-
-    obj = urllib.parse.urlparse(args.json_output_folder)
-    if obj.scheme != '':
-        raise ValueError(
-            f'Check the json_output_folder and verify it is a local path!')
-
-    if os.path.exists(args.json_output_folder):
-        if not os.path.isdir(args.json_output_folder) or os.listdir(
-                args.json_output_folder):
-            raise RuntimeError(
-                f'A file or a folder {args.json_output_folder} already exists and is not empty. Remove it and retry!'
-            )
-
-    os.makedirs(args.json_output_folder, exist_ok=True)
-
-    if not args.json_output_filename.endswith('.jsonl'):
-        raise ValueError('json_output_filename needs to be a jsonl file')
-
-    log.info(f'Directory {args.json_output_folder} created.')
-
+def validate_and_get_cluster_info(cluster_id: str, use_serverless: bool = False) -> dict:
+    """Validate and get cluster info for running the Delta to JSONL conversion."""
     method = 'dbsql'
     dbsql = None
     sparkSession = None
 
-    if args.use_serverless:
+    if use_serverless:
         method = 'dbconnect'
     else:
         w = WorkspaceClient()
-        res = w.clusters.get(cluster_id=args.cluster_id)
-        runtime_version = res.spark_version.split('-scala')[0].replace(
-            'x-snapshot', '0').replace('x', '0')
+        res = w.clusters.get(cluster_id=cluster_id)
+        if res is None:
+            raise ValueError(
+                f'Cluster id {cluster_id} does not exist. Check cluster id and try again!'
+            )
+        stripped_runtime = re.sub(r'[a-zA-Z]', '', res.spark_version.split('-scala')[0].replace('x-snapshot', ''))
+        runtime_version = re.sub(r'.-+$', '', stripped_runtime)
         if version.parse(runtime_version) < version.parse(
                 MINIMUM_SQ_CONNECT_DBR_VERSION):
             raise ValueError(
@@ -424,7 +407,7 @@ def fetch_DT(args: Namespace) -> None:
 
     if method == 'dbconnect':
         try:
-            if args.use_serverless:
+            if use_serverless:
                 session_id = str(uuid4())
                 sparkSession = DatabricksSession.builder.host(
                     args.DATABRICKS_HOST).token(args.DATABRICKS_TOKEN).header(
@@ -453,6 +436,33 @@ def fetch_DT(args: Namespace) -> None:
             raise RuntimeError(
                 'Failed to create sql connection to db workspace. To use sql connect, you need to provide http_path and cluster_id!'
             ) from e
+    return method, dbsql, sparkSession
+    
+
+def fetch_DT(args: Namespace) -> None:
+    """Fetch UC Delta Table to local as jsonl."""
+    log.info(f'Start .... Convert delta to json')
+
+    obj = urllib.parse.urlparse(args.json_output_folder)
+    if obj.scheme != '':
+        raise ValueError(
+            f'Check the json_output_folder and verify it is a local path!')
+
+    if os.path.exists(args.json_output_folder):
+        if not os.path.isdir(args.json_output_folder) or os.listdir(
+                args.json_output_folder):
+            raise RuntimeError(
+                f'A file or a folder {args.json_output_folder} already exists and is not empty. Remove it and retry!'
+            )
+
+    os.makedirs(args.json_output_folder, exist_ok=True)
+
+    if not args.json_output_filename.endswith('.jsonl'):
+        raise ValueError('json_output_filename needs to be a jsonl file')
+
+    log.info(f'Directory {args.json_output_folder} created.')
+
+    method, dbsql, sparkSession = validate_and_get_cluster_info(args.cluster_id, args.use_serverless)
 
     fetch(method, args.delta_table_name, args.json_output_folder,
           args.batch_size, args.processes, sparkSession, dbsql)
@@ -494,9 +504,9 @@ if __name__ == '__main__':
                         help='number of processes allowed to use')
     parser.add_argument(
         '--cluster_id',
-        required=True,
+        required=False,
         type=str,
-        default=None,
+        default='serverless',
         help=
         'cluster id has runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect.'
     )

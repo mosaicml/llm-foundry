@@ -18,7 +18,7 @@ try:
         create_om_cfg, token_counts_and_validation, token_counts,
         check_HF_datasets, is_hf_dataset_path, is_uc_delta_table,
         pandas_processing_fn, integrity_check, convert_text_to_mds,
-        parse_args, _args_str, plot_hist)
+        parse_args, _args_str, plot_hist, dataframe_to_mds)
 
 except ImportError as e:
     raise ImportError(
@@ -53,4 +53,5 @@ __all__ = [
     'parse_args',
     '_args_str',
     'plot_hist',
+    'dataframe_to_mds',
 ]

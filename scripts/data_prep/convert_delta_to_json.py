@@ -382,8 +382,15 @@ def validate_and_get_cluster_info(cluster_id: str,
                                   databricks_token: str,
                                   http_path: Optional[str],
                                   use_serverless: bool = False) -> tuple:
-    """Validate and get cluster info for running the Delta to JSONL
-    conversion."""
+    """Validate and get cluster info for running the Delta to JSONL conversion.
+
+    Args:
+        cluster_id (str): cluster id to validate and fetch additional info for
+        databricks_host (str): databricks host name
+        databricks_token (str): databricks auth token
+        http_path (Optional[str]): http path to use for sql connect
+        use_serverless (bool): whether to use serverless or not
+    """
     method = 'dbsql'
     dbsql = None
     sparkSession = None

@@ -1066,7 +1066,6 @@ def dataframe_to_mds(dataframe: Union[SparkDataFrame, DaskDataFrame],
     def write_mds_dask(pdf: pd.DataFrame, partition_info=None):
 
         fid = partition_info['number'] # pdf.index[0]
-        print('fid = ', fid)
         if mds_path[1] == '':  # only local
             output = os.path.join(mds_path[0], f'{fid}')
             partition_path = (output, '')

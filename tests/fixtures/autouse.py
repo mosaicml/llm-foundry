@@ -17,9 +17,6 @@ sys.path.append(REPO_DIR)
 @pytest.fixture(autouse=True)
 def initialize_dist(request: pytest.FixtureRequest):
     """Initialize the default PyTorch distributed process group for tests."""
-    # should we just always initialize dist like in train.py?
-    _default = pytest.mark.world_size(1).mark
-    world_size = request.node.get_closest_marker('world_size', _default).args[0]
     gpu = request.node.get_closest_marker('gpu')
     dist.initialize_dist(get_device('gpu' if gpu is not None else 'cpu'))
 

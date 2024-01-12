@@ -13,6 +13,13 @@ try:
                                                update_batch_size_info)
     from llmfoundry.utils.model_download_utils import (
         download_from_cache_server, download_from_hf_hub)
+
+    from llmfoundry.utils.validation_utils import (
+        create_om_cfg, token_counts_and_validation, token_counts,
+        check_HF_datasets, is_hf_dataset_path, is_uc_delta_table,
+        pandas_processing_fn, integrity_check, convert_text_to_mds,
+        parse_args, _args_str, plot_hist, dataframe_to_mds)
+
 except ImportError as e:
     raise ImportError(
         'Please make sure to pip install . to get requirements for llm-foundry.'
@@ -34,4 +41,17 @@ __all__ = [
     'update_batch_size_info',
     'log_config',
     'pop_config',
+    'create_om_cfg',
+    'token_counts_and_validation',
+    'token_counts',
+    'check_HF_datasets',
+    'is_hf_dataset_path',
+    'is_uc_delta_table',
+    'pandas_processing_fn',
+    'integrity_check',
+    'convert_text_to_mds',
+    'parse_args',
+    '_args_str',
+    'plot_hist',
+    'dataframe_to_mds',
 ]

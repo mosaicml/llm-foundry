@@ -280,73 +280,17 @@ def build_composer_model(
     return model
 
 
-def build_callback(
-    name: str,
-    kwargs: Optional[Dict[str, Any]] = None,
-    train_config: Any = None,
-) -> Callback:
-    """Builds a callback from the registry."""
-    registry_to_use = registry.callbacks
-    if name in registry.callbacks_with_config:
-        if kwargs is None:
-            kwargs = {}
-        if 'train_config' in kwargs:
-            raise ValueError(
-                f'`train_config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.',
-            )
-        kwargs['train_config'] = copy.deepcopy(train_config)
-        registry_to_use = registry.callbacks_with_config
-
-    return construct_from_registry(
-        name=name,
-        registry=registry_to_use,
-        partial_function=True,
-        pre_validation_function=Callback,
-        post_validation_function=None,
-        kwargs=kwargs,
-    )
-
-
-def build_logger(
-    name: str,
-    kwargs: Optional[Dict[str, Any]] = None,
-) -> LoggerDestination:
-    """Builds a logger from the registry."""
-    return construct_from_registry(
-        name=name,
-        registry=registry.loggers,
-        partial_function=True,
-        pre_validation_function=LoggerDestination,
-        post_validation_function=None,
-        kwargs=kwargs,
-    )
-
-
-def build_algorithm(
-    name: str,
-    kwargs: Optional[Dict[str, Any]] = None,
-) -> Algorithm:
-    """Builds an algorithm from the registry."""
-    return construct_from_registry(
-        name=name,
-        registry=registry.algorithms,
-        partial_function=True,
-        pre_validation_function=Algorithm,
-        post_validation_function=None,
-        kwargs=kwargs,
-    )
-
-
-def build_metric(name: str, kwargs: Optional[Dict[str, Any]] = None) -> Metric:
-    """Builds a metric from the registry."""
-    return construct_from_registry(
-        name=name,
-        registry=registry.metrics,
-        partial_function=True,
-        pre_validation_function=Metric,
-        post_validation_function=None,
-        kwargs=kwargs,
-    )
+def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
+    if name == 'gradient_clipping':
+        return algorithms.GradientClipping(**kwargs)
+    elif name == 'alibi':
+        return algorithms.Alibi(**kwargs)
+    elif name == 'gated_linear_units':
+        return algorithms.GatedLinearUnits(**kwargs)
+    elif name == 'low_precision_layernorm':
+        return algorithms.LowPrecisionLayerNorm(**kwargs)
+    else:
+        raise ValueError(f'Not sure how to build algorithm: {name}')
 
 
 def _extract_param_groups(

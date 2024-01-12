@@ -1169,7 +1169,7 @@ def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, Das
     if dataframe is None:
         raise ValueError(f'Input dataframe is None!')
 
-    if not isSparkDataFrame(dataframe) or not isinstance(dataframe, DaskDataFrame)):
+    if not isSparkDataFrame(dataframe) or not isinstance(dataframe, DaskDataFrame):
         raise ValueError(f'dataframe_to_mds only takes Spark dataframe or Dask dataframe!')
 
     if (isSparkDataFrame(dataframe) and dataframe.isEmpty()) or (isinstance(dataframe, DaskDataFrame) and len(dataframe.index)==0):

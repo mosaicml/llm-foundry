@@ -33,10 +33,11 @@ def create_om_cfg(FT_API_args: Namespace):
 
     model = FT_API_args.model
     max_seq_len = FT_API_args.context_length
+    detected_cpu_count = os.cpu_count() or 1
 
     common_args = {
         'drop_last': False,
-        'num_workers': 1,
+        'num_workers': detected_cpu_count,
         'prefetch_factor': 2,
         'pin_memory': False,
         'persistent_workers': False,

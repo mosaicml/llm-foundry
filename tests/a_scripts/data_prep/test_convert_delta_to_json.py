@@ -27,7 +27,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
 
         args = MagicMock()
         args.delta_table_name = 'test_table'
-        args.json_output_path = '/path/to/jsonl'
+        args.json_output_folder = '/path/to/jsonl'
         args.DATABRICKS_HOST = 'test_host'
         args.DATABRICKS_TOKEN = 'test_token'
         args.http_path = 'test_path'
@@ -155,7 +155,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args = MagicMock()
 
         args.delta_table_name = 'test_table'
-        args.json_output_path = '/path/to/jsonl'
+        args.json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         args.http_path = None
         args.cluster_id = '1234'
@@ -193,7 +193,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args = MagicMock()
 
         args.delta_table_name = 'test_table'
-        args.json_output_path = '/path/to/jsonl'
+        args.json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         args.http_path = 'test_path'
         args.cluster_id = '1234'
@@ -226,7 +226,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args = MagicMock()
 
         args.delta_table_name = 'test_table'
-        args.json_output_path = '/path/to/jsonl'
+        args.json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         args.http_path = 'test_path'
         args.cluster_id = '1234'
@@ -259,7 +259,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args = MagicMock()
 
         args.delta_table_name = 'test_table'
-        args.json_output_path = '/path/to/jsonl'
+        args.json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         args.http_path = 'test_path'
         args.cluster_id = '1234'
@@ -289,7 +289,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args = MagicMock()
 
         args.delta_table_name = 'test_table'
-        args.json_output_path = '/path/to/jsonl'
+        args.json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         args.http_path = 'test_path'
         args.cluster_id = '1234'

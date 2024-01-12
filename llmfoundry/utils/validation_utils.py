@@ -988,7 +988,7 @@ def infer_dataframe_schema(dataframe: Union[SparkSqlDataFrame, SparkConnDataFram
             if user_dtype not in mds_supported_dtypes:
                 raise ValueError(f'{user_dtype} is not supported by MDSWriter')
 
-            if isSparkDataFrame(dataframe)
+            if isSparkDataFrame(dataframe):
                 actual_spark_dtype = dataframe.schema[col_name].dataType
                 mapped_mds_dtype = map_spark_dtype(actual_spark_dtype)
             else:

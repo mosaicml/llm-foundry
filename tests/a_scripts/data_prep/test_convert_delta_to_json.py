@@ -36,6 +36,7 @@ class TestConverDeltaToJsonl(unittest.TestCase):
         args.cluster_id = '1234'
         args.debug = False
         args.use_serverless = False
+        args.json_output_filename = 'combined.jsonl'
 
         mock_cluster_get = MagicMock()
         mock_cluster_get.return_value = MagicMock(

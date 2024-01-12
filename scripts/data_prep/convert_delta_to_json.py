@@ -460,7 +460,7 @@ def fetch_DT(args: Namespace) -> None:
     # combine downloaded jsonl into one big jsonl for IFT
     iterative_combine_jsons(
         args.json_output_path,
-        os.path.join(args.json_output_path, 'combined.jsonl'))
+        os.path.join(args.json_output_path, args.json_output_filename))
 
 
 if __name__ == '__main__':
@@ -505,6 +505,12 @@ if __name__ == '__main__':
         help=
         'Use serverless or not. Make sure the workspace is entitled with serverless'
     )
+    parser.add_argument(
+        '--json_output_filename',
+        required=False,
+        type=str,
+        default='train-00000-of-00001.jsonl',
+        help='The combined final jsonl that combines all partitioned jsonl')
     args = parser.parse_args()
 
     from databricks.sdk import WorkspaceClient

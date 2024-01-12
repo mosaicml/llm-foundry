@@ -83,11 +83,8 @@ def test_icl_eval(
     assert expected_results in out
 
 
-def test_loader_eval(
-    capfd: Any,
-    mock_saved_model_path: Any,
-    tmp_path: pathlib.Path,
-):
+def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
+                     tmp_path: pathlib.Path):
 
     c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)
 

@@ -395,6 +395,9 @@ def fetch_DT(args: Namespace) -> None:
 
     os.makedirs(args.json_output_path, exist_ok=True)
 
+    if not args.json_output_filename.endswith('.jsonl'):
+        raise ValueError("json_output_filename needs to be a jsonl file")
+
     log.info(f'Directory {args.json_output_path} created.')
 
     method = 'dbsql'

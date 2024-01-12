@@ -378,9 +378,14 @@ def fetch(
 
 
 def validate_and_get_cluster_info(cluster_id: str,
+                                  databricks_host: str,
+                                  databricks_token: str,
+                                  http_path: Optional[str],
                                   use_serverless: bool = False) -> tuple:
-    """Validate and get cluster info for running the Delta to JSONL
-    conversion."""
+    """
+    Validate and get cluster info for running the Delta to JSONL
+    conversion.
+    """
     method = 'dbsql'
     dbsql = None
     sparkSession = None
@@ -404,7 +409,7 @@ def validate_and_get_cluster_info(cluster_id: str,
                 f'The minium DBR version required is {MINIMUM_SQ_CONNECT_DBR_VERSION} but got {version.parse(runtime_version)}'
             )
 
-        if args.http_path is None and version.parse(
+        if http_path is None and version.parse(
                 runtime_version) >= version.parse(
                     MINIMUM_DB_CONNECT_DBR_VERSION):
             method = 'dbconnect'
@@ -414,13 +419,13 @@ def validate_and_get_cluster_info(cluster_id: str,
             if use_serverless:
                 session_id = str(uuid4())
                 sparkSession = DatabricksSession.builder.host(
-                    args.DATABRICKS_HOST).token(args.DATABRICKS_TOKEN).header(
+                    databricks_host).token(databricks_token).header(
                         'x-databricks-session-id', session_id).getOrCreate()
 
             else:
                 sparkSession = DatabricksSession.builder.remote(
-                    host=args.DATABRICKS_HOST,
-                    token=args.DATABRICKS_TOKEN,
+                    host=databricks_host,
+                    token=databricks_token,
                     cluster_id=args.cluster_id).getOrCreate()
 
         except Exception as e:
@@ -431,10 +436,10 @@ def validate_and_get_cluster_info(cluster_id: str,
         try:
             dbsql = sql.connect(
                 server_hostname=re.compile(r'^https?://').sub(
-                    '', args.DATABRICKS_HOST).strip(
+                    '', databricks_host).strip(
                     ),  # sqlconnect hangs if hostname starts with https
-                http_path=args.http_path,
-                access_token=args.DATABRICKS_TOKEN,
+                http_path=http_path,
+                access_token=databricks_token,
             )
         except Exception as e:
             raise RuntimeError(
@@ -467,7 +472,10 @@ def fetch_DT(args: Namespace) -> None:
     log.info(f'Directory {args.json_output_folder} created.')
 
     method, dbsql, sparkSession = validate_and_get_cluster_info(
-        args.cluster_id, args.use_serverless)
+        cluster_id=args.cluster_id,
+        databricks_host=args.DATABRICKS_HOST,
+        databricks_token=args.DATABRICKS_TOKEN,
+        use_serverless=args.use_serverless)
 
     fetch(method, args.delta_table_name, args.json_output_folder,
           args.batch_size, args.processes, sparkSession, dbsql)
@@ -511,7 +519,6 @@ if __name__ == '__main__':
         '--cluster_id',
         required=False,
         type=str,
-        default='serverless',
         help=
         'cluster id has runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect.'
     )

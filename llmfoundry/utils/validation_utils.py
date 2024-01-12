@@ -875,7 +875,8 @@ import pandas as pd
 
 try:
     from pyspark import TaskContext
-    from pyspark.sql.dataframe import DataFrame as SparkDataFrame
+    from pyspark.sql.dataframe import DataFrame as SparkSqlDataFrame
+    from pyspark.sql.connect.dataframe import DataFrame as SparkConnDataFrame
     from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, DateType,
                                    DayTimeIntervalType, DecimalType, DoubleType, FloatType,
                                    IntegerType, LongType, MapType, ShortType, StringType,
@@ -930,7 +931,10 @@ MAPPING_DASK_TO_MDS = {
     'string' : 'str'
 }
 
-def infer_dataframe_schema(dataframe: Union[SparkDataFrame, DaskDataFrame],
+def isSparkDataFrame(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, DaskDataFrame]):
+    return isinstance(dataframe, SparkSqlDataFrame) or isinstance(dataframe, SparkConnDataFrame)
+
+def infer_dataframe_schema(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, DaskDataFrame],
                            user_defined_cols: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
     """Retrieve schema to construct a dictionary or do sanity check for MDSWriter.
 
@@ -984,7 +988,7 @@ def infer_dataframe_schema(dataframe: Union[SparkDataFrame, DaskDataFrame],
             if user_dtype not in mds_supported_dtypes:
                 raise ValueError(f'{user_dtype} is not supported by MDSWriter')
 
-            if isinstance(dataframe, SparkDataFrame):
+            if isSparkDataFrame(dataframe)
                 actual_spark_dtype = dataframe.schema[col_name].dataType
                 mapped_mds_dtype = map_spark_dtype(actual_spark_dtype)
             else:
@@ -999,7 +1003,7 @@ def infer_dataframe_schema(dataframe: Union[SparkDataFrame, DaskDataFrame],
 
     schema_dict = {}
 
-    if isinstance(dataframe, SparkDataFrame):
+    if isSparkDataFrame(dataframe):
         schema = dataframe.schema
         for field in schema:
             dtype = map_spark_dtype(field.dataType)
@@ -1015,7 +1019,7 @@ def infer_dataframe_schema(dataframe: Union[SparkDataFrame, DaskDataFrame],
     return schema_dict
 
 
-def dataframeToMDS(dataframe: Union[SparkDataFrame, DaskDataFrame],
+def dataframeToMDS(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, DaskDataFrame],
                    merge_index: bool = True,
                    mds_kwargs: Optional[Dict[str, Any]] = None,
                    udf_iterable: Optional[Callable] = None,
@@ -1030,7 +1034,7 @@ def dataframeToMDS(dataframe: Union[SparkDataFrame, DaskDataFrame],
     return dataframe_to_mds(dataframe, merge_index, mds_kwargs, udf_iterable, udf_kwargs)
 
 
-def dataframe_to_mds(dataframe: Union[SparkDataFrame, DaskDataFrame],
+def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, DaskDataFrame],
               merge_index: bool = True,
               mds_kwargs: Optional[Dict[str, Any]] = None,
               udf_iterable: Optional[Callable] = None,
@@ -1165,11 +1169,11 @@ def dataframe_to_mds(dataframe: Union[SparkDataFrame, DaskDataFrame],
     if dataframe is None:
         raise ValueError(f'Input dataframe is None!')
 
-    if not (isinstance(dataframe, SparkDataFrame) or isinstance(dataframe, DaskDataFrame)):
+    if not isSparkDataFrame(dataframe) or not isinstance(dataframe, DaskDataFrame)):
         raise ValueError(f'dataframe_to_mds only takes Spark dataframe or Dask dataframe!')
 
-    if (isinstance(dataframe, SparkDataFrame) and dataframe.isEmpty()) or (isinstance(dataframe, DaskDataFrame) and len(dataframe.index)==0):
-        raise ValueError(f'Input dataframe is Empty1')
+    if (isSparkDataFrame(dataframe) and dataframe.isEmpty()) or (isinstance(dataframe, DaskDataFrame) and len(dataframe.index)==0):
+        print(f'Return. Input dataframe is Empty! Nothing to be done!')
 
     if not mds_kwargs:
         mds_kwargs = {}
@@ -1207,7 +1211,7 @@ def dataframe_to_mds(dataframe: Union[SparkDataFrame, DaskDataFrame],
     else:
         mds_path = (cu.local, cu.remote)
 
-    if isinstance(dataframe, SparkDataFrame):
+    if isSparkDataFrame(dataframe):
         # Prepare partition schema
         result_schema = StructType([
             StructField('mds_path_local', StringType(), False),
@@ -1228,7 +1232,7 @@ def dataframe_to_mds(dataframe: Union[SparkDataFrame, DaskDataFrame],
             keep_local_files = False
 
     if merge_index:
-        if isinstance(dataframe, SparkDataFrame):
+        if isSparkDataFrame(dataframe):
             index_files = list(set([(row['mds_path_local'], row['mds_path_remote']) for row in partitions]))
         else:
             index_files = list(set([(row[1]['mds_path_local'], row[1]['mds_path_remote']) for row in partitions.iterrows()]))
@@ -1239,7 +1243,7 @@ def dataframe_to_mds(dataframe: Union[SparkDataFrame, DaskDataFrame],
         shutil.rmtree(cu.local, ignore_errors=True)
 
     sum_fail_count = 0
-    if isinstance(dataframe, SparkDataFrame):
+    if isSparkDataFrame(dataframe):
         for row in partitions:
             sum_fail_count += row['fail_count']
 

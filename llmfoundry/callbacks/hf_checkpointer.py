@@ -241,11 +241,16 @@ class HuggingFaceCheckpointer(Callback):
                     )
 
                 if self.remote_ud is not None:
-                    log.info(f'Uploading HuggingFace formatted checkpoint')
                     for filename in os.listdir(temp_save_dir):
+                        remote_file_name = os.path.join(save_dir, filename)
+                        remote_file_uri = self.remote_ud.remote_backend.get_uri(
+                            remote_file_name)
+                        log.info(
+                            f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}'
+                        )
                         self.remote_ud.upload_file(
                             state=state,
-                            remote_file_name=os.path.join(save_dir, filename),
+                            remote_file_name=remote_file_name,
                             file_path=Path(os.path.join(temp_save_dir,
                                                         filename)),
                             overwrite=self.overwrite,

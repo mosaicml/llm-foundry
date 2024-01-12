@@ -513,7 +513,7 @@ if __name__ == '__main__':
         required=False,
         type=str,
         default='train-00000-of-00001.jsonl',
-        help='The combined final jsonl that combines all partitioned jsonl')
+        help='The name of the combined final jsonl that combines all partitioned jsonl')
     args = parser.parse_args()
 
     from databricks.sdk import WorkspaceClient

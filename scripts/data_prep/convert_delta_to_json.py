@@ -377,8 +377,10 @@ def fetch(
         cursor.close()
 
 
-def validate_and_get_cluster_info(cluster_id: str, use_serverless: bool = False) -> dict:
-    """Validate and get cluster info for running the Delta to JSONL conversion."""
+def validate_and_get_cluster_info(cluster_id: str,
+                                  use_serverless: bool = False) -> tuple:
+    """Validate and get cluster info for running the Delta to JSONL
+    conversion."""
     method = 'dbsql'
     dbsql = None
     sparkSession = None
@@ -392,7 +394,9 @@ def validate_and_get_cluster_info(cluster_id: str, use_serverless: bool = False)
             raise ValueError(
                 f'Cluster id {cluster_id} does not exist. Check cluster id and try again!'
             )
-        stripped_runtime = re.sub(r'[a-zA-Z]', '', res.spark_version.split('-scala')[0].replace('x-snapshot', ''))
+        stripped_runtime = re.sub(
+            r'[a-zA-Z]', '',
+            res.spark_version.split('-scala')[0].replace('x-snapshot', ''))
         runtime_version = re.sub(r'.-+$', '', stripped_runtime)
         if version.parse(runtime_version) < version.parse(
                 MINIMUM_SQ_CONNECT_DBR_VERSION):
@@ -437,7 +441,7 @@ def validate_and_get_cluster_info(cluster_id: str, use_serverless: bool = False)
                 'Failed to create sql connection to db workspace. To use sql connect, you need to provide http_path and cluster_id!'
             ) from e
     return method, dbsql, sparkSession
-    
+
 
 def fetch_DT(args: Namespace) -> None:
     """Fetch UC Delta Table to local as jsonl."""
@@ -462,7 +466,8 @@ def fetch_DT(args: Namespace) -> None:
 
     log.info(f'Directory {args.json_output_folder} created.')
 
-    method, dbsql, sparkSession = validate_and_get_cluster_info(args.cluster_id, args.use_serverless)
+    method, dbsql, sparkSession = validate_and_get_cluster_info(
+        args.cluster_id, args.use_serverless)
 
     fetch(method, args.delta_table_name, args.json_output_folder,
           args.batch_size, args.processes, sparkSession, dbsql)
@@ -523,7 +528,9 @@ if __name__ == '__main__':
         required=False,
         type=str,
         default='train-00000-of-00001.jsonl',
-        help='The name of the combined final jsonl that combines all partitioned jsonl')
+        help=
+        'The name of the combined final jsonl that combines all partitioned jsonl'
+    )
     args = parser.parse_args()
 
     from databricks.sdk import WorkspaceClient

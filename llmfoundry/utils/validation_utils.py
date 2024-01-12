@@ -139,8 +139,7 @@ def token_counts(FT_API_args):
     dataloader = dataspec.dataloader
 
     detected_cpu_count = os.cpu_count() or 1
-    detected_cpus_with_margin = detected_cpu_count - 8
-    num_cpus_to_use = max(1, detected_cpus_with_margin)
+    num_cpus_to_use = max(1, detected_cpu_count)
 
     token_lens = dataloader.dataset.map(
         get_num_samples_in_batch,

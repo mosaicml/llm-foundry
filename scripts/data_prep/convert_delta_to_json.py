@@ -382,10 +382,8 @@ def validate_and_get_cluster_info(cluster_id: str,
                                   databricks_token: str,
                                   http_path: Optional[str],
                                   use_serverless: bool = False) -> tuple:
-    """
-    Validate and get cluster info for running the Delta to JSONL
-    conversion.
-    """
+    """Validate and get cluster info for running the Delta to JSONL
+    conversion."""
     method = 'dbsql'
     dbsql = None
     sparkSession = None
@@ -475,6 +473,7 @@ def fetch_DT(args: Namespace) -> None:
         cluster_id=args.cluster_id,
         databricks_host=args.DATABRICKS_HOST,
         databricks_token=args.DATABRICKS_TOKEN,
+        http_path=args.http_path,
         use_serverless=args.use_serverless)
 
     fetch(method, args.delta_table_name, args.json_output_folder,

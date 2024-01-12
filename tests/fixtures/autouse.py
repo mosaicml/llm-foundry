@@ -21,8 +21,7 @@ def initialize_dist(request: pytest.FixtureRequest):
     _default = pytest.mark.world_size(1).mark
     world_size = request.node.get_closest_marker('world_size', _default).args[0]
     gpu = request.node.get_closest_marker('gpu')
-    if world_size > 1:
-        dist.initialize_dist(get_device('gpu' if gpu is not None else 'cpu'))
+    dist.initialize_dist(get_device('gpu' if gpu is not None else 'cpu'))
 
 
 @pytest.fixture(autouse=True)

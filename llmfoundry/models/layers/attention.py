@@ -622,7 +622,7 @@ class GroupedQueryAttention(nn.Module):
 
         key_padding_mask = attention_mask
 
-        if self.qk_ln or self.qk_gn::
+        if self.qk_ln or self.qk_gn:
             # Applying layernorm to qk
             q_shape, k_shape = query.shape, key.shape
             if self.qk_gn:

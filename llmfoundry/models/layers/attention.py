@@ -512,6 +512,7 @@ class GroupedQueryAttention(nn.Module):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        qk_gn: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -525,6 +526,7 @@ class GroupedQueryAttention(nn.Module):
         self.attn_impl = attn_impl
         self.clip_qkv = clip_qkv
         self.qk_ln = qk_ln
+        self.qk_gn = qk_gn
 
         self.d_model = d_model
         self.n_heads = n_heads
@@ -573,6 +575,10 @@ class GroupedQueryAttention(nn.Module):
             self.q_ln = norm_class(self.d_model, device=device)
             self.k_ln = norm_class(self.kv_n_heads * self.head_dim,
                                    device=device)
+        if self.qk_gn:
+            self.q_gn = torch.nn.GroupNorm(n_heads, self.d_model, device=device)
+            self.k_gn = torch.nn.GroupNorm(n_heads, self.kv_n_heads * self.head_dim,
+                                           device=device)
 
         if self.attn_impl == 'flash':
             self.attn_fn = flash_attn_fn
@@ -624,6 +630,11 @@ class GroupedQueryAttention(nn.Module):
             dtype = query.dtype
             query = self.q_ln(query).to(dtype)
             key = self.k_ln(key).to(dtype)
+        if self.qk_gn:
+            # Applying groupnorm to qk
+            dtype = query.dtype
+            query = self.q_gn(query).to(dtype)
+            key = self.k_gn(key).to(dtype)
 
         if rotary_emb_w_meta_info is not None:
             rotary_emb = rotary_emb_w_meta_info['rotary_emb']
@@ -707,6 +718,7 @@ class MultiheadAttention(GroupedQueryAttention):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        qk_gn: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -722,6 +734,7 @@ class MultiheadAttention(GroupedQueryAttention):
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
+            qk_gn=qk_gn,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
@@ -746,6 +759,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        qk_gn: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -761,6 +775,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
+            qk_gn=qk_gn,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,

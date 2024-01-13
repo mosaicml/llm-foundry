@@ -570,15 +570,12 @@ class GroupedQueryAttention(nn.Module):
         ]
         self.Wqkv._fused = (0, fuse_splits)
 
-        if self.qk_ln:
+        if self.qk_ln or self.qk_gn:
+            _div = n_heads if self.qk_gn else 1
             norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
-            self.q_ln = norm_class(self.d_model, device=device)
-            self.k_ln = norm_class(self.kv_n_heads * self.head_dim,
+            self.q_ln = norm_class(self.d_model // _div, device=device)
+            self.k_ln = norm_class(self.kv_n_heads * self.head_dim // _div,
                                    device=device)
-        if self.qk_gn:
-            self.q_gn = torch.nn.GroupNorm(n_heads, self.d_model // n_heads, device=device)
-            self.k_gn = torch.nn.GroupNorm(n_heads, self.kv_n_heads * self.head_dim // n_heads,
-                                           device=device)
 
         if self.attn_impl == 'flash':
             self.attn_fn = flash_attn_fn
@@ -625,16 +622,15 @@ class GroupedQueryAttention(nn.Module):
 
         key_padding_mask = attention_mask
 
-        if self.qk_ln:
+        if self.qk_ln or self.qk_gn::
             # Applying layernorm to qk
+            q_shape, k_shape = query.shape, key.shape
+            if self.qk_gn:
+                query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
+                key = rearrange(key, 'b s (h d) -> b s h d', h=kv_n_heads)
             dtype = query.dtype
-            query = self.q_ln(query).to(dtype)
-            key = self.k_ln(key).to(dtype)
-        if self.qk_gn:
-            # Applying groupnorm to qk
-            dtype = query.dtype
-            query = self.q_gn(query).to(dtype)
-            key = self.k_gn(key).to(dtype)
+            query = self.q_ln(query).to(dtype).view(q_shape)
+            key = self.k_ln(key).to(dtype).view(k_shape)
 
         if rotary_emb_w_meta_info is not None:
             rotary_emb = rotary_emb_w_meta_info['rotary_emb']

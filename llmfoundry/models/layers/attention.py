@@ -576,8 +576,8 @@ class GroupedQueryAttention(nn.Module):
             self.k_ln = norm_class(self.kv_n_heads * self.head_dim,
                                    device=device)
         if self.qk_gn:
-            self.q_gn = torch.nn.GroupNorm(n_heads, self.d_model, device=device)
-            self.k_gn = torch.nn.GroupNorm(n_heads, self.kv_n_heads * self.head_dim,
+            self.q_gn = torch.nn.GroupNorm(n_heads, self.d_model // n_heads, device=device)
+            self.k_gn = torch.nn.GroupNorm(n_heads, self.kv_n_heads * self.head_dim // n_heads,
                                            device=device)
 
         if self.attn_impl == 'flash':

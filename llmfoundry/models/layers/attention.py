@@ -571,9 +571,10 @@ class GroupedQueryAttention(nn.Module):
         self.Wqkv._fused = (0, fuse_splits)
 
         if self.qk_ln or self.qk_gn:
-            _div = n_heads if self.qk_gn else 1
             norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
+            _div = n_heads if self.qk_gn else 1
             self.q_ln = norm_class(self.d_model // _div, device=device)
+            _div = kv_n_heads if self.qk_gn else 1
             self.k_ln = norm_class(self.kv_n_heads * self.head_dim // _div,
                                    device=device)
 

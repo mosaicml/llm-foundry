@@ -547,6 +547,8 @@ class GroupedQueryAttention(nn.Module):
             raise ValueError(
                 'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads.'
             )
+        if qk_ln and qk_gn:
+            raise ValueError('Only one of qk_ln and qk_gn can be set to True.')
 
         self.softmax_scale = softmax_scale
         if self.softmax_scale is None:

@@ -431,7 +431,7 @@ def validate_and_get_cluster_info(cluster_id: str,
                 sparkSession = DatabricksSession.builder.remote(
                     host=databricks_host,
                     token=databricks_token,
-                    cluster_id=args.cluster_id).getOrCreate()
+                    cluster_id=cluster_id).getOrCreate()
 
         except Exception as e:
             raise RuntimeError(

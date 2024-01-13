@@ -261,9 +261,8 @@ def test_attn_impl(attn_impl_0: str,
             'rope_impl'] == 'hf'
 
         # special case that (likely) fails due to numerics
-        if clip_qkv and (
-                qk_ln or qk_gn
-        ) and using_hf_rope and attn_type == 'grouped_query_attention':
+        if (clip_qkv and (qk_ln or qk_gn) and using_hf_rope and
+                attn_type == 'grouped_query_attention'):
             assert allclose_helper(p.grad, tp.grad, atol=2.e-2, rtol=2.e-2)
         else:
             assert allclose_helper(p.grad, tp.grad)

@@ -626,8 +626,9 @@ class GroupedQueryAttention(nn.Module):
             # Applying layernorm to qk
             q_shape, k_shape = query.shape, key.shape
             if self.qk_gn:
-                query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
-                key = rearrange(key, 'b s (h d) -> b s h d', h=kv_n_heads)
+                b, s = query.shape[:2]
+                query = query.view(b, s, self.n_heads, -1)
+                key = key.view(b, s, self.kv_n_heads, -1)
             dtype = query.dtype
             query = self.q_ln(query).to(dtype).view(q_shape)
             key = self.k_ln(key).to(dtype).view(k_shape)

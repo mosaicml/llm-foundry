@@ -28,6 +28,11 @@ def allclose_helper(t0: torch.Tensor,
 ])
 @pytest.mark.parametrize('clip_qkv', [True, False])
 @pytest.mark.parametrize('qk_ln', [True, False])
+@pytest.mark.parametrize('qk_ln, qk_gn', [
+    (True, False),
+    (False, True),
+    (False, False),
+])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
     'rope': False

@@ -300,6 +300,8 @@ def test_huggingface_conversion_callback_interval(
     mlflow_logger_mock.save_model = MagicMock()
     mlflow_logger_mock.register_model = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
+    mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
+    mlflow_logger_mock._run_id = 'mlflow-run-id'
     trainer = Trainer(
         model=original_model,
         device='gpu',
@@ -534,6 +536,8 @@ def test_huggingface_conversion_callback(
     mlflow_logger_mock.save_model = MagicMock()
     mlflow_logger_mock.register_model = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
+    mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
+    mlflow_logger_mock._run_id = 'mlflow-run-id'
     trainer = Trainer(
         model=original_model,
         device='gpu',

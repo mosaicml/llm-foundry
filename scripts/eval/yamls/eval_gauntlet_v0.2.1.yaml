@@ -1,0 +1,109 @@
+eval_gauntlet:
+  weighting: EQUAL
+  subtract_random_baseline: true
+  rescale_accuracy: true
+  averages:
+    core_average:
+    - world_knowledge
+    - commonsense_reasoning
+    - language_understanding
+    - symbolic_problem_solving
+    - reading_comprehension
+  categories:
+  - name: world_knowledge
+    benchmarks:
+    - name: jeopardy
+      num_fewshot: 3
+      random_baseline: 0
+    - name: bigbench_qa_wikidata
+      num_fewshot: 3
+      random_baseline: 0
+    - name: arc_easy
+      num_fewshot: 3
+      random_baseline: 0.25
+    - name: arc_challenge
+      num_fewshot: 3
+      random_baseline: 0.25
+    - name: mmlu
+      num_fewshot: 5
+      random_baseline: 0.25
+    - name: triviaqa_sm_sub
+      num_fewshot: 3
+      random_baseline: 0.0
+  - name: commonsense_reasoning
+    benchmarks:
+    - name: copa
+      num_fewshot: 0
+      random_baseline: 0.5
+    - name: siqa
+      num_fewshot: 3
+      random_baseline: 0.5
+    - name: commonsense_qa
+      num_fewshot: 0
+      random_baseline: 0.25
+    - name: piqa
+      num_fewshot: 0
+      random_baseline: 0.5
+    - name: openbook_qa
+      num_fewshot: 10
+      random_baseline: 0.25
+    - name: bigbench_strange_stories
+      num_fewshot: 0
+      random_baseline: 0.5
+    - name: bigbench_strategy_qa
+      num_fewshot: 0
+      random_baseline: 0.5
+  - name: language_understanding
+    benchmarks:
+    - name: lambada_openai
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: hellaswag
+      num_fewshot: 0
+      random_baseline: 0.25
+    - name: winograd
+      num_fewshot: 3
+      random_baseline: 0.5
+    - name: winogrande
+      num_fewshot: 5
+      random_baseline: 0.5
+  - name: symbolic_problem_solving
+    benchmarks:
+    - name: bigbench_elementary_math_qa
+      num_fewshot: 1
+      random_baseline: 0.25
+    - name: bigbench_dyck_languages
+      num_fewshot: 5
+      random_baseline: 0
+    - name: bigbench_operators
+      num_fewshot: 3
+      random_baseline: 0.0
+    - name: simple_arithmetic_withspaces
+      num_fewshot: 5
+      random_baseline: 0.0
+    - name: simple_arithmetic_nospaces
+      num_fewshot: 5
+      random_baseline: 0.0
+    - name: agi_eval_lsat_ar
+      num_fewshot: 5
+      random_baseline: 0.25
+  - name: reading_comprehension
+    benchmarks:
+    - name: squad
+      num_fewshot: 3
+      random_baseline: 0
+    - name: boolq
+      num_fewshot: 0
+      random_baseline: 0.5
+    - name: coqa
+      num_fewshot: 0
+      random_baseline: 0.0
+    - name: agi_eval_lsat_rc
+      num_fewshot: 5
+      random_baseline: 0.25
+    - name: agi_eval_lsat_lr
+      num_fewshot: 5
+      random_baseline: 0.25
+    - name: agi_eval_sat_en
+      num_fewshot: 5
+      random_baseline: 0.25

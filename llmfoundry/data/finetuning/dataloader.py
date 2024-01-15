@@ -128,7 +128,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
     dataset = None  # for pyright
     sampler = None
-    if cfg.dataset.get('remote') is not None:
+    if cfg.dataset.get('remote') is not None or cfg.dataset.get('local') is not None:
         # Build streaming dataloader
         dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
@@ -261,7 +261,7 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'Those keys are used when building from a streaming dataset, but ' +\
                 'setting `hf_name` instructs the dataset to build from a HuggingFace dataset.'
             )
-    elif dataset_cfg.get('remote') is not None:
+    elif dataset_cfg.get('remote') is not None or dataset_cfg.get('local') is not None:
         # Using the streaming dataset codepath
         illegal_keys = ['hf_name', 'hf_kwargs', 'preprocessing_fn', 'safe_load']
         discovered_illegal_keys = []
@@ -280,6 +280,11 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'Using a streaming dataset requires setting both `remote` and `local`, ' +\
                 'but dataset.local is None.'
             )
+        else:
+            if dataset_cfg.get('split') not in os.listdir(dataset_cfg.local):
+                raise ValueError(
+                        f'Local directory {dataset_cfg.local} does not contain split {dataset_cfg.split}.'
+                    )
     else:
         raise ValueError(
             'In the dataset config, you must set either `hf_name` to use a ' +\

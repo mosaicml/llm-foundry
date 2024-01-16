@@ -1,25 +1,26 @@
+# Copyright 2022 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
+import json
 import os
 import re
-import json
 import tempfile
-import numpy as np
-import pandas as pd
-from collections import defaultdict
-from omegaconf import OmegaConf as om
 from argparse import ArgumentParser, Namespace
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import datasets
+import numpy as np
+import pandas as pd
+from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
+                            parse_uri)
 from datasets import get_dataset_split_names
 from huggingface_hub import dataset_info
-
-from composer.utils import (ObjectStore, maybe_create_object_store_from_uri, parse_uri)
-from llmfoundry.utils import build_tokenizer
-from llmfoundry.data import ConcatTokensDataset
-
+from omegaconf import OmegaConf as om
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.converters import dataframe_to_mds
+
+from llmfoundry.data import ConcatTokensDataset
+from llmfoundry.utils import build_tokenizer
 
 
 def create_om_cfg(FT_API_args: Namespace):
@@ -29,7 +30,9 @@ def create_om_cfg(FT_API_args: Namespace):
     split = 'train'
 
     if is_hf_dataset_path(FT_API_args.train_data_path):
-      train_data_path, split = '/'.join(FT_API_args.train_data_path.split('/')[:2]), FT_API_args.train_data_path.split('/')[-1]
+        train_data_path, split = '/'.join(
+            FT_API_args.train_data_path.split('/')
+            [:2]), FT_API_args.train_data_path.split('/')[-1]
 
     model = FT_API_args.model
     max_seq_len = FT_API_args.context_length
@@ -79,6 +82,7 @@ def create_om_cfg(FT_API_args: Namespace):
 
     return cfg, tokenizer
 
+
 def token_counts_and_validation(FT_API_args):
     from llmfoundry.data.finetuning import build_finetuning_dataloader
 
@@ -93,16 +97,17 @@ def token_counts_and_validation(FT_API_args):
     for batch in tqdm(dataloader):
         n_batch_tokens = token_counting_func(batch)
         if n_batch_tokens == 0:
-            raise ValueError("Empty train sample")
+            raise ValueError('Empty train sample')
         total_tokens.append(n_batch_tokens)
     return total_tokens
 
 
-from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
-                    Union, cast)
+from typing import Any, Callable, Dict, List, Mapping, Optional, Union, cast
+
 import torch
 
-def get_num_samples_in_batch(batch:dict) -> int:
+
+def get_num_samples_in_batch(batch: dict) -> int:
     decoder_only = True
 
     if not isinstance(batch, Mapping) or ('attention_mask' not in batch and
@@ -128,7 +133,10 @@ def get_num_samples_in_batch(batch:dict) -> int:
         decoder_input_ids_tokens = int(
             torch.sum(batch['decoder_attention_mask']).item())
 
-    return {'ntokens': input_ids_tokens + decoder_input_ids_tokens}
+    response_tokens = len(batch['labels']) if 'labels' in batch else 0
+
+    return {'ntokens': input_ids_tokens + decoder_input_ids_tokens + response_tokens}
+
 
 def token_counts(FT_API_args):
     from llmfoundry.data.finetuning import build_finetuning_dataloader
@@ -191,15 +199,17 @@ def is_hf_dataset_path(path: str):
 
     return bool(re.match(pattern, path))
 
-def is_uc_delta_table(name: str):
-    """name is in the form of catalog.scheme.tablename
 
-       Args:
-           name (str): a string folder/file/table path
-       Return:
-           (bool): True if name is valid UC delta table format
+def is_uc_delta_table(name: str):
+    """name is in the form of catalog.scheme.tablename.
+
+    Args:
+        name (str): a string folder/file/table path
+    Return:
+        (bool): True if name is valid UC delta table format
     """
-    return '.' in name and '/' not in name and '\\' not in name and len(name.split('.'))==3
+    return '.' in name and '/' not in name and '\\' not in name and len(
+        name.split('.')) == 3
 
 
 def integrity_check(out: Union[str, Tuple[str, str]]):
@@ -238,7 +248,6 @@ def integrity_check(out: Union[str, Tuple[str, str]]):
         return n_shard_files == actual_n_shard_files
 
 
-
 import logging
 import math
 import os
@@ -248,13 +257,12 @@ from concurrent.futures import ProcessPoolExecutor
 from glob import glob
 from typing import Iterable, List, Tuple, cast
 
+import datasets as hf_datasets
 import psutil
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
                             parse_uri)
 from streaming import MDSWriter
 from tqdm import tqdm
-
-import datasets as hf_datasets
 from transformers import AutoTokenizer
 
 from llmfoundry.data import ConcatTokensDataset
@@ -265,26 +273,26 @@ log = logging.getLogger(__name__)
 DONE_FILENAME = '.text_to_mds_conversion_done'
 
 
-def parse_args( tokenizer,
-                concat_tokens,
-                output_folder,
-                input_folder,
-                compression = 'zstd',
-                bos_text = '',
-                eos_text = '',
-                no_wrap = False ,
-                processes = 32,
-                reprocess = True ) -> Namespace:
-    parsed = Namespace(tokenizer = tokenizer,
-                       concat_tokens = concat_tokens,
-                       output_folder = output_folder,
-                       input_folder = input_folder,
-                       eos_text = eos_text,
-                       bos_text = bos_text,
-                       no_wrap = no_wrap,
-                       compression = compression,
-                       processes = processes,
-                       reprocess = reprocess)
+def parse_args(tokenizer,
+               concat_tokens,
+               output_folder,
+               input_folder,
+               compression='zstd',
+               bos_text='',
+               eos_text='',
+               no_wrap=False,
+               processes=32,
+               reprocess=True) -> Namespace:
+    parsed = Namespace(tokenizer=tokenizer,
+                       concat_tokens=concat_tokens,
+                       output_folder=output_folder,
+                       input_folder=input_folder,
+                       eos_text=eos_text,
+                       bos_text=bos_text,
+                       no_wrap=no_wrap,
+                       compression=compression,
+                       processes=processes,
+                       reprocess=reprocess)
     # Make sure we have needed concat options
     if (parsed.concat_tokens is not None and
             isinstance(parsed.concat_tokens, int) and parsed.tokenizer is None):
@@ -699,11 +707,12 @@ def _args_str(original_args: Namespace) -> str:
     return str(args)
 
 
-
 from composer.utils import dist, get_file, parse_uri
+
 from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
                                               dataset_constructor)
+
 
 def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     """Downloads a dataset from a remote object store.
@@ -780,8 +789,8 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
 
 
 def plot_hist(data, save_plot_path=None):
-    import pandas as pd
     import matplotlib.pyplot as plt
+    import pandas as pd
 
     # Figure and Axis Setup
     plt.figure(figsize=(10, 6))
@@ -805,8 +814,8 @@ def plot_hist(data, save_plot_path=None):
     plt.axvline(mean_val, color='red', linestyle='dashed', linewidth=1)
     plt.axvline(median_val, color='green', linestyle='dashed', linewidth=1)
     min_ylim, max_ylim = plt.ylim()
-    plt.text(mean_val*1.1, max_ylim*0.9, f'Mean: {mean_val:.2f}')
-    plt.text(median_val*1.1, max_ylim*0.8, f'Median: {median_val:.2f}')
+    plt.text(mean_val * 1.1, max_ylim * 0.9, f'Mean: {mean_val:.2f}')
+    plt.text(median_val * 1.1, max_ylim * 0.8, f'Median: {median_val:.2f}')
 
     if save_plot_path is not None:
         plt.savefig(save_plot_path)
@@ -827,6 +836,7 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
     return f'BYOD was installed without {extra_deps} support. ' + \
             f'To use {extra_deps} related packages with BYOD, run ' + \
             f'`pip install \'mosaicml-byod[{extra_deps}]\'`.'
+
 
 def pandas_processing_fn(df: pd.DataFrame,
                          **args: Any) -> Iterable[Dict[str, bytes]]:
@@ -857,6 +867,7 @@ def pandas_processing_fn(df: pd.DataFrame,
     for sample in dataset:  # pyright: ignore
         yield sample
 
+
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
@@ -870,34 +881,37 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import pandas as pd
 
-
 try:
     from pyspark import TaskContext
-    from pyspark.sql.dataframe import DataFrame as SparkSqlDataFrame
     from pyspark.sql.connect.dataframe import DataFrame as SparkConnDataFrame
-    from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, DateType,
-                                   DayTimeIntervalType, DecimalType, DoubleType, FloatType,
-                                   IntegerType, LongType, MapType, ShortType, StringType,
-                                   StructField, StructType, TimestampNTZType, TimestampType)
+    from pyspark.sql.dataframe import DataFrame as SparkSqlDataFrame
+    from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType,
+                                   DateType, DayTimeIntervalType, DecimalType,
+                                   DoubleType, FloatType, IntegerType, LongType,
+                                   MapType, ShortType, StringType, StructField,
+                                   StructType, TimestampNTZType, TimestampType)
 except ImportError as e:
-    e.msg = get_import_exception_message(e.name, extra_deps='spark')  # pyright: ignore
+    e.msg = get_import_exception_message(e.name,
+                                         extra_deps='spark')  # pyright: ignore
     raise e
 
 try:
     from dask.dataframe import DataFrame as DaskDataFrame
     from dask.distributed import Client, LocalCluster
 except ImportError as e:
-    e.msg = get_import_exception_message(e.name, extra_deps='dask') # pyright: ignore
+    e.msg = get_import_exception_message(e.name,
+                                         extra_deps='dask')  # pyright: ignore
     raise e
 
 try:
-    from streaming.base.util import merge_index as do_merge_index
     from streaming import MDSWriter
     from streaming.base.format.index import get_index_basename
     from streaming.base.format.mds.encodings import _encodings
     from streaming.base.storage.upload import CloudUploader
+    from streaming.base.util import merge_index as do_merge_index
 except ImportError as e:
-    e.msg = get_import_exception_message(e.name, extra_deps='streaming')  # pyright: ignore
+    e.msg = get_import_exception_message(
+        e.name, extra_deps='streaming')  # pyright: ignore
     raise e
 
 logger = logging.getLogger(__name__)
@@ -923,18 +937,20 @@ MAPPING_SPARK_TO_MDS = {
     StructField: None
 }
 
-MAPPING_DASK_TO_MDS = {
-    'object' : 'str',
-    'int64' : 'int64',
-    'string' : 'str'
-}
+MAPPING_DASK_TO_MDS = {'object': 'str', 'int64': 'int64', 'string': 'str'}
 
-def isSparkDataFrame(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, DaskDataFrame]):
-    return isinstance(dataframe, SparkSqlDataFrame) or isinstance(dataframe, SparkConnDataFrame)
 
-def infer_dataframe_schema(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, DaskDataFrame],
-                           user_defined_cols: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
-    """Retrieve schema to construct a dictionary or do sanity check for MDSWriter.
+def isSparkDataFrame(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame,
+                                      DaskDataFrame]):
+    return isinstance(dataframe, SparkSqlDataFrame) or isinstance(
+        dataframe, SparkConnDataFrame)
+
+
+def infer_dataframe_schema(
+        dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, DaskDataFrame],
+        user_defined_cols: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
+    """Retrieve schema to construct a dictionary or do sanity check for
+    MDSWriter.
 
     Args:
         dataframe (spark dataframe): dataframe to inspect schema
@@ -966,15 +982,15 @@ def infer_dataframe_schema(dataframe: Union[SparkSqlDataFrame, SparkConnDataFram
         return mds_type
 
     def map_dask_dtype(dask_data_type: Any) -> str:
-        """Map dask/pandas data type to mds supported types.
-        """
+        """Map dask/pandas data type to mds supported types."""
         mds_type = MAPPING_DASK_TO_MDS.get(str(dask_data_type), None)
         if mds_type not in mds_supported_dtypes:
             raise ValueError(f'{dask_data_type} is not supported by MDSWriter')
         return mds_type
 
     mds_supported_dtypes = {
-        mds_type for mds_type in MAPPING_SPARK_TO_MDS.values() if mds_type is not None
+        mds_type for mds_type in MAPPING_SPARK_TO_MDS.values()
+        if mds_type is not None
     }
 
     # user has provided schema, we just check if mds supports the dtype
@@ -982,7 +998,8 @@ def infer_dataframe_schema(dataframe: Union[SparkSqlDataFrame, SparkConnDataFram
         for col_name, user_dtype in user_defined_cols.items():
             if col_name not in dataframe.columns:
                 raise ValueError(
-                    f'{col_name} is not a column of input dataframe: {dataframe.columns}')
+                    f'{col_name} is not a column of input dataframe: {dataframe.columns}'
+                )
             if user_dtype not in mds_supported_dtypes:
                 raise ValueError(f'{user_dtype} is not supported by MDSWriter')
 
@@ -995,8 +1012,8 @@ def infer_dataframe_schema(dataframe: Union[SparkSqlDataFrame, SparkConnDataFram
 
             if user_dtype != mapped_mds_dtype:
                 raise ValueError(
-                    f'Mismatched types: column name `{col_name}` is `{mapped_mds_dtype}` in ' +
-                    f'DataFrame but `{user_dtype}` in user_defined_cols')
+                    f'Mismatched types: column name `{col_name}` is `{mapped_mds_dtype}` in '
+                    + f'DataFrame but `{user_dtype}` in user_defined_cols')
         return None
 
     schema_dict = {}
@@ -1017,26 +1034,29 @@ def infer_dataframe_schema(dataframe: Union[SparkSqlDataFrame, SparkConnDataFram
     return schema_dict
 
 
-def dataframeToMDS(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, DaskDataFrame],
-                   merge_index: bool = True,
-                   mds_kwargs: Optional[Dict[str, Any]] = None,
-                   udf_iterable: Optional[Callable] = None,
-                   udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[Any, int]:
+def dataframeToMDS(
+        dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, DaskDataFrame],
+        merge_index: bool = True,
+        mds_kwargs: Optional[Dict[str, Any]] = None,
+        udf_iterable: Optional[Callable] = None,
+        udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[Any, int]:
     """Deprecated API Signature.
 
     To be replaced by dataframe_to_mds
     """
     logger.warning(
-        'The DataframeToMDS signature has been deprecated and will be removed in Streaming 0.8. ' +
-        'Use dataframe_to_mds with the same arguments going forward')
-    return dataframe_to_mds(dataframe, merge_index, mds_kwargs, udf_iterable, udf_kwargs)
+        'The DataframeToMDS signature has been deprecated and will be removed in Streaming 0.8. '
+        + 'Use dataframe_to_mds with the same arguments going forward')
+    return dataframe_to_mds(dataframe, merge_index, mds_kwargs, udf_iterable,
+                            udf_kwargs)
 
 
-def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, DaskDataFrame],
-              merge_index: bool = True,
-              mds_kwargs: Optional[Dict[str, Any]] = None,
-              udf_iterable: Optional[Callable] = None,
-              udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[Any, int]:
+def dataframe_to_mds(
+        dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, DaskDataFrame],
+        merge_index: bool = True,
+        mds_kwargs: Optional[Dict[str, Any]] = None,
+        udf_iterable: Optional[Callable] = None,
+        udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[Any, int]:
     """Execute a spark dataframe to MDS conversion process.
 
     This method orchestrates the conversion of a spark dataframe into MDS format by processing the
@@ -1067,12 +1087,13 @@ def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, Das
 
     def write_mds_dask(pdf: pd.DataFrame, partition_info=None):
 
-        fid = partition_info['number'] # pdf.index[0]
+        fid = partition_info['number']  # pdf.index[0]
         if mds_path[1] == '':  # only local
             output = os.path.join(mds_path[0], f'{fid}')
             partition_path = (output, '')
         else:
-            output = (os.path.join(mds_path[0], f'{fid}'), os.path.join(mds_path[1], f'{fid}'))
+            output = (os.path.join(mds_path[0], f'{fid}'),
+                      os.path.join(mds_path[1], f'{fid}'))
             partition_path = output
 
         if mds_kwargs:
@@ -1082,30 +1103,36 @@ def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, Das
             kwargs = {}
 
         if merge_index:
-            kwargs['keep_local'] = True  # need to keep workers' locals to do merge
-
+            kwargs[
+                'keep_local'] = True  # need to keep workers' locals to do merge
 
         if udf_iterable is not None:
             records = udf_iterable(pdf, **udf_kwargs or {})
         else:
             records = pdf.to_dict('records')
-        assert isinstance(
-            records,
-            Iterable), (f'pandas_processing_fn needs to return an iterable instead of a ' +
-                        f'{type(records)}')
+        assert isinstance(records, Iterable), (
+            f'pandas_processing_fn needs to return an iterable instead of a ' +
+            f'{type(records)}')
 
         with MDSWriter(**kwargs) as mds_writer:
             for sample in records:
                 try:
                     mds_writer.write(sample)
                 except Exception as ex:
-                    raise RuntimeError(f'failed to write sample: {sample}') from ex
+                    raise RuntimeError(
+                        f'failed to write sample: {sample}') from ex
                     count += 1
 
-        return pd.DataFrame({'mds_path_local': [os.path.join(partition_path[0], get_index_basename())], 'mds_path_remote': [os.path.join(partition_path[1], get_index_basename()) if partition_path[1] != '' else ''] , 'fail_count' : [0] })
+        return pd.DataFrame({
+            'mds_path_local':
+                [os.path.join(partition_path[0], get_index_basename())],
+            'mds_path_remote': [
+                os.path.join(partition_path[1], get_index_basename())
+                if partition_path[1] != '' else ''
+            ],
+            'fail_count': [0]
+        })
         return pdf.drop(cols, axis=1)
-
-
 
     def write_mds_spark(iterator: Iterable):
         """Worker node writes iterable to MDS datasets locally."""
@@ -1120,7 +1147,8 @@ def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, Das
             output = os.path.join(mds_path[0], f'{fid}')
             partition_path = (output, '')
         else:
-            output = (os.path.join(mds_path[0], f'{fid}'), os.path.join(mds_path[1], f'{fid}'))
+            output = (os.path.join(mds_path[0], f'{fid}'),
+                      os.path.join(mds_path[1], f'{fid}'))
             partition_path = output
 
         if mds_kwargs:
@@ -1130,7 +1158,8 @@ def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, Das
             kwargs = {}
 
         if merge_index:
-            kwargs['keep_local'] = True  # need to keep workers' locals to do merge
+            kwargs[
+                'keep_local'] = True  # need to keep workers' locals to do merge
 
         count = 0
 
@@ -1140,16 +1169,16 @@ def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, Das
                     records = udf_iterable(pdf, **udf_kwargs or {})
                 else:
                     records = pdf.to_dict('records')
-                assert isinstance(
-                    records,
-                    Iterable), (f'pandas_processing_fn needs to return an iterable instead of a ' +
-                                f'{type(records)}')
+                assert isinstance(records, Iterable), (
+                    f'pandas_processing_fn needs to return an iterable instead of a '
+                    + f'{type(records)}')
 
                 for sample in records:
                     try:
                         mds_writer.write(sample)
                     except Exception as ex:
-                        raise RuntimeError(f'failed to write sample: {sample}') from ex
+                        raise RuntimeError(
+                            f'failed to write sample: {sample}') from ex
                         count += 1
 
         yield pd.concat([
@@ -1167,10 +1196,14 @@ def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, Das
     if dataframe is None:
         raise ValueError(f'Input dataframe is None!')
 
-    if not isSparkDataFrame(dataframe) and not isinstance(dataframe, DaskDataFrame):
-        raise ValueError(f'dataframe_to_mds only takes Spark dataframe or Dask dataframe!')
+    if not isSparkDataFrame(dataframe) and not isinstance(
+            dataframe, DaskDataFrame):
+        raise ValueError(
+            f'dataframe_to_mds only takes Spark dataframe or Dask dataframe!')
 
-    if (isSparkDataFrame(dataframe) and dataframe.isEmpty()) or (isinstance(dataframe, DaskDataFrame) and len(dataframe.index)==0):
+    if (isSparkDataFrame(dataframe) and
+            dataframe.isEmpty()) or (isinstance(dataframe, DaskDataFrame) and
+                                     len(dataframe.index) == 0):
         print(f'Return. Input dataframe is Empty! Nothing to be done!')
 
     if not mds_kwargs:
@@ -1180,27 +1213,30 @@ def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, Das
         udf_kwargs = {}
 
     if 'out' not in mds_kwargs:
-        raise ValueError(f'`out` and `columns` need to be specified in `mds_kwargs`')
+        raise ValueError(
+            f'`out` and `columns` need to be specified in `mds_kwargs`')
 
     if udf_iterable is not None:
         if 'columns' not in mds_kwargs:
             raise ValueError(
-                f'If udf_iterable is specified, user must provide correct `columns` in the ' +
-                f'mds_kwargs')
-        logger.warning("With udf_iterable defined, it's up to the user's discretion to provide " +
-                       "mds_kwargs[columns]'")
+                f'If udf_iterable is specified, user must provide correct `columns` in the '
+                + f'mds_kwargs')
+        logger.warning(
+            "With udf_iterable defined, it's up to the user's discretion to provide "
+            + "mds_kwargs[columns]'")
     else:
         if 'columns' not in mds_kwargs:
             logger.warning(
-                "User's discretion required: columns arg is missing from mds_kwargs. Will be " +
-                'auto-inferred')
+                "User's discretion required: columns arg is missing from mds_kwargs. Will be "
+                + 'auto-inferred')
             mds_kwargs['columns'] = infer_dataframe_schema(dataframe)
             logger.warning(f"Auto inferred schema: {mds_kwargs['columns']}")
         else:
             infer_dataframe_schema(dataframe, mds_kwargs['columns'])
 
     out = mds_kwargs['out']
-    keep_local = False if 'keep_local' not in mds_kwargs else mds_kwargs['keep_local']
+    keep_local = False if 'keep_local' not in mds_kwargs else mds_kwargs[
+        'keep_local']
     cu = CloudUploader.get(out, keep_local=keep_local)
 
     # Fix output format as mds_path: Tuple(local, remote)
@@ -1216,11 +1252,19 @@ def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, Das
             StructField('mds_path_remote', StringType(), False),
             StructField('fail_count', IntegerType(), False)
         ])
-        partitions = dataframe.mapInPandas(func=write_mds_spark, schema=result_schema).collect()
+        partitions = dataframe.mapInPandas(func=write_mds_spark,
+                                           schema=result_schema).collect()
     else:
         cluster = LocalCluster(processes=False)
         client = Client(cluster)
-        partitions = dataframe.map_partitions(write_mds_dask, meta=pd.DataFrame({'mds_path_local': str, 'mds_path_remote': str, 'fail_count': int}, index=[0])).compute()
+        partitions = dataframe.map_partitions(write_mds_dask,
+                                              meta=pd.DataFrame(
+                                                  {
+                                                      'mds_path_local': str,
+                                                      'mds_path_remote': str,
+                                                      'fail_count': int
+                                                  },
+                                                  index=[0])).compute()
 
     keep_local_files = True
     # If there are no remote part, we always keep the local
@@ -1231,11 +1275,18 @@ def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, Das
 
     if merge_index:
         if isSparkDataFrame(dataframe):
-            index_files = list(set([(row['mds_path_local'], row['mds_path_remote']) for row in partitions]))
+            index_files = list(
+                set([(row['mds_path_local'], row['mds_path_remote'])
+                     for row in partitions]))
         else:
-            index_files = list(set([(row[1]['mds_path_local'], row[1]['mds_path_remote']) for row in partitions.iterrows()]))
+            index_files = list(
+                set([(row[1]['mds_path_local'], row[1]['mds_path_remote'])
+                     for row in partitions.iterrows()]))
 
-        do_merge_index(index_files, out, keep_local=keep_local_files, download_timeout=60)
+        do_merge_index(index_files,
+                       out,
+                       keep_local=keep_local_files,
+                       download_timeout=60)
 
     if not keep_local_files:
         shutil.rmtree(cu.local, ignore_errors=True)
@@ -1247,7 +1298,6 @@ def dataframe_to_mds(dataframe: Union[SparkSqlDataFrame, SparkConnDataFrame, Das
 
         if sum_fail_count > 0:
             logger.warning(
-                f'Total failed records = {sum_fail_count}\nOverall records {dataframe.count()}')
+                f'Total failed records = {sum_fail_count}\nOverall records {dataframe.count()}'
+            )
     return mds_path, sum_fail_count
-
-

@@ -133,7 +133,7 @@ def get_num_samples_in_batch(batch: dict) -> int:
         decoder_input_ids_tokens = int(
             torch.sum(batch['decoder_attention_mask']).item())
 
-    response_tokens = batch['labels'] if 'labels' in batch else 0
+    response_tokens = len(batch['labels']) if 'labels' in batch else 0
 
     return {'ntokens': input_ids_tokens + decoder_input_ids_tokens + response_tokens}
 

@@ -31,9 +31,9 @@ from torch.optim.optimizer import Optimizer
 from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
-                                  HuggingFaceCheckpointer, LayerFreezing,
-                                  MonolithicCheckpointSaver,
+from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
+                                  GlobalLRScaling, HuggingFaceCheckpointer,
+                                  LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
@@ -157,8 +157,11 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
-def build_callback(name: str, kwargs: Union[DictConfig, Dict[str,
-                                                             Any]]) -> Callback:
+def build_callback(
+    name: str,
+    kwargs: Union[DictConfig, Dict[str, Any]],
+    config: Any = None,
+) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
@@ -205,21 +208,32 @@ def build_callback(name: str, kwargs: Union[DictConfig, Dict[str,
         if isinstance(kwargs, DictConfig):
             kwargs = om.to_object(kwargs)  # pyright: ignore
         return HuggingFaceCheckpointer(**kwargs)
+    elif name == 'async_eval':
+        if config is None:
+            raise ValueError(
+                'Parameters config is required for async eval callback')
+
+        return AsyncEval(**kwargs, training_config=config)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
+    kwargs_dict = {
+        k: v if isinstance(v, str) else om.to_container(v, resolve=True)
+        for k, v in kwargs.items()
+    }
+
     if name == 'wandb':
-        return WandBLogger(**kwargs)
+        return WandBLogger(**kwargs_dict)
     elif name == 'tensorboard':
-        return TensorboardLogger(**kwargs)
+        return TensorboardLogger(**kwargs_dict)
     elif name == 'in_memory_logger':
-        return InMemoryLogger(**kwargs)
+        return InMemoryLogger(**kwargs_dict)
     elif name == 'mlflow':
-        return MLFlowLogger(**kwargs)
+        return MLFlowLogger(**kwargs_dict)
     elif name == 'inmemory':
-        return InMemoryLogger(**kwargs)
+        return InMemoryLogger(**kwargs_dict)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
@@ -229,8 +243,6 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
         return algorithms.GradientClipping(**kwargs)
     elif name == 'alibi':
         return algorithms.Alibi(**kwargs)
-    elif name == 'fused_layernorm':
-        return algorithms.FusedLayerNorm(**kwargs)
     elif name == 'gated_linear_units':
         return algorithms.GatedLinearUnits(**kwargs)
     elif name == 'low_precision_layernorm':

@@ -527,7 +527,6 @@ def build_text_denoising_dataloader(
     )
 
     token_counting_func = get_tokens_per_batch_func(
-        pad_token_id=tokenizer.pad_token_id,
         decoder_only=cfg.mixture_of_denoisers.decoder_only_format)
 
     return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)

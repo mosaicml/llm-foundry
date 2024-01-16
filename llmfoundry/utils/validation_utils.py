@@ -133,7 +133,9 @@ def get_num_samples_in_batch(batch: dict) -> int:
         decoder_input_ids_tokens = int(
             torch.sum(batch['decoder_attention_mask']).item())
 
-    return {'ntokens': input_ids_tokens + decoder_input_ids_tokens}
+    response_tokens = batch['labels'] if 'labels' in batch else 0
+
+    return {'ntokens': input_ids_tokens + decoder_input_ids_tokens + response_tokens}
 
 
 def token_counts(FT_API_args):

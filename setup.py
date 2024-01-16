@@ -104,7 +104,7 @@ extra_deps['peft'] = [
     # 'scipy>=1.10.0,<=1.11.0',  # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
     # TODO: pin peft when it stabilizes.
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'peft>=0.5,<0.6',
+    'peft', # 'peft>=0.5,<0.6'
 ]
 
 extra_deps['openai'] = [

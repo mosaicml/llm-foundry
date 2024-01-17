@@ -238,33 +238,6 @@ def download_from_oras(registry: str,
             f'oras cli command `{ORAS_CLI}` is not found. Please install oras: https://oras.land/docs/installation '
         )
 
-    # def validate_and_add_from_secret_file(
-    #     secrets: dict[str, str],
-    #     secret_name: str,
-    #     secret_file_path: str,
-    # ):
-    #     try:
-    #         with open(secret_file_path, encoding='utf-8') as f:
-    #             secrets[secret_name] = f.read()
-    #     except Exception as error:
-    #         raise ValueError(
-    #             f'secret_file {secret_file_path} is failed to be read; but got error'
-    #         ) from error
-
-    # secrets = {}
-    # validate_and_add_from_secret_file(
-    #     secrets, 'username', os.path.join(credentials_dirpath, 'username'))
-    # validate_and_add_from_secret_file(
-    #     secrets, 'password', os.path.join(credentials_dirpath, 'password'))
-    # validate_and_add_from_secret_file(
-    #     secrets, 'registry', os.path.join(credentials_dirpath, 'registry'))
-
-    # with open(config_file, 'r', encoding='utf-8') as f:
-    #     configs = yaml.safe_load(f.read())
-
-    # path = configs[model]
-    # hostname = secrets['registry']
-
     def get_oras_cmd(username: Optional[str] = None,
                      password: Optional[str] = None):
         cmd = [

@@ -90,8 +90,8 @@ def get_indices_info(attention_mask: torch.Tensor):
     seqlens_in_batch = attention_mask.sum(dim=-1, dtype=torch.int32)
     indices = torch.nonzero(attention_mask.flatten(), as_tuple=False).flatten()
     max_seqlen_in_batch = seqlens_in_batch.max().item()
-    cu_seqlens = F.pad(
-        torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.torch.int32), (1, 0))
+    cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.int32),
+                       (1, 0))
     # TD [2022-03-04] We don't want to index with a bool mask, because Pytorch will expand the
     # bool mask, then call nonzero to get the indices, then index with those. The indices is @dim
     # times larger than it needs to be, wasting memory. It's faster and more memory-efficient to
@@ -117,8 +117,8 @@ def get_indices_for_concatenated_sequences(
     indices = torch.nonzero(attention_mask_2d.flatten(),
                             as_tuple=False).flatten()
     max_seqlen_in_batch = seqlens_in_batch.max().item()
-    cu_seqlens = F.pad(
-        torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.torch.int32), (1, 0))
+    cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.int32),
+                       (1, 0))
     # TD [2022-03-04] We don't want to index with a bool mask, because Pytorch will expand the
     # bool mask, then call nonzero to get the indices, then index with those. The indices is @dim
     # times larger than it needs to be, wasting memory. It's faster and more memory-efficient to

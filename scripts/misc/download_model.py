@@ -47,8 +47,7 @@ def add_oras_parser_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def add_http_parser_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument('--host', type=str, required=True)
-    parser.add_argument('--path', type=str, required=True)
+    parser.add_argument('--url', type=str, required=True)
     parser.add_argument('--ignore-cert', action='store_true', default=False)
 
 

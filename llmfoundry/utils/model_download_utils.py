@@ -188,17 +188,14 @@ def _recursive_download(
                 stop=tenacity.stop_after_attempt(3),
                 wait=tenacity.wait_exponential(min=1, max=10))
 def download_from_http_fileserver(
-    base_url: str,
-    path: str,
+    url: str,
     save_dir: str,
     ignore_cert: bool = False,
 ):
     """Downloads files from a remote HTTP file server.
 
     Args:
-        base_url (str): The base URL where the files are located.
-        path (str): The path from the base URL to the files to download. The full URL for the download is equal to
-            '<base_url>/<path>'.
+        url (str): The base URL where the files are located.
         save_dir (str): The directory to save downloaded files to.
         ignore_cert (bool): Whether or not to ignore the validity of the SSL certificate of the remote server.
             Defaults to False.
@@ -211,8 +208,8 @@ def download_from_http_fileserver(
                 warnings.simplefilter('ignore', category=InsecureRequestWarning)
 
             _recursive_download(session,
-                                base_url,
-                                path,
+                                url,
+                                '',
                                 save_dir,
                                 ignore_cert=ignore_cert)
 

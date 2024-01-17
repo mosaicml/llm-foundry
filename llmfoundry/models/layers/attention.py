@@ -326,10 +326,15 @@ def flash_attn_fn(
 
     query_unpad = bert_padding.index_first_axis(
         rearrange(query, 'b s ... -> (b s) ...'), indices_q)
+    query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
+
     key_unpad = bert_padding.index_first_axis(
         rearrange(key, 'b s ... -> (b s) ...'), indices_k)
+    key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
+
     value_unpad = bert_padding.index_first_axis(
         rearrange(value, 'b s ... -> (b s) ...'), indices_v)
+    value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
     if (kv_n_heads < n_heads) and (not is_flash_v2_installed()) and (
             not should_repeat_kv_for_gqa):

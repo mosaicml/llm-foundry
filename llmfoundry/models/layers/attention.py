@@ -232,10 +232,13 @@ def flash_attn_fn(
     should_repeat_kv_for_gqa: Optional[bool] = True,
     sliding_window_size: int = -1,
     alibi_slopes: Optional[torch.Tensor] = None,
+    return_indices: bool = False,
+    indices_tuple: Optional[tuple[torch.Tensor, torch.Tensor,
+                                  torch.Tensor]] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
-        from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
+        from flash_attn import bert_padding, flash_attn_interface, index_first_axis  # type: ignore # yapf: disable # isort: skip
     except:
         raise RuntimeError(
             'Please install flash-attn==1.0.9 or flash-attn==2.3.6')
@@ -267,26 +270,33 @@ def flash_attn_fn(
 
     batch_size, seqlen = query.shape[:2]
 
-    if attention_mask_in_length is None:
-        if key_padding_mask is None:
-            key_padding_mask = torch.ones_like(key[:, :, 0], dtype=torch.bool)
-        query_padding_mask = key_padding_mask[:, -query.size(1):]
-        unpadding_function = bert_padding.unpad_input
+    if indices_tuple is None:
+        if attention_mask_in_length is None:
+            if key_padding_mask is None:
+                key_padding_mask = torch.ones_like(key[:, :, 0], dtype=torch.bool)
+            query_padding_mask = key_padding_mask[:, -query.size(1):]
+            unpadding_function = bert_padding.unpad_input
+        else:
+            key_padding_mask = attention_mask_in_length
+            query_padding_mask = attention_mask_in_length
+            unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
+
+    
+        query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
+            query, query_padding_mask)
+        query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
+
+        key_unpad, indices_k, cu_seqlens_k, max_seqlen_k = unpadding_function(
+            key, key_padding_mask)
+        key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
+
+        value_unpad, indices_v, _, _ = unpadding_function(value, key_padding_mask)
+        value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
     else:
-        key_padding_mask = attention_mask_in_length
-        query_padding_mask = attention_mask_in_length
-        unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
-
-    query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
-        query, query_padding_mask)
-    query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
-
-    key_unpad, _, cu_seqlens_k, max_seqlen_k = unpadding_function(
-        key, key_padding_mask)
-    key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
-
-    value_unpad, _, _, _ = unpadding_function(value, key_padding_mask)
-    value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
+        indices_q, indices_k, indices_v = indices_tuple
+        query_unpad =  index_first_axis(rearrange(query, "b s ... -> (b s) ..."), indices_q)
+        key_unpad =  index_first_axis(rearrange(key, "b s ... -> (b s) ..."), indices_k)
+        value_unpad =  index_first_axis(rearrange(value, "b s ... -> (b s) ..."), indices_v)
 
     if (kv_n_heads < n_heads) and (not is_flash_v2_installed()) and (
             not should_repeat_kv_for_gqa):
@@ -367,6 +377,8 @@ def flash_attn_fn(
     output = bert_padding.pad_input(
         rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,
         seqlen)
+    if return_indices:
+        return output, None, past_key_value, (indices_q, indices_k, indices_v)
     return output, None, past_key_value
 
 
@@ -601,6 +613,9 @@ class GroupedQueryAttention(nn.Module):
         needs_weights: bool = False,
         attention_mask_in_length: Optional[torch.Tensor] = None,
         alibi_slopes: Optional[torch.Tensor] = None,
+        return_indices: bool = False,
+        indices_tuple: Optional[tuple[torch.Tensor, torch.Tensor,
+                                      torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
             torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
@@ -671,9 +686,11 @@ class GroupedQueryAttention(nn.Module):
                 'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
                 'sliding_window_size': self.sliding_window_size,
                 'alibi_slopes': alibi_slopes,
+                'return_indices': return_indices,
+                'indices_tuple': indices_tuple
             }
 
-        context, attn_weights, past_key_value = self.attn_fn(
+        attn_fn_output = self.attn_fn(
             query,
             key,
             value,
@@ -690,6 +707,13 @@ class GroupedQueryAttention(nn.Module):
             **extra_attn_kwargs,
         )
 
+        if return_indices:
+            context, attn_weights, past_key_value, indices_tuple = attn_fn_output
+        else:
+            context, attn_weights, past_key_value = attn_fn_output
+
+        if return_indices:
+            return self.out_proj(context), attn_weights, past_key_value, indices_tuple
         return self.out_proj(context), attn_weights, past_key_value
 
 

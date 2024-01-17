@@ -124,10 +124,13 @@ class MPTBlock(nn.Module):
         output_attentions: bool = False,
         attention_mask_in_length: Optional[torch.Tensor] = None,
         alibi_slopes: Optional[torch.Tensor] = None,
+        return_indices: bool = False,
+        indices_tuple: Optional[tuple[torch.Tensor, torch.Tensor,
+                                      torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
             torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
-        b, attn_weights, past_key_value = self.attn(
+        attn_output = self.attn(
             a,
             past_key_value=past_key_value,
             attn_bias=attn_bias,
@@ -137,7 +140,13 @@ class MPTBlock(nn.Module):
             needs_weights=output_attentions,
             attention_mask_in_length=attention_mask_in_length,
             alibi_slopes=alibi_slopes,
+            return_indices=return_indices,
+            indices_tuple=indices_tuple,
         )
+        if return_indices:
+            b, attn_weights, past_key_value, indices_tuple = attn_output
+        else:
+            b, attn_weights, past_key_value = attn_output
         x = x + self.resid_attn_dropout(b)
         m = x
         if self.norm_2 is not None:
@@ -152,4 +161,6 @@ class MPTBlock(nn.Module):
             assert pad_input is not None
             n = pad_input(n, indices, batch_size, seq_len)
         x = x + self.resid_ffn_dropout(n)
+        if return_indices:
+            return x, attn_weights, past_key_value, indices_tuple
         return x, attn_weights, past_key_value

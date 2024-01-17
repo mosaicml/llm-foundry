@@ -238,7 +238,8 @@ def get_flash_attn_padding_info(
         torch.zeros(1, 1, 1), query_padding_mask)
     _, indices_k, cu_seqlens_k, max_seqlen_k = unpadding_function(
         torch.zeros(1, 1, 1), key_padding_mask)
-    _, indices_v, _, _ = unpadding_function(torch.zeros(1, 1, 1), key_padding_mask)
+    _, indices_v, _, _ = unpadding_function(torch.zeros(1, 1, 1),
+                                            key_padding_mask)
 
     flash_attn_padding_info['indices_q'] = indices_q
     flash_attn_padding_info['indices_k'] = indices_k

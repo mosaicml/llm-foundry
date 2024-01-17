@@ -235,10 +235,10 @@ def get_flash_attn_padding_info(
         unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
 
     _, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
-        torch.zeros(1, 1), query_padding_mask)
+        torch.zeros(1, 1, 1), query_padding_mask)
     _, indices_k, cu_seqlens_k, max_seqlen_k = unpadding_function(
-        torch.zeros(1, 1), key_padding_mask)
-    _, indices_v, _, _ = unpadding_function(torch.zeros(1, 1), key_padding_mask)
+        torch.zeros(1, 1, 1), key_padding_mask)
+    _, indices_v, _, _ = unpadding_function(torch.zeros(1, 1, 1), key_padding_mask)
 
     flash_attn_padding_info['indices_q'] = indices_q
     flash_attn_padding_info['indices_k'] = indices_k

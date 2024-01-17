@@ -627,25 +627,26 @@ class MPTModel(MPTPreTrainedModel):
         flash_attn_padding_info = {}
         if self.attn_impl == 'flash':
             if attention_mask_in_length is None:
-                if attention_mask is None:
+                key_padding_mask = attention_mask
+                if key_padding_mask is None:
                     past_key_len = past_key_values[0].shape[
                         1] if past_key_values is not None else 0
-                    attention_mask = torch.ones(
+                    key_padding_mask = torch.ones(
                         (x.shape[0], past_key_len + x.shape[1]),
                         dtype=torch.bool)
-                query_padding_mask = attention_mask[:, -x.shape[1]:]
+                query_padding_mask = key_padding_mask[:, -x.shape[1]:]
                 unpadding_function = bert_padding.unpad_input
             else:
-                attention_mask = attention_mask_in_length
+                key_padding_mask = attention_mask_in_length
                 query_padding_mask = attention_mask_in_length
                 unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
 
             _, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
                 torch.zeros(1, 1), query_padding_mask)
             _, indices_k, cu_seqlens_k, max_seqlen_k = unpadding_function(
-                torch.zeros(1, 1), attention_mask)
+                torch.zeros(1, 1), key_padding_mask)
             _, indices_v, _, _ = unpadding_function(torch.zeros(1, 1),
-                                                    attention_mask)
+                                                    key_padding_mask)
 
             flash_attn_padding_info['indices_q'] = indices_q
             flash_attn_padding_info['indices_k'] = indices_k

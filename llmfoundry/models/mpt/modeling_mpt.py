@@ -28,6 +28,7 @@ from llmfoundry.models.layers.attention import is_flash_v2_installed
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
+        from flash_attn import bert_padding
         from flash_attn.layers.rotary import \
             RotaryEmbedding as DAILRotaryEmbedding
     except Exception as e:
@@ -623,15 +624,43 @@ class MPTModel(MPTPreTrainedModel):
 
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
-        return_indices = self.attn_impl == 'flash' # TODO: Make this a config option
-        indices_tuple=None
+        flash_attn_padding_info = {}
+        if self.attn_impl == 'flash':
+            if attention_mask_in_length is None:
+                if attention_mask is None:
+                    past_key_len = past_key_values[0].shape[
+                        1] if past_key_values is not None else 0
+                    attention_mask = torch.ones(
+                        (x.shape[0], past_key_len + x.shape[1]),
+                        dtype=torch.bool)
+                query_padding_mask = attention_mask[:, -x.shape[1]:]
+                unpadding_function = bert_padding.unpad_input
+            else:
+                attention_mask = attention_mask_in_length
+                query_padding_mask = attention_mask_in_length
+                unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
+
+            _, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
+                torch.zeros(1, 1), query_padding_mask)
+            _, indices_k, cu_seqlens_k, max_seqlen_k = unpadding_function(
+                torch.zeros(1, 1), attention_mask)
+            _, indices_v, _, _ = unpadding_function(torch.zeros(1, 1),
+                                                    attention_mask)
+
+            flash_attn_padding_info['indices_q'] = indices_q
+            flash_attn_padding_info['indices_k'] = indices_k
+            flash_attn_padding_info['indices_v'] = indices_v
+            flash_attn_padding_info['cu_seqlens_q'] = cu_seqlens_q
+            flash_attn_padding_info['cu_seqlens_k'] = cu_seqlens_k
+            flash_attn_padding_info['max_seqlen_q'] = max_seqlen_q
+            flash_attn_padding_info['max_seqlen_k'] = max_seqlen_k
         for b_idx, block in enumerate(self.blocks):
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
                 all_hidden_states = all_hidden_states + (x,)
             past_key_value = (past_key_values[b_idx]
                               if past_key_values is not None else None)
-            block_output = block(
+            x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
@@ -639,15 +668,9 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
-                attention_mask_in_length=attention_mask_in_length,
                 alibi_slopes=alibi_slopes,
-                return_indices=return_indices,
-                indices_tuple=indices_tuple,
+                flash_attn_padding_info=flash_attn_padding_info,
             )
-            if return_indices:
-                x, attn_weights, present, indices_tuple = block_output
-            else:
-                x, attn_weights, present = block_output
             if presents is not None:
                 presents += (present,)
 

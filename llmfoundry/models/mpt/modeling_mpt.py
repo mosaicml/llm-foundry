@@ -623,15 +623,13 @@ class MPTModel(MPTPreTrainedModel):
 
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
-        return_indices = self.attn_impl == 'flash' # TODO: Make this a config option
-        indices_tuple=None
         for b_idx, block in enumerate(self.blocks):
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
                 all_hidden_states = all_hidden_states + (x,)
             past_key_value = (past_key_values[b_idx]
                               if past_key_values is not None else None)
-            block_output = block(
+            x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
@@ -641,13 +639,7 @@ class MPTModel(MPTPreTrainedModel):
                 output_attentions=bool(output_attentions),
                 attention_mask_in_length=attention_mask_in_length,
                 alibi_slopes=alibi_slopes,
-                return_indices=return_indices,
-                indices_tuple=indices_tuple,
             )
-            if return_indices:
-                x, attn_weights, present, indices_tuple = block_output
-            else:
-                x, attn_weights, present = block_output
             if presents is not None:
                 presents += (present,)
 

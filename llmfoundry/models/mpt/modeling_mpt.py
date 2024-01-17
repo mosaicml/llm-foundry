@@ -24,14 +24,20 @@ from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 
-from llmfoundry.models.layers.attention import (
-    get_indices_for_concatenated_sequences, get_indices_info,
-    is_flash_v2_installed)
+from llmfoundry.models.layers.attention import (is_flash_v1_installed,
+                                                is_flash_v2_installed)
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
+        from flash_attn import bert_padding
         from flash_attn.layers.rotary import \
             RotaryEmbedding as DAILRotaryEmbedding
+    except Exception as e:
+        raise e
+
+if is_flash_v1_installed():
+    try:  # This try...except is needed because transformers requires it despite the 'if' statement above
+        from flash_attn import bert_padding
     except Exception as e:
         raise e
 
@@ -232,15 +238,18 @@ def gen_flash_attn_padding_info(
             key_padding_mask = torch.ones((bsz, past_key_len + S),
                                           dtype=torch.bool).to(device=device)
         query_padding_mask = key_padding_mask[:, -S:]
-        indices_function = get_indices_info
+        unpadding_function = bert_padding.unpad_input
     else:
         key_padding_mask = attention_mask_in_length
         query_padding_mask = attention_mask_in_length
-        indices_function = get_indices_for_concatenated_sequences
+        unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
 
-    indices_q, cu_seqlens_q, max_seqlen_q = indices_function(query_padding_mask)
-    indices_k, cu_seqlens_k, max_seqlen_k = indices_function(key_padding_mask)
-    indices_v, _, _ = indices_function(key_padding_mask)
+    _, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
+        torch.zeros(bsz, S, 1).to(device=device), query_padding_mask)
+    _, indices_k, cu_seqlens_k, max_seqlen_k = unpadding_function(
+        torch.zeros(bsz, S, 1).to(device=device), key_padding_mask)
+    _, indices_v, _, _ = unpadding_function(
+        torch.zeros(bsz, S, 1).to(device=device), key_padding_mask)
 
     flash_attn_padding_info['indices_q'] = indices_q
     flash_attn_padding_info['indices_k'] = indices_k

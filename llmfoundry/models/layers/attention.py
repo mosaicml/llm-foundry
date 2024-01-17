@@ -9,7 +9,6 @@ from typing import Any, Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import transformers
 from einops import rearrange
 from packaging import version
@@ -84,51 +83,6 @@ def repeat_kv_for_gqa(hidden: torch.Tensor, n_rep: int) -> torch.Tensor:
     hidden = hidden[:, :, :, None, :].expand(b, s, kv_n_heads, n_rep, d)
 
     return hidden.reshape(b, s, kv_n_heads * n_rep, d)
-
-
-def get_indices_info(attention_mask: torch.Tensor):
-    seqlens_in_batch = attention_mask.sum(dim=-1, dtype=torch.int32)
-    indices = torch.nonzero(attention_mask.flatten(), as_tuple=False).flatten()
-    max_seqlen_in_batch = seqlens_in_batch.max().item()
-    cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.int32),
-                       (1, 0))
-    # TD [2022-03-04] We don't want to index with a bool mask, because Pytorch will expand the
-    # bool mask, then call nonzero to get the indices, then index with those. The indices is @dim
-    # times larger than it needs to be, wasting memory. It's faster and more memory-efficient to
-    # index with integer indices. Moreover, torch's index is a bit slower than it needs to be,
-    # so we write custom forward and backward to make it a bit faster.
-    return (
-        indices,
-        cu_seqlens,
-        max_seqlen_in_batch,
-    )
-
-
-def get_indices_for_concatenated_sequences(
-        attention_mask_in_length: torch.Tensor):
-    length = attention_mask_in_length.sum(dim=-1)
-    seqlen = attention_mask_in_length.size(-1)
-    attention_mask_2d = torch.arange(
-        seqlen, device=length.device, dtype=length.dtype).expand(
-            len(length), seqlen) < length.unsqueeze(1)
-    real_indices_idx = torch.nonzero(attention_mask_in_length.flatten(),
-                                     as_tuple=False).flatten()
-    seqlens_in_batch = attention_mask_in_length.flatten()[real_indices_idx]
-    indices = torch.nonzero(attention_mask_2d.flatten(),
-                            as_tuple=False).flatten()
-    max_seqlen_in_batch = seqlens_in_batch.max().item()
-    cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.int32),
-                       (1, 0))
-    # TD [2022-03-04] We don't want to index with a bool mask, because Pytorch will expand the
-    # bool mask, then call nonzero to get the indices, then index with those. The indices is @dim
-    # times larger than it needs to be, wasting memory. It's faster and more memory-efficient to
-    # index with integer indices. Moreover, torch's index is a bit slower than it needs to be,
-    # so we write custom forward and backward to make it a bit faster.
-    return (
-        indices,
-        cu_seqlens,
-        max_seqlen_in_batch,
-    )
 
 
 def scaled_multihead_dot_product_attention(

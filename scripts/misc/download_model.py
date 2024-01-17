@@ -39,10 +39,9 @@ def add_hf_parser_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def add_oras_parser_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument('--registry', type=str, required=True)
-    parser.add_argument('--path', type=str, required=True)
-    parser.add_argument('--username', type=str, default='')
-    parser.add_argument('--password', type=str, default='')
+    parser.add_argument('--model', type=str, required=True)
+    parser.add_argument('--config-file', type=str, required=True)
+    parser.add_argument('--credentials-dir', type=str, required=True)
     parser.add_argument('--concurrency', type=int, default=10)
 
 
@@ -87,7 +86,7 @@ if __name__ == '__main__':
 
     if download_from == 'http':
         try:
-            download_from_http_fileserver(args.host, args.path, args.save_dir,
+            download_from_http_fileserver(args.url, args.save_dir,
                                           args.ignore_cert)
         except PermissionError as e:
             log.error(f'Not authorized to download {args.model}.')
@@ -112,5 +111,5 @@ if __name__ == '__main__':
                              token=args.token,
                              prefer_safetensors=args.prefer_safetensors)
     elif download_from == 'oras':
-        download_from_oras(args.registry, args.path, args.save_dir,
-                           args.username, args.password, args.concurrency)
+        download_from_oras(args.model, args.config_file, args.credentials_dir,
+                           args.save_dir, args.concurrency)

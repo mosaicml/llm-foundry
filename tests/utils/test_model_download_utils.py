@@ -186,55 +186,44 @@ SUBFOLDER_HTML = b"""
 def test_download_from_http_fileserver(mock_open: MagicMock,
                                        mock_makedirs: MagicMock,
                                        mock_get: MagicMock):
-    cache_url = 'https://cache.com/'
-    formatted_model_name = 'models--model'
+    model_url = f'https://cache.com/models/model/'
     save_dir = 'save_dir/'
 
     mock_open.return_value = MagicMock()
 
     def _server_response(url: str, **kwargs: Dict[str, Any]):
-        if url == urljoin(cache_url, f'{formatted_model_name}/blobs/'):
+        if url == model_url:
             return MagicMock(status_code=HTTPStatus.OK, content=ROOT_HTML)
-        if url == urljoin(cache_url, f'{formatted_model_name}/blobs/file1'):
+        if url == urljoin(model_url, 'file1'):
             return MagicMock(status_code=HTTPStatus.OK)
-        elif url == urljoin(cache_url, f'{formatted_model_name}/blobs/folder/'):
+        elif url == urljoin(model_url, 'folder/'):
             return MagicMock(status_code=HTTPStatus.OK, content=SUBFOLDER_HTML)
-        elif url == urljoin(cache_url,
-                            f'{formatted_model_name}/blobs/folder/file2'):
+        elif url == urljoin(model_url, 'folder/file2'):
             return MagicMock(status_code=HTTPStatus.OK)
         else:
             return MagicMock(status_code=HTTPStatus.NOT_FOUND)
 
     mock_get.side_effect = _server_response
-    download_from_http_fileserver(
-        cache_url,
-        formatted_model_name + '/blobs/',
-        'save_dir/',
-    )
+    download_from_http_fileserver(model_url, save_dir)
 
     mock_open.assert_has_calls(
         [
-            mock.call(
-                os.path.join(save_dir, formatted_model_name, 'blobs/file1'),
-                'wb'),
-            mock.call(
-                os.path.join(save_dir, formatted_model_name,
-                             'blobs/folder/file2'), 'wb'),
+            mock.call(os.path.join(save_dir, 'file1'), 'wb'),
+            mock.call(os.path.join(save_dir, 'folder/file2'), 'wb'),
         ],
         any_order=True,
     )
 
 
 @mock.patch.object(requests.Session, 'get')
-def test_download_from_cache_server_unauthorized(mock_get: MagicMock):
-    cache_url = 'https://cache.com/'
+def test_download_from_http_fileserver_unauthorized(mock_get: MagicMock):
     model_name = 'model'
+    cache_url = f'https://cache.com/models--{model_name}/blobs/'
     save_dir = 'save_dir/'
 
     mock_get.return_value = MagicMock(status_code=HTTPStatus.UNAUTHORIZED)
     with pytest.raises(PermissionError):
-        download_from_http_fileserver(cache_url, f'models--{model_name}/blobs/',
-                                      save_dir)
+        download_from_http_fileserver(cache_url, save_dir)
 
 
 @pytest.mark.parametrize(['exception', 'expected_attempts'], [
@@ -244,7 +233,7 @@ def test_download_from_cache_server_unauthorized(mock_get: MagicMock):
 ])
 @mock.patch('tenacity.nap.time.sleep')
 @mock.patch('llmfoundry.utils.model_download_utils._recursive_download')
-def test_download_from_cache_server_retry(
+def test_download_from_http_fileserver_retry(
     mock_recursive_download: MagicMock,
     mock_sleep: MagicMock,  # so the retry wait doesn't actually wait
     exception: BaseException,
@@ -253,4 +242,4 @@ def test_download_from_cache_server_retry(
     mock_recursive_download.side_effect = exception
 
     with pytest.raises((tenacity.RetryError, exception.__class__)):
-        download_from_http_fileserver('cache_url', 'models--model/', 'save_dir')
+        download_from_http_fileserver('cache_url', 'save_dir')

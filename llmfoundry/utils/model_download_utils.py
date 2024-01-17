@@ -16,6 +16,7 @@ from urllib.parse import urljoin
 import huggingface_hub as hf_hub
 import requests
 import tenacity
+import yaml
 from bs4 import BeautifulSoup
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from transformers.utils import SAFE_WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_NAME
@@ -144,6 +145,7 @@ def _recursive_download(
         RuntimeError: If the remote server returns a status code other than 200 OK or 401 Unauthorized.
     """
     url = urljoin(base_url, path)
+    print(url)
     response = session.get(url, verify=(not ignore_cert))
 
     if response.status_code == HTTPStatus.UNAUTHORIZED:
@@ -160,7 +162,7 @@ def _recursive_download(
         )
 
     # Assume that the URL points to a file if it does not end with a slash.
-    if not path.endswith('/'):
+    if not url.endswith('/'):
         save_path = os.path.join(save_dir, path)
         parent_dir = os.path.dirname(save_path)
         if not os.path.exists(parent_dir):
@@ -175,6 +177,7 @@ def _recursive_download(
     # If the URL is a directory, the response should be an HTML directory listing that we can parse for additional links
     # to download.
     child_links = _extract_links_from_html(response.content.decode())
+    print(child_links)
     for child_link in child_links:
         _recursive_download(session,
                             base_url,
@@ -214,26 +217,44 @@ def download_from_http_fileserver(
                                 ignore_cert=ignore_cert)
 
 
-def download_from_oras(registry: str,
-                       path: str,
+def download_from_oras(model: str,
+                       config_file: str,
+                       credentials_dir: str,
                        save_dir: str,
-                       username: str,
-                       password: str,
                        concurrency: int = 10):
     """Download from an OCI-compliant registry using oras.
 
     Args:
-        registry: The registry to download from.
-        path: The path to the model in the registry.
-        save_dir: The directory to save the downloaded files to.
-        username: The username to authenticate with.
-        password: The password to authenticate with.
+        model: The name of the model to download.
+        config_file: Path to a YAML config file that maps model names to registry paths.
+        credentials_dir: Path to a directory containing credentials for the registry. It is expected to contain three
+            files: `username`, `password`, and `registry`, each of which contains the corresponding credential.
+        save_dir: Path to the directory where files will be downloaded.
         concurrency: The number of concurrent downloads to run.
     """
     if shutil.which(ORAS_CLI) is None:
         raise Exception(
             f'oras cli command `{ORAS_CLI}` is not found. Please install oras: https://oras.land/docs/installation '
         )
+
+    def _read_secrets_file(secret_file_path: str,):
+        try:
+            with open(secret_file_path, encoding='utf-8') as f:
+                return f.read().strip()
+        except Exception as error:
+            raise ValueError(
+                f'secrets file {secret_file_path} failed to be read') from error
+
+    secrets = {}
+    for secret in ['username', 'password', 'registry']:
+        secrets[secret] = _read_secrets_file(
+            os.path.join(credentials_dir, secret))
+
+    with open(config_file, 'r', encoding='utf-8') as f:
+        configs = yaml.safe_load(f.read())
+
+    path = configs[model]
+    registry = secrets['registry']
 
     def get_oras_cmd(username: Optional[str] = None,
                      password: Optional[str] = None):
@@ -256,7 +277,8 @@ def download_from_oras(registry: str,
 
     cmd_without_creds = get_oras_cmd()
     log.info(f'CMD for oras cli to run: {" ".join(cmd_without_creds)}')
-    cmd_to_run = get_oras_cmd(username=username, password=password)
+    cmd_to_run = get_oras_cmd(username=secrets['username'],
+                              password=secrets['password'])
     try:
         subprocess.run(cmd_to_run, check=True)
     except subprocess.CalledProcessError as e:

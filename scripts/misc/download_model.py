@@ -94,16 +94,18 @@ if __name__ == '__main__':
             log.error(f'Not authorized to download {args.model}.')
             raise e
         except Exception as e:
-            log.warning(
-                f'Failed to download {args.model} from cache server. Trying provided fallback destination.'
-            )
-            if args.fallback == 'fallback-hf':
-                download_from = 'hf'
-            elif args.fallback == 'fallback-oras':
-                download_from = 'oras'
+            log.warning(f'Failed to download from HTTP server with error: {e}')
+            if args.fallback:
+                log.warning(f'Falling back to provided fallback destination.')
+                if args.fallback == 'fallback-hf':
+                    download_from = 'hf'
+                elif args.fallback == 'fallback-oras':
+                    download_from = 'oras'
+                else:
+                    raise ValueError(
+                        f'Invalid fallback destination {args.fallback}.')
             else:
-                raise ValueError(
-                    f'Invalid fallback destination {args.fallback}.')
+                raise e
 
     if download_from == 'hf':
         download_from_hf_hub(args.model,

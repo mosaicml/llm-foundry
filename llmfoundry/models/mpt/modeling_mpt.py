@@ -1007,7 +1007,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         if self.tokenizer is not None and hasattr(self.tokenizer,
                                                   'eos_token_id'):
             targets = torch.where(
-                batch['input_ids'] == self.tokenizer.eos_token_id, -100,
+                batch['labels'] == self.tokenizer.eos_token_id, -100,
                 targets)
         return targets
 

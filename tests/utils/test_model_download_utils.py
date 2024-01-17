@@ -101,15 +101,17 @@ def test_download_from_hf_hub_weights_pref(mock_list_repo_files: MagicMock,
                                            repo_files: List[str],
                                            expected_ignore_patterns: List[str]):
     test_repo_id = 'test_repo_id'
+    save_dir = 'save_dir'
     mock_list_repo_files.return_value = repo_files
 
-    download_from_hf_hub(test_repo_id, prefer_safetensors=prefer_safetensors)
+    download_from_hf_hub(test_repo_id,
+                         save_dir=save_dir,
+                         prefer_safetensors=prefer_safetensors)
     mock_snapshot_download.assert_called_once_with(
         test_repo_id,
-        cache_dir=None,
+        local_dir=save_dir,
         ignore_patterns=expected_ignore_patterns,
-        token=None,
-    )
+        token=None)
 
 
 @mock.patch('huggingface_hub.snapshot_download')
@@ -119,10 +121,11 @@ def test_download_from_hf_hub_no_weights(
     mock_snapshot_download: MagicMock,
 ):
     test_repo_id = 'test_repo_id'
+    save_dir = 'save_dir'
     mock_list_repo_files.return_value = []
 
     with pytest.raises(ValueError):
-        download_from_hf_hub(test_repo_id)
+        download_from_hf_hub(test_repo_id, save_dir)
 
     mock_snapshot_download.assert_not_called()
 
@@ -146,7 +149,7 @@ def test_download_from_hf_hub_retry(
     mock_snapshot_download.side_effect = exception
 
     with pytest.raises((tenacity.RetryError, exception.__class__)):
-        download_from_hf_hub('test_repo_id')
+        download_from_hf_hub('test_repo_id', 'save_dir')
 
     assert mock_snapshot_download.call_count == expected_attempts
 

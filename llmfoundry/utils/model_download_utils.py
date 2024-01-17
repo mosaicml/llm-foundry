@@ -42,7 +42,7 @@ log = logging.getLogger(__name__)
                 wait=tenacity.wait_exponential(min=1, max=10))
 def download_from_hf_hub(
     model: str,
-    save_dir: Optional[str] = None,
+    save_dir: str,
     prefer_safetensors: bool = True,
     token: Optional[str] = None,
 ):
@@ -53,8 +53,7 @@ def download_from_hf_hub(
 
     Args:
         repo_id (str): The Hugging Face Hub repo ID.
-        save_dir (str, optional): The path to the directory where the model files will be downloaded. If `None`, reads
-            from the `HUGGINGFACE_HUB_CACHE` environment variable or uses the default Hugging Face Hub cache directory.
+        save_dir (str, optional): The local path to the directory where the model files will be downloaded.
         prefer_safetensors (bool): Whether to prefer Safetensors weights over PyTorch weights if both are
             available. Defaults to True.
         token (str, optional): The HuggingFace API token. If not provided, the token will be read from the
@@ -97,7 +96,7 @@ def download_from_hf_hub(
 
     download_start = time.time()
     hf_hub.snapshot_download(model,
-                             cache_dir=save_dir,
+                             local_dir=save_dir,
                              ignore_patterns=ignore_patterns,
                              token=token)
     download_duration = time.time() - download_start
@@ -216,62 +215,6 @@ def download_from_http_fileserver(
                                 path,
                                 save_dir,
                                 ignore_cert=ignore_cert)
-
-
-# @tenacity.retry(retry=tenacity.retry_if_not_exception_type(
-#     (PermissionError, ValueError)),
-#                 stop=tenacity.stop_after_attempt(3),
-#                 wait=tenacity.wait_exponential(min=1, max=10))
-# def download_from_cache_server(
-#     model_name: str,
-#     cache_base_url: str,
-#     save_dir: str,
-#     token: Optional[str] = None,
-#     ignore_cert: bool = False,
-# ):
-#     """Downloads Hugging Face models from a file server path that mirrors the
-#     Hugging Face cache structure.
-
-#     See https://huggingface.co/docs/huggingface_hub/guides/manage-cache.
-
-#     Args:
-#         model_name: The name of the model to download. This should be the same as the repository ID in the Hugging Face
-#             Hub.
-#         cache_base_url: The base URL of the cache file server. This function will attempt to download all of the blob
-#             files from `<cache_base_url>/<formatted_model_name>/blobs/`, where `formatted_model_name` is equal to
-#             `models/<model_name>` with all slashes replaced with `--`.
-#         save_dir: The directory to save the downloaded files to.
-#         token: The Hugging Face API token. If not provided, the token will be read from the `HUGGING_FACE_HUB_TOKEN`
-#             environment variable.
-#         ignore_cert: Whether or not to ignore the validity of the SSL certificate of the remote server. Defaults to
-#             False.
-#             WARNING: Setting this to true is *not* secure, as no certificate verification will be performed.
-#     """
-#     formatted_model_name = f'models/{model_name}'.replace('/', '--')
-#     with requests.Session() as session:
-#         session.headers.update({'Authorization': f'Bearer {token}'})
-
-#         download_start = time.time()
-
-#         # Temporarily suppress noisy SSL certificate verification warnings if ignore_cert is set to True
-#         with warnings.catch_warnings():
-#             if ignore_cert:
-#                 warnings.simplefilter('ignore', category=InsecureRequestWarning)
-
-#             # Only downloads the blobs in order to avoid downloading model files twice due to the
-#             # symlnks in the Hugging Face cache structure:
-#             _recursive_download(
-#                 session,
-#                 cache_base_url,
-#                 # Trailing slash to indicate directory
-#                 f'{formatted_model_name}/blobs/',
-#                 save_dir,
-#                 ignore_cert=ignore_cert,
-#             )
-#         download_duration = time.time() - download_start
-#         log.info(
-#             f'Downloaded model {model_name} from cache server in {download_duration} seconds'
-#         )
 
 
 def download_from_oras(registry: str,

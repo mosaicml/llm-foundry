@@ -1003,6 +1003,12 @@ class ComposerMPTCausalLM(HuggingFaceModel):
     def get_targets(self, batch: Mapping) -> torch.Tensor:
         targets = torch.roll(batch['labels'], shifts=-1)
         targets[:, -1] = -100
+        # The model should not be trained to predict the word after the eos_token, because it comes from a different sequence.
+        if self.tokenizer is not None and hasattr(self.tokenizer,
+                                                  'eos_token_id'):
+            targets = torch.where(
+                batch['input_ids'] == self.tokenizer.eos_token_id, -100,
+                targets)
         return targets
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:

@@ -52,7 +52,7 @@ def test_gqa_kv_repetition(kv_n_heads: int):
         needs_weights=False,
         multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz, seqlen_1, 0, None, None),
+            bsz, seqlen_1, 0, query_1.device, None, None),
         should_repeat_kv_for_gqa=True)
 
     output_1.sum().backward()
@@ -80,7 +80,7 @@ def test_gqa_kv_repetition(kv_n_heads: int):
         needs_weights=False,
         multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz, seqlen_1, 0, None, None),
+            bsz, seqlen_1, 0, query_2.device, None, None),
         should_repeat_kv_for_gqa=False)
 
     output_2.sum().backward()
@@ -120,7 +120,7 @@ def test_seq_id_masking_FA_v2():
                                                 0]]).to(torch.int64).cuda()
 
     flash_attn_padding_info_1 = gen_flash_attn_padding_info(
-        bsz, seqlen_1, 0, attention_mask_in_length_1, None)
+        bsz, seqlen_1, 0, query_1.device, attention_mask_in_length_1, None)
 
     output_1, _, _ = flash_attn_fn(
         query=query_1,
@@ -150,7 +150,7 @@ def test_seq_id_masking_FA_v2():
         value_2.requires_grad = True
 
         flash_attn_padding_info_2 = gen_flash_attn_padding_info(
-            bsz, seq_range[1] - seq_range[0], 0, None, None)
+            bsz, seq_range[1] - seq_range[0], 0, query_2.device, None, None)
 
         output_2, _, _ = flash_attn_fn(
             query=query_2,
@@ -224,7 +224,7 @@ def test_sliding_window(sliding_window_size: int):
         needs_weights=False,
         multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz, seqlen_1, 0, None, None),
+            bsz, seqlen_1, 0, query_1.device, None, None),
         should_repeat_kv_for_gqa=True,
         sliding_window_size=sliding_window_size)
 
@@ -314,7 +314,7 @@ def test_alibi_bias(n_heads: int):
         needs_weights=False,
         multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz, seqlen_1, 0, None, None),
+            bsz, seqlen_1, 0, query_1.device, None, None),
         should_repeat_kv_for_gqa=True,
         alibi_slopes=alibi_slopes_1)
 

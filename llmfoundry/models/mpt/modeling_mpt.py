@@ -221,6 +221,7 @@ def gen_flash_attn_padding_info(
         bsz: int,
         S: int,
         past_key_len: int,
+        device: torch.device,
         attention_mask_in_length: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None):
     flash_attn_padding_info = {}
@@ -228,7 +229,7 @@ def gen_flash_attn_padding_info(
         key_padding_mask = attention_mask
         if key_padding_mask is None:
             key_padding_mask = torch.ones((bsz, past_key_len + S),
-                                          dtype=torch.bool)
+                                          dtype=torch.bool).to(device=device)
         query_padding_mask = key_padding_mask[:, -S:]
         unpadding_function = bert_padding.unpad_input
     else:
@@ -237,9 +238,9 @@ def gen_flash_attn_padding_info(
         unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
 
     _, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
-        torch.zeros(1, 1, 1), query_padding_mask)
+        torch.zeros(1, 1, 1).to(device=device), query_padding_mask)
     _, indices_k, cu_seqlens_k, max_seqlen_k = unpadding_function(
-        torch.zeros(1, 1, 1), key_padding_mask)
+        torch.zeros(1, 1, 1).to(device=device), key_padding_mask)
     _, indices_v, _, _ = unpadding_function(torch.zeros(1, 1, 1),
                                             key_padding_mask)
 
@@ -666,7 +667,8 @@ class MPTModel(MPTPreTrainedModel):
         flash_attn_padding_info = {}
         if self.attn_impl == 'flash':
             flash_attn_padding_info = gen_flash_attn_padding_info(
-                bsz, S, past_position, attention_mask_in_length, attention_mask)
+                bsz, S, past_position, x.device, attention_mask_in_length,
+                attention_mask)
 
         for b_idx, block in enumerate(self.blocks):
             if output_hidden_states:

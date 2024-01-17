@@ -169,7 +169,8 @@ def test_attn_impl(attn_impl_0: str,
     flash_attn_padding_info_0 = {}
     if attn_impl_0 == 'flash':
         flash_attn_padding_info_0 = gen_flash_attn_padding_info(
-            n, s, 0, attention_mask_in_length_0, attention_mask)
+            n, s, 0, torch.device(device), attention_mask_in_length_0,
+            attention_mask)
 
     attention_mask_in_length_1 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
@@ -181,7 +182,8 @@ def test_attn_impl(attn_impl_0: str,
     flash_attn_padding_info_1 = {}
     if attn_impl_1 == 'flash':
         flash_attn_padding_info_1 = gen_flash_attn_padding_info(
-            n, s, 0, attention_mask_in_length_1, attention_mask)
+            n, s, 0, torch.device(device), attention_mask_in_length_1,
+            attention_mask)
 
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()

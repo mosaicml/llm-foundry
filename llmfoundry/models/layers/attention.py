@@ -235,6 +235,8 @@ def flash_attn_fn(
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     del key_padding_mask
+    if flash_attn_padding_info is None:
+        raise ValueError('flash_attn_padding_info is required for flash attn.')
     try:
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
     except:

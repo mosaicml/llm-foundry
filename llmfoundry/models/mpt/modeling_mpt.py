@@ -217,7 +217,9 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
     return attention_mask_in_length
 
 
-def get_flash_attn_padding_info(
+def gen_flash_attn_padding_info(
+        bsz: int,
+        S: int,
         past_key_len: int,
         attention_mask_in_length: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None):
@@ -225,9 +227,9 @@ def get_flash_attn_padding_info(
     if attention_mask_in_length is None:
         key_padding_mask = attention_mask
         if key_padding_mask is None:
-            key_padding_mask = torch.ones(
-                (x.shape[0], past_key_len + x.shape[1]), dtype=torch.bool)
-        query_padding_mask = key_padding_mask[:, -x.shape[1]:]
+            key_padding_mask = torch.ones((bsz, past_key_len + S),
+                                          dtype=torch.bool)
+        query_padding_mask = key_padding_mask[:, -S:]
         unpadding_function = bert_padding.unpad_input
     else:
         key_padding_mask = attention_mask_in_length
@@ -550,10 +552,12 @@ class MPTModel(MPTPreTrainedModel):
             raise ValueError(
                 'You cannot specify both input_ids and inputs_embeds.')
         elif input_ids is not None:
+            bsz = input_ids.size(0)
             S = input_ids.size(1)
             x = self.wte(input_ids)
             input_device = input_ids.device
         elif inputs_embeds is not None:
+            bsz = inputs_embeds.size(0)
             S = inputs_embeds.size(1)
             x = inputs_embeds
             input_device = inputs_embeds.device
@@ -565,22 +569,23 @@ class MPTModel(MPTPreTrainedModel):
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
         rotary_emb_w_meta_info = None
-        if self.learned_pos_emb or self.rope:
-            past_position = 0
-            if past_key_values is not None:
-                if len(past_key_values) != self.config.n_layers:
-                    raise ValueError(
-                        f'past_key_values must provide a past_key_value for each attention '
-                        +
-                        f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
-                    )
-                # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
-                # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
-                # Here we shift position embedding using the `seq` dim of the past key
-                past_position = past_key_values[0][0].size(1)
-                if self.attn_impl == 'torch':
-                    past_position = past_key_values[0][0].size(3)
 
+        past_position = 0
+        if past_key_values is not None:
+            if len(past_key_values) != self.config.n_layers:
+                raise ValueError(
+                    f'past_key_values must provide a past_key_value for each attention '
+                    +
+                    f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
+                )
+            # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
+            # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
+            # Here we shift position embedding using the `seq` dim of the past key
+            past_position = past_key_values[0][0].size(1)
+            if self.attn_impl == 'torch':
+                past_position = past_key_values[0][0].size(3)
+
+        if self.learned_pos_emb or self.rope:
             if self.learned_pos_emb and (S + past_position >
                                          self.config.max_seq_len):
                 raise ValueError(
@@ -660,10 +665,8 @@ class MPTModel(MPTPreTrainedModel):
         all_self_attns = () if output_attentions else None
         flash_attn_padding_info = {}
         if self.attn_impl == 'flash':
-            past_key_len = past_key_values[0].shape[
-                1] if past_key_values is not None else 0
-            flash_attn_padding_info = get_flash_attn_padding_info(
-                past_key_len, attention_mask_in_length, attention_mask)
+            flash_attn_padding_info = gen_flash_attn_padding_info(
+                bsz, S, past_position, attention_mask_in_length, attention_mask)
 
         for b_idx, block in enumerate(self.blocks):
             if output_hidden_states:

@@ -158,31 +158,21 @@ def get_eval_parameters(
 
 def validate_interval(interval: Union[str, int, Time],
                       save_interval: Union[str, int, Time]) -> Time:
-    if isinstance(save_interval, str):
-        new_save_interval: Time = Time.from_timestring(save_interval)
-    elif isinstance(save_interval, int):
-        new_save_interval: Time = Time(save_interval, TimeUnit.EPOCH)
-    else:
-        new_save_interval: Time = save_interval
 
-    if isinstance(interval, str):
-        result: Time = Time.from_timestring(interval)
-    elif isinstance(interval, int):
-        result: Time = Time(interval, TimeUnit.EPOCH)
-    else:
-        result: Time = interval
+    new_save_interval = Time.from_input(save_interval, TimeUnit.EPOCH)
+    async_interval = Time.from_input(interval, TimeUnit.EPOCH)
 
-    if new_save_interval.unit != result.unit:
+    if new_save_interval.unit != async_interval.unit:
         raise ValueError(
             'Save interval and async eval interval must be in the same unit')
-    if result < new_save_interval:
+    if async_interval < new_save_interval:
         raise ValueError(
             'Async eval interval must be equal or greater (less frequent) than save interval'
         )
-    if result.value % new_save_interval.value != 0:
+    if async_interval.value % new_save_interval.value != 0:
         raise ValueError(
             'Async eval interval must be a multiple of save interval')
-    return result
+    return async_interval
 
 
 class AsyncEval(Callback):

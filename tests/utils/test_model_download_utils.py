@@ -16,11 +16,9 @@ from transformers.utils import SAFE_WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_NAME
 from transformers.utils import WEIGHTS_INDEX_NAME as PYTORCH_WEIGHTS_INDEX_NAME
 from transformers.utils import WEIGHTS_NAME as PYTORCH_WEIGHTS_NAME
 
-from llmfoundry.utils.model_download_utils import (DEFAULT_IGNORE_PATTERNS,
-                                                   PYTORCH_WEIGHTS_PATTERN,
-                                                   SAFE_WEIGHTS_PATTERN,
-                                                   download_from_cache_server,
-                                                   download_from_hf_hub)
+from llmfoundry.utils.model_download_utils import (
+    DEFAULT_IGNORE_PATTERNS, PYTORCH_WEIGHTS_PATTERN, SAFE_WEIGHTS_PATTERN,
+    download_from_hf_hub, download_from_http_fileserver)
 
 # ======================== download_from_hf_hub tests ========================
 
@@ -153,7 +151,7 @@ def test_download_from_hf_hub_retry(
     assert mock_snapshot_download.call_count == expected_attempts
 
 
-# ======================== download_from_cache_server tests ========================
+# ======================== download_from_http_fileserver tests ========================
 
 ROOT_HTML = b"""
 <!DOCTYPE html>
@@ -182,11 +180,10 @@ SUBFOLDER_HTML = b"""
 @mock.patch.object(requests.Session, 'get')
 @mock.patch('os.makedirs')
 @mock.patch('builtins.open')
-def test_download_from_cache_server(mock_open: MagicMock,
-                                    mock_makedirs: MagicMock,
-                                    mock_get: MagicMock):
+def test_download_from_http_fileserver(mock_open: MagicMock,
+                                       mock_makedirs: MagicMock,
+                                       mock_get: MagicMock):
     cache_url = 'https://cache.com/'
-    model_name = 'model'
     formatted_model_name = 'models--model'
     save_dir = 'save_dir/'
 
@@ -206,16 +203,23 @@ def test_download_from_cache_server(mock_open: MagicMock,
             return MagicMock(status_code=HTTPStatus.NOT_FOUND)
 
     mock_get.side_effect = _server_response
-    download_from_cache_server(model_name, cache_url, 'save_dir/')
+    download_from_http_fileserver(
+        cache_url,
+        formatted_model_name + '/blobs/',
+        'save_dir/',
+    )
 
-    mock_open.assert_has_calls([
-        mock.call(os.path.join(save_dir, formatted_model_name, 'blobs/file1'),
-                  'wb'),
-        mock.call(
-            os.path.join(save_dir, formatted_model_name, 'blobs/folder/file2'),
-            'wb'),
-    ],
-                               any_order=True)
+    mock_open.assert_has_calls(
+        [
+            mock.call(
+                os.path.join(save_dir, formatted_model_name, 'blobs/file1'),
+                'wb'),
+            mock.call(
+                os.path.join(save_dir, formatted_model_name,
+                             'blobs/folder/file2'), 'wb'),
+        ],
+        any_order=True,
+    )
 
 
 @mock.patch.object(requests.Session, 'get')
@@ -226,7 +230,8 @@ def test_download_from_cache_server_unauthorized(mock_get: MagicMock):
 
     mock_get.return_value = MagicMock(status_code=HTTPStatus.UNAUTHORIZED)
     with pytest.raises(PermissionError):
-        download_from_cache_server(model_name, cache_url, save_dir)
+        download_from_http_fileserver(cache_url, f'models--{model_name}/blobs/',
+                                      save_dir)
 
 
 @pytest.mark.parametrize(['exception', 'expected_attempts'], [
@@ -245,4 +250,4 @@ def test_download_from_cache_server_retry(
     mock_recursive_download.side_effect = exception
 
     with pytest.raises((tenacity.RetryError, exception.__class__)):
-        download_from_cache_server('model', 'cache_url', 'save_dir')
+        download_from_http_fileserver('cache_url', 'models--model/', 'save_dir')

@@ -5,6 +5,8 @@
 import copy
 import logging
 import os
+import shutil
+import subprocess
 import time
 import warnings
 from http import HTTPStatus
@@ -28,6 +30,9 @@ DEFAULT_IGNORE_PATTERNS = [
 PYTORCH_WEIGHTS_PATTERN = 'pytorch_model*.bin*'
 SAFE_WEIGHTS_PATTERN = 'model*.safetensors*'
 
+ORAS_PASSWD_PLACEHOLDER = '<placeholder_for_passwd>'
+ORAS_CLI = 'oras'
+
 log = logging.getLogger(__name__)
 
 
@@ -36,7 +41,7 @@ log = logging.getLogger(__name__)
                 stop=tenacity.stop_after_attempt(3),
                 wait=tenacity.wait_exponential(min=1, max=10))
 def download_from_hf_hub(
-    repo_id: str,
+    model: str,
     save_dir: Optional[str] = None,
     prefer_safetensors: bool = True,
     token: Optional[str] = None,
@@ -59,7 +64,7 @@ def download_from_hf_hub(
         RepositoryNotFoundError: If the model repo doesn't exist or the token is unauthorized.
         ValueError: If the model repo doesn't contain any supported model weights.
     """
-    repo_files = set(hf_hub.list_repo_files(repo_id))
+    repo_files = set(hf_hub.list_repo_files(model))
 
     # Ignore TensorFlow, TensorFlow 2, and Flax weights as they are not supported by Composer.
     ignore_patterns = copy.deepcopy(DEFAULT_IGNORE_PATTERNS)
@@ -86,18 +91,18 @@ def download_from_hf_hub(
         log.info('Only pytorch available. Ignoring weights preference.')
     else:
         raise ValueError(
-            f'No supported model weights found in repo {repo_id}.' +
+            f'No supported model weights found in repo {model}.' +
             ' Please make sure the repo contains either safetensors or pytorch weights.'
         )
 
     download_start = time.time()
-    hf_hub.snapshot_download(repo_id,
+    hf_hub.snapshot_download(model,
                              cache_dir=save_dir,
                              ignore_patterns=ignore_patterns,
                              token=token)
     download_duration = time.time() - download_start
     log.info(
-        f'Downloaded model {repo_id} from Hugging Face Hub in {download_duration} seconds'
+        f'Downloaded model {model} from Hugging Face Hub in {download_duration} seconds'
     )
 
 
@@ -183,53 +188,165 @@ def _recursive_download(
     (PermissionError, ValueError)),
                 stop=tenacity.stop_after_attempt(3),
                 wait=tenacity.wait_exponential(min=1, max=10))
-def download_from_cache_server(
-    model_name: str,
-    cache_base_url: str,
+def download_from_http_fileserver(
+    base_url: str,
+    path: str,
     save_dir: str,
-    token: Optional[str] = None,
     ignore_cert: bool = False,
 ):
-    """Downloads Hugging Face models from a mirror file server.
-
-    The file server is expected to store the files in the same structure as the Hugging Face cache
-    structure. See https://huggingface.co/docs/huggingface_hub/guides/manage-cache.
+    """Downloads files from a remote HTTP file server.
 
     Args:
-        model_name: The name of the model to download. This should be the same as the repository ID in the Hugging Face
-            Hub.
-        cache_base_url: The base URL of the cache file server. This function will attempt to download all of the blob
-            files from `<cache_base_url>/<formatted_model_name>/blobs/`, where `formatted_model_name` is equal to
-            `models/<model_name>` with all slashes replaced with `--`.
-        save_dir: The directory to save the downloaded files to.
-        token: The Hugging Face API token. If not provided, the token will be read from the `HUGGING_FACE_HUB_TOKEN`
-            environment variable.
-        ignore_cert: Whether or not to ignore the validity of the SSL certificate of the remote server. Defaults to
-            False.
+        base_url (str): The base URL where the files are located.
+        path (str): The path from the base URL to the files to download. The full URL for the download is equal to
+            '<base_url>/<path>'.
+        save_dir (str): The directory to save downloaded files to.
+        ignore_cert (bool): Whether or not to ignore the validity of the SSL certificate of the remote server.
+            Defaults to False.
             WARNING: Setting this to true is *not* secure, as no certificate verification will be performed.
     """
-    formatted_model_name = f'models/{model_name}'.replace('/', '--')
     with requests.Session() as session:
-        session.headers.update({'Authorization': f'Bearer {token}'})
-
-        download_start = time.time()
-
         # Temporarily suppress noisy SSL certificate verification warnings if ignore_cert is set to True
         with warnings.catch_warnings():
             if ignore_cert:
                 warnings.simplefilter('ignore', category=InsecureRequestWarning)
 
-            # Only downloads the blobs in order to avoid downloading model files twice due to the
-            # symlnks in the Hugging Face cache structure:
-            _recursive_download(
-                session,
-                cache_base_url,
-                # Trailing slash to indicate directory
-                f'{formatted_model_name}/blobs/',
-                save_dir,
-                ignore_cert=ignore_cert,
-            )
-        download_duration = time.time() - download_start
-        log.info(
-            f'Downloaded model {model_name} from cache server in {download_duration} seconds'
+            _recursive_download(session,
+                                base_url,
+                                path,
+                                save_dir,
+                                ignore_cert=ignore_cert)
+
+
+# @tenacity.retry(retry=tenacity.retry_if_not_exception_type(
+#     (PermissionError, ValueError)),
+#                 stop=tenacity.stop_after_attempt(3),
+#                 wait=tenacity.wait_exponential(min=1, max=10))
+# def download_from_cache_server(
+#     model_name: str,
+#     cache_base_url: str,
+#     save_dir: str,
+#     token: Optional[str] = None,
+#     ignore_cert: bool = False,
+# ):
+#     """Downloads Hugging Face models from a file server path that mirrors the
+#     Hugging Face cache structure.
+
+#     See https://huggingface.co/docs/huggingface_hub/guides/manage-cache.
+
+#     Args:
+#         model_name: The name of the model to download. This should be the same as the repository ID in the Hugging Face
+#             Hub.
+#         cache_base_url: The base URL of the cache file server. This function will attempt to download all of the blob
+#             files from `<cache_base_url>/<formatted_model_name>/blobs/`, where `formatted_model_name` is equal to
+#             `models/<model_name>` with all slashes replaced with `--`.
+#         save_dir: The directory to save the downloaded files to.
+#         token: The Hugging Face API token. If not provided, the token will be read from the `HUGGING_FACE_HUB_TOKEN`
+#             environment variable.
+#         ignore_cert: Whether or not to ignore the validity of the SSL certificate of the remote server. Defaults to
+#             False.
+#             WARNING: Setting this to true is *not* secure, as no certificate verification will be performed.
+#     """
+#     formatted_model_name = f'models/{model_name}'.replace('/', '--')
+#     with requests.Session() as session:
+#         session.headers.update({'Authorization': f'Bearer {token}'})
+
+#         download_start = time.time()
+
+#         # Temporarily suppress noisy SSL certificate verification warnings if ignore_cert is set to True
+#         with warnings.catch_warnings():
+#             if ignore_cert:
+#                 warnings.simplefilter('ignore', category=InsecureRequestWarning)
+
+#             # Only downloads the blobs in order to avoid downloading model files twice due to the
+#             # symlnks in the Hugging Face cache structure:
+#             _recursive_download(
+#                 session,
+#                 cache_base_url,
+#                 # Trailing slash to indicate directory
+#                 f'{formatted_model_name}/blobs/',
+#                 save_dir,
+#                 ignore_cert=ignore_cert,
+#             )
+#         download_duration = time.time() - download_start
+#         log.info(
+#             f'Downloaded model {model_name} from cache server in {download_duration} seconds'
+#         )
+
+
+def download_from_oras(registry: str,
+                       path: str,
+                       save_dir: str,
+                       username: str,
+                       password: str,
+                       concurrency: int = 10):
+    """Download from an OCI-compliant registry using oras.
+
+    Args:
+        registry: The registry to download from.
+        path: The path to the model in the registry.
+        save_dir: The directory to save the downloaded files to.
+        username: The username to authenticate with.
+        password: The password to authenticate with.
+        concurrency: The number of concurrent downloads to run.
+    """
+    if shutil.which(ORAS_CLI) is None:
+        raise Exception(
+            f'oras cli command `{ORAS_CLI}` is not found. Please install oras: https://oras.land/docs/installation '
         )
+
+    # def validate_and_add_from_secret_file(
+    #     secrets: dict[str, str],
+    #     secret_name: str,
+    #     secret_file_path: str,
+    # ):
+    #     try:
+    #         with open(secret_file_path, encoding='utf-8') as f:
+    #             secrets[secret_name] = f.read()
+    #     except Exception as error:
+    #         raise ValueError(
+    #             f'secret_file {secret_file_path} is failed to be read; but got error'
+    #         ) from error
+
+    # secrets = {}
+    # validate_and_add_from_secret_file(
+    #     secrets, 'username', os.path.join(credentials_dirpath, 'username'))
+    # validate_and_add_from_secret_file(
+    #     secrets, 'password', os.path.join(credentials_dirpath, 'password'))
+    # validate_and_add_from_secret_file(
+    #     secrets, 'registry', os.path.join(credentials_dirpath, 'registry'))
+
+    # with open(config_file, 'r', encoding='utf-8') as f:
+    #     configs = yaml.safe_load(f.read())
+
+    # path = configs[model]
+    # hostname = secrets['registry']
+
+    def get_oras_cmd(username: Optional[str] = None,
+                     password: Optional[str] = None):
+        cmd = [
+            ORAS_CLI,
+            'pull',
+            f'{registry}/{path}',
+            '-o',
+            save_dir,
+            '--verbose',
+            '--concurrency',
+            str(concurrency),
+        ]
+        if username is not None:
+            cmd.extend(['--username', username])
+        if password is not None:
+            cmd.extend(['--password', password])
+
+        return cmd
+
+    cmd_without_creds = get_oras_cmd()
+    log.info(f'CMD for oras cli to run: {" ".join(cmd_without_creds)}')
+    cmd_to_run = get_oras_cmd(username=username, password=password)
+    try:
+        subprocess.run(cmd_to_run, check=True)
+    except subprocess.CalledProcessError as e:
+        # Intercept the error and replace the cmd, which may have sensitive info.
+        raise subprocess.CalledProcessError(e.returncode, cmd_without_creds,
+                                            e.output, e.stderr)

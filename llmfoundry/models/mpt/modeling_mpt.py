@@ -6,6 +6,8 @@
 Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 """
 
+from __future__ import annotations
+
 import math
 import warnings
 from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
@@ -290,6 +292,14 @@ class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
     base_model_prefix = 'model'
     _no_split_modules = ['MPTBlock']
+
+
+def _fsdp_wrap_fn(
+    self: Union[MPTModel, MPTForCausalLM],
+    module: nn.Module,
+) -> bool:
+    # FSDP Wrap function for MPT Models
+    return isinstance(module, MPTBlock)
 
 
 class MPTModel(MPTPreTrainedModel):
@@ -728,7 +738,7 @@ class MPTModel(MPTPreTrainedModel):
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module: nn.Module) -> bool:
-        return isinstance(module, MPTBlock)
+        return _fsdp_wrap_fn(self, module)
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
@@ -889,7 +899,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module: nn.Module) -> bool:
-        return isinstance(module, MPTBlock)
+        return _fsdp_wrap_fn(self, module)
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:

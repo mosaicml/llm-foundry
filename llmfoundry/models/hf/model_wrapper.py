@@ -58,13 +58,6 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
         if self.z_loss < 0.0:
             raise ValueError(f'z_loss(={z_loss}) cannot be negative.')
 
-        self.model_forward_args = inspect.getfullargspec(
-            self.model.forward).args
-        # inspect.getfullargspec HuggingFace quantized model could not return args correctly
-        if not self.model_forward_args:
-            self.model_forward_args = inspect.signature(
-                self.model.forward).parameters.keys()
-
         # Note: We need to add the FSDP related attributes to the model AFTER the super init,
         # so that the (possible) embedding resizing doesn't destroy them
         prepare_hf_model_for_fsdp(self.model, init_device)

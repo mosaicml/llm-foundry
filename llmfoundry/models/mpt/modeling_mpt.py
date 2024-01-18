@@ -6,9 +6,10 @@
 Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 """
 
+from __future__ import annotations
+
 import math
 import warnings
-from types import MethodType
 from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
                     Union)
 
@@ -294,7 +295,7 @@ class MPTPreTrainedModel(PreTrainedModel):
 
 
 def _fsdp_wrap_fn(
-    self,  # type: ignore[no-untyped-def]
+    self: Union[MPTModel, MPTForCausalLM],
     module: nn.Module,
 ) -> bool:
     # FSDP Wrap function for MPT Models
@@ -395,9 +396,6 @@ class MPTModel(MPTPreTrainedModel):
 
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
-
-        # attach fsdp wrapping function
-        self.fsdp_wrap_fn = MethodType(_fsdp_wrap_fn, self)
 
     def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
         return self.wte
@@ -738,6 +736,10 @@ class MPTModel(MPTPreTrainedModel):
             **self.config.init_config,
         )
 
+    # FSDP Wrap function
+    def fsdp_wrap_fn(self, module: nn.Module) -> bool:
+        return _fsdp_wrap_fn(self, module)
+
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
         return isinstance(module, MPTBlock)
@@ -780,9 +782,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
                         f"{logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'."
                     )
             self.logit_scale = logit_scale
-
-        # attach fsdp wrapping function
-        self.fsdp_wrap_fn = MethodType(_fsdp_wrap_fn, self)
 
     def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
         return self.transformer.get_input_embeddings()
@@ -897,6 +896,10 @@ class MPTForCausalLM(MPTPreTrainedModel):
             d_model=self.config.d_model,
             **self.config.init_config,
         )
+
+    # FSDP Wrap function
+    def fsdp_wrap_fn(self, module: nn.Module) -> bool:
+        return _fsdp_wrap_fn(self, module)
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:

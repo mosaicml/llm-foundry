@@ -726,10 +726,6 @@ class MPTModel(MPTPreTrainedModel):
             **self.config.init_config,
         )
 
-    # FSDP Wrap function
-    def fsdp_wrap_fn(self, module: nn.Module) -> bool:
-        return isinstance(module, MPTBlock)
-
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
         return isinstance(module, MPTBlock)
@@ -887,10 +883,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
             **self.config.init_config,
         )
 
-    # FSDP Wrap function
-    def fsdp_wrap_fn(self, module: nn.Module) -> bool:
-        return isinstance(module, MPTBlock)
-
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
         act_ckpt_list = getattr(self.config, 'activation_checkpointing_target',
@@ -993,6 +985,16 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     for past_state in layer_past)
             ]
         return reordered_past
+
+
+def _fsdp_wrap_fn(self: Union[MPTModel, MPTForCausalLM],
+                  module: nn.Module) -> bool:
+    # FSDP Wrap function for MPT Models
+    return isinstance(module, MPTBlock)
+
+
+MPTModel.fsdp_wrap_fn = _fsdp_wrap_fn
+MPTForCausalLM.fsdp_wrap_fn = _fsdp_wrap_fn
 
 
 class ComposerMPTCausalLM(HuggingFaceModel):

@@ -9,6 +9,7 @@ import tempfile
 from argparse import Namespace
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
+from typing import ContextManager, Literal, Optional, Union
 from unittest.mock import MagicMock
 
 import pytest
@@ -22,20 +23,17 @@ from streaming import MDSWriter
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data import build_dataloader
+from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
+                                              _ALLOWED_RESPONSE_KEYS,
+                                              DOWNLOADED_FT_DATASETS_DIRPATH,
+                                              SUPPORTED_EXTENSIONS,
+                                              _tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 from tests.data_utils import make_tiny_ft_dataset
-
-from llmfoundry.data.finetuning.tasks import (  # isort:skip
-    _ALLOWED_PROMPT_KEYS, _ALLOWED_RESPONSE_KEYS,  # isort:skip
-    DOWNLOADED_FT_DATASETS_DIRPATH, SUPPORTED_EXTENSIONS,
-    ChatFormattedDict,  # isort:skip
-    PromptResponseDict, _tokenize_formatted_example)  # isort:skip
-
-from typing import ContextManager, List, Literal, Optional, Union  # isort:skip
 
 
 def get_config(conf_path: str = 'yamls/mpt/125m.yaml'):
@@ -431,7 +429,7 @@ def test_tokenize_example_malformed():
         'completion': 'completion'
     }
     no_content = {'messages': [{'role': 'user'}]}
-    ends_with_user_role: ChatFormattedDict = {
+    ends_with_user_role = {
         'messages': [{
             'role': 'user',
             'content': 'Hello GPT!'
@@ -443,7 +441,7 @@ def test_tokenize_example_malformed():
             'content': 'user message not followed by an assistant label'
         }]
     }
-    no_assistant_message: ChatFormattedDict = {
+    no_assistant_message = {
         'messages': [{
             'role': 'user',
             'content': 'Hello GPT!'
@@ -479,15 +477,12 @@ def test_tokenize_example_well_formed():
     for prompt_key in _ALLOWED_PROMPT_KEYS:
         for response_key in _ALLOWED_RESPONSE_KEYS:
 
-            example: PromptResponseDict = {
-                prompt_key: 'prompt',
-                response_key: 'response'
-            }
+            example = {prompt_key: 'prompt', response_key: 'response'}
             tokenized_example = _tokenize_formatted_example(example, tokenizer)
             assert 'input_ids' in tokenized_example
             assert 'labels' in tokenized_example
 
-    chat_examples: List[ChatFormattedDict] = [
+    chat_examples = [
         {
             'messages': [{
                 'role': 'user',

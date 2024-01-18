@@ -163,7 +163,6 @@ def _tokenize_formatted_example(
         example: Conversation,
         tokenizer: PreTrainedTokenizerBase) -> TokenizedConversation:
     example_format = _get_conversation_type(example)
-    print(f'{example_format=}')
 
     if example_format == 'chat':
         chat_example: ChatFormattedDict = example  # type: ignore

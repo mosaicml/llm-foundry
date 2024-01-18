@@ -10,6 +10,7 @@ from llmfoundry.models.layers.attention import (check_alibi_support, gen_slopes,
                                                 is_flash_v2_installed)
 from llmfoundry.models.mpt.modeling_mpt import (apply_sequence_id,
                                                 gen_attention_mask_in_length,
+                                                gen_flash_attn_padding_info,
                                                 gen_rotary_embedding)
 
 
@@ -164,12 +165,25 @@ def test_attn_impl(attn_impl_0: str,
         attn_uses_sequence_id=attn_uses_sequence_id,
         attn_impl=attn_impl_0,
         attention_mask=attention_mask)
+
+    flash_attn_padding_info_0 = {}
+    if attn_impl_0 == 'flash':
+        flash_attn_padding_info_0 = gen_flash_attn_padding_info(
+            n, s, 0, torch.device(device), attention_mask_in_length_0,
+            attention_mask)
+
     attention_mask_in_length_1 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
         attn_impl=attn_impl_1,
         attention_mask=attention_mask)
+
+    flash_attn_padding_info_1 = {}
+    if attn_impl_1 == 'flash':
+        flash_attn_padding_info_1 = gen_flash_attn_padding_info(
+            n, s, 0, torch.device(device), attention_mask_in_length_1,
+            attention_mask)
 
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()
@@ -216,7 +230,7 @@ def test_attn_impl(attn_impl_0: str,
                          attention_mask=attention_mask,
                          rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                          is_causal=True,
-                         attention_mask_in_length=attention_mask_in_length_0,
+                         flash_attn_padding_info=flash_attn_padding_info_0,
                          alibi_slopes=alibi_slopes_0)
         attn_bias_1 = gen_bias(attn_impl_1)
         alibi_slopes_1 = None
@@ -231,7 +245,7 @@ def test_attn_impl(attn_impl_0: str,
                          attention_mask=attention_mask,
                          rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                          is_causal=True,
-                         attention_mask_in_length=attention_mask_in_length_1,
+                         flash_attn_padding_info=flash_attn_padding_info_1,
                          alibi_slopes=alibi_slopes_1)
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)
@@ -313,11 +327,16 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
     x1.requires_grad = True
 
     with torch.autocast(x0.device.type):
+        flash_attn_padding_info = None
+        if attn_impl == 'flash':
+            flash_attn_padding_info = gen_flash_attn_padding_info(
+                n, s, 0, torch.device(device), None, attention_mask)
         y0, _, _ = mmhsa(x0,
                          past_key_value=None,
                          attn_bias=None,
                          attention_mask=attention_mask,
-                         is_causal=True)
+                         is_causal=True,
+                         flash_attn_padding_info=flash_attn_padding_info)
         y1, _ = tmhsa(x1,
                       x1,
                       x1,
@@ -387,11 +406,16 @@ def test_grouped_attention_heads(attn_impl: str,
     x0.requires_grad = True
 
     with torch.autocast(x0.device.type):
+        flash_attn_padding_info = None
+        if attn_impl == 'flash':
+            flash_attn_padding_info = gen_flash_attn_padding_info(
+                n, s, 0, torch.device(device), None, attention_mask)
         y0, _, _ = mmhsa(x0,
                          past_key_value=None,
                          attn_bias=None,
                          attention_mask=attention_mask,
-                         is_causal=True)
+                         is_causal=True,
+                         flash_attn_padding_info=flash_attn_padding_info)
         y0 *= attention_mask.unsqueeze(-1)
 
         loss0 = y0.sum()

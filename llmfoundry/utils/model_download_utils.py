@@ -253,7 +253,7 @@ def download_from_oras(model: str,
     with open(config_file, 'r', encoding='utf-8') as f:
         configs = yaml.safe_load(f.read())
 
-    path = configs[model]
+    path = configs['models'][model]
     registry = secrets['registry']
 
     def get_oras_cmd(username: Optional[str] = None,

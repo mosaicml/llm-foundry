@@ -1,5 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+# isort:skip_file
 
 """Includes code for task-specific seq-to-seq data formatting.
 
@@ -36,7 +37,7 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
@@ -57,6 +58,23 @@ DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
                  '.downloaded_finetuning'))
 SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
 
+PromptResponseDict = Dict[str, str]
+ChatFormattedDict = Dict[str, List[Dict[str, str]]]
+Conversation = PromptResponseDict | ChatFormattedDict
+ConversationType = Literal['prompt_response', 'chat']
+TokenizedConversation = Dict[str, List[int | str]]
+
+
+def _get_conversation_type(conversation_example: Conversation):
+    # note: this function does not validate the conversation types,
+    # it merely determines which validator to use.
+    if 'messages' in conversation_example:
+        return 'chat'
+    elif 'prompt' in conversation_example or 'response' in conversation_example:
+        return 'prompt_response'
+    else:
+        raise KeyError(f'unknown conversation type {conversation_example=}')
+
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:
     """Check if a directory is empty or non-existent.
@@ -70,9 +88,42 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
-def _tokenize_formatted_example(
-        example: Dict[str, Any],
-        tokenizer: PreTrainedTokenizerBase) -> Dict[str, List[int]]:
+def _tokenize_chat_formatted_example(
+        example: ChatFormattedDict,
+        tokenizer: PreTrainedTokenizerBase) -> TokenizedConversation:
+
+    def slice(s: str, sep: str):
+        # it seems like we can reuse this logic, as we likely have this pattern in other places.
+        slices = s.split(sep)
+        if len(slices) < 2:
+            raise ValueError(f'separator not in string. {sep=}, {s=}')
+        a, b = sep.join(slices[:-1]), sep + slices[-1]
+        return a, b
+
+    messages = example['messages']
+
+    if len(messages) < 2:
+        raise ValueError(
+            f'chat example must have at least two messages. {messages=}')
+    last_message = messages[-1]
+    if last_message['role'] != 'assistant':
+        raise ValueError(
+            f'last message must be from assistant. {last_message=}')
+    for message in messages:
+        if 'role' not in message or 'content' not in message:
+            raise KeyError(f'message must have role and content. {message=}')
+
+    applied_template = tokenizer.apply_chat_template(messages, tokenize=False)
+    prompt, response = slice(applied_template, last_message['content'])
+    return {
+        'input_ids': tokenizer.tokenize(prompt),
+        'labels': tokenizer.tokenize(response)
+    }
+
+
+def _tokenize_prompt_response_formatted_example(
+        example: PromptResponseDict,
+        tokenizer: PreTrainedTokenizerBase) -> TokenizedConversation:
     """Tokenize a formatted example and validate expected keys."""
     example_keys = set(example.keys())
     prompt_keys = example_keys.intersection(_ALLOWED_PROMPT_KEYS)
@@ -106,6 +157,23 @@ def _tokenize_formatted_example(
         )
 
     return tokenizer(text=prompt, text_target=response)
+
+
+def _tokenize_formatted_example(
+        example: Conversation,
+        tokenizer: PreTrainedTokenizerBase) -> TokenizedConversation:
+    example_format = _get_conversation_type(example)
+    print(f'{example_format=}')
+
+    if example_format == 'chat':
+        chat_example: ChatFormattedDict = example  # type: ignore
+        return _tokenize_chat_formatted_example(chat_example, tokenizer)
+    elif example_format == 'prompt_response':
+        prompt_response_example: PromptResponseDict = example  # type: ignore
+        return _tokenize_prompt_response_formatted_example(
+            prompt_response_example, tokenizer)
+    else:
+        raise ValueError(f'unknown conversation type {example_format=}')
 
 
 class StreamingFinetuningDataset(StreamingDataset):

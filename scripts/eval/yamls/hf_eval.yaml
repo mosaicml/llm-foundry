@@ -3,7 +3,7 @@ seed: 1
 precision: fp32
 
 # If you are using one model, put it here:
-model_name_or_path: mosaicml/mpt-7b-instruct
+model_name_or_path: EleutherAI/gpt-neo-125m
 # otherwise, write a block for each model you want to test in the `models` section
 
 models:
@@ -12,7 +12,7 @@ models:
   model:
     name: hf_causal_lm
     pretrained_model_name_or_path: ${model_name_or_path}
-    init_device: cpu
+    init_device: mixed
     pretrained: true
   tokenizer:
     name: ${model_name_or_path}
@@ -43,32 +43,5 @@ device_eval_batch_size: 4
 #   forward_prefetch: True
 #   limit_all_gathers: True
 
-icl_tasks:
--
-    label: quac
-    dataset_uri: eval/local_data/free_response/quac.jsonl
-    num_fewshot: [0]
-    icl_task_type: question_answering
-    metric_names:
-    - 'InContextLearningGenerationF1Score'
--
-  label: natural_questions_closed
-  dataset_uri: eval/local_data/free_response/natural_questions_closed.jsonl
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  metric_names:
-  - 'InContextLearningGenerationF1Score'
--
-  label: natural_questions_openbook_short
-  dataset_uri: eval/local_data/free_response/natural_questions_openbook_short.jsonl
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  metric_names:
-  - 'InContextLearningGenerationF1Score'
--
-  label: narrativeqa
-  dataset_uri: eval/local_data/free_response/narrativeqa.jsonl
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  metric_names:
-  - 'InContextLearningGenerationF1Score'
+icl_tasks: 'eval/yamls/tasks_v0.2.yaml'
+eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'

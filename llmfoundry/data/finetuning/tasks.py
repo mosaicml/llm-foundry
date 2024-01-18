@@ -60,7 +60,7 @@ SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
 
 PromptResponseDict = Dict[str, str]
 ChatFormattedDict = Dict[str, List[Dict[str, str]]]
-Conversation = PromptResponseDict | ChatFormattedDict
+Conversation = Union[PromptResponseDict, ChatFormattedDict]
 ConversationType = Literal['prompt_response', 'chat']
 TokenizedConversation = Dict[str, List[int | str]]
 

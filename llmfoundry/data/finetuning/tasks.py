@@ -62,7 +62,7 @@ PromptResponseDict = Dict[str, str]
 ChatFormattedDict = Dict[str, List[Dict[str, str]]]
 Conversation = Union[PromptResponseDict, ChatFormattedDict]
 ConversationType = Literal['prompt_response', 'chat']
-TokenizedConversation = Dict[str, List[int | str]]
+TokenizedConversation = Dict[str, List[Union[int, str]]]
 
 
 def _get_conversation_type(conversation_example: Conversation):

@@ -4,14 +4,14 @@
 import ast
 import importlib
 import os
-from typing import List, Optional
+from typing import Optional, Sequence
 
 __all__ = ['edit_files_for_hf_compatibility']
 
 
 class DeleteSpecificNodes(ast.NodeTransformer):
 
-    def __init__(self, nodes_to_remove: List[ast.AST]):
+    def __init__(self, nodes_to_remove: list[ast.AST]):
         self.nodes_to_remove = nodes_to_remove
 
     def visit(self, node: ast.AST) -> Optional[ast.AST]:
@@ -39,8 +39,27 @@ def find_module_file(module_name: str) -> str:
     return module_file
 
 
-def process_file(file_path: str, folder_path: str) -> List[str]:
-    with open(file_path, 'r') as f:
+def _flatten_import(
+    node: ast.ImportFrom,
+    flatten_imports_prefix: Sequence[str],
+) -> bool:
+    """Returns True if import should be flattened.
+
+    Checks whether the node starts the same as any of the imports in
+    flatten_imports_prefix.
+    """
+    for import_prefix in flatten_imports_prefix:
+        if node.module is not None and node.module.startswith(import_prefix):
+            return True
+    return False
+
+
+def process_file(
+    file_path: str,
+    folder_path: str,
+    flatten_imports_prefix: Sequence[str],
+) -> list[str]:
+    with open(file_path, 'r', encoding='utf-8') as f:
         source = f.read()
 
     parent_module_name = None
@@ -51,48 +70,49 @@ def process_file(file_path: str, folder_path: str) -> List[str]:
     new_files_to_process = []
     nodes_to_remove = []
     for node in ast.walk(tree):
-        # convert any llmfoundry imports into relative imports
-        if isinstance(
-                node, ast.ImportFrom
-        ) and node.module is not None and node.module.startswith('llmfoundry'):
+        # Convert any llmfoundry imports into relative imports
+        if (isinstance(node, ast.ImportFrom) and node.module is not None and
+                _flatten_import(node, flatten_imports_prefix)):
             module_path = find_module_file(node.module)
             node.module = convert_to_relative_import(node.module,
                                                      parent_module_name)
-            # recursively process any llmfoundry files
+            # Recursively process any llmfoundry files
             new_files_to_process.append(module_path)
-        # remove any imports from composer or omegaconf
+        # Remove any imports from composer or omegaconf
         elif isinstance(node, ast.ImportFrom) and node.module is not None and (
                 node.module.startswith('composer') or
                 node.module.startswith('omegaconf')):
             nodes_to_remove.append(node)
-        # remove the Composer* class
-        elif isinstance(node,
-                        ast.ClassDef) and node.name.startswith('Composer'):
+        # Remove the Composer* class
+        elif (isinstance(node, ast.ClassDef) and
+              node.name.startswith('Composer')):
             nodes_to_remove.append(node)
-        # remove the __all__ declaration in any __init__.py files, whose enclosing module
-        # will be converted to a single file of the same name
-        elif isinstance(node,
-                        ast.Assign) and len(node.targets) == 1 and isinstance(
-                            node.targets[0],
-                            ast.Name) and node.targets[0].id == '__all__':
+        # Remove the __all__ declaration in any __init__.py files, whose
+        # enclosing module will be converted to a single file of the same name
+        elif (isinstance(node, ast.Assign) and len(node.targets) == 1 and
+              isinstance(node.targets[0], ast.Name) and
+              node.targets[0].id == '__all__'):
             nodes_to_remove.append(node)
 
     transformer = DeleteSpecificNodes(nodes_to_remove)
     new_tree = transformer.visit(tree)
 
     new_filename = os.path.basename(file_path)
-    # special case for __init__.py to mimic the original submodule
+    # Special case for __init__.py to mimic the original submodule
     if new_filename == '__init__.py':
         new_filename = file_path.split('/')[-2] + '.py'
     new_file_path = os.path.join(folder_path, new_filename)
-    with open(new_file_path, 'w') as f:
+    with open(new_file_path, 'w', encoding='utf-8') as f:
         assert new_tree is not None
         f.write(ast.unparse(new_tree))
 
     return new_files_to_process
 
 
-def edit_files_for_hf_compatibility(folder: str) -> None:
+def edit_files_for_hf_compatibility(
+        folder: str,
+        flatten_imports_prefix: Sequence[str] = ('llmfoundry',),
+) -> None:
     files_to_process = [
         os.path.join(folder, filename)
         for filename in os.listdir(folder)
@@ -103,7 +123,7 @@ def edit_files_for_hf_compatibility(folder: str) -> None:
     while len(files_to_process) > 0:
         to_process = files_to_process.pop()
         if os.path.isfile(to_process) and to_process.endswith('.py'):
-            to_add = process_file(to_process, folder)
+            to_add = process_file(to_process, folder, flatten_imports_prefix)
             for file in to_add:
                 if file not in files_processed_and_queued:
                     files_to_process.append(file)

@@ -8,6 +8,7 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 import math
 import warnings
+from types import MethodType
 from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
                     Union)
 
@@ -292,6 +293,14 @@ class MPTPreTrainedModel(PreTrainedModel):
     _no_split_modules = ['MPTBlock']
 
 
+def _fsdp_wrap_fn(
+    self,  # type: ignore[no-untyped-def]
+    module: nn.Module,
+) -> bool:
+    # FSDP Wrap function for MPT Models
+    return isinstance(module, MPTBlock)
+
+
 class MPTModel(MPTPreTrainedModel):
 
     def __init__(self, config: MPTConfig):
@@ -386,6 +395,9 @@ class MPTModel(MPTPreTrainedModel):
 
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
+
+        # attach fsdp wrapping function
+        self.fsdp_wrap_fn = MethodType(_fsdp_wrap_fn, self)
 
     def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
         return self.wte
@@ -769,6 +781,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     )
             self.logit_scale = logit_scale
 
+        # attach fsdp wrapping function
+        self.fsdp_wrap_fn = MethodType(_fsdp_wrap_fn, self)
+
     def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
         return self.transformer.get_input_embeddings()
 
@@ -985,16 +1000,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     for past_state in layer_past)
             ]
         return reordered_past
-
-
-def _fsdp_wrap_fn(self: Union[MPTModel, MPTForCausalLM],
-                  module: nn.Module) -> bool:
-    # FSDP Wrap function for MPT Models
-    return isinstance(module, MPTBlock)
-
-
-MPTModel.fsdp_wrap_fn = _fsdp_wrap_fn
-MPTForCausalLM.fsdp_wrap_fn = _fsdp_wrap_fn
 
 
 class ComposerMPTCausalLM(HuggingFaceModel):

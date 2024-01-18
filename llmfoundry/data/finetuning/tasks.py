@@ -36,6 +36,7 @@ import logging
 import os
 import warnings
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
@@ -44,8 +45,6 @@ from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
-
-from typing import Any, Callable, Dict, List, Literal, Optional, Union  # isort:skip
 
 log = logging.getLogger(__name__)
 

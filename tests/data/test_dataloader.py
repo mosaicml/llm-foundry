@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-# isort: skip_file
 import contextlib
 import os
 import pathlib
@@ -10,7 +9,6 @@ import tempfile
 from argparse import Namespace
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
-from typing import ContextManager, List, Literal, Optional, Union
 from unittest.mock import MagicMock
 
 import pytest
@@ -24,16 +22,20 @@ from streaming import MDSWriter
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data import build_dataloader
-from llmfoundry.data.finetuning.tasks import (
-    _ALLOWED_PROMPT_KEYS, _ALLOWED_RESPONSE_KEYS,
-    DOWNLOADED_FT_DATASETS_DIRPATH, SUPPORTED_EXTENSIONS, ChatFormattedDict,
-    PromptResponseDict, _tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 from tests.data_utils import make_tiny_ft_dataset
+
+from llmfoundry.data.finetuning.tasks import (  # isort:skip
+    _ALLOWED_PROMPT_KEYS, _ALLOWED_RESPONSE_KEYS,  # isort:skip
+    DOWNLOADED_FT_DATASETS_DIRPATH, SUPPORTED_EXTENSIONS,
+    ChatFormattedDict,  # isort:skip
+    PromptResponseDict, _tokenize_formatted_example)  # isort:skip
+
+from typing import ContextManager, List, Literal, Optional, Union  # isort:skip
 
 
 def get_config(conf_path: str = 'yamls/mpt/125m.yaml'):

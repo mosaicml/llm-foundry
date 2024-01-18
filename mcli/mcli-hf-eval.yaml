@@ -8,7 +8,7 @@ integrations:
 
 command: |
   pip uninstall mosaicml -y
-  pip install git+https://github.com/bmosaicml/composer.git@add_custom_stopping_criteria
+  pip install git+https://github.com/mosaicml/composer.git@dev
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 

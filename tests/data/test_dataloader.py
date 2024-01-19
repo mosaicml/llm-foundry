@@ -26,7 +26,7 @@ from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
                                               _ALLOWED_RESPONSE_KEYS,
                                               DOWNLOADED_FT_DATASETS_DIRPATH,
-                                              SUPPORTED_EXTENSIONS,
+                                              SUPPORTED_EXTENSIONS, _slice_chat_formatted_example,
                                               _tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
@@ -417,7 +417,7 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
         shutil.rmtree(tiny_dataset_folder_path)
 
 
-def test_tokenize_example_malformed():
+def test_tokenize_instruct_example_malformed():
     no_keys = {}
     no_prompt_key = {'response': 'response'}
     no_response_key = {'prompt': 'prompt'}
@@ -428,6 +428,18 @@ def test_tokenize_example_malformed():
         'response': 'response',
         'completion': 'completion'
     }
+
+    malformed_prompt_response_examples = [
+        no_keys, no_prompt_key, no_response_key, extra_keys_with_prompt,
+        extra_keys_with_response, multiple_allowed_response_keys
+    ]
+
+    for example in malformed_prompt_response_examples:
+        with pytest.raises(KeyError):
+            _tokenize_formatted_example(example, MagicMock())
+
+    
+def test_tokenize_chat_example_malformed():
     no_content = {'messages': [{'role': 'user'}]}
     ends_with_user_role = {
         'messages': [{
@@ -450,20 +462,10 @@ def test_tokenize_example_malformed():
             'content': 'user message not followed by an assistant label'
         }]
     }
-
-    malformed_prompt_response_examples = [
-        no_keys, no_prompt_key, no_response_key, extra_keys_with_prompt,
-        extra_keys_with_response, multiple_allowed_response_keys
-    ]
     malformed_chat_examples = [
         no_content, ends_with_user_role, no_assistant_message
     ]
-
-    for example in malformed_prompt_response_examples:
-        with pytest.raises(KeyError):
-            _tokenize_formatted_example(example, MagicMock())
-
-    my_tokenizer = build_tokenizer('TinyLlama/TinyLlama-1.1B-Chat-v1.0', {})
+    my_tokenizer = build_tokenizer('mosaicml/mpt-7b-chat', {})
     for example in malformed_chat_examples:
         with pytest.raises(Exception):
             _tokenize_formatted_example(
@@ -471,7 +473,7 @@ def test_tokenize_example_malformed():
             )  # type: ignore (the typing here is supposed to be malformed)
 
 
-def test_tokenize_example_well_formed():
+def test_tokenize_instruct_example_well_formed():
     tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
 
     for prompt_key in _ALLOWED_PROMPT_KEYS:
@@ -482,6 +484,8 @@ def test_tokenize_example_well_formed():
             assert 'input_ids' in tokenized_example
             assert 'labels' in tokenized_example
 
+
+def test_tokenize_chat_example_well_formed():
     chat_examples = [
         {
             'messages': [{
@@ -516,8 +520,14 @@ def test_tokenize_example_well_formed():
 
     chat_tokenizer = build_tokenizer('mosaicml/mpt-7b-chat', {})
     for chat_example in chat_examples:
+        last_message = chat_example['messages'][-1]['content']
+        earlier_messages = [msg['content'] for msg in chat_example['messages'][:-1]]
+        prompt, response = _slice_chat_formatted_example(chat_example, chat_tokenizer)
         tokenized_example = _tokenize_formatted_example(chat_example,
                                                         chat_tokenizer)
+        assert last_message in response
+        for earlier_message in earlier_messages:
+            assert earlier_message in prompt
         assert 'input_ids' in tokenized_example
         assert 'labels' in tokenized_example
 

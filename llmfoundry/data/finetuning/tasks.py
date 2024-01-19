@@ -36,7 +36,7 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
@@ -87,9 +87,9 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
-def _tokenize_chat_formatted_example(
+def _slice_chat_formatted_example(
         example: ChatFormattedDict,
-        tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
+        tokenizer: PreTrainedTokenizerBase) -> Tuple[str, str]:
 
     def slice(s: str, sep: str):
         # it seems like we can reuse this logic, as we likely have this pattern in other places.
@@ -114,6 +114,14 @@ def _tokenize_chat_formatted_example(
 
     applied_template = tokenizer.apply_chat_template(messages, tokenize=False)
     prompt, response = slice(applied_template, last_message['content'])
+    return prompt, response
+
+
+def _tokenize_chat_formatted_example(
+        example: ChatFormattedDict,
+        tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
+
+    prompt, response = _slice_chat_formatted_example(example, tokenizer)
     return tokenizer(text=prompt, text_target=response)
 
 

@@ -69,6 +69,29 @@ Our microbatching engine enables microbatch sizes that do not divde Global Batch
 
 [comment]: # (TODO: Update tables with torch 2.0 after next Composer release)
 
+## H100 80GB BF16 (Large Scale, >= 128 GPUs)
+|  Model | SeqLen (T) | # GPUs | GPU | MFU | HFU | Model TFLOP | MicroBatchSize | GradAccum | GlobalBatchSize | Throughput (S/s) | Throughput (T/s) | Throughput (T/s/GPU) | GlobalBatchSize (T) | Precision | MP Mode | Sharding Strategy | Activation Checkpointing | Activation CPUOffload | NumParams |
+|  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+|  70b | 2048 | 512 | h100_80gb | 41.25 | 55.0 | 408 | 8 | 1 | 4096 | 251 | 515636 | 1007 | 8388608 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 64862437376 |
+|  70b | 2048 | 256 | h100_80gb | 42.42 | 56.56 | 419 | 8 | 1 | 2048 | 129 | 265149 | 1035 | 4194304 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 64862437376 |
+|  70b | 2048 | 128 | h100_80gb | 43.36 | 57.81 | 428 | 8 | 1 | 1024 | 66 | 135490 | 1058 | 2097152 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 64862437376 |
+|  30b | 2048 | 512 | h100_80gb | 40.27 | 53.69 | 398 | 8 | 1 | 4096 | 528 | 1083366 | 2115 | 8388608 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 29975214080 |
+|  30b | 2048 | 256 | h100_80gb | 40.89 | 54.52 | 404 | 8 | 1 | 2048 | 268 | 550022 | 2148 | 4194304 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 29975214080 |
+|  30b | 2048 | 128 | h100_80gb | 41.85 | 55.8 | 414 | 8 | 1 | 1024 | 137 | 281491 | 2199 | 2097152 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 29975214080 |
+|  13b | 2048 | 512 | h100_80gb | 41.12 | 54.83 | 406 | 16 | 1 | 8192 | 1238 | 2535811 | 4952 | 16777216 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 12853954560 |
+|  13b | 2048 | 256 | h100_80gb | 41.42 | 55.23 | 409 | 16 | 1 | 4096 | 623 | 1277214 | 4989 | 8388608 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 12853954560 |
+|  13b | 2048 | 128 | h100_80gb | 42.18 | 56.24 | 417 | 16 | 1 | 2048 | 317 | 650264 | 5080 | 4194304 | amp_bf16 | DEFAULT | FULL_SHARD | True | False | 12853954560 |
+|  7b | 2048 | 512 | h100_80gb | 42.2 | 42.2 | 417 | 6 | 1 | 3072 | 2417 | 4951479 | 9670 | 6291456 | amp_bf16 | DEFAULT | FULL_SHARD | False | False | 6658859008 |
+|  7b | 2048 | 256 | h100_80gb | 44.15 | 44.15 | 436 | 6 | 1 | 1536 | 1264 | 2590548 | 10119 | 3145728 | amp_bf16 | DEFAULT | FULL_SHARD | False | False | 6658859008 |
+|  7b | 2048 | 128 | h100_80gb | 45.71 | 45.71 | 452 | 6 | 1 | 768 | 654 | 1340830 | 10475 | 1572864 | amp_bf16 | DEFAULT | FULL_SHARD | False | False | 6658859008 |
+|  3b | 2048 | 512 | h100_80gb | 39.24 | 39.24 | 388 | 8 | 1 | 4096 | 5416 | 11092218 | 21664 | 8388608 | amp_bf16 | DEFAULT | SHARD_GRAD_OP | False | False | 2651837440 |
+|  3b | 2048 | 256 | h100_80gb | 41.25 | 41.25 | 408 | 8 | 1 | 2048 | 2846 | 5829686 | 22772 | 4194304 | amp_bf16 | DEFAULT | SHARD_GRAD_OP | False | False | 2651837440 |
+|  3b | 2048 | 128 | h100_80gb | 42.43 | 42.43 | 419 | 8 | 1 | 1024 | 1463 | 2998098 | 23422 | 2097152 | amp_bf16 | DEFAULT | SHARD_GRAD_OP | False | False | 2651837440 |
+|  1b | 2048 | 512 | h100_80gb | 36.65 | 36.65 | 362 | 12 | 1 | 6144 | 9959 | 20396905 | 39837 | 12582912 | amp_bf16 | DEFAULT | SHARD_GRAD_OP | False | False | 1315950592 |
+|  1b | 2048 | 256 | h100_80gb | 39.15 | 39.15 | 387 | 12 | 1 | 3072 | 5319 | 10894207 | 42555 | 6291456 | amp_bf16 | DEFAULT | SHARD_GRAD_OP | False | False | 1315950592 |
+|  1b | 2048 | 128 | h100_80gb | 40.6 | 40.6 | 401 | 12 | 1 | 1536 | 2757 | 5647854 | 44123 | 3145728 | amp_bf16 | DEFAULT | SHARD_GRAD_OP | False | False | 1315950592 |
+
+
 ## H100 80GB BF16
 |  Model | SeqLen (T) | # GPUs | GPU | MFU | HFU | Model TFLOP | MicroBatchSize | GradAccum | GlobalBatchSize | Throughput (S/s) | Throughput (T/s) | Throughput (T/s/GPU) | GlobalBatchSize (T) | Precision | MP Mode | Sharding Strategy | Activation Checkpointing | Activation CPUOffload | NumParams |
 |  --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

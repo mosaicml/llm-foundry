@@ -325,9 +325,10 @@ def get_tokens_per_batch_func(
     """
 
     def get_num_samples_in_batch(batch: Batch) -> int:
-        if not isinstance(batch, Mapping) or 'attention_mask' not in batch:
+        if not isinstance(batch, Mapping) or ('attention_mask' not in batch and
+                                              'input_ids' not in batch):
             raise ValueError(
-                'get_tokens_per_batch_func() requires a batch with an attention_mask key'
+                'get_tokens_per_batch_func() requires a batch with an attention_mask key or an input_ids key'
             )
 
         if not decoder_only and 'decoder_attention_mask' not in batch:
@@ -336,7 +337,10 @@ def get_tokens_per_batch_func(
             )
 
         # Count number of non padding tokens in batch
-        input_ids_tokens = int(torch.sum(batch['attention_mask']).item())
+        if 'attention_mask' in batch:
+            input_ids_tokens = int(torch.sum(batch['attention_mask']).item())
+        else:
+            input_ids_tokens = batch['input_ids'].numel()
 
         # For encoder decoder models only
         decoder_input_ids_tokens = 0

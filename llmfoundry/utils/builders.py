@@ -40,7 +40,6 @@ from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
-from llmfoundry.utils.data_parsing_registry import EVAL_HF_PARSING_FUNCTION_REGISTRY
 
 log = logging.getLogger(__name__)
 

@@ -72,13 +72,6 @@ def merge_shard_groups(root: str) -> None:
     with open(index_filename, 'w') as out:
         out.write(text)
 
-def leval_hf_parsing_func(examples: dict, **kwargs):
-    batch = {'context':[], 'answer':[]}
-    for i, doc in enumerate(examples['input']):
-        for j, instruction in enumerate(examples['instructions'][i]):
-            batch['context'].append(doc + "\n" + instruction)
-            batch['answer'].append(examples['outputs'][i][j])
-    return batch
 
 class DownloadingIterable:
 

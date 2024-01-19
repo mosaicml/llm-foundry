@@ -26,7 +26,8 @@ from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
                                               _ALLOWED_RESPONSE_KEYS,
                                               DOWNLOADED_FT_DATASETS_DIRPATH,
-                                              SUPPORTED_EXTENSIONS, _slice_chat_formatted_example,
+                                              SUPPORTED_EXTENSIONS,
+                                              _slice_chat_formatted_example,
                                               _tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
@@ -438,7 +439,7 @@ def test_tokenize_instruct_example_malformed():
         with pytest.raises(KeyError):
             _tokenize_formatted_example(example, MagicMock())
 
-    
+
 def test_tokenize_chat_example_malformed():
     no_content = {'messages': [{'role': 'user'}]}
     ends_with_user_role = {
@@ -521,8 +522,11 @@ def test_tokenize_chat_example_well_formed():
     chat_tokenizer = build_tokenizer('mosaicml/mpt-7b-chat', {})
     for chat_example in chat_examples:
         last_message = chat_example['messages'][-1]['content']
-        earlier_messages = [msg['content'] for msg in chat_example['messages'][:-1]]
-        prompt, response = _slice_chat_formatted_example(chat_example, chat_tokenizer)
+        earlier_messages = [
+            msg['content'] for msg in chat_example['messages'][:-1]
+        ]
+        prompt, response = _slice_chat_formatted_example(
+            chat_example, chat_tokenizer)
         tokenized_example = _tokenize_formatted_example(chat_example,
                                                         chat_tokenizer)
         assert last_message in response

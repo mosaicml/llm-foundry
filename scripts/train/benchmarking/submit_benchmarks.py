@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 import yaml
-from mcli.models.run_config import SchedulingConfig
-from mcli.sdk import RunConfig, create_run, get_clusters
+
+from mcli import RunConfig, SchedulingConfig, create_run, get_clusters
 
 
 def _get_cluster_info():
@@ -376,7 +376,7 @@ def get_integrations(project: str,
     git_integration.update({
         'integration_type': 'git_repo',
         'git_repo': 'mosaicml/llm-foundry',
-        'pip_install': '-e .[gpu]'
+        'pip_install': '.[gpu-flash2]'
     })
 
     integrations = [git_integration]
@@ -398,8 +398,8 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         {
             'integration_type': 'git_repo',
             'git_repo': 'mosaicml/llm-foundry',
-            'git_branch': 'v0.4.0',
-            'pip_install': '-e .[gpu]',
+            'git_branch': 'main',
+            'pip_install': '.[gpu-flash2]',
         },
         {
             'integration_type': 'wandb',
@@ -411,7 +411,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
     command = ''
     if gpu_type == 'h100_80gb' and 'fp8' in precision:  # Required for flash-attn and FP8 training
         command += f"""
-        pip install flash-attn==1.0.7 --no-build-isolation
+        pip install flash-attn==2.4.2 --no-build-isolation
         pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
         pip uninstall install pydantic --yes
         pip install pydantic==1.9.0
@@ -420,11 +420,11 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
     if args.data_remote is None:
         command += f"""
             cd llm-foundry/scripts
-            python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --tokenizer gpt2 --eos_text '<|endoftext|>'
+            python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --eos_text '<|endoftext|>'
             composer train/train.py /mnt/config/parameters.yaml
             """
     else:
-        command = f"""
+        command += f"""
             cd llm-foundry/scripts
             composer train/train.py /mnt/config/parameters.yaml
             """
@@ -470,9 +470,11 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         parameters['model']['fc_type'] = 'te'
     # Create run config mcli sdk/api
     config = RunConfig(name=name,
-                       gpu_type=gpu_type,
-                       gpu_num=gpu_num,
-                       cluster=cluster,
+                       compute={
+                           'cluster': cluster,
+                           'gpu_type': gpu_type,
+                           'gpus': gpu_num
+                       },
                        image=args.image,
                        integrations=integrations,
                        command=command,
@@ -485,6 +487,7 @@ def run_config(config: Tuple[str, int, int, str, str, int, str],
         print(f'Launching run {run.name}')
     else:
         print(f'run = {name}')
+        print(f'{config=}')
 
 
 def run_check_capacity(model_yaml: str,

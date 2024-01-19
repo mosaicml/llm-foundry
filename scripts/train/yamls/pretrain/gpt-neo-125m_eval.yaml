@@ -98,9 +98,8 @@ progress_bar: false
 log_to_console: true
 console_log_interval: 1ba
 
-icl_tasks: eval/yamls/tasks.yaml # or use tasks_light.yaml
-icl_subset_num_batches: 2 # -1, or omit this key entirely, to evaluate on all batches
-eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+icl_tasks: eval/yamls/tasks_v0.2.yaml # or use tasks_light.yaml
+eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'
 icl_seq_len: 1024
 
 callbacks:

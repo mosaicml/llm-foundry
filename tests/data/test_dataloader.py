@@ -7,13 +7,15 @@ import random
 import shutil
 import tempfile
 from argparse import Namespace
-from typing import Literal, Optional, Union
+from contextlib import nullcontext as does_not_raise
+from pathlib import Path
+from typing import ContextManager, Literal, Optional, Union
 from unittest.mock import MagicMock
 
 import pytest
 import torch
 import transformers
-from composer.utils import dist, using_torch_2
+from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
@@ -23,6 +25,8 @@ from llmfoundry import (build_finetuning_dataloader,
 from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
                                               _ALLOWED_RESPONSE_KEYS,
+                                              DOWNLOADED_FT_DATASETS_DIRPATH,
+                                              SUPPORTED_EXTENSIONS,
                                               _tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
@@ -272,7 +276,7 @@ def test_finetuning_dataloader(decoder_only_format: bool,
         'drop_last': False,
         'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0
     }
@@ -304,6 +308,51 @@ def test_finetuning_dataloader(decoder_only_format: bool,
         batch_ix += 1
         if batch_ix >= 3:
             break
+
+
+@pytest.mark.parametrize(
+    'hf_name, hf_revision, expectation',
+    [('HuggingFaceH4/databricks_dolly_15k', None, does_not_raise()),
+     ('squad', '5fe18c', pytest.raises(FileNotFoundError))])
+def test_finetuning_dataloader_safe_load(hf_name: str,
+                                         hf_revision: Optional[str],
+                                         expectation: ContextManager):
+    cfg = DictConfig({
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': hf_name,
+            'split': 'train',
+            'max_seq_len': 8,
+            'decoder_only_format': True,
+            'shuffle': True,
+            'safe_load': True,
+            'hf_kwargs': {
+                'revision': hf_revision
+            }
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        'pin_memory': False,
+        'prefetch_factor': None,
+        'persistent_workers': False,
+        'timeout': 0
+    })
+
+    tokenizer = build_tokenizer('gpt2', {})
+
+    with expectation:
+        _ = build_finetuning_dataloader(cfg, tokenizer, 1)
+
+    # If no raised errors, we should expect downloaded files with only safe file types.
+    if expectation == does_not_raise():
+        download_dir = os.path.join(DOWNLOADED_FT_DATASETS_DIRPATH, hf_name)
+        downloaded_files = [
+            file for _, _, files in os.walk(download_dir) for file in files
+        ]
+        assert len(downloaded_files) > 0
+        assert all(
+            Path(file).suffix in SUPPORTED_EXTENSIONS
+            for file in downloaded_files)
 
 
 @pytest.mark.world_size(2)
@@ -441,12 +490,16 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
 
 
 def mock_get_file(path: str, destination: str, overwrite: bool = False):
-    make_tiny_ft_dataset(path=destination, size=16)
+    if Path(destination).suffix == '.jsonl':
+        make_tiny_ft_dataset(path=destination, size=16)
+    else:
+        raise FileNotFoundError(
+            f'Test error in mock_get_file. {path} does not exist.')
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'custom-dash', 'data'])
 def test_finetuning_dataloader_custom_split_remote(
-        tmp_path: pathlib.Path, split: str, monkeypatch: pytest.MonkeyPatch):
+        split: str, monkeypatch: pytest.MonkeyPatch):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
 
@@ -569,7 +622,7 @@ def test_malformed_data(
         },
         'drop_last': False,
         'num_workers': 0,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'pin_memory': False,
         'persistent_workers': False,
         'timeout': 0
@@ -630,56 +683,70 @@ def test_token_counting_func(pad_token_id: int, batch_size: int,
             decoder_batch_strings.append(' '.join(['hello'] * sample_length))
             decoder_expected_token_count += sample_length
             expected_token_count += sample_length
-        batch_tokenized['decoder_input_ids'] = gptt(
+        batch_tokenized['decoder_attention_mask'] = gptt(
             decoder_batch_strings, padding=True,
-            return_tensors='pt')['input_ids']
+            return_tensors='pt')['attention_mask']
 
     token_counting_func = get_tokens_per_batch_func(
-        pad_token_id, decoder_only=not add_decoder_input_ids)
+        decoder_only=not add_decoder_input_ids)
 
     actual_token_count = token_counting_func(batch_tokenized)
 
     assert actual_token_count == expected_token_count
 
 
-@pytest.mark.parametrize(
-    'dataloader_type',
-    ['finetuning-hf', 'finetuning-streaming', 'denoising', 'text'])
+@pytest.mark.parametrize('dataloader_type,tensor_input',
+                         [('finetuning-hf', False),
+                          ('finetuning-streaming', False), ('denoising', False),
+                          ('text', True), ('text', False)])
 @pytest.mark.parametrize('pad_token_id', [100, None])
 @pytest.mark.parametrize('batch_size', [1, 8])
 @pytest.mark.parametrize('model_max_length', [1024])
 @pytest.mark.parametrize('padding_side', ['left'])
 def test_token_counting_func_dataloader_setting(
-        dataloader_type: str, pad_token_id: Optional[int], batch_size: int,
-        model_max_length: int, padding_side: str,
+        dataloader_type: str, tensor_input: bool, pad_token_id: Optional[int],
+        batch_size: int, model_max_length: int, padding_side: str,
         monkeypatch: pytest.MonkeyPatch):
     gptt = transformers.AutoTokenizer.from_pretrained('gpt2')
-    gptt.pad_token_id = pad_token_id
+    gptt.pad_token_id = pad_token_id if pad_token_id is not None else gptt.eos_token_id
     gptt.model_max_length = model_max_length
     gptt.padding_side = padding_side
 
     batch_strings = []
     expected_token_count = 0
     for _ in range(batch_size):
+        # Get randomly different lengths if we are going to add padding
         sample_length = random.randint(
-            1,
-            model_max_length) if pad_token_id is not None else model_max_length
+            1, model_max_length //
+            4) if (pad_token_id is not None and
+                   not tensor_input) else model_max_length // 4
         batch_strings.append(' '.join(['hello'] * sample_length))
         expected_token_count += sample_length
 
-    batch_tokenized = gptt(batch_strings,
-                           padding=True if pad_token_id is not None else False,
-                           return_tensors='pt')
+    batch_tokenized = [
+        gptt(b, padding=True if pad_token_id is not None else False)
+        for b in batch_strings
+    ]
+
+    if tensor_input:
+        batch_tokenized = [
+            torch.tensor(b['input_ids']) for b in batch_tokenized
+        ]
 
     if dataloader_type == 'denoising':
-        batch_tokenized['decoder_input_ids'] = batch_tokenized[
-            'input_ids'].clone()
+        expected_token_count += 2 * batch_size  # for the two eos tokens
+        expected_token_count += 5 * batch_size  # for the corruption prefix tokens
+
+    if dataloader_type in {'finetuning-hf', 'finetuning-streaming'}:
+        for b in batch_tokenized:
+            b['labels'] = b['input_ids'].copy()  # type: ignore
         expected_token_count *= 2
+        expected_token_count += 1 * batch_size  # for the eos token
 
     common_args = {
         'drop_last': False,
         'num_workers': 0,
-        'prefetch_factor': None if using_torch_2() else 2,
+        'prefetch_factor': None,
         'pin_memory': False,
         'persistent_workers': False,
         'timeout': 0
@@ -735,8 +802,10 @@ def test_token_counting_func_dataloader_setting(
             },
             **common_args
         })
+        ds_mock = MagicMock()
+        ds_mock.tokenizer = gptt
         monkeypatch.setattr('llmfoundry.data.text_data.StreamingTextDataset',
-                            lambda *args, **kwargs: MagicMock())
+                            lambda *args, **kwargs: ds_mock)
         dl = build_text_dataloader(cfg, gptt, batch_size)
     elif dataloader_type == 'denoising':
         cfg = DictConfig({
@@ -754,7 +823,7 @@ def test_token_counting_func_dataloader_setting(
             },
             'mixture_of_denoisers': {
                 'decoder_only_format': False,
-                'span_mean_lengths_and_ratios': [[3, .15], [8, .5]],
+                'span_mean_lengths_and_ratios': None,
                 'sequence_mask_ratios': 0.25,
             },
             **common_args
@@ -767,7 +836,8 @@ def test_token_counting_func_dataloader_setting(
 
     cfg = om.create(cfg)
 
-    actual_token_count = dl.get_num_tokens_in_batch(batch_tokenized)
+    batch_collated = dl.dataloader.collate_fn(batch_tokenized)  # type: ignore
+    actual_token_count = dl.get_num_tokens_in_batch(batch_collated)
 
     assert actual_token_count == expected_token_count
 

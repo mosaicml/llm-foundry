@@ -39,27 +39,87 @@ MODEL_ENCODING_NAME_PARAMETRIZATION = [
     ('gpt2', None),
 ]
 
-MULTI_TURN_CHAT_ML = [[{
-    'content':
-        'Please summarize the goals in this text:\n\nGoing outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.',
-    'role':
-        'user'
-}, {
-    'content': 'You should go outside and touch grass.',
-    'role': 'assistant'
-}]]
+DEFAULT_SYSTEM_PROMPT = """<|im_start|>system\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
 
-MULTI_TURN_CHAT_STRING = [
+MULTI_TURN_CHAT_ML = [
+    [{
+        'content':
+            'Please summarize the goals in this text:\n\nGoing outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.',
+        'role':
+            'user'
+    }, {
+        'content': 'You should go outside and touch grass.',
+        'role': 'assistant'
+    }],
+    [{
+        'content':
+            'You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.',
+        'role':
+            'system'
+    }, {
+        'content':
+            'Please summarize the goals in this text:\n\nGoing outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.',
+        'role':
+            'user'
+    }, {
+        'content': 'You should go outside and touch grass.',
+        'role': 'assistant'
+    }]
+]
+
+MULTI_TURN_CHAT_STRING_NO_SYSTEM_PROMPT = [
     """<|im_start|>user
 Please summarize the goals in this text:
 
 Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
 <|im_start|>assistant
-You should go outside and touch grass.<|im_end|>
-"""
+You should go outside and touch grass.<|im_end|><|endoftext|>""",
+    """<|im_start|>system
+You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.
+<|im_start|>user
+Please summarize the goals in this text:
+
+Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
+<|im_start|>assistant
+You should go outside and touch grass.<|im_end|><|endoftext|>"""
 ]
 
-DEFAULT_SYSTEM_PROMPT = """<|im_start|>system\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
+MULTI_TURN_CHAT_STRING_SYSTEM_PROMPT = [
+    """<|im_start|>system
+You are a helpful, respectful and honest assistant. Always answer as helpfully as possible.
+<|im_start|>user
+Please summarize the goals in this text:
+
+Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
+<|im_start|>assistant
+You should go outside and touch grass.<|im_end|><|endoftext|>""",
+    """<|im_start|>system
+You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.
+<|im_start|>user
+Please summarize the goals in this text:
+
+Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
+<|im_start|>assistant
+You should go outside and touch grass.<|im_end|><|endoftext|>"""
+]
+
+MULTI_TURN_GENERATE_CHAT_ML = [[{
+    'content':
+        'Please summarize the goals in this text:\n\nGoing outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.',
+    'role':
+        'user'
+}]]
+
+MULTI_TURN_GENERATE_STRING = [
+    """<|im_start|>system
+You are a helpful, respectful and honest assistant. Always answer as helpfully as possible.
+<|im_start|>user
+Please summarize the goals in this text:
+
+Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
+<|im_start|>assistant
+"""
+]
 
 
 def get_tokenizers_for_testing(
@@ -278,6 +338,7 @@ def test_additional_special_tokens(model_name: Optional[str],
                                    encoding_name: Optional[str],
                                    tmp_path: pathlib.Path):
     special_token_to_add = '<|im_start|>'
+    input_string = special_token_to_add + ' hello'
     wrapped_tokenizer, _, _ = get_tokenizers_for_testing(
         model_name,
         encoding_name,
@@ -285,11 +346,14 @@ def test_additional_special_tokens(model_name: Optional[str],
         add_bos_token=False,
         add_eos_token=False,
         additional_special_tokens=[special_token_to_add])
-    encoded_outputs = wrapped_tokenizer(special_token_to_add +
-                                        ' hello')['input_ids']
+    encoded_outputs = wrapped_tokenizer(input_string)['input_ids']
 
     assert encoded_outputs[0] == wrapped_tokenizer.vocab_size
     assert len(encoded_outputs) == 2
+
+    decoded_outputs = wrapped_tokenizer.decode(
+        encoded_outputs, spaces_between_special_tokens=False)
+    assert decoded_outputs == input_string
 
 
 @pytest.mark.parametrize('model_name,encoding_name',
@@ -306,10 +370,9 @@ def test_chat_formatting(model_name: Optional[str],
         add_eos_token=False,
         additional_special_tokens=special_tokens_to_add)
     for i, dict_chats in enumerate(MULTI_TURN_CHAT_ML):
-        chat_str = wrapped_tokenizer.apply_chat_template(dict_chats,
-                                                         tokenize=False)
-        assert chat_str == MULTI_TURN_CHAT_STRING[i]
-
+        chat_str = wrapped_tokenizer.apply_chat_template(
+            dict_chats, tokenize=False, add_generation_prompt=False)
+        assert chat_str == MULTI_TURN_CHAT_STRING_NO_SYSTEM_PROMPT[i]
     # Using default system prompt.
     wrapped_tokenizer, _, _ = get_tokenizers_for_testing(
         model_name,
@@ -320,6 +383,22 @@ def test_chat_formatting(model_name: Optional[str],
         add_eos_token=False,
         additional_special_tokens=special_tokens_to_add)
     for i, dict_chats in enumerate(MULTI_TURN_CHAT_ML):
-        chat_str = wrapped_tokenizer.apply_chat_template(dict_chats,
-                                                         tokenize=False)
-        assert chat_str == DEFAULT_SYSTEM_PROMPT + MULTI_TURN_CHAT_STRING[i]
+        chat_str = wrapped_tokenizer.apply_chat_template(
+            dict_chats, tokenize=False, add_generation_prompt=False)
+        assert chat_str == MULTI_TURN_CHAT_STRING_SYSTEM_PROMPT[i]
+    for i, dict_chats in enumerate(MULTI_TURN_GENERATE_CHAT_ML):
+        chat_str = wrapped_tokenizer.apply_chat_template(
+            dict_chats, tokenize=False, add_generation_prompt=True)
+        assert chat_str == MULTI_TURN_GENERATE_STRING[i]
+
+
+def test_tiktoken_out_of_range():
+    wrapped_tokenizer = TiktokenTokenizerWrapper(model_name='gpt-4',)
+
+    # For gpt-4, 100256 is less than the vocab size, but is not a valid token
+    assert wrapped_tokenizer.decode([100256]) == ''
+    assert wrapped_tokenizer.decode(100256) == ''
+
+    # For gpt-4, 1000000 is greater than the vocab size
+    assert wrapped_tokenizer.decode([1000000]) == ''
+    assert wrapped_tokenizer.decode(1000000) == ''

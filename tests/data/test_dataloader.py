@@ -514,7 +514,7 @@ def test_tokenize_example_well_formed():
         },  # multi-way chat
     ]
 
-    chat_tokenizer = build_tokenizer('TinyLlama/TinyLlama-1.1B-Chat-v1.0', {})
+    chat_tokenizer = build_tokenizer('mosaicml/mpt-7b-chat', {})
     for chat_example in chat_examples:
         tokenized_example = _tokenize_formatted_example(chat_example,
                                                         chat_tokenizer)

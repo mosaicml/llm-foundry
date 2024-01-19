@@ -60,11 +60,11 @@ SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
 PromptResponseDict = Dict[str, str]
 ChatFormattedDict = Dict[str, List[Dict[str, str]]]
 Conversation = Union[PromptResponseDict, ChatFormattedDict]
-ConversationType = Literal['prompt_response', 'chat']
+ExampleType = Literal['prompt_response', 'chat']
 TokenizedConversation = Dict[str, List[Union[int, str]]]
 
 
-def _get_conversation_type(conversation_example: Conversation):
+def _get_example_type(conversation_example: Conversation) -> ExampleType:
     # note: this function does not validate the conversation types,
     # it merely determines which validator to use.
     if 'messages' in conversation_example:
@@ -114,10 +114,7 @@ def _tokenize_chat_formatted_example(
 
     applied_template = tokenizer.apply_chat_template(messages, tokenize=False)
     prompt, response = slice(applied_template, last_message['content'])
-    return {
-        'input_ids': tokenizer.tokenize(prompt),
-        'labels': tokenizer.tokenize(response)
-    }
+    return tokenizer(text=prompt, text_target=response)
 
 
 def _tokenize_prompt_response_formatted_example(
@@ -161,7 +158,7 @@ def _tokenize_prompt_response_formatted_example(
 def _tokenize_formatted_example(
         example: Conversation,
         tokenizer: PreTrainedTokenizerBase) -> TokenizedConversation:
-    example_format = _get_conversation_type(example)
+    example_format = _get_example_type(example)
 
     if example_format == 'chat':
         chat_example: ChatFormattedDict = example  # type: ignore

@@ -59,20 +59,20 @@ SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
 
 PromptResponseDict = Dict[str, str]
 ChatFormattedDict = Dict[str, List[Dict[str, str]]]
-Conversation = Union[PromptResponseDict, ChatFormattedDict]
+Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
-TokenizedConversation = Dict[str, List[Union[int, str]]]
+TokenizedExample = Dict[str, List[Union[int, str]]]
 
 
-def _get_example_type(conversation_example: Conversation) -> ExampleType:
+def _get_example_type(example: Example) -> ExampleType:
     # note: this function does not validate the conversation types,
     # it merely determines which validator to use.
-    if 'messages' in conversation_example:
+    if 'messages' in example:
         return 'chat'
-    elif 'prompt' in conversation_example or 'response' in conversation_example:
+    elif 'prompt' in example or 'response' in example:
         return 'prompt_response'
     else:
-        raise KeyError(f'unknown conversation type {conversation_example=}')
+        raise KeyError(f'unknown conversation type {example=}')
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:
@@ -89,7 +89,7 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
 
 def _tokenize_chat_formatted_example(
         example: ChatFormattedDict,
-        tokenizer: PreTrainedTokenizerBase) -> TokenizedConversation:
+        tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
 
     def slice(s: str, sep: str):
         # it seems like we can reuse this logic, as we likely have this pattern in other places.
@@ -119,7 +119,7 @@ def _tokenize_chat_formatted_example(
 
 def _tokenize_prompt_response_formatted_example(
         example: PromptResponseDict,
-        tokenizer: PreTrainedTokenizerBase) -> TokenizedConversation:
+        tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
     """Tokenize a formatted example and validate expected keys."""
     example_keys = set(example.keys())
     prompt_keys = example_keys.intersection(_ALLOWED_PROMPT_KEYS)
@@ -156,8 +156,8 @@ def _tokenize_prompt_response_formatted_example(
 
 
 def _tokenize_formatted_example(
-        example: Conversation,
-        tokenizer: PreTrainedTokenizerBase) -> TokenizedConversation:
+        example: Example,
+        tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
     example_format = _get_example_type(example)
 
     if example_format == 'chat':

@@ -506,8 +506,11 @@ def build_icl_evaluators(
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
                 os.remove(destination_path)
             dist.barrier()
-            early_stopping_criteria = icl_cfg.get('early_stopping_criteria', None)
-            early_stopping_criteria = list(early_stopping_criteria) if early_stopping_criteria is not None else None
+            early_stopping_criteria = icl_cfg.get('early_stopping_criteria',
+                                                  None)
+            early_stopping_criteria = list(
+                early_stopping_criteria
+            ) if early_stopping_criteria is not None else None
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,

@@ -53,6 +53,29 @@ class LPLayerNorm(torch.nn.LayerNorm):
             )
 
 
+def low_precision_groupnorm(
+    x: torch.Tensor,
+    groups: int,
+    weight: Optional[torch.Tensor] = None,
+    bias: Optional[torch.Tensor] = None,
+    eps: float = 1e-05,
+):
+    device = x.device
+    downcast_x = _cast_if_autocast_enabled(x)
+    downcast_weight = _cast_if_autocast_enabled(
+        weight) if weight is not None else weight
+    downcast_bias = _cast_if_autocast_enabled(
+        bias) if bias is not None else bias
+    with torch.autocast(enabled=False, device_type=device.type):
+        return torch.nn.functional.group_norm(
+            downcast_x,
+            groups,
+            downcast_weight,
+            downcast_bias,
+            eps,
+        )
+
+
 def rms_norm(x: torch.Tensor,
              weight: Optional[torch.Tensor] = None,
              eps: float = 1e-5) -> torch.Tensor:

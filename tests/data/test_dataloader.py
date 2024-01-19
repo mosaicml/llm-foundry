@@ -7,7 +7,9 @@ import random
 import shutil
 import tempfile
 from argparse import Namespace
-from typing import Literal, Optional, Union
+from contextlib import nullcontext as does_not_raise
+from pathlib import Path
+from typing import ContextManager, Literal, Optional, Union
 from unittest.mock import MagicMock
 
 import pytest
@@ -23,6 +25,8 @@ from llmfoundry import (build_finetuning_dataloader,
 from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
                                               _ALLOWED_RESPONSE_KEYS,
+                                              DOWNLOADED_FT_DATASETS_DIRPATH,
+                                              SUPPORTED_EXTENSIONS,
                                               _tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
@@ -306,6 +310,51 @@ def test_finetuning_dataloader(decoder_only_format: bool,
             break
 
 
+@pytest.mark.parametrize(
+    'hf_name, hf_revision, expectation',
+    [('HuggingFaceH4/databricks_dolly_15k', None, does_not_raise()),
+     ('squad', '5fe18c', pytest.raises(FileNotFoundError))])
+def test_finetuning_dataloader_safe_load(hf_name: str,
+                                         hf_revision: Optional[str],
+                                         expectation: ContextManager):
+    cfg = DictConfig({
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': hf_name,
+            'split': 'train',
+            'max_seq_len': 8,
+            'decoder_only_format': True,
+            'shuffle': True,
+            'safe_load': True,
+            'hf_kwargs': {
+                'revision': hf_revision
+            }
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        'pin_memory': False,
+        'prefetch_factor': None,
+        'persistent_workers': False,
+        'timeout': 0
+    })
+
+    tokenizer = build_tokenizer('gpt2', {})
+
+    with expectation:
+        _ = build_finetuning_dataloader(cfg, tokenizer, 1)
+
+    # If no raised errors, we should expect downloaded files with only safe file types.
+    if expectation == does_not_raise():
+        download_dir = os.path.join(DOWNLOADED_FT_DATASETS_DIRPATH, hf_name)
+        downloaded_files = [
+            file for _, _, files in os.walk(download_dir) for file in files
+        ]
+        assert len(downloaded_files) > 0
+        assert all(
+            Path(file).suffix in SUPPORTED_EXTENSIONS
+            for file in downloaded_files)
+
+
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize('dataset_size', [4, 8])
@@ -441,12 +490,16 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
 
 
 def mock_get_file(path: str, destination: str, overwrite: bool = False):
-    make_tiny_ft_dataset(path=destination, size=16)
+    if Path(destination).suffix == '.jsonl':
+        make_tiny_ft_dataset(path=destination, size=16)
+    else:
+        raise FileNotFoundError(
+            f'Test error in mock_get_file. {path} does not exist.')
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'custom-dash', 'data'])
 def test_finetuning_dataloader_custom_split_remote(
-        tmp_path: pathlib.Path, split: str, monkeypatch: pytest.MonkeyPatch):
+        split: str, monkeypatch: pytest.MonkeyPatch):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
 

@@ -6,7 +6,7 @@
 import logging
 import os
 import warnings
-from typing import Mapping, Union
+from typing import Mapping
 
 # required for loading a python model into composer
 import transformers
@@ -19,7 +19,6 @@ from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
 from composer.utils import dist
 from omegaconf import DictConfig
-from torch import nn
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
@@ -259,11 +258,21 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             raise ValueError(
                 f'om_model_config must be either a DictConfig, PeftModel, or PreTrainedModel, but got {type(om_model_config)}'
             )
-        
+
         from peft import LoraConfig
-        peft_config = pop_config(om_model_config, 'peft_config', must_exist=False, convert=True)
-        peft_type = peft_config.pop('peft_type', None)
-        peft_config = LoraConfig(**peft_config)
+        peft_config = pop_config(om_model_config,
+                                 'peft_config',
+                                 must_exist=False,
+                                 convert=True)
+        
+        if peft_config is not None:
+            peft_type = peft_config.get('peft_type', None)
+            if peft_type.upper() != 'LORA':
+                raise ValueError(f'Only LORA is supported for peft_type, but got {peft_type}.')
+            task_type = peft_config.get('task_type', None)
+            if task_type.upper() != 'CAUSAL_LM':
+                raise ValueError(f'Only CAUSAL_LM is supported for task_type, but got {task_type}.')
+            peft_config = LoraConfig(**peft_config)
 
         composer_model = super().__init__(
             model=model,

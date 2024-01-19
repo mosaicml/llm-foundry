@@ -5,17 +5,14 @@
 # which is MIT licensed
 
 import functools
-from typing import Any, Iterable, List, Optional, Union
+from typing import Any, Iterable, List, Optional, Union, TYPE_CHECKING
 
 import torch
 from transformers import PreTrainedModel
 from transformers.models.opt.modeling_opt import OPTDecoder
 
-try:
+if TYPE_CHECKING:
     from peft import PeftModel
-    peft_model_type = PeftModel
-except ImportError:
-    peft_model_type = None
 
 
 # helper functions
@@ -135,7 +132,8 @@ def prepare_hf_model_for_fsdp(model: PreTrainedModel,
         prepare_hf_causal_lm_model_for_fsdp(model, init_device)
 
 
-def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel, peft_model_type],
+def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
+                                                     'PeftModel'],
                                         init_device: Optional[str]) -> None:
     """FSDP wrap a HuggingFace decoder.
 
@@ -207,7 +205,8 @@ def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel, peft_model
         peft_type = model.peft_type.lower()
         active_adapters = [adapter.lower() for adapter in model.active_adapters]
         for name, module in model.named_modules():
-            if peft_type in name.lower() and any(adapter in name.lower() for adapter in active_adapters):
+            if peft_type in name.lower() and any(
+                    adapter in name.lower() for adapter in active_adapters):
                 has_parameters = any(True for _ in module.parameters())
                 has_buffers = any(True for _ in module.buffers())
                 if has_parameters or has_buffers:

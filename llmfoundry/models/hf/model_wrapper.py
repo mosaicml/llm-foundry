@@ -5,9 +5,8 @@
 
 from __future__ import annotations
 
-import inspect
 from collections import UserDict
-from typing import List, Mapping, Optional
+from typing import List, Mapping, Optional, TYPE_CHECKING
 
 import torch
 import transformers
@@ -17,6 +16,9 @@ from transformers import PreTrainedTokenizerBase
 from transformers.utils.generic import ModelOutput
 
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
+
+if TYPE_CHECKING:
+    from peft import PeftConfig
 
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
@@ -46,7 +48,7 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
                  z_loss: float = 0.0,
                  shift_labels: bool = False,
                  init_device: Optional[str] = None,
-                 peft_config = None):
+                 peft_config: Optional['PeftConfig'] = None):
         super().__init__(model,
                          tokenizer,
                          use_logits=True,

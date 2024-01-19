@@ -519,7 +519,9 @@ def build_icl_evaluators(
                 # TODO: these variables are poorly named. Either composer or icl_config needs to change
                 generations_per_sample=icl_cfg.num_beams,
                 has_categories=icl_cfg.get('has_categories', False),
-                cot_delimiter=icl_cfg.get('cot_delimiter', ''))
+                cot_delimiter=icl_cfg.get('cot_delimiter', ''),
+                generation_kwargs=icl_cfg.get('generation_kwargs', {})
+            )
             if hasattr(
                     icl_cfg,
                     'has_categories') and icl_cfg.has_categories and isinstance(

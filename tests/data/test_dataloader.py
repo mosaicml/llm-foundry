@@ -250,10 +250,12 @@ def test_denoising_dataloader(decoder_only_format: bool, pretokenize: bool,
                 break
 
 
+@pytest.mark.parametrize('use_chat_formatting', [True, False])
 @pytest.mark.parametrize('decoder_only_format', [True, False])
 @pytest.mark.parametrize('allow_pad_trimming', [True, False])
 @pytest.mark.parametrize('packing_ratio', [10.0, None, 'auto'])
-def test_finetuning_dataloader(decoder_only_format: bool,
+def test_finetuning_dataloader(use_chat_formatting: bool,
+                               decoder_only_format: bool,
                                allow_pad_trimming: bool,
                                packing_ratio: Optional[Union[float,
                                                              Literal['auto']]]):
@@ -266,13 +268,21 @@ def test_finetuning_dataloader(decoder_only_format: bool,
     cfg = {
         'name': 'finetuning',
         'dataset': {
-            'hf_name': 'HuggingFaceH4/databricks_dolly_15k',
-            'split': 'train',
-            'max_seq_len': max_seq_len,
-            'decoder_only_format': decoder_only_format,
-            'allow_pad_trimming': allow_pad_trimming,
-            'packing_ratio': packing_ratio,
-            'shuffle': True,
+            'hf_name':
+                'iamroot/chat_formatted_examples' if use_chat_formatting else
+                'HuggingFaceH4/databricks_dolly_15k',
+            'split':
+                'train',
+            'max_seq_len':
+                max_seq_len,
+            'decoder_only_format':
+                decoder_only_format,
+            'allow_pad_trimming':
+                allow_pad_trimming,
+            'packing_ratio':
+                packing_ratio,
+            'shuffle':
+                True,
         },
         'drop_last': False,
         'num_workers': 0,

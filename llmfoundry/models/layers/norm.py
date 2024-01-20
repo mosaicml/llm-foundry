@@ -53,6 +53,15 @@ class LPLayerNorm(torch.nn.LayerNorm):
             )
 
 
+def _expand_params(x: torch.Tensor, param: Optional[torch.Tensor] = None):
+    # repeat param if params are applied per group
+    if param is None:
+        return None
+    if x.shape[-1] == param.shape[-1]:
+        return param
+    return param.repeat(x.shape[-1] // param.shape[-1])
+
+
 def low_precision_groupnorm(
     x: torch.Tensor,
     groups: int,
@@ -62,10 +71,14 @@ def low_precision_groupnorm(
 ):
     device = x.device
     downcast_x = _cast_if_autocast_enabled(x)
-    downcast_weight = _cast_if_autocast_enabled(
-        weight) if weight is not None else weight
-    downcast_bias = _cast_if_autocast_enabled(
-        bias) if bias is not None else bias
+    downcast_weight, downcast_bias = None, None
+    if weight is not None:
+        downcast_weight = _cast_if_autocast_enabled(weight)
+        downcast_weight = _expand_params(x, downcast_weight)
+    if bias is not None:
+        downcast_bias = _cast_if_autocast_enabled(bias)
+        downcast_bias = _expand_params(x, downcast_bias)
+
     with torch.autocast(enabled=False, device_type=device.type):
         return torch.nn.functional.group_norm(
             downcast_x,

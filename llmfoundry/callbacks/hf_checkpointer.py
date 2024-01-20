@@ -24,7 +24,6 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
-from llmfoundry.models.utils import init_empty_weights
 
 log = logging.getLogger(__name__)
 
@@ -225,10 +224,9 @@ class HuggingFaceCheckpointer(Callback):
                 # TODO: after torch 2.1, we can load a state dict into a meta model
                 # and skip the extra model init
                 log.debug(f'Creating new model instance')
-                with init_empty_weights(include_buffers=False):
-                    new_model_instance = type(original_model)(copied_config)
-                # new_model_instance.to(dtype=self.dtype)
-                new_model_instance.load_state_dict(state_dict, assign=True)
+                new_model_instance = type(original_model)(copied_config)
+                new_model_instance.to(dtype=self.dtype)
+                new_model_instance.load_state_dict(state_dict)
                 del state_dict
 
                 log.debug('Saving Hugging Face checkpoint to disk')

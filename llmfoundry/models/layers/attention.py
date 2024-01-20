@@ -514,29 +514,23 @@ def _apply_qk_gn(
 ):
     dtype = query.dtype
 
+    w = _expand_params(n_heads, q_ln.weight)
+    b = _expand_params(n_heads, q_ln.bias)
     if isinstance(q_ln, LPLayerNorm):
-        query = low_precision_groupnorm(query,
-                                        n_heads,
-                                        q_ln.weight,
-                                        q_ln.bias,
+        query = low_precision_groupnorm(query, n_heads, w, b,
                                         eps=q_ln.eps).to(dtype)
     elif isinstance(q_ln, nn.LayerNorm):
-        w = _expand_params(n_heads, q_ln.weight)
-        b = _expand_params(n_heads, q_ln.bias)
         query = nn.functional.group_norm(query, n_heads, w, b, eps=q_ln.eps)
     else:
         raise ValueError(
             f'qk_gn not applicable for given q_ln type ({type(q_ln)=}).')
 
+    w = _expand_params(kv_n_heads, k_ln.weight)
+    b = _expand_params(kv_n_heads, k_ln.bias)
     if isinstance(k_ln, LPLayerNorm):
-        key = low_precision_groupnorm(key,
-                                      kv_n_heads,
-                                      k_ln.weight,
-                                      k_ln.bias,
+        key = low_precision_groupnorm(key, kv_n_heads, w, b,
                                       eps=k_ln.eps).to(dtype)
     elif isinstance(k_ln, nn.LayerNorm):
-        w = _expand_params(kv_n_heads, k_ln.weight)
-        b = _expand_params(kv_n_heads, k_ln.bias)
         key = nn.functional.group_norm(key, kv_n_heads, w, b, eps=k_ln.eps)
     else:
         raise ValueError(

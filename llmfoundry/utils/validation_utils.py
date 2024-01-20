@@ -40,7 +40,7 @@ def create_om_cfg(FT_API_args: Namespace):
 
     common_args = {
         'drop_last': False,
-        'num_workers': detected_cpu_count,
+        'num_workers': 1, # detected_cpu_count,
         'prefetch_factor': 2,
         'pin_memory': False,
         'persistent_workers': False,
@@ -135,7 +135,9 @@ def get_num_samples_in_batch(batch: dict) -> int:
 
     response_tokens = len(batch['labels']) if 'labels' in batch else 0
 
-    return {'ntokens': input_ids_tokens + decoder_input_ids_tokens + response_tokens}
+    return {
+        'ntokens': input_ids_tokens + decoder_input_ids_tokens + response_tokens
+    }
 
 
 def token_counts(FT_API_args):
@@ -270,7 +272,7 @@ from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
                                               merge_shard_groups)
 
 log = logging.getLogger(__name__)
-DONE_FILENAME = '.text_to_mds_conversion_done'
+DONE_FILENAME = '/Volumes/main/mosaic_hackathon/managed-volume/text_to_mds_conversion_done'
 
 
 def parse_args(tokenizer,
@@ -855,6 +857,19 @@ def pandas_processing_fn(df: pd.DataFrame,
     hf_dataset = hf_datasets.Dataset.from_pandas(df=df)
     tokenizer = AutoTokenizer.from_pretrained(args['tokenizer'])
     tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
+
+    if bos_text + eos_text == '':
+        test_tokens = tokenizer('test')
+        if test_tokens['input_ids'][
+                0] != tokenizer.bos_token_id and test_tokens['input_ids'][
+                    -1] != tokenizer.eos_token_id:
+            tok_error_msg = 'This tokenizer does not insert an EOS nor BOS token. '
+            tok_error_msg += 'Concatenating with this tokenizer will result in sequences being '
+            tok_error_msg += 'attached without a separating token. Please use another tokenizer, '
+            tok_error_msg += 'such as facebook/opt-125m, or specify EOS/BOS text with e.g. '
+            tok_error_msg += '--bos_text=<|endoftext|>.'
+            raise ValueError(tok_error_msg)
+
     dataset = ConcatTokensDataset(
         hf_dataset=hf_dataset,
         max_length=args.get('concat_tokens', None),
@@ -893,7 +908,7 @@ try:
 except ImportError as e:
     e.msg = get_import_exception_message(e.name,
                                          extra_deps='spark')  # pyright: ignore
-    raise e
+    #raise e
 
 try:
     from dask.dataframe import DataFrame as DaskDataFrame
@@ -901,7 +916,8 @@ try:
 except ImportError as e:
     e.msg = get_import_exception_message(e.name,
                                          extra_deps='dask')  # pyright: ignore
-    raise e
+    #raise e
+    DaskDataFrame = None
 
 try:
     from streaming import MDSWriter
@@ -912,7 +928,7 @@ try:
 except ImportError as e:
     e.msg = get_import_exception_message(
         e.name, extra_deps='streaming')  # pyright: ignore
-    raise e
+    #raise e
 
 logger = logging.getLogger(__name__)
 

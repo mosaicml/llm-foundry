@@ -59,7 +59,7 @@ class EvalGauntlet(Callback):
                             logged under in the logger after eval
         categories (dict): This contains the list of categories, as well as the subtasks within them, the
                       random baseline accuracy of each subtask, and the number of fewshot examples
-                      used for the task. See `llmfoundry/scripts/eval/yamls/eval_gauntlet.yaml` to see the structure.
+                      used for the task. See `llmfoundry/scripts/eval/yamls/eval_gauntlet_v0.2.yaml` to see the structure.
         weighting (Weighting): The weighting scheme used to balance different tasks within each category.
                                Either assign them all equal weight, assign them weight proportional
                                to the dataset size, or assign them weight proportional to the log2 of the dataset size.

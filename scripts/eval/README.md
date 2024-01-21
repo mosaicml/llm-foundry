@@ -27,7 +27,7 @@ composer eval/eval.py eval/yamls/hf_eval.yaml \
     model_name_or_path=mosaicml/mpt-7b
 ```
 
-You can also modify the specific benchmarks executed and their formatting by modifying the contents of `tasks.yaml` and you can modify the choice of composite scores and the set of tasks they consist of by modifying `eval_gauntlet.yaml`.
+You can also modify the specific benchmarks executed and their formatting by modifying the contents of `tasks.yaml` and you can modify the choice of composite scores and the set of tasks they consist of by modifying `eval_gauntlet_v0.2.yaml`.
 
 
 ### Evaluation during training
@@ -38,7 +38,7 @@ To run evaluation during training, download this repo, follow the instructions i
 cd llm-foundry/scripts/train
 composer train.py yamls/pretrain/mpt-125m_eval.yaml train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
 ```
-You can also modify the specific benchmarks executed and their formatting by modifying the contents of `tasks.yaml` and you can modify the choice of composite scores and the set of tasks they consist of by modifying `eval_gauntlet.yaml`. You can also choose to either run the full evaluation or run on a subset number of batches per benchmark by setting `icl_subset_num_batches`.
+You can also modify the specific benchmarks executed and their formatting by modifying the contents of `tasks.yaml` and you can modify the choice of composite scores and the set of tasks they consist of by modifying `eval_gauntlet_v0.2.yaml`. You can also choose to either run the full evaluation or run on a subset number of batches per benchmark by setting `icl_subset_num_batches`.
 
 ----
 ## In-depth walkthrough
@@ -131,7 +131,7 @@ An example is given below:
 ```
   icl_tasks: eval/yamls/tasks.yaml # or use tasks_light.yaml
   icl_subset_num_batches: 100 # -1, or omit this key entirely, to evaluate on all batches
-  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+  eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'
   icl_seq_len: 1024
 ```
 

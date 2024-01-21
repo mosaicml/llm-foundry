@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import Mock, patch
 
@@ -9,6 +10,7 @@ import torch
 from composer.utils import dist, reproducibility
 from omegaconf import DictConfig
 from pytest import approx
+from streaming import MDSWriter
 from torch.utils.data import DataLoader
 
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
@@ -147,6 +149,44 @@ def patched_packing_ratio(*args: Any, **kwargs: Any):
     from llmfoundry.data.packing import auto_packing_ratio
 
     return auto_packing_ratio(*args, **kwargs, num_packing_ratios=4)
+
+
+@patch('llmfoundry.data.finetuning.dataloader.auto_packing_ratio',
+       patched_packing_ratio)
+def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
+    columns = {'prompt': 'str', 'response': 'str'}
+    tokenizer = build_tokenizer('gpt2', {})
+    remote_dir = str(tmp_path / 'remote')
+    local_dir = str(tmp_path / 'local')
+    with MDSWriter(out=remote_dir, columns=columns, compression=None) as out:
+        out.write({'prompt': 'HELLO', 'response': 'WORLD'})
+    cfg = DictConfig({
+        'name': 'finetuning',
+        'dataset': {
+            'remote': remote_dir,
+            'local': local_dir,
+            'packing_ratio': 'auto',
+            'max_seq_len': 200,
+            'decoder_only_format': True
+        },
+        'drop_last': False,
+        # Need to test with 0 num_workers because the packing collator object
+        # Gets copied per worker and we cannot check the waste for child processes.
+        'num_workers': 0,
+        'pin_memory': False,
+        'prefetch_factor': None,
+        'persistent_workers': False,
+        'timeout': 0,
+    })
+
+    loader = build_finetuning_dataloader(cfg, tokenizer,
+                                         device_batch_size=6).dataloader
+
+    batch_ix = 0
+    for _ in loader:
+        batch_ix += 1
+        if batch_ix >= 3:
+            break
 
 
 @pytest.mark.parametrize('packing_ratio', ['auto', 2.0])

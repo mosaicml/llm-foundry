@@ -6,9 +6,13 @@ import math
 import pytest
 import torch
 
-from llmfoundry.models.layers.attention import (flash_attn_fn,
+from llmfoundry.models.layers.attention import (attn_bias_shape,
+                                                build_attn_bias,
+                                                check_alibi_support,
+                                                flash_attn_fn, gen_slopes,
                                                 is_flash_v2_installed,
                                                 triton_flash_attn_fn)
+from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
 
 
 @pytest.mark.gpu
@@ -32,22 +36,24 @@ def test_gqa_kv_repetition(kv_n_heads: int):
                           kv_n_heads * d).to(torch.bfloat16).cuda()
     value_1.requires_grad = True
 
-    output_1, _, _ = flash_attn_fn(query=query_1,
-                                   key=key_1,
-                                   value=value_1,
-                                   n_heads=n_heads,
-                                   kv_n_heads=kv_n_heads,
-                                   past_key_value=None,
-                                   softmax_scale=1 / math.sqrt(d),
-                                   attn_bias=None,
-                                   key_padding_mask=None,
-                                   is_causal=True,
-                                   dropout_p=0.0,
-                                   training=False,
-                                   needs_weights=False,
-                                   multiquery=False,
-                                   attention_mask_in_length=None,
-                                   should_repeat_kv_for_gqa=True)
+    output_1, _, _ = flash_attn_fn(
+        query=query_1,
+        key=key_1,
+        value=value_1,
+        n_heads=n_heads,
+        kv_n_heads=kv_n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=None,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        multiquery=False,
+        flash_attn_padding_info=gen_flash_attn_padding_info(
+            bsz, seqlen_1, 0, query_1.device, None, None),
+        should_repeat_kv_for_gqa=True)
 
     output_1.sum().backward()
 
@@ -58,22 +64,24 @@ def test_gqa_kv_repetition(kv_n_heads: int):
     value_2 = value_1.detach().clone()
     value_2.requires_grad = True
 
-    output_2, _, _ = flash_attn_fn(query=query_2,
-                                   key=key_2,
-                                   value=value_2,
-                                   n_heads=n_heads,
-                                   kv_n_heads=kv_n_heads,
-                                   past_key_value=None,
-                                   softmax_scale=1 / math.sqrt(d),
-                                   attn_bias=None,
-                                   key_padding_mask=None,
-                                   is_causal=True,
-                                   dropout_p=0.0,
-                                   training=False,
-                                   needs_weights=False,
-                                   multiquery=False,
-                                   attention_mask_in_length=None,
-                                   should_repeat_kv_for_gqa=False)
+    output_2, _, _ = flash_attn_fn(
+        query=query_2,
+        key=key_2,
+        value=value_2,
+        n_heads=n_heads,
+        kv_n_heads=kv_n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=None,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        multiquery=False,
+        flash_attn_padding_info=gen_flash_attn_padding_info(
+            bsz, seqlen_1, 0, query_2.device, None, None),
+        should_repeat_kv_for_gqa=False)
 
     output_2.sum().backward()
     assert torch.allclose(output_1, output_2)
@@ -111,6 +119,9 @@ def test_seq_id_masking_FA_v2():
                                                [3, 2, 1, 0, 0,
                                                 0]]).to(torch.int64).cuda()
 
+    flash_attn_padding_info_1 = gen_flash_attn_padding_info(
+        bsz, seqlen_1, 0, query_1.device, attention_mask_in_length_1, None)
+
     output_1, _, _ = flash_attn_fn(
         query=query_1,
         key=key_1,
@@ -126,7 +137,7 @@ def test_seq_id_masking_FA_v2():
         training=False,
         needs_weights=False,
         multiquery=False,
-        attention_mask_in_length=attention_mask_in_length_1)
+        flash_attn_padding_info=flash_attn_padding_info_1)
 
     output_1.sum().backward()
 
@@ -138,21 +149,25 @@ def test_seq_id_masking_FA_v2():
         value_2 = value_1.detach().clone()[:, seq_range[0]:seq_range[1], :]
         value_2.requires_grad = True
 
-        output_2, _, _ = flash_attn_fn(query=query_2,
-                                       key=key_2,
-                                       value=value_2,
-                                       n_heads=n_heads,
-                                       kv_n_heads=kv_n_heads,
-                                       past_key_value=None,
-                                       softmax_scale=1 / math.sqrt(d),
-                                       attn_bias=None,
-                                       key_padding_mask=None,
-                                       is_causal=True,
-                                       dropout_p=0.0,
-                                       training=False,
-                                       needs_weights=False,
-                                       multiquery=False,
-                                       attention_mask_in_length=None)
+        flash_attn_padding_info_2 = gen_flash_attn_padding_info(
+            bsz, seq_range[1] - seq_range[0], 0, query_2.device, None, None)
+
+        output_2, _, _ = flash_attn_fn(
+            query=query_2,
+            key=key_2,
+            value=value_2,
+            n_heads=n_heads,
+            kv_n_heads=kv_n_heads,
+            past_key_value=None,
+            softmax_scale=1 / math.sqrt(d),
+            attn_bias=None,
+            key_padding_mask=None,
+            is_causal=True,
+            dropout_p=0.0,
+            training=False,
+            needs_weights=False,
+            multiquery=False,
+            flash_attn_padding_info=flash_attn_padding_info_2)
 
         output_2.sum().backward()
         assert torch.allclose(output_1[:, seq_range[0]:seq_range[1], :],
@@ -193,23 +208,25 @@ def test_sliding_window(sliding_window_size: int):
                                                          device=device)
     value_1.requires_grad = True
 
-    output_1, _, _ = flash_attn_fn(query=query_1,
-                                   key=key_1,
-                                   value=value_1,
-                                   n_heads=n_heads,
-                                   kv_n_heads=n_heads,
-                                   past_key_value=None,
-                                   softmax_scale=1 / math.sqrt(d),
-                                   attn_bias=None,
-                                   key_padding_mask=None,
-                                   is_causal=True,
-                                   dropout_p=0.0,
-                                   training=False,
-                                   needs_weights=False,
-                                   multiquery=False,
-                                   attention_mask_in_length=None,
-                                   should_repeat_kv_for_gqa=True,
-                                   sliding_window_size=sliding_window_size)
+    output_1, _, _ = flash_attn_fn(
+        query=query_1,
+        key=key_1,
+        value=value_1,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=None,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        multiquery=False,
+        flash_attn_padding_info=gen_flash_attn_padding_info(
+            bsz, seqlen_1, 0, query_1.device, None, None),
+        should_repeat_kv_for_gqa=True,
+        sliding_window_size=sliding_window_size)
 
     output_1.sum().backward()
 
@@ -253,3 +270,113 @@ def test_sliding_window(sliding_window_size: int):
                      ) <= 1e-2 + 1e-2 * torch.norm(key_2.grad)
     assert torch.norm(value_2.grad - value_1.grad  # type: ignore
                      ) <= 1e-2 + 1e-2 * torch.norm(value_2.grad)
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not check_alibi_support('flash'),
+    reason='ALiBi only supported by Flash Attention after v2.4.2.')
+@pytest.mark.parametrize('n_heads', [1, 6, 8])
+def test_alibi_bias(n_heads: int):
+    # Test that sliding window attention works as expected.
+    dtype = torch.bfloat16
+    device = 'cuda'
+    d = 128
+    seqlen_1 = 8
+    bsz = 2
+
+    query_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(dtype=dtype,
+                                                         device=device)
+    query_1.requires_grad = True
+    key_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(dtype=dtype,
+                                                       device=device)
+    key_1.requires_grad = True
+    value_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(dtype=dtype,
+                                                         device=device)
+    value_1.requires_grad = True
+    alibi_slopes_1 = gen_slopes(n_heads=n_heads,
+                                alibi_bias_max=8,
+                                device=torch.device(device),
+                                return_1d=True)
+    output_1, _, _ = flash_attn_fn(
+        query=query_1,
+        key=key_1,
+        value=value_1,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=None,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        multiquery=False,
+        flash_attn_padding_info=gen_flash_attn_padding_info(
+            bsz, seqlen_1, 0, query_1.device, None, None),
+        should_repeat_kv_for_gqa=True,
+        alibi_slopes=alibi_slopes_1)
+
+    output_1.sum().backward()
+
+    query_2 = query_1.detach().clone()
+    query_2.requires_grad = True
+    key_2 = key_1.detach().clone()
+    key_2.requires_grad = True
+    value_2 = value_1.detach().clone()
+    value_2.requires_grad = True
+
+    def gen_bias():
+        causal = True
+        bs = attn_bias_shape('triton',
+                             n_heads,
+                             seqlen_1,
+                             True,
+                             prefix_lm=False,
+                             use_sequence_id=False,
+                             causal=causal)
+
+        attn_bias = torch.zeros(*bs, device=device)
+        attn_bias = build_attn_bias(
+            'triton',
+            attn_bias,
+            n_heads,
+            seqlen_1,
+            causal=causal,
+            alibi=True,
+            alibi_bias_max=8,
+        )
+        return attn_bias
+
+    attn_bias_2 = gen_bias()
+
+    output_2, _, _ = triton_flash_attn_fn(
+        query=query_2,
+        key=key_2,
+        value=value_2,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=attn_bias_2,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        multiquery=False,
+    )
+
+    output_2.sum().backward()
+
+    assert torch.allclose(output_1, output_2)
+    assert (query_2.grad is not None) and (query_1.grad is not None)
+    assert torch.norm(query_2.grad -
+                      query_1.grad) <= 1e-2 + 1e-2 * torch.norm(query_2.grad)
+    assert (key_2.grad is not None) and (key_1.grad is not None)
+    assert torch.norm(key_2.grad -
+                      key_1.grad) <= 1e-2 + 1e-2 * torch.norm(key_2.grad)
+    assert (value_2.grad is not None) and (value_1.grad is not None)
+    assert torch.norm(value_2.grad -
+                      value_1.grad) <= 1e-2 + 1e-2 * torch.norm(value_2.grad)

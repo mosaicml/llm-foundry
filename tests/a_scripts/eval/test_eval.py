@@ -71,7 +71,6 @@ def test_icl_eval(eval_cfg: Union[om.ListConfig, om.DictConfig], capfd: Any,
     assert expected_results in out
 
 
-@pytest.mark.gpu
 def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
                      tmp_path: pathlib.Path):
 

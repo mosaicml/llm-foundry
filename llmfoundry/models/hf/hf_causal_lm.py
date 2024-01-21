@@ -20,7 +20,7 @@ from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
 from composer.utils import dist
 from omegaconf import DictConfig
 from torch import nn
-from transformers import (AutoConfig, AutoModelForCausalLM,
+from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
@@ -100,22 +100,29 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             if use_flash_attention_2 and not is_flash_v2_installed():
                 raise ValueError(
                     'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
-                    + 'Please install flash_attn==2.3.2`.')
+                    + 'Please install flash_attn==2.3.6`.')
 
+            requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
             config = AutoConfig.from_pretrained(
                 om_model_config.pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
+                attn_implementation=requested_attention_implementation,
+                use_cache=
+                False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
             )
 
-            # This is not how you are supposed to set this, but transformers currently only
-            # supports enabling flash attention 2 when using the from_pretrained API.
-            # We need to support it for both from_pretrained and from_config, so we have to
-            # set the private attribute here. This will just skip all of transformers'
-            # validation logic that it is ok to use flash attention 2, so we check
-            # whether it is installed above, and whether the chosen config supports it here.
-            # https://github.com/huggingface/transformers/issues/26878
-            config._flash_attn_2_enabled = use_flash_attention_2
+            # This is not ideal, however Hugging Face's _autoset_attn_implementation function
+            # forces you to load the model in fp16/bf16 if you want to use flash attention. Rather than loading
+            # the model and then casting it back to fp32, we are monkeypatching their check.
+            # https://github.com/huggingface/transformers/issues/28052
+            def _autoset_attn_implementation_monkeypatch(
+                    cls, config, *args, **kwargs):  # type: ignore
+                config._attn_implementation = requested_attention_implementation
+                return config
+
+            PreTrainedModel._autoset_attn_implementation = classmethod(
+                _autoset_attn_implementation_monkeypatch)
 
             # set config overrides
             for k, v in om_model_config.get('config_overrides', {}).items():
@@ -184,7 +191,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                         trust_remote_code=trust_remote_code,
                         use_auth_token=use_auth_token,
                         load_in_8bit=load_in_8bit,
-                        config=config)
+                        config=config,
+                    )
                 else:
                     model = AutoModelForCausalLM.from_config(
                         config,

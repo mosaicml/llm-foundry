@@ -243,8 +243,6 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
         return algorithms.GradientClipping(**kwargs)
     elif name == 'alibi':
         return algorithms.Alibi(**kwargs)
-    elif name == 'fused_layernorm':
-        return algorithms.FusedLayerNorm(**kwargs)
     elif name == 'gated_linear_units':
         return algorithms.GatedLinearUnits(**kwargs)
     elif name == 'low_precision_layernorm':

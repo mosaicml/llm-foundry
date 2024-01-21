@@ -1,3 +1,6 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 """MosaicML LLM Foundry package setup."""
 
 import os
@@ -73,7 +76,7 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'pre-commit>=2.18.1,<3',
+    'pre-commit>=3.4.0,<4',
     'pytest>=7.2.1,<8',
     'pytest_codeblocks>=0.16.1,<0.17',
     'pytest-cov>=4,<5',
@@ -84,7 +87,10 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.17.2,<0.18',
+    'mosaicml[databricks]>=0.17.1,<0.18',
+    'databricks-sql-connector>=3,<4',
+    'databricks-connect==14.1.0',
+    'lz4>=4,<5',
 ]
 
 extra_deps['tensorboard'] = [
@@ -93,13 +99,13 @@ extra_deps['tensorboard'] = [
 
 extra_deps['gpu'] = [
     'flash-attn==1.0.9',
-    'mosaicml-turbo==0.0.7',
+    'mosaicml-turbo==0.0.8',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
 ]
 extra_deps['gpu-flash2'] = [
-    'flash-attn==2.3.6',
-    'mosaicml-turbo==0.0.7',
+    'flash-attn==2.4.2',
+    'mosaicml-turbo==0.0.8',
 ]
 
 extra_deps['peft'] = [

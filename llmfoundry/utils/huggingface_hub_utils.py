@@ -59,7 +59,7 @@ def process_file(
     folder_path: str,
     flatten_imports_prefix: Sequence[str],
 ) -> list[str]:
-    with open(file_path, 'r') as f:
+    with open(file_path, 'r', encoding='utf-8') as f:
         source = f.read()
 
     parent_module_name = None
@@ -102,7 +102,7 @@ def process_file(
     if new_filename == '__init__.py':
         new_filename = file_path.split('/')[-2] + '.py'
     new_file_path = os.path.join(folder_path, new_filename)
-    with open(new_file_path, 'w') as f:
+    with open(new_file_path, 'w', encoding='utf-8') as f:
         assert new_tree is not None
         f.write(ast.unparse(new_tree))
 

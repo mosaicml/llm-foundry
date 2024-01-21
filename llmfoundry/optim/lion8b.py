@@ -235,9 +235,9 @@ class _MaybeQuantizedTensor:
         self._f_encode = None
         self._f_decode = None
         if self._try_quantize:
-            from turbo import dequantize8b, quantize8b
-            self._f_encode = quantize8b
-            self._f_decode = dequantize8b
+            from turbo import dequantize_signed, quantize_signed
+            self._f_encode = quantize_signed
+            self._f_decode = dequantize_signed
 
         if data is not None:
             self.set_data(data)
@@ -277,7 +277,7 @@ class _MaybeQuantizedTensor:
                     f'on device {data.device} with shape {data.shape}.')
             self.data = None
             assert self._f_encode is not None  # pyright
-            self.quantized, self.scales = self._f_encode(data)
+            self.quantized, self.scales, _ = self._f_encode(data)
         else:
             self.data = data.to(dtype=torch.float32)
             self.quantized = None

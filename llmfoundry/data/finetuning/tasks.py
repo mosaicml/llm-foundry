@@ -112,15 +112,6 @@ def _slice_chat_formatted_example(
         ValueError: If the chat example has less than two messages or if the last message is not from the assistant.
         KeyError: If a message does not have a role or content.
     """
-
-    def slice(s: str, sep: str):
-        # it seems like we can reuse this logic, as we likely have this pattern in other places.
-        slices = s.split(sep)
-        if len(slices) < 2:
-            raise ValueError(f'separator not in string. {sep=}, {s=}')
-        a, b = sep.join(slices[:-1]), sep + slices[-1]
-        return a, b
-
     messages = example['messages']
 
     if len(messages) < 2:
@@ -134,8 +125,15 @@ def _slice_chat_formatted_example(
         if 'role' not in message or 'content' not in message:
             raise KeyError(f'message must have role and content. {message=}')
 
-    applied_template = tokenizer.apply_chat_template(messages, tokenize=False)
-    prompt, response = slice(applied_template, last_message['content'])
+    full_conversation = tokenizer.apply_chat_template(messages, tokenize=False)
+    prompt = tokenizer.apply_chat_template(messages[:-1],
+                                           tokenize=False,
+                                           add_generation_prompt=True)
+    response = full_conversation[len(prompt):]
+    if len(response) == 0:
+        raise ValueError(
+            f'chat example must have at least one assistant message. {messages=}'
+        )
     return prompt, response
 
 

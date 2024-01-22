@@ -1,3 +1,6 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 """MosaicML LLM Foundry package setup."""
 
 import os
@@ -52,7 +55,7 @@ install_requires = [
     'transformers>=4.36,<4.37',
     'mosaicml-streaming>=0.7.2,<0.8',
     'torch>=2.1,<2.1.1',
-    'datasets==2.15.0',
+    'datasets>=2.16,<2.17',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
     'einops==0.7.0',

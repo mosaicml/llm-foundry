@@ -11,9 +11,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 from composer import algorithms
-from composer.callbacks import (EarlyStopper, Generate, LRMonitor, MemoryMonitor,
-                                OptimizerMonitor, RuntimeEstimator, EvalOutputLogging,
-                                SpeedMonitor)
+from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
+                                MemoryMonitor, OptimizerMonitor,
+                                RuntimeEstimator, SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -31,9 +31,9 @@ from torch.optim.optimizer import Optimizer
 from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (EvalGauntlet, FDiffMetrics, GlobalLRScaling,
-                                  HuggingFaceCheckpointer, LayerFreezing,
-                                  MonolithicCheckpointSaver,
+from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
+                                  GlobalLRScaling, HuggingFaceCheckpointer,
+                                  LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
@@ -157,8 +157,11 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
-def build_callback(name: str, kwargs: Union[DictConfig, Dict[str,
-                                                             Any]]) -> Callback:
+def build_callback(
+    name: str,
+    kwargs: Union[DictConfig, Dict[str, Any]],
+    config: Any = None,
+) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
@@ -205,23 +208,32 @@ def build_callback(name: str, kwargs: Union[DictConfig, Dict[str,
         if isinstance(kwargs, DictConfig):
             kwargs = om.to_object(kwargs)  # pyright: ignore
         return HuggingFaceCheckpointer(**kwargs)
-    elif name == 'eval_output_logging':
-        return EvalOutputLogging(**kwargs)
+    elif name == 'async_eval':
+        if config is None:
+            raise ValueError(
+                'Parameters config is required for async eval callback')
+
+        return AsyncEval(**kwargs, training_config=config)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
+    kwargs_dict = {
+        k: v if isinstance(v, str) else om.to_container(v, resolve=True)
+        for k, v in kwargs.items()
+    }
+
     if name == 'wandb':
-        return WandBLogger(**kwargs)
+        return WandBLogger(**kwargs_dict)
     elif name == 'tensorboard':
-        return TensorboardLogger(**kwargs)
+        return TensorboardLogger(**kwargs_dict)
     elif name == 'in_memory_logger':
-        return InMemoryLogger(**kwargs)
+        return InMemoryLogger(**kwargs_dict)
     elif name == 'mlflow':
-        return MLFlowLogger(**kwargs)
+        return MLFlowLogger(**kwargs_dict)
     elif name == 'inmemory':
-        return InMemoryLogger(**kwargs)
+        return InMemoryLogger(**kwargs_dict)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
@@ -231,8 +243,6 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
         return algorithms.GradientClipping(**kwargs)
     elif name == 'alibi':
         return algorithms.Alibi(**kwargs)
-    elif name == 'fused_layernorm':
-        return algorithms.FusedLayerNorm(**kwargs)
     elif name == 'gated_linear_units':
         return algorithms.GatedLinearUnits(**kwargs)
     elif name == 'low_precision_layernorm':
@@ -496,7 +506,11 @@ def build_icl_evaluators(
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
                 os.remove(destination_path)
             dist.barrier()
-
+            early_stopping_criteria = icl_cfg.get('early_stopping_criteria',
+                                                  None)
+            early_stopping_criteria = list(
+                early_stopping_criteria
+            ) if early_stopping_criteria is not None else None
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,
@@ -513,7 +527,9 @@ def build_icl_evaluators(
                 pass_at_k=icl_cfg.pass_at_k,
                 generations_per_sample=icl_cfg.num_beams,
                 has_categories=icl_cfg.get('has_categories', False),
-                cot_delimiter=icl_cfg.get('cot_delimiter', ''))
+                cot_delimiter=icl_cfg.get('cot_delimiter', ''),
+                early_stopping_criteria=early_stopping_criteria,
+                do_normalization=icl_cfg.get('do_normalization', True))
             if hasattr(
                     icl_cfg,
                     'has_categories') and icl_cfg.has_categories and isinstance(

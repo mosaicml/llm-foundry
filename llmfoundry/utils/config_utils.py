@@ -121,9 +121,9 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
             fsdp_config.setdefault('use_orig_params', False)
             fsdp_config.setdefault('load_monolith_rank0_only', True)
 
-    # no mixed precision needed for weights when they're already 16 bits
+    # No mixed precision needed for weights when they're already 16 bits
     master_dtype = model_cfg.get('master_weights_dtype')
-    small_dtypes = ('bf16', 'f16', 'float16', 'bfloat16', 'amp_fp16',
+    small_dtypes = ('bf16', 'fp16', 'float16', 'bfloat16', 'amp_fp16',
                     'amp_bf16')
     if fsdp_config and master_dtype in small_dtypes:
         reduce_dtype = None

@@ -35,13 +35,16 @@ import importlib
 import logging
 import os
 import warnings
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import datasets as hf_datasets
+import huggingface_hub as hf_hub
 from composer.utils import dist
-from omegaconf import DictConfig
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
+
+from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +52,22 @@ __all__ = ['dataset_constructor']
 
 _ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 _ALLOWED_PROMPT_KEYS = {'prompt'}
+DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
+    os.path.join(os.path.realpath(__file__), os.pardir, os.pardir, os.pardir,
+                 '.downloaded_finetuning'))
+SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
+
+
+def _is_empty_or_nonexistent(dirpath: str) -> bool:
+    """Check if a directory is empty or non-existent.
+
+    Args:
+        dirpath (str): Directory path to check.
+
+    Returns
+        True if directory is empty or non-existent. False otherwise.
+    """
+    return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
 def _tokenize_formatted_example(
@@ -236,11 +255,12 @@ class DatasetConstructor:
 
     def print_registered_tasks(self) -> None:
         tasks = sorted(self._task_preprocessing_registry.keys())
-        print('\n'.join(tasks))
+        log.info('\n'.join(tasks))
 
     def get_preprocessing_fn_from_dict(
-        self, mapping: Union[Dict, DictConfig]
-    ) -> Callable[[Dict[str, Any]], Dict[str, str]]:
+            self,
+            mapping: Dict[str,
+                          str]) -> Callable[[Dict[str, Any]], Dict[str, str]]:
         """Get a preprocessing function from a dictionary.
 
         The dictionary maps column names in the dataset to "prompt" and "response".
@@ -325,8 +345,10 @@ class DatasetConstructor:
         return preprocessing_fn
 
     def build_from_hf(
-        self, cfg: DictConfig, max_seq_len: int,
-        tokenizer: PreTrainedTokenizerBase
+        self, dataset_name: str, split: Optional[str], safe_load: bool,
+        max_seq_len: int, preprocessing_fn: Optional[Callable[[dict[str, Any]],
+                                                              dict[str, str]]],
+        tokenizer: PreTrainedTokenizerBase, hf_kwargs: Dict[str, Any]
     ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
                hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
@@ -341,20 +363,6 @@ class DatasetConstructor:
         Returns:
             Dataset: The tokenized dataset.
         """
-        dataset_name = cfg.hf_name
-        # HF datasets does not support a split with dashes,so we replace split
-        # dashes with underscore.
-        split = cfg.split.replace('-', '_')
-        kwargs = cfg.get('hf_kwargs', {})
-        proto_preprocessing_fn = cfg.get('preprocessing_fn')
-        if isinstance(proto_preprocessing_fn, dict) or isinstance(
-                proto_preprocessing_fn, DictConfig):
-            preprocessing_fn = self.get_preprocessing_fn_from_dict(
-                proto_preprocessing_fn)
-        else:
-            preprocessing_fn = self.get_preprocessing_fn_from_str(
-                proto_preprocessing_fn, dataset_name)
-
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
 
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
@@ -365,12 +373,59 @@ class DatasetConstructor:
             with dist.local_rank_zero_download_and_wait(signal_file_path):
                 pass
 
+        hf_tokenization_logger = logging.getLogger(
+            'transformers.tokenization_utils_base')
+        sequence_length_warning_filter = SpecificWarningFilter(
+            'Token indices sequence length is longer than the specified maximum sequence length'
+        )
+
+        # We will trim examples later in the collate_fn, so we want to silence this warning from Hugging Face
+        hf_tokenization_logger.addFilter(sequence_length_warning_filter)
+
         error: Optional[Exception] = None
         filtered_dataset = None
         try:
+            if safe_load:
+                if not os.path.isdir(dataset_name):
+                    # dataset_name is not a local dir path, download if needed.
+                    local_dataset_dir = os.path.join(
+                        DOWNLOADED_FT_DATASETS_DIRPATH, dataset_name)
+
+                    if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
+                        # Safely load a dataset from HF Hub with restricted file types.
+                        hf_hub.snapshot_download(
+                            dataset_name,
+                            repo_type='dataset',
+                            allow_patterns=[
+                                '*' + ext for ext in SUPPORTED_EXTENSIONS
+                            ],
+                            token=hf_kwargs.get('token', None),
+                            revision=hf_kwargs.get('revision', None),
+                            local_dir_use_symlinks=False,
+                            local_dir=local_dataset_dir)
+                        if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
+                            raise FileNotFoundError(
+                                f'safe_load is set to True. No data files with safe extensions {SUPPORTED_EXTENSIONS} '
+                                + f'found for dataset {dataset_name}. ')
+                    # Set dataset_name to the downloaded location.
+                    dataset_name = local_dataset_dir
+
+                # dataset_name is a local dir path. Use the abspath to prevent confusion.
+                dataset_name = os.path.abspath(dataset_name)
+
+                # Ensure that the local dir contains only allowed file types.
+                dataset_files = [
+                    f for _, _, files in os.walk(dataset_name) for f in files
+                ]
+                if not all(
+                        Path(f).suffix in SUPPORTED_EXTENSIONS
+                        for f in dataset_files):
+                    raise ValueError(
+                        f'Dataset at local path {dataset_name} contains invalid file types. '
+                        + f'Allowed file types are: {SUPPORTED_EXTENSIONS}')
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,
-                                               **kwargs)
+                                               **hf_kwargs)
 
             def dataset_mapper(example: Dict):
                 if preprocessing_fn is not None:
@@ -433,6 +488,9 @@ class DatasetConstructor:
             log.error('Error during data prep')
             raise error
         log.debug('All ranks finished data prep')
+
+        hf_tokenization_logger.removeFilter(sequence_length_warning_filter)
+
         assert filtered_dataset is not None
         return filtered_dataset
 

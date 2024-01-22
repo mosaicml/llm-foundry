@@ -1,15 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-<<<<<<< HEAD
-  git_branch: output_eval_logging
-=======
-<<<<<<< HEAD
-  git_branch: output_eval_logging
-=======
-  git_branch: v0.4.0
->>>>>>> main
->>>>>>> e3861070fb7cf3a555db46bc00dc2aaa955e559b
+  git_branch: debug_gauntlet_v0.3 # v0.4.0
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
@@ -21,10 +13,10 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: gsm8k-debug
-gpu_num: 32
-gpu_type: a100_40gb
-cluster: r7z2 # replace with your cluster here!
+name: gauntlet-v0.2.1
+gpu_num: 8
+gpu_type: a100_80gb
+cluster: r1z1 # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
@@ -32,25 +24,25 @@ image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 parameters:
   dist_timeout: 6000
   seed: 1
-  max_seq_len: 1024
-  device_eval_batch_size: 4
-  precision: amp_fp16
+  max_seq_len: 2048
+  device_eval_batch_size: 1
+  precision: amp_bf16
 
   models:
   -
-    model_name: mosaicml/mpt-30b
+    model_name: meta-llama/Llama-2-7b-hf
     # Tokenizer
     tokenizer:
-      name:  mosaicml/mpt-30b
+      name: meta-llama/Llama-2-7b-hf
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path:  mosaicml/mpt-30b
+      pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
       init_device: mixed
       pretrained: true
-      use_auth_token: false
+      use_auth_token: true
 
   # FSDP config for model sharding
   fsdp_config:
@@ -60,12 +52,30 @@ parameters:
     limit_all_gathers: True
 
 
+  icl_tasks:
+  -
+    label: human_eval
+    dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
+    num_fewshot: [0]
+    pass_at_k: 1
+    num_beams: 5
+    batch_size: 1
+    icl_task_type: code_evaluation
+  -
+    label: gsm8k
+    dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
+    num_fewshot: [0]
+    icl_task_type: question_answering
+    cot_delimiter: 'The answer is '
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: ""
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
+  # eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.3.yaml'
 
   callbacks:
     eval_output_logging:
       subset_sample: -1
-      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b_base_gsm8k
-
-
-  icl_tasks: 'eval/yamls/tasks_v0.2.yaml'
-  eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'
+      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_llama2-7b-gauntlet-v0.3

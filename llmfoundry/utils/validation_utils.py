@@ -501,6 +501,8 @@ def download_and_convert(
         bos_text (str): Text to prepend to each example to separate concatenated samples
         no_wrap: (bool): Whether to let text examples wrap across multiple training examples
         compression (str): The compression algorithm to use for MDS writing
+    Returns:
+        (int): token count of the current group
     """
     object_store = maybe_create_object_store_from_uri(input_folder)
 
@@ -523,14 +525,18 @@ def download_and_convert(
             no_wrap=no_wrap,
         )
 
-        columns = {'tokens': 'bytes'}
+        token_count = sum([ 1 for _ in dataset])
 
-        log.info('Converting to MDS format...')
-        with MDSWriter(out=output_folder,
-                       columns=columns,
-                       compression=compression) as out:
-            for sample in tqdm(dataset):
-                out.write(sample)
+        # columns = {'tokens': 'bytes'}
+
+        # log.info('Converting to MDS format...')
+        # with MDSWriter(out=output_folder,
+        #                columns=columns,
+        #                compression=compression) as out:
+        #     for sample in tqdm(dataset):
+        #         out.write(sample)
+
+    return token_count
 
 
 def is_remote_path(path: str) -> bool:
@@ -618,7 +624,7 @@ def convert_text_to_mds(
     processes: int,
     args_str: str,
     reprocess: bool,
-):
+)->int:
     """Convert a folder of text files to MDS format.
 
     Args:
@@ -633,6 +639,8 @@ def convert_text_to_mds(
         processes (int): The number of processes to use.
         args_str (str): String representation of the arguments
         reprocess (bool): Whether to always reprocess the given folder of text files
+    Returns:
+        (int): total tokens of the dataset
     """
     is_remote_output = is_remote_path(output_folder)
 
@@ -660,12 +668,13 @@ def convert_text_to_mds(
                              processes, tokenizer_name, concat_tokens, eos_text,
                              bos_text, no_wrap, compression)
         with ProcessPoolExecutor(max_workers=processes) as executor:
-            list(executor.map(download_and_convert_starargs, args))
+            pool = list(executor.map(download_and_convert_starargs, args))
 
         # Merge the mds shards from each of the processes into a single folder
-        merge_shard_groups(local_output_folder)
+        # merge_shard_groups(local_output_folder)
+        total_tokens = sum(pool)
     else:
-        download_and_convert(object_names, local_output_folder, input_folder,
+        total_tokens = download_and_convert(object_names, local_output_folder, input_folder,
                              tokenizer_name, concat_tokens, eos_text, bos_text,
                              no_wrap, compression)
 
@@ -684,6 +693,8 @@ def convert_text_to_mds(
             remote_path = os.path.join(output_folder_prefix, file)
             output_object_store.upload_object(
                 remote_path, os.path.join(local_output_folder, file))
+
+    return total_tokens
 
 
 def _args_str(original_args: Namespace) -> str:

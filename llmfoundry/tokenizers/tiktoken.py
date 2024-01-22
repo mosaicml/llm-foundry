@@ -192,7 +192,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             '{% for message in loop_messages %}'
             '{% if loop.index0 == 0 %}'
             '{% if system_message != false %}'
-            "{{ '<|im_start|>system\n' + system_message.strip() + '\n'}}"
+            "{{ '<|im_start|>system\n' + system_message.strip() + '<|im_end|>\n'}}"
             '{% endif %}'
             "{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' }}"
             '{% else %}'

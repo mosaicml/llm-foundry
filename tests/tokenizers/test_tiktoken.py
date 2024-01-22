@@ -39,7 +39,7 @@ MODEL_ENCODING_NAME_PARAMETRIZATION = [
     ('gpt2', None),
 ]
 
-DEFAULT_SYSTEM_PROMPT = """<|im_start|>system\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
+DEFAULT_SYSTEM_PROMPT = """<|im_start|>system\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible.<|im_end|>"""
 
 MULTI_TURN_CHAT_ML = [
     [{
@@ -75,7 +75,7 @@ Going outside has benefits include reducing stress and triggering the relaxation
 <|im_start|>assistant
 You should go outside and touch grass.<|im_end|><|endoftext|>""",
     """<|im_start|>system
-You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.
+You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.<|im_end|>
 <|im_start|>user
 Please summarize the goals in this text:
 
@@ -86,7 +86,7 @@ You should go outside and touch grass.<|im_end|><|endoftext|>"""
 
 MULTI_TURN_CHAT_STRING_SYSTEM_PROMPT = [
     """<|im_start|>system
-You are a helpful, respectful and honest assistant. Always answer as helpfully as possible.
+You are a helpful, respectful and honest assistant. Always answer as helpfully as possible.<|im_end|>
 <|im_start|>user
 Please summarize the goals in this text:
 
@@ -94,7 +94,7 @@ Going outside has benefits include reducing stress and triggering the relaxation
 <|im_start|>assistant
 You should go outside and touch grass.<|im_end|><|endoftext|>""",
     """<|im_start|>system
-You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.
+You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.<|im_end|>
 <|im_start|>user
 Please summarize the goals in this text:
 
@@ -118,7 +118,7 @@ MULTI_TURN_GENERATE_CHAT_ML = [[{
 
 MULTI_TURN_GENERATE_STRING = [
     """<|im_start|>system
-You are a helpful, respectful and honest assistant. Always answer as helpfully as possible.
+You are a helpful, respectful and honest assistant. Always answer as helpfully as possible.<|im_end|>
 <|im_start|>user
 Please summarize the goals in this text:
 

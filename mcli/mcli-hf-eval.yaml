@@ -1,7 +1,15 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
+<<<<<<< HEAD
   git_branch: output_eval_logging
+=======
+<<<<<<< HEAD
+  git_branch: output_eval_logging
+=======
+  git_branch: v0.4.0
+>>>>>>> main
+>>>>>>> e3861070fb7cf3a555db46bc00dc2aaa955e559b
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
@@ -58,12 +66,6 @@ parameters:
       subset_sample: -1
       output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b_base_gsm8k
 
-  icl_tasks:
-  -
-    label: gsm8k
-    dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k.jsonl
-    num_fewshot: [8]
-    icl_task_type: question_answering
-    cot_delimiter: ' #### '
-    continuation_delimiter: "\nA: Let's think step by step. "
-    question_prelimiter: "Q: "
+
+  icl_tasks: 'eval/yamls/tasks_v0.2.yaml'
+  eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'

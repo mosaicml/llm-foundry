@@ -65,8 +65,7 @@ TokenizedExample = Dict[str, List[Union[int, str]]]
 
 
 def _get_example_type(example: Example) -> ExampleType:
-    """
-    Determines the type of the input example.
+    """Determines the type of the input example.
 
     Args:
         example (Example): The input example, which can be a multi-way chat formatted conversation or an instruction-response pair.
@@ -76,7 +75,6 @@ def _get_example_type(example: Example) -> ExampleType:
 
     Raises:
         KeyError: If the example type is unknown.
-
     """
     if 'messages' in example:
         return 'chat'
@@ -101,20 +99,20 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
 def _slice_chat_formatted_example(
         example: ChatFormattedDict,
         tokenizer: PreTrainedTokenizerBase) -> Tuple[str, str]:
-    """
-    Applies the tokenizer's chat template to the example messages and slices the resulting templated string into a prompt and a completion.
-    
+    """Slices the chat example into a formatted prompt and response.
+
     Args:
         example (ChatFormattedDict): The chat example containing the messages.
         tokenizer (PreTrainedTokenizerBase): The tokenizer to apply the chat template.
-    
+
     Returns:
         Tuple[str, str]: The prompt and response as separate strings.
-    
+
     Raises:
         ValueError: If the chat example has less than two messages or if the last message is not from the assistant.
         KeyError: If a message does not have a role or content.
     """
+
     def slice(s: str, sep: str):
         # it seems like we can reuse this logic, as we likely have this pattern in other places.
         slices = s.split(sep)
@@ -144,8 +142,7 @@ def _slice_chat_formatted_example(
 def _tokenize_chat_formatted_example(
         example: ChatFormattedDict,
         tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
-    """
-    Tokenizes a chat-formatted example using the provided tokenizer.
+    """Tokenizes a chat-formatted example using the provided tokenizer.
 
     Args:
         example (ChatFormattedDict): The chat-formatted example to tokenize.
@@ -153,7 +150,6 @@ def _tokenize_chat_formatted_example(
 
     Returns:
         TokenizedExample: The tokenized example.
-
     """
     prompt, response = _slice_chat_formatted_example(example, tokenizer)
     return tokenizer(text=prompt, text_target=response)
@@ -200,8 +196,7 @@ def _tokenize_prompt_response_formatted_example(
 def _tokenize_formatted_example(
         example: Example,
         tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
-    """
-    Tokenizes a formatted example using the provided tokenizer.
+    """Tokenizes a formatted example using the provided tokenizer.
 
     Args:
         example (Example): The input example to be tokenized.

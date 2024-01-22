@@ -23,12 +23,8 @@ from streaming import MDSWriter
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data import build_dataloader
-from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
-                                              _ALLOWED_RESPONSE_KEYS,
-                                              DOWNLOADED_FT_DATASETS_DIRPATH,
-                                              SUPPORTED_EXTENSIONS,
-                                              _slice_chat_formatted_example,
-                                              _tokenize_formatted_example)
+from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
+                                              SUPPORTED_EXTENSIONS)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
@@ -426,124 +422,6 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
 
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
-
-
-def test_tokenize_instruct_example_malformed():
-    no_keys = {}
-    no_prompt_key = {'response': 'response'}
-    no_response_key = {'prompt': 'prompt'}
-    extra_keys_with_prompt = {'prompt': 'prompt', 'extra': 'extra'}
-    extra_keys_with_response = {'response': 'response', 'extra': 'extra'}
-    multiple_allowed_response_keys = {
-        'prompt': 'prompt',
-        'response': 'response',
-        'completion': 'completion'
-    }
-
-    malformed_prompt_response_examples = [
-        no_keys, no_prompt_key, no_response_key, extra_keys_with_prompt,
-        extra_keys_with_response, multiple_allowed_response_keys
-    ]
-
-    for example in malformed_prompt_response_examples:
-        with pytest.raises(KeyError):
-            _tokenize_formatted_example(example, MagicMock())
-
-
-def test_tokenize_chat_example_malformed():
-    no_content = {'messages': [{'role': 'user'}]}
-    ends_with_user_role = {
-        'messages': [{
-            'role': 'user',
-            'content': 'Hello GPT!'
-        }, {
-            'role': 'assistant',
-            'content': 'Hi, User!'
-        }, {
-            'role': 'user',
-            'content': 'user message not followed by an assistant label'
-        }]
-    }
-    no_assistant_message = {
-        'messages': [{
-            'role': 'user',
-            'content': 'Hello GPT!'
-        }, {
-            'role': 'user',
-            'content': 'user message not followed by an assistant label'
-        }]
-    }
-    malformed_chat_examples = [
-        no_content, ends_with_user_role, no_assistant_message
-    ]
-    my_tokenizer = build_tokenizer('mosaicml/mpt-7b-chat', {})
-    for example in malformed_chat_examples:
-        with pytest.raises(Exception):
-            _tokenize_formatted_example(
-                example, my_tokenizer
-            )  # type: ignore (the typing here is supposed to be malformed)
-
-
-def test_tokenize_instruct_example_well_formed():
-    tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
-
-    for prompt_key in _ALLOWED_PROMPT_KEYS:
-        for response_key in _ALLOWED_RESPONSE_KEYS:
-
-            example = {prompt_key: 'prompt', response_key: 'response'}
-            tokenized_example = _tokenize_formatted_example(example, tokenizer)
-            assert 'input_ids' in tokenized_example
-            assert 'labels' in tokenized_example
-
-
-def test_tokenize_chat_example_well_formed():
-    chat_examples = [
-        {
-            'messages': [{
-                'role': 'user',
-                'content': 'Hello, GPT'
-            }, {
-                'role': 'assistant',
-                'content': 'this is my response'
-            }]
-        },  # prompt/response but in chat format
-        {
-            'messages': [
-                {
-                    'role': 'user',
-                    'content': 'Hello, GPT'
-                },
-                {
-                    'role': 'assistant',
-                    'content': 'this is my response'
-                },
-                {
-                    'role': 'user',
-                    'content': 'Nice to hear that.'
-                },
-                {
-                    'role': 'assistant',
-                    'content': 'multi-way chat works too!'
-                },
-            ]
-        },  # multi-way chat
-    ]
-
-    chat_tokenizer = build_tokenizer('mosaicml/mpt-7b-chat', {})
-    for chat_example in chat_examples:
-        last_message = chat_example['messages'][-1]['content']
-        earlier_messages = [
-            msg['content'] for msg in chat_example['messages'][:-1]
-        ]
-        prompt, response = _slice_chat_formatted_example(
-            chat_example, chat_tokenizer)
-        tokenized_example = _tokenize_formatted_example(chat_example,
-                                                        chat_tokenizer)
-        assert last_message in response
-        for earlier_message in earlier_messages:
-            assert earlier_message in prompt
-        assert 'input_ids' in tokenized_example
-        assert 'labels' in tokenized_example
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'data'])

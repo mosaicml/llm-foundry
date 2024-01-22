@@ -438,13 +438,17 @@ def main(cfg: DictConfig) -> Trainer:
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
         )
-        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
+        logging.getLogger('llmfoundry').setLevel(
+            python_log_level.upper())  # Foundry module
+        logging.getLogger(__name__).setLevel(
+            python_log_level.upper())  # Train script
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
 
     # Build tokenizer
+    log.info('Building tokenizer...')
     tokenizer_name = tokenizer_config['name']
     tokenizer_kwargs = tokenizer_config.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
@@ -635,6 +639,11 @@ def main(cfg: DictConfig) -> Trainer:
 
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]
+
+    # Disable resolving environment variables through omegaconf.
+    om.clear_resolver('oc.env')
+
+    # Load yaml and cli arguments.
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)

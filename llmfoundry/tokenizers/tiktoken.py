@@ -198,7 +198,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             '{% else %}'
             "{{ '\n' + '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' }}"
             '{% endif %}'
-            '{% if (add_generation_prompt == true) %}'
+            '{% if (add_generation_prompt == true and loop.last) %}'
             "{{ '\n' + '<|im_start|>' + 'assistant' + '\n' }}"
             "{% elif (message['role'] == 'assistant') %}"
             '{{ eos_token }}'
@@ -253,7 +253,10 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
     def _convert_id_to_token(self, index: int) -> Optional[str]:
         """Converts an index (integer) in a token (str) using the vocab."""
-        return self.decoder.get(index)
+        # For tokens in either the gap in ids in the tokenizer, or beyond the range of the tokenizer,
+        # we return empty string. This matches the behavior of Hugging Face fast tokenizers,
+        # but not slow tokenizers.
+        return self.decoder.get(index, '')
 
     def convert_tokens_to_string(self, tokens: List[str]) -> str:
         """Converts a sequence of tokens (string) in a single string."""

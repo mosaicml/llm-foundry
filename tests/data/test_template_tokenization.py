@@ -82,12 +82,30 @@ def test_tokenize_chat_example_well_formed():
 
     expected = [
         {
-            'prompt': 'TODO: fix',
-            'response': 'TODO: fix'
+            'prompt':
+                '''<|im_start|>system
+A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.
+<|im_start|>user
+Hello, GPT<|im_end|>
+<|im_start|>assistant
+''',
+            'response':
+                'this is my response<|im_end|>'
         },
         {
-            'prompt': 'TODO: fix',
-            'response': 'TODO: fix'
+            'prompt':
+                '''<|im_start|>system
+A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.
+<|im_start|>user
+Hello, GPT<|im_end|>
+<|im_start|>assistant
+this is my response<|im_end|>
+<|im_start|>user
+Nice to hear that.<|im_end|>
+<|im_start|>assistant
+''',
+            'response':
+                'multi-way chat works too!<|im_end|>'
         },
     ]
 

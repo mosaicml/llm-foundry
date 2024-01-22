@@ -129,6 +129,10 @@ def _slice_chat_formatted_example(
     prompt = tokenizer.apply_chat_template(messages[:-1],
                                            tokenize=False,
                                            add_generation_prompt=True)
+    if prompt != full_conversation[:len(prompt)]:
+        raise ValueError(
+            f'prompt must be the first part of the full conversation. {prompt=}, {full_conversation=}'
+        )
     response = full_conversation[len(prompt):]
     if len(response) == 0:
         raise ValueError(

@@ -31,9 +31,10 @@ from torch.optim.optimizer import Optimizer
 from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from composer.callbacks import EvalOutputLogging
 from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
                                   GlobalLRScaling, HuggingFaceCheckpointer,
-                                  LayerFreezing, MonolithicCheckpointSaver, EvalOutputLogging,
+                                  LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
@@ -214,6 +215,8 @@ def build_callback(
                 'Parameters config is required for async eval callback')
 
         return AsyncEval(**kwargs, training_config=config)
+    elif name == 'eval_output_logging':
+        return EvalOutputLogging(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

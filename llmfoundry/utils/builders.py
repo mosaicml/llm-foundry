@@ -15,7 +15,7 @@ from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, OptimizerMonitor,
                                 RuntimeEstimator, SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
-from composer.datasets.in_context_learning_evaluation import \
+from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
                               TensorboardLogger, WandBLogger)

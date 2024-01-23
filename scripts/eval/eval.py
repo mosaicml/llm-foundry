@@ -23,7 +23,7 @@ from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
 
 from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
+from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,  build_callback,
                                        build_evaluators, build_logger,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
@@ -121,6 +121,7 @@ def evaluate_model(
     icl_subset_num_batches: Optional[int],
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
+    callback_configs: Optional[Dict]
 ):
 
     log.info(f'Evaluating model: {model_cfg.model_name}')
@@ -141,6 +142,12 @@ def evaluate_model(
         icl_seq_len=max_seq_len,
         icl_subset_num_batches=icl_subset_num_batches,
     )
+
+    # Callbacks
+    callbacks: List[Callback] = [
+        build_callback(str(name), callback_cfg)
+        for name, callback_cfg in callback_configs.items()
+    ] if callback_configs else []
 
     callbacks = []
     if eval_gauntlet_callback is not None:
@@ -276,6 +283,10 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                                  must_exist=False,
                                                  default_value='debug')
 
+    callback_configs: Optional[DictConfig] = pop_config(cfg,
+                                                        'callbacks',
+                                                        must_exist=False,
+                                                        default_value=None)
     # Optional Evaluation Parameters with default values
     eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(
         cfg, 'eval_loader', must_exist=False, default_value=None)
@@ -352,7 +363,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              eval_gauntlet_df=eval_gauntlet_df,
              icl_subset_num_batches=icl_subset_num_batches,
              metadata=metadata,
-             logged_config=logged_cfg)
+             logged_config=logged_cfg,
+             callback_configs=callback_configs,)
         trainers.append(trainer)
 
         if eval_gauntlet_callback is not None:

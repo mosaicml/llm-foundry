@@ -40,7 +40,7 @@ def create_om_cfg(FT_API_args: Namespace):
 
     common_args = {
         'drop_last': False,
-        'num_workers': 1, # detected_cpu_count,
+        'num_workers': detected_cpu_count,
         'prefetch_factor': 2,
         'pin_memory': False,
         'persistent_workers': False,

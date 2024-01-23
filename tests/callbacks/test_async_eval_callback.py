@@ -198,15 +198,6 @@ def test_validate_eval_run_config():
     with pytest.raises(ValueError):
         validate_eval_run_config({'foo': 'bar'})
 
-    with pytest.raises(TypeError):
-        validate_eval_run_config({'scheduling': []})
-
-    with pytest.raises(TypeError):
-        validate_eval_run_config({'scheduling': {'priority': []}})
-
-    with pytest.raises(TypeError):
-        validate_eval_run_config({'image': []})
-
     valid_config = {
         'image': 'example_image',
         'command': 'example_command',

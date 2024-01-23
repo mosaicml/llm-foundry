@@ -135,7 +135,9 @@ def get_num_samples_in_batch(batch: dict) -> int:
 
     response_tokens = len(batch['labels']) if 'labels' in batch else 0
 
-    return {'ntokens': input_ids_tokens + decoder_input_ids_tokens + response_tokens}
+    return {
+        'ntokens': input_ids_tokens + decoder_input_ids_tokens + response_tokens
+    }
 
 
 def token_counts(FT_API_args):
@@ -270,7 +272,7 @@ from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
                                               merge_shard_groups)
 
 log = logging.getLogger(__name__)
-DONE_FILENAME = '.text_to_mds_conversion_done'
+DONE_FILENAME = '/Volumes/main/mosaic_hackathon/managed-volume/text_to_mds_conversion_done'
 
 
 def parse_args(tokenizer,
@@ -499,6 +501,8 @@ def download_and_convert(
         bos_text (str): Text to prepend to each example to separate concatenated samples
         no_wrap: (bool): Whether to let text examples wrap across multiple training examples
         compression (str): The compression algorithm to use for MDS writing
+    Returns:
+        (int): token count of the current group
     """
     object_store = maybe_create_object_store_from_uri(input_folder)
 
@@ -521,14 +525,18 @@ def download_and_convert(
             no_wrap=no_wrap,
         )
 
-        columns = {'tokens': 'bytes'}
+        token_count = sum([ 1 for _ in dataset])
 
-        log.info('Converting to MDS format...')
-        with MDSWriter(out=output_folder,
-                       columns=columns,
-                       compression=compression) as out:
-            for sample in tqdm(dataset):
-                out.write(sample)
+        # columns = {'tokens': 'bytes'}
+
+        # log.info('Converting to MDS format...')
+        # with MDSWriter(out=output_folder,
+        #                columns=columns,
+        #                compression=compression) as out:
+        #     for sample in tqdm(dataset):
+        #         out.write(sample)
+
+    return token_count
 
 
 def is_remote_path(path: str) -> bool:
@@ -616,7 +624,7 @@ def convert_text_to_mds(
     processes: int,
     args_str: str,
     reprocess: bool,
-):
+)->int:
     """Convert a folder of text files to MDS format.
 
     Args:
@@ -631,6 +639,8 @@ def convert_text_to_mds(
         processes (int): The number of processes to use.
         args_str (str): String representation of the arguments
         reprocess (bool): Whether to always reprocess the given folder of text files
+    Returns:
+        (int): total tokens of the dataset
     """
     is_remote_output = is_remote_path(output_folder)
 
@@ -658,12 +668,13 @@ def convert_text_to_mds(
                              processes, tokenizer_name, concat_tokens, eos_text,
                              bos_text, no_wrap, compression)
         with ProcessPoolExecutor(max_workers=processes) as executor:
-            list(executor.map(download_and_convert_starargs, args))
+            pool = list(executor.map(download_and_convert_starargs, args))
 
         # Merge the mds shards from each of the processes into a single folder
-        merge_shard_groups(local_output_folder)
+        # merge_shard_groups(local_output_folder)
+        total_tokens = sum(pool)
     else:
-        download_and_convert(object_names, local_output_folder, input_folder,
+        total_tokens = download_and_convert(object_names, local_output_folder, input_folder,
                              tokenizer_name, concat_tokens, eos_text, bos_text,
                              no_wrap, compression)
 
@@ -682,6 +693,8 @@ def convert_text_to_mds(
             remote_path = os.path.join(output_folder_prefix, file)
             output_object_store.upload_object(
                 remote_path, os.path.join(local_output_folder, file))
+
+    return total_tokens
 
 
 def _args_str(original_args: Namespace) -> str:
@@ -801,8 +814,8 @@ def plot_hist(data, save_plot_path=None):
 
     # Aesthetics
     plt.title('Histogram of Token Counts')
-    plt.xlabel('Token Count')
-    plt.ylabel('Frequency')
+    plt.xlabel('Number of Tokens per Sample')
+    plt.ylabel('Count of Frequency')
 
     # Grid and Layout
     plt.grid(axis='y', alpha=0.75)
@@ -855,6 +868,19 @@ def pandas_processing_fn(df: pd.DataFrame,
     hf_dataset = hf_datasets.Dataset.from_pandas(df=df)
     tokenizer = AutoTokenizer.from_pretrained(args['tokenizer'])
     tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
+
+    if bos_text + eos_text == '':
+        test_tokens = tokenizer('test')
+        if test_tokens['input_ids'][
+                0] != tokenizer.bos_token_id and test_tokens['input_ids'][
+                    -1] != tokenizer.eos_token_id:
+            tok_error_msg = 'This tokenizer does not insert an EOS nor BOS token. '
+            tok_error_msg += 'Concatenating with this tokenizer will result in sequences being '
+            tok_error_msg += 'attached without a separating token. Please use another tokenizer, '
+            tok_error_msg += 'such as facebook/opt-125m, or specify EOS/BOS text with e.g. '
+            tok_error_msg += '--bos_text=<|endoftext|>.'
+            raise ValueError(tok_error_msg)
+
     dataset = ConcatTokensDataset(
         hf_dataset=hf_dataset,
         max_length=args.get('concat_tokens', None),
@@ -893,7 +919,7 @@ try:
 except ImportError as e:
     e.msg = get_import_exception_message(e.name,
                                          extra_deps='spark')  # pyright: ignore
-    raise e
+    #raise e
 
 try:
     from dask.dataframe import DataFrame as DaskDataFrame
@@ -901,7 +927,8 @@ try:
 except ImportError as e:
     e.msg = get_import_exception_message(e.name,
                                          extra_deps='dask')  # pyright: ignore
-    raise e
+    #raise e
+    DaskDataFrame = None
 
 try:
     from streaming import MDSWriter
@@ -912,7 +939,7 @@ try:
 except ImportError as e:
     e.msg = get_import_exception_message(
         e.name, extra_deps='streaming')  # pyright: ignore
-    raise e
+    #raise e
 
 logger = logging.getLogger(__name__)
 

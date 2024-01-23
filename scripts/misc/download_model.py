@@ -57,8 +57,6 @@ def parse_args() -> argparse.Namespace:
     base_parser = argparse.ArgumentParser(add_help=False)
     base_parser.add_argument('--save-dir', type=str, required=True)
     base_parser.add_argument('--tokenizer-only',
-                             type=bool,
-                             required=False,
                              default=False,
                              action='store_true')
 

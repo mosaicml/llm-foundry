@@ -219,21 +219,16 @@ def build_callback(
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
-    kwargs_dict = {
-        k: v if isinstance(v, str) or isinstance(v, bool) else om.to_container(v, resolve=True)
-        for k, v in kwargs.items()
-    }
-
     if name == 'wandb':
-        return WandBLogger(**kwargs_dict)
+        return WandBLogger(**kwargs)
     elif name == 'tensorboard':
-        return TensorboardLogger(**kwargs_dict)
+        return TensorboardLogger(**kwargs)
     elif name == 'in_memory_logger':
-        return InMemoryLogger(**kwargs_dict)
+        return InMemoryLogger(**kwargs)
     elif name == 'mlflow':
-        return MLFlowLogger(**kwargs_dict)
+        return MLFlowLogger(**kwargs)
     elif name == 'inmemory':
-        return InMemoryLogger(**kwargs_dict)
+        return InMemoryLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 

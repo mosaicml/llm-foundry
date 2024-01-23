@@ -64,7 +64,7 @@ def download_from_hf_hub(
         save_dir (str, optional): The local path to the directory where the model files will be downloaded.
         prefer_safetensors (bool): Whether to prefer Safetensors weights over PyTorch weights if both are
             available. Defaults to True.
-        tokenizers_only (bool): If true, only download tokenzier files.
+        tokenizer_only (bool): If true, only download tokenizer files.
         token (str, optional): The HuggingFace API token. If not provided, the token will be read from the
             `HUGGING_FACE_HUB_TOKEN` environment variable.
 
@@ -103,7 +103,7 @@ def download_from_hf_hub(
             ' Please make sure the repo contains either safetensors or pytorch weights.'
         )
     
-    allow_patterns = TOKENIZER_FILES if tokenizers_only else None
+    allow_patterns = TOKENIZER_FILES if tokenizer_only else None
 
     download_start = time.time()
     hf_hub.snapshot_download(model,
@@ -232,7 +232,7 @@ def download_from_oras(model: str,
                        config_file: str,
                        credentials_dir: str,
                        save_dir: str,
-                       tokenizer_only: bool,
+                       tokenizer_only: bool = False,
                        concurrency: int = 10):
     """Download from an OCI-compliant registry using oras.
 

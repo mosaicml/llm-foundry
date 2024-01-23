@@ -11,7 +11,7 @@ Download from ORAS registry:
         --credentials-dir <credentials_dir> --save-dir <save_dir>
 
 Download from an HTTP file server:
-    python download_model.py http --url https://server.com/path --save-dir <save_dir>
+    python download_model.py http --url https://server.com/models/mosaicml/mpt-7b/ --save-dir <save_dir>
 
 Download from an HTTP file server with fallback to Hugging Face Hub:
     python download_model.py http --host https://server.com --path mosaicml/mpt-7b --save-dir <save_dir> \
@@ -116,8 +116,8 @@ if __name__ == '__main__':
         download_from_hf_hub(args.model,
                              save_dir=args.save_dir,
                              token=args.token,
-                             tokenizers_only=args.tokenizer_only,
+                             tokenizer_only=args.tokenizer_only,
                              prefer_safetensors=args.prefer_safetensors)
     elif download_from == 'oras':
         download_from_oras(args.model, args.config_file, args.credentials_dir,
-                           args.save_dir, args.tokenizer_only, args.concurrency)
+                           args.save_dir, tokenizers_only=args.tokenizer_only, args.concurrency)

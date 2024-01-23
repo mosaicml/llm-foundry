@@ -110,6 +110,7 @@ def test_download_from_hf_hub_weights_pref(mock_list_repo_files: MagicMock,
     mock_snapshot_download.assert_called_once_with(
         test_repo_id,
         local_dir=save_dir,
+        allow_patterns=None,
         ignore_patterns=expected_ignore_patterns,
         token=None)
 

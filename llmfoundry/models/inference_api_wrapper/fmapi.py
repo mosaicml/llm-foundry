@@ -23,27 +23,27 @@ log = logging.getLogger(__name__)
 def block_until_ready(base_url: str):
     """Block until the endpoint is ready."""
     sleep_s = 5
-    remaining_s = 5 * 50  # At max, wait 5 minutes
+    timout_s = 5 * 60  # At max, wait 5 minutes
 
     ping_url = f'{base_url}/ping'
 
+    waited_s = 0
     while True:
         try:
             requests.get(ping_url)
+            log.info(f'Endpoint {ping_url} is ready')
             break
         except requests.exceptions.ConnectionError:
             log.debug(
                 f'Endpoint {ping_url} not ready yet. Sleeping {sleep_s} seconds'
             )
             time.sleep(sleep_s)
-            remaining_s -= sleep_s
-        else:
-            log.info(f'Endpoint {ping_url} is ready')
-            break
+            waited_s += sleep_s
 
-        if remaining_s <= 0:
+        if waited_s >= timout_s:
             raise TimeoutError(
-                f'Endpoint {ping_url} never became ready, exiting')
+                f'Endpoint {ping_url} did not become read after {waited_s:,} seconds, exiting'
+            )
 
 
 class FMAPIEvalInterface(OpenAIEvalInterface):
@@ -58,7 +58,8 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
 
         if 'base_url' not in model_cfg:
             raise ValueError(
-                'Must specify base_url in model_cfg for FMAPIsEvalWrapper')
+                'Must specify base_url or use local=True in model_cfg for FMAPIsEvalWrapper'
+            )
 
         super().__init__(model_cfg, tokenizer)
 

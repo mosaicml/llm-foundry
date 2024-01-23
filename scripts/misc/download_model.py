@@ -7,7 +7,8 @@ Download from Hugging Face Hub:
     python download_model.py hf --model mosaicml/mpt-7b --save-dir <save_dir> --token <token>
 
 Download from ORAS registry:
-    python download_model.py oras --registry <registry> --path mosaicml/mpt-7b --save-dir <save_dir>
+    python download_model.py oras --model mosaicml/mpt-7b --config-file <config_file> \
+        --credentials-dir <credentials_dir> --save-dir <save_dir>
 
 Download from an HTTP file server:
     python download_model.py http --host https://server.com --path mosaicml/mpt-7b --save-dir <save_dir>

@@ -11,7 +11,7 @@ Download from ORAS registry:
         --credentials-dir <credentials_dir> --save-dir <save_dir>
 
 Download from an HTTP file server:
-    python download_model.py http --host https://server.com --path mosaicml/mpt-7b --save-dir <save_dir>
+    python download_model.py http --url https://server.com/path --save-dir <save_dir>
 
 Download from an HTTP file server with fallback to Hugging Face Hub:
     python download_model.py http --host https://server.com --path mosaicml/mpt-7b --save-dir <save_dir> \

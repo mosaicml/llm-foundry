@@ -56,6 +56,11 @@ def parse_args() -> argparse.Namespace:
 
     base_parser = argparse.ArgumentParser(add_help=False)
     base_parser.add_argument('--save-dir', type=str, required=True)
+    base_parser.add_argument('--tokenizer-only',
+                             type=bool,
+                             required=False,
+                             default=False,
+                             action='store_true')
 
     # Add subparser for downloading from Hugging Face Hub.
     hf_parser = subparsers.add_parser('hf', parents=[base_parser])
@@ -85,6 +90,9 @@ if __name__ == '__main__':
     download_from = args.download_from
 
     if download_from == 'http':
+        if args.tokenizer_only == True:
+            raise ValueError(
+                'tokenizer-only is not currently supported for http.')
         try:
             download_from_http_fileserver(args.url, args.save_dir,
                                           args.ignore_cert)

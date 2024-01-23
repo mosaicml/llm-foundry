@@ -9,7 +9,7 @@ This callback is currently experimental. The API may change in the future.
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Union, cast
+from typing import Any, Dict, Optional, Union
 
 from composer.callbacks import CheckpointSaver
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -18,8 +18,6 @@ from composer.loggers.mosaicml_logger import (MOSAICML_PLATFORM_ENV_VAR,
                                               RUN_NAME_ENV_VAR)
 from composer.utils import dist
 from composer.utils.misc import create_interval_scheduler
-from omegaconf import DictConfig
-from omegaconf import OmegaConf as om
 
 from mcli import Run, RunConfig, create_run, get_run
 
@@ -37,7 +35,7 @@ OPTIONAL_PARAMS_FOR_EVAL = {
     'eval_gauntlet',
     'eval_loader',
     'fsdp_config',
-    'eval_subset_num_batches',  # converted to subset_num_batches
+    'eval_subset_num_batches',
     'icl_subset_num_batches',
     'loggers',
     'precision',
@@ -129,10 +127,6 @@ def get_eval_parameters(
             subset_keys[key] = parameters[key]
             looking_for.remove(key)
 
-    if 'eval_subset_num_batches' in subset_keys:
-        subset_keys['subset_num_batches'] = subset_keys.pop(
-            'eval_subset_num_batches')
-
     if looking_for:
         raise Exception(
             f'Missing the following required parameters for async eval: {looking_for}'
@@ -186,10 +180,7 @@ def validate_interval(interval: Union[str, int, Time],
 def validate_eval_run_config(
         eval_run_config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
-    if isinstance(eval_run_config, DictConfig):
-        parsed_run_config = om.to_container(eval_run_config)
-        run_config = cast(Dict[str, Any], parsed_run_config)
-    elif eval_run_config is None:
+    if eval_run_config is None:
         return {}
     else:
         run_config = eval_run_config.copy()

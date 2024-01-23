@@ -283,7 +283,8 @@ def main(cfg: DictConfig) -> Trainer:
     callback_configs: Optional[DictConfig] = pop_config(cfg,
                                                         'callbacks',
                                                         must_exist=False,
-                                                        default_value=None)
+                                                        default_value=None,
+                                                        convert=True)
     algorithm_configs: Optional[DictConfig] = pop_config(cfg,
                                                          'algorithms',
                                                          must_exist=False,

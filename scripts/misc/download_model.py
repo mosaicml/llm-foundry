@@ -119,5 +119,9 @@ if __name__ == '__main__':
                              tokenizer_only=args.tokenizer_only,
                              prefer_safetensors=args.prefer_safetensors)
     elif download_from == 'oras':
-        download_from_oras(args.model, args.config_file, args.credentials_dir,
-                           args.save_dir, tokenizers_only=args.tokenizer_only, args.concurrency)
+        download_from_oras(args.model,
+                           args.config_file,
+                           args.credentials_dir,
+                           args.save_dir,
+                           tokenizer_only=args.tokenizer_only,
+                           concurrency=args.concurrency)

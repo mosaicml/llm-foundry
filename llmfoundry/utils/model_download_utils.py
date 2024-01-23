@@ -51,7 +51,7 @@ def download_from_hf_hub(
     model: str,
     save_dir: str,
     prefer_safetensors: bool = True,
-    tokenizers_only: bool = False,
+    tokenizer_only: bool = False,
     token: Optional[str] = None,
 ):
     """Downloads model files from a Hugging Face Hub model repo.
@@ -102,7 +102,7 @@ def download_from_hf_hub(
             f'No supported model weights found in repo {model}.' +
             ' Please make sure the repo contains either safetensors or pytorch weights.'
         )
-    
+
     allow_patterns = TOKENIZER_FILES if tokenizer_only else None
 
     download_start = time.time()

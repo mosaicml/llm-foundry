@@ -814,8 +814,8 @@ def plot_hist(data, save_plot_path=None):
 
     # Aesthetics
     plt.title('Histogram of Token Counts')
-    plt.xlabel('Token Count')
-    plt.ylabel('Frequency')
+    plt.xlabel('Number of Tokens per Sample')
+    plt.ylabel('Count of Frequency')
 
     # Grid and Layout
     plt.grid(axis='y', alpha=0.75)

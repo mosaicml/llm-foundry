@@ -7,10 +7,11 @@ Download from Hugging Face Hub:
     python download_model.py hf --model mosaicml/mpt-7b --save-dir <save_dir> --token <token>
 
 Download from ORAS registry:
-    python download_model.py oras --registry <registry> --path mosaicml/mpt-7b --save-dir <save_dir>
+    python download_model.py oras --model mosaicml/mpt-7b --config-file <config_file> \
+        --credentials-dir <credentials_dir> --save-dir <save_dir>
 
 Download from an HTTP file server:
-    python download_model.py http --host https://server.com --path mosaicml/mpt-7b --save-dir <save_dir>
+    python download_model.py http --url https://server.com/models/mosaicml/mpt-7b/ --save-dir <save_dir>
 
 Download from an HTTP file server with fallback to Hugging Face Hub:
     python download_model.py http --host https://server.com --path mosaicml/mpt-7b --save-dir <save_dir> \
@@ -56,6 +57,9 @@ def parse_args() -> argparse.Namespace:
 
     base_parser = argparse.ArgumentParser(add_help=False)
     base_parser.add_argument('--save-dir', type=str, required=True)
+    base_parser.add_argument('--tokenizer-only',
+                             default=False,
+                             action='store_true')
 
     # Add subparser for downloading from Hugging Face Hub.
     hf_parser = subparsers.add_parser('hf', parents=[base_parser])
@@ -85,6 +89,9 @@ if __name__ == '__main__':
     download_from = args.download_from
 
     if download_from == 'http':
+        if args.tokenizer_only:
+            raise ValueError(
+                'tokenizer-only is not currently supported for http.')
         try:
             download_from_http_fileserver(args.url, args.save_dir,
                                           args.ignore_cert)
@@ -109,7 +116,12 @@ if __name__ == '__main__':
         download_from_hf_hub(args.model,
                              save_dir=args.save_dir,
                              token=args.token,
+                             tokenizer_only=args.tokenizer_only,
                              prefer_safetensors=args.prefer_safetensors)
     elif download_from == 'oras':
-        download_from_oras(args.model, args.config_file, args.credentials_dir,
-                           args.save_dir, args.concurrency)
+        download_from_oras(args.model,
+                           args.config_file,
+                           args.credentials_dir,
+                           args.save_dir,
+                           tokenizer_only=args.tokenizer_only,
+                           concurrency=args.concurrency)

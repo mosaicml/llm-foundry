@@ -180,13 +180,10 @@ def validate_interval(interval: Union[str, int, Time],
 def validate_eval_run_config(
         eval_run_config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
-    if eval_run_config is None:
+    if not eval_run_config:
         return {}
-    else:
-        run_config = eval_run_config.copy()
 
-    if not run_config:
-        return {}
+    run_config = eval_run_config.copy()
 
     supported_keys = {'image', 'command', 'compute', 'scheduling'}
     found_unsupported = set()

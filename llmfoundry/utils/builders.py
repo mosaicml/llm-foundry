@@ -220,7 +220,7 @@ def build_callback(
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
     kwargs_dict = {
-        k: v if isinstance(v, str) else om.to_container(v, resolve=True)
+        k: v if isinstance(v, str) or isinstance(v, bool) else om.to_container(v, resolve=True)
         for k, v in kwargs.items()
     }
 

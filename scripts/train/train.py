@@ -22,8 +22,7 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
-                        MPTForCausalLM)
+from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
@@ -207,11 +206,6 @@ def main(cfg: DictConfig) -> Trainer:
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[Dict[str, Any]] = pop_config(cfg,
                                                        'fsdp_config',
-                                                       must_exist=False,
-                                                       default_value=None,
-                                                       convert=True)
-    lora_config: Optional[Dict[str, Any]] = pop_config(cfg,
-                                                       'lora',
                                                        must_exist=False,
                                                        default_value=None,
                                                        convert=True)

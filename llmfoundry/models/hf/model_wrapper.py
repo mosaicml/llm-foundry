@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from collections import UserDict
-from typing import List, Mapping, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Mapping, Optional
 
 import torch
 import transformers

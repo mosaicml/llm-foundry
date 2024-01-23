@@ -115,7 +115,8 @@ if __name__ == '__main__':
         download_from_hf_hub(args.model,
                              save_dir=args.save_dir,
                              token=args.token,
+                             tokenizers_only=args.tokenizer_only,
                              prefer_safetensors=args.prefer_safetensors)
     elif download_from == 'oras':
         download_from_oras(args.model, args.config_file, args.credentials_dir,
-                           args.save_dir, args.concurrency)
+                           args.save_dir, args.tokenizer_only, args.concurrency)

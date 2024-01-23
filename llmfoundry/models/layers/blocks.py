@@ -22,6 +22,7 @@ attn_config_defaults: Dict = {
     'attn_pdrop': 0.0,
     'attn_impl': 'triton',
     'qk_ln': False,
+    'qk_gn': False,
     'clip_qkv': None,
     'softmax_scale': None,
     'prefix_lm': False,

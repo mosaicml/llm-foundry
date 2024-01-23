@@ -3,9 +3,9 @@
 
 import json
 import os
-import pathlib
 import shutil
 from argparse import Namespace
+from pathlib import Path
 from typing import Optional
 
 from omegaconf import DictConfig
@@ -26,6 +26,8 @@ def make_tiny_ft_dataset(
     start_token: Optional[str] = None,
     end_token: Optional[str] = None,
 ):
+    if Path(path).suffix != '.jsonl':
+        raise ValueError(f'Path {path} must be a jsonl file.')
     good_sample = {'prompt': 'hello', 'response': 'goodbye'}
     samples = [good_sample] * size
     if add_bad_data_dropped:
@@ -77,7 +79,7 @@ def make_tiny_ft_dataset(
             _f.write('\n')
 
 
-def create_c4_dataset_xxsmall(path: pathlib.Path) -> str:
+def create_c4_dataset_xxsmall(path: Path) -> str:
     """Creates a small mocked version of the C4 dataset."""
     c4_dir = os.path.join(path, f'my-copy-c4')
     downloaded_split = 'val_xxsmall'  # very fast to convert
@@ -109,7 +111,7 @@ def create_c4_dataset_xxsmall(path: pathlib.Path) -> str:
     return c4_dir
 
 
-def create_arxiv_dataset(path: pathlib.Path) -> str:
+def create_arxiv_dataset(path: Path) -> str:
     """Creates an arxiv dataset."""
     arxiv_dir = os.path.join(path, f'my-copy-arxiv')
     downloaded_split = 'train'

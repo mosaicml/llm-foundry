@@ -208,32 +208,15 @@ def validate_eval_run_config(
         return {}
 
     supported_keys = {'image', 'command', 'compute', 'scheduling'}
+    found_unsupported = set()
     for key in run_config:
         if key not in supported_keys:
-            raise ValueError(
-                f'Unsupported eval run config key {key}. Supported keys: {supported_keys}'
-            )
+            found_unsupported.add(key)
 
-    for dict_field in ('scheduling', 'compute'):
-        if dict_field in run_config and not isinstance(run_config[dict_field],
-                                                       dict):
-            raise TypeError(
-                f'Eval run {dict_field} must be a dict. ' +
-                f'Got {run_config[dict_field]} ({type(run_config[dict_field])})'
-            )
-        for value in run_config.get(dict_field, {}).values():
-
-            if not (isinstance(value, int) or isinstance(value, str)):
-                raise TypeError(
-                    f'Eval run {dict_field} values must be integers or ' +
-                    f'strings. Got {value} ({type(value)})')
-
-    for str_field in ('image', 'command'):
-        if str_field in run_config and not isinstance(run_config[str_field],
-                                                      str):
-            raise TypeError(
-                f'Eval run {str_field} must be a string. Got ' +
-                f'{run_config[str_field]} ({type(run_config[str_field])})')
+    if found_unsupported:
+        raise ValueError(
+            f'Unsupported eval run config keys found: {", ".join(found_unsupported)}'
+            + f'. Supported keys: {supported_keys}')
 
     return run_config
 
@@ -300,8 +283,6 @@ class AsyncEval(Callback):
         log.info(
             f'Initialized AsyncEval callback. Will generate runs at interval {interval}'
         )
-
-        # TODO: potentially support eval_first
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         del logger

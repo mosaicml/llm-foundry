@@ -385,6 +385,10 @@ def convert_text_to_mds(
     local_output_folder = tempfile.TemporaryDirectory(
     ).name if is_remote_output else output_folder
 
+    if os.path.isdir(output_folder) and len(os.listdir(output_folder)) > 0:
+        raise FileExistsError(
+            f'{output_folder=} is not empty. Please remove or empty it.')
+
     if processes > 1:
         # Download and convert the text files in parallel
         args = get_task_args(object_names, local_output_folder, input_folder,

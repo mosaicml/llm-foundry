@@ -220,7 +220,7 @@ def _tokenize_formatted_example(
         return _tokenize_prompt_response_formatted_example(
             prompt_response_example, tokenizer)
     else:
-        raise ValueError(f'unknown conversation type {example_format=}')
+        raise ValueError(f'Unknown conversation type {example_format=}')
 
 
 class StreamingFinetuningDataset(StreamingDataset):

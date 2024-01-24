@@ -242,7 +242,8 @@ def main(cfg: DictConfig) -> Trainer:
     logger_configs: Optional[DictConfig] = pop_config(cfg,
                                                       'loggers',
                                                       must_exist=False,
-                                                      default_value=None)
+                                                      default_value=None,
+                                                      convert=True)
     callback_configs: Optional[DictConfig] = pop_config(cfg,
                                                         'callbacks',
                                                         must_exist=False,

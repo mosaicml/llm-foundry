@@ -88,7 +88,7 @@ extra_deps['dev'] = [
 
 extra_deps['databricks'] = [
     # 'mosaicml[databricks]>=0.17.1,<0.18',
-    'mosaicml[databricks]@git+https://github.com/mosaicml/composer.git@925a6c2a44f2a1637c458f4ad826e57ffea63768',
+    'mosaicml[databricks]@git+https://github.com/mosaicml/composer.git@64aa415ba11d97bf74f96ade3bfbd14d2f04da80',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
     'lz4>=4,<5',

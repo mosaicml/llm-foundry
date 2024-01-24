@@ -69,7 +69,7 @@ icl_tasks:
   early_stopping_criteria:
   - "\n\n"
   - "Question:"
-- 
+-
   label: math
   dataset_uri: eval/local_data/symbolic_problem_solving/math.jsonl
   num_fewshot: [4]

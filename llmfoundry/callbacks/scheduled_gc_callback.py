@@ -36,12 +36,6 @@ class ScheduledGarbageCollector(Callback):
         self.eval_keep_disabled = eval_keep_disabled
         self.gc_init_state = None
 
-    def batch_start(self, state: State, logger: Logger) -> None:
-        del logger
-
-        if self.gen_1_batch_interval is not None and state.timestamp.batch.value % self.gen_1_batch_interval == 0:
-            gc.collect(1)
-
     def fit_start(self, state: State, logger: Logger) -> None:
         del state, logger  # unused
 
@@ -65,6 +59,9 @@ class ScheduledGarbageCollector(Callback):
 
     def before_dataloader(self, state: State, logger: Logger) -> None:
         del logger  # unused
+
+        if self.gen_1_batch_interval is not None and state.timestamp.batch.value % self.gen_1_batch_interval == 0:
+            gc.collect(1)
 
         if state.timestamp.batch.value % self.batch_interval == 0:
             gc_cuda()

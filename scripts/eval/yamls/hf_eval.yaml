@@ -43,5 +43,5 @@ device_eval_batch_size: 4
 #   forward_prefetch: True
 #   limit_all_gathers: True
 
-icl_tasks: 'eval/yamls/tasks_v0.1.yaml'
-eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'
+icl_tasks: 'eval/yamls/tasks_v0.3.yaml'
+eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.3.yaml'

@@ -81,7 +81,7 @@ def _get_example_type(example: Example) -> ExampleType:
     elif 'prompt' in example or 'response' in example:
         return 'prompt_response'
     else:
-        raise KeyError(f'unknown conversation type {example=}')
+        raise KeyError(f'Unknown conversation type {example=}')
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:

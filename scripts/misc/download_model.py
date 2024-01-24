@@ -90,8 +90,9 @@ if __name__ == '__main__':
 
     if download_from == 'http':
         if args.tokenizer_only:
-            raise ValueError(
-                'tokenizer-only is not currently supported for http.')
+            log.warning(
+                'tokenizer-only is not currently supported for http. Downloading all files instead.'
+            )
         try:
             download_from_http_fileserver(args.url, args.save_dir,
                                           args.ignore_cert)

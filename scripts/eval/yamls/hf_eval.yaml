@@ -43,5 +43,30 @@ device_eval_batch_size: 4
 #   forward_prefetch: True
 #   limit_all_gathers: True
 
-icl_tasks: 'eval/yamls/tasks_v0.1.yaml'
-eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'
+icl_tasks:
+-
+  label: gsm8k
+  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  cot_delimiter: 'The answer is '
+  continuation_delimiter: "\n\nA:"
+  question_prelimiter: ""
+  do_normalization: false
+  early_stopping_criteria:
+  - "\n\n"
+  - "Question:"
+-
+  label: human_eval
+  dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
+  num_fewshot: [0]
+  pass_at_k: 1
+  num_beams: 5
+  batch_size: 1
+  icl_task_type: code_evaluation
+# eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.3.yaml'
+
+callbacks:
+  eval_output_logging:
+    subset_sample: -1
+    output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_llama2-7b-gauntlet-v0.3

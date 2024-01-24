@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
+from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
 from composer.loggers.logger_destination import LoggerDestination
 from composer.models.base import ComposerModel
@@ -149,7 +150,6 @@ def evaluate_model(
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
 
-    callbacks = []
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
 
@@ -287,6 +287,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                                         'callbacks',
                                                         must_exist=False,
                                                         default_value=None)
+
     # Optional Evaluation Parameters with default values
     eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(
         cfg, 'eval_loader', must_exist=False, default_value=None)

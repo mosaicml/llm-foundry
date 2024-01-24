@@ -20,8 +20,8 @@ class ScheduledGarbageCollector(Callback):
     """Disable automatic garbage collection and collect garbage at interval.
 
     Args:
-        batch_interval (int): Number of batches between checkpoints call to gc.collect()
-        gen_1_batch_interval(int, optional): Number of batches between checkpoints call to gc.collect(1)
+        batch_interval (int): Number of batches between calls to gc.collect()
+        gen_1_batch_interval(int, optional): Number of batches between calls to gc.collect(1)
         eval_keep_disabled (bool): keep gc disabled during eval (default: False)
     """
 

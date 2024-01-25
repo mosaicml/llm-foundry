@@ -21,7 +21,7 @@ class CptOffset(Callback):
     def __init__(self, sample_offset: int):
         self.sample_offset = sample_offset
     
-    def after_load(self, state: State, logger: Logger) -> None:
+    def fit_start(self, state: State, logger: Logger) -> None:
         og_samples = state.dataset_state['train']['sample_in_epoch']
         state.dataset_state['train']['sample_in_epoch'] = og_samples - self.sample_offset
 

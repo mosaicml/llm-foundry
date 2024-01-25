@@ -17,6 +17,7 @@ from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
                                   InContextLearningMultipleChoiceAccuracy,
                                   InContextLearningQAAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
+from composer.models.huggingface import peft_installed
 from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
@@ -258,25 +259,30 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             raise ValueError(
                 f'om_model_config must be either a DictConfig, PeftModel, or PreTrainedModel, but got {type(om_model_config)}'
             )
-
-        from peft import LoraConfig
+        
         peft_config = pop_config(om_model_config,
-                                 'peft_config',
-                                 must_exist=False,
-                                 convert=True)
-
+                        'peft_config',
+                        must_exist=False,
+                        convert=True)
+        
         if peft_config is not None:
-            peft_type = peft_config.get('peft_type', None)
-            if peft_type.upper() != 'LORA':
+            if peft_installed:
+                from peft import LoraConfig
+                peft_type = peft_config.get('peft_type', None)
+                if peft_type.upper() != 'LORA':
+                    raise ValueError(
+                        f'Only LORA is supported for peft_type, but got {peft_type}.'
+                    )
+                task_type = peft_config.get('task_type', None)
+                if task_type.upper() != 'CAUSAL_LM':
+                    raise ValueError(
+                        f'Only CAUSAL_LM is supported for task_type, but got {task_type}.'
+                    )
+                peft_config = LoraConfig(**peft_config)
+            else:
                 raise ValueError(
-                    f'Only LORA is supported for peft_type, but got {peft_type}.'
+                    'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
                 )
-            task_type = peft_config.get('task_type', None)
-            if task_type.upper() != 'CAUSAL_LM':
-                raise ValueError(
-                    f'Only CAUSAL_LM is supported for task_type, but got {task_type}.'
-                )
-            peft_config = LoraConfig(**peft_config)
 
         composer_model = super().__init__(
             model=model,

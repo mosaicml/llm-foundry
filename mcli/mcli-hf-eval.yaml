@@ -1,20 +1,22 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.4.0
+  git_branch: llama_cot_fix # v0.4.0
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
 
 command: |
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/bmosaicml/composer.git@patch_cot_for_spiece_tokenizer
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: mpt-eval
 gpu_num: 8
-# gpu_type:
-# cluster:  # replace with your cluster here!
+gpu_type: a100_40gb
+cluster: r1z2 # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
@@ -28,19 +30,19 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: meta-llama/Llama-2-7b-hf
     # Tokenizer
     tokenizer:
-      name: EleutherAI/gpt-neox-20b
+      name: meta-llama/Llama-2-7b-hf
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
       init_device: mixed
       pretrained: true
-      use_auth_token: false
+      use_auth_token: true
 
   # FSDP config for model sharding
   fsdp_config:
@@ -50,5 +52,17 @@ parameters:
     limit_all_gathers: True
 
 
-  icl_tasks: 'eval/yamls/tasks_v0.3.yaml'
-  eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.3.yaml'
+  icl_tasks:
+  -
+    label: gsm8k
+    dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
+    num_fewshot: [0]
+    icl_task_type: question_answering
+    cot_delimiter: 'The answer is '
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: ""
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
+  # eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.3.yaml'

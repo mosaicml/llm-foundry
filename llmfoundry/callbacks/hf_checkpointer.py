@@ -15,6 +15,7 @@ from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
 from composer.loggers import Logger, MLFlowLogger
 from composer.models import HuggingFaceModel
+from composer.models.huggingface import is_peft_installed
 from composer.utils import (dist, format_name_with_dist_and_time,
                             maybe_create_remote_uploader_downloader_from_uri,
                             parse_uri)
@@ -222,13 +223,17 @@ class HuggingFaceCheckpointer(Callback):
                 log.debug(f'Creating new model instance')
 
                 from peft import PeftModel
-                if isinstance(original_model, PeftModel):
+                is_peft_model = False
+                if is_peft_installed:
+                    is_peft_model = isinstance(original_model, PeftModel)
+                if is_peft_model:
+                    active_adapter = original_model.active_adapter
                     base_model = original_model.get_base_model()
                     new_base_model_instance = type(base_model)(copied_config)
 
                     new_model_instance = type(original_model)(
                         new_base_model_instance,
-                        original_model.peft_config['default'])
+                        original_model.peft_config[active_adapter])
                 else:
                     new_model_instance = type(original_model)(copied_config)
 

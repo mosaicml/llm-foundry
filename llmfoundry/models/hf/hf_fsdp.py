@@ -162,38 +162,13 @@ def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
                 f'Unable to FSDP-wrap this model! `{mod_name}` does not ' +
                 'follow common layer/weight naming conventions.')
     block_type = type(model_block[0])
-    # TODO: delete this
-    # if init_device == 'mixed':
-    #     # For FSDP with models with different device initializations, `mixed`, which
-    #     # initializes the model on rank 0 on `cpu` and on all other ranks on `meta,``
-    #     # we need to tag all child modules that are torch.nn.Modules with `_fsdp_wrap`.
-    #     for child in model.children():
-    #         if isinstance(child, type(causal_base_model)):
-    #             continue
-    #         if isinstance(child, torch.nn.Module):
-    #             child._fsdp_wrap = True
 
-    #     for child in causal_base_model.children():
-    #         if isinstance(child, torch.nn.ModuleList):
-    #             continue
-    #         if isinstance(child, torch.nn.Module):
-    #             child._fsdp_wrap = True
-
-    #     if model.config.tie_word_embeddings and not model.config.model_type == 'mpt':
-    #         raise ValueError(
-    #             'The passed in HuggingFaceModel has tied word embeddings ' +
-    #             'and the passed in initialization device is `mixed.` ' +
-    #             'In order to support this initialization scheme, we would need to break '
-    #             +
-    #             'the weight tying. As a result, either use a different initialization scheme '
-    #             + 'or in the model config set `tie_word_embeddings=False.`')
-    # else:
-    #     # When using the HF LM models,
-    #     # the weights of the self.lm_head and self.transformer.wte are tied.
-    #     # This tying occurs inside the `self.post_init()` function.
-    #     # This is a hurdle for FSDP because they need to be in the same FSDP block
-    #     # These lines ensures that both modules stay together in the top-most block when
-    #     # the model has this tying enabled (almost all do; this property defaults to True)
+    # When using the HF LM models,
+    # the weights of the self.lm_head and self.transformer.wte are tied.
+    # This tying occurs inside the `self.post_init()` function.
+    # This is a hurdle for FSDP because they need to be in the same FSDP block
+    # These lines ensures that both modules stay together in the top-most block when
+    # the model has this tying enabled (almost all do; this property defaults to True)
     if model.config.tie_word_embeddings:
         causal_base_model._fsdp_wrap = False
         tied_embeddings._fsdp_wrap = False

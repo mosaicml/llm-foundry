@@ -36,7 +36,8 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
+                    cast)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
@@ -213,10 +214,11 @@ def _tokenize_formatted_example(
     example_format = _get_example_type(example)
 
     if example_format == 'chat':
-        chat_example: ChatFormattedDict = example  # type: ignore
+        chat_example: ChatFormattedDict = cast(ChatFormattedDict, example)
         return _tokenize_chat_formatted_example(chat_example, tokenizer)
     elif example_format == 'prompt_response':
-        prompt_response_example: PromptResponseDict = example  # type: ignore
+        prompt_response_example: PromptResponseDict = cast(
+            PromptResponseDict, example)
         return _tokenize_prompt_response_formatted_example(
             prompt_response_example, tokenizer)
     else:

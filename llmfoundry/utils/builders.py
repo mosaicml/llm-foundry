@@ -13,7 +13,7 @@ import torch
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, OptimizerMonitor,
-                                RuntimeEstimator, SpeedMonitor)
+                                RuntimeEstimator, SpeedMonitor, CptOffset)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -214,6 +214,8 @@ def build_callback(
                 'Parameters config is required for async eval callback')
 
         return AsyncEval(**kwargs, training_config=config)
+    elif name == "cpt_offset":
+        return CptOffset(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

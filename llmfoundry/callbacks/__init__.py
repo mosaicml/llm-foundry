@@ -11,7 +11,7 @@ try:
     from llmfoundry.callbacks.monolithic_ckpt_callback import \
         MonolithicCheckpointSaver
     from llmfoundry.callbacks.resumption_callbacks import (GlobalLRScaling,
-                                                           LayerFreezing)
+                                                           LayerFreezing, CptOffset)
     from llmfoundry.callbacks.scheduled_gc_callback import \
         ScheduledGarbageCollector
 except ImportError as e:
@@ -30,4 +30,5 @@ __all__ = [
     'ModelGauntlet',
     'HuggingFaceCheckpointer',
     'AsyncEval',
+    'CptOffset'
 ]

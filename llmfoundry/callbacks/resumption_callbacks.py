@@ -3,6 +3,7 @@
 
 import logging
 from typing import List
+from composer import State
 
 from composer.core import Callback, State
 from composer.loggers import Logger
@@ -10,9 +11,19 @@ from composer.loggers import Logger
 __all__ = [
     'GlobalLRScaling',
     'LayerFreezing',
+    'CptOffset',
 ]
 
 log = logging.getLogger(__name__)
+
+class CptOffset(Callback):
+
+    def __init__(self, sample_offset: int):
+        self.sample_offset = sample_offset
+    
+    def after_load(self, state: State, logger: Logger) -> None:
+        og_samples = state.dataset_state['train']['sample_in_epoch']
+        state.dataset_state['train']['sample_in_epoch'] = og_samples - self.sample_offset
 
 
 class GlobalLRScaling(Callback):

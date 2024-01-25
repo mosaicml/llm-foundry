@@ -13,7 +13,6 @@ from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
 from llmfoundry.utils.builders import build_tokenizer
 
 
-
 def test_tokenize_chat_example_malformed():
     no_content = {'messages': [{'role': 'user'}]}
     too_few_messages = {

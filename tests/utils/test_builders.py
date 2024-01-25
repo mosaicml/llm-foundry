@@ -135,14 +135,14 @@ def test_build_logger():
     with pytest.raises(ValueError):
         _ = build_logger('unknown', {})
 
-    logger_cfg = DictConfig({
+    logger_cfg = {
         'project': 'foobar',
         'init_kwargs': {
             'config': {
                 'foo': 'bar',
             }
         }
-    })
+    }
     wandb_logger = build_logger('wandb', logger_cfg)  # type: ignore
     assert isinstance(wandb_logger, WandBLogger)
     assert wandb_logger.project == 'foobar'

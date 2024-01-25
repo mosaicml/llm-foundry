@@ -6,6 +6,8 @@
 Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 """
 
+from __future__ import annotations
+
 import math
 import warnings
 from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
@@ -24,12 +26,20 @@ from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 
-from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.attention import (is_flash_v1_installed,
+                                                is_flash_v2_installed)
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
+        from flash_attn import bert_padding
         from flash_attn.layers.rotary import \
             RotaryEmbedding as DAILRotaryEmbedding
+    except Exception as e:
+        raise e
+
+if is_flash_v1_installed():
+    try:  # This try...except is needed because transformers requires it despite the 'if' statement above
+        from flash_attn import bert_padding
     except Exception as e:
         raise e
 
@@ -216,6 +226,44 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
     return attention_mask_in_length
 
 
+def gen_flash_attn_padding_info(
+        bsz: int,
+        S: int,
+        past_key_len: int,
+        device: torch.device,
+        attention_mask_in_length: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None):
+    flash_attn_padding_info = {}
+    if attention_mask_in_length is None:
+        key_padding_mask = attention_mask
+        if key_padding_mask is None:
+            key_padding_mask = torch.ones((bsz, past_key_len + S),
+                                          dtype=torch.bool,
+                                          device=device)
+        query_padding_mask = key_padding_mask[:, -S:]
+        unpadding_function = bert_padding.unpad_input
+    else:
+        key_padding_mask = attention_mask_in_length
+        query_padding_mask = attention_mask_in_length
+        unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
+
+    _, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
+        torch.empty(bsz, S, 1, device=device), query_padding_mask)
+    _, indices_k, cu_seqlens_k, max_seqlen_k = unpadding_function(
+        torch.empty(bsz, past_key_len + S, 1, device=device), key_padding_mask)
+    _, indices_v, _, _ = unpadding_function(
+        torch.empty(bsz, past_key_len + S, 1, device=device), key_padding_mask)
+
+    flash_attn_padding_info['indices_q'] = indices_q
+    flash_attn_padding_info['indices_k'] = indices_k
+    flash_attn_padding_info['indices_v'] = indices_v
+    flash_attn_padding_info['cu_seqlens_q'] = cu_seqlens_q
+    flash_attn_padding_info['cu_seqlens_k'] = cu_seqlens_k
+    flash_attn_padding_info['max_seqlen_q'] = max_seqlen_q
+    flash_attn_padding_info['max_seqlen_k'] = max_seqlen_k
+    return flash_attn_padding_info
+
+
 def apply_sequence_id(attn_bias: torch.Tensor, sequence_id: torch.LongTensor,
                       max_seq_len: int) -> torch.Tensor:
     seq_len = sequence_id.shape[-1]
@@ -244,6 +292,14 @@ class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
     base_model_prefix = 'model'
     _no_split_modules = ['MPTBlock']
+
+
+def _fsdp_wrap_fn(
+    self: Union[MPTModel, MPTForCausalLM],
+    module: nn.Module,
+) -> bool:
+    # FSDP Wrap function for MPT Models
+    return isinstance(module, MPTBlock)
 
 
 class MPTModel(MPTPreTrainedModel):
@@ -515,10 +571,12 @@ class MPTModel(MPTPreTrainedModel):
             raise ValueError(
                 'You cannot specify both input_ids and inputs_embeds.')
         elif input_ids is not None:
+            bsz = input_ids.size(0)
             S = input_ids.size(1)
             x = self.wte(input_ids)
             input_device = input_ids.device
         elif inputs_embeds is not None:
+            bsz = inputs_embeds.size(0)
             S = inputs_embeds.size(1)
             x = inputs_embeds
             input_device = inputs_embeds.device
@@ -530,22 +588,23 @@ class MPTModel(MPTPreTrainedModel):
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
         rotary_emb_w_meta_info = None
-        if self.learned_pos_emb or self.rope:
-            past_position = 0
-            if past_key_values is not None:
-                if len(past_key_values) != self.config.n_layers:
-                    raise ValueError(
-                        f'past_key_values must provide a past_key_value for each attention '
-                        +
-                        f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
-                    )
-                # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
-                # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
-                # Here we shift position embedding using the `seq` dim of the past key
-                past_position = past_key_values[0][0].size(1)
-                if self.attn_impl == 'torch':
-                    past_position = past_key_values[0][0].size(3)
 
+        past_position = 0
+        if past_key_values is not None:
+            if len(past_key_values) != self.config.n_layers:
+                raise ValueError(
+                    f'past_key_values must provide a past_key_value for each attention '
+                    +
+                    f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
+                )
+            # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
+            # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
+            # Here we shift position embedding using the `seq` dim of the past key
+            past_position = past_key_values[0][0].size(1)
+            if self.attn_impl == 'torch':
+                past_position = past_key_values[0][0].size(3)
+
+        if self.learned_pos_emb or self.rope:
             if self.learned_pos_emb and (S + past_position >
                                          self.config.max_seq_len):
                 raise ValueError(
@@ -623,6 +682,12 @@ class MPTModel(MPTPreTrainedModel):
 
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
+        flash_attn_padding_info = {}
+        if self.attn_impl == 'flash':
+            flash_attn_padding_info = gen_flash_attn_padding_info(
+                bsz, S, past_position, x.device, attention_mask_in_length,
+                attention_mask)
+
         for b_idx, block in enumerate(self.blocks):
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
@@ -637,8 +702,8 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
-                attention_mask_in_length=attention_mask_in_length,
                 alibi_slopes=alibi_slopes,
+                flash_attn_padding_info=flash_attn_padding_info,
             )
             if presents is not None:
                 presents += (present,)
@@ -673,7 +738,7 @@ class MPTModel(MPTPreTrainedModel):
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module: nn.Module) -> bool:
-        return isinstance(module, MPTBlock)
+        return _fsdp_wrap_fn(self, module)
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
@@ -834,7 +899,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module: nn.Module) -> bool:
-        return isinstance(module, MPTBlock)
+        return _fsdp_wrap_fn(self, module)
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:

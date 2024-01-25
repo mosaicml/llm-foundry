@@ -13,4 +13,10 @@ def test_peft_wraps():
     mistral = transformers.AutoModelForCausalLM.from_config(mistral_cfg)
     mistral = get_peft_model(mistral, LoraConfig())
     prepare_hf_model_for_fsdp(mistral, 'cpu')
-    assert False
+    
+    for n, m in mistral.named_modules():
+        if 'lora' in n and 'default' in n:
+            has_parameters = any(True for _ in m.parameters())
+            has_buffers = any(True for _ in m.buffers())
+            if has_parameters or has_buffers:
+                assert m._fsdp_wrap

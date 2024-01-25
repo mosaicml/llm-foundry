@@ -140,7 +140,6 @@ def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
     Wrap any model for FSDP which follows one of the 3 existing conventions from
     HuggingFace for decoder-only LLMs.
     """
-    assert model is not None
     causal_base_model = hf_get_causal_base_model(model)
 
     # OPT has an extra layer of wrapping, so special case here

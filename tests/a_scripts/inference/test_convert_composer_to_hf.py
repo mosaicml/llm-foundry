@@ -240,7 +240,7 @@ def test_callback_inits():
     # test with defaults
     _ = HuggingFaceCheckpointer(save_folder='test', save_interval='1ba')
 
-    # test default metatdata when mlflow registered name is given
+    # test default metadata when mlflow registered name is given
     hf_checkpointer = HuggingFaceCheckpointer(
         save_folder='test',
         save_interval='1ba',
@@ -376,8 +376,25 @@ def test_huggingface_conversion_callback_interval(
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize(
-    'model,tie_word_embeddings',
-    [('mpt', True), ('mpt', False), ('neo', None), ('llama2', None)],
+    'model,tie_word_embeddings,peft_config',
+    [
+        ('mpt', True, None),
+        ('mpt', False, None),
+        ('neo', None, None),
+        ('llama2', None, None),
+        ('llama2', None, {
+            'peft_type': 'LORA',
+            'task_type': 'CAUSAL_LM',
+            'lora_alpha': 32,
+            'lora_dropout': 0.05,
+            'r': 16,
+            'target_modules': [
+                'q_proj',
+                'k_proj',
+                'v_proj',
+            ],
+        }),
+    ],
 )
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
 @pytest.mark.parametrize(
@@ -394,6 +411,7 @@ def test_huggingface_conversion_callback(
     max_duration: str,
     expected_hf_checkpoints: int,
     expected_normal_checkpoints: int,
+    peft_config: Optional[dict],
 ):
     delete_transformers_cache()
 
@@ -469,6 +487,8 @@ def test_huggingface_conversion_callback(
     assert model_cfg is not None
     assert tokenizer_name is not None
     model_cfg = om.create(model_cfg)
+    if peft_config is not None:
+        model_cfg['peft'] = peft_config
 
     fsdp_config = {
         'sharding_strategy': 'FULL_SHARD',

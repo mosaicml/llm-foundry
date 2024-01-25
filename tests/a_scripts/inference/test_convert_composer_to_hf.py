@@ -488,7 +488,7 @@ def test_huggingface_conversion_callback(
     assert tokenizer_name is not None
     model_cfg = om.create(model_cfg)
     if peft_config is not None:
-        model_cfg['peft'] = peft_config
+        model_cfg['peft_config'] = peft_config
 
     fsdp_config = {
         'sharding_strategy': 'FULL_SHARD',

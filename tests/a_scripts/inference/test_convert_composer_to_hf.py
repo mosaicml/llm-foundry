@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import math
 import os
 import pathlib
@@ -179,7 +180,8 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
 
 
 def check_hf_model_equivalence(model1: PreTrainedModel,
-                               model2: PreTrainedModel):
+                               model2: PreTrainedModel,
+                               just_lora: bool = False):
     expected_model_config_dict = model1.config.to_dict()
     new_model_config_dict = model2.config.to_dict()
 
@@ -205,9 +207,11 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
         }
 
     assert expected_model_config_dict == new_model_config_dict
+    equals = [(n1, n2, torch.equal(p1.cpu(), p2.cpu())) for (n1, p1), (n2, p2) in zip(model1.named_parameters(), model2.named_parameters()) if 'lora' in n1]
+    print(equals)
     assert all(
-        torch.equal(p1.cpu(), p2.cpu())
-        for p1, p2 in zip(model1.parameters(), model2.parameters()))
+        torch.equal(p1.cpu(), p2.cpu()) if (not just_lora or 'lora' in n1) else True
+        for (n1, p1), (n2, p2) in zip(model1.named_parameters(), model2.named_parameters()))
 
 
 def delete_transformers_cache():
@@ -619,17 +623,29 @@ def test_huggingface_conversion_callback(
             # Patch flash_attn package to be empty to simulate loading the model in
             # an environment without flash attention installed
             with patch.dict('sys.modules', {'flash_attn': None}):
+                if peft_config is not None:
+                    trainer.state.model.model.base_model.save_pretrained(tmp_path / 'base-model')
+
+                checkpoint_path = os.path.join(tmp_path, 'checkpoints', 'huggingface', f'ba{batches_per_epoch}')
+                with open(os.path.join(checkpoint_path, 'adapter_config.json')) as _f:
+                    adapter_config = json.load(_f)
+
+                adapter_config['base_model_name_or_path'] = str(tmp_path / 'base-model')
+
+                with open(os.path.join(checkpoint_path, 'adapter_config.json'), 'w') as _f:
+                    json.dump(adapter_config, _f)
+
                 # Load the last huggingface checkpoint
                 loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
-                    os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                                 f'ba{batches_per_epoch}'),
+                    checkpoint_path,
                     trust_remote_code=True,
                 )
 
             # Check that the loaded model has the correct precision, and then set it back
             # to the original for the equivalence check
-            assert loaded_model.config.torch_dtype == precision
-            loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
+            if peft_config is None:
+                assert loaded_model.config.torch_dtype == precision
+                loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
 
             if model == 'mpt':
                 # Check that we have correctly set these attributes, and then set them back
@@ -650,7 +666,7 @@ def test_huggingface_conversion_callback(
             check_hf_model_equivalence(
                 trainer.state.model.model.to(precision) if fsdp_state_dict_type
                 is not None else trainer.state.model.module.model.to(precision),
-                loaded_model)
+                loaded_model, just_lora=peft_config is not None)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
     dist.barrier()

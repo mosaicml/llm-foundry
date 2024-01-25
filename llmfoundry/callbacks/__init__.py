@@ -30,5 +30,5 @@ __all__ = [
     'ModelGauntlet',
     'HuggingFaceCheckpointer',
     'AsyncEval',
-    'CptOffset'
+    'CptOffset',
 ]

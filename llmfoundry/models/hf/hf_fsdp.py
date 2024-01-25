@@ -7,7 +7,6 @@
 import functools
 from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Union
 
-import torch
 from transformers import PreTrainedModel
 from transformers.models.opt.modeling_opt import OPTDecoder
 

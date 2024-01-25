@@ -207,11 +207,12 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
         }
 
     assert expected_model_config_dict == new_model_config_dict
-    equals = [(n1, n2, torch.equal(p1.cpu(), p2.cpu())) for (n1, p1), (n2, p2) in zip(model1.named_parameters(), model2.named_parameters()) if 'lora' in n1]
-    print(equals)
     assert all(
-        torch.equal(p1.cpu(), p2.cpu()) if (not just_lora or 'lora' in n1) else True
-        for (n1, p1), (n2, p2) in zip(model1.named_parameters(), model2.named_parameters()))
+        torch.equal(p1.cpu(), p2.cpu()) if (
+            not just_lora or 'lora' in n1) else True
+        for (n1, p1), (
+            _,
+            p2) in zip(model1.named_parameters(), model2.named_parameters()))
 
 
 def delete_transformers_cache():
@@ -611,11 +612,11 @@ def test_huggingface_conversion_callback(
             ]
 
             checkpoint_files = os.listdir(
-                os.path.join(tmp_path, 'checkpoints', 'huggingface', huggingface_checkpoints[-1]))
+                os.path.join(tmp_path, 'checkpoints', 'huggingface',
+                             huggingface_checkpoints[-1]))
             if peft_config is not None:
                 assert 'adapter_config.json' in checkpoint_files
                 assert 'adapter_model.safetensors' in checkpoint_files
-
 
             assert len(normal_checkpoints) == expected_normal_checkpoints
             assert len(huggingface_checkpoints) == expected_hf_checkpoints
@@ -624,15 +625,21 @@ def test_huggingface_conversion_callback(
             # an environment without flash attention installed
             with patch.dict('sys.modules', {'flash_attn': None}):
                 if peft_config is not None:
-                    trainer.state.model.model.base_model.save_pretrained(tmp_path / 'base-model')
+                    trainer.state.model.model.base_model.save_pretrained(
+                        tmp_path / 'base-model')
 
-                checkpoint_path = os.path.join(tmp_path, 'checkpoints', 'huggingface', f'ba{batches_per_epoch}')
-                with open(os.path.join(checkpoint_path, 'adapter_config.json')) as _f:
+                checkpoint_path = os.path.join(tmp_path, 'checkpoints',
+                                               'huggingface',
+                                               f'ba{batches_per_epoch}')
+                with open(os.path.join(checkpoint_path,
+                                       'adapter_config.json')) as _f:
                     adapter_config = json.load(_f)
 
-                adapter_config['base_model_name_or_path'] = str(tmp_path / 'base-model')
+                adapter_config['base_model_name_or_path'] = str(tmp_path /
+                                                                'base-model')
 
-                with open(os.path.join(checkpoint_path, 'adapter_config.json'), 'w') as _f:
+                with open(os.path.join(checkpoint_path, 'adapter_config.json'),
+                          'w') as _f:
                     json.dump(adapter_config, _f)
 
                 # Load the last huggingface checkpoint
@@ -666,7 +673,8 @@ def test_huggingface_conversion_callback(
             check_hf_model_equivalence(
                 trainer.state.model.model.to(precision) if fsdp_state_dict_type
                 is not None else trainer.state.model.module.model.to(precision),
-                loaded_model, just_lora=peft_config is not None)
+                loaded_model,
+                just_lora=peft_config is not None)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
     dist.barrier()

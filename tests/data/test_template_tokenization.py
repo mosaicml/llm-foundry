@@ -15,6 +15,12 @@ from llmfoundry.utils.builders import build_tokenizer
 
 def test_tokenize_chat_example_malformed():
     no_content = {'messages': [{'role': 'user'}]}
+    too_few_messages = {
+        'messages': [{
+            'role': 'assistant',
+            'content': 'Hi, User!'
+        }]
+    }
     ends_with_user_role = {
         'messages': [{
             'role': 'user',
@@ -37,7 +43,7 @@ def test_tokenize_chat_example_malformed():
         }]
     }
     malformed_chat_examples = [
-        no_content, ends_with_user_role, no_assistant_message
+        too_few_messages, no_content, ends_with_user_role, no_assistant_message
     ]
     my_tokenizer = build_tokenizer('mosaicml/mpt-7b-8k-chat', {})
     for example in malformed_chat_examples:

@@ -278,7 +278,8 @@ def main(cfg: DictConfig) -> Trainer:
     logger_configs: Optional[DictConfig] = pop_config(cfg,
                                                       'loggers',
                                                       must_exist=False,
-                                                      default_value=None)
+                                                      default_value=None,
+                                                      convert=True)
     callback_configs: Optional[DictConfig] = pop_config(cfg,
                                                         'callbacks',
                                                         must_exist=False,
@@ -438,13 +439,17 @@ def main(cfg: DictConfig) -> Trainer:
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
         )
-        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
+        logging.getLogger('llmfoundry').setLevel(
+            python_log_level.upper())  # Foundry module
+        logging.getLogger(__name__).setLevel(
+            python_log_level.upper())  # Train script
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
 
     # Build tokenizer
+    log.info('Building tokenizer...')
     tokenizer_name = tokenizer_config['name']
     tokenizer_kwargs = tokenizer_config.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)

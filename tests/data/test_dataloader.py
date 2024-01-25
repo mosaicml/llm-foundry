@@ -333,7 +333,7 @@ def test_finetuning_dataloader_safe_load(hf_name: str,
             'decoder_only_format': True,
             'shuffle': True,
             'safe_load': True,
-            'kwargs': {
+            'hf_kwargs': {
                 'revision': hf_revision
             }
         },

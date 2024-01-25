@@ -108,6 +108,12 @@ MULTI_TURN_GENERATE_CHAT_ML = [[{
         'Please summarize the goals in this text:\n\nGoing outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.',
     'role':
         'user'
+}, {
+    'content': 'You should go outside and touch grass.',
+    'role': 'assistant'
+}, {
+    'content': 'What else can I do?',
+    'role': 'user'
 }]]
 
 MULTI_TURN_GENERATE_STRING = [
@@ -117,6 +123,10 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
 Please summarize the goals in this text:
 
 Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
+<|im_start|>assistant
+You should go outside and touch grass.<|im_end|><|endoftext|>
+<|im_start|>user
+What else can I do?<|im_end|>
 <|im_start|>assistant
 """
 ]

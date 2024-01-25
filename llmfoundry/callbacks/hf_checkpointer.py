@@ -96,14 +96,10 @@ class HuggingFaceCheckpointer(Callback):
         self.huggingface_folder_name_fstr = os.path.join(
             'huggingface', huggingface_folder_name)
 
-        if isinstance(save_interval, str):
-            save_interval = Time.from_timestring(save_interval)
-        if isinstance(save_interval, int):
-            save_interval = Time(save_interval, TimeUnit.EPOCH)
-
-        self.save_interval: Time = save_interval
+        self.save_interval: Time = Time.from_input(save_interval,
+                                                   TimeUnit.EPOCH)
         self.check_interval = create_interval_scheduler(
-            save_interval, include_end_of_training=True)
+            self.save_interval, include_end_of_training=True)
         self.remote_ud = maybe_create_remote_uploader_downloader_from_uri(
             save_folder, loggers=[])
         if self.remote_ud is not None:
@@ -245,11 +241,16 @@ class HuggingFaceCheckpointer(Callback):
                     )
 
                 if self.remote_ud is not None:
-                    log.info(f'Uploading HuggingFace formatted checkpoint')
                     for filename in os.listdir(temp_save_dir):
+                        remote_file_name = os.path.join(save_dir, filename)
+                        remote_file_uri = self.remote_ud.remote_backend.get_uri(
+                            remote_file_name)
+                        log.info(
+                            f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}'
+                        )
                         self.remote_ud.upload_file(
                             state=state,
-                            remote_file_name=os.path.join(save_dir, filename),
+                            remote_file_name=remote_file_name,
                             file_path=Path(os.path.join(temp_save_dir,
                                                         filename)),
                             overwrite=self.overwrite,

@@ -259,12 +259,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             raise ValueError(
                 f'om_model_config must be either a DictConfig, PeftModel, or PreTrainedModel, but got {type(om_model_config)}'
             )
-        
+
         peft_config = pop_config(om_model_config,
-                        'peft_config',
-                        must_exist=False,
-                        convert=True)
-        
+                                 'peft_config',
+                                 must_exist=False,
+                                 convert=True)
+
         if peft_config is not None:
             if peft_installed:
                 from peft import LoraConfig

@@ -605,11 +605,19 @@ def test_huggingface_conversion_callback(
                 name for name in os.listdir(
                     os.path.join(tmp_path, 'checkpoints', 'huggingface'))
             ]
+
+            checkpoint_files = os.listdir(
+                os.path.join(tmp_path, 'checkpoints', 'huggingface', huggingface_checkpoints[-1]))
+            if peft_config is not None:
+                assert 'adapter_config.json' in checkpoint_files
+                assert 'adapter_model.safetensors' in checkpoint_files
+
+
             assert len(normal_checkpoints) == expected_normal_checkpoints
             assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
             # Patch flash_attn package to be empty to simulate loading the model in
-            # an environment without flash atttention installed
+            # an environment without flash attention installed
             with patch.dict('sys.modules', {'flash_attn': None}):
                 # Load the last huggingface checkpoint
                 loaded_model = transformers.AutoModelForCausalLM.from_pretrained(

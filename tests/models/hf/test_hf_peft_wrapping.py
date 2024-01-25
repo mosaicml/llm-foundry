@@ -89,67 +89,20 @@ def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path, in
         'sync_module_states': True,
     }
 
-    tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
-    tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
-    if dist.get_global_rank() == 0:
-        make_tiny_ft_dataset(path=tiny_dataset_path, size=4)
-
-    dataloader_cfg = {
-        'name': 'finetuning',
-        'dataset': {
-            'hf_name': tiny_dataset_folder_path,
-            'split': 'train',
-            'max_seq_len': 32,
-            'decoder_only_format': True,
-            'allow_pad_trimming': False,
-            'packing_ratio': None,
-            'shuffle': True,
-        },
-        'drop_last': False,
-        'num_workers': 0,
-        'pin_memory': False,
-        'prefetch_factor': None,
-        'persistent_workers': False,
-        'timeout': 0
-    }
-
-    dataloader_cfg = om.create(dataloader_cfg)
-
     tokenizer = build_tokenizer(
         tokenizer_name=tokenizer_name,
         tokenizer_kwargs={'model_max_length': 32},
     )
 
-    train_dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        tokenizer,
-        1,
-    )
-
     original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
                                                                 tokenizer)
-
-    optimizer_config = {
-        'name': 'decoupled_adamw',
-        'lr': 6e-4,
-        'betas': [0.9, 0.95],
-        'eps': 1e-8,
-        'weight_decay': 0.0,
-    }
-    optimizer_name = optimizer_config.pop('name')
-    optimizer = build_optimizer(original_model, optimizer_name,
-                                optimizer_config)
 
     trainer = Trainer(
         model=original_model,
         device='gpu',
         fsdp_config=fsdp_config,
-        train_dataloader=train_dataloader,
-        save_folder=os.path.join(tmp_path, 'checkpoints'),
-        save_interval='1ba',
-        max_duration='1ba',
-        optimizers=optimizer,
-        save_latest_filename=None,
+        train_dataloader=[],
+        device_train_microbatch_size=1,
     )
 
     model = trainer.state.model

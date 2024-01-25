@@ -82,7 +82,7 @@ def _get_example_type(example: Example) -> ExampleType:
     elif 'prompt' in example or 'response' in example:
         return 'prompt_response'
     else:
-        raise KeyError(f'unknown conversation type {example=}')
+        raise KeyError(f'Unknown conversation type {example=}')
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:
@@ -222,7 +222,7 @@ def _tokenize_formatted_example(
         return _tokenize_prompt_response_formatted_example(
             prompt_response_example, tokenizer)
     else:
-        raise ValueError(f'unknown conversation type {example_format=}')
+        raise ValueError(f'Unknown conversation type {example_format=}')
 
 
 class StreamingFinetuningDataset(StreamingDataset):

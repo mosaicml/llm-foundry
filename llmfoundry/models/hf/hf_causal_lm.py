@@ -77,9 +77,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         ]
 
         if not om_model_config.get('trust_remote_code',
-                                    True) and om_model_config.get(
-                                        'pretrained_model_name_or_path',
-                                        None).startswith('mosaicml/mpt'):
+                                   True) and om_model_config.get(
+                                       'pretrained_model_name_or_path',
+                                       None).startswith('mosaicml/mpt'):
             raise ValueError(
                 'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
                 +
@@ -113,8 +113,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         # forces you to load the model in fp16/bf16 if you want to use flash attention. Rather than loading
         # the model and then casting it back to fp32, we are monkeypatching their check.
         # https://github.com/huggingface/transformers/issues/28052
-        def _autoset_attn_implementation_monkeypatch(
-                cls, config, *args, **kwargs):  # type: ignore
+        def _autoset_attn_implementation_monkeypatch(cls, config, *args, # type: ignore
+                                                     **kwargs):  # type: ignore
             config._attn_implementation = requested_attention_implementation
             return config
 
@@ -131,15 +131,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             attr = getattr(config, k)
             # attempt to disallow typos in nested configs
             if isinstance(attr, Mapping):
-                extra_keys = [
-                    _k for _k in v.keys() if _k not in attr.keys()
-                ]
+                extra_keys = [_k for _k in v.keys() if _k not in attr.keys()]
                 if extra_keys:
                     raise ValueError(
                         f'Config dict override got unknown keys. ' +
                         f'Extra keys: {extra_keys}. ' +
-                        f'Expected (a subset of) keys: {list(attr.keys())}.'
-                    )
+                        f'Expected (a subset of) keys: {list(attr.keys())}.')
                 getattr(config, k).update(v)
             # necessary case to allow for rope_scaling to be overriden in llama config
             elif attr is None and isinstance(v, Mapping):
@@ -207,8 +204,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 )
         else:
             raise ValueError(
-                f'init_device="{init_device}" must be either "cpu" or "meta".'
-            )
+                f'init_device="{init_device}" must be either "cpu" or "meta".')
 
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed'
         if dist.get_local_rank() == 0:
@@ -226,8 +222,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
         z_loss = om_model_config.get('z_loss', 0.0)
 
-        attention_patch_type = om_model_config.get('attention_patch_type',
-                                                    None)
+        attention_patch_type = om_model_config.get('attention_patch_type', None)
         if attention_patch_type is not None:
             if model.config.model_type != 'llama':
                 raise ValueError(
@@ -237,14 +232,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             log.debug(
                 f'Patching llama attention with {attention_patch_type} attention'
             )
-            from transformers.models.llama.modeling_llama import \
-                LlamaAttention
+            from transformers.models.llama.modeling_llama import LlamaAttention
 
             from llmfoundry.models.layers.llama_attention_monkeypatch import \
                 get_llama_attention_patch_fn
             LlamaAttention.forward = get_llama_attention_patch_fn(
                 attention_patch_type)
-            model.config.use_cache = False;
+            model.config.use_cache = False
 
         if model.config.tie_word_embeddings and resolved_init_device == 'meta':
             model.tie_weights()

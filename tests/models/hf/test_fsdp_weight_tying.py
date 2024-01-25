@@ -1,25 +1,21 @@
-from typing import Optional
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
-from omegaconf import OmegaConf as om
-import os
-from composer.utils import dist
 import pathlib
-
-from tests.data_utils import make_tiny_ft_dataset
-
+from typing import Optional
 
 import pytest
 from composer import Trainer
 from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.data.finetuning import build_finetuning_dataloader
-from llmfoundry.utils.builders import build_optimizer, build_tokenizer
+from llmfoundry.utils.builders import build_tokenizer
+
 
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
-@pytest.mark.parametrize('peft_config', [None,
-    {
+@pytest.mark.parametrize('peft_config', [
+    None, {
         'peft_type': 'LORA',
         'task_type': 'CAUSAL_LM',
         'lora_alpha': 32,
@@ -33,7 +29,8 @@ from llmfoundry.utils.builders import build_optimizer, build_tokenizer
     }
 ])
 @pytest.mark.parametrize('init_device', ['cpu', 'mixed', 'meta'])
-def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path, init_device: str):
+def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path,
+                           init_device: str):
     model_cfg = {
         'name': 'hf_causal_lm',
         'pretrained_model_name_or_path': 'mistralai/Mistral-7B-v0.1',

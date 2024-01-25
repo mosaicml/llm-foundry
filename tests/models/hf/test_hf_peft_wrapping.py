@@ -1,29 +1,20 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import transformers
-from peft import LoraConfig, get_peft_model
-
-from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
-from typing import Optional
-import torch
-
-from omegaconf import OmegaConf as om
-import os
-from composer.utils import dist
 import pathlib
+from typing import Optional
 from unittest.mock import patch
 
-from tests.data_utils import make_tiny_ft_dataset
-
-
 import pytest
+import torch
+import transformers
 from composer import Trainer
 from omegaconf import OmegaConf as om
+from peft import LoraConfig, get_peft_model
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.data.finetuning import build_finetuning_dataloader
-from llmfoundry.utils.builders import build_optimizer, build_tokenizer
+from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
+from llmfoundry.utils.builders import build_tokenizer
 
 
 def test_peft_wraps():
@@ -40,25 +31,25 @@ def test_peft_wraps():
             if has_parameters or has_buffers:
                 assert m._fsdp_wrap
 
+
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
-@pytest.mark.parametrize('peft_config', [
-    {
-        'peft_type': 'LORA',
-        'task_type': 'CAUSAL_LM',
-        'lora_alpha': 32,
-        'lora_dropout': 0.05,
-        'r': 16,
-        'target_modules': [
-            'q_proj',
-            'k_proj',
-            'v_proj',
-        ],
-    }
-])
+@pytest.mark.parametrize('peft_config', [{
+    'peft_type': 'LORA',
+    'task_type': 'CAUSAL_LM',
+    'lora_alpha': 32,
+    'lora_dropout': 0.05,
+    'r': 16,
+    'target_modules': [
+        'q_proj',
+        'k_proj',
+        'v_proj',
+    ],
+}])
 @pytest.mark.parametrize('init_device', ['mixed'])
 @patch('torch.nn.init.kaiming_uniform_', lambda w, a: torch.nn.init.ones_(w))
-def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path, init_device: str):
+def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path,
+                         init_device: str):
     model_cfg = {
         'name': 'hf_causal_lm',
         'pretrained_model_name_or_path': 'mistralai/Mistral-7B-v0.1',
@@ -106,8 +97,10 @@ def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path, in
     )
 
     model = trainer.state.model
-    lora_A = model.model.base_model.model.model.layers[0].self_attn.q_proj.lora_A['default']
-    lora_B = model.model.base_model.model.model.layers[0].self_attn.q_proj.lora_B['default']
+    lora_A = model.model.base_model.model.model.layers[
+        0].self_attn.q_proj.lora_A['default']
+    lora_B = model.model.base_model.model.model.layers[
+        0].self_attn.q_proj.lora_B['default']
 
     assert (lora_A.weight == 1).all()
     assert (lora_B.weight == 0).all()

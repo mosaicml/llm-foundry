@@ -211,8 +211,7 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
         torch.equal(p1.cpu(), p2.cpu()) if (
             not just_lora or 'lora' in n1) else True
         for (n1, p1), (
-            _,
-            p2) in zip(model1.named_parameters(), model2.named_parameters()))
+            _, p2) in zip(model1.named_parameters(), model2.named_parameters()))
 
 
 def delete_transformers_cache():

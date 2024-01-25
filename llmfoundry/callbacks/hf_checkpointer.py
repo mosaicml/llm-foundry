@@ -222,9 +222,9 @@ class HuggingFaceCheckpointer(Callback):
                 # and skip the extra model init
                 log.debug(f'Creating new model instance')
 
-                from peft import PeftModel
                 is_peft_model = False
                 if peft_installed:
+                    from peft import PeftModel
                     is_peft_model = isinstance(original_model, PeftModel)
                 if is_peft_model:
                     active_adapter = original_model.active_adapter

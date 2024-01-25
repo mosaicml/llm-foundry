@@ -41,10 +41,10 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path, 
             'num_hidden_layers': 2,
             'hidden_size': 32,
             'intermediate_size': 64,
+            'tie_word_embeddings': True,
         },
         'use_auth_token': True,
         'pretrained': False,
-        'tie_word_embeddings': True,
         'init_device': init_device,
     }
     tokenizer_name = 'mistralai/Mistral-7B-v0.1'
@@ -63,6 +63,7 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path, 
         'activation_cpu_offload': False,
         'limit_all_gathers': True,
         'state_dict_type': 'full',
+        'sync_module_states': True,
     }
 
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
@@ -116,6 +117,14 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path, 
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)
 
+    lm_head = original_model.model.lm_head if peft_config is None else original_model.model.base_model.model.lm_head
+    embedding_layer = original_model.model.model.embed_tokens if peft_config is None else original_model.model.base_model.model.model.embed_tokens
+
+    lm_head_id = id(lm_head.weight)
+    embedding_layer_id = id(embedding_layer.weight)
+
+    assert lm_head_id == embedding_layer_id
+
     trainer = Trainer(
         model=original_model,
         device='gpu',
@@ -127,3 +136,12 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path, 
         optimizers=optimizer,
         save_latest_filename=None,
     )
+
+    model = trainer.state.model
+    lm_head = model.model.lm_head if peft_config is None else model.model.base_model.model.lm_head
+    embedding_layer = model.model.model.embed_tokens if peft_config is None else model.model.base_model.model.model.embed_tokens
+
+    lm_head_id = id(lm_head.weight)
+    embedding_layer_id = id(embedding_layer.weight)
+
+    assert lm_head_id == embedding_layer_id

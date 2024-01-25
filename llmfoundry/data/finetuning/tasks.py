@@ -81,7 +81,7 @@ def _get_example_type(example: Example) -> ExampleType:
         return 'chat'
     elif any([
             pr in example
-            for pr in list(_ALLOWED_PROMPT_KEYS) + list(_ALLOWED_RESPONSE_KEYS)
+            for pr in _ALLOWED_PROMPT_KEYS.union(_ALLOWED_RESPONSE_KEYS)
     ]):
         return 'prompt_response'
     else:

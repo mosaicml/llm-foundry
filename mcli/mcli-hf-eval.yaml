@@ -7,14 +7,16 @@ integrations:
   ssh_clone: false # Should be true if using a private repo
 
 command: |
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/mosaicml/composer.git@dev
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: mpt-eval
 gpu_num: 8
-gpu_type: a100_40gb
-cluster: r1z2 # replace with your cluster here!
+gpu_type: h100_80gb
+cluster: r14z3 # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
@@ -22,7 +24,7 @@ image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 parameters:
   dist_timeout: 6000
   seed: 1
-  max_seq_len: 1024
+  max_seq_len: 2048
   device_eval_batch_size: 4
   precision: amp_fp16
 

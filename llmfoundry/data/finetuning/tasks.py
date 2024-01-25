@@ -79,7 +79,9 @@ def _get_example_type(example: Example) -> ExampleType:
     """
     if 'messages' in example:
         return 'chat'
-    elif 'prompt' in example or 'response' in example:
+    elif any(
+        [pr in example for pr in _ALLOWED_PROMPT_KEYS + _ALLOWED_RESPONSE_KEYS
+        ]):
         return 'prompt_response'
     else:
         raise KeyError(f'Unknown conversation type {example=}')

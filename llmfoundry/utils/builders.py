@@ -13,7 +13,7 @@ import torch
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, OptimizerMonitor,
-                                RuntimeEstimator, SpeedMonitor, CptOffset)
+                                RuntimeEstimator, SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -34,7 +34,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
                                   GlobalLRScaling, HuggingFaceCheckpointer,
                                   LayerFreezing, MonolithicCheckpointSaver,
-                                  ScheduledGarbageCollector)
+                                  ScheduledGarbageCollector, CptOffset)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)

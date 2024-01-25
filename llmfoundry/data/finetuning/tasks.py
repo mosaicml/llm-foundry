@@ -217,7 +217,7 @@ def _tokenize_formatted_example(
     example_format = _get_example_type(example)
 
     if example_format == 'chat':
-        chat_example: ChatFormattedDict = cast(ChatFormattedDict, example)
+        chat_example = cast(ChatFormattedDict, example)
         return _tokenize_chat_formatted_example(chat_example, tokenizer)
     elif example_format == 'prompt_response':
         prompt_response_example: PromptResponseDict = cast(

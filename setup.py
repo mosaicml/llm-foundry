@@ -54,7 +54,7 @@ install_requires = [
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.37,<4.38',
     'mosaicml-streaming>=0.7.2,<0.8',
-    'torch>=2.1,<2.1.1',
+    'torch>=2.3.0,<2.3.1',
     'datasets>=2.16,<2.17',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
@@ -99,14 +99,12 @@ extra_deps['tensorboard'] = [
 
 extra_deps['gpu'] = [
     'flash-attn==1.0.9',
+    'mosaicml-turbo==0.0.8',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
 ]
 extra_deps['gpu-flash2'] = [
     'flash-attn==2.5.0',
-]
-
-extra_deps['turbo'] = [
     'mosaicml-turbo==0.0.8',
 ]
 

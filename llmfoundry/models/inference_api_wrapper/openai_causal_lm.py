@@ -269,8 +269,13 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
             assert isinstance(completion.choices[0].logprobs.top_logprobs, list)
 
         if len(completion.choices[0].logprobs.top_logprobs[0]) > 0:
-            tensor = self.tokenizer.construct_logit_tensor(
-                dict(completion.choices[0].logprobs.top_logprobs[0]))
+            tokenizer_logprobs = dict(
+                completion.choices[0].logprobs.top_logprobs[0])
+            tensor = torch.tensor([min(tokenizer_logprobs.values()) - 1] *
+                                  (len(self.tokenizer)))
+            for k in tokenizer_logprobs:
+                encoding = self.tokenizer(k)['input_ids']
+                tensor[encoding[0]] = tokenizer_logprobs[k]
             return tensor
         else:
             # the model sometimes stops early even though we are still requesting tokens!

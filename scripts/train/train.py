@@ -393,9 +393,9 @@ def main(cfg: DictConfig) -> Trainer:
                                                     default_value=None,
                                                     convert=True)
     upload_config: bool = pop_config(cfg,
-                                      'upload_config',
-                                      must_exist=False,
-                                      default_value=True)
+                                     'upload_config',
+                                     must_exist=False,
+                                     default_value=True)
 
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False

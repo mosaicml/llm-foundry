@@ -392,7 +392,7 @@ def main(cfg: DictConfig) -> Trainer:
                                                     must_exist=False,
                                                     default_value=None,
                                                     convert=True)
-    upload_config: bool = pop_config(cfg,
+    should_log_config: bool = pop_config(cfg,
                                      'upload_config',
                                      must_exist=False,
                                      default_value=True)
@@ -626,7 +626,7 @@ def main(cfg: DictConfig) -> Trainer:
         compile_config=compile_config,
     )
 
-    if upload_config:
+    if should_log_config:
         log.info('Logging config')
         log_config(logged_cfg)
     torch.cuda.empty_cache()

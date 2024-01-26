@@ -204,7 +204,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
             expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
             output_logits = torch.nn.functional.one_hot(
                 torch.tensor(tokens[1:cont_idxs[0]]),
-                num_classes=self.tokenizer.vocab_size)
+                num_classes=len(self.tokenizer))
 
             prompt = self.tokenizer.decode(tokens[:cont_idxs[0]])
             next_logit_tensor = self.get_next_token_logit_tensor(
@@ -214,7 +214,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 output_logits = torch.cat([output_logits, next_logit_tensor])
             padding = torch.nn.functional.one_hot(
                 torch.full((seqlen - output_logits.shape[0],), padding_tok),
-                num_classes=self.tokenizer.vocab_size)
+                num_classes=len(self.tokenizer))
             output_logits = torch.cat([output_logits, padding])
             output_logits_batch.append(output_logits)
 
@@ -228,9 +228,14 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
             tensors = []
             for t in self.tokenizer(
                     completion.choices[0].message.content)['input_ids']:
-                tensors.append(
-                    self.tokenizer.construct_logit_tensor(
-                        {self.tokenizer.decode([t]): 0.0}))
+
+                # Construct tensor of shape (vocab_size,) with logprobs for each token
+                tokenizer_logprobs = {self.tokenizer.decode([t]): 0.0}
+                tensor = torch.tensor([min(tokenizer_logprobs.values()) - 1] * (len(self.tokenizer)))
+                for k in tokenizer_logprobs:
+                    encoding = self.tokenizer(k)['input_ids']
+                    tensor[encoding[0]] = tokenizer_logprobs[k]
+                tensors.append(tensor)
 
             if len(tensors) == 0:
                 return None

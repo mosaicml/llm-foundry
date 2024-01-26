@@ -279,6 +279,14 @@ class HuggingFaceCheckpointer(Callback):
                             path=local_save_path,
                             **self.mlflow_logging_config,
                         )
+
+                        if os.path.exists(
+                                os.path.join(local_save_path, 'LICENSE.txt')):
+                            mlflow_logger._mlflow_client.log_artifact(
+                                mlflow_logger._run_id,
+                                os.path.join(local_save_path, 'LICENSE.txt'),
+                            )
+
                         mlflow_logger.register_model(
                             model_uri=local_save_path,
                             name=self.mlflow_registered_model_name,

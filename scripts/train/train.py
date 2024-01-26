@@ -393,7 +393,7 @@ def main(cfg: DictConfig) -> Trainer:
                                                     default_value=None,
                                                     convert=True)
     should_log_config: bool = pop_config(cfg,
-                                     'upload_config',
+                                     'log_config',
                                      must_exist=False,
                                      default_value=True)
 

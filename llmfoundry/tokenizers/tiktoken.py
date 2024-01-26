@@ -3,7 +3,6 @@
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
-import torch
 from transformers import PreTrainedTokenizer
 
 DEFAULT_SYSTEM_PROMPT = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""

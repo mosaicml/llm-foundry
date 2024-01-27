@@ -10,6 +10,7 @@ from omegaconf import DictConfig, ListConfig
 
 from llmfoundry.models.inference_api_wrapper import (FMAPICasualLMEvalWrapper,
                                                      FMAPIChatAPIEvalWrapper)
+from llmfoundry.models.inference_api_wrapper.fmapi import FMAPIEvalInterface
 from llmfoundry.utils.builders import build_icl_evaluators
 
 
@@ -87,67 +88,72 @@ def mock_create(**kwargs: Dict[str, str]):
 
 
 def test_casual_fmapi_wrapper(tmp_path: str):
-    _ = pytest.importorskip('openai')
+    # patch block_until_ready
+    with patch.object(FMAPIEvalInterface, 'block_until_ready') as mock:
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'mosaicml/mpt-7b-8k-instruct')
-    model = FMAPICasualLMEvalWrapper(model_cfg={
-        'local': True,
-        'name': 'mosaicml/mpt-7b-8k-instruct'
-    },
-                                     tokenizer=tokenizer)
-    with patch.object(model, 'client') as mock:
-        mock.completions.create = mock_create
+        _ = pytest.importorskip('openai')
 
-        task_cfg = load_icl_config()
-        evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
-                                             tokenizer,
-                                             1024,
-                                             2,
-                                             destination_dir=str(tmp_path))
+        tokenizer = transformers.AutoTokenizer.from_pretrained(
+            'mosaicml/mpt-7b-8k-instruct')
+        model = FMAPICasualLMEvalWrapper(model_cfg={
+            'local': True,
+            'name': 'mosaicml/mpt-7b-8k-instruct'
+        },
+                                         tokenizer=tokenizer)
+        with patch.object(model, 'client') as mock:
+            mock.completions.create = mock_create
 
-        batch = next(evaluators[0].dataloader.dataloader.__iter__())
-        result = model.eval_forward(batch)
-        model.update_metric(batch,
-                            result,
-                            metric=model.get_metrics()
-                            ['InContextLearningLMAccuracy'])  # pyright: ignore
-        acc = model.get_metrics(
-        )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
-        )  # pyright: ignore
-        assert acc == 0.5
+            task_cfg = load_icl_config()
+            evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
+                                                 tokenizer,
+                                                 1024,
+                                                 2,
+                                                 destination_dir=str(tmp_path))
+
+            batch = next(evaluators[0].dataloader.dataloader.__iter__())
+            result = model.eval_forward(batch)
+            model.update_metric(
+                batch,
+                result,
+                metric=model.get_metrics()
+                ['InContextLearningLMAccuracy'])  # pyright: ignore
+            acc = model.get_metrics(
+            )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
+            )  # pyright: ignore
+            assert acc == 0.5
 
 
 def test_chat_fmapi_wrapper(tmp_path: str):
-    _ = pytest.importorskip('openai')
+    with patch.object(FMAPIEvalInterface, 'block_until_ready') as mock:
+        _ = pytest.importorskip('openai')
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'mosaicml/mpt-7b-8k-instruct')
-    chatmodel = FMAPIChatAPIEvalWrapper(model_cfg={
-        'local': True,
-        'name': 'mosaicml/mpt-7b-8k-instruct'
-    },
-                                        tokenizer=tokenizer)
+        tokenizer = transformers.AutoTokenizer.from_pretrained(
+            'mosaicml/mpt-7b-8k-instruct')
+        chatmodel = FMAPIChatAPIEvalWrapper(model_cfg={
+            'local': True,
+            'name': 'mosaicml/mpt-7b-8k-instruct'
+        },
+                                            tokenizer=tokenizer)
 
-    with patch.object(chatmodel, 'client') as mock:
-        mock.chat.completions.create.return_value = MockChatCompletion(
-            'Treason!')
+        with patch.object(chatmodel, 'client') as mock:
+            mock.chat.completions.create.return_value = MockChatCompletion(
+                'Treason!')
 
-        task_cfg = load_icl_config()
-        evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
-                                             tokenizer,
-                                             1024,
-                                             2,
-                                             destination_dir=str(tmp_path))
+            task_cfg = load_icl_config()
+            evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
+                                                 tokenizer,
+                                                 1024,
+                                                 2,
+                                                 destination_dir=str(tmp_path))
 
-        batch = next(evaluators[0].dataloader.dataloader.__iter__())
-        result = chatmodel.eval_forward(batch)
-        chatmodel.update_metric(
-            batch,
-            result,
-            metric=chatmodel.get_metrics()
-            ['InContextLearningLMAccuracy'])  # pyright: ignore
-        acc = chatmodel.get_metrics(
-        )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
-        )
-        assert acc == 0.5
+            batch = next(evaluators[0].dataloader.dataloader.__iter__())
+            result = chatmodel.eval_forward(batch)
+            chatmodel.update_metric(
+                batch,
+                result,
+                metric=chatmodel.get_metrics()
+                ['InContextLearningLMAccuracy'])  # pyright: ignore
+            acc = chatmodel.get_metrics(
+            )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
+            )
+            assert acc == 0.5

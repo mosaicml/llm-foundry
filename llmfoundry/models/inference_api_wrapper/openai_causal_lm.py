@@ -230,7 +230,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                     completion.choices[0].message.content)['input_ids']:
 
                 # Construct tensor of shape (vocab_size,) with logprobs for each token
-                tokenizer_logprobs = {self.tokenizer.decode([t]): 0.0}
+                tokenizer_logprobs = {self.tokenizer.decode([t]): 1.0}
                 tensor = torch.tensor([min(tokenizer_logprobs.values()) - 1] *
                                       (len(self.tokenizer)))
                 for k in tokenizer_logprobs:

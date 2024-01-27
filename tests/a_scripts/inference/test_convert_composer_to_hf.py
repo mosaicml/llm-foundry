@@ -22,6 +22,7 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import HuggingFaceCheckpointer
+from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
 from llmfoundry.data.finetuning import build_finetuning_dataloader
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_optimizer, build_tokenizer
@@ -817,3 +818,17 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
         assert torch.allclose(p1, p2)
 
     delete_transformers_cache()
+
+
+@pytest.mark.parametrize(
+    'license_file_name',
+    ['LICENSE', 'LICENSE.txt', 'license', 'license.md', None])
+def test_license_file_finder(tmp_path: pathlib.Path,
+                             license_file_name: Optional[str]):
+    if license_file_name is not None:
+        with open(os.path.join(tmp_path, license_file_name), 'w') as f:
+            f.write('test')
+
+    found_path = _maybe_get_license_filename(str(tmp_path))
+    assert (found_path == license_file_name
+           ) if license_file_name is not None else (found_path is None)

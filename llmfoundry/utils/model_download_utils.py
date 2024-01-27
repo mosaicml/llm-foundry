@@ -108,6 +108,7 @@ def download_from_hf_hub(
     download_start = time.time()
     hf_hub.snapshot_download(model,
                              local_dir=save_dir,
+                             local_dir_use_symlinks=False,
                              ignore_patterns=ignore_patterns,
                              allow_patterns=allow_patterns,
                              token=token)

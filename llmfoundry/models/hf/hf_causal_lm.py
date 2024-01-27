@@ -113,8 +113,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         # forces you to load the model in fp16/bf16 if you want to use flash attention. Rather than loading
         # the model and then casting it back to fp32, we are monkeypatching their check.
         # https://github.com/huggingface/transformers/issues/28052
-        def _autoset_attn_implementation_monkeypatch(cls, config, *args, # type: ignore
-                                                     **kwargs):  # type: ignore
+        def _autoset_attn_implementation_monkeypatch(
+                cls,  # type: ignore
+                config,  # type: ignore
+                *args,  # type: ignore
+                **kwargs):  # type: ignore
             config._attn_implementation = requested_attention_implementation
             return config
 

@@ -16,6 +16,7 @@ models:
       model_max_length: ${max_seq_len}
 
 device_eval_batch_size: 1 
+icl_subset_num_batches: 2
 
 # FSDP config for model sharding
 fsdp_config:

@@ -109,13 +109,7 @@ extra_deps['gpu-flash2'] = [
 ]
 
 extra_deps['peft'] = [
-    'loralib==0.1.1',  # lora core
-    'bitsandbytes==0.39.1',  # 8bit
-    # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
-    'scipy>=1.10.0,<=1.11.0',
-    # TODO: pin peft when it stabilizes.
-    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'peft==0.4.0',
+    'mosaicml[peft]>=0.17.2,<0.19',
 ]
 
 extra_deps['openai'] = [

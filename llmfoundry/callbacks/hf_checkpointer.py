@@ -218,8 +218,6 @@ class HuggingFaceCheckpointer(Callback):
                     copied_config.attn_config['attn_impl'] = 'torch'
                     copied_config.init_device = 'cpu'
 
-                # TODO: after torch 2.1, we can load a state dict into a meta model
-                # and skip the extra model init
                 log.debug(f'Creating new model instance')
                 with init_empty_weights():
                     new_model_instance = type(original_model)(copied_config)

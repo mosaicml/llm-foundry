@@ -29,8 +29,10 @@ from llmfoundry.utils.builders import build_optimizer, build_tokenizer
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
+
 def _save_model_mock(*args: Any, path: str, **kwargs: Any):
     os.makedirs(path, exist_ok=True)
+
 
 def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
                                    tokenizer2: PreTrainedTokenizerBase):

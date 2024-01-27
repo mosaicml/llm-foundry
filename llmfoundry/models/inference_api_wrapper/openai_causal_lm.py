@@ -228,14 +228,9 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
             tensors = []
             for t in self.tokenizer(
                     completion.choices[0].message.content)['input_ids']:
-
-                # Construct tensor of shape (vocab_size,) with logprobs for each token
-                tokenizer_logprobs = {self.tokenizer.decode([t]): 1.0}
-                tensor = torch.tensor([min(tokenizer_logprobs.values()) - 1] *
-                                      (len(self.tokenizer)))
-                for k in tokenizer_logprobs:
-                    encoding = self.tokenizer(k)['input_ids']
-                    tensor[encoding[0]] = tokenizer_logprobs[k]
+                # Not real logprobs
+                tensor = torch.tensor([0] * (len(self.tokenizer)))
+                tensor[t] = 1.0
                 tensors.append(tensor)
 
             if len(tensors) == 0:
@@ -269,6 +264,7 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
             assert isinstance(completion.choices[0].logprobs.top_logprobs, list)
 
         if len(completion.choices[0].logprobs.top_logprobs[0]) > 0:
+            # Construct tensor of shape (vocab_size,) with logprobs for each token
             tokenizer_logprobs = dict(
                 completion.choices[0].logprobs.top_logprobs[0])
             tensor = torch.tensor([min(tokenizer_logprobs.values()) - 1] *

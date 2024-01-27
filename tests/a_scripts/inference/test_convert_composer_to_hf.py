@@ -6,7 +6,7 @@ import os
 import pathlib
 import shutil
 from argparse import Namespace
-from typing import Callable, Optional, cast
+from typing import Any, Callable, Optional, cast
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -29,6 +29,8 @@ from llmfoundry.utils.builders import build_optimizer, build_tokenizer
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
+def _save_model_mock(*args: Any, path: str, **kwargs: Any):
+    os.makedirs(path, exist_ok=True)
 
 def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
                                    tokenizer2: PreTrainedTokenizerBase):
@@ -298,7 +300,7 @@ def test_huggingface_conversion_callback_interval(
 
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
-    mlflow_logger_mock.save_model = MagicMock()
+    mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
     mlflow_logger_mock.register_model = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
@@ -534,7 +536,7 @@ def test_huggingface_conversion_callback(
 
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
-    mlflow_logger_mock.save_model = MagicMock()
+    mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
     mlflow_logger_mock.register_model = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'

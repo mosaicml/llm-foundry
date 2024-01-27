@@ -356,6 +356,10 @@ def main(cfg: DictConfig) -> Trainer:
                                                     must_exist=False,
                                                     default_value=None,
                                                     convert=True)
+    should_log_config: bool = pop_config(cfg,
+                                         'log_config',
+                                         must_exist=False,
+                                         default_value=True)
 
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
@@ -580,8 +584,9 @@ def main(cfg: DictConfig) -> Trainer:
         compile_config=compile_config,
     )
 
-    log.info('Logging config')
-    log_config(logged_cfg)
+    if should_log_config:
+        log.info('Logging config')
+        log_config(logged_cfg)
     torch.cuda.empty_cache()
     gc.collect()
 

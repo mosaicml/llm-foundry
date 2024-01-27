@@ -121,6 +121,7 @@ def evaluate_model(
     icl_subset_num_batches: Optional[int],
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
+    should_log_config: bool = True,
 ):
 
     log.info(f'Evaluating model: {model_cfg.model_name}')
@@ -215,8 +216,9 @@ def evaluate_model(
         python_log_level=python_log_level,
     )
 
-    log.info('Evaluation config:')
-    log_config(logged_config)
+    if should_log_config:
+        log.info('Evaluation config:')
+        log_config(logged_config)
 
     log.info(f'Starting eval for {model_cfg.model_name}...')
     if torch.cuda.is_available():
@@ -306,6 +308,10 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                                     must_exist=False,
                                                     default_value=None,
                                                     convert=True)
+    should_log_config: bool = pop_config(cfg,
+                                         'log_config',
+                                         must_exist=False,
+                                         default_value=True)
 
     # Pop out interpolation variables.
     pop_config(cfg, 'model_name_or_path', must_exist=False, default_value=None)
@@ -352,7 +358,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              eval_gauntlet_df=eval_gauntlet_df,
              icl_subset_num_batches=icl_subset_num_batches,
              metadata=metadata,
-             logged_config=logged_cfg)
+             logged_config=logged_cfg,
+             should_log_config=should_log_config)
         trainers.append(trainer)
 
         if eval_gauntlet_callback is not None:

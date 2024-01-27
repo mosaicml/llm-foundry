@@ -527,7 +527,6 @@ def build_icl_evaluators(
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
                 pass_at_k=icl_cfg.pass_at_k,
-                # TODO: these variables are poorly named. Either composer or icl_config needs to change
                 generations_per_sample=icl_cfg.num_beams,
                 has_categories=icl_cfg.get('has_categories', False),
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),

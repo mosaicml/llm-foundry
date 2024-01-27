@@ -2,20 +2,6 @@ max_seq_len: 8196
 seed: 1
 precision: amp_bf16
 
-# models:
-# -
-#   model_name: mosaicml/mpt-7b-chat-8k
-#   model:
-#     name: hf_causal_lm
-#     pretrained_model_name_or_path: mosaicml/mpt-7b-chat-8k
-#     pretrained: true
-#     attn_config:
-#       attn_impl: triton
-#   tokenizer:
-#     name: mosaicml/mpt-7b-chat-8k
-#     kwargs:
-#       model_max_length: ${max_seq_len}
-
 models:
 -
   model_name: EleutherAI/gpt-neo-125m
@@ -40,24 +26,3 @@ fsdp_config:
 # eval_gauntlet: 'eval/yamls/leval.yaml'
 icl_tasks: 'eval/yamls/long_context_tasks.yaml'
 eval_gauntlet: 'eval/yamls/eval_gauntlet_8k_section.yaml'
-# icl_tasks:
-# - label: longchat-lines
-#   dataset_uri: hf://abacusai/LongChat-Lines
-#   num_fewshot: [0]
-#   icl_task_type: question_answering
-#   hf_vars: 
-#     split: 100
-#   hf_cols:
-#     inputs: ["prompt"]
-#     outputs: ["expected_number"] 
-
-# eval_gauntlet:
-#   weighting: EQUAL
-#   subtract_random_baseline: true
-#   rescale_accuracy: true
-#   categories:
-#   - name: longchat-lines
-#     benchmarks:
-#     - name: longchat-lines 
-#       num_fewshot: 0
-#       random_baseline: 0.0

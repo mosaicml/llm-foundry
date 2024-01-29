@@ -40,7 +40,6 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path,
             'intermediate_size': 64,
             'tie_word_embeddings': True,
         },
-        'use_auth_token': True,
         'pretrained': False,
         'init_device': init_device,
     }

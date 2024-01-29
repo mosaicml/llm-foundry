@@ -207,11 +207,10 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
         }
 
     assert expected_model_config_dict == new_model_config_dict
-    assert all(
-        torch.equal(p1.cpu(), p2.cpu()) if (
-            not just_lora or 'lora' in n1) else True
-        for (n1, p1), (
-            _, p2) in zip(model1.named_parameters(), model2.named_parameters()))
+    for (n1, p1), (_, p2) in zip(model1.named_parameters(),
+                                 model2.named_parameters()):
+        if not just_lora or 'lora' in n1:
+            assert torch.equal(p1.cpu(), p2.cpu())
 
 
 def delete_transformers_cache():

@@ -45,8 +45,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
     """Configures a :class:`.HuggingFaceModel` around a Causal LM.
 
     Args:
-        om_model_config (DictConfig | PeftModel | transformers.PreTrainedModel): either an omegaconf dictionary used to configure the model, or an instantiated model object from the peft or transformers library.
-        if DictConfig, the following keys are required:
+        om_model_config (DictConfig): An OmegaConf DictConfig specifying the configuration options
             cfg.pretrained_model_name_or_path (str): The name of or local path to
                 the HF Causal LM (e.g., `gpt2` to instantiate a GPT2LMHeadModel).
             cfg.config_overrides (dict, optional): An optional dictionary of keyword
@@ -58,6 +57,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             cfg.init_device ('cpu' | 'meta'): Which device, 'cpu' or 'meta', to
                 initialize the model on. Currently, `meta` is only supported when
                 cfg.pretrained is ``False``. Default: ``'cpu'``.
+            cfg.peft_config (dict, optional): An optional dictionary of keyword arguments to be
+                passed to the PeftConfig constructor. If provided, the model will be wrapped in a PeftModel.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
@@ -79,7 +80,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         if not om_model_config.get('trust_remote_code',
                                    True) and om_model_config.get(
                                        'pretrained_model_name_or_path',
-                                       None).startswith('mosaicml/mpt'):
+                                       '').startswith('mosaicml/mpt'):
             raise ValueError(
                 'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
                 +
@@ -243,6 +244,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 attention_patch_type)
             model.config.use_cache = False
 
+        # Hugging Face's weight tying does not succeed if the model is inited on meta device
+        # so we manually apply the weight tying here
         if model.config.tie_word_embeddings and resolved_init_device == 'meta':
             model.tie_weights()
 

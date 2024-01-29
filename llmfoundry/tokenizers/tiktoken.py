@@ -198,7 +198,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             '{% else %}'
             "{{ '\n' + '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' }}"
             '{% endif %}'
-            '{% if (add_generation_prompt == true) %}'
+            '{% if (add_generation_prompt == true and loop.last) %}'
             "{{ '\n' + '<|im_start|>' + 'assistant' + '\n' }}"
             "{% elif (message['role'] == 'assistant') %}"
             '{{ eos_token }}'

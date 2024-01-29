@@ -237,9 +237,13 @@ class HuggingFaceCheckpointer(Callback):
                     copied_config.init_device = 'cpu'
 
                 log.debug(f'Creating new model instance')
+                # First create the model instance on meta device to avoid the
+                # initialization cost.
                 with init_empty_weights():
                     new_model_instance = type(original_model)(copied_config)
 
+                # Then load the state dict in with "assign" so that the state dict
+                # is loaded properly even though the model is initially on meta device.
                 new_model_instance.load_state_dict(state_dict, assign=True)
                 del state_dict
 

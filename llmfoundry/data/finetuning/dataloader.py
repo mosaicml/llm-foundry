@@ -310,7 +310,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     hf_formatted_split = split.replace('-', '_')
     finetune_dir = os.path.join(
         DOWNLOADED_FT_DATASETS_DIRPATH,
-        split if split != 'data' else 'data_not',
+        hf_formatted_split if hf_formatted_split != 'data' else 'data_not',
     )
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in SUPPORTED_EXTENSIONS:

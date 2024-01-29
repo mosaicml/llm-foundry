@@ -273,7 +273,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
                 )
 
-        composer_model = super().__init__(
+        super().__init__(
             model=model,
             shift_labels=True,
             tokenizer=tokenizer,
@@ -283,5 +283,3 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             init_device=init_device,
             peft_config=peft_config,
         )
-
-        return composer_model

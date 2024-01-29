@@ -213,7 +213,7 @@ def build_callback(
             raise ValueError(
                 'Parameters config is required for async eval callback')
 
-        return AsyncEval(**kwargs, training_config=config)
+        return AsyncEval(**kwargs, training_params=config)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

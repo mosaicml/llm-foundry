@@ -36,9 +36,6 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
-        assert os.getenv(
-            'OPENAI_API_KEY'
-        ) is not None, 'No OpenAI API Key found. Ensure it is saved as an environmental variable called OPENAI_API_KEY.'
         try:
             import openai
         except ImportError as e:
@@ -46,8 +43,28 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 extra_deps_group='openai',
                 conda_package='openai',
                 conda_channel='conda-forge') from e
-        self.client = openai.OpenAI()
-        self.model_name = model_cfg['version']
+
+        api_key = os.environ.get('OPENAI_API_KEY')
+        base_url = model_cfg.get('base_url')
+        if base_url is None:
+            # Using OpenAI default, where the API key is required
+            if api_key is None:
+                raise ValueError(
+                    'No OpenAI API Key found. Ensure it is saved as an environmental variable called OPENAI_API_KEY.'
+                )
+
+        else:
+            # Using a custom base URL, where the API key may not be required
+            log.info(
+                f'Making request to custom base URL: {base_url}{"" if api_key is not None else " (no API key set)"}'
+            )
+            api_key = 'placeholder'  # This cannot be None
+
+        self.client = openai.OpenAI(base_url=base_url, api_key=api_key)
+        if 'version' in model_cfg:
+            self.model_name = model_cfg['version']
+        else:
+            self.model_name = model_cfg['name']
 
     def generate_completion(self, prompt: str, num_tokens: int):
         raise NotImplementedError()

@@ -30,6 +30,12 @@ DEFAULT_IGNORE_PATTERNS = [
 ]
 PYTORCH_WEIGHTS_PATTERN = 'pytorch_model*.bin*'
 SAFE_WEIGHTS_PATTERN = 'model*.safetensors*'
+TOKENIZER_FILES = [
+    'special_tokens_map.json',
+    'tokenizer.json',
+    'tokenizer.model',
+    'tokenizer_config.json',
+]
 
 ORAS_PASSWD_PLACEHOLDER = '<placeholder_for_passwd>'
 ORAS_CLI = 'oras'
@@ -45,6 +51,7 @@ def download_from_hf_hub(
     model: str,
     save_dir: str,
     prefer_safetensors: bool = True,
+    tokenizer_only: bool = False,
     token: Optional[str] = None,
 ):
     """Downloads model files from a Hugging Face Hub model repo.
@@ -57,6 +64,7 @@ def download_from_hf_hub(
         save_dir (str, optional): The local path to the directory where the model files will be downloaded.
         prefer_safetensors (bool): Whether to prefer Safetensors weights over PyTorch weights if both are
             available. Defaults to True.
+        tokenizer_only (bool): If true, only download tokenizer files.
         token (str, optional): The HuggingFace API token. If not provided, the token will be read from the
             `HUGGING_FACE_HUB_TOKEN` environment variable.
 
@@ -95,10 +103,14 @@ def download_from_hf_hub(
             ' Please make sure the repo contains either safetensors or pytorch weights.'
         )
 
+    allow_patterns = TOKENIZER_FILES if tokenizer_only else None
+
     download_start = time.time()
     hf_hub.snapshot_download(model,
                              local_dir=save_dir,
+                             local_dir_use_symlinks=False,
                              ignore_patterns=ignore_patterns,
+                             allow_patterns=allow_patterns,
                              token=token)
     download_duration = time.time() - download_start
     log.info(
@@ -221,16 +233,18 @@ def download_from_oras(model: str,
                        config_file: str,
                        credentials_dir: str,
                        save_dir: str,
+                       tokenizer_only: bool = False,
                        concurrency: int = 10):
     """Download from an OCI-compliant registry using oras.
 
     Args:
-        model: The name of the model to download.
-        config_file: Path to a YAML config file that maps model names to registry paths.
-        credentials_dir: Path to a directory containing credentials for the registry. It is expected to contain three
+        model (str): The name of the model to download.
+        config_file (str): Path to a YAML config file that maps model and tokenizer names to registry paths.
+        credentials_dir (str): Path to a directory containing credentials for the registry. It is expected to contain three
             files: `username`, `password`, and `registry`, each of which contains the corresponding credential.
-        save_dir: Path to the directory where files will be downloaded.
-        concurrency: The number of concurrent downloads to run.
+        save_dir (str): Path to the directory where files will be downloaded.
+        tokenizer_only (bool): If true, only download the tokenzier files.
+        concurrency (int): The number of concurrent downloads to run.
     """
     if shutil.which(ORAS_CLI) is None:
         raise Exception(
@@ -253,7 +267,8 @@ def download_from_oras(model: str,
     with open(config_file, 'r', encoding='utf-8') as f:
         configs = yaml.safe_load(f.read())
 
-    path = configs['models'][model]
+    config_type = 'tokenizers' if tokenizer_only else 'models'
+    path = configs[config_type][model]
     registry = secrets['registry']
 
     def get_oras_cmd(username: Optional[str] = None,

@@ -23,6 +23,7 @@ from composer.utils.misc import create_interval_scheduler
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
+from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
@@ -235,12 +236,15 @@ class HuggingFaceCheckpointer(Callback):
                     copied_config.attn_config['attn_impl'] = 'torch'
                     copied_config.init_device = 'cpu'
 
-                # TODO: after torch 2.1, we can load a state dict into a meta model
-                # and skip the extra model init
                 log.debug(f'Creating new model instance')
-                new_model_instance = type(original_model)(copied_config)
-                new_model_instance.to(dtype=self.dtype)
-                new_model_instance.load_state_dict(state_dict)
+                # First create the model instance on meta device to avoid the
+                # initialization cost.
+                with init_empty_weights():
+                    new_model_instance = type(original_model)(copied_config)
+
+                # Then load the state dict in with "assign" so that the state dict
+                # is loaded properly even though the model is initially on meta device.
+                new_model_instance.load_state_dict(state_dict, assign=True)
                 del state_dict
 
                 log.debug('Saving Hugging Face checkpoint to disk')

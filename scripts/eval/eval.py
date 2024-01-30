@@ -306,7 +306,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     fewshot_random_seed: int = pop_config(cfg,
                                           'fewshot_random_seed',
                                           must_exist=False,
-                                          default_value=None)
+                                          default_value=1234)
     eval_subset_num_batches: int = pop_config(cfg,
                                               'eval_subset_num_batches',
                                               must_exist=False,

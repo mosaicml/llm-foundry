@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional, Union
 from transformers import PretrainedConfig
 
 from llmfoundry.models.layers.attention import (check_alibi_support,
+                                                is_flash_v1_installed,
                                                 is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import attn_config_defaults
 
@@ -222,6 +223,20 @@ class MPTConfig(PretrainedConfig):
                 'attn_impl'] not in ['torch', 'triton']:
             raise NotImplementedError(
                 'prefix_lm only implemented with torch and triton attention.')
+
+        if self.attn_config['attn_impl'] == 'flash' and is_flash_v1_installed():
+            warnings.warn(
+                DeprecationWarning(
+                    'The support for Flash Attention v1 will soon be deprecated. Please upgrade to Flash Attention v2.4.2.'
+                ))
+
+        if self.attn_config[
+                'attn_impl'] == 'triton' and not self.attn_config['prefix_lm']:
+            warnings.warn(
+                UserWarning(
+                    'If not using a Prefix Language Model, we recommend setting "attn_impl" to "flash" instead of "triton".'
+                ))
+
         if self.attn_config['alibi'] and not check_alibi_support(
                 self.attn_config['attn_impl']):
             raise NotImplementedError(

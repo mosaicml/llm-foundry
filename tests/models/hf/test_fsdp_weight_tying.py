@@ -6,9 +6,8 @@ from typing import Optional
 
 import pytest
 from composer import Trainer
-from omegaconf import OmegaConf as om
-
 from composer.models.huggingface import maybe_get_underlying_model
+from omegaconf import OmegaConf as om
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import build_tokenizer

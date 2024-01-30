@@ -22,4 +22,4 @@ device_eval_batch_size: 4
 
 # With load_in_8bit, do not specify fsdp_config
 
-icl_tasks: 'eval/yamls/tasks_light.yaml'
+icl_tasks: "eval/yamls/tasks_light.yaml"

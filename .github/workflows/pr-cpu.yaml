@@ -19,10 +19,10 @@ jobs:
     strategy:
       matrix:
         include:
-        - name: 'cpu-2.1.0'
+        - name: "cpu-2.1.0"
           container: mosaicml/pytorch:2.1.0_cpu-python3.10-ubuntu20.04
-          markers: 'not gpu'
-          pytest_command: 'coverage run -m pytest'
+          markers: "not gpu"
+          pytest_command: "coverage run -m pytest"
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     with:

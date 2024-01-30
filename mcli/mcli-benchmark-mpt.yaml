@@ -13,7 +13,7 @@ integrations:
   git_repo: mosaicml/llm-foundry
   git_branch: v0.4.0
   # git_commit: # OR use your commit hash
-  pip_install: '.[gpu]'
+  pip_install: ".[gpu]"
 
 command: |
   cd llm-foundry/scripts/inference/benchmarking

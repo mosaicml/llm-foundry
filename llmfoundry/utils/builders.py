@@ -408,7 +408,8 @@ def build_tokenizer(
         )
 
     if not hasattr(tokenizer, 'eos_token_id') or tokenizer.eos_token_id is None:
-        raise ValueError(f"The tokenizer '{tokenizer_name}' must have an 'eos_token_id'.")
+        raise ValueError(
+            f'The tokenizer {tokenizer_name} must have an eos_token_id.')
 
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:

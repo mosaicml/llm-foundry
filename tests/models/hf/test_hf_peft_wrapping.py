@@ -12,6 +12,8 @@ from composer import Trainer
 from omegaconf import OmegaConf as om
 from peft import LoraConfig, get_peft_model
 
+from composer.models.huggingface import maybe_get_underlying_model
+
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
 from llmfoundry.utils.builders import build_tokenizer
@@ -97,9 +99,10 @@ def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path,
     )
 
     model = trainer.state.model
-    lora_A = model.model.base_model.model.model.layers[
+    underlying_model = maybe_get_underlying_model(model.model)
+    lora_A = underlying_model.model.layers[
         0].self_attn.q_proj.lora_A['default']
-    lora_B = model.model.base_model.model.model.layers[
+    lora_B = underlying_model.model.layers[
         0].self_attn.q_proj.lora_B['default']
 
     assert (lora_A.weight == 1).all()

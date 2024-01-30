@@ -23,6 +23,7 @@ from torch import nn
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
+from llmfoundry.eval.metrics.nlp import InContextLearningGenerationF1Score
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
@@ -74,7 +75,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             InContextLearningQAAccuracy(),
             InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError()
+            InContextLearningMCExpectedCalibrationError(),
+            InContextLearningGenerationF1Score()
         ]
 
         # if we are passed a DictConfig, we need to instantiate the model

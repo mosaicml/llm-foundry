@@ -65,7 +65,7 @@ def test_icl_eval(eval_cfg: Union[om.ListConfig, om.DictConfig], capfd: Any,
     assert isinstance(eval_cfg, om.DictConfig)
     main(eval_cfg)
     out, _ = capfd.readouterr()
-    expected_results = '| Category                    | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           |          0 | 0-shot            | tiny_mpt |'
+    expected_results = '| Category                    | Benchmark      | Subtask   |   Score | Metric name                 | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|--------:|:----------------------------|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           |       0 | InContextLearningLMAccuracy | 0-shot            | tiny_mpt |'
     assert expected_results in out
     expected_results = '| model_name   |   default_average |   language_understanding_lite |\n|:-------------|------------------:|------------------------------:|\n| tiny_mpt     |                 0 |                             0 |'
     assert expected_results in out

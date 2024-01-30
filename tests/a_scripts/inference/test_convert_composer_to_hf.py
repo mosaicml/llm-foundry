@@ -7,7 +7,7 @@ import os
 import pathlib
 import shutil
 from argparse import Namespace
-from typing import Callable, Optional, cast
+from typing import Any, Callable, Optional, cast
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -23,11 +23,16 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import HuggingFaceCheckpointer
+from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
 from llmfoundry.data.finetuning import build_finetuning_dataloader
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_optimizer, build_tokenizer
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
+
+
+def _save_model_mock(*args: Any, path: str, **kwargs: Any):
+    os.makedirs(path, exist_ok=True)
 
 
 def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
@@ -300,7 +305,7 @@ def test_huggingface_conversion_callback_interval(
 
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
-    mlflow_logger_mock.save_model = MagicMock()
+    mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
     mlflow_logger_mock.register_model = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
@@ -556,7 +561,7 @@ def test_huggingface_conversion_callback(
 
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
-    mlflow_logger_mock.save_model = MagicMock()
+    mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
     mlflow_logger_mock.register_model = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
@@ -867,3 +872,17 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
         assert torch.allclose(p1, p2)
 
     delete_transformers_cache()
+
+
+@pytest.mark.parametrize(
+    'license_file_name',
+    ['LICENSE', 'LICENSE.txt', 'license', 'license.md', None])
+def test_license_file_finder(tmp_path: pathlib.Path,
+                             license_file_name: Optional[str]):
+    if license_file_name is not None:
+        with open(os.path.join(tmp_path, license_file_name), 'w') as f:
+            f.write('test')
+
+    found_path = _maybe_get_license_filename(str(tmp_path))
+    assert (found_path == license_file_name
+           ) if license_file_name is not None else (found_path is None)

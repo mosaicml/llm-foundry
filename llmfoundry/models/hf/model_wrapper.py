@@ -49,13 +49,16 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
                  shift_labels: bool = False,
                  init_device: Optional[str] = None,
                  peft_config: Optional['PeftConfig'] = None):
-        super().__init__(model,
-                         tokenizer,
-                         use_logits=True,
-                         metrics=metrics,
-                         eval_metrics=eval_metrics,
-                         shift_labels=shift_labels,
-                         peft_config=peft_config)
+        super().__init__(
+            model,
+            tokenizer,
+            use_logits=True,
+            metrics=metrics,
+            eval_metrics=eval_metrics,
+            shift_labels=shift_labels,
+            peft_config=peft_config,
+            should_save_peft_only=True,
+        )
         self.z_loss = float(z_loss)
         if self.z_loss < 0.0:
             raise ValueError(f'z_loss(={z_loss}) cannot be negative.')

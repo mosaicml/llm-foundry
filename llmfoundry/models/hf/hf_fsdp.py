@@ -174,19 +174,19 @@ def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
         tied_embeddings._fsdp_wrap = False
         lm_head._fsdp_wrap = False
 
-    if hasattr(model, 'peft_type'):
-        if model.peft_type is not None:
-            peft_type = model.peft_type.lower()
-            active_adapters = [
-                adapter.lower() for adapter in model.active_adapters
-            ]
-            for name, module in model.named_modules():
-                if peft_type in name.lower() and any(
-                        adapter in name.lower() for adapter in active_adapters):
-                    has_parameters = any(True for _ in module.parameters())
-                    has_buffers = any(True for _ in module.buffers())
-                    if has_parameters or has_buffers:
-                        module._fsdp_wrap = True
+    # PEFT layers should be individually wrapped
+    # TODO: Revisit this if we enforce use_orig_params=True, which seems to support
+    # mixed frozen/unfrozen FSDP modules
+    if hasattr(model, 'peft_type') and model.peft_type is not None:
+        peft_type = model.peft_type.lower()
+        active_adapters = [adapter.lower() for adapter in model.active_adapters]
+        for name, module in model.named_modules():
+            if peft_type in name.lower() and any(
+                    adapter in name.lower() for adapter in active_adapters):
+                has_parameters = next(module.parameters(), None) is not None
+                has_buffers = next(module.buffers(), None) is not None
+                if has_parameters or has_buffers:
+                    module._fsdp_wrap = True
 
     # FSDP Wrap and Activation Checkpoint every model block
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)

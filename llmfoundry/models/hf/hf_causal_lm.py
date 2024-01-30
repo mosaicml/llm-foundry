@@ -282,5 +282,4 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             z_loss=z_loss,
             init_device=init_device,
             peft_config=peft_config,
-            should_save_peft_only=True,
         )

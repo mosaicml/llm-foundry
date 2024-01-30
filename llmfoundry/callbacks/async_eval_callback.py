@@ -19,7 +19,7 @@ from composer.loggers.mosaicml_logger import (MOSAICML_PLATFORM_ENV_VAR,
 from composer.utils import dist
 from composer.utils.misc import create_interval_scheduler
 
-from mcli import ComputeConfig, Run, RunConfig, create_run, get_run
+from mcli import Run, RunConfig, create_run, get_run
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +33,9 @@ REQUIRED_PARAMS_FOR_EVAL = {
 OPTIONAL_PARAMS_FOR_EVAL = {
     'dist_timeout',
     'eval_gauntlet',
+    'eval_loader',
     'fsdp_config',
+    'eval_subset_num_batches',
     'icl_subset_num_batches',
     'loggers',
     'precision',
@@ -175,50 +177,84 @@ def validate_interval(interval: Union[str, int, Time],
     return async_interval
 
 
+def validate_eval_run_config(
+        eval_run_config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+
+    if not eval_run_config:
+        return {}
+
+    run_config = eval_run_config.copy()
+
+    supported_keys = {'image', 'command', 'compute', 'scheduling'}
+    found_unsupported = set()
+    for key in run_config:
+        if key not in supported_keys:
+            found_unsupported.add(key)
+
+    if found_unsupported:
+        raise ValueError(
+            f'Unsupported eval run config keys found: {", ".join(found_unsupported)}'
+            + f'. Supported keys: {supported_keys}')
+
+    return run_config
+
+
 class AsyncEval(Callback):
     """Run the eval loop asynchronously as part of a MosaicML platform run.
 
     This callback is currently experimental. The API may change in the future.
 
     Args:
-        training_config: Dict[str, Any]: The config from the training run
+        training_params: Dict[str, Any]: The parameter config from the training run
         interval: Union[str, int, Time]: The interval describing how often eval runs should be
             launched. If an integer, it will be assumed to be in :attr:`.TimeUnit.EPOCH`.
             Otherwise, the unit must be either :attr:`.TimeUnit.EPOCH`, :attr:`.TimeUnit.BATCH`,
             :attr:`.TimeUnit.TOKEN`, or :attr:`.TimeUnit.SAMPLE`.
-        compute: Optional[Union[ComputeConfig, Dict[str, Any]]]: The compute configuration to
-            use for the eval run. If not provided, the same cluster as the current run and a
-            single, full GPU node will be used.
+        eval_run_config: Optional[Dict[str, Any]]: A subset of mcli run config values to use
+            for the eval run. If not specified, any fields from run config will be created
+            dynamically from the training run config and the interval. The following fields
+            are supported:
+            - ``image``: Image of the eval run. Default: same as training run
+            - ``command``: Command to run for the eval run. Default: calls
+                `composer scripts/eval/eval.py $PARAMETERS`. If custom setup is needed,
+                the command should include calling the eval script with $PARAMETERS
+            - ``compute``: Compute to use for the eval run. Default: same cluster as
+                the training run and a single node (8 GPUs)
+            - ``scheduling``: Scheduling to use for the eval run. Default: same as training run
+
+            All fields are optional, but if specified, must be valid for a mcli run config. We
+            provide this optional config to give you the most flexibility in customizing the eval
+            run, but it is recommended to use the default values unless you have a specific use case
     """
 
     def __init__(
         self,
-        training_config: Dict[str, Any],
+        training_params: Dict[str, Any],
         interval: Union[str, int, Time],
-        compute: Optional[Union[ComputeConfig, Dict[str, Any]]] = None,
+        eval_run_config: Optional[Dict[str, Any]] = None,
     ):
 
         for required in ('save_interval', 'save_folder'):
-            if required not in training_config:
+            if required not in training_params:
                 raise ValueError(f'{required} required for async eval')
 
-        self.checkpoint_save_folder = training_config['save_folder']
-        self.training_config = training_config
+        self.checkpoint_save_folder = training_params['save_folder']
+        self.training_params = training_params
+        self.eval_run_config = validate_eval_run_config(eval_run_config)
         self.interval = validate_interval(interval,
-                                          self.training_config['save_interval'])
+                                          self.training_params['save_interval'])
         self.check_interval = create_interval_scheduler(
             interval,
             # There is a custom close to ensure that the final checkpoint
             # (which is the most important) is evaled after it is written
             include_end_of_training=False,
         )
-        self.compute = compute
         self.last_checkpoint: Optional[str] = None
 
         # Run these during init to fail fast in any of the error cases
         self.current_run = self._get_current_run()
         get_eval_parameters(
-            parameters=training_config,
+            parameters=training_params,
             checkpoint='test',
             training_run_name=self.current_run.name,
         )
@@ -259,7 +295,7 @@ class AsyncEval(Callback):
         if dist.get_global_rank() != 0:
             return
 
-        save_latest_filename = self.training_config.get('save_latest_filename',
+        save_latest_filename = self.training_params.get('save_latest_filename',
                                                         None)
 
         if not save_latest_filename:
@@ -297,7 +333,7 @@ class AsyncEval(Callback):
         run_name = get_run_name(self.current_run.name, str(current_interval))
 
         params = get_eval_parameters(
-            parameters=self.training_config,
+            parameters=self.training_params,
             checkpoint=checkpoint,
             training_run_name=self.current_run.name,
         )
@@ -347,12 +383,16 @@ class AsyncEval(Callback):
         # TODO: This just runs an eval run, but we also want to attach the
         # deployment, which would require a hf conversion and parametrizing the
         # dependent_deployment in the run config
-        command = f'cd {installation_path}/scripts \n composer eval/eval.py $PARAMETERS'
+        default_command = f'cd {installation_path}/scripts \n composer eval/eval.py $PARAMETERS'
         run_config = RunConfig(
             name=run_name,
-            image=self.current_run.image,
-            compute=self.compute or default_compute,
-            command=command,
+            image=self.eval_run_config.get('image', self.current_run.image),
+            command=self.eval_run_config.get('command', default_command),
+            compute=self.eval_run_config.get('compute', default_compute),
+            scheduling=self.eval_run_config.get(
+                'scheduling',
+                self.current_run.submitted_config.scheduling,
+            ),
             integrations=integrations,
             env_variables=cfg.env_variables,
             metadata=cfg.metadata,

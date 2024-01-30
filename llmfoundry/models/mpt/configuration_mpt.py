@@ -82,6 +82,7 @@ class MPTConfig(PretrainedConfig):
                 attn_pdrop (float): The dropout probability for the attention layers.
                 attn_impl (str): The attention implementation to use. One of 'torch', 'flash', or 'triton'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
+                qk_gn (bool): Whether to apply group normalization to the queries and keys in the attention layer.
                 clip_qkv (Optional[float]): If not None, clip the queries, keys, and values in the attention layer to
                     this value.
                 softmax_scale (Optional[float]): If not None, scale the softmax in the attention layer by this value. If None,

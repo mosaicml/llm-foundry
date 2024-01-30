@@ -59,6 +59,16 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 cfg.pretrained is ``False``. Default: ``'cpu'``.
             cfg.peft_config (dict, optional): An optional dictionary of keyword arguments to be
                 passed to the PeftConfig constructor. If provided, the model will be wrapped in a PeftModel.
+            cfg.trust_remote_code (bool, optional): Whether to trust remote code when loading from Hugging Face
+                Hub. Default: ``True``.
+            cfg.use_auth_token (bool, optional): Whether to use the Hugging Face authentication token when
+                loading from Hugging Face Hub. Default: ``False``.
+            cfg.use_train_metrics (bool, optional): Whether to use training metrics. Default: ``True``.
+            cfg.z_loss (float, optional): The z-loss coefficient. Default: ``0.0``.
+            cfg.load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Default: ``False``.
+            cfg.init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
+            cfg.attention_patch_type (str, optional): Which attention patch to use for llama models. Default: ``None``.
+            cfg.use_flash_attention_2 (bool, optional): Whether to use flash-attention 2. Default: ``False``.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 

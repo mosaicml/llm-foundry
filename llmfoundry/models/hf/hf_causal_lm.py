@@ -6,10 +6,9 @@
 import logging
 import os
 import warnings
-from typing import Mapping, Any, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Mapping
 
 # required for loading a python model into composer
-import transformers
 from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
                                   InContextLearningLMAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
@@ -70,7 +69,40 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
-        # set up training and eval metrics
+        if not om_model_config.get('trust_remote_code',
+                                   True) and om_model_config.get(
+                                       'pretrained_model_name_or_path',
+                                       '').startswith('mosaicml/mpt'):
+            raise ValueError(
+                'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
+                +
+                'which is not significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
+            )
+
+        # Set up Hugging Face args
+        trust_remote_code = om_model_config.get('trust_remote_code', True)
+        use_auth_token = om_model_config.get('use_auth_token', False)
+        use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
+                                                    False)
+        requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
+        load_in_8bit = om_model_config.get('load_in_8bit', False)
+        if use_flash_attention_2 and not is_flash_v2_installed():
+            raise ValueError(
+                'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
+                + 'Please install flash_attn==2.3.6`.')
+
+        # Set up config args for the model construction and base classes
+        z_loss = om_model_config.get('z_loss', 0.0)
+        init_device = om_model_config.get('init_device', 'cpu')
+        # Resolve "mixed" init device to either "cpu" or "meta"
+        resolved_init_device = hf_get_init_device(init_device)
+        attention_patch_type = om_model_config.get('attention_patch_type', None)
+        peft_config_dict = pop_config(om_model_config,
+                                      'peft_config',
+                                      must_exist=False,
+                                      convert=True)
+
+        # Set up training and eval metrics
         train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
         eval_metrics = [
             LanguageCrossEntropy(),
@@ -82,31 +114,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError()
         ]
-
-        if not om_model_config.get('trust_remote_code',
-                                   True) and om_model_config.get(
-                                       'pretrained_model_name_or_path',
-                                       '').startswith('mosaicml/mpt'):
-            raise ValueError(
-                'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
-                +
-                'which is not significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
-            )
-
         if not om_model_config.get('use_train_metrics', True):
             train_metrics = []
 
-        # load the model config
-        trust_remote_code = om_model_config.get('trust_remote_code', True)
-        use_auth_token = om_model_config.get('use_auth_token', False)
-        use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
-                                                    False)
-        if use_flash_attention_2 and not is_flash_v2_installed():
-            raise ValueError(
-                'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
-                + 'Please install flash_attn==2.3.6`.')
-
-        requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
+        # Construct the Hugging Face config to use
         config = AutoConfig.from_pretrained(
             om_model_config.pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
@@ -154,15 +165,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 getattr(config, k).update(v)
             else:
                 setattr(config, k, v)
-
-        load_in_8bit = om_model_config.get('load_in_8bit', False)
-
-        # below we set up the device to initialize the model on
-        init_device = om_model_config.get('init_device', 'cpu')
-
-        # Get the device we want to initialize, and use the
-        # resolved version to initialize the HF model
-        resolved_init_device = hf_get_init_device(init_device)
 
         # We need to have all non-zero local ranks be not-pretrained
         # Rank 0 will still be pretrained, and distribute the weights appropriately
@@ -230,36 +232,15 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
 
-        z_loss = om_model_config.get('z_loss', 0.0)
-
-        attention_patch_type = om_model_config.get('attention_patch_type', None)
         if attention_patch_type is not None:
-            if model.config.model_type != 'llama':
-                raise ValueError(
-                    f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
-                )
-
-            log.debug(
-                f'Patching llama attention with {attention_patch_type} attention'
-            )
-            from transformers.models.llama.modeling_llama import LlamaAttention
-
-            from llmfoundry.models.layers.llama_attention_monkeypatch import \
-                get_llama_attention_patch_fn
-            LlamaAttention.forward = get_llama_attention_patch_fn(
-                attention_patch_type)
-            model.config.use_cache = False
+            self._patch_attention_type(model, attention_patch_type)
 
         # Hugging Face's weight tying does not succeed if the model is inited on meta device
         # so we manually apply the weight tying here
         if model.config.tie_word_embeddings and resolved_init_device == 'meta':
             model.tie_weights()
 
-        peft_config_dict = pop_config(om_model_config,
-                                 'peft_config',
-                                 must_exist=False,
-                                 convert=True)
-
+        peft_config = None
         if peft_config_dict is not None:
             peft_config = self._get_peft_config(peft_config_dict)
 
@@ -275,15 +256,33 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         )
 
     @staticmethod
+    def _patch_attention_type(model: PreTrainedModel,
+                              attention_patch_type: str) -> None:
+        if model.config.model_type != 'llama':
+            raise ValueError(
+                f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
+            )
+
+        log.debug(
+            f'Patching llama attention with {attention_patch_type} attention')
+        from transformers.models.llama.modeling_llama import LlamaAttention
+
+        from llmfoundry.models.layers.llama_attention_monkeypatch import \
+            get_llama_attention_patch_fn
+        LlamaAttention.forward = get_llama_attention_patch_fn(
+            attention_patch_type)
+        model.config.use_cache = False
+
+    @staticmethod
     def _get_peft_config(peft_config_dict: Dict[str, Any]) -> 'PeftConfig':
         if peft_installed:
             from peft import LoraConfig
-            peft_type = peft_config_dict.get('peft_type', None)
+            peft_type = peft_config_dict.get('peft_type', '')
             if peft_type.upper() != 'LORA':
                 raise ValueError(
                     f'Only LORA is supported for peft_type, but got {peft_type}.'
                 )
-            task_type = peft_config_dict.get('task_type', None)
+            task_type = peft_config_dict.get('task_type', '')
             if task_type.upper() != 'CAUSAL_LM':
                 raise ValueError(
                     f'Only CAUSAL_LM is supported for task_type, but got {task_type}.'

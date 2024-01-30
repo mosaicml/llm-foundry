@@ -92,10 +92,8 @@ def hf_get_hidden_layers(model: PreTrainedModel) -> Any:
     hidden_layers_attrs = (
         'h',  # BLOOM, GPT2, GPTJ
         'decoder.layers',  # OPT
-        'layers',  # GPTNeoX
+        'layers',  # GPTNeoX, Llama, ProphetNet, Marian (from encoder)
         'block',  # T5, BART, Pegasus (from encoder)
-        'layers',  # ProphetNet, Marian (from encoder)
-        'layers',  # LLaMa
         'blocks',  # MPT
     )
     layers = findattr(model, hidden_layers_attrs)

@@ -6,7 +6,7 @@
 import logging
 import os
 import warnings
-from typing import Mapping
+from typing import Mapping, Any, Dict, TYPE_CHECKING
 
 # required for loading a python model into composer
 import transformers
@@ -29,12 +29,8 @@ from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
 
-try:
-    from peft.peft_model import PeftModel
-    model_types = PeftModel, transformers.PreTrainedModel
-
-except ImportError:
-    model_types = transformers.PreTrainedModel
+if TYPE_CHECKING:
+    from peft import PeftConfig
 
 __all__ = ['ComposerHFCausalLM']
 
@@ -259,29 +255,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         if model.config.tie_word_embeddings and resolved_init_device == 'meta':
             model.tie_weights()
 
-        peft_config = pop_config(om_model_config,
+        peft_config_dict = pop_config(om_model_config,
                                  'peft_config',
                                  must_exist=False,
                                  convert=True)
 
-        if peft_config is not None:
-            if peft_installed:
-                from peft import LoraConfig
-                peft_type = peft_config.get('peft_type', None)
-                if peft_type.upper() != 'LORA':
-                    raise ValueError(
-                        f'Only LORA is supported for peft_type, but got {peft_type}.'
-                    )
-                task_type = peft_config.get('task_type', None)
-                if task_type.upper() != 'CAUSAL_LM':
-                    raise ValueError(
-                        f'Only CAUSAL_LM is supported for task_type, but got {task_type}.'
-                    )
-                peft_config = LoraConfig(**peft_config)
-            else:
-                raise ValueError(
-                    'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
-                )
+        if peft_config_dict is not None:
+            peft_config = self._get_peft_config(peft_config_dict)
 
         super().__init__(
             model=model,
@@ -293,3 +273,23 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             init_device=init_device,
             peft_config=peft_config,
         )
+
+    @staticmethod
+    def _get_peft_config(peft_config_dict: Dict[str, Any]) -> 'PeftConfig':
+        if peft_installed:
+            from peft import LoraConfig
+            peft_type = peft_config_dict.get('peft_type', None)
+            if peft_type.upper() != 'LORA':
+                raise ValueError(
+                    f'Only LORA is supported for peft_type, but got {peft_type}.'
+                )
+            task_type = peft_config_dict.get('task_type', None)
+            if task_type.upper() != 'CAUSAL_LM':
+                raise ValueError(
+                    f'Only CAUSAL_LM is supported for task_type, but got {task_type}.'
+                )
+            return LoraConfig(**peft_config_dict)
+        else:
+            raise ValueError(
+                'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
+            )

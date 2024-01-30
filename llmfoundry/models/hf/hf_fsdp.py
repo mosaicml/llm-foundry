@@ -80,12 +80,14 @@ def hf_get_causal_base_model(model: PreTrainedModel) -> Any:
 def hf_get_hidden_layers(model: PreTrainedModel) -> Any:
     """Returns the hidden layers of the specified model.
 
+    Expects to receive the causal decoder backbone, not he XXForCausalLM wrapper.
+
     NOTE: Different model configurations have different hidden layer attribute names.
-        - transformer.h: (BloomForCausalLM, GPT2LMHeadModel, GPTJForCausalLM)
-        - model.decoder.layers: (OPTForCausalLM)
-        - gpt_neox.layers: (GPTNeoXForCausalLM)
-        - model.layers: (LlaMaForCausalLM)
-        - transformer.blocks: (MPTForCausalLM)
+        - h: (BloomForCausalLM, GPT2LMHeadModel, GPTJForCausalLM)
+        - decoder.layers: (OPTForCausalLM)
+        - layers: (GPTNeoXForCausalLM)
+        - layers: (LlaMaForCausalLM)
+        - blocks: (MPTForCausalLM)
     """
     hidden_layers_attrs = (
         'h',  # BLOOM, GPT2, GPTJ

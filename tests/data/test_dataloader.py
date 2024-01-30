@@ -463,24 +463,6 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
     _ = build_finetuning_dataloader(cfg, tokenizer, 4)
 
 
-def make_mock_get_file(args_list: list[dict[str, Union[str, bool]]]):
-    """Create a mock get_file function that appends the arguments to a list."""
-
-    def mock_get_file(path: str, destination: str, overwrite: bool = False):
-        args_list.append({
-            'path': path,
-            'destination': destination,
-            'overwrite': overwrite
-        })
-        if Path(destination).suffix == '.jsonl':
-            make_tiny_ft_dataset(path=destination, size=16)
-        else:
-            raise FileNotFoundError(
-                f'Test error in mock_get_file. {path} does not exist.')
-
-    return mock_get_file
-
-
 def mock_get_file(path: str, destination: str, overwrite: bool = False):
     if Path(destination).suffix == '.jsonl':
         make_tiny_ft_dataset(path=destination, size=16)
@@ -524,21 +506,11 @@ def test_finetuning_dataloader_custom_split_remote(
     # Mock get_file to avoid downloading the file
     with patch('llmfoundry.data.finetuning.dataloader.get_file',
                wraps=mock_get_file) as f:
-        f.call_args_list
+        _ = build_finetuning_dataloader(cfg, tokenizer, 4)
         for call in f.call_args_list:
             args, _ = call
             path_arg = args[0]
-            try:
-                assert split in path_arg
-            except AssertionError:
-                raise AssertionError(
-                    'dash in split name not found in file download')
-
-    args_list = []
-    with monkeypatch.context() as m:
-        m.setattr('llmfoundry.data.finetuning.dataloader.get_file',
-                  make_mock_get_file(args_list))
-        _ = build_finetuning_dataloader(cfg, tokenizer, 4)
+            assert split in path_arg, 'dash in split name not found in file download'
 
 
 def test_finetuning_dataloader_streaming(tmp_path: pathlib.Path):

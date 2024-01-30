@@ -8,6 +8,8 @@ import pytest
 from composer import Trainer
 from omegaconf import OmegaConf as om
 
+from composer.models.huggingface import maybe_get_underlying_model
+
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import build_tokenizer
 
@@ -70,8 +72,9 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path,
     original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
                                                                 tokenizer)
 
-    lm_head = original_model.model.lm_head if peft_config is None else original_model.model.base_model.model.lm_head
-    embedding_layer = original_model.model.model.embed_tokens if peft_config is None else original_model.model.base_model.model.model.embed_tokens
+    underlying_model = maybe_get_underlying_model(original_model.model)
+    lm_head = underlying_model.lm_head if peft_config is None else underlying_model.lm_head
+    embedding_layer = underlying_model.model.embed_tokens if peft_config is None else underlying_model.model.embed_tokens
 
     lm_head_id = id(lm_head.weight)
     embedding_layer_id = id(embedding_layer.weight)

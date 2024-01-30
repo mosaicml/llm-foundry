@@ -23,7 +23,5 @@ fsdp_config:
   sharding_strategy: FULL_SHARD
   mixed_precision: FULL
 
-# icl_tasks:  'eval/yamls/leval_tasks.yaml'
-# eval_gauntlet: 'eval/yamls/leval.yaml'
 icl_tasks: 'eval/yamls/long_context_tasks.yaml'
 eval_gauntlet: 'eval/yamls/eval_gauntlet_8k_section.yaml'

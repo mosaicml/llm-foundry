@@ -63,14 +63,14 @@ eval_gauntlet:
     - name: kv_pairs_end_8k
       num_fewshot: 0
       random_baseline: 0
-  # - name: full
-  #   benchmarks:
-  #   - name: wikiqa_2k
-  #     num_fewshot: 0
-  #     random_baseline: 0
-  #   - name: wikiqa_4k
-  #     num_fewshot: 0
-  #     random_baseline: 0
-  #   - name: wikiqa_8k
-  #     num_fewshot: 0
-  #     random_baseline: 0
+  - name: full
+    benchmarks:
+    - name: wikiqa_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: wikiqa_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: wikiqa_8k
+      num_fewshot: 0
+      random_baseline: 0

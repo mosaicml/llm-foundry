@@ -524,7 +524,6 @@ if __name__ == '__main__':
     header = '\n\n\n packing_ratio | % PADDING | % WASTE'
     fstr = '        {:5.1f}  |  {:5.2f}%   | {:6.2f}%'
 
-    print(header)
     print('-' * len(header))
     for packing_ratio, padding, waste in results:
         print(fstr.format(packing_ratio, padding, waste))

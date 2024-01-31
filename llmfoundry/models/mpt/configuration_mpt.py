@@ -227,7 +227,7 @@ class MPTConfig(PretrainedConfig):
         if self.attn_config['attn_impl'] == 'flash' and is_flash_v1_installed():
             warnings.warn(
                 DeprecationWarning(
-                    'Support for Flash Attention v1 is deprecated. Please upgrade to Flash Attention v2.4.2.'
+                    'Support for Flash Attention v1 is deprecated. Please upgrade to Flash Attention v2.4.2. To install Flash Attention v2.4.2, please run `pip install -e ".[gpu-flash2]"` from the root directory of the llm-foundry repository.'
                 ))
 
         if self.attn_config[

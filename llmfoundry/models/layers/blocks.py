@@ -22,6 +22,7 @@ attn_config_defaults: Dict = {
     'attn_pdrop': 0.0,
     'attn_impl': 'triton',
     'qk_ln': False,
+    'qk_gn': False,
     'clip_qkv': None,
     'softmax_scale': None,
     'prefix_lm': False,
@@ -122,7 +123,8 @@ class MPTBlock(nn.Module):
         attention_mask: Optional[torch.ByteTensor] = None,
         is_causal: bool = True,
         output_attentions: bool = False,
-        attention_mask_in_length: Optional[torch.Tensor] = None,
+        alibi_slopes: Optional[torch.Tensor] = None,
+        flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
             torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
@@ -134,7 +136,8 @@ class MPTBlock(nn.Module):
             attention_mask=attention_mask,
             is_causal=is_causal,
             needs_weights=output_attentions,
-            attention_mask_in_length=attention_mask_in_length,
+            alibi_slopes=alibi_slopes,
+            flash_attn_padding_info=flash_attn_padding_info,
         )
         x = x + self.resid_attn_dropout(b)
         m = x

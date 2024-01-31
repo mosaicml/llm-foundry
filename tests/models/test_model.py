@@ -27,7 +27,8 @@ from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 from llmfoundry import COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
-from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.attention import (check_alibi_support,
+                                                is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
@@ -647,8 +648,8 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
 def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict):
     # Testing the output of concatenated sequence with sequence id masking vs individual sequences.
     alibi = pos_emb_config['alibi']
-    if alibi and attention_impl == 'flash':
-        pytest.skip(f'alibi only implemented with torch and triton attention.')
+    if alibi and not check_alibi_support(attention_impl):
+        pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
 
     rope = pos_emb_config['rope']
     if rope and pos_emb_config[
@@ -766,8 +767,8 @@ def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
                               tie_word_embeddings: bool):
     # Test that different placement of padding does not affect the output.
     alibi = pos_emb_config['alibi']
-    if alibi and attention_impl == 'flash':
-        pytest.skip(f'alibi only implemented with torch and triton attention.')
+    if alibi and not check_alibi_support(attention_impl):
+        pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
 
     rope = pos_emb_config['rope']
     if rope and pos_emb_config[
@@ -1028,8 +1029,8 @@ def test_generate(attention_impl: str, precision: str, pos_emb_config: dict,
                   tie_word_embeddings: bool):
     # Test that generate works, and produces the same output with or without
     # padding in the input.
-    if pos_emb_config['alibi'] and attention_impl == 'flash':
-        pytest.skip(f'alibi only implemented with torch and triton attention.')
+    if pos_emb_config['alibi'] and not check_alibi_support(attention_impl):
+        pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
 
     if pos_emb_config['rope'] and pos_emb_config[
             'rope_impl'] == 'dail' and not is_flash_v2_installed():
@@ -1277,8 +1278,8 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
 }])
 def test_forward_with_cache_and_padding(attn_impl: str, pos_emb_config: dict):
     # Tests that the result is the same with or without padding when using kv caching
-    if pos_emb_config['alibi'] and attn_impl == 'flash':
-        pytest.skip(f'alibi only implemented with torch and triton attention.')
+    if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
+        pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
     if pos_emb_config['rope'] and pos_emb_config[
             'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(
@@ -1414,8 +1415,8 @@ def test_forward_with_cache(attn_impl: str, pos_emb_config: dict,
                             tie_word_embeddings: bool):
     # Test that model forward with and without the key-value cache produces the
     # same output.
-    if pos_emb_config['alibi'] and attn_impl == 'flash':
-        pytest.skip(f'alibi only implemented with torch and triton attention.')
+    if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
+        pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
 
     if pos_emb_config['rope'] and pos_emb_config[
             'rope_impl'] == 'dail' and not is_flash_v2_installed():
@@ -1551,8 +1552,8 @@ def test_forward_with_cache(attn_impl: str, pos_emb_config: dict,
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_generate_with_past_kv(attn_impl: str, pos_emb_config: dict,
                                tie_word_embeddings: bool):
-    if pos_emb_config['alibi'] and attn_impl == 'flash':
-        pytest.skip(f'alibi only implemented with torch and triton attention.')
+    if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
+        pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
     if pos_emb_config['rope'] and pos_emb_config[
             'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(
@@ -1658,8 +1659,8 @@ def test_generation_kwargs_dont_crash(attn_impl: str,
                                       generation_kwargs: Dict[str, Any],
                                       pos_emb_config: dict,
                                       tie_word_embeddings: bool):
-    if pos_emb_config['alibi'] and attn_impl == 'flash':
-        pytest.skip(f'alibi only implemented with torch and triton attention.')
+    if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
+        pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
 
     if pos_emb_config['rope'] and pos_emb_config[
             'rope_impl'] == 'dail' and not is_flash_v2_installed():
@@ -1847,8 +1848,8 @@ def test_alibi_vs_hf():
 }])
 def test_forward_with_output_attentions_and_output_hidden_states(
         attn_impl: str, pos_emb_config: dict):
-    if pos_emb_config['alibi'] and attn_impl == 'flash':
-        pytest.skip(f'alibi only implemented with torch and triton attention.')
+    if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
+        pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
     if attn_impl in ['flash', 'triton']:
         pytest.skip(f'output_attentions only implemented with torch attention.')
     if pos_emb_config['rope'] and pos_emb_config[

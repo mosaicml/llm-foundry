@@ -4,7 +4,7 @@ integrations:
   git_branch: v0.4.0
   # git_commit: # OR use your commit hash
   pip_install: -e .[gpu]
-  ssh_clone: false # Should be true if using a private repo
+  ssh_clone: false  # Should be true if using a private repo
 
 command: |
   cd llm-foundry/scripts
@@ -26,7 +26,7 @@ parameters:
   global_seed: 17
 
   # Run Name
-  run_name: # If left blank, will be read from env var $RUN_NAME
+  run_name:  # If left blank, will be read from env var $RUN_NAME
 
   max_split_size_mb: 512
 
@@ -140,7 +140,7 @@ parameters:
     memory_monitor: {}
     runtime_estimator: {}
 
-  load_weights_only: true # Only load the weights, not the optimizer state, LR schedule, etc
+  load_weights_only: true  # Only load the weights, not the optimizer state, LR schedule, etc
 
 #   loggers:
 #     wandb: {}

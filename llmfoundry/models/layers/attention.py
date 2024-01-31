@@ -39,6 +39,11 @@ def is_transformers_version_gte(hf_version: str) -> bool:
     return version.parse(transformers.__version__) >= version.parse(hf_version)
 
 
+def check_alibi_support(attention_impl: str) -> bool:
+    return attention_impl != 'flash' or is_flash_v2_installed(
+        v2_version='v2.4.2')
+
+
 # Before importing any transformers models, we need to disable transformers flash attention if
 # we are in an environment with flash attention version <2. Transformers hard errors on a not properly
 # gated import otherwise.
@@ -223,11 +228,17 @@ def flash_attn_fn(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
-    attention_mask_in_length: Optional[torch.Tensor] = None,
     should_repeat_kv_for_gqa: Optional[bool] = True,
     sliding_window_size: int = -1,
+    alibi_slopes: Optional[torch.Tensor] = None,
+    flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
+    if key_padding_mask is not None:
+        raise ValueError('key_padding_mask should be None for flash attn.')
+    del key_padding_mask
+    if flash_attn_padding_info is None:
+        raise ValueError('flash_attn_padding_info is required for flash attn.')
     try:
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
     except:
@@ -261,25 +272,24 @@ def flash_attn_fn(
 
     batch_size, seqlen = query.shape[:2]
 
-    if attention_mask_in_length is None:
-        if key_padding_mask is None:
-            key_padding_mask = torch.ones_like(key[:, :, 0], dtype=torch.bool)
-        query_padding_mask = key_padding_mask[:, -query.size(1):]
-        unpadding_function = bert_padding.unpad_input
-    else:
-        key_padding_mask = attention_mask_in_length
-        query_padding_mask = attention_mask_in_length
-        unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
+    indices_q = flash_attn_padding_info['indices_q']
+    indices_k = flash_attn_padding_info['indices_k']
+    indices_v = flash_attn_padding_info['indices_v']
+    cu_seqlens_q = flash_attn_padding_info['cu_seqlens_q']
+    cu_seqlens_k = flash_attn_padding_info['cu_seqlens_k']
+    max_seqlen_q = flash_attn_padding_info['max_seqlen_q']
+    max_seqlen_k = flash_attn_padding_info['max_seqlen_k']
 
-    query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
-        query, query_padding_mask)
+    query_unpad = bert_padding.index_first_axis(
+        rearrange(query, 'b s ... -> (b s) ...'), indices_q)
     query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
 
-    key_unpad, _, cu_seqlens_k, max_seqlen_k = unpadding_function(
-        key, key_padding_mask)
+    key_unpad = bert_padding.index_first_axis(
+        rearrange(key, 'b s ... -> (b s) ...'), indices_k)
     key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
-    value_unpad, _, _, _ = unpadding_function(value, key_padding_mask)
+    value_unpad = bert_padding.index_first_axis(
+        rearrange(value, 'b s ... -> (b s) ...'), indices_v)
     value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
     if (kv_n_heads < n_heads) and (not is_flash_v2_installed()) and (
@@ -334,6 +344,12 @@ def flash_attn_fn(
             causal=reset_is_causal,
             return_attn_probs=needs_weights)
     elif is_flash_v2_installed():
+        alibi_kwargs = {}
+        if check_alibi_support('flash'):
+            alibi_kwargs = {'alibi_slopes': alibi_slopes}
+        elif alibi_slopes is not None:
+            raise ValueError(
+                'alibi_slopes is only supported for flash-attn>=2.4.2')
         output_unpad = flash_attn_interface.flash_attn_varlen_func(
             q=query_unpad,
             k=key_unpad,
@@ -346,10 +362,11 @@ def flash_attn_fn(
             softmax_scale=softmax_scale,
             causal=reset_is_causal,
             return_attn_probs=needs_weights,
-            window_size=(sliding_window_size, sliding_window_size))
+            window_size=(sliding_window_size, sliding_window_size),
+            **alibi_kwargs)
     else:
         raise RuntimeError(
-            'flash-attn==1.0.9 or flash-attn==2.3.6 is required.')
+            'flash-attn==1.0.9 or flash-attn==2.4.2 is required.')
 
     output = bert_padding.pad_input(
         rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,
@@ -499,6 +516,7 @@ class GroupedQueryAttention(nn.Module):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        qk_gn: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -512,6 +530,7 @@ class GroupedQueryAttention(nn.Module):
         self.attn_impl = attn_impl
         self.clip_qkv = clip_qkv
         self.qk_ln = qk_ln
+        self.qk_gn = qk_gn
 
         self.d_model = d_model
         self.n_heads = n_heads
@@ -532,6 +551,8 @@ class GroupedQueryAttention(nn.Module):
             raise ValueError(
                 'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads.'
             )
+        if qk_ln and qk_gn:
+            raise ValueError('Only one of qk_ln and qk_gn can be set to True.')
 
         self.softmax_scale = softmax_scale
         if self.softmax_scale is None:
@@ -555,11 +576,13 @@ class GroupedQueryAttention(nn.Module):
         ]
         self.Wqkv._fused = (0, fuse_splits)
 
-        if self.qk_ln:
+        if self.qk_ln or self.qk_gn:
             norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
-            self.q_ln = norm_class(self.d_model, device=device)
-            self.k_ln = norm_class(self.kv_n_heads * self.head_dim,
-                                   device=device)
+            norm_size = self.head_dim if qk_gn else d_model
+            self.q_ln = norm_class(norm_size, device=device)
+            if qk_ln:
+                norm_size = self.head_dim * kv_n_heads
+            self.k_ln = norm_class(norm_size, device=device)
 
         if self.attn_impl == 'flash':
             self.attn_fn = flash_attn_fn
@@ -586,7 +609,8 @@ class GroupedQueryAttention(nn.Module):
         rotary_emb_w_meta_info: Optional[dict] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
-        attention_mask_in_length: Optional[torch.Tensor] = None,
+        alibi_slopes: Optional[torch.Tensor] = None,
+        flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
             torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
@@ -605,11 +629,16 @@ class GroupedQueryAttention(nn.Module):
 
         key_padding_mask = attention_mask
 
-        if self.qk_ln:
+        if self.qk_ln or self.qk_gn:
             # Applying layernorm to qk
+            q_shape, k_shape = query.shape, key.shape
+            if self.qk_gn:
+                b, s = query.shape[:2]
+                query = query.view(b, s, self.n_heads, -1)
+                key = key.view(b, s, self.kv_n_heads, -1)
             dtype = query.dtype
-            query = self.q_ln(query).to(dtype)
-            key = self.k_ln(key).to(dtype)
+            query = self.q_ln(query).to(dtype).view(q_shape)
+            key = self.k_ln(key).to(dtype).view(k_shape)
 
         if rotary_emb_w_meta_info is not None:
             rotary_emb = rotary_emb_w_meta_info['rotary_emb']
@@ -652,10 +681,12 @@ class GroupedQueryAttention(nn.Module):
 
         extra_attn_kwargs = {}
         if self.attn_impl == 'flash':
+            key_padding_mask = None
             extra_attn_kwargs = {
-                'attention_mask_in_length': attention_mask_in_length,
                 'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
                 'sliding_window_size': self.sliding_window_size,
+                'alibi_slopes': alibi_slopes,
+                'flash_attn_padding_info': flash_attn_padding_info,
             }
 
         context, attn_weights, past_key_value = self.attn_fn(
@@ -692,6 +723,7 @@ class MultiheadAttention(GroupedQueryAttention):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        qk_gn: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -707,6 +739,7 @@ class MultiheadAttention(GroupedQueryAttention):
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
+            qk_gn=qk_gn,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
@@ -731,6 +764,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        qk_gn: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -746,6 +780,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
+            qk_gn=qk_gn,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
@@ -805,7 +840,8 @@ def build_attn_bias(
 
 def gen_slopes(n_heads: int,
                alibi_bias_max: int = 8,
-               device: Optional[torch.device] = None) -> torch.Tensor:
+               device: Optional[torch.device] = None,
+               return_1d: bool = False) -> torch.Tensor:
     _n_heads = 2**math.ceil(math.log2(n_heads))
     m = torch.arange(1, _n_heads + 1, dtype=torch.float32, device=device)
     m = m.mul(alibi_bias_max / _n_heads)
@@ -816,7 +852,8 @@ def gen_slopes(n_heads: int,
         # Huggingface and FasterTransformer calculate slopes normally,
         # then return this strided concatenation of slopes
         slopes = torch.concat([slopes[1::2], slopes[::2]])[:n_heads]
-
+    if return_1d:
+        return slopes
     return slopes.view(1, n_heads, 1, 1)
 
 

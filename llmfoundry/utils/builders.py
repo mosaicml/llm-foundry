@@ -392,6 +392,7 @@ def build_tokenizer(
         # Make sure the tokenizer files are downloaded and cached first by local rank 0
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             pass
+    print('hello')
 
     if tokenizer_name.startswith('tiktoken'):
         tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)

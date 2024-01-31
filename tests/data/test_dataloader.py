@@ -10,7 +10,7 @@ from argparse import Namespace
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 from typing import ContextManager, Literal, Optional, Union
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
@@ -472,8 +472,7 @@ def mock_get_file(path: str, destination: str, overwrite: bool = False):
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'custom-dash', 'data'])
-def test_finetuning_dataloader_custom_split_remote(
-        split: str, monkeypatch: pytest.MonkeyPatch):
+def test_finetuning_dataloader_custom_split_remote(split: str):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
 
@@ -503,10 +502,18 @@ def test_finetuning_dataloader_custom_split_remote(
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
-    with monkeypatch.context() as m:
-        m.setattr('llmfoundry.data.finetuning.dataloader.get_file',
-                  mock_get_file)
+    # Mock get_file to avoid downloading the file
+    with patch('llmfoundry.data.finetuning.dataloader.get_file',
+               wraps=mock_get_file) as f:
         _ = build_finetuning_dataloader(cfg, tokenizer, 4)
+        for call in f.call_args_list:
+            path_arg = call.kwargs['path']
+            dest_arg = call.kwargs['destination']
+            assert split in path_arg, 'split name should be downloaded verbatim'
+            if '-' in split:
+                assert split not in dest_arg, 'split name should have dashes replaced with underscores'
+            else:
+                assert split in dest_arg, 'split destination should match split name'
 
 
 def test_finetuning_dataloader_streaming(tmp_path: pathlib.Path):

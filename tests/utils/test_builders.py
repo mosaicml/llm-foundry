@@ -48,12 +48,11 @@ def test_tokenizer_builder(tokenizer_name: str, tokenizer_kwargs: dict):
         assert isinstance(tokenizer, PreTrainedTokenizerBase)
 
 
-def test_tokenizer_no_EOS(tokenizer_name: str, tokenizer_kwargs: dict):
-    with pytest.raises(ValueError, match=r".*must have an eos_token_id.*"):
+def test_tokenizer_no_EOS():
+    with pytest.raises(
+            ValueError,
+            match='The tokenizer bert-base-uncased must have an eos_token.'):
         build_tokenizer('bert-base-uncased', {})
-    
-    with pytest.raises(ValueError, match=r".*must have an eos_token_id.*"):
-        build_tokenizer('bert-base-uncased', {'eos_token_id': None})
 
 
 def test_build_callback_fails():

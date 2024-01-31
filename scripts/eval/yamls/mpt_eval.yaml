@@ -24,7 +24,7 @@ models:
     attn_config:
       attn_impl: triton
 
-  load_path: # Add your non-optional Composer checkpoint path here! (must not be empty)
+  load_path:  # Add your non-optional Composer checkpoint path here! (must not be empty)
 
 device_eval_batch_size: 16
 
@@ -38,8 +38,8 @@ fsdp_config:
 icl_tasks:
 -
   label: jeopardy
-  dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   icl_task_type: language_modeling
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
   has_categories: true

@@ -83,6 +83,13 @@ def process_file(
                 node.module.startswith('composer') or
                 node.module.startswith('omegaconf')):
             nodes_to_remove.append(node)
+        # Remove names starting with 'Composer' from ImportFrom nodes
+        elif isinstance(node, ast.ImportFrom):
+            # Filter out names that start with 'Composer'
+            node.names = [name for name in node.names if not name.name.startswith('Composer')]
+            # If all names are removed, mark the whole import statement for removal
+            if not node.names:
+                nodes_to_remove.append(node)
         # Remove the Composer* class
         elif (isinstance(node, ast.ClassDef) and
               node.name.startswith('Composer')):
@@ -90,9 +97,19 @@ def process_file(
         # Remove the __all__ declaration in any __init__.py files, whose
         # enclosing module will be converted to a single file of the same name
         elif (isinstance(node, ast.Assign) and len(node.targets) == 1 and
-              isinstance(node.targets[0], ast.Name) and
-              node.targets[0].id == '__all__'):
+            isinstance(node.targets[0], ast.Name) and
+            node.targets[0].id == '__all__'):
             nodes_to_remove.append(node)
+            # Update __all__ by removing entries that start with 'Composer'
+            __all__names = [elt.s for elt in node.value.elts if not elt.s.startswith('Composer')]
+            # Create a new __all__ assignment node if there are any names left
+            if __all__names:
+                new_all_node = ast.Assign(
+                    targets=[ast.Name(id='__all__', ctx=ast.Store())],
+                    value=ast.List(elts=[ast.Str(s=name) for name in __all__names], ctx=ast.Load())
+                )
+                ast.fix_missing_locations(new_all_node)
+                tree.body.insert(0, new_all_node)
 
     transformer = DeleteSpecificNodes(nodes_to_remove)
     new_tree = transformer.visit(tree)

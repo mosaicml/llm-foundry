@@ -2,9 +2,9 @@ integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
   git_branch: v0.4.0
-  # git_commit: # OR use your commit hash
+  # git_commit:  # OR use your commit hash
   pip_install: -e .[gpu]
-  ssh_clone: false # Should be true if using a private repo
+  ssh_clone: false  # Should be true if using a private repo
 
 # We are fetching, converting, and training on the 'val' split
 # as it is small and quick to get going for this demo.

@@ -168,11 +168,9 @@ def build_finetuning_dataloader(cfg: DictConfig,
                     'When using a HuggingFace dataset from a URL, you must set the ' + \
                     '`split` key in the dataset config.'
                 )
-            # HF datasets does not support a split with dashes, so we replace dashes
-            # with underscores.
-            split = split.replace('-', '_')
             dataset_name_or_path = _download_remote_hf_dataset(
                 remote_path=dataset_name_or_path, split=split)
+            split = split.replace('-', '_')
 
         # Get the preprocessing function.
         proto_preprocessing_fn = cfg.dataset.get('preprocessing_fn')
@@ -310,17 +308,20 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     Raises:
         FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.
     """
+    # HF datasets does not support a split with dashes, so we replace dashes with underscores.
+    hf_formatted_split = split.replace('-', '_')
     finetune_dir = os.path.join(
         DOWNLOADED_FT_DATASETS_DIRPATH,
-        split if split != 'data' else 'data_not',
+        hf_formatted_split if hf_formatted_split != 'data' else 'data_not',
     )
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in SUPPORTED_EXTENSIONS:
         name = f'{remote_path.strip("/")}/{split}{extension}'
         destination = str(
             os.path.abspath(
-                os.path.join(finetune_dir, 'data',
-                             f'{split}-00000-of-00001{extension}')))
+                os.path.join(
+                    finetune_dir, 'data',
+                    f'{hf_formatted_split}-00000-of-00001{extension}')))
 
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file

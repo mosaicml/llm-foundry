@@ -4,7 +4,7 @@ integrations:
   git_branch: v0.4.0
   # git_commit: # OR use your commit hash
   pip_install: -e .[gpu]
-  ssh_clone: false # Should be true if using a private repo
+  ssh_clone: false  # Should be true if using a private repo
 
 command: |
   cd llm-foundry/scripts/inference

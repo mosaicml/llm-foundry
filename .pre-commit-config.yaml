@@ -64,7 +64,7 @@ repos:
     - --license-filepath
     - .ci/FILE_HEADER
     - --comment-style
-    - '#'
+    - "#"
     - --allow-past-years
     types: [python]
 - repo: https://github.com/PyCQA/docformatter

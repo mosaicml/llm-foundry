@@ -72,12 +72,13 @@ jobs:
 
     - name: Build and Push the Docker Image
       uses: docker/build-push-action@v3
-      with:
+      with:       
         context: .
         tags: ${{ env.IMAGE_TAG }}
         push: true
         cache-from: type=registry,ref=${{ env.IMAGE_CACHE }}
         cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max
         build-args: |
+          BRANCH_NAME=${{ github.head_ref || github.ref_name }} 
           BASE_IMAGE=${{ matrix.base_image }}
           DEP_GROUPS=${{ matrix.dep_groups }}

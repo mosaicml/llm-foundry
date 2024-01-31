@@ -48,25 +48,12 @@ def test_tokenizer_builder(tokenizer_name: str, tokenizer_kwargs: dict):
         assert isinstance(tokenizer, PreTrainedTokenizerBase)
 
 
-@pytest.mark.parametrize('tokenizer_name,tokenizer_kwargs', [
-    ('bert-base-uncased', {
-        'model_max_length': 10,
-        'eos_token_id': None,
-    }),
-    ('bert-base-uncased', {
-        'model_max_length': 10
-    }),
-])
 def test_tokenizer_no_EOS(tokenizer_name: str, tokenizer_kwargs: dict):
-    tokenizer_kwargs = {
-        'model_max_length': 10,
-    }
-    tokenizer_name = 'bert-base-uncased'
-
-    with pytest.raises(ValueError) as exc_info:
-        build_tokenizer(tokenizer_name, tokenizer_kwargs)
-    assert 'must have an eos_token_id.' in str(
-        exc_info.value), 'Error message for missing eos_token_id is not correct'
+    with pytest.raises(ValueError, match=r".*must have an eos_token_id.*"):
+        build_tokenizer('bert-base-uncased', {})
+    
+    with pytest.raises(ValueError, match=r".*must have an eos_token_id.*"):
+        build_tokenizer('bert-base-uncased', {'eos_token_id': None})
 
 
 def test_build_callback_fails():

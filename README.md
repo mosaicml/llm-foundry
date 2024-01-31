@@ -134,7 +134,9 @@ We *strongly* recommend working with LLM Foundry inside a Docker container (see 
 ```bash
 git clone https://github.com/mosaicml/llm-foundry.git
 cd llm-foundry
-pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
+pip install -e ".[gpu-flash2]"  # or `pip install -e .` if no NVIDIA GPU.
+# Note: Currently, `pip install -e ".[gpu-flash2]"` installs Flash Attention v2 and `pip install -e ".[gpu]"` installs Flash Attention v1.
+#       However once the support for Flash Attention v1 is removed, both of these commands will install Flash Attention v2
 ```
 
 ### Without Docker (not recommended)
@@ -152,7 +154,9 @@ source llmfoundry-venv/bin/activate
 
 pip install cmake packaging torch  # setup.py requires these be installed
 
-pip install -e ".[gpu]"  # or pip install -e . if no NVIDIA GPU
+pip install -e ".[gpu-flash2]"  # or `pip install -e .` if no NVIDIA GPU.
+# Note: Currently, `pip install -e ".[gpu-flash2]"` installs Flash Attention v2 and `pip install -e ".[gpu]"` installs Flash Attention v1.
+#       However once the support for Flash Attention v1 is removed, both of these commands will install Flash Attention v2
 ```
 
 ### TransformerEngine and amp_fp8 support

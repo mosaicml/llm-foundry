@@ -9,7 +9,7 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 import torch
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -309,14 +309,19 @@ class HuggingFaceCheckpointer(Callback):
                         # TODO: Remove after mlflow fixes the bug that makes this necessary
                         import mlflow
                         mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
-                        model_saving_kwargs = {'path': local_save_path}
+                        model_saving_kwargs: Dict[str, Any] = {
+                            'path': local_save_path
+                        }
                         if state.model.using_peft:
                             model_saving_kwargs['flavor'] = 'peft'
-                            model_saving_kwargs['save_pretrained_dir'] = temp_save_dir
+                            model_saving_kwargs[
+                                'save_pretrained_dir'] = temp_save_dir
                         else:
                             model_saving_kwargs['flavor'] = 'transformers'
-                            model_saving_kwargs['transformers_model'] = components
-                            model_saving_kwargs.update(self.mlflow_logging_config)
+                            model_saving_kwargs[
+                                'transformers_model'] = components
+                            model_saving_kwargs.update(
+                                self.mlflow_logging_config)
 
                         mlflow_logger.save_model(
                             flavor='transformers',

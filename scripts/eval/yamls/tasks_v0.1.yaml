@@ -4,7 +4,7 @@ icl_tasks:
   dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl
   num_fewshot: [10]
   icl_task_type: language_modeling
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
   has_categories: true
 -
   label: triviaqa_sm_sub
@@ -16,7 +16,7 @@ icl_tasks:
   dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k.jsonl
   num_fewshot: [3]
   icl_task_type: question_answering
-  cot_delimiter: ' #### '
+  cot_delimiter: " #### "
   continuation_delimiter: "\nA: Let's think step by step. "
   question_prelimiter: "Q: "
 -
@@ -24,14 +24,14 @@ icl_tasks:
   dataset_uri: eval/local_data/symbolic_problem_solving/agi_eval_sat_math.jsonl
   num_fewshot: [3]
   icl_task_type: question_answering
-  cot_delimiter: ' #### '
+  cot_delimiter: " #### "
   continuation_delimiter: "\nA: Let's think step by step. "
 -
   label: aqua
   dataset_uri: eval/local_data/symbolic_problem_solving/aqua.jsonl
   num_fewshot: [3]
   icl_task_type: question_answering
-  cot_delimiter: ' #### '
+  cot_delimiter: " #### "
   continuation_delimiter: "\nA: Let's think step by step. "
 -
   label: svamp
@@ -39,7 +39,7 @@ icl_tasks:
   num_fewshot: [3]
   icl_task_type: question_answering
   continuation_delimiter: "\nUsing the formula below:\n"
-  cot_delimiter: ' #### '
+  cot_delimiter: " #### "
   question_prelimiter: "Q: "
 -
   label: bigbench_qa_wikidata
@@ -51,19 +51,19 @@ icl_tasks:
   dataset_uri: eval/local_data/world_knowledge/arc_easy.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: arc_challenge
   dataset_uri: eval/local_data/world_knowledge/arc_challenge.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: mmlu
   dataset_uri: eval/local_data/world_knowledge/mmlu.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
   has_categories: true
 -
   label: bigbench_misconceptions
@@ -90,7 +90,7 @@ icl_tasks:
   dataset_uri: eval/local_data/commonsense_reasoning/piqa.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: openbook_qa
   dataset_uri: eval/local_data/commonsense_reasoning/openbook_qa.jsonl
@@ -201,7 +201,7 @@ icl_tasks:
   dataset_uri: eval/local_data/symbolic_problem_solving/logi_qa.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: pubmed_qa_labeled
   dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl
@@ -237,7 +237,7 @@ icl_tasks:
   dataset_uri: eval/local_data/reading_comprehension/boolq.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: agi_eval_sat_en
   dataset_uri: eval/local_data/reading_comprehension/agi_eval_sat_en.jsonl

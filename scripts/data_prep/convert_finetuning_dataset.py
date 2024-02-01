@@ -7,12 +7,17 @@ from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable, List, Optional, Union
 
 import datasets as hf_datasets
+import numpy as np
 import psutil
+import json
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 
-from llmfoundry.data.finetuning.tasks import dataset_constructor
+from llmfoundry.data.finetuning.tasks import (dataset_constructor,
+                                              _tokenize_formatted_example,
+                                              _filter_long_or_empty_examples)
+from llmfoundry.utils.builders import build_tokenizer
 
 
 def parse_args() -> Namespace:
@@ -23,7 +28,7 @@ def parse_args() -> Namespace:
         type=str,
         required=True,
         help=
-        'Name/path of the dataset (e.g., first argument to `datasets.load_dataset`)'
+        'Name of the dataset (e.g., first argument to `datasets.load_dataset`, for jsonl data format, it is `json`)'
     )
     parser.add_argument('--data_subset',
                         type=str,
@@ -38,6 +43,10 @@ def parse_args() -> Namespace:
                         default=None,
                         help='Name or import path of function used to preprocess (reformat) the dataset. ' +\
                              'See README for additional details.')
+    parser.add_argument('--data_files',
+                        nargs='+',
+                        default=[],
+                        help='Data file for each split')
     parser.add_argument(
         '--skip-preprocessing',
         action='store_true',
@@ -63,6 +72,9 @@ def parse_args() -> Namespace:
                         default=None,
                         help='(Optional) name of compression algorithm to use.')
     parser.add_argument('--num_workers', type=int, required=False, default=None)
+    parser.add_argument('--tokenizer', type=str, required=False, default=None)
+    parser.add_argument('--tokenizer_kwargs', type=str, required=False)
+    parser.add_argument('--max_seq_len', type=int, default=2048)
 
     parsed = parser.parse_args()
 
@@ -72,6 +84,11 @@ def parse_args() -> Namespace:
         raise ValueError(
             f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.'
         )
+    
+    if parsed.tokenizer_kwargs is not None:
+        parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)
+    else:
+        parsed.tokenizer_kwargs = {} 
 
     return parsed
 
@@ -170,12 +187,21 @@ def main(args: Namespace) -> None:
                 'include the "--skip-preprocessing" flag to avoid this error.'
             )
 
-    columns = ['prompt', 'response']
+    tokenizer = None
+    if args.tokenizer:
+        tokenizer = build_tokenizer(args.tokenizer, args.tokenizer_kwargs)
+        columns = {'input_ids': 'bytes', 'labels': 'bytes'}
+    else:
+        columns = {'prompt': 'str', 'response': 'str'}
 
-    for split_name in args.splits:
+    for i, split_name in enumerate(args.splits):
+        data_file = None
+        if len(args.data_files) > 0:
+            data_file = args.data_files[i]
         dataset = hf_datasets.load_dataset(path=args.dataset,
                                            name=args.data_subset,
                                            split=split_name,
+                                           data_files=data_file,
                                            streaming=True)
         loader = build_dataloader(dataset=dataset,
                                   batch_size=512,
@@ -190,12 +216,13 @@ def main(args: Namespace) -> None:
             keep_local = True
         else:
             keep_local = False
-        with MDSWriter(columns={key: 'str' for key in columns},
+        with MDSWriter(columns=columns,
                        out=out,
                        compression=args.compression,
                        keep_local=keep_local) as out:
             for sample in tqdm(samples, desc=split_name):
                 formatted_sample = preprocessing_fn(sample)
+
                 if ('prompt'
                         not in formatted_sample) or ('response'
                                                      not in formatted_sample):
@@ -204,11 +231,20 @@ def main(args: Namespace) -> None:
                         '"prompt" and "response" are required keys but at least one was missing ' +\
                         f'from {formatted_sample=}.'
                     )
-                encoded_sample = {
-                    key: formatted_sample[key].encode('utf-8')
-                    for key in columns
-                }
-                out.write(encoded_sample)
+                if tokenizer is not None:
+                    sample = _tokenize_formatted_example(sample, tokenizer=tokenizer)
+                    if _filter_long_or_empty_examples(tokenizer.pad_token_id, args.max_seq_len, sample):
+                        continue
+                    # convert to bytes
+                    for key in columns.keys():
+                        sample[key] = np.asarray(sample[key]).tobytes()
+                    out.write(sample)
+                else:
+                    encoded_sample = {
+                        key: formatted_sample[key].encode('utf-8')
+                        for key in columns.keys()
+                    }
+                    out.write(encoded_sample)
 
 
 if __name__ == '__main__':

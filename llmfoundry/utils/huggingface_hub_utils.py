@@ -86,7 +86,10 @@ def process_file(
         # Remove names starting with 'Composer' from ImportFrom nodes
         elif isinstance(node, ast.ImportFrom):
             # Filter out names that start with 'Composer'
-            node.names = [name for name in node.names if not name.name.startswith('Composer')]
+            node.names = [
+                name for name in node.names
+                if not name.name.startswith('Composer')
+            ]
             # If all names are removed, mark the whole import statement for removal
             if not node.names:
                 nodes_to_remove.append(node)
@@ -100,13 +103,17 @@ def process_file(
               isinstance(node.targets[0], ast.Name) and
               node.targets[0].id == '__all__'):
             nodes_to_remove.append(node)
-            __all__names = [elt.s for elt in node.value.elts if not elt.s.startswith('Composer')]
+            __all__names = []
+            for elt in node.value.elts:
+                if not elt.s.startswith('Composer'):
+                    __all__names.append(elt.s)
             # Create a new __all__ assignment node if there are any names left
             if __all__names:
                 new_all_node = ast.Assign(
                     targets=[ast.Name(id='__all__', ctx=ast.Store())],
-                    value=ast.List(elts=[ast.Str(s=name) for name in __all__names], ctx=ast.Load())
-                )
+                    value=ast.List(
+                        elts=[ast.Str(s=name) for name in __all__names],
+                        ctx=ast.Load()))
                 ast.fix_missing_locations(new_all_node)
                 tree.body.insert(0, new_all_node)
 

@@ -11,13 +11,19 @@ from typing import Dict, Iterable, List, Optional, Union
 import datasets as hf_datasets
 import numpy as np
 import psutil
+import json
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 
 from llmfoundry.data.finetuning.tasks import (dataset_constructor,
+<<<<<<< HEAD
                                               is_valid_ift_example,
                                               tokenize_formatted_example)
+=======
+                                              _tokenize_formatted_example,
+                                              _filter_long_or_empty_examples)
+>>>>>>> e701e5c (add convert)
 from llmfoundry.utils.builders import build_tokenizer
 
 
@@ -44,6 +50,10 @@ def parse_args() -> Namespace:
                         default=None,
                         help='Name or import path of function used to preprocess (reformat) the dataset. ' +\
                              'See README for additional details.')
+    parser.add_argument('--data_files',
+                        nargs='+',
+                        default=[],
+                        help='Data file for each split')
     parser.add_argument(
         '--data_files',
         nargs='+',
@@ -88,6 +98,11 @@ def parse_args() -> Namespace:
         raise ValueError(
             f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.'
         )
+    
+    if parsed.tokenizer_kwargs is not None:
+        parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)
+    else:
+        parsed.tokenizer_kwargs = {} 
 
     if parsed.tokenizer_kwargs is not None:
         parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)

@@ -1,7 +1,11 @@
 yaml-files:
-- '*.yaml'
-- '*.yml'
+- "*.yaml"
+- "*.yml"
 - .yamllint
+
+ignore: |
+  wandb
+  *
 
 rules:
   braces:
@@ -10,8 +14,7 @@ rules:
     forbid: false
   colons: enable
   commas: enable
-  comments:
-    min-spaces-from-content: 1
+  comments: enable
   comments-indentation: enable
   document-end:
     present: false
@@ -27,14 +30,13 @@ rules:
   key-duplicates: enable
   key-ordering: disable
   line-length:
-    max: 120
     allow-non-breakable-words: true
     allow-non-breakable-inline-mappings: true
   new-line-at-end-of-file: enable
   new-lines: enable
   octal-values: enable
   quoted-strings:
-    quote-type: any
+    quote-type: double
     required: false
   trailing-spaces: enable
   truthy: disable

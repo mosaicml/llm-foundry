@@ -127,19 +127,6 @@ def build_composer_model(model_cfg: DictConfig,
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
 
-def print_trainable_parameters(model: torch.nn.Module) -> None:
-    # Prints the number of trainable parameters in the model.
-    trainable_params = 0
-    all_param = 0
-    for _, param in model.named_parameters():
-        all_param += param.numel()
-        if param.requires_grad:
-            trainable_params += param.numel()
-    log.info(
-        f'trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}'
-    )
-
-
 def main(cfg: DictConfig) -> Trainer:
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
@@ -539,7 +526,11 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())
-    logged_cfg.update({'n_params': n_params})
+    n_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    logged_cfg.update({
+        'n_params': n_params,
+        'n_trainable_params': n_trainable_params,
+    })
 
     # Optimizer
     optimizer_name: str = optimizer_config.pop('name')

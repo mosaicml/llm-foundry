@@ -16,8 +16,8 @@ integrations:
   git_repo: mosaicml/llm-foundry
   git_branch: v0.4.0
   # git_commit: # OR use your commit hash
-  pip_install: '.'
-  ssh_clone: false # Should be true if using a private repo
+  pip_install: "."
+  ssh_clone: false  # Should be true if using a private repo
 
 command: |
   cd llm-foundry/scripts/data_prep/

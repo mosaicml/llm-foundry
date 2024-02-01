@@ -144,8 +144,8 @@ name = 'mosaicml/mpt-7b'
 
 # Download config
 config = AutoConfig.from_pretrained(name, trust_remote_code=True)
-# (Optional) Use `triton` backend for fast attention. Defaults to `torch`.
-# config.attn_config['attn_impl'] = 'triton'
+# (Optional) Use `flash` (preferred) or `triton` backend for fast attention. Defaults to `torch`.
+# config.attn_config['attn_impl'] = 'flash'
 # (Optional) Change the `max_seq_len` allowed for inference
 # config.max_seq_len = 4096
 
@@ -291,7 +291,7 @@ The purpose of this section is probably pretty self-evident. You’ve got questi
 - If OOMs persist with `device_train_microbatch_size: 1` and `device_eval_batch_size: 1`, you may need to use activation checkpointing `fsdp_config.activation_checkpointing: true` (if you are not already) and, as a last resort, activation CPU offloading `fsdp_config.activation_cpu_offload: true`.
 
 ### What hardware can I train on?
-- In general, this repo should work on any system with NVIDIA GPUs. Checkout the `scripts/train/README.md` for more [details on GPU memory requirements]([https://github.com/mosaicml/llm-foundry/tree/main/scripts/train#how-many-gpus-do-i-need-to-train-a-llm](https://github.com/mosaicml/llm-foundry/tree/main/scripts/train#how-many-gpus-do-i-need-to-train-a-llm)). Keep in mind you may run into issues with `Triton` support on some GPU types. In that situation, you can fall back to `attn_impl: torch` or raise an issue in the [Triton github repo](https://github.com/openai/triton).
+- In general, this repo should work on any system with NVIDIA GPUs. Checkout the `scripts/train/README.md` for more [details on GPU memory requirements]([https://github.com/mosaicml/llm-foundry/tree/main/scripts/train#how-many-gpus-do-i-need-to-train-a-llm](https://github.com/mosaicml/llm-foundry/tree/main/scripts/train#how-many-gpus-do-i-need-to-train-a-llm)). We recommend using `Flash` attention instead of `Triton` attention, unless you're training Prefix Language Models (in which case use `Triton`). Keep in mind you may run into issues with `Flash` or `Triton` support on some GPU types. In that situation, you can fall back to `attn_impl: torch`, or raise an issue in the [Flash Attention github repo](https://github.com/Dao-AILab/flash-attention).
 
 ### What hardware can I run eval on?
 - Similar to above…
@@ -305,15 +305,15 @@ The purpose of this section is probably pretty self-evident. You’ve got questi
 ### What are the different attention options `torch` / `flash` / `triton`  for MPT and which one should I use?
 - **Short answer:** `torch` is the native pytorch attention implementation, and `flash` and `triton` are different implementations of the much more optimized [Flash Attention](https://arxiv.org/abs/2205.14135) method. `triton` and `flash` will be faster (and use less GPU memory) than `torch`, but they might not work with all hardware and environment setups.
 
-  Our training setups typically use `triton`.
+  Our training setups typically use `flash`.
 
 - **Long answer:** In NLP, Softmax Attention operates on a sequence. It is an all to all graph operation where, during training, the memory complexity is quadratic with respect to the length of the sequence. Furthermore, on GPUs, naive implementations of Softmax Attention are bandwidth (BW) limited.
 [Rabe et al. (2021)](https://arxiv.org/abs/2112.05682) and [Dao et al. (2022)](https://arxiv.org/abs/2205.14135) showed that fusing all operations in Softmax Attention can make the operation much less BW limited.
 Furthermore, integrating a recomputation schema decreases the sequence length memory complexity from *quadratic* to *linear*, thereby supporting much longer sequence lengths.
 
   - Setting `attn_config.attn_impl=torch` enables a naive Softmax Attention written using base torch operations.
-  - Setting `attn_config.attn_impl=flash` enables Flash Attention [implemented by Dao et al in the HazyResearch repo using CUDA](https://github.com/HazyResearch/flash-attention). This will have linear memory complexity (enabling larger batch sizes) and will run much faster.
-  - Setting `attn_config.attn_impl=triton` enables a Flash Attention [implemented using Triton](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py). In our experience, `triton` is slightly faster than `flash`.
+  - Setting `attn_config.attn_impl=flash` enables Flash Attention [implemented by Dao et al in the Dao-AILab repo using CUDA](https://github.com/Dao-AILab/flash-attention). This will have linear memory complexity (enabling larger batch sizes) and will run much faster.
+  - Setting `attn_config.attn_impl=triton` enables a Flash Attention [implemented using Triton](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py). We recommend using `flash` attention instead of `triton` attention, unless you're training Prefix Language Models (in which case use `Triton`).
 
 <!-- In NLP, Softmax Attention operates on a sequence. It is an all to all graph operation where, during training, the memory complexity is quadratic with respect to the length of the sequence. Furthermore, on GPUs, naive implementations of Softmax Attention are BW limited.
 [Rabe et al. (2021)](https://arxiv.org/abs/2112.05682) and [Dao et al. (2022)](https://arxiv.org/abs/2205.14135) noted that fusing all operations in Softmax Attention can make the operation much less BW limited.
@@ -327,7 +327,7 @@ The majority of our training setups use `triton`. -->
 #### Limitations
 - For training, `torch` uses a lot of memory and is slow.
 - `flash` and `triton` cannot return attention weights and therefore cannot be used with methods that require it.
-- `flash` cannot accept an attention bias and therefore cannot be used with methods that require it such as ALiBi.
+- `flash` cannot accept an attention bias. However, it still allows the use of ALiBi positional bias.
 
 #### What is `triton-pre-mlir`?
 - Torch2 installs and requires a specific version of [Triton](https://openai.com/research/triton).
@@ -352,7 +352,7 @@ Currently we support [Learned Positional Embeddings](https://arxiv.org/pdf/1706.
 | Name                               | YAML Config                                                       | Training MFU on MPT-7B trained on 8 A100 80GB GPUs | Notes                                                                                                                                                                       |
 |:-----------------------------------|:------------------------------------------------------------------|:---------------------------------------------------:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Learned Positional Embeddings      | <pre>model:<br>     learned_pos_emb:&nbsp;True</pre>| 65.7                                                |                                                                                                                                                                             |
-| ALiBi                              | <pre>model:<br>     attn_config:<br>         alibi:&nbsp;True</pre>| 64.5                                                |  Requires Triton or Torch attention.                                                                                                                                        |
+| ALiBi                              | <pre>model:<br>     attn_config:<br>         alibi:&nbsp;True</pre>| 64.5                                                |  Requires Flash (v2.4.2 or higher) or Triton or Torch attention.                                                                                                                                        |
 | RoPE (Dao-AILab Implementation)    | <pre>model:<br>     attn_config:<br>         rope:&nbsp;True<br>         rope_impl:&nbsp;dail</pre>| 64.5                                                | Requires a CUDA GPU and the [flash-attn library](https://github.com/Dao-AILab/flash-attention) v2.0.1 or higher to be installed. Please see the instructions in the [paragraph above](#support-for-flashattention-2) on how to install flash-attn v2. Note that the attention implementation can still be `torch`, `triton`, or `flash`. |
 | RoPE (Hugging<code>&nbsp;</code>Face Implementation)  | <pre>model:<br>     attn_config:<br>         rope:&nbsp;True<br>         rope_impl:&nbsp;hf</pre>| 62.3                                                |                                                                                                                                                                             |
 

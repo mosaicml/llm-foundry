@@ -4,7 +4,7 @@ icl_tasks:
   dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl
   num_fewshot: [3]
   icl_task_type: language_modeling
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
   has_categories: true
 -
   label: bigbench_qa_wikidata

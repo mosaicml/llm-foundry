@@ -526,7 +526,8 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())
-    n_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    n_trainable_params = sum(
+        p.numel() for p in model.parameters() if p.requires_grad)
     logged_cfg.update({
         'n_params': n_params,
         'n_trainable_params': n_trainable_params,

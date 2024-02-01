@@ -317,7 +317,9 @@ class HuggingFaceCheckpointer(Callback):
                             model_saving_kwargs['flavor'] = 'peft'
                             model_saving_kwargs[
                                 'save_pretrained_dir'] = temp_save_dir
-                            model_saving_kwargs['metadata'] = self.mlflow_logging_config['metadata']
+                            model_saving_kwargs[
+                                'metadata'] = self.mlflow_logging_config[
+                                    'metadata']
                         else:
                             model_saving_kwargs['flavor'] = 'transformers'
                             model_saving_kwargs[

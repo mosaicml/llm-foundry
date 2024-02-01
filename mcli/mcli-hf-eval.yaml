@@ -7,8 +7,6 @@ integrations:
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  pip uninstall mosaicml -y
-  pip install git+https://github.com/mosaicml/composer.git@dev
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
@@ -24,7 +22,7 @@ image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 parameters:
   dist_timeout: 6000
   seed: 1
-  max_seq_len: 2048
+  max_seq_len: 1024
   device_eval_batch_size: 4
   precision: amp_fp16
 
@@ -52,5 +50,5 @@ parameters:
     limit_all_gathers: True
 
 
-  icl_tasks: 'eval/yamls/tasks_v0.3.yaml'
-  eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.3.yaml'
+  icl_tasks: 'eval/yamls/tasks_v0.2.yaml'
+  eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'

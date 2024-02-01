@@ -239,7 +239,8 @@ class HuggingFaceCheckpointer(Callback):
                 log.debug(f'Creating new model instance')
 
                 if state.model.using_peft:
-                    # TODO: Figure out if the meta init can be used here too
+                    # We don't use meta here because the state dict does not contain the full
+                    # model, only the adapter weights.
                     active_adapter = original_model.active_adapter
                     base_model = original_model.get_base_model()
                     new_base_model_instance = type(base_model)(copied_config)

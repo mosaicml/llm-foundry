@@ -14,5 +14,4 @@ RUN pip install --no-cache-dir "./llm-foundry${DEP_GROUPS}"
 RUN pip uninstall -y llm-foundry
 RUN rm -rf llm-foundry
 RUN rm setup.py
-
 RUN pip freeze

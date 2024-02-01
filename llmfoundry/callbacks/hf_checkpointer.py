@@ -311,6 +311,7 @@ class HuggingFaceCheckpointer(Callback):
                         mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
                         model_saving_kwargs: Dict[str, Any] = {
                             'path': local_save_path
+                            **self.mlflow_logging_config,
                         }
                         if state.model.using_peft:
                             model_saving_kwargs['flavor'] = 'peft'
@@ -320,8 +321,6 @@ class HuggingFaceCheckpointer(Callback):
                             model_saving_kwargs['flavor'] = 'transformers'
                             model_saving_kwargs[
                                 'transformers_model'] = components
-                            model_saving_kwargs.update(
-                                self.mlflow_logging_config)
 
                         mlflow_logger.save_model(**model_saving_kwargs,)
 

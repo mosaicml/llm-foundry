@@ -268,8 +268,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     # Mandatory Evaluation Parameters
     icl_tasks: Union[str, ListConfig] = pop_config(cfg,
                                                    'icl_tasks',
-                                                   must_exist=True,
-                                                   convert=True)
+                                                   must_exist=True)
     max_seq_len: int = pop_config(cfg, 'max_seq_len', must_exist=True)
     device_eval_batch_size: int = pop_config(cfg,
                                              'device_eval_batch_size',

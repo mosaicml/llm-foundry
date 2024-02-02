@@ -232,7 +232,3 @@ parameters:
     activation_checkpointing_reentrant: false
   loggers:
     wandb: {}
-
-# | Category   | Benchmark   | Subtask   |   Accuracy | Number few shot   | Model      |
-# |:-----------|:------------|:----------|-----------:|:------------------|:-----------|
-# |            | human-eval  |           |   0.138415 | 0-shot            | Llama-2-7b |

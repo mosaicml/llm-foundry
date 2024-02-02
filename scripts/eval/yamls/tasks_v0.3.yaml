@@ -36,39 +36,11 @@ icl_tasks:
   batch_size: 1
   icl_task_type: code_evaluation
 -
-  label: human_eval_return_simple
-  dataset_uri: eval/local_data/programming/human_eval_return_simple.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0]
-  pass_at_k: 1
-  num_beams: 5
-  batch_size: 1
-  icl_task_type: code_evaluation
--
-  label: human_eval_25
-  dataset_uri: eval/local_data/programming/human_eval-0.25.jsonl # ADD YOUR OWN DATASET URI
-  num_fewshot: [0]
-  pass_at_k: 1
-  num_beams: 5
-  batch_size: 1
-  icl_task_type: code_evaluation
--
   label: triviaqa_sm_sub
   dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl
   num_fewshot: [3]
   icl_task_type: question_answering
   do_normalization: true
--
-  label: math_simple
-  dataset_uri: eval/local_data/symbolic_problem_solving/math_simple_soln.jsonl
-  num_fewshot: [4]
-  icl_task_type: question_answering
-  cot_delimiter: 'The answer is '
-  continuation_delimiter: "\n\nA:"
-  question_prelimiter: "Question: "
-  do_normalization: false
-  early_stopping_criteria:
-  - "\n\n"
-  - "Question:"
 -
   label: math
   dataset_uri: eval/local_data/symbolic_problem_solving/math.jsonl

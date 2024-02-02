@@ -20,8 +20,10 @@ from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
+from rich.traceback import install
 from transformers import PreTrainedTokenizerBase
 
+install()
 from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
                         MPTForCausalLM)
 from llmfoundry.callbacks import AsyncEval

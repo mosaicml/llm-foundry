@@ -50,7 +50,7 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs]>=0.17.2,<0.18',
+    'mosaicml[libcloud,wandb,oci,gcs]>=0.19,<0.20',
     'mlflow>=2.10,<3',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.37,<4.38',
@@ -88,14 +88,14 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.17.1,<0.18',
+    'mosaicml[databricks]>=0.19,<0.20',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
     'lz4>=4,<5',
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.17.2,<0.18',
+    'mosaicml[tensorboard]>=0.19,<0.20',
 ]
 
 extra_deps['gpu'] = [

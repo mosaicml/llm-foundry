@@ -649,17 +649,19 @@ def test_huggingface_conversion_callback(
                 checkpoint_path = os.path.join(tmp_path, 'checkpoints',
                                                'huggingface',
                                                f'ba{batches_per_epoch}')
-                
+
                 if peft_config is not None:
-                    with open(os.path.join(checkpoint_path,
-                                        'adapter_config.json')) as _f:
+                    with open(
+                            os.path.join(checkpoint_path,
+                                         'adapter_config.json')) as _f:
                         adapter_config = json.load(_f)
 
-                    adapter_config['base_model_name_or_path'] = str(tmp_path /
-                                                                    'base-model')
+                    adapter_config['base_model_name_or_path'] = str(
+                        tmp_path / 'base-model')
 
-                    with open(os.path.join(checkpoint_path, 'adapter_config.json'),
-                            'w') as _f:
+                    with open(
+                            os.path.join(checkpoint_path,
+                                         'adapter_config.json'), 'w') as _f:
                         json.dump(adapter_config, _f)
 
                 # Load the last huggingface checkpoint

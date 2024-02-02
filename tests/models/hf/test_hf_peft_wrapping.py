@@ -9,7 +9,6 @@ import pytest
 import torch
 import transformers
 from composer import Trainer
-from composer.models.huggingface import maybe_get_underlying_model
 from omegaconf import OmegaConf as om
 from peft import LoraConfig, get_peft_model
 

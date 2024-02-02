@@ -85,8 +85,7 @@ def hf_get_hidden_layers(model: PreTrainedModel) -> Any:
     NOTE: Different model configurations have different hidden layer attribute names.
         - h: (BloomForCausalLM, GPT2LMHeadModel, GPTJForCausalLM)
         - decoder.layers: (OPTForCausalLM)
-        - layers: (GPTNeoXForCausalLM)
-        - layers: (LlaMaForCausalLM)
+        - layers: (GPTNeoXForCausalLM, LlaMaForCausalLM)
         - blocks: (MPTForCausalLM)
     """
     hidden_layers_attrs = (

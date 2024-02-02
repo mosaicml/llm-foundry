@@ -69,14 +69,15 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
-        if not om_model_config.get('trust_remote_code',
-                                   True) and om_model_config.get(
-                                       'pretrained_model_name_or_path',
-                                       '').startswith('mosaicml/mpt'):
+        pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
+
+        if not om_model_config.get(
+                'trust_remote_code', True
+        ) and pretrained_model_name_or_path.startswith('mosaicml/mpt'):
             raise ValueError(
                 'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
                 +
-                'which is not significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
+                'which is significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
             )
 
         # Set up Hugging Face args
@@ -89,7 +90,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         if use_flash_attention_2 and not is_flash_v2_installed():
             raise ValueError(
                 'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
-                + 'Please install flash_attn==2.3.6`.')
+                + 'Please `pip install llm-foundry[gpu-flash2]`.')
 
         # Set up config args for the model construction and base classes
         z_loss = om_model_config.get('z_loss', 0.0)
@@ -101,6 +102,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                                       'peft_config',
                                       must_exist=False,
                                       convert=True)
+        if peft_config_dict is not None and not peft_installed:
+            raise ValueError(
+                'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
+            )
 
         # Set up training and eval metrics
         train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
@@ -119,7 +124,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
         # Construct the Hugging Face config to use
         config = AutoConfig.from_pretrained(
-            om_model_config.pretrained_model_name_or_path,
+            pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
             attn_implementation=requested_attention_implementation,
@@ -176,12 +181,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         # the different processes. To avoid this contention, we first create the model (on meta device) on local rank
         # zero. This will set up the transformers model cache and avoid the future contention.
         if dist.get_local_rank() == 0 and os.path.isdir(
-                om_model_config.pretrained_model_name_or_path):
+                pretrained_model_name_or_path):
             with init_empty_weights(include_buffers=False):
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore', UserWarning)
                     AutoModelForCausalLM.from_pretrained(
-                        om_model_config.pretrained_model_name_or_path,
+                        pretrained_model_name_or_path,
                         trust_remote_code=trust_remote_code,
                         use_auth_token=use_auth_token,
                         config=config,
@@ -193,7 +198,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         if resolved_init_device == 'cpu':
             if om_model_config.pretrained:
                 model = AutoModelForCausalLM.from_pretrained(
-                    om_model_config.pretrained_model_name_or_path,
+                    pretrained_model_name_or_path,
                     trust_remote_code=trust_remote_code,
                     use_auth_token=use_auth_token,
                     load_in_8bit=load_in_8bit,

@@ -330,7 +330,7 @@ class HuggingFaceCheckpointer(Callback):
                             model_saving_kwargs.update(
                                 self.mlflow_logging_config)
 
-                        mlflow_logger.save_model(**model_saving_kwargs,)
+                        mlflow_logger.save_model(**model_saving_kwargs)
 
                         license_filename = _maybe_get_license_filename(
                             local_save_path)

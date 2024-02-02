@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 from pytest import fixture
 import pytest
 from transformers import PreTrainedTokenizerBase
-
+import copy
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM

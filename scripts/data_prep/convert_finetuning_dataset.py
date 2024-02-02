@@ -7,6 +7,7 @@ import platform
 import warnings
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable, List, Optional, Union
+import warnings
 
 import datasets as hf_datasets
 import numpy as np
@@ -17,13 +18,8 @@ from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 
 from llmfoundry.data.finetuning.tasks import (dataset_constructor,
-<<<<<<< HEAD
                                               is_valid_ift_example,
                                               tokenize_formatted_example)
-=======
-                                              _tokenize_formatted_example,
-                                              _filter_long_or_empty_examples)
->>>>>>> e701e5c (add convert)
 from llmfoundry.utils.builders import build_tokenizer
 
 
@@ -284,7 +280,7 @@ def main(args: Namespace) -> None:
                 +
                 'the prompt or response was empty, or the response was all padding tokens.'
             )
-
+            
 
 if __name__ == '__main__':
     """Example for converting Muennighoff/P3:

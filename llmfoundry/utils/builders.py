@@ -382,6 +382,7 @@ def build_tokenizer(
         tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+    print(f"bigning debug tokenizer params: {tokenizer_name=},  {tokenizer_kwargs}")
 
     signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
 

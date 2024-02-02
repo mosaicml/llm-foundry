@@ -71,9 +71,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
-            InContextLearningCodeEvalAccuracy(),
-            InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError()
+            InContextLearningCodeEvalAccuracy()
         ]
 
         # if we are passed a DictConfig, we need to instantiate the model

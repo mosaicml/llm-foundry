@@ -1025,8 +1025,6 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
             InContextLearningCodeEvalAccuracy(),
-            InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError(),
         ]
 
         super().__init__(

@@ -508,8 +508,10 @@ def build_icl_evaluators(
             early_stopping_criteria = icl_cfg.get('early_stopping_criteria',
                                                   None)
             if isinstance(early_stopping_criteria, ListConfig):
-                early_stopping_criteria = om.to_container(early_stopping_criteria)
-            assert early_stopping_criteria is None or isinstance(early_stopping_criteria, list)
+                early_stopping_criteria = om.to_container(
+                    early_stopping_criteria)
+            assert early_stopping_criteria is None or isinstance(
+                early_stopping_criteria, list)
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,

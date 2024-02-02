@@ -315,7 +315,7 @@ def fetch(
     sparkSession: Optional[SparkSession] = None,
     dbsql: Optional[Connection] = None,
 ) -> None:
-    """Fetch UC delta table with databricks-connnect as JSONL.
+    """Fetch UC delta table with databricks-connect as JSONL.
 
     Args:
         method (str): dbconnect or dbsql
@@ -405,8 +405,10 @@ def validate_and_get_cluster_info(cluster_id: str,
                 f'Cluster id {cluster_id} does not exist. Check cluster id and try again!'
             )
         stripped_runtime = re.sub(
-            r'[a-zA-Z]', '',
-            res.spark_version.split('-scala')[0].replace('x-snapshot', ''))
+            r'[a-zA-Z]',
+            '',
+            res.spark_version.split('-scala')[0].replace(  # type: ignore
+                'x-snapshot', ''))
         runtime_version = re.sub(r'[.-]*$', '', stripped_runtime)
         if version.parse(runtime_version) < version.parse(
                 MINIMUM_SQ_CONNECT_DBR_VERSION):

@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import math
 import os
 import pathlib
@@ -184,7 +185,8 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
 
 
 def check_hf_model_equivalence(model1: PreTrainedModel,
-                               model2: PreTrainedModel):
+                               model2: PreTrainedModel,
+                               just_lora: bool = False):
     expected_model_config_dict = model1.config.to_dict()
     new_model_config_dict = model2.config.to_dict()
 
@@ -210,9 +212,10 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
         }
 
     assert expected_model_config_dict == new_model_config_dict
-    assert all(
-        torch.equal(p1.cpu(), p2.cpu())
-        for p1, p2 in zip(model1.parameters(), model2.parameters()))
+    for (n1, p1), (_, p2) in zip(model1.named_parameters(),
+                                 model2.named_parameters()):
+        if not just_lora or 'lora' in n1:
+            assert torch.equal(p1.cpu(), p2.cpu())
 
 
 def delete_transformers_cache():
@@ -245,7 +248,7 @@ def test_callback_inits():
     # test with defaults
     _ = HuggingFaceCheckpointer(save_folder='test', save_interval='1ba')
 
-    # test default metatdata when mlflow registered name is given
+    # test default metadata when mlflow registered name is given
     hf_checkpointer = HuggingFaceCheckpointer(
         save_folder='test',
         save_interval='1ba',
@@ -381,8 +384,25 @@ def test_huggingface_conversion_callback_interval(
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize(
-    'model,tie_word_embeddings',
-    [('mpt', True), ('mpt', False), ('neo', None), ('llama2', None)],
+    'model,tie_word_embeddings,peft_config',
+    [
+        ('mpt', True, None),
+        ('mpt', False, None),
+        ('neo', None, None),
+        ('llama2', None, None),
+        ('llama2', None, {
+            'peft_type': 'LORA',
+            'task_type': 'CAUSAL_LM',
+            'lora_alpha': 32,
+            'lora_dropout': 0.05,
+            'r': 16,
+            'target_modules': [
+                'q_proj',
+                'k_proj',
+                'v_proj',
+            ],
+        }),
+    ],
 )
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
 @pytest.mark.parametrize(
@@ -399,6 +419,7 @@ def test_huggingface_conversion_callback(
     max_duration: str,
     expected_hf_checkpoints: int,
     expected_normal_checkpoints: int,
+    peft_config: Optional[dict],
 ):
     delete_transformers_cache()
 
@@ -474,6 +495,8 @@ def test_huggingface_conversion_callback(
     assert model_cfg is not None
     assert tokenizer_name is not None
     model_cfg = om.create(model_cfg)
+    if peft_config is not None:
+        model_cfg['peft_config'] = peft_config
 
     fsdp_config = {
         'sharding_strategy': 'FULL_SHARD',
@@ -560,12 +583,26 @@ def test_huggingface_conversion_callback(
 
     if dist.get_global_rank() == 0:
         assert mlflow_logger_mock.save_model.call_count == 1
-        mlflow_logger_mock.save_model.assert_called_with(
-            flavor='transformers',
-            transformers_model=ANY,
-            path=ANY,
-            task='text-generation',
-            metadata={'task': 'llm/v1/completions'})
+        if peft_config is not None:
+            expectation = {
+                'flavor': 'peft',
+                'path': ANY,
+                'save_pretrained_dir': ANY,
+                'metadata': {
+                    'task': 'llm/v1/completions'
+                }
+            }
+        else:
+            expectation = {
+                'flavor': 'transformers',
+                'transformers_model': ANY,
+                'path': ANY,
+                'task': 'text-generation',
+                'metadata': {
+                    'task': 'llm/v1/completions'
+                }
+            }
+        mlflow_logger_mock.save_model.assert_called_with(**expectation)
         assert mlflow_logger_mock.register_model.call_count == 1
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
@@ -590,23 +627,54 @@ def test_huggingface_conversion_callback(
                 name for name in os.listdir(
                     os.path.join(tmp_path, 'checkpoints', 'huggingface'))
             ]
+
+            checkpoint_files = os.listdir(
+                os.path.join(tmp_path, 'checkpoints', 'huggingface',
+                             huggingface_checkpoints[-1]))
+            if peft_config is not None:
+                assert 'adapter_config.json' in checkpoint_files
+                assert 'adapter_model.safetensors' in checkpoint_files
+
             assert len(normal_checkpoints) == expected_normal_checkpoints
             assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
             # Patch flash_attn package to be empty to simulate loading the model in
-            # an environment without flash atttention installed
+            # an environment without flash attention installed
             with patch.dict('sys.modules', {'flash_attn': None}):
+                if peft_config is not None:
+                    composer_model = trainer.state.model.module if trainer.state.is_model_ddp else trainer.state.model
+                    composer_model.model.base_model.save_pretrained(
+                        tmp_path / 'base-model')
+
+                checkpoint_path = os.path.join(tmp_path, 'checkpoints',
+                                               'huggingface',
+                                               f'ba{batches_per_epoch}')
+
+                if peft_config is not None:
+                    with open(
+                            os.path.join(checkpoint_path,
+                                         'adapter_config.json')) as _f:
+                        adapter_config = json.load(_f)
+
+                    adapter_config['base_model_name_or_path'] = str(
+                        tmp_path / 'base-model')
+
+                    with open(
+                            os.path.join(checkpoint_path,
+                                         'adapter_config.json'), 'w') as _f:
+                        json.dump(adapter_config, _f)
+
                 # Load the last huggingface checkpoint
                 loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
-                    os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                                 f'ba{batches_per_epoch}'),
+                    checkpoint_path,
                     trust_remote_code=True,
                 )
 
             # Check that the loaded model has the correct precision, and then set it back
             # to the original for the equivalence check
-            assert loaded_model.config.torch_dtype == precision
-            loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
+            if peft_config is None:
+                assert loaded_model.config.torch_dtype == precision
+                loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
 
             if model == 'mpt':
                 # Check that we have correctly set these attributes, and then set them back
@@ -627,7 +695,8 @@ def test_huggingface_conversion_callback(
             check_hf_model_equivalence(
                 trainer.state.model.model.to(precision) if fsdp_state_dict_type
                 is not None else trainer.state.model.module.model.to(precision),
-                loaded_model)
+                loaded_model,
+                just_lora=peft_config is not None)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
     dist.barrier()

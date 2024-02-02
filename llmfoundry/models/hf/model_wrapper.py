@@ -5,9 +5,8 @@
 
 from __future__ import annotations
 
-import inspect
 from collections import UserDict
-from typing import List, Mapping, Optional
+from typing import TYPE_CHECKING, List, Mapping, Optional
 
 import torch
 import transformers
@@ -17,6 +16,9 @@ from transformers import PreTrainedTokenizerBase
 from transformers.utils.generic import ModelOutput
 
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
+
+if TYPE_CHECKING:
+    from peft import PeftConfig
 
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
@@ -45,23 +47,21 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
                  eval_metrics: Optional[List[Metric]] = None,
                  z_loss: float = 0.0,
                  shift_labels: bool = False,
-                 init_device: Optional[str] = None):
-        super().__init__(model,
-                         tokenizer,
-                         use_logits=True,
-                         metrics=metrics,
-                         eval_metrics=eval_metrics,
-                         shift_labels=shift_labels)
+                 init_device: Optional[str] = None,
+                 peft_config: Optional['PeftConfig'] = None):
+        super().__init__(
+            model,
+            tokenizer,
+            use_logits=True,
+            metrics=metrics,
+            eval_metrics=eval_metrics,
+            shift_labels=shift_labels,
+            peft_config=peft_config,
+            should_save_peft_only=True,
+        )
         self.z_loss = float(z_loss)
         if self.z_loss < 0.0:
             raise ValueError(f'z_loss(={z_loss}) cannot be negative.')
-
-        self.model_forward_args = inspect.getfullargspec(
-            self.model.forward).args
-        # inspect.getfullargspec HuggingFace quantized model could not return args correctly
-        if not self.model_forward_args:
-            self.model_forward_args = inspect.signature(
-                self.model.forward).parameters.keys()
 
         # Note: We need to add the FSDP related attributes to the model AFTER the super init,
         # so that the (possible) embedding resizing doesn't destroy them

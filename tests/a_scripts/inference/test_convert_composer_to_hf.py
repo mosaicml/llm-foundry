@@ -583,12 +583,26 @@ def test_huggingface_conversion_callback(
 
     if dist.get_global_rank() == 0:
         assert mlflow_logger_mock.save_model.call_count == 1
-        mlflow_logger_mock.save_model.assert_called_with(
-            flavor='transformers',
-            transformers_model=ANY,
-            path=ANY,
-            task='text-generation',
-            metadata={'task': 'llm/v1/completions'})
+        if peft_config is not None:
+            expectation = {
+                'flavor': 'peft',
+                'path': ANY,
+                'save_pretrained_dir': ANY,
+                'metadata': {
+                    'task': 'llm/v1/completions'
+                }
+            }
+        else:
+            expectation = {
+                'flavor': 'transformers',
+                'transformers_model': ANY,
+                'path': ANY,
+                'task': 'text-generation',
+                'metadata': {
+                    'task': 'llm/v1/completions'
+                }
+            }
+        mlflow_logger_mock.save_model.assert_called_with(**expectation)
         assert mlflow_logger_mock.register_model.call_count == 1
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
@@ -628,22 +642,25 @@ def test_huggingface_conversion_callback(
             # an environment without flash attention installed
             with patch.dict('sys.modules', {'flash_attn': None}):
                 if peft_config is not None:
-                    trainer.state.model.model.base_model.save_pretrained(
+                    composer_model = trainer.state.model.module if trainer.state.is_model_ddp else trainer.state.model
+                    composer_model.model.base_model.save_pretrained(
                         tmp_path / 'base-model')
 
                 checkpoint_path = os.path.join(tmp_path, 'checkpoints',
                                                'huggingface',
                                                f'ba{batches_per_epoch}')
-                with open(os.path.join(checkpoint_path,
-                                       'adapter_config.json')) as _f:
-                    adapter_config = json.load(_f)
+                
+                if peft_config is not None:
+                    with open(os.path.join(checkpoint_path,
+                                        'adapter_config.json')) as _f:
+                        adapter_config = json.load(_f)
 
-                adapter_config['base_model_name_or_path'] = str(tmp_path /
-                                                                'base-model')
+                    adapter_config['base_model_name_or_path'] = str(tmp_path /
+                                                                    'base-model')
 
-                with open(os.path.join(checkpoint_path, 'adapter_config.json'),
-                          'w') as _f:
-                    json.dump(adapter_config, _f)
+                    with open(os.path.join(checkpoint_path, 'adapter_config.json'),
+                            'w') as _f:
+                        json.dump(adapter_config, _f)
 
                 # Load the last huggingface checkpoint
                 loaded_model = transformers.AutoModelForCausalLM.from_pretrained(

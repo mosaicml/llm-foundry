@@ -203,14 +203,17 @@ class HuggingFaceCheckpointer(Callback):
             from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
             if state.is_model_ddp:
+                composer_model = state.model.module
                 original_model: PreTrainedModel = state.model.module.model
                 state_dict_model = state.model.module.model
                 original_tokenizer = state.model.module.tokenizer
             elif isinstance(state.model.model, FSDP):
+                composer_model = state.model
                 original_model: PreTrainedModel = state.model.model.module
                 state_dict_model = state.model.model
                 original_tokenizer = state.model.tokenizer
             else:
+                composer_model = state.model
                 original_model: PreTrainedModel = state.model.model
                 state_dict_model = state.model.model
                 original_tokenizer = state.model.tokenizer
@@ -238,7 +241,7 @@ class HuggingFaceCheckpointer(Callback):
 
                 log.debug(f'Creating new model instance')
 
-                if state.model.using_peft:
+                if composer_model.using_peft:
                     # We don't use meta here because the state dict does not contain the full
                     # model, only the adapter weights.
                     active_adapter = original_model.active_adapter
@@ -313,7 +316,7 @@ class HuggingFaceCheckpointer(Callback):
                         model_saving_kwargs: Dict[str, Any] = {
                             'path': local_save_path
                         }
-                        if state.model.using_peft:
+                        if composer_model.using_peft:
                             model_saving_kwargs['flavor'] = 'peft'
                             model_saving_kwargs[
                                 'save_pretrained_dir'] = temp_save_dir

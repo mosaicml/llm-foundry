@@ -27,7 +27,6 @@ from llmfoundry.eval.metrics.nlp import (InContextLearningCodeEvalAccuracy, InCo
 from composer.models import HuggingFaceModel
 from composer.trainer import Trainer
 from composer.utils import dist, reproducibility
-from tests.common import device, world_size
 
 
 
@@ -1322,8 +1321,9 @@ def test_eval_split_batch(tiny_opt_tokenizer, dataset_uri, num_fewshot, tmp_path
 
 @pytest.mark.parametrize('dataset_uri', ['lambada_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 5])
-@device('gpu')
-def test_lm_task_evaluation(device, dataset_uri, num_fewshot, tiny_gpt2_tokenizer, tmp_path):
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
+def test_lm_task_evaluation(dataset_uri, num_fewshot, tiny_gpt2_tokenizer, tmp_path):
     pytest.importorskip('datasets')
     in_memory_logger = InMemoryLogger()  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
@@ -1408,10 +1408,10 @@ def test_schema_task_evaluation(num_fewshot, dataset_uri, tiny_gpt2_tokenizer, t
 
 @pytest.mark.parametrize('dataset_uri', ['mmlu_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 5])
-@device('gpu')
-@world_size(1, 2)
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
 @pytest.mark.filterwarnings(r'ignore:Cannot split .* of length.*:UserWarning')
-def test_mc_task_evaluation_subcategories(device, world_size, dataset_uri, num_fewshot, tiny_gpt2_model,
+def test_mc_task_evaluation_subcategories(dataset_uri, num_fewshot, tiny_gpt2_model,
                                           tiny_gpt2_tokenizer, tmp_path):
     pytest.importorskip('datasets')
     in_memory_logger = InMemoryLogger()  # track the logged metrics in the in_memory_logger
@@ -1462,9 +1462,9 @@ def test_mc_task_evaluation_subcategories(device, world_size, dataset_uri, num_f
 @pytest.mark.parametrize('dataset_uri', ['piqa_small.jsonl', 'hellaswag_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 5])
 @pytest.mark.filterwarnings(r'ignore:Cannot split .* of length.*:UserWarning')
-@device('gpu')
-@world_size(1, 2)
-def test_mc_task_evaluation(device, world_size, num_fewshot, dataset_uri, tiny_gpt2_tokenizer, tmp_path,
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
+def test_mc_task_evaluation(num_fewshot, dataset_uri, tiny_gpt2_tokenizer, tmp_path,
                             tiny_gpt2_model):
     pytest.importorskip('datasets')
     in_memory_logger = InMemoryLogger()  # track the logged metrics in the in_memory_logger
@@ -1517,9 +1517,9 @@ def test_mc_task_evaluation(device, world_size, num_fewshot, dataset_uri, tiny_g
 @pytest.mark.parametrize('dataset_uri', ['triviaqa_small.jsonl'])
 @pytest.mark.filterwarnings(r'ignore:.*The dataloader_len \(2\) is greater than the length.*:UserWarning')
 @pytest.mark.filterwarnings(r'ignore:Cannot split .* of length.*:UserWarning')
-@device('gpu')
-@world_size(1, 2)
-def test_qa_task_evaluation_opt_tokenizer(device, world_size, tiny_opt_tokenizer, tiny_opt_model, num_fewshot,
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
+def test_qa_task_evaluation_opt_tokenizer(tiny_opt_tokenizer, tiny_opt_model, num_fewshot,
                                           dataset_uri, tmp_path):
     pytest.importorskip('datasets')
     in_memory_logger = InMemoryLogger()  # track the logged metrics in the in_memory_logger
@@ -1561,11 +1561,11 @@ def test_qa_task_evaluation_opt_tokenizer(device, world_size, tiny_opt_tokenizer
 
 @pytest.mark.parametrize('num_fewshot', [5])
 @pytest.mark.parametrize('dataset_uri', ['gsm8k_small.jsonl'])
-@device('gpu')
-@world_size(1, 2)
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
 @pytest.mark.filterwarnings(r'ignore:.*The dataloader_len \(2\) is greater than the length.*:UserWarning')
 @pytest.mark.filterwarnings(r'ignore:Cannot split .* of length.*:UserWarning')
-def test_qa_task_evaluation_with_cot_opt_tokenizer(device, world_size, tiny_opt_tokenizer, tiny_opt_model, num_fewshot,
+def test_qa_task_evaluation_with_cot_opt_tokenizer(tiny_opt_tokenizer, tiny_opt_model, num_fewshot,
                                                    dataset_uri, tmp_path):
     pytest.importorskip('datasets')
     in_memory_logger = InMemoryLogger()  # track the logged metrics in the in_memory_logger
@@ -1608,10 +1608,10 @@ def test_qa_task_evaluation_with_cot_opt_tokenizer(device, world_size, tiny_opt_
 
 @pytest.mark.parametrize('dataset_uri', ['triviaqa_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 5])
-@device('gpu')
-@world_size(1, 2)
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
 @pytest.mark.filterwarnings(r'ignore:.*The dataloader_len \(2\) is greater than the length.*:UserWarning')
-def test_qa_task_evaluation(device, world_size, num_fewshot, dataset_uri, tiny_gpt2_tokenizer, tiny_gpt2_model,
+def test_qa_task_evaluation(num_fewshot, dataset_uri, tiny_gpt2_tokenizer, tiny_gpt2_model,
                             tmp_path):
     pytest.importorskip('datasets')
     in_memory_logger = InMemoryLogger()  # track the logged metrics in the in_memory_logger
@@ -1654,9 +1654,9 @@ def test_qa_task_evaluation(device, world_size, num_fewshot, dataset_uri, tiny_g
 @pytest.mark.parametrize('dataset_uri', ['gsm8k_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [5])
 @pytest.mark.filterwarnings(r'ignore:.*The dataloader_len \(2\) is greater than the length.*:UserWarning')
-@device('gpu')
-@world_size(1, 2)
-def test_qa_task_with_cot_evaluation(device, world_size, num_fewshot, dataset_uri, tiny_gpt2_tokenizer, tiny_gpt2_model,
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
+def test_qa_task_with_cot_evaluation(num_fewshot, dataset_uri, tiny_gpt2_tokenizer, tiny_gpt2_model,
                                      tmp_path):
     pytest.importorskip('datasets')
     in_memory_logger = InMemoryLogger()  # track the logged metrics in the in_memory_logger
@@ -1712,10 +1712,10 @@ def test_code_eval_requires_valid_envvar(monkeypatch):
 @pytest.mark.parametrize('dataset_uri', ['human_eval_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0])
 @pytest.mark.parametrize('generations_per_sample', range(1, 3))
-@device('gpu')
-@world_size(1, 2)
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
 @pytest.mark.filterwarnings(r'ignore:.*The dataloader_len \(2\) is greater than the length.*:UserWarning')
-def test_code_eval_microbatching(monkeypatch, device, world_size, tiny_opt_tokenizer, tiny_opt_model, num_fewshot,
+def test_code_eval_microbatching(monkeypatch, tiny_opt_tokenizer, tiny_opt_model, num_fewshot,
                                  dataset_uri, tmp_path, generations_per_sample):
     pytest.importorskip('datasets')
     monkeypatch.setenv('CODE_EVAL_DEVICE', 'LOCAL')
@@ -1764,10 +1764,10 @@ def test_code_eval_microbatching(monkeypatch, device, world_size, tiny_opt_token
 @pytest.mark.parametrize('dataset_uri', ['human_eval_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0])
 @pytest.mark.parametrize('generations_per_sample', range(1, 3))
-@device('gpu')
-@world_size(1, 2)
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
 @pytest.mark.filterwarnings(r'ignore:.*The dataloader_len \(2\) is greater than the length.*:UserWarning')
-def test_code_eval_sentpiece_evaluation(monkeypatch, device, world_size, num_fewshot, dataset_uri, tiny_t5_tokenizer,
+def test_code_eval_sentpiece_evaluation(monkeypatch, num_fewshot, dataset_uri, tiny_t5_tokenizer,
                                         tiny_t5_model, tmp_path, generations_per_sample):
     pytest.importorskip('datasets')
     monkeypatch.setenv('CODE_EVAL_DEVICE', 'LOCAL')
@@ -1813,10 +1813,10 @@ def test_code_eval_sentpiece_evaluation(monkeypatch, device, world_size, num_few
 @pytest.mark.parametrize('num_fewshot', [0, 2])
 @pytest.mark.parametrize('generations_per_sample', [1])
 @pytest.mark.filterwarnings(r'ignore: Input length of input_ids is')
-@device('gpu')
-@world_size(1, 2)
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
 @pytest.mark.filterwarnings(r'ignore:.*The dataloader_len \(2\) is greater than the length.*:UserWarning')
-def test_code_eval_task_evaluation(monkeypatch, device, world_size, num_fewshot, dataset_uri, tiny_gpt2_tokenizer,
+def test_code_eval_task_evaluation(monkeypatch, num_fewshot, dataset_uri, tiny_gpt2_tokenizer,
                                    tiny_gpt2_model, tmp_path, generations_per_sample):
     pytest.importorskip('datasets')
     monkeypatch.setenv('CODE_EVAL_DEVICE', 'LOCAL')

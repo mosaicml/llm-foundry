@@ -1,13 +1,19 @@
 from mcli.sdk import RunConfig, create_run
 import copy
 
-yaml_file = 'base_callibration.yaml'
-base_name = 'eval-callibration3'
+# Edit the yaml file to change the model and the benchmarks
 
-clusters = ['r7z2', 'r7z2', 'r4z8', 'r4z8']
+yaml_file = 'base_callibration.yaml'
+base_name = 'eval-callibration'
+
+# Edit the clusters, priority, preemptible, retry_on_system_failure
+
+clusters = ['rxzx', 'rxzx', 'rxzx', 'rxzx']
 priority = "low"
 preemptible = True
 retry_on_system_failure = False
+
+# Edit the independant variable
 
 independant_variable_to_load_path = {
     7: 'meta-llama/Llama-2-7b-hf',
@@ -28,6 +34,7 @@ for c, n_gpu, independant_variable in zip(clusters, n_gpus, independant_variable
     if retry_on_system_failure:
         config.scheduling = config.scheduling | {'retry_on_system_failure': False, 'max_retries': 1}
 
+    # Edit the wandb integrations
     config.integrations.append({
         'integration_type' : 'wandb',
         'project' : 'eval-llama2-callibrate',

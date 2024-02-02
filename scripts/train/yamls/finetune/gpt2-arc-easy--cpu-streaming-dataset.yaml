@@ -14,8 +14,8 @@ model:
 # Tokenizer
 tokenizer:
   name: gpt2
-  #kwargs:
-    #model_max_length: ${max_seq_len}
+  kwargs:
+    model_max_length: ${max_seq_len}
 
 # Dataloaders
 train_loader:

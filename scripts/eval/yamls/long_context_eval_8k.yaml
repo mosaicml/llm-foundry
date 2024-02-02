@@ -1,0 +1,28 @@
+max_seq_len: 8196 
+seed: 1
+precision: amp_bf16
+
+models:
+-
+  model_name: EleutherAI/gpt-neo-125m
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: EleutherAI/gpt-neo-125m
+    init_device: cpu
+    pretrained: true
+  tokenizer:
+    name: EleutherAI/gpt-neo-125m
+    kwargs:
+      model_max_length: ${max_seq_len}
+
+device_eval_batch_size: 1 
+icl_subset_num_batches: 2
+
+# FSDP config for model sharding
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: FULL
+
+fewshot_random_seed: 10
+icl_tasks: 'eval/yamls/long_context_tasks.yaml'
+eval_gauntlet: 'eval/yamls/eval_gauntlet_8k_length.yaml'

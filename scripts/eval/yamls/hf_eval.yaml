@@ -12,7 +12,7 @@ models:
   model:
     name: hf_causal_lm
     pretrained_model_name_or_path: ${model_name_or_path}
-    init_device: mixed
+    init_device: cpu
     pretrained: true
   tokenizer:
     name: ${model_name_or_path}
@@ -33,6 +33,9 @@ models:
 #     kwargs:
 #       model_max_length: ${max_seq_len}
 
+callbacks:
+  eval_output_logging:
+    subset_sample: -1
 
 device_eval_batch_size: 4
 
@@ -43,11 +46,11 @@ device_eval_batch_size: 4
 #   forward_prefetch: True
 #   limit_all_gathers: True
 
-
-callbacks:
-  eval_output_logging:
-      print_only_incorrect: false
-      subset_sample: 100
-      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b
-icl_tasks: 'eval/yamls/tasks_v0.1.yaml'
-eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'
+icl_tasks: 
+-
+  label: triviaqa_sm_sub
+  dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl
+  num_fewshot: [3]
+  icl_task_type: question_answering
+  icl_subset_num_batches: 2
+# eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'

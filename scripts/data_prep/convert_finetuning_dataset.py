@@ -5,6 +5,7 @@ import os
 import platform
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable, List, Optional, Union
+import warnings
 
 import datasets as hf_datasets
 import numpy as np
@@ -188,6 +189,7 @@ def main(args: Namespace) -> None:
             )
 
     tokenizer = None
+    args.tokenizer_kwargs.update({"model_max_length": args.max_seq_len})
     if args.tokenizer:
         tokenizer = build_tokenizer(args.tokenizer, args.tokenizer_kwargs)
         columns = {'input_ids': 'bytes', 'labels': 'bytes'}
@@ -220,6 +222,7 @@ def main(args: Namespace) -> None:
                        out=out,
                        compression=args.compression,
                        keep_local=keep_local) as out:
+            examples_removed = 0
             for sample in tqdm(samples, desc=split_name):
                 formatted_sample = preprocessing_fn(sample)
 
@@ -233,7 +236,8 @@ def main(args: Namespace) -> None:
                     )
                 if tokenizer is not None:
                     sample = _tokenize_formatted_example(sample, tokenizer=tokenizer)
-                    if _filter_long_or_empty_examples(tokenizer.pad_token_id, args.max_seq_len, sample):
+                    if not _filter_long_or_empty_examples(tokenizer.pad_token_id, args.max_seq_len, sample):
+                        examples_removed += 1
                         continue
                     # convert to bytes
                     for key in columns.keys():
@@ -245,7 +249,13 @@ def main(args: Namespace) -> None:
                         for key in columns.keys()
                     }
                     out.write(encoded_sample)
-
+        if tokenizer is not None and examples_removed > 0:
+            warnings.warn(
+                f'Dropped {examples_removed} examples where the prompt was longer than {args.max_seq_len}, '
+                +
+                'the prompt or response was empty, or the response was all padding tokens.'
+            )
+            
 
 if __name__ == '__main__':
     """Example for converting Muennighoff/P3:

@@ -106,7 +106,8 @@ class Seq2SeqFinetuningCollator:
 
     def __call__(self, examples: List[Dict[str,
                                            Any]]) -> Dict[str, torch.Tensor]:
-        for check_key in ['input_ids', 'labels', 'attention_mask']:
+        #for check_key in ['input_ids', 'labels', 'attention_mask']:
+        for check_key in ['input_ids', 'labels']:
             if check_key not in examples[0]:
                 raise KeyError(
                     f'Examples returned by dataset do not include required key: {check_key}'

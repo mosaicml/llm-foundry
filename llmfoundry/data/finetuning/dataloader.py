@@ -152,6 +152,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             sampling_method=cfg.dataset.get('sampling_method', 'balanced'),
             sampling_granularity=cfg.dataset.get('sampling_granularity', 1),
             batching_method=cfg.dataset.get('batching_method', 'random'),
+            max_seq_len=cfg.dataset.max_seq_len,
         )
 
     else:

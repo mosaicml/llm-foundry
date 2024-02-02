@@ -38,6 +38,7 @@ import warnings
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
                     cast)
+import numpy as np
 from functools import partial
 
 import datasets as hf_datasets
@@ -315,6 +316,7 @@ class StreamingFinetuningDataset(StreamingDataset):
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  batching_method: str = 'random',
+                 max_seq_len: int = 2048,
                  **kwargs: Any):
 
         if len(kwargs) > 0:
@@ -354,10 +356,16 @@ class StreamingFinetuningDataset(StreamingDataset):
         )
 
         self.tokenizer = tokenizer
+        self.max_seq_len = 2048
 
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         sample = super().__getitem__(idx)
+        if "input_ids" in sample:
+            # already tokenized data
+            sample["input_ids"] = np.frombuffer(sample["input_ids"], dtype=np.int64)[:self.max_seq_len].tolist()
+            sample["labels"] = np.frombuffer(sample["labels"], dtype=np.int64)[:self.max_seq_len].tolist()
+            return sample
         return _tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 
 

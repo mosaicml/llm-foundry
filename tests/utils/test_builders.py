@@ -48,6 +48,13 @@ def test_tokenizer_builder(tokenizer_name: str, tokenizer_kwargs: dict):
         assert isinstance(tokenizer, PreTrainedTokenizerBase)
 
 
+def test_tokenizer_no_EOS():
+    with pytest.raises(
+            ValueError,
+            match='The tokenizer bert-base-uncased must have an eos_token.'):
+        build_tokenizer('bert-base-uncased', {})
+
+
 def test_build_callback_fails():
     with pytest.raises(ValueError):
         build_callback('nonexistent_callback', {}, {})
@@ -135,14 +142,14 @@ def test_build_logger():
     with pytest.raises(ValueError):
         _ = build_logger('unknown', {})
 
-    logger_cfg = DictConfig({
+    logger_cfg = {
         'project': 'foobar',
         'init_kwargs': {
             'config': {
                 'foo': 'bar',
             }
         }
-    })
+    }
     wandb_logger = build_logger('wandb', logger_cfg)  # type: ignore
     assert isinstance(wandb_logger, WandBLogger)
     assert wandb_logger.project == 'foobar'

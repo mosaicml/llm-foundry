@@ -58,7 +58,6 @@ def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path,
             'hidden_size': 32,
             'intermediate_size': 64,
         },
-        'use_auth_token': True,
         'pretrained': False,
         'init_device': init_device,
     }

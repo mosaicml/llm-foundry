@@ -21,11 +21,12 @@ from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
-from transformers import PreTrainedTokenizerBase
 
 install()
-from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
-                        MPTForCausalLM)
+
+from transformers import PreTrainedTokenizerBase
+
+from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
@@ -130,49 +131,6 @@ def build_composer_model(model_cfg: DictConfig,
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
 
-def build_composer_peft_model(
-        pretrained_model_name_or_path: str, lora_args: Dict[str, Any],
-        tokenizer: PreTrainedTokenizerBase) -> ComposerHFCausalLM:
-    try:
-        from peft import LoraConfig, get_peft_model
-    except ImportError as e:
-        raise ImportError(
-            'Error importing from peft. Please verify that peft and peft utils '
-            +
-            'are installed by running `pip install -e .[peft]` from `llm-foundry/`. '
-            + f'Error encountered: {e}')
-
-    # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
-    log.info('Building Lora config...')
-    lora_cfg = LoraConfig(**lora_args)
-
-    log.info('Building model from HuggingFace checkpoint...')
-    model = MPTForCausalLM.from_pretrained(pretrained_model_name_or_path,
-                                           trust_remote_code=True)
-    log.info('Model built!')
-
-    log.info('Adding Lora modules...')
-    model = get_peft_model(model, lora_cfg)
-    log.info('Lora modules added!')
-
-    model = ComposerHFCausalLM(model, tokenizer)
-
-    return model
-
-
-def print_trainable_parameters(model: torch.nn.Module) -> None:
-    # Prints the number of trainable parameters in the model.
-    trainable_params = 0
-    all_param = 0
-    for _, param in model.named_parameters():
-        all_param += param.numel()
-        if param.requires_grad:
-            trainable_params += param.numel()
-    log.info(
-        f'trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}'
-    )
-
-
 def main(cfg: DictConfig) -> Trainer:
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
@@ -239,11 +197,6 @@ def main(cfg: DictConfig) -> Trainer:
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[Dict[str, Any]] = pop_config(cfg,
                                                        'fsdp_config',
-                                                       must_exist=False,
-                                                       default_value=None,
-                                                       convert=True)
-    lora_config: Optional[Dict[str, Any]] = pop_config(cfg,
-                                                       'lora',
                                                        must_exist=False,
                                                        default_value=None,
                                                        convert=True)
@@ -568,13 +521,7 @@ def main(cfg: DictConfig) -> Trainer:
     # Build Model
     log.info('Initializing model...')
     with init_context:
-        if lora_config is not None:  # frozen model + trainable lora modules
-            model: ComposerHFCausalLM = build_composer_peft_model(
-                model_config.pretrained_model_name_or_path, lora_config['args'],
-                tokenizer)
-            print_trainable_parameters(model)  # should not be 100%
-        else:  # standard model
-            model = build_composer_model(model_config, tokenizer)
+        model = build_composer_model(model_config, tokenizer)
 
         if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
             model = model.to(dtype=torch.bfloat16)
@@ -583,7 +530,12 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())
-    logged_cfg.update({'n_params': n_params})
+    n_trainable_params = sum(
+        p.numel() for p in model.parameters() if p.requires_grad)
+    logged_cfg.update({
+        'n_params': n_params,
+        'n_trainable_params': n_trainable_params,
+    })
 
     # Optimizer
     optimizer_name: str = optimizer_config.pop('name')

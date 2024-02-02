@@ -39,6 +39,7 @@ from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
                     cast)
+import numpy as np
 from functools import partial
 
 import datasets as hf_datasets

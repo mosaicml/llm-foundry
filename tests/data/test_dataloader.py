@@ -10,7 +10,7 @@ from argparse import Namespace
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 from typing import ContextManager, Literal, Optional, Union
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
@@ -23,11 +23,8 @@ from streaming import MDSWriter
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data import build_dataloader
-from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
-                                              _ALLOWED_RESPONSE_KEYS,
-                                              DOWNLOADED_FT_DATASETS_DIRPATH,
-                                              SUPPORTED_EXTENSIONS,
-                                              _tokenize_formatted_example)
+from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
+                                              SUPPORTED_EXTENSIONS)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
@@ -249,10 +246,12 @@ def test_denoising_dataloader(decoder_only_format: bool, pretokenize: bool,
                 break
 
 
+@pytest.mark.parametrize('use_chat_formatting', [True, False])
 @pytest.mark.parametrize('decoder_only_format', [True, False])
 @pytest.mark.parametrize('allow_pad_trimming', [True, False])
 @pytest.mark.parametrize('packing_ratio', [10.0, None, 'auto'])
-def test_finetuning_dataloader(decoder_only_format: bool,
+def test_finetuning_dataloader(use_chat_formatting: bool,
+                               decoder_only_format: bool,
                                allow_pad_trimming: bool,
                                packing_ratio: Optional[Union[float,
                                                              Literal['auto']]]):
@@ -265,13 +264,21 @@ def test_finetuning_dataloader(decoder_only_format: bool,
     cfg = {
         'name': 'finetuning',
         'dataset': {
-            'hf_name': 'HuggingFaceH4/databricks_dolly_15k',
-            'split': 'train',
-            'max_seq_len': max_seq_len,
-            'decoder_only_format': decoder_only_format,
-            'allow_pad_trimming': allow_pad_trimming,
-            'packing_ratio': packing_ratio,
-            'shuffle': True,
+            'hf_name':
+                'iamroot/chat_formatted_examples' if use_chat_formatting else
+                'HuggingFaceH4/databricks_dolly_15k',
+            'split':
+                'train',
+            'max_seq_len':
+                max_seq_len,
+            'decoder_only_format':
+                decoder_only_format,
+            'allow_pad_trimming':
+                allow_pad_trimming,
+            'packing_ratio':
+                packing_ratio,
+            'shuffle':
+                True,
         },
         'drop_last': False,
         'num_workers': 0,
@@ -417,39 +424,6 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
         shutil.rmtree(tiny_dataset_folder_path)
 
 
-def test_tokenize_example_malformed():
-    no_keys = {}
-    no_prompt_key = {'response': 'response'}
-    no_response_key = {'prompt': 'prompt'}
-    extra_keys_with_prompt = {'prompt': 'prompt', 'extra': 'extra'}
-    extra_keys_with_response = {'response': 'response', 'extra': 'extra'}
-    multiple_allowed_response_keys = {
-        'prompt': 'prompt',
-        'response': 'response',
-        'completion': 'completion'
-    }
-
-    malformed_examples = [
-        no_keys, no_prompt_key, no_response_key, extra_keys_with_prompt,
-        extra_keys_with_response, multiple_allowed_response_keys
-    ]
-
-    for example in malformed_examples:
-        with pytest.raises(KeyError):
-            _tokenize_formatted_example(example, MagicMock())
-
-
-def test_tokenize_example_well_formed():
-    tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
-
-    for prompt_key in _ALLOWED_PROMPT_KEYS:
-        for response_key in _ALLOWED_RESPONSE_KEYS:
-            example = {prompt_key: 'prompt', response_key: 'response'}
-            tokenized_example = _tokenize_formatted_example(example, tokenizer)
-            assert 'input_ids' in tokenized_example
-            assert 'labels' in tokenized_example
-
-
 @pytest.mark.parametrize('split', ['train', 'custom', 'data'])
 def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
     tokenizer_name = 'gpt2'
@@ -498,8 +472,7 @@ def mock_get_file(path: str, destination: str, overwrite: bool = False):
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'custom-dash', 'data'])
-def test_finetuning_dataloader_custom_split_remote(
-        split: str, monkeypatch: pytest.MonkeyPatch):
+def test_finetuning_dataloader_custom_split_remote(split: str):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
 
@@ -529,10 +502,18 @@ def test_finetuning_dataloader_custom_split_remote(
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
-    with monkeypatch.context() as m:
-        m.setattr('llmfoundry.data.finetuning.dataloader.get_file',
-                  mock_get_file)
+    # Mock get_file to avoid downloading the file
+    with patch('llmfoundry.data.finetuning.dataloader.get_file',
+               wraps=mock_get_file) as f:
         _ = build_finetuning_dataloader(cfg, tokenizer, 4)
+        for call in f.call_args_list:
+            path_arg = call.kwargs['path']
+            dest_arg = call.kwargs['destination']
+            assert split in path_arg, 'split name should be downloaded verbatim'
+            if '-' in split:
+                assert split not in dest_arg, 'split name should have dashes replaced with underscores'
+            else:
+                assert split in dest_arg, 'split destination should match split name'
 
 
 def test_finetuning_dataloader_streaming(tmp_path: pathlib.Path):

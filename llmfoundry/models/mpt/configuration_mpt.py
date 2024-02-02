@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional, Union
 from transformers import PretrainedConfig
 
 from llmfoundry.models.layers.attention import (check_alibi_support,
+                                                is_flash_v1_installed,
                                                 is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import attn_config_defaults
 
@@ -82,6 +83,7 @@ class MPTConfig(PretrainedConfig):
                 attn_pdrop (float): The dropout probability for the attention layers.
                 attn_impl (str): The attention implementation to use. One of 'torch', 'flash', or 'triton'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
+                qk_gn (bool): Whether to apply group normalization to the queries and keys in the attention layer.
                 clip_qkv (Optional[float]): If not None, clip the queries, keys, and values in the attention layer to
                     this value.
                 softmax_scale (Optional[float]): If not None, scale the softmax in the attention layer by this value. If None,
@@ -221,6 +223,20 @@ class MPTConfig(PretrainedConfig):
                 'attn_impl'] not in ['torch', 'triton']:
             raise NotImplementedError(
                 'prefix_lm only implemented with torch and triton attention.')
+
+        if self.attn_config['attn_impl'] == 'flash' and is_flash_v1_installed():
+            warnings.warn(
+                DeprecationWarning(
+                    'Support for Flash Attention v1 is deprecated. Please upgrade to Flash Attention v2.4.2. To install Flash Attention v2.4.2, please run `pip install -e ".[gpu-flash2]"` from the root directory of the llm-foundry repository.'
+                ))
+
+        if self.attn_config[
+                'attn_impl'] == 'triton' and not self.attn_config['prefix_lm']:
+            warnings.warn(
+                UserWarning(
+                    'If not using a Prefix Language Model, we recommend setting "attn_impl" to "flash" instead of "triton".'
+                ))
+
         if self.attn_config['alibi'] and not check_alibi_support(
                 self.attn_config['attn_impl']):
             raise NotImplementedError(

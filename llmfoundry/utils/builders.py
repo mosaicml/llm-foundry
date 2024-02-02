@@ -213,27 +213,22 @@ def build_callback(
             raise ValueError(
                 'Parameters config is required for async eval callback')
 
-        return AsyncEval(**kwargs, training_config=config)
+        return AsyncEval(**kwargs, training_params=config)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
-    kwargs_dict = {
-        k: v if isinstance(v, str) else om.to_container(v, resolve=True)
-        for k, v in kwargs.items()
-    }
-
     if name == 'wandb':
-        return WandBLogger(**kwargs_dict)
+        return WandBLogger(**kwargs)
     elif name == 'tensorboard':
-        return TensorboardLogger(**kwargs_dict)
+        return TensorboardLogger(**kwargs)
     elif name == 'in_memory_logger':
-        return InMemoryLogger(**kwargs_dict)
+        return InMemoryLogger(**kwargs)
     elif name == 'mlflow':
-        return MLFlowLogger(**kwargs_dict)
+        return MLFlowLogger(**kwargs)
     elif name == 'inmemory':
-        return InMemoryLogger(**kwargs_dict)
+        return InMemoryLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
@@ -411,6 +406,10 @@ def build_tokenizer(
             'model_max_length',
             int(1e30),
         )
+
+    if not hasattr(tokenizer, 'eos_token') or tokenizer.eos_token is None:
+        raise ValueError(
+            f'The tokenizer {tokenizer_name} must have an eos_token.')
 
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:

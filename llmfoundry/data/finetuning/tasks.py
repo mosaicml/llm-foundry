@@ -36,7 +36,8 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
+                    cast)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
@@ -57,6 +58,35 @@ DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
                  '.downloaded_finetuning'))
 SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
 
+PromptResponseDict = Dict[str, str]
+ChatFormattedDict = Dict[str, List[Dict[str, str]]]
+Example = Union[PromptResponseDict, ChatFormattedDict]
+ExampleType = Literal['prompt_response', 'chat']
+TokenizedExample = Dict[str, List[int]]
+
+
+def _get_example_type(example: Example) -> ExampleType:
+    """Determines the type of the input example.
+
+    Args:
+        example (Example): The input example, which can be a multi-way chat formatted conversation or an instruction-response pair.
+
+    Returns:
+        ExampleType: The type of the input example, which can be either 'chat' for multi-way chat formatted conversation or 'prompt_response' for instruction-response pair.
+
+    Raises:
+        KeyError: If the example type is unknown.
+    """
+    if 'messages' in example:
+        return 'chat'
+    elif any([
+            pr in example
+            for pr in _ALLOWED_PROMPT_KEYS.union(_ALLOWED_RESPONSE_KEYS)
+    ]):
+        return 'prompt_response'
+    else:
+        raise KeyError(f'Unknown conversation type {example=}')
+
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:
     """Check if a directory is empty or non-existent.
@@ -70,9 +100,70 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
-def _tokenize_formatted_example(
-        example: Dict[str, Any],
-        tokenizer: PreTrainedTokenizerBase) -> Dict[str, List[int]]:
+def _slice_chat_formatted_example(
+        example: ChatFormattedDict,
+        tokenizer: PreTrainedTokenizerBase) -> Tuple[str, str]:
+    """Slices the chat example into a formatted prompt and response.
+
+    Args:
+        example (ChatFormattedDict): The chat example containing the messages.
+        tokenizer (PreTrainedTokenizerBase): The tokenizer to apply the chat template.
+
+    Returns:
+        Tuple[str, str]: The prompt and response as separate strings.
+
+    Raises:
+        ValueError: If the chat example has less than two messages or if the last message is not from the assistant.
+        KeyError: If a message does not have a role or content.
+    """
+    messages = example['messages']
+
+    if len(messages) < 2:
+        raise ValueError(
+            f'chat example must have at least two messages. {messages=}')
+    last_message = messages[-1]
+    if last_message['role'] != 'assistant':
+        raise ValueError(
+            f'last message must be from assistant. {last_message=}')
+    for message in messages:
+        if 'role' not in message or 'content' not in message:
+            raise KeyError(f'message must have role and content. {message=}')
+
+    full_conversation = tokenizer.apply_chat_template(messages, tokenize=False)
+    prompt = tokenizer.apply_chat_template(messages[:-1],
+                                           tokenize=False,
+                                           add_generation_prompt=True)
+    if prompt != full_conversation[:len(prompt)]:
+        raise ValueError(
+            f'prompt must be the first part of the full conversation. {prompt=}, {full_conversation=}'
+        )
+    response = full_conversation[len(prompt):]
+    if len(response) == 0:
+        raise ValueError(
+            f'chat example must have at least one assistant message. {messages=}'
+        )
+    return prompt, response
+
+
+def _tokenize_chat_formatted_example(
+        example: ChatFormattedDict,
+        tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
+    """Tokenizes a chat-formatted example using the provided tokenizer.
+
+    Args:
+        example (ChatFormattedDict): The chat-formatted example to tokenize.
+        tokenizer (PreTrainedTokenizerBase): The tokenizer to use for tokenization.
+
+    Returns:
+        TokenizedExample: The tokenized example.
+    """
+    prompt, response = _slice_chat_formatted_example(example, tokenizer)
+    return tokenizer(text=prompt, text_target=response)
+
+
+def _tokenize_prompt_response_formatted_example(
+        example: PromptResponseDict,
+        tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
     """Tokenize a formatted example and validate expected keys."""
     example_keys = set(example.keys())
     prompt_keys = example_keys.intersection(_ALLOWED_PROMPT_KEYS)
@@ -106,6 +197,35 @@ def _tokenize_formatted_example(
         )
 
     return tokenizer(text=prompt, text_target=response)
+
+
+def _tokenize_formatted_example(
+        example: Example,
+        tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
+    """Tokenizes a formatted example using the provided tokenizer.
+
+    Args:
+        example (Example): The input example to be tokenized.
+        tokenizer (PreTrainedTokenizerBase): The tokenizer to be used for tokenization.
+
+    Returns:
+        TokenizedExample: The tokenized example.
+
+    Raises:
+        ValueError: If the example format is unknown.
+    """
+    example_format = _get_example_type(example)
+
+    if example_format == 'chat':
+        chat_example = cast(ChatFormattedDict, example)
+        return _tokenize_chat_formatted_example(chat_example, tokenizer)
+    elif example_format == 'prompt_response':
+        prompt_response_example: PromptResponseDict = cast(
+            PromptResponseDict, example)
+        return _tokenize_prompt_response_formatted_example(
+            prompt_response_example, tokenizer)
+    else:
+        raise ValueError(f'Unknown conversation type {example_format=}')
 
 
 class StreamingFinetuningDataset(StreamingDataset):

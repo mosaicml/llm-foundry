@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.4.0
+  git_branch: migrate_subclasses_to_foundry # v0.4.0
   # git_commit:  # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false  # Should be true if using a private repo

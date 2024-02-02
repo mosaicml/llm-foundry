@@ -8,6 +8,8 @@ integrations:
 
 command: |
   cd llm-foundry/scripts
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/bmosaicml/composer.git@remove_subclasses_from_composer 
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME

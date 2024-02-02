@@ -6,12 +6,12 @@ from typing import Any, Dict, Optional
 import torch
 from composer.core.types import Batch
 from composer.metrics import InContextLearningMetric
-from composer.metrics.nlp import (InContextLearningLMAccuracy,
-                                  InContextLearningLMExpectedCalibrationError,
-                                  InContextLearningMCExpectedCalibrationError,
+from llmfoundry.eval.metrics.nlp import (InContextLearningLMAccuracy,
                                   InContextLearningMultipleChoiceAccuracy,
                                   InContextLearningQAAccuracy,
-                                  LanguageCrossEntropy, LanguagePerplexity)
+                                  )
+
+from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import ComposerModel
 from torchmetrics import Metric
 from transformers import AutoTokenizer

@@ -18,12 +18,11 @@ from llmfoundry.eval.datasets.in_context_learning_evaluation import (
     InContextLearningMultipleChoiceTaskDataset,
     InContextLearningQATaskDataset,
     InContextLearningSchemaTaskDataset,
-   
     get_icl_task_dataloader,
 )
 # isort: on
 from composer.loggers import InMemoryLogger
-from composer.metrics import (InContextLearningCodeEvalAccuracy, InContextLearningLMAccuracy,
+from llmfoundry.eval.metrics.nlp import (InContextLearningCodeEvalAccuracy, InContextLearningLMAccuracy,
                               InContextLearningMultipleChoiceAccuracy, InContextLearningQAAccuracy)
 from composer.models import HuggingFaceModel
 from composer.trainer import Trainer

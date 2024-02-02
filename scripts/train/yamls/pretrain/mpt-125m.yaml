@@ -1,10 +1,10 @@
 data_local: ./my-copy-c4
-data_remote: # If blank, files must be present in data_local
+data_remote:  # If blank, files must be present in data_local
 max_seq_len: 2048
 global_seed: 17
 
 # Run Name
-run_name: # If left blank, will be read from env var $RUN_NAME
+run_name:  # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:
@@ -70,7 +70,7 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 4800ba # ~ 2.5B tokens
+max_duration: 4800ba  # ~ 2.5B tokens
 eval_interval: 500ba
 eval_first: false
 eval_subset_num_batches: -1

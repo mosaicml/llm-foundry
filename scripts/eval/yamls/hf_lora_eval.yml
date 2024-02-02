@@ -6,7 +6,7 @@ precision: amp_fp16
 model_name_or_path: EleutherAI/gpt-neo-125m
 # If you are using a seperated lora weight, put it here:
 # lora weights must be compatible with the specified model
-lora_id_or_path: edbeeching/gpt-neo-125M-imdb-lora # Example lora weights for gpt-neo-125m
+lora_id_or_path: edbeeching/gpt-neo-125M-imdb-lora  # Example lora weights for gpt-neo-125m
 
 # otherwise, write a block for each model you want to test in the `models` section
 
@@ -46,5 +46,5 @@ fsdp_config:
   sharding_strategy: FULL_SHARD
   mixed_precision: FULL
 
-icl_tasks: 'eval/yamls/tasks_v0.2.yaml'
-eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'
+icl_tasks: "eval/yamls/tasks_v0.2.yaml"
+eval_gauntlet: "eval/yamls/eval_gauntlet_v0.2.yaml"

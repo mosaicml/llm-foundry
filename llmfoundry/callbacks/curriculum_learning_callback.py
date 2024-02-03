@@ -53,8 +53,8 @@ class CurriculumLearning(Callback):
 		# As saved_dataset_index is loaded from state_dict, this only run when
         # a user explicitly increments the dataset_index and not on any other
 		# resumption, including autoresume.
+        dataset = state._train_dataloader.dataset
         if self.saved_dataset_index < self.dataset_index:
-            dataset = state._train_dataloader.dataset
 			# Ignore the dataset state that was read in from the checkpoint, and
             # replace with the new dataset state. This preserves resumption info.
             dataset.load_state_dict(self.current_dataset_state)

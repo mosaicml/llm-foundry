@@ -45,7 +45,7 @@ class CurriculumLearning(Callback):
                              f"Instead, got a dataset of type {type(dataset)}")
         # Save the current dataset state so we can restore it if needed.
         self.current_dataset_state = dataset.state_dict(0, False)
-        log.info("Dataset state at init: ", self.current_dataset_state)
+        print("Dataset state at init: ", self.current_dataset_state)
         
     def after_load(self, state, logger):
         del logger
@@ -63,21 +63,21 @@ class CurriculumLearning(Callback):
             # making sure that subsequent resumptions proceed correctly.
             state.timestamp.to_next_epoch()
             self.new_dataset_setup = True
-        log.info("Dataset state after checkpoint load: ", dataset.state_dict(0, False))
+        print("Dataset NCN AFTER checkpoint load: ", dataset.num_canonical_nodes)
     
     def state_dict(self):
         if self.new_dataset_setup:
             # Append the new dataset config to the list of all dataset configs.
             self.all_dataset_configs.append(self.current_dataset_config)
-        log.info("CurriculumLearning callback dataset index: ", self.dataset_index)
-        log.info("CurriculumLearning callback all dataset configs: ", self.all_dataset_configs)
+        print("CurriculumLearning callback dataset index: ", self.dataset_index)
+        print("CurriculumLearning callback all dataset configs: ", self.all_dataset_configs)
         return {'dataset_index': self.dataset_index,
                 'all_dataset_configs': self.all_dataset_configs}
     
     def load_state_dict(self, state: Dict[str, Any]):
         self.saved_dataset_index = state.get('dataset_index', 0) 
         self.all_dataset_configs = state.get('all_dataset_configs', [])
-        log.info("Datasets trained on with CurriculumLearning callback: ")
+        print("Datasets trained on with CurriculumLearning callback: ")
         for i, dataset_config in enumerate(self.all_dataset_configs):
-            log.info(f"Dataset {i} config:")
-            log.info(dataset_config)
+            print(f"Dataset {i} config:")
+            print(dataset_config)

@@ -7,11 +7,10 @@ This callback is currently experimental. The API may change in the future.
 """
 
 import logging
-import json
 from typing import Any, Dict
 from composer.core import Callback
-from omegaconf import DictConfig, OmegaConf
 from streaming import StreamingDataset
+from torch.utils.data import DataLoader
 
 log = logging.getLogger(__name__)
 
@@ -23,25 +22,23 @@ class CurriculumLearning(Callback):
     Args:
         dataset_index (int): The index of the dataset currently being used.
 		current_dataset_config (Dict): The configuration of the dataset currently being used.
+        dataset (StreamingDataset): The dataset currently being used.
     """
-    def __init__(self, dataset_index: int, current_dataset_config: Dict):
+    def __init__(self,
+                 dataset_index: int,
+                 dataloader: DataLoader,
+                 current_dataset_config: Dict):
         self.dataset_index = dataset_index
         self.saved_dataset_index = 0
         self.all_dataset_configs = []
         # The current dataset config is resolved and passed in train.py
         self.current_dataset_config = current_dataset_config
-        self.current_dataset_state = {}
         self.new_dataset_setup = False
 
-    def init(self, state, logger):
-        del logger
-
-        # If we are using a new dataset, we need to retrieve the dataset
-        # state before checkpoint load since it will be overwritten when
-        # the checkpoint is loaded. This contains important resumption
-        # information:  epoch, sample_in_epoch, num_canonical_nodes, etc.
-        dataset = state._train_dataloader.dataset
+        # Must pass in dataset directly since it is not actually accessible at Event.INIT in
+        # Composer. We need to get the new dataset state to override checkpoint dataset state.
         # Check if we are using a StreamingDataset
+        dataset = dataloader.dataset
         if not isinstance(dataset, StreamingDataset):
             raise ValueError(f"CurriculumLearning callback only supports StreamingDataset ",
                              f"because it requires loading and saving dataset state. ",

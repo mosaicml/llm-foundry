@@ -469,12 +469,6 @@ def main(cfg: DictConfig) -> Trainer:
                             trace_handlers=profiler_trace_handlers,
                             schedule=profiler_schedule)
 
-    # Callbacks
-    callbacks: List[Callback] = [
-        build_callback(str(name), callback_cfg, om.to_container(logged_cfg))
-        for name, callback_cfg in callback_configs.items()
-    ] if callback_configs else []
-
     use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
 
     # Algorithms
@@ -490,6 +484,12 @@ def main(cfg: DictConfig) -> Trainer:
         tokenizer,
         device_train_batch_size,
     )
+
+    # Callbacks
+    callbacks: List[Callback] = [
+        build_callback(str(name), callback_cfg, om.to_container(logged_cfg), train_loader)
+        for name, callback_cfg in callback_configs.items()
+    ] if callback_configs else []
 
     if mosaicml_logger is not None:
         mosaicml_logger.log_metrics({'data_validated': time.time()})

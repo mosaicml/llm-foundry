@@ -10,6 +10,7 @@ from collections import OrderedDict
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
+from torch.utils.data import DataLoader
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, OptimizerMonitor,
@@ -162,6 +163,7 @@ def build_callback(
     name: str,
     kwargs: Union[DictConfig, Dict[str, Any]],
     config: Any = None,
+    train_loader: Optional[DataLoader] = None,
 ) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()
@@ -223,7 +225,13 @@ def build_callback(
             raise ValueError(
                 'Curriculum learning callback requires a train_loader to be in the run config.'
             )
-        return CurriculumLearning(**kwargs, current_dataset_config=config['train_loader'])
+        if train_loader is None:
+            raise ValueError(
+                'Curriculum learning callback requires a dataloader to be passed in.'
+            )
+        return CurriculumLearning(**kwargs,
+                                  current_dataset_config=config['train_loader'],
+                                  dataloader=train_loader)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

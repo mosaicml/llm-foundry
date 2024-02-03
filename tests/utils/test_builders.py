@@ -335,13 +335,7 @@ def test_add_metrics_to_eval_loaders():
         )
     ]
 
-    new_evaluators = add_metrics_to_eval_loaders(
-        evaluators,
-        {
-            'new1': 'foo',
-            'new2': 'bar'
-        },  # type: ignore
-    )
+    new_evaluators = add_metrics_to_eval_loaders(evaluators, ['new1', 'new2'])
     assert len(new_evaluators) == 3
 
     assert new_evaluators[0].label == 'second'

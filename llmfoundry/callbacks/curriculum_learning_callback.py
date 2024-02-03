@@ -78,8 +78,8 @@ class CurriculumLearning(Callback):
                 'all_dataset_configs': self.all_dataset_configs}
     
     def load_state_dict(self, state: Dict[str, Any]):
-        self.saved_dataset_index = state['dataset_index']
-        self.all_dataset_configs = state['all_dataset_configs']
+        self.saved_dataset_index = state.get('dataset_index', 0) 
+        self.all_dataset_configs = state.get('all_dataset_configs', [])
         log.info("Datasets trained on with CurriculumLearning callback: ")
         for i, dataset_config in enumerate(self.all_dataset_configs):
             log.info(f"Dataset {i} config:")

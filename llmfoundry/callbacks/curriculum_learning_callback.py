@@ -22,14 +22,14 @@ class CurriculumLearning(Callback):
 
     Args:
         dataset_index (int): The index of the dataset currently being used.
-		current_dataset_config (Dict):
+		current_dataset_config (Dict): The configuration of the dataset currently being used.
     """
-    def __init__(self, dataset_index: int, current_dataset_config: DictConfig):
+    def __init__(self, dataset_index: int, current_dataset_config: Dict):
         self.dataset_index = dataset_index
         self.saved_dataset_index = 0
         self.all_dataset_configs = []
         # The current dataset config is resolved and passed in train.py
-        self.current_dataset_config = OmegaConf.to_container(current_dataset_config)
+        self.current_dataset_config = current_dataset_config
         self.current_dataset_state = {}
         self.new_dataset_setup = False
 

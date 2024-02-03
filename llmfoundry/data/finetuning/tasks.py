@@ -358,12 +358,10 @@ class StreamingFinetuningDataset(StreamingDataset):
         )
 
         self.tokenizer = tokenizer
-        self.max_seq_len = 2048
-        self.cnt = 0
+        self.max_seq_len = max_seq_len
 
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
-        idx = 1545
         sample = super().__getitem__(idx)
         if 'input_ids' in sample:
             # already tokenized data
@@ -372,17 +370,6 @@ class StreamingFinetuningDataset(StreamingDataset):
                 dtype=np.int64)[:self.max_seq_len].tolist().copy()
             sample['labels'] = np.frombuffer(sample['labels'],
                                              dtype=np.int64).tolist().copy()
-            input_ids_max = max(sample['input_ids'])
-            label_max = max(sample['labels'])
-
-            if input_ids_max > 50256:
-                raise RuntimeError(
-                    f'bigning debug max input ids: {input_ids_max}')
-            if label_max > 50256:
-                raise RuntimeError(
-                    f'bigning debug max label ids: {label_max}, {self.cnt}, {idx}'
-                )
-            self.cnt += 1
             return sample
         return _tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 

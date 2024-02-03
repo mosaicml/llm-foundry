@@ -34,12 +34,13 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
                                   GlobalLRScaling, HuggingFaceCheckpointer,
                                   LayerFreezing, MonolithicCheckpointSaver,
-                                  ScheduledGarbageCollector)
+                                  ScheduledGarbageCollector, CurriculumLearning)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.utils.config_utils import pop_config
 
 log = logging.getLogger(__name__)
 
@@ -214,6 +215,12 @@ def build_callback(
                 'Parameters config is required for async eval callback')
 
         return AsyncEval(**kwargs, training_params=config)
+    elif name == 'curriculum_learning':
+        if config is None:
+            raise ValueError(
+                'Parameters config is required for curriculum learning callback')
+        dataset_config = pop_config(config, 'train_loader', must_exist=True)
+        return CurriculumLearning(**kwargs, current_dataset_config=dataset_config)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

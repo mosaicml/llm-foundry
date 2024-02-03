@@ -1,14 +1,15 @@
-from mcli.sdk import RunConfig, create_run
 import copy
+from mcli.sdk import RunConfig, create_run
 
 # Edit the yaml file to change the model and the benchmarks
 
-yaml_file = 'base_callibration.yaml'
-base_name = 'eval-callibration'
+YAML_FILE = 'base_callibration.yaml'
+NAME = 'eval-callibration'
 
 # Edit the clusters, priority, preemptible, retry_on_system_failure
 
 clusters = ['rxzx', 'rxzx', 'rxzx', 'rxzx']
+n_gpus = [8, 8, 8, 8]
 priority = "low"
 preemptible = True
 retry_on_system_failure = False
@@ -21,13 +22,12 @@ independant_variable_to_load_path = {
    70: 'meta-llama/Llama-2-70b-hf',
     71: 'meta-llama/Llama-2-70b-chat-hf',
 }
-n_gpus = [8, 8, 8, 8]
-independant_variable = [k for k in independant_variable_to_load_path.keys()]
+independant_variable = list(independant_variable_to_load_path.keys())
 
 for c, n_gpu, independant_variable in zip(clusters, n_gpus, independant_variable):
-    config = RunConfig.from_file(yaml_file)
+    config = RunConfig.from_file(YAML_FILE)
     parameters = copy.deepcopy(config.parameters)
-    config.name = f'{base_name}-{independant_variable}'
+    config.name = f'{NAME}-{independant_variable}'
     config.gpu_num = n_gpu
     config.cluster = c
     config.scheduling = {'priority': priority, 'preemptible': preemptible}

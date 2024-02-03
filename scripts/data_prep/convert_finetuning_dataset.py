@@ -242,7 +242,7 @@ def main(args: Namespace) -> None:
                         examples_removed += 1
                         continue
 
-                    sample_to_write= {}
+                    sample_to_write = {}
                     # convert to bytes
                     for key in columns.keys():
                         sample_to_write[key] = np.asarray(sample[key]).tobytes()

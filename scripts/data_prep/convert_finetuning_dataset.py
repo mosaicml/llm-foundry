@@ -239,10 +239,12 @@ def main(args: Namespace) -> None:
                     if not _filter_long_or_empty_examples(tokenizer.pad_token_id, args.max_seq_len, sample):
                         examples_removed += 1
                         continue
+
+                    sample_to_write = {}
                     # convert to bytes
                     for key in columns.keys():
-                        sample[key] = np.asarray(sample[key]).tobytes()
-                    out.write(sample)
+                        sample_to_write[key] = np.asarray(sample[key]).tobytes()
+                    out.write(sample_to_write)
                 else:
                     encoded_sample = {
                         key: formatted_sample[key].encode('utf-8')

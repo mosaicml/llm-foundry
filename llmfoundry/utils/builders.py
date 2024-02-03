@@ -108,9 +108,8 @@ def build_eval_loaders(
 
 def add_metrics_to_eval_loaders(
     evaluators: List[Evaluator],
-    metrics: Dict[str, Metric],
+    metric_names: List[str],
 ) -> List[Evaluator]:
-    metric_names = list(metrics.keys())
     eval_loaders, other_evaluators = [], []
     for evaluator in evaluators:
         if evaluator.metric_names == []:

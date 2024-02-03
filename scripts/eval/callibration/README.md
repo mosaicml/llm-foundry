@@ -4,9 +4,7 @@ A good benchmark is one that clearly shows which models are better and which are
 
 To run the code:
 * Select an independant variable and a series of models that correspond to the settings of that variable
-* Select clusters 
+* Select clusters
 * Edit the list of tasks in the base_callibration.yaml to reflect the ones you want to see
 * Run the launcher script
 * When everything is done, run the analyze_output notebook which collates the results from wandb
-
-

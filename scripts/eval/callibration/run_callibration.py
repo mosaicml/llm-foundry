@@ -1,4 +1,9 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
+"""Run the evaluation callibration."""
 import copy
+
 from mcli.sdk import RunConfig, create_run
 
 # Edit the yaml file to change the model and the benchmarks
@@ -10,7 +15,7 @@ NAME = 'eval-callibration'
 
 clusters = ['rxzx', 'rxzx', 'rxzx', 'rxzx']
 n_gpus = [8, 8, 8, 8]
-priority = "low"
+priority = 'low'
 preemptible = True
 retry_on_system_failure = False
 
@@ -18,13 +23,14 @@ retry_on_system_failure = False
 
 independant_variable_to_load_path = {
     7: 'meta-llama/Llama-2-7b-hf',
-   13: 'meta-llama/Llama-2-13b-hf',
-   70: 'meta-llama/Llama-2-70b-hf',
+    13: 'meta-llama/Llama-2-13b-hf',
+    70: 'meta-llama/Llama-2-70b-hf',
     71: 'meta-llama/Llama-2-70b-chat-hf',
 }
 independant_variable = list(independant_variable_to_load_path.keys())
 
-for c, n_gpu, independant_variable in zip(clusters, n_gpus, independant_variable):
+for c, n_gpu, independant_variable in zip(clusters, n_gpus,
+                                          independant_variable):
     config = RunConfig.from_file(YAML_FILE)
     parameters = copy.deepcopy(config.parameters)
     config.name = f'{NAME}-{independant_variable}'
@@ -32,20 +38,28 @@ for c, n_gpu, independant_variable in zip(clusters, n_gpus, independant_variable
     config.cluster = c
     config.scheduling = {'priority': priority, 'preemptible': preemptible}
     if retry_on_system_failure:
-        config.scheduling = config.scheduling | {'retry_on_system_failure': False, 'max_retries': 1}
+        config.scheduling = config.scheduling | {
+            'retry_on_system_failure': False,
+            'max_retries': 1
+        }
 
     # Edit the wandb integrations
     config.integrations.append({
-        'integration_type' : 'wandb',
-        'project' : 'eval-llama2-callibrate',
+        'integration_type': 'wandb',
+        'project': 'eval-llama2-callibrate',
         'group': f'{independant_variable}',
-        'entity': 'mosaic-ml'})
+        'entity': 'mosaic-ml'
+    })
 
     run_params = copy.deepcopy(parameters)
 
-    run_params['models'][0]['model_name'] = independant_variable_to_load_path[independant_variable]
-    run_params['models'][0]['model']['pretrained_model_name_or_path'] = independant_variable_to_load_path[independant_variable]
-    run_params['models'][0]['tokenizer']['name'] = independant_variable_to_load_path[independant_variable]
+    run_params['models'][0]['model_name'] = independant_variable_to_load_path[
+        independant_variable]
+    run_params['models'][0]['model'][
+        'pretrained_model_name_or_path'] = independant_variable_to_load_path[
+            independant_variable]
+    run_params['models'][0]['tokenizer'][
+        'name'] = independant_variable_to_load_path[independant_variable]
 
     config.parameters = run_params
     print(config.name)

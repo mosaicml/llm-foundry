@@ -485,7 +485,10 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Callbacks
     callbacks: List[Callback] = [
-        build_callback(str(name), callback_cfg, om.to_container(logged_cfg), train_loader)
+        build_callback(str(name),
+                       callback_cfg,
+                       om.to_container(logged_cfg),
+                       train_loader.dataloader)
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
 

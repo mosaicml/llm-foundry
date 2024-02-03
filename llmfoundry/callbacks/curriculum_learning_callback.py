@@ -40,7 +40,7 @@ class CurriculumLearning(Callback):
         # state before checkpoint load since it will be overwritten when
         # the checkpoint is loaded. This contains important resumption
         # information:  epoch, sample_in_epoch, num_canonical_nodes, etc.
-        dataset = state.train_dataloader.dataset
+        dataset = state._train_dataloader.dataset
         # Check if we are using a StreamingDataset
         if not isinstance(dataset, StreamingDataset):
             raise ValueError(f"CurriculumLearning callback only supports StreamingDataset ",
@@ -57,7 +57,7 @@ class CurriculumLearning(Callback):
         # a user explicitly increments the dataset_index and not on any other
 		# resumption, including autoresume.
         if self.saved_dataset_index < self.dataset_index:
-            dataset = state.train_dataloader.dataset
+            dataset = state._train_dataloader.dataset
 			# Ignore the dataset state that was read in from the checkpoint, and
             # replace with the new dataset state. This preserves resumption info.
             dataset.load_state_dict(self.current_dataset_state)

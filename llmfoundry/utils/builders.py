@@ -219,11 +219,11 @@ def build_callback(
         if config is None:
             raise ValueError(
                 'Parameters config is required for curriculum learning callback')
-        if 'dataset_config' not in config:
+        if 'train_loader' not in config:
             raise ValueError(
-                'Curriculum learning callback requires a dataset_config to be passed in the config'
+                'Curriculum learning callback requires a train_loader to be in the run config.'
             )
-        return CurriculumLearning(**kwargs, current_dataset_config=config['dataset_config'])
+        return CurriculumLearning(**kwargs, current_dataset_config=config['train_loader'])
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

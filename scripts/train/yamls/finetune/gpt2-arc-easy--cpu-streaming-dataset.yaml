@@ -1,4 +1,4 @@
-max_seq_len: 1024
+max_seq_len: 512 
 global_seed: 17
 model_name: t5-small
 
@@ -7,13 +7,13 @@ run_name:  # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:
-  name: hf_t5 
-  pretrained_model_name_or_path: ${model_name}
+  name: hf_causal_lm 
+  pretrained_model_name_or_path: gpt2
   pretrained: true  # false: only use the architecture; true: initialize with pretrained weights
 
 # Tokenizer
 tokenizer:
-  name: ${model_name}
+  name: gpt2
   #kwargs:
     #model_max_length: ${max_seq_len}
 

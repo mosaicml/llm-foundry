@@ -38,7 +38,7 @@ import warnings
 from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
-                    cast)
+                    cast, Sequence)
 import numpy as np
 from functools import partial
 
@@ -46,7 +46,7 @@ import datasets as hf_datasets
 import huggingface_hub as hf_hub
 import numpy as np
 from composer.utils import dist
-from streaming import StreamingDataset
+from streaming import StreamingDataset, Stream
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
@@ -265,6 +265,9 @@ class StreamingFinetuningDataset(StreamingDataset):
     Args:
         tokenizer (Tokenizer): The name of the HuggingFace tokenizer to use to
             tokenize samples.
+        streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
+            which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
         local (str): Local dataset directory where shards are cached by split.
         remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
             its data must exist locally. StreamingDataset uses either ``streams`` or
@@ -315,7 +318,8 @@ class StreamingFinetuningDataset(StreamingDataset):
 
     def __init__(self,
                  tokenizer: PreTrainedTokenizerBase,
-                 local: str,
+                 streams: Optional[Sequence[Stream]] = None,
+                 local: Optional[str] = None,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
                  download_retry: int = 2,
@@ -343,15 +347,22 @@ class StreamingFinetuningDataset(StreamingDataset):
                 f'StreamingFinetuningDataset() got an unexpected keyword argument: {kwargs}'
             )
 
-        if remote is None or (local == remote):
-            if os.path.isdir(local):
-                contents = set(os.listdir(local))
-                if split not in contents:
-                    raise ValueError(
-                        f'local directory {local} does not contain split {split}'
-                    )
+        def _remote_local_validate(remote: Optional[str], local: Optional[str]):
+            if remote is None or (local == remote):
+                if os.path.isdir(local):
+                    contents = set(os.listdir(local))
+                    if split not in contents:
+                        raise ValueError(
+                            f'local directory {local} does not contain split {split}'
+                        )
+        if streams is None:
+            _remote_local_validate(remote, local)
+        else:
+            for stream in streams:
+                _remote_local_validate(stream.remote, stream.local)
 
         super().__init__(
+            streams=streams,
             local=local,
             remote=remote,
             split=split,

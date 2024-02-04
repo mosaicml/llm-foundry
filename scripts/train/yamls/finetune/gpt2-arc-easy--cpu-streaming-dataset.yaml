@@ -22,9 +22,11 @@ train_loader:
   name: finetuning
   dataset:
     ############
-    remote: /Users/ning.wang/projects/llm-foundry/scripts/data_prep/example_data/
-    local: /tmp/
-    split: train
+    streams:
+      0:
+        remote: /Users/ning.wang/projects/llm-foundry/scripts/data_prep/example_data/
+        local: /tmp/
+        split: train
     ############
     shuffle: true
     max_seq_len: ${max_seq_len}

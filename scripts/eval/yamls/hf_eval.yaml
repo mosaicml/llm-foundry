@@ -36,6 +36,7 @@ models:
 callbacks:
   eval_output_logging:
     subset_sample: -1
+    # batch_keys_to_log: [test, test]
 
 device_eval_batch_size: 4
 
@@ -45,6 +46,13 @@ device_eval_batch_size: 4
 #   mixed_precision: FULL
 #   forward_prefetch: True
 #   limit_all_gathers: True
+# integrations:
+# - integration_type: wandb
+#   entity: mosaic-ml
+#   project: wandb_logging
+
+loggers:
+  wandb: {entity: mosaic-ml, project: maxisawesome}
 
 icl_tasks: 
 -

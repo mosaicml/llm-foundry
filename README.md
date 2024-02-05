@@ -234,7 +234,7 @@ Known issues / limitations as of (1/4/24):
 2. Checkpoint conversion script from DeepSpeed format to HF format is not yet implemented, but should be similar to [this script](./scripts/inference/convert_composer_to_hf.py)
 3. ALiBi is not fully tested with `attn_impl: habana_fused_sdpa`, but should work with `attn_impl: torch`
 4. WandB logger may not work, due to an issue with `dist.broadcast_object_list` in Composer. Fix in progress.
-5. Initialization of larger models with DeepSpeed may OOM, and requires `deepspeed.zero.Init` context manager. Fix in progress.
+5. Initialization and execution of large models (e.g. MPT-30B, MPT-70B etc.) with DeepSpeed Zero3 requires setting environment variable DEEPSPEED_HPU_ZERO3_SYNC_MARK_STEP_REQUIRED=1. Requirement to set this env. variable shall be removed in future releases.
 6. If you find new issues with Intel Gaudi2, please open a Github Issue and tag @abhi-mosaic
 
 

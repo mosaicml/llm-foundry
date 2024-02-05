@@ -455,6 +455,12 @@ def main(cfg: DictConfig) -> Trainer:
     name = model_config.pop('name')
     assert isinstance(name, str)
     assert isinstance(model_config, dict)
+    if deepspeed_config and deepspeed_config['zero_optimization']['stage'] == 3:
+        # https://github.com/microsoft/DeepSpeed/blob/f060407829f87da32a267a60d26d13a68dc11c61/deepspeed/runtime/zero/partition_parameters.py#L750
+        # Create a context to enable massive model construction for training with ZeRO-3. Models are automatically partitioned (or, sharded) across the
+        # system and converted to half precision
+        import deepspeed
+        init_context = deepspeed.zero.Init(config_dict_or_path=deepspeed_config)
     model = build_composer_model(
         name=name,
         tokenizer=tokenizer,

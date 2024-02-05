@@ -251,14 +251,12 @@ class HuggingFaceCheckpointer(Callback):
                     new_model_instance = type(original_model)(
                         new_base_model_instance,
                         original_model.peft_config[active_adapter])
+                    new_model_instance.to(dtype=self.dtype)
                 else:
                     # First create the model instance on meta device to avoid the
                     # initialization cost.
                     with init_empty_weights():
                         new_model_instance = type(original_model)(copied_config)
-
-                new_model_instance.to(dtype=self.dtype)
-                new_model_instance.load_state_dict(state_dict)
 
                 # Then load the state dict in with "assign" so that the state dict
                 # is loaded properly even though the model is initially on meta device.

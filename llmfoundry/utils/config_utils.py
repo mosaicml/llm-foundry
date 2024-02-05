@@ -120,18 +120,10 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
             # Set defaults for mixed initialization
             fsdp_config.setdefault('use_orig_params', False)
             fsdp_config.setdefault('load_monolith_rank0_only', True)
-    # Always set `sync_module_states` to True when using hybrid sharding
-    if fsdp_config is not None and \
-            fsdp_config.get('sharding_strategy', 'FULL_SHARD') in ['HYBRID_SHARD', '_HYBRID_SHARD_ZERO2'] \
-            and not fsdp_config.get('sync_module_states', False):
-        warnings.warn(
-            ('Setting `sync_module_states = True` for FSDP. This is required '
-             'when using hybrid sharding.'))
-        fsdp_config['sync_module_states'] = True
 
-    # no mixed precision needed for weights when they're already 16 bits
+    # No mixed precision needed for weights when they're already 16 bits
     master_dtype = model_cfg.get('master_weights_dtype')
-    small_dtypes = ('bf16', 'f16', 'float16', 'bfloat16', 'amp_fp16',
+    small_dtypes = ('bf16', 'fp16', 'float16', 'bfloat16', 'amp_fp16',
                     'amp_bf16')
     if fsdp_config and master_dtype in small_dtypes:
         reduce_dtype = None

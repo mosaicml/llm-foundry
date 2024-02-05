@@ -11,10 +11,10 @@ from composer.core import Time, Timestamp, TimeUnit
 from llmfoundry.callbacks.async_eval_callback import (AsyncEval,
                                                       get_eval_parameters,
                                                       get_run_name,
+                                                      validate_eval_run_config,
                                                       validate_interval)
 from mcli import Run, RunConfig, RunStatus
 
-# here
 RUN_NAME = 'foo_bar-1234'
 BASIC_PARAMS = {
     'save_interval': '1ba',
@@ -191,6 +191,29 @@ def test_validate_interval():
     assert validate_interval('2ep', two_epochs) == two_epochs
 
 
+def test_validate_eval_run_config():
+    assert validate_eval_run_config(None) == {}
+    assert validate_eval_run_config({}) == {}
+
+    with pytest.raises(ValueError):
+        validate_eval_run_config({'foo': 'bar'})
+
+    valid_config = {
+        'image': 'example_image',
+        'command': 'example_command',
+        'compute': {
+            'gpus': 1,
+            'cluster': 'example_cluster',
+        },
+        'scheduling': {
+            'priority': 'high',
+            'preemptible': True,
+        },
+    }
+    res = validate_eval_run_config(valid_config)
+    assert res == valid_config
+
+
 FAKE_RUN = Run(
     run_uid='123',
     name=RUN_NAME,
@@ -223,12 +246,16 @@ FAKE_RUN = Run(
        return_value=FAKE_RUN)
 def test_async_eval_callback_minimal(mock_create_run: MagicMock,
                                      mock_get_run: MagicMock):
-    callback = AsyncEval(BASIC_PARAMS,
-                         interval='2ba',
-                         compute={
-                             'cluster': 'c2z3',
-                             'nodes': 2,
-                         })
+    callback = AsyncEval(
+        BASIC_PARAMS,
+        interval='2ba',
+        eval_run_config={
+            'compute': {
+                'cluster': 'c2z3',
+                'nodes': 2,
+            },
+        },
+    )
     assert callback.current_run.name == RUN_NAME
     assert mock_get_run.call_count == 1
     assert mock_get_run.call_args[0][0] == RUN_NAME
@@ -345,12 +372,13 @@ FAKE_RUN_WITH_INTEGRATIONS.submitted_config.integrations = [
        return_value=FAKE_RUN_WITH_INTEGRATIONS)
 def test_async_eval_callback_integrations(mock_create_run: MagicMock,
                                           mock_get_run: MagicMock):
-    callback = AsyncEval(BASIC_PARAMS,
-                         interval='2ba',
-                         compute={
-                             'cluster': 'c2z3',
-                             'nodes': 2,
-                         })
+    callback = AsyncEval(
+        BASIC_PARAMS,
+        interval='2ba',
+        eval_run_config={'compute': {
+            'cluster': 'c2z3',
+            'nodes': 2,
+        }})
     assert mock_get_run.call_count == 1
 
     callback.launch_run('checkpoint/path', Time(1, TimeUnit.BATCH))

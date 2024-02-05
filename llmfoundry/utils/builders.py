@@ -28,7 +28,6 @@ from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
-from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
@@ -108,9 +107,8 @@ def build_eval_loaders(
 
 def add_metrics_to_eval_loaders(
     evaluators: List[Evaluator],
-    metrics: Dict[str, Metric],
+    metric_names: List[str],
 ) -> List[Evaluator]:
-    metric_names = list(metrics.keys())
     eval_loaders, other_evaluators = [], []
     for evaluator in evaluators:
         if evaluator.metric_names == []:
@@ -213,27 +211,22 @@ def build_callback(
             raise ValueError(
                 'Parameters config is required for async eval callback')
 
-        return AsyncEval(**kwargs, training_config=config)
+        return AsyncEval(**kwargs, training_params=config)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
-    kwargs_dict = {
-        k: v if isinstance(v, str) else om.to_container(v, resolve=True)
-        for k, v in kwargs.items()
-    }
-
     if name == 'wandb':
-        return WandBLogger(**kwargs_dict)
+        return WandBLogger(**kwargs)
     elif name == 'tensorboard':
-        return TensorboardLogger(**kwargs_dict)
+        return TensorboardLogger(**kwargs)
     elif name == 'in_memory_logger':
-        return InMemoryLogger(**kwargs_dict)
+        return InMemoryLogger(**kwargs)
     elif name == 'mlflow':
-        return MLFlowLogger(**kwargs_dict)
+        return MLFlowLogger(**kwargs)
     elif name == 'inmemory':
-        return InMemoryLogger(**kwargs_dict)
+        return InMemoryLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
@@ -243,8 +236,6 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
         return algorithms.GradientClipping(**kwargs)
     elif name == 'alibi':
         return algorithms.Alibi(**kwargs)
-    elif name == 'fused_layernorm':
-        return algorithms.FusedLayerNorm(**kwargs)
     elif name == 'gated_linear_units':
         return algorithms.GatedLinearUnits(**kwargs)
     elif name == 'low_precision_layernorm':
@@ -413,6 +404,10 @@ def build_tokenizer(
             'model_max_length',
             int(1e30),
         )
+
+    if not hasattr(tokenizer, 'eos_token') or tokenizer.eos_token is None:
+        raise ValueError(
+            f'The tokenizer {tokenizer_name} must have an eos_token.')
 
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:

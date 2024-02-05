@@ -20,10 +20,13 @@ from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
+from rich.traceback import install
+
+install()
+
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry import (COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM,
-                        MPTForCausalLM)
+from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
@@ -128,49 +131,6 @@ def build_composer_model(model_cfg: DictConfig,
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
 
-def build_composer_peft_model(
-        pretrained_model_name_or_path: str, lora_args: Dict[str, Any],
-        tokenizer: PreTrainedTokenizerBase) -> ComposerHFCausalLM:
-    try:
-        from peft import LoraConfig, get_peft_model
-    except ImportError as e:
-        raise ImportError(
-            'Error importing from peft. Please verify that peft and peft utils '
-            +
-            'are installed by running `pip install -e .[peft]` from `llm-foundry/`. '
-            + f'Error encountered: {e}')
-
-    # 1) loads a hf model, 2) adds peft modules, 3) wraps it in a ComposerHFCausalLM.
-    log.info('Building Lora config...')
-    lora_cfg = LoraConfig(**lora_args)
-
-    log.info('Building model from HuggingFace checkpoint...')
-    model = MPTForCausalLM.from_pretrained(pretrained_model_name_or_path,
-                                           trust_remote_code=True)
-    log.info('Model built!')
-
-    log.info('Adding Lora modules...')
-    model = get_peft_model(model, lora_cfg)
-    log.info('Lora modules added!')
-
-    model = ComposerHFCausalLM(model, tokenizer)
-
-    return model
-
-
-def print_trainable_parameters(model: torch.nn.Module) -> None:
-    # Prints the number of trainable parameters in the model.
-    trainable_params = 0
-    all_param = 0
-    for _, param in model.named_parameters():
-        all_param += param.numel()
-        if param.requires_grad:
-            trainable_params += param.numel()
-    log.info(
-        f'trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}'
-    )
-
-
 def main(cfg: DictConfig) -> Trainer:
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
@@ -240,11 +200,6 @@ def main(cfg: DictConfig) -> Trainer:
                                                        must_exist=False,
                                                        default_value=None,
                                                        convert=True)
-    lora_config: Optional[Dict[str, Any]] = pop_config(cfg,
-                                                       'lora',
-                                                       must_exist=False,
-                                                       default_value=None,
-                                                       convert=True)
     eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(
         cfg, 'eval_loader', must_exist=False, default_value=None)
     icl_tasks_config: Optional[Union[ListConfig,
@@ -278,11 +233,13 @@ def main(cfg: DictConfig) -> Trainer:
     logger_configs: Optional[DictConfig] = pop_config(cfg,
                                                       'loggers',
                                                       must_exist=False,
-                                                      default_value=None)
+                                                      default_value=None,
+                                                      convert=True)
     callback_configs: Optional[DictConfig] = pop_config(cfg,
                                                         'callbacks',
                                                         must_exist=False,
-                                                        default_value=None)
+                                                        default_value=None,
+                                                        convert=True)
     algorithm_configs: Optional[DictConfig] = pop_config(cfg,
                                                          'algorithms',
                                                          must_exist=False,
@@ -391,6 +348,10 @@ def main(cfg: DictConfig) -> Trainer:
                                                     must_exist=False,
                                                     default_value=None,
                                                     convert=True)
+    should_log_config: bool = pop_config(cfg,
+                                         'log_config',
+                                         must_exist=False,
+                                         default_value=True)
 
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
@@ -438,13 +399,17 @@ def main(cfg: DictConfig) -> Trainer:
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
         )
-        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
+        logging.getLogger('llmfoundry').setLevel(
+            python_log_level.upper())  # Foundry module
+        logging.getLogger(__name__).setLevel(
+            python_log_level.upper())  # Train script
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
 
     # Build tokenizer
+    log.info('Building tokenizer...')
     tokenizer_name = tokenizer_config['name']
     tokenizer_kwargs = tokenizer_config.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
@@ -510,8 +475,7 @@ def main(cfg: DictConfig) -> Trainer:
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
 
-    use_async_eval = any(
-        isinstance(callback, AsyncEval) for callback in callbacks)
+    use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
 
     # Algorithms
     algorithms = [
@@ -531,33 +495,33 @@ def main(cfg: DictConfig) -> Trainer:
         mosaicml_logger.log_metrics({'data_validated': time.time()})
 
     ## Evaluation
-    log.info('Building eval loader...')
-    eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
-    # TODO: evaluators should not be built at all if use_async_eval is True
-    # This will be fixed when eval_loader support is fully added to AsyncEval
-    evaluators, _, eval_gauntlet_callback = build_evaluators(
-        eval_loader_config,
-        icl_tasks_config if not use_async_eval else None,
-        eval_gauntlet_config if not use_async_eval else None,
-        tokenizer=tokenizer,
-        device_eval_batch_size=device_eval_batch_size,
-        icl_seq_len=eval_icl_seq_len,
-        icl_subset_num_batches=icl_subset_num_batches,
-    )
+    if use_async_eval:
+        evaluators = []
+        if eval_first:
+            warnings.warn(
+                'AsyncEval callback does not support eval_first=True. Ignoring.'
+            )
+            eval_first = False
 
-    if eval_gauntlet_callback is not None and not use_async_eval:
-        callbacks.append(eval_gauntlet_callback)
+    else:
+        log.info('Building eval loader...')
+        eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
+        evaluators, _, eval_gauntlet_callback = build_evaluators(
+            eval_loader_config,
+            icl_tasks_config,
+            eval_gauntlet_config,
+            tokenizer=tokenizer,
+            device_eval_batch_size=device_eval_batch_size,
+            icl_seq_len=eval_icl_seq_len,
+            icl_subset_num_batches=icl_subset_num_batches,
+        )
+        if eval_gauntlet_callback is not None:
+            callbacks.append(eval_gauntlet_callback)
 
     # Build Model
     log.info('Initializing model...')
     with init_context:
-        if lora_config is not None:  # frozen model + trainable lora modules
-            model: ComposerHFCausalLM = build_composer_peft_model(
-                model_config.pretrained_model_name_or_path, lora_config['args'],
-                tokenizer)
-            print_trainable_parameters(model)  # should not be 100%
-        else:  # standard model
-            model = build_composer_model(model_config, tokenizer)
+        model = build_composer_model(model_config, tokenizer)
 
         if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
             model = model.to(dtype=torch.bfloat16)
@@ -566,16 +530,22 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())
-    logged_cfg.update({'n_params': n_params})
+    n_trainable_params = sum(
+        p.numel() for p in model.parameters() if p.requires_grad)
+    logged_cfg.update({
+        'n_params': n_params,
+        'n_trainable_params': n_trainable_params,
+    })
 
     # Optimizer
     optimizer_name: str = optimizer_config.pop('name')
     optimizer = build_optimizer(model, optimizer_name, optimizer_config)
 
     # Now add the eval metrics
-    if eval_loader_config is not None:
+    if eval_loader_config is not None and not use_async_eval:
         train_metrics = model.get_metrics(is_train=True)
-        evaluators = add_metrics_to_eval_loaders(evaluators, train_metrics)
+        evaluators = add_metrics_to_eval_loaders(evaluators,
+                                                 list(train_metrics.keys()))
 
     # Build the Trainer
     log.info('Building trainer...')
@@ -617,8 +587,9 @@ def main(cfg: DictConfig) -> Trainer:
         compile_config=compile_config,
     )
 
-    log.info('Logging config')
-    log_config(logged_cfg)
+    if should_log_config:
+        log.info('Logging config')
+        log_config(logged_cfg)
     torch.cuda.empty_cache()
     gc.collect()
 
@@ -635,6 +606,11 @@ def main(cfg: DictConfig) -> Trainer:
 
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]
+
+    # Disable resolving environment variables through omegaconf.
+    om.clear_resolver('oc.env')
+
+    # Load yaml and cli arguments.
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)

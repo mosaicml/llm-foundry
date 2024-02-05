@@ -117,8 +117,7 @@ class EvalGauntlet(Callback):
                 elif self.weighting == Weighting.SAMPLE_SZ:
                     weight = cumulative_samples
                 elif self.weighting == Weighting.LOG_SAMPLE_SZ:
-                    weight = max(math.log(cumulative_samples, 2), 1)
-
+                    weight = max(math.log2(cumulative_samples), 1)
                 assert weight is not None
                 benchmark['weighting'] = weight
 

@@ -34,7 +34,8 @@ _LICENSE_FILE_PATTERN = re.compile(r'license(\.[a-z]+|$)', re.IGNORECASE)
 
 
 def _maybe_get_license_filename(
-        local_dir: str, pretrained_model_name: Optional[str]) -> Optional[str]:
+        local_dir: str,
+        pretrained_model_name: Optional[str] = None) -> Optional[str]:
     """Returns the name of the license file if it exists in the local_dir.
 
     Note: This is intended to be consistent with the code in MLflow.

@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 max_seq_len: 512
-=======
-max_seq_len: 512 
->>>>>>> dde185b (fix MDS write)
 global_seed: 17
 model_name: t5-small
 

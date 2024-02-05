@@ -22,6 +22,8 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
+
 install()
 
 from transformers import PreTrainedTokenizerBase
@@ -219,8 +221,10 @@ def main(cfg: DictConfig) -> Trainer:
                                           default_value=None)
         if eval_gauntlet_config is not None:
             warnings.warn(
-                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`',
-                DeprecationWarning)
+                VersionedDeprecationWarning(
+                    'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`',
+                    after_version='0.2.0',
+                ))
     icl_subset_num_batches: Optional[int] = pop_config(cfg,
                                                        'icl_subset_num_batches',
                                                        must_exist=False,

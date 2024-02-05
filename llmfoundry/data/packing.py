@@ -11,6 +11,8 @@ import torch
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
 
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
+
 log = logging.getLogger(__name__)
 
 
@@ -433,9 +435,11 @@ if __name__ == '__main__':
     import warnings
 
     warnings.warn(
-        DeprecationWarning(
+        VersionedDeprecationWarning(
             'Please use scripts/misc/profile_packing.py to profile packing.' +
-            'This script will be removed in later releases.'))
+            'This script will be removed in later releases.',
+            after_version='0.3.0',
+        ))
 
     import os
     from argparse import ArgumentParser, Namespace

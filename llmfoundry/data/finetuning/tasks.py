@@ -42,6 +42,7 @@ from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
+import numpy as np
 from composer.utils import dist
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
@@ -316,6 +317,7 @@ class StreamingFinetuningDataset(StreamingDataset):
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  batching_method: str = 'random',
+                 max_seq_len: int = 2048,
                  **kwargs: Any):
 
         if len(kwargs) > 0:
@@ -355,10 +357,19 @@ class StreamingFinetuningDataset(StreamingDataset):
         )
 
         self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
 
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         sample = super().__getitem__(idx)
+        if 'input_ids' in sample:
+            # already tokenized data
+            sample['input_ids'] = np.frombuffer(
+                sample['input_ids'],
+                dtype=np.int64)[:self.max_seq_len].tolist().copy()
+            sample['labels'] = np.frombuffer(sample['labels'],
+                                             dtype=np.int64).tolist().copy()
+            return sample
         return _tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 
 

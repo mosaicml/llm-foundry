@@ -58,8 +58,10 @@ def _maybe_get_license_filename(
             )
             os.remove(os.path.join(local_dir, license_filename))
             model_card = _fetch_model_card(pretrained_model_name)
+
+            local_dir_path = Path(local_dir).absolute()
             _write_license_information(pretrained_model_name, model_card,
-                                       local_dir)
+                                       local_dir_path)
             license_filename = next(file for file in os.listdir(local_dir)
                                     if _LICENSE_FILE_PATTERN.search(file))
 

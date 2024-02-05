@@ -53,8 +53,10 @@ def _maybe_get_license_filename(
 
         # If a pretrained model name is provided, replace the license file with the correct info from HF Hub.
         if pretrained_model_name is not None:
+            log.info(
+                f'Overwriting license file {license_filename} with license info for model {pretrained_model_name} from Hugging Face Hub'
+            )
             os.remove(os.path.join(local_dir, license_filename))
-
             model_card = _fetch_model_card(pretrained_model_name)
             _write_license_information(pretrained_model_name, model_card,
                                        local_dir)

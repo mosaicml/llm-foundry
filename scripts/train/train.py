@@ -568,19 +568,27 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Build Model
     print('Initializing model...')
-    with init_context:
-        if lora_config is not None:  # frozen model + trainable lora modules
-            model: ComposerHFCausalLM = build_composer_peft_model(
-                model_config.pretrained_model_name_or_path, lora_config['args'],
-                tokenizer)
-            print_trainable_parameters(model)  # should not be 100%
-        else:  # standard model
+    if deepspeed_config['zero_optimization']['stage'] == 3:
+        # https://github.com/microsoft/DeepSpeed/blob/f060407829f87da32a267a60d26d13a68dc11c61/deepspeed/runtime/zero/partition_parameters.py#L750
+        # Create a context to enable massive model construction for training with ZeRO-3. Models are automatically partitioned (or, sharded) across the
+        # system and converted to half precision
+        import deepspeed
+        with deepspeed.zero.Init(config_dict_or_path=deepspeed_config):
             model = build_composer_model(model_config, tokenizer)
+    else:
+        with init_context:
+            if lora_config is not None:  # frozen model + trainable lora modules
+                model: ComposerHFCausalLM = build_composer_peft_model(
+                    model_config.pretrained_model_name_or_path, lora_config['args'],
+                    tokenizer)
+                print_trainable_parameters(model)  # should not be 100%
+            else:  # standard model
+                model = build_composer_model(model_config, tokenizer)
 
-        if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
-            model = model.to(dtype=torch.bfloat16)
-        elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
-            model = model.to(dtype=torch.float16)
+            if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
+                model = model.to(dtype=torch.bfloat16)
+            elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
+                model = model.to(dtype=torch.float16)
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())

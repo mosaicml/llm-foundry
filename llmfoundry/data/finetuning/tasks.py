@@ -39,7 +39,6 @@ from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
                     cast)
-import numpy as np
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub

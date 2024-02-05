@@ -620,7 +620,8 @@ class DatasetConstructor:
             pad_token_id = tokenizer.pad_token_id
 
             filtered_dataset = tokenized_dataset.filter(
-                partial(is_valid_ift_example, pad_token_id, max_seq_len),
+                partial(_filter_long_or_empty_examples, pad_token_id,
+                        max_seq_len),
                 num_proc=num_cpus_to_use,
                 desc='Filtering out long prompts',
             )

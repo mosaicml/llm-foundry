@@ -371,7 +371,7 @@ model:
       target_modules:
       - q_proj
       - k_proj
-    target_modules: 
+    target_modules:
     - 'Wqkv'
 ```
 - For efficiency, The MPT model concatenates the `Q`, `K`, and `V` matrices in each attention block into a single `Wqkv` matrix that is three times wider. Currently, LoRA supports a low-rank approximation to this `Wqkv` matrix.

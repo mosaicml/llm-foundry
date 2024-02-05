@@ -35,10 +35,10 @@ import importlib
 import logging
 import os
 import warnings
+from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
                     cast)
-from functools import partial
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
@@ -229,14 +229,15 @@ def _tokenize_formatted_example(
         raise ValueError(f'Unknown conversation type {example_format=}')
 
 
-def _filter_long_or_empty_examples(pad_token_id: int, max_seq_len: int, example: Dict) -> bool:
+def _filter_long_or_empty_examples(pad_token_id: int, max_seq_len: int,
+                                   example: Dict) -> bool:
     less_than_max_seq_len = len(example['input_ids']) < max_seq_len
     non_empty_input = len(example['input_ids']) > 0
     non_empty_labels = len(example['labels']) > 0
     non_padding_response = any(
         token_id != pad_token_id for token_id in example['labels'])
-    return (less_than_max_seq_len and non_empty_input and
-            non_empty_labels and non_padding_response)
+    return (less_than_max_seq_len and non_empty_input and non_empty_labels and
+            non_padding_response)
 
 
 class StreamingFinetuningDataset(StreamingDataset):
@@ -579,7 +580,8 @@ class DatasetConstructor:
             pad_token_id = tokenizer.pad_token_id
 
             filtered_dataset = tokenized_dataset.filter(
-                partial(_filter_long_or_empty_examples, pad_token_id, max_seq_len),
+                partial(_filter_long_or_empty_examples, pad_token_id,
+                        max_seq_len),
                 num_proc=num_cpus_to_use,
                 desc='Filtering out long prompts',
             )

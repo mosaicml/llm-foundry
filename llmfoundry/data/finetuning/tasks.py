@@ -37,16 +37,14 @@ import os
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
-                    cast, Sequence)
-import numpy as np
-from functools import partial
+from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
+                    Tuple, Union, cast)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
 import numpy as np
 from composer.utils import dist
-from streaming import StreamingDataset, Stream
+from streaming import Stream, StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
@@ -349,12 +347,13 @@ class StreamingFinetuningDataset(StreamingDataset):
 
         def _remote_local_validate(remote: Optional[str], local: Optional[str]):
             if remote is None or (local == remote):
-                if os.path.isdir(local):
+                if local is not None and os.path.isdir(local):
                     contents = set(os.listdir(local))
                     if split not in contents:
                         raise ValueError(
                             f'local directory {local} does not contain split {split}'
                         )
+
         if streams is None:
             _remote_local_validate(remote, local)
         else:
@@ -621,7 +620,8 @@ class DatasetConstructor:
             pad_token_id = tokenizer.pad_token_id
 
             filtered_dataset = tokenized_dataset.filter(
-                partial(is_valid_ift_example, pad_token_id, max_seq_len),
+                partial(_filter_long_or_empty_examples, pad_token_id,
+                        max_seq_len),
                 num_proc=num_cpus_to_use,
                 desc='Filtering out long prompts',
             )

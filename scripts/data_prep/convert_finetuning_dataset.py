@@ -7,12 +7,10 @@ import platform
 import warnings
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable, List, Optional, Union
-import warnings
 
 import datasets as hf_datasets
 import numpy as np
 import psutil
-import json
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
@@ -94,11 +92,6 @@ def parse_args() -> Namespace:
         raise ValueError(
             f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.'
         )
-    
-    if parsed.tokenizer_kwargs is not None:
-        parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)
-    else:
-        parsed.tokenizer_kwargs = {} 
 
     if parsed.tokenizer_kwargs is not None:
         parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)
@@ -280,7 +273,7 @@ def main(args: Namespace) -> None:
                 +
                 'the prompt or response was empty, or the response was all padding tokens.'
             )
-            
+
 
 if __name__ == '__main__':
     """Example for converting Muennighoff/P3:

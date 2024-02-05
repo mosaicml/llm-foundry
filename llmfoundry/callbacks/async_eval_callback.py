@@ -209,8 +209,6 @@ class AsyncEval(Callback):
         eval_run_config: Optional[Dict[str, Any]] = None,
     ):
 
-        self.compute = compute
-
         # Run these during init to fail fast in any of the error cases
         for required in ('save_interval', 'save_folder'):
             if required not in training_params:
@@ -437,7 +435,7 @@ class AsyncEval(Callback):
         # Eval the latest checkpoint
         latest_timestamp = state.timestamp.get(self.interval.unit)
         if latest_timestamp not in self.checkpoints_evaled:
-            save_latest_filename = self.training_config.get(
+            save_latest_filename = self.training_params.get(
                 'save_latest_filename', None)
 
             if not save_latest_filename:

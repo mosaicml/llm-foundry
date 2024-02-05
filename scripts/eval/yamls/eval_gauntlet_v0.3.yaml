@@ -9,7 +9,6 @@ eval_gauntlet:
     - language_understanding
     - symbolic_problem_solving
     - reading_comprehension
-    - programming
   categories:
   - name: world_knowledge
     benchmarks:
@@ -123,14 +122,3 @@ eval_gauntlet:
     - name: agi_eval_sat_en
       num_fewshot: 5
       random_baseline: 0.25
-  - name: programming
-    benchmarks:
-    - name: human_eval
-      num_fewshot: 0
-      random_baseline: 0
-    - name: human_eval_cpp
-      num_fewshot: 0
-      random_baseline: 0
-    - name: human_eval_js
-      num_fewshot: 0
-      random_baseline: 0

@@ -212,6 +212,11 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
             raise ValueError(
                 f'Sequence length ({S}) does not match length of sequences in sequence_id ({sequence_id.shape[-1]}).'
             )
+        if attention_mask is not None:
+            # -1 is used to pad the sequence_id where attention mask is False. We replace those -1 with 0 to prevent
+            # `torch.nn.functional.one_hot(sequence_id)` in the next line from failing. We apply the attention mask
+            # again after the one_hot operation.
+            sequence_id = sequence_id.masked_fill(~attention_mask, 0)
         attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
         if attention_mask is not None:
             attention_mask_in_length = attention_mask_in_length.masked_fill(

@@ -357,7 +357,7 @@ Currently we support [Learned Positional Embeddings](https://arxiv.org/pdf/1706.
 | RoPE (Hugging<code>&nbsp;</code>Face Implementation)  | <pre>model:<br>     attn_config:<br>         rope:&nbsp;True<br>         rope_impl:&nbsp;hf</pre>| 62.3                                                |                                                                                                                                                                             |
 
 ### Can I finetune using PEFT / LoRA?
-- LLM Foundry does support LoRA via an integration with the [PEFT](https://github.com/huggingface/peft) library. Within LLM Foundry, run (`scripts/train/train.py`), adding `peft_config` arguments to the config `.yaml`, like so:
+- LLM Foundry does support LoRA via an integration with the [PEFT](https://github.com/huggingface/peft) library. Within LLM Foundry, run (`scripts/train/train.py`), adding `peft_config` arguments to the `model` section of the config `.yaml`, like so:
 <!--pytest.mark.skip-->
 ```yaml
 model:

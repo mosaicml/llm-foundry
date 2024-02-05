@@ -261,7 +261,7 @@ PYTHONPATH=/mnt/work/FasterTransformer python scripts/inference/run_mpt_with_ft.
 
 ## Running MPT with TensorRT-LLM
 
-MPT-like architectures can be used with the NVIDIA's [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM) library for language model inference. To do so, follow the instructions in the [examples/mpt](https://github.com/NVIDIA/TensorRT-LLM/tree/v0.6.1/examples/mpt) directory for the most recent release, which will show you how to:
+MPT-like architectures can be used with NVIDIA's [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM) library for language model inference. To do so, follow the instructions in the [examples/mpt](https://github.com/NVIDIA/TensorRT-LLM/tree/v0.6.1/examples/mpt) directory for the most recent release, which will show you how to:
 
 1. Convert an MPT HuggingFace checkpoint into the FasterTransformer format.
 2. Build a TensorRT engine with the FasterTransformer weights

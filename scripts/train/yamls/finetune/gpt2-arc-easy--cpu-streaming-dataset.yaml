@@ -1,6 +1,5 @@
 max_seq_len: 512
 global_seed: 17
-model_name: t5-small
 
 # Run Name
 run_name:  # If left blank, will be read from env var $RUN_NAME

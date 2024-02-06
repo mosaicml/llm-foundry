@@ -7,7 +7,7 @@ class VersionedDeprecationWarning(DeprecationWarning):
 
     Attributes:
         message (str): The deprecation message describing why the feature is deprecated.
-        after_version (str): The version after which the feature will be removed.
+        remove_version (str): The version in which the feature will be removed.
 
     Example:
         >>> def deprecated_function():

@@ -222,7 +222,7 @@ def main(cfg: DictConfig) -> Trainer:
         if eval_gauntlet_config is not None:
             warnings.warn(
                 VersionedDeprecationWarning(
-                    'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`',
+                    'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`.',
                     remove_version='0.5.0',
                 ))
     icl_subset_num_batches: Optional[int] = pop_config(cfg,

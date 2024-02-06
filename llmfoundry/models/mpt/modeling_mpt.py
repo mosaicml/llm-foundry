@@ -203,8 +203,8 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
     if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl
                                                                 == 'flash'):
         # Check if sequence has left padding. If yes, raise an error.
-        if (attention_mask is not None) and (attention_mask[:, 0].sum() !=
-                                             attention_mask.shape[0]):
+        if (attention_mask is not None) and (attention_mask[:, 0].sum()
+                                             != attention_mask.shape[0]):
             raise NotImplementedError(
                 'Left padding is not supported with flash attention when attn_uses_sequence_id is set to True.'
             )
@@ -471,8 +471,8 @@ class MPTModel(MPTPreTrainedModel):
                 # clamp to 0 necessary for torch 2.0 compile()
                 _s_k = max(0, attn_bias.size(-1) - s_k)
                 attn_bias = attn_bias[:, :, :, _s_k:]
-            if prefix_mask is not None and (attention_mask.shape !=
-                                            prefix_mask.shape):
+            if prefix_mask is not None and (attention_mask.shape
+                                            != prefix_mask.shape):
                 raise ValueError(
                     f'attention_mask shape={attention_mask.shape} ' +
                     f'and prefix_mask shape={prefix_mask.shape} are not equal.')
@@ -610,8 +610,8 @@ class MPTModel(MPTPreTrainedModel):
                 past_position = past_key_values[0][0].size(3)
 
         if self.learned_pos_emb or self.rope:
-            if self.learned_pos_emb and (S + past_position >
-                                         self.config.max_seq_len):
+            if self.learned_pos_emb and (S + past_position
+                                         > self.config.max_seq_len):
                 raise ValueError(
                     f'Cannot forward input with past sequence length {past_position} and current sequence length '
                     +
@@ -908,32 +908,21 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
-        act_ckpt_list = getattr(self.config, 'activation_checkpointing_target',
-                                None) or ['MPTBlock']
-        if isinstance(act_ckpt_list, str):
-            act_ckpt_list = [act_ckpt_list]
-        elif not isinstance(act_ckpt_list, list):
-            raise ValueError(
-                f'activation_checkpointing_target must be either a single string or a list, but got {type(act_ckpt_list)}'
+        if not hasattr(module, 'block_idx'):
+            log.debug(
+                f'No activating checkpointing for {module.__class__.__name__}, only transformer block or its submodules are eligible for activation checkpointing.'
             )
+            return False
 
-        if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
-            if len(act_ckpt_list) > 1:
-                log.info(
-                    'Activation checkpointing MPTBlock only (ignoring other sub-block modules specified in activation_checkpointing_target).'
-                )
-            return isinstance(module, MPTBlock)
-
-        mod_types = ()
-        for mod_name in act_ckpt_list:
+        def get_act_ckpt_module(mod_name: str) -> nn.Module:
             if mod_name.lower() == 'mptblock':
-                mod_types += (MPTBlock,)
+                mod_type = MPTBlock
             elif mod_name in ATTN_CLASS_REGISTRY:
-                mod_types += (ATTN_CLASS_REGISTRY[mod_name],)
+                mod_type = ATTN_CLASS_REGISTRY[mod_name]
             elif mod_name in FFN_CLASS_REGISTRY:
-                mod_types += (FFN_CLASS_REGISTRY[mod_name],)
+                mod_type = FFN_CLASS_REGISTRY[mod_name]
             elif mod_name in NORM_CLASS_REGISTRY:
-                mod_types += (NORM_CLASS_REGISTRY[mod_name],)
+                mod_type = NORM_CLASS_REGISTRY[mod_name]
             else:
                 msg = ', '.join(
                     list(ATTN_CLASS_REGISTRY.keys()) +
@@ -942,7 +931,92 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 raise ValueError(
                     f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option out of available options {msg}.'
                 )
-        return isinstance(module, mod_types)
+            return mod_type
+
+        def get_target_block_list(target_blocks, max_block_idx) -> list:
+
+            def parse_ele_str(ele: str, max_block_idx: int) -> list:
+                to_add = None
+                if ele.startswith('first-'):
+                    assert ele[6:].isdigit(
+                    ), f'Invalid target_blocks element {ele}'
+                    to_add = list(range(min(int(ele[6:]), max_block_idx + 1)))
+                elif ele.startswith('last-'):
+                    assert ele[5:].isdigit(
+                    ), f'Invalid target_blocks element {ele}'
+                    to_add = list(
+                        range(max(max_block_idx - int(ele[5:]) + 1, 0),
+                              max_block_idx + 1))
+                elif ele.startswith('middle-'):
+                    assert ele[7:].isdigit(
+                    ), f'Invalid target_blocks element {ele}'
+                    num = int(ele[7:])
+                    start = max(max_block_idx // 2 - num // 2, 0)
+                    end = min(start + num, max_block_idx + 1)
+                    to_add = list(range(start, end))
+                else:
+                    raise ValueError(f'Invalid target_blocks element {ele}')
+                return to_add
+
+            candidate_block_ids = []
+            if isinstance(target_blocks, int):
+                candidate_block_ids = list(range(target_blocks))
+            elif isinstance(target_blocks, list):
+                for ele in target_blocks:
+                    if isinstance(ele, int):
+                        candidate_block_ids.append(ele)
+                    elif isinstance(ele, str):
+                        to_add = parse_ele_str(ele, max_block_idx)
+                        candidate_block_ids.extend(to_add)
+                    else:
+                        raise ValueError(
+                            f'target_blocks must be a list of integers or "fist-n", "last-m" or "middle-k" where n, m, k are integers, but got {target_blocks}'
+                        )
+            elif isinstance(target_blocks, str):
+                target_blocks = target_blocks.replace(' ', '')
+                for ele in target_blocks.split(','):
+                    to_add = parse_ele_str(ele, max_block_idx)
+                    candidate_block_ids.extend(to_add)
+            else:
+                raise ValueError(
+                    f'target_blocks must be either a single integer or a list of integers or a comma separated string made of "fist-n", "last-m" or "middle-k" where n, m, k are integers, but got {type(target_blocks)}'
+                )
+
+            candidate_block_ids = list(set(candidate_block_ids))
+            return candidate_block_ids
+
+        act_ckpt_target = getattr(self.config,
+                                  'activation_checkpointing_target', None)
+        act_ckpt_mod_to_blocks = {}
+        if act_ckpt_target is None:
+            mod = MPTBlock
+            act_ckpt_mod_to_blocks[mod] = -1
+        elif isinstance(act_ckpt_target, str):
+            mod = get_act_ckpt_module(target)
+            act_ckpt_mod_to_blocks[mod] = -1
+        elif isinstance(act_ckpt_target, list):
+            for target in act_ckpt_target:
+                mod = get_act_ckpt_module(target)
+                act_ckpt_mod_to_blocks[mod] = -1
+        elif isinstance(act_ckpt_target, dict):
+            for k, v in act_ckpt_target.items():
+                mod = get_act_ckpt_module(k)
+                block_ids = get_target_block_list(v, module.max_block_idx)
+                act_ckpt_mod_to_blocks[mod] = block_ids
+                log.info(
+                    f'for module {mod.__name__}, target_blocks is set as {v}, activation checkpointing is applied to {block_ids} blocks.'
+                )
+        else:
+            raise ValueError(
+                f'activation_checkpointing_target must be either a single string or a list or a dict, but got {type(act_ckpt_target)}'
+            )
+
+        for k in act_ckpt_mod_to_blocks.keys():
+            if isinstance(module, k):
+                blocks = act_ckpt_mod_to_blocks[k]
+                return True if blocks == -1 else module.block_idx in blocks
+
+        return False
 
     def prepare_inputs_for_generation(
         self,

@@ -231,7 +231,7 @@ def tokenize_formatted_example(
 
 def is_valid_ift_example(pad_token_id: int, max_seq_len: int,
                          example: Dict) -> bool:
-    """Check if it's an valid ift example.
+    """Check if the example is a valid ift example.
 
     This functions does the following check:
     a. Length of input_ids should less than max_seq_len

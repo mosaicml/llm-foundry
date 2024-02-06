@@ -108,13 +108,6 @@ class StreamingTextDataset(StreamingDataset):
                  batching_method: str = 'random',
                  **kwargs: Any):
 
-        group_method = kwargs.pop('group_method', None)
-        if group_method is not None:
-            raise NotImplementedError(
-                'group_method is deprecated and has been removed.\nTo ' +
-                'concatenate, use the --concat_tokens ' +
-                'argument when creating your MDS dataset with concat_c4.py')
-
         if len(kwargs) > 0:
             raise ValueError(
                 f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}'
@@ -245,12 +238,6 @@ def build_text_dataloader(
     device_batch_size: int,
 ) -> DataSpec:
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
-    if cfg.dataset.get('group_method', None) is not None:
-        raise NotImplementedError(
-            'group_method is deprecated and has been removed.\nTo ' +
-            'concatenate, use the --concat_tokens ' +
-            'argument when creating your MDS dataset with convert_dataset_hf.py'
-        )
 
     # get kwargs
     streams_dict = cfg.dataset.pop('streams', None)

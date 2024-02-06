@@ -71,7 +71,7 @@ class CurriculumLearning(Callback):
         elif self.dataset_index == 0 and len(self.all_dataset_configs) == 0:
             # Make sure to save our current dataset config if we are just starting training.
             self.new_dataset_setup = True
-        print("Dataset NCN AFTER checkpoint load: ", dataset.num_canonical_nodes)
+        print("Dataset state AFTER checkpoint load, and potential setup: ", dataset.state_dict(0, False))
     
     def state_dict(self):
         if self.new_dataset_setup and not self.dataset_config_appended:

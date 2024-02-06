@@ -11,7 +11,6 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Union
 
-import numpy as np
 import torch
 from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
@@ -139,12 +138,16 @@ class HuggingFaceCheckpointer(Callback):
             mlflow_logging_config.setdefault('task', 'text-generation')
 
             default_input_example = {
-                'prompt': ['what is ML?'],
-                'temperature': np.array([0.5]),
-                'max_tokens': np.array([100]),
+                'prompt': ['what is Machine Learning?'],
+            }
+            default_inference_config = {
+                'temperature': 0.5,
+                'max_new_tokens': 100,
             }
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)
+            mlflow_logging_config.setdefault('inference_config',
+                                             default_inference_config)
 
         self.mlflow_logging_config = mlflow_logging_config
 
@@ -358,9 +361,21 @@ class HuggingFaceCheckpointer(Callback):
                                 'metadata'] = self.mlflow_logging_config[
                                     'metadata']
                         else:
+                            from mlflow.models import infer_signature
+
+                            inference_config = self.mlflow_logging_config.pop(
+                                'inference_config')
+                            signature = infer_signature(
+                                model_input=self.
+                                mlflow_logging_config['input_example'],
+                                model_output='Machine Learning is...',
+                                params=inference_config,
+                            )
+
                             model_saving_kwargs['flavor'] = 'transformers'
                             model_saving_kwargs[
                                 'transformers_model'] = components
+                            model_saving_kwargs['signature'] = signature
                             model_saving_kwargs.update(
                                 self.mlflow_logging_config)
 

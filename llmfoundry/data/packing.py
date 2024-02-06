@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import os
 import tempfile
 from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
 

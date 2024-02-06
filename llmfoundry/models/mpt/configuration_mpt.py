@@ -163,7 +163,7 @@ class MPTConfig(PretrainedConfig):
             warnings.warn(
                 VersionedDeprecationWarning(
                     'verbose argument for MPTConfig is now ignored and will be removed. Use python_log_level instead.',
-                    after_version='0.2.0',
+                    remove_version='0.2.0',
                 ))
 
         if 'name' in kwargs:
@@ -231,7 +231,7 @@ class MPTConfig(PretrainedConfig):
             warnings.warn(
                 VersionedDeprecationWarning(
                     'Support for Flash Attention v1 is deprecated. Please upgrade to Flash Attention v2.4.2. To install Flash Attention v2.4.2, please run `pip install -e ".[gpu-flash2]"` from the root directory of the llm-foundry repository.',
-                    after_version='0.4.0',
+                    remove_version='0.6.0',
                 ))
 
         if self.attn_config[

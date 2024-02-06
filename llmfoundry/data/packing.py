@@ -438,7 +438,7 @@ if __name__ == '__main__':
         VersionedDeprecationWarning(
             'Please use scripts/misc/profile_packing.py to profile packing.' +
             'This script will be removed in later releases.',
-            after_version='0.3.0',
+            remove_version='0.5.0',
         ))
 
     import os

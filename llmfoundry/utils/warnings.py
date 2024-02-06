@@ -7,8 +7,7 @@ class VersionedDeprecationWarning(DeprecationWarning):
 
     Attributes:
         message (str): The deprecation message describing why the feature is deprecated.
-        after_version (str): The version after which the feature will be deprecated.
-            It will be removed after two releases.
+        after_version (str): The version after which the feature will be removed.
 
     Example:
         >>> def deprecated_function():
@@ -20,8 +19,9 @@ class VersionedDeprecationWarning(DeprecationWarning):
         ...     )
         ...
         >>> deprecated_function()
-        DeprecationWarning: After version 2.0.0: Function XYZ is deprecated.
+        DeprecationWarning: Function XYZ is deprecated. It will be removed in version 2.0.0.
     """
 
-    def __init__(self, message: str, after_version: str) -> None:
-        super().__init__(f'After version {after_version}:' + message)
+    def __init__(self, message: str, remove_version: str) -> None:
+        super().__init__(message +
+                         f' It will be removed in version {remove_version}.')

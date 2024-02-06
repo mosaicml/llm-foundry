@@ -107,14 +107,14 @@ def scaled_multihead_dot_product_attention(
         warnings.warn(
             VersionedDeprecationWarning(
                 'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.',
-                after_version='0.2.0',
+                remove_version='0.5.0',
             ))
         kv_n_heads = 1
     elif kv_n_heads is None:
         warnings.warn(
             VersionedDeprecationWarning(
                 'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.',
-                after_version='0.2.0',
+                remove_version='0.5.0',
             ))
         kv_n_heads = n_heads
 
@@ -254,14 +254,14 @@ def flash_attn_fn(
         warnings.warn(
             VersionedDeprecationWarning(
                 'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.',
-                after_version='0.2.0',
+                remove_version='0.5.0',
             ))
         kv_n_heads = 1
     elif kv_n_heads is None:
         warnings.warn(
             VersionedDeprecationWarning(
                 'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.',
-                after_version='0.2.0',
+                remove_version='0.5.0',
             ))
         kv_n_heads = n_heads
 
@@ -429,14 +429,14 @@ def triton_flash_attn_fn(
         warnings.warn(
             VersionedDeprecationWarning(
                 'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.',
-                after_version='0.2.0',
+                remove_version='0.5.0',
             ))
         kv_n_heads = 1
     elif kv_n_heads is None:
         warnings.warn(
             VersionedDeprecationWarning(
                 'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.',
-                after_version='0.2.0',
+                remove_version='0.5.0',
             ))
         kv_n_heads = n_heads
 

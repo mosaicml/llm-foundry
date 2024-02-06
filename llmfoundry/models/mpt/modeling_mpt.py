@@ -933,7 +933,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 )
             return mod_type
 
-        def get_target_block_list(target_blocks, max_block_idx) -> list:
+        def get_target_block_list(target_blocks: Any,
+                                  max_block_idx: int) -> list:
 
             def parse_ele_str(ele: str, max_block_idx: int) -> list:
                 to_add = None
@@ -992,7 +993,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             mod = MPTBlock
             act_ckpt_mod_to_blocks[mod] = -1
         elif isinstance(act_ckpt_target, str):
-            mod = get_act_ckpt_module(target)
+            mod = get_act_ckpt_module(act_ckpt_target)
             act_ckpt_mod_to_blocks[mod] = -1
         elif isinstance(act_ckpt_target, list):
             for target in act_ckpt_target:

@@ -118,7 +118,6 @@ def evaluate_model(
     python_log_level: Optional[str],
     precision: str,
     eval_gauntlet_df: Optional[pd.DataFrame],
-    fewshot_random_seed: Optional[int],
     eval_subset_num_batches: int,
     icl_subset_num_batches: Optional[int],
     metadata: Optional[Dict[str, str]],
@@ -142,7 +141,7 @@ def evaluate_model(
         tokenizer=tokenizer,
         device_eval_batch_size=device_eval_batch_size,
         icl_seq_len=max_seq_len,
-        fewshot_random_seed=fewshot_random_seed,
+        fewshot_random_seed=seed,
         icl_subset_num_batches=icl_subset_num_batches,
     )
 
@@ -303,10 +302,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                              'loggers',
                                              must_exist=False,
                                              default_value={})
-    fewshot_random_seed: int = pop_config(cfg,
-                                          'fewshot_random_seed',
-                                          must_exist=False,
-                                          default_value=1234)
     eval_subset_num_batches: int = pop_config(cfg,
                                               'eval_subset_num_batches',
                                               must_exist=False,
@@ -369,7 +364,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              python_log_level=python_log_level,
              precision=precision,
              eval_gauntlet_df=eval_gauntlet_df,
-             fewshot_random_seed=fewshot_random_seed,
              eval_subset_num_batches=eval_subset_num_batches,
              icl_subset_num_batches=icl_subset_num_batches,
              metadata=metadata,

@@ -253,8 +253,8 @@ def is_valid_ift_example(pad_token_id: int, max_seq_len: int,
     non_empty_labels = len(example['labels']) > 0
     non_padding_response = any(
         token_id != pad_token_id for token_id in example['labels'])
-    return (less_than_max_seq_len and non_empty_input and
-            non_empty_labels and non_padding_response)
+    return (less_than_max_seq_len and non_empty_input and non_empty_labels and
+            non_padding_response)
 
 
 class StreamingFinetuningDataset(StreamingDataset):
@@ -619,8 +619,7 @@ class DatasetConstructor:
             pad_token_id = tokenizer.pad_token_id
 
             filtered_dataset = tokenized_dataset.filter(
-                partial(is_valid_ift_example, pad_token_id,
-                        max_seq_len),
+                partial(is_valid_ift_example, pad_token_id, max_seq_len),
                 num_proc=num_cpus_to_use,
                 desc='Filtering out long prompts',
             )

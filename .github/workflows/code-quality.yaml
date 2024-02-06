@@ -4,12 +4,14 @@ on:
     branches:
     - main
     - release/**
+    # todo: remove before merging
     - add_finetuning_streaming_dataset_conversion
     - add_finetuning_example_2
   pull_request:
     branches:
     - main
     - release/**
+    # todo: remove before merging
     - add_finetuning_streaming_dataset_conversion
     - add_finetuning_example_2
   workflow_call:

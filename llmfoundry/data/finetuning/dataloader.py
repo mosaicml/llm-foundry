@@ -16,8 +16,7 @@ from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
                                               dataset_constructor)
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
-from llmfoundry.data.text_data import (build_streams,
-                                       get_tokens_per_batch_func)
+from llmfoundry.data.text_data import build_streams, get_tokens_per_batch_func
 
 log = logging.getLogger(__name__)
 
@@ -129,7 +128,8 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
     dataset = None  # for pyright
     sampler = None
-    if cfg.dataset.get('remote') is not None or cfg.dataset.get('streams') is not None:
+    if cfg.dataset.get('remote') is not None or cfg.dataset.get(
+            'streams') is not None:
         # Build streaming dataloader
         streams = build_streams(cfg)
         dataset = dataset_constructor.build_from_streaming(
@@ -282,7 +282,7 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'Using a streaming dataset requires setting both `remote` and `local`, ' +\
                 'but dataset.local is None.'
             )
-    elif dataset_cfg.get("streams") is not None:
+    elif dataset_cfg.get('streams') is not None:
         # Using the streaming dataset codepath
         illegal_keys = ['hf_name', 'hf_kwargs', 'preprocessing_fn', 'safe_load']
         discovered_illegal_keys = []

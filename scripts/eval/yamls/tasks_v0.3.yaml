@@ -18,42 +18,6 @@ icl_tasks:
   icl_task_type: question_answering
   do_normalization: true
 -
-  label: math
-  dataset_uri: eval/local_data/symbolic_problem_solving/math.jsonl
-  num_fewshot: [4]
-  icl_task_type: question_answering
-  cot_delimiter: "The answer is "
-  continuation_delimiter: "\n\nA:"
-  question_prelimiter: "Question: "
-  do_normalization: false
-  early_stopping_criteria:
-  - "\n\n"
-  - "Question:"
--
-  label: agi_eval_sat_math
-  dataset_uri: eval/local_data/symbolic_problem_solving/agi_eval_sat_math.jsonl
-  num_fewshot: [3]
-  icl_task_type: question_answering
-  cot_delimiter: "The answer is "
-  continuation_delimiter: "\n\nA:"
-  question_prelimiter: "Question: "
-  do_normalization: false
-  early_stopping_criteria:
-  - "\n\n"
-  - "Question:"
--
-  label: aqua
-  dataset_uri: eval/local_data/symbolic_problem_solving/aqua.jsonl
-  num_fewshot: [3]
-  icl_task_type: question_answering
-  cot_delimiter: "The answer is "
-  continuation_delimiter: "\n\nA:"
-  question_prelimiter: "Question: "
-  do_normalization: false
-  early_stopping_criteria:
-  - "\n\n"
-  - "Question:"
--
   label: svamp
   dataset_uri: eval/local_data/symbolic_problem_solving/svamp.jsonl
   num_fewshot: [5]
@@ -186,11 +150,6 @@ icl_tasks:
   label: simple_arithmetic_withspaces
   dataset_uri: eval/local_data/symbolic_problem_solving/simple_arithmetic_withspaces.jsonl
   num_fewshot: [5]
-  icl_task_type: language_modeling
--
-  label: pubmed_qa_labeled
-  dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl
-  num_fewshot: [10]
   icl_task_type: language_modeling
 -
   label: squad

@@ -84,24 +84,15 @@ eval_gauntlet:
     - name: simple_arithmetic_nospaces
       num_fewshot: 5
       random_baseline: 0.0
-    - name: aqua
-      num_fewshot: 3
-      random_baseline: 0.0
     - name: gsm8k
       num_fewshot: 0
       random_baseline: 0.0
     - name: svamp
       num_fewshot: 5
       random_baseline: 0
-    - name: agi_eval_sat_math
-      num_fewshot: 3
-      random_baseline: 0.0
     - name: agi_eval_lsat_ar
       num_fewshot: 5
       random_baseline: 0.25
-    - name: math
-      num_fewshot: 4
-      random_baseline: 0.0
   - name: reading_comprehension
     benchmarks:
     - name: squad

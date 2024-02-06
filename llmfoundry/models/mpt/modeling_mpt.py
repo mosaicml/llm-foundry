@@ -1052,6 +1052,23 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 f'activation_checkpointing_target must be either a single string or a list or a dict, but got {type(act_ckpt_target)}'
             )
 
+        def check_mapping_blocks_overlap(mapping: dict,
+                                         max_block_idx: int) -> None:
+            all_blocks = [None] * (max_block_idx + 1)
+            for k, v in mapping.items():
+                for vv in v:
+                    if vv < 0 or vv > max_block_idx:
+                        continue
+                    else:
+                        if all_blocks[vv] is not None:
+                            raise ValueError(
+                                f'Block {vv} is assigned to both {k} and {all_blocks[vv]}.'
+                            )
+                        else:
+                            all_blocks[vv] = k
+
+        check_mapping_blocks_overlap(act_ckpt_mod_to_blocks)
+
         for k in act_ckpt_mod_to_blocks.keys():
             if isinstance(module, k):
                 blocks = act_ckpt_mod_to_blocks[k]

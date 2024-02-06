@@ -184,7 +184,8 @@ def evaluate_model(
     # Now add the eval metrics
     if eval_loader_config is not None:
         train_metrics = composer_model.get_metrics(is_train=True)
-        evaluators = add_metrics_to_eval_loaders(evaluators, train_metrics)
+        evaluators = add_metrics_to_eval_loaders(evaluators,
+                                                 list(train_metrics.keys()))
 
     if eval_gauntlet_df is None and eval_gauntlet_callback is not None:
         eval_gauntlet_df = pd.DataFrame(

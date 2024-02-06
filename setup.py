@@ -55,7 +55,7 @@ install_requires = [
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.37,<4.38',
     'mosaicml-streaming>=0.7.2,<0.8',
-    'torch>=2.1,<2.1.1',
+    'torch>=2.1,<2.2',
     'datasets>=2.16,<2.17',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
@@ -105,18 +105,12 @@ extra_deps['gpu'] = [
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
 ]
 extra_deps['gpu-flash2'] = [
-    'flash-attn==2.4.2',
+    'flash-attn==2.5.0',
     'mosaicml-turbo==0.0.8',
 ]
 
 extra_deps['peft'] = [
-    'loralib==0.1.1',  # lora core
-    'bitsandbytes==0.39.1',  # 8bit
-    # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
-    'scipy>=1.10.0,<=1.11.0',
-    # TODO: pin peft when it stabilizes.
-    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'peft==0.4.0',
+    'mosaicml[peft]>=0.19,<0.20',
 ]
 
 extra_deps['openai'] = [

@@ -44,10 +44,13 @@ def parse_args() -> Namespace:
                         default=None,
                         help='Name or import path of function used to preprocess (reformat) the dataset. ' +\
                              'See README for additional details.')
-    parser.add_argument('--data_files',
-                        nargs='+',
-                        default=[],
-                        help='Data file for each split')
+    parser.add_argument(
+        '--data_files',
+        nargs='+',
+        default=[],
+        help=
+        'Data file for each split. If set, its length should be exact same as len(splits)'
+    )
     parser.add_argument(
         '--data_files',
         nargs='+',

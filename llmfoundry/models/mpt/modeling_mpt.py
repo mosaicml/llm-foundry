@@ -1067,7 +1067,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
                         else:
                             all_blocks[vv] = k
 
-        check_mapping_blocks_overlap(act_ckpt_mod_to_blocks)
+        check_mapping_blocks_overlap(act_ckpt_mod_to_blocks,
+                                     module.max_block_idx)
 
         for k in act_ckpt_mod_to_blocks.keys():
             if isinstance(module, k):

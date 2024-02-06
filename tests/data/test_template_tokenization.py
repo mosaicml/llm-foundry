@@ -9,7 +9,7 @@ import transformers
 from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
                                               _ALLOWED_RESPONSE_KEYS,
                                               _slice_chat_formatted_example,
-                                              _tokenize_formatted_example)
+                                              tokenize_formatted_example)
 from llmfoundry.utils.builders import build_tokenizer
 
 
@@ -48,7 +48,7 @@ def test_tokenize_chat_example_malformed():
     my_tokenizer = build_tokenizer('mosaicml/mpt-7b-8k-chat', {})
     for example in malformed_chat_examples:
         with pytest.raises(Exception):
-            _tokenize_formatted_example(
+            tokenize_formatted_example(
                 example, my_tokenizer
             )  # type: ignore (the typing here is supposed to be malformed)
 
@@ -121,8 +121,8 @@ Nice to hear that.<|im_end|>
     for chat_example, expected_stringification in zip(chat_examples, expected):
         prompt, response = _slice_chat_formatted_example(
             chat_example, chat_tokenizer)
-        tokenized_example = _tokenize_formatted_example(chat_example,
-                                                        chat_tokenizer)
+        tokenized_example = tokenize_formatted_example(chat_example,
+                                                       chat_tokenizer)
         assert prompt == expected_stringification['prompt']
         assert response == expected_stringification['response']
         assert 'input_ids' in tokenized_example
@@ -148,7 +148,7 @@ def test_tokenize_instruct_example_malformed():
 
     for example in malformed_prompt_response_examples:
         with pytest.raises(KeyError):
-            _tokenize_formatted_example(example, MagicMock())
+            tokenize_formatted_example(example, MagicMock())
 
 
 def test_tokenize_instruct_example_well_formed():
@@ -158,6 +158,6 @@ def test_tokenize_instruct_example_well_formed():
         for response_key in _ALLOWED_RESPONSE_KEYS:
 
             example = {prompt_key: 'prompt', response_key: 'response'}
-            tokenized_example = _tokenize_formatted_example(example, tokenizer)
+            tokenized_example = tokenize_formatted_example(example, tokenizer)
             assert 'input_ids' in tokenized_example
             assert 'labels' in tokenized_example

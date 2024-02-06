@@ -35,6 +35,7 @@ import importlib
 import logging
 import os
 import warnings
+from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
                     cast)
@@ -199,7 +200,7 @@ def _tokenize_prompt_response_formatted_example(
     return tokenizer(text=prompt, text_target=response)
 
 
-def _tokenize_formatted_example(
+def tokenize_formatted_example(
         example: Example,
         tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
     """Tokenizes a formatted example using the provided tokenizer.
@@ -226,6 +227,33 @@ def _tokenize_formatted_example(
             prompt_response_example, tokenizer)
     else:
         raise ValueError(f'Unknown conversation type {example_format=}')
+
+
+def is_valid_ift_example(pad_token_id: int, max_seq_len: int,
+                         example: Dict) -> bool:
+    """Check if the example is a valid ift example.
+
+    This functions does the following check:
+    a. Length of input_ids should be less than max_seq_len
+    b. Both input_ids and labels should not be empty
+    c. Labels should have at least 1 non-padding token.
+
+    Args:
+        pad_token_id (int): The id of the padding token.
+        max_seq_len (int): Maximum sequence length.
+        example (Dict): The input example after tokenization, which has
+            ``input_ids`` and ``labels`` fields.
+
+    Returns:
+        bool: Indicator of whether the input example is valid
+    """
+    less_than_max_seq_len = len(example['input_ids']) < max_seq_len
+    non_empty_input = len(example['input_ids']) > 0
+    non_empty_labels = len(example['labels']) > 0
+    non_padding_response = any(
+        token_id != pad_token_id for token_id in example['labels'])
+    return (less_than_max_seq_len and non_empty_input and non_empty_labels and
+            non_padding_response)
 
 
 class StreamingFinetuningDataset(StreamingDataset):
@@ -347,7 +375,7 @@ class StreamingFinetuningDataset(StreamingDataset):
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         sample = super().__getitem__(idx)
-        return _tokenize_formatted_example(sample, tokenizer=self.tokenizer)
+        return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 
 
 class DatasetConstructor:
@@ -550,7 +578,7 @@ class DatasetConstructor:
             def dataset_mapper(example: Dict):
                 if preprocessing_fn is not None:
                     example = preprocessing_fn(example)
-                return _tokenize_formatted_example(example, tokenizer)
+                return tokenize_formatted_example(example, tokenizer)
 
             detected_cpu_count = os.cpu_count() or 1
             detected_cpus_with_margin = detected_cpu_count - 8
@@ -567,17 +595,8 @@ class DatasetConstructor:
 
             pad_token_id = tokenizer.pad_token_id
 
-            def filter_long_or_empty_examples(example: Dict) -> bool:
-                less_than_max_seq_len = len(example['input_ids']) < max_seq_len
-                non_empty_input = len(example['input_ids']) > 0
-                non_empty_labels = len(example['labels']) > 0
-                non_padding_response = any(
-                    token_id != pad_token_id for token_id in example['labels'])
-                return (less_than_max_seq_len and non_empty_input and
-                        non_empty_labels and non_padding_response)
-
             filtered_dataset = tokenized_dataset.filter(
-                filter_long_or_empty_examples,
+                partial(is_valid_ift_example, pad_token_id, max_seq_len),
                 num_proc=num_cpus_to_use,
                 desc='Filtering out long prompts',
             )

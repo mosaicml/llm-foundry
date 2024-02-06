@@ -127,6 +127,10 @@ class HuggingFaceCheckpointer(Callback):
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:
+            import numpy as np
+            from mlflow.models.signature import ModelSignature
+            from mlflow.types.schema import ColSpec, Schema
+
             # Both the metadata and the task are needed in order for mlflow
             # and databricks optimized model serving to work
             default_metadata = {'task': 'llm/v1/completions'}
@@ -137,17 +141,26 @@ class HuggingFaceCheckpointer(Callback):
             }
             mlflow_logging_config.setdefault('task', 'text-generation')
 
+            # Define a default input/output that is good for standard text generation LMs
+            input_schema = Schema([
+                ColSpec('string', 'prompt'),
+                ColSpec('double', 'temperature', optional=True),
+                ColSpec('integer', 'max_tokens', optional=True),
+                ColSpec('string', 'stop', optional=True),
+                ColSpec('integer', 'candidate_count', optional=True)
+            ])
+
+            output_schema = Schema([ColSpec('string', 'predictions')])
+
+            default_signature = ModelSignature(inputs=input_schema,
+                                               outputs=output_schema)
+
             default_input_example = {
-                'prompt': ['what is Machine Learning?'],
-            }
-            default_inference_config = {
-                'temperature': 0.5,
-                'max_new_tokens': 100,
+                'prompt': np.array(['What is Machine Learning?'])
             }
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)
-            mlflow_logging_config.setdefault('inference_config',
-                                             default_inference_config)
+            mlflow_logging_config.setdefault('signature', default_signature)
 
         self.mlflow_logging_config = mlflow_logging_config
 
@@ -361,21 +374,9 @@ class HuggingFaceCheckpointer(Callback):
                                 'metadata'] = self.mlflow_logging_config[
                                     'metadata']
                         else:
-                            from mlflow.models import infer_signature
-
-                            inference_config = self.mlflow_logging_config.pop(
-                                'inference_config')
-                            signature = infer_signature(
-                                model_input=self.
-                                mlflow_logging_config['input_example'],
-                                model_output='Machine Learning is...',
-                                params=inference_config,
-                            )
-
                             model_saving_kwargs['flavor'] = 'transformers'
                             model_saving_kwargs[
                                 'transformers_model'] = components
-                            model_saving_kwargs['signature'] = signature
                             model_saving_kwargs.update(
                                 self.mlflow_logging_config)
 

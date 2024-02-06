@@ -593,25 +593,34 @@ def test_huggingface_conversion_callback(
                 }
             }
         else:
-            from mlflow.models import infer_signature
-            input_example = {'prompt': 'What is Machine Learning?'}
-            inference_config = {
-                'temperature': 0.5,
-                'max_new_tokens': 100,
+            import numpy as np
+            from mlflow.models.signature import ModelSignature
+            from mlflow.types.schema import ColSpec, Schema
+
+            input_schema = Schema([
+                ColSpec('string', 'prompt'),
+                ColSpec('double', 'temperature', optional=True),
+                ColSpec('integer', 'max_tokens', optional=True),
+                ColSpec('string', 'stop', optional=True),
+                ColSpec('integer', 'candidate_count', optional=True)
+            ])
+
+            output_schema = Schema([ColSpec('string', 'predictions')])
+
+            default_signature = ModelSignature(inputs=input_schema,
+                                               outputs=output_schema)
+
+            default_input_example = {
+                'prompt': np.array(['What is Machine Learning?'])
             }
-            signature = infer_signature(
-                model_input=input_example,
-                model_output='Machine Learning is...',
-                params=inference_config,
-            )
 
             expectation = {
                 'flavor': 'transformers',
                 'transformers_model': ANY,
                 'path': ANY,
                 'task': 'text-generation',
-                'signature': signature,
-                'input_example': input_example,
+                'signature': default_signature,
+                'input_example': default_input_example,
                 'metadata': {
                     'task': 'llm/v1/completions'
                 }

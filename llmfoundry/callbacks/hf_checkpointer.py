@@ -96,7 +96,8 @@ class HuggingFaceCheckpointer(Callback):
             Expected to contain ``metadata`` and ``task`` keys. If either is
             unspecified, the defaults are ``'text-generation'`` and
             ``{'task': 'llm/v1/completions'}`` respectively. A default input example
-            intended for text generation is also included under the key ``input_example``.
+            and signature intended for text generation is also included under the
+            keys ``input_example`` and ``signature``.
         flatten_imports (Sequence[str]): A sequence of import prefixes that will
             be flattened when editing MPT files.
     """

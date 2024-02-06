@@ -436,7 +436,7 @@ if __name__ == '__main__':
 
     warnings.warn(
         VersionedDeprecationWarning(
-            'Please use scripts/misc/profile_packing.py to profile packing.' +
+            'Please use scripts/misc/profile_packing.py to profile packing.',
             remove_version='0.5.0',
         ))
 

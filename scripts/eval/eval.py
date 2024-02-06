@@ -247,16 +247,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     model_configs: ListConfig = pop_config(cfg, 'models', must_exist=True)
     eval_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(
         cfg, 'eval_gauntlet', must_exist=False, default_value=None)
-    if eval_gauntlet_config is None:
-        eval_gauntlet_config = pop_config(cfg,
-                                          'model_gauntlet',
-                                          must_exist=False,
-                                          default_value=None)
-        if eval_gauntlet_config:
-            warnings.warn(
-                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`'
-            )
-
+    
     fsdp_dict_cfg: Optional[DictConfig] = pop_config(cfg,
                                                      'fsdp_config',
                                                      must_exist=False,

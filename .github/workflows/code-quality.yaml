@@ -7,6 +7,7 @@ on:
     - add_finetuning_streaming_dataset_conversion
     - add_finetuning_example_2
     - add_finetuning_streaming_dataset_conversion
+    - add_finetuning_example_2
   pull_request:
     branches:
     - main
@@ -14,6 +15,7 @@ on:
     - add_finetuning_streaming_dataset_conversion
     - add_finetuning_example_2
     - add_finetuning_streaming_dataset_conversion
+    - add_finetuning_example_2
   workflow_call:
   workflow_dispatch:
 # Cancel old runs when a new commit is pushed to the same branch if not on main or dev

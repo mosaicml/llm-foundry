@@ -593,11 +593,21 @@ def test_huggingface_conversion_callback(
                 }
             }
         else:
+            from mlflow.models import infer_signature
+            input_example = {'prompt': 'What is Machine Learning?'}
+            signature = infer_signature(
+                model_input=input_example
+                model_output='Machine Learning is...',
+                params=inference_config,
+            )
+
             expectation = {
                 'flavor': 'transformers',
                 'transformers_model': ANY,
                 'path': ANY,
                 'task': 'text-generation',
+                'signature': signature,
+                'input_example': input_example,
                 'metadata': {
                     'task': 'llm/v1/completions'
                 }

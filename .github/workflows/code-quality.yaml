@@ -6,6 +6,7 @@ on:
     - release/**
     - add_finetuning_streaming_dataset_conversion
     - add_finetuning_example_2
+    - add_finetuning_streaming_dataset_conversion
   pull_request:
     branches:
     - main

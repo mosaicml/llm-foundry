@@ -988,6 +988,13 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     start = max(max_block_idx // 2 - num // 2, 0)
                     end = min(start + num, max_block_idx + 1)
                     to_add = list(range(start, end))
+                elif ele.startswith('range-'):
+                    r = ele[6:].split('-')
+                    assert len(r) == 2, f'Invalid target_blocks element {ele}'
+                    start, end = int(r[0]), int(r[1])
+                    start = max(start, 0)
+                    end = min(end, max_block_idx + 1)
+                    to_add = list(range(start, end))
                 else:
                     raise ValueError(f'Invalid target_blocks element {ele}')
                 return to_add

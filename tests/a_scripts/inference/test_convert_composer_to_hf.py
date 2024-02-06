@@ -333,6 +333,8 @@ def test_huggingface_conversion_callback_interval(
             transformers_model=ANY,
             path=ANY,
             task='text-generation',
+            input_example=ANY,
+            signature=ANY,
             metadata={'task': 'llm/v1/completions'})
         assert mlflow_logger_mock.register_model.call_count == 1
     else:

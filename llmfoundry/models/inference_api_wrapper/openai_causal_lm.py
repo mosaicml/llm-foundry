@@ -246,7 +246,6 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
-        # TODO: this will be deprecated
         self.generate_completion = lambda prompt, num_tokens: self.client.completions.create(
             model=self.model_name,
             prompt=prompt,

@@ -63,6 +63,9 @@ class CurriculumLearning(Callback):
             # making sure that subsequent resumptions proceed correctly.
             state.timestamp.to_next_epoch()
             self.new_dataset_setup = True
+        elif self.dataset_index == 0 and len(self.all_dataset_configs) == 0:
+            # Make sure to save our current dataset config if we are just starting training.
+            self.new_dataset_setup = True
         print("Dataset NCN AFTER checkpoint load: ", dataset.num_canonical_nodes)
     
     def state_dict(self):

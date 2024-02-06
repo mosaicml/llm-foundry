@@ -255,6 +255,8 @@ def test_callback_inits():
         mlflow_registered_model_name='test_model_name')
     assert hf_checkpointer.mlflow_logging_config == {
         'task': 'text-generation',
+        'input_example': ANY,
+        'signature': ANY,
         'metadata': {
             'task': 'llm/v1/completions'
         }

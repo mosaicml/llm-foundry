@@ -95,7 +95,8 @@ class HuggingFaceCheckpointer(Callback):
             that will get passed along to the MLflow ``save_model`` call.
             Expected to contain ``metadata`` and ``task`` keys. If either is
             unspecified, the defaults are ``'text-generation'`` and
-            ``{'task': 'llm/v1/completions'}`` respectively.
+            ``{'task': 'llm/v1/completions'}`` respectively. A default input example
+            intended for text generation is also included under the key ``input_example``.
         flatten_imports (Sequence[str]): A sequence of import prefixes that will
             be flattened when editing MPT files.
     """
@@ -135,6 +136,15 @@ class HuggingFaceCheckpointer(Callback):
                 **passed_metadata
             }
             mlflow_logging_config.setdefault('task', 'text-generation')
+
+            default_input_example = {
+                'prompt': ['what is ML?'],
+                'temperature': [0.5],
+                'max_tokens': [100]
+            }
+            mlflow_logging_config.setdefault('input_example',
+                                             default_input_example)
+
         self.mlflow_logging_config = mlflow_logging_config
 
         self.huggingface_folder_name_fstr = os.path.join(

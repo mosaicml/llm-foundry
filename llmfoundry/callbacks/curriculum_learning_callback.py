@@ -34,6 +34,7 @@ class CurriculumLearning(Callback):
         # The current dataset config is resolved and passed in train.py
         self.current_dataset_config = current_dataset_config
         self.new_dataset_setup = False
+        self.dataset_config_appended = False
 
         # Must pass in dataset directly since it is not actually accessible at Event.INIT in
         # Composer. We need to get the new dataset state to override checkpoint dataset state.
@@ -57,6 +58,10 @@ class CurriculumLearning(Callback):
         if self.saved_dataset_index < self.dataset_index:
 			# Ignore the dataset state that was read in from the checkpoint, and
             # replace with the new dataset state. This preserves resumption info.
+            if self.current_dataset_state['epoch'] < 0:
+                # Make sure the epoch in the loaded state dict is not negative.
+                # Otherwise, the state will be considered stale, and will be ignored.
+                self.current_dataset_state['epoch'] = 0
             dataset.load_state_dict(self.current_dataset_state)
             # Start a new epoch since we are using a new dataset.
             # This will also reset the sample_in_epoch written to checkpoint,
@@ -69,9 +74,11 @@ class CurriculumLearning(Callback):
         print("Dataset NCN AFTER checkpoint load: ", dataset.num_canonical_nodes)
     
     def state_dict(self):
-        if self.new_dataset_setup:
+        if self.new_dataset_setup and not self.dataset_config_appended:
             # Append the new dataset config to the list of all dataset configs.
             self.all_dataset_configs.append(self.current_dataset_config)
+            # Only append the dataset config once, not on every single checkpoint save.
+            self.dataset_config_appended = True
         print("CurriculumLearning callback dataset index: ", self.dataset_index)
         print("CurriculumLearning callback all dataset configs: ", self.all_dataset_configs)
         return {'dataset_index': self.dataset_index,

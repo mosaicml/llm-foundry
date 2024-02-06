@@ -65,7 +65,6 @@ class MPTConfig(PretrainedConfig):
         fc_type: str = 'torch',
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
-        verbose: Optional[int] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -116,7 +115,6 @@ class MPTConfig(PretrainedConfig):
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
-            verbose (int): Deprecated.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
             use_cache (bool): Whether or not the model should return the last key/values attentions
@@ -159,12 +157,6 @@ class MPTConfig(PretrainedConfig):
         self.init_config = init_config
         self.fc_type = fc_type
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
-        if verbose is not None:
-            warnings.warn(
-                VersionedDeprecationWarning(
-                    'verbose argument for MPTConfig is now ignored and will be removed. Use python_log_level instead.',
-                    remove_version='0.5.0',
-                ))
 
         if 'name' in kwargs:
             del kwargs['name']

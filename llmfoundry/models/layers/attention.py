@@ -16,7 +16,6 @@ from torch import nn
 
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 
 def is_flash_v2_installed(v2_version: str = '2.0.0'):
@@ -91,7 +90,7 @@ def scaled_multihead_dot_product_attention(
     key: torch.Tensor,
     value: torch.Tensor,
     n_heads: int,
-    kv_n_heads: Optional[int] = None,
+    kv_n_heads: int,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -100,23 +99,8 @@ def scaled_multihead_dot_product_attention(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
-    multiquery: bool = False,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-    if multiquery:
-        warnings.warn(
-            VersionedDeprecationWarning(
-                'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.',
-                remove_version='0.5.0',
-            ))
-        kv_n_heads = 1
-    elif kv_n_heads is None:
-        warnings.warn(
-            VersionedDeprecationWarning(
-                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.',
-                remove_version='0.5.0',
-            ))
-        kv_n_heads = n_heads
 
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
     k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
@@ -221,7 +205,7 @@ def flash_attn_fn(
     key: torch.Tensor,
     value: torch.Tensor,
     n_heads: int,
-    kv_n_heads: Optional[int] = None,
+    kv_n_heads: int,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -249,21 +233,6 @@ def flash_attn_fn(
             'Please install flash-attn==1.0.9 or flash-attn==2.3.6')
 
     check_valid_inputs(query, key, value)
-
-    if multiquery:
-        warnings.warn(
-            VersionedDeprecationWarning(
-                'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.',
-                remove_version='0.5.0',
-            ))
-        kv_n_heads = 1
-    elif kv_n_heads is None:
-        warnings.warn(
-            VersionedDeprecationWarning(
-                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.',
-                remove_version='0.5.0',
-            ))
-        kv_n_heads = n_heads
 
     if past_key_value is not None:
         if len(past_key_value) != 0:
@@ -384,7 +353,7 @@ def triton_flash_attn_fn(
     key: torch.Tensor,
     value: torch.Tensor,
     n_heads: int,
-    kv_n_heads: Optional[int] = None,
+    kv_n_heads: int,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -393,7 +362,6 @@ def triton_flash_attn_fn(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
-    multiquery: bool = False,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
@@ -424,21 +392,6 @@ def triton_flash_attn_fn(
             )
 
     check_valid_inputs(query, key, value)
-
-    if multiquery:
-        warnings.warn(
-            VersionedDeprecationWarning(
-                'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.',
-                remove_version='0.5.0',
-            ))
-        kv_n_heads = 1
-    elif kv_n_heads is None:
-        warnings.warn(
-            VersionedDeprecationWarning(
-                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.',
-                remove_version='0.5.0',
-            ))
-        kv_n_heads = n_heads
 
     if past_key_value is not None:
         if len(past_key_value) != 0:

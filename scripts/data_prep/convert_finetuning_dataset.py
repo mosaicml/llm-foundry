@@ -15,9 +15,9 @@ from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 
-from llmfoundry.data.finetuning.tasks import (_filter_long_or_empty_examples,
-                                              _tokenize_formatted_example,
-                                              dataset_constructor)
+from llmfoundry.data.finetuning.tasks import (dataset_constructor,
+                                              is_valid_ift_example,
+                                              tokenize_formatted_example)
 from llmfoundry.utils.builders import build_tokenizer
 
 
@@ -44,10 +44,13 @@ def parse_args() -> Namespace:
                         default=None,
                         help='Name or import path of function used to preprocess (reformat) the dataset. ' +\
                              'See README for additional details.')
-    parser.add_argument('--data_files',
-                        nargs='+',
-                        default=[],
-                        help='Data file for each split')
+    parser.add_argument(
+        '--data_files',
+        nargs='+',
+        default=[],
+        help=
+        'Data file for each split. If set, its length should be exact same as len(splits)'
+    )
     parser.add_argument(
         '--skip-preprocessing',
         action='store_true',
@@ -90,6 +93,12 @@ def parse_args() -> Namespace:
         parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)
     else:
         parsed.tokenizer_kwargs = {}
+
+    if len(parsed.data_files) > 0 and len(parsed.data_files) != len(
+            parsed.splits):
+        raise ValueError(
+            f'If set data_files, data_files and splits must be 1:1 mapping. Got {len(parsed.data_files)=} while {len(parsed.splits)=}'
+        )
 
     return parsed
 
@@ -189,9 +198,10 @@ def main(args: Namespace) -> None:
             )
 
     tokenizer = None
-    args.tokenizer_kwargs.update({'model_max_length': args.max_seq_len})
+    tokenizer_kwargs = args.tokenizer_kwargs
+    tokenizer_kwargs.update({'model_max_length': args.max_seq_len})
     if args.tokenizer:
-        tokenizer = build_tokenizer(args.tokenizer, args.tokenizer_kwargs)
+        tokenizer = build_tokenizer(args.tokenizer, tokenizer_kwargs)
         columns = {'input_ids': 'bytes', 'labels': 'bytes'}
     else:
         columns = {'prompt': 'str', 'response': 'str'}
@@ -235,10 +245,10 @@ def main(args: Namespace) -> None:
                         f'from {formatted_sample=}.'
                     )
                 if tokenizer is not None:
-                    sample = _tokenize_formatted_example(sample,
-                                                         tokenizer=tokenizer)
-                    if not _filter_long_or_empty_examples(
-                            tokenizer.pad_token_id, args.max_seq_len, sample):
+                    sample = tokenize_formatted_example(sample,
+                                                        tokenizer=tokenizer)
+                    if not is_valid_ift_example(tokenizer.pad_token_id,
+                                                args.max_seq_len, sample):
                         examples_removed += 1
                         continue
 

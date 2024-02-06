@@ -21,6 +21,8 @@ from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY  # type: ignore (see n
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY  # type: ignore (see note)
 
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
+
 ffn_config_defaults: Dict = {
     'ffn_type': 'mptmlp',
 }
@@ -159,8 +161,9 @@ class MPTConfig(PretrainedConfig):
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
         if verbose is not None:
             warnings.warn(
-                DeprecationWarning(
-                    'verbose argument for MPTConfig is now ignored and will be removed. Use python_log_level instead.'
+                VersionedDeprecationWarning(
+                    'verbose argument for MPTConfig is now ignored and will be removed. Use python_log_level instead.',
+                    remove_version='0.5.0',
                 ))
 
         if 'name' in kwargs:
@@ -226,8 +229,9 @@ class MPTConfig(PretrainedConfig):
 
         if self.attn_config['attn_impl'] == 'flash' and is_flash_v1_installed():
             warnings.warn(
-                DeprecationWarning(
-                    'Support for Flash Attention v1 is deprecated. Please upgrade to Flash Attention v2.4.2. To install Flash Attention v2.4.2, please run `pip install -e ".[gpu-flash2]"` from the root directory of the llm-foundry repository.'
+                VersionedDeprecationWarning(
+                    'Support for Flash Attention v1 is deprecated. Please upgrade to Flash Attention v2.4.2. To install Flash Attention v2.4.2, please run `pip install -e ".[gpu-flash2]"` from the root directory of the llm-foundry repository.',
+                    remove_version='0.6.0',
                 ))
 
         if self.attn_config[

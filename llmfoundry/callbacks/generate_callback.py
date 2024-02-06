@@ -11,6 +11,8 @@ from typing import Any, List, Union
 from composer.callbacks import Generate as ComposerGenerate
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
+
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 
@@ -20,10 +22,10 @@ class Generate(ComposerGenerate):
                  **kwargs: Any):
 
         warnings.warn(
-            ('Accessing llmfoundry.callbacks.generate_callback.Generate '
-             'is deprecated and will be removed in a future release. '
-             'Please use composer.callbacks.Generate instead.'),
-            DeprecationWarning,
+            VersionedDeprecationWarning('Accessing llmfoundry.callbacks.generate_callback.Generate ' + \
+             'is deprecated. Please use composer.callbacks.Generate instead.',
+             remove_version='0.5.0',
+            )
         )
 
         interval = f'{batch_log_interval}ba'

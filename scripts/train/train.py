@@ -22,8 +22,6 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
-
 install()
 
 from transformers import PreTrainedTokenizerBase

@@ -232,12 +232,12 @@ def tokenize_formatted_example(
 
 def is_valid_ift_example(pad_token_id: int, max_seq_len: int,
                          example: Dict) -> bool:
-    """Check if it's an valid ift example.
+    """Check if the example is a valid ift example.
 
     This functions does the following check:
-    a. Length of input_ids should less than max_seq_len
+    a. Length of input_ids should be less than max_seq_len
     b. Both input_ids and labels should not be empty
-    c. Labels should has at least 1 non-padding token.
+    c. Labels should have at least 1 non-padding token.
 
     Args:
         pad_token_id (int): The id of the padding token.

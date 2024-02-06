@@ -97,7 +97,7 @@ def parse_args() -> Namespace:
     if len(parsed.data_files) > 0 and len(parsed.data_files) != len(
             parsed.splits):
         raise ValueError(
-            f'If set data_files, data_files and splits must be 1:1 mapping. Got {len(parsed.data_files)=} while {len(parsed.splits)=}'
+            f'If data_files is set, data_files and splits must have the same length. Got {len(parsed.data_files)=} while {len(parsed.splits)=}'
         )
 
     return parsed

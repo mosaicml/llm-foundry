@@ -595,8 +595,12 @@ def test_huggingface_conversion_callback(
         else:
             from mlflow.models import infer_signature
             input_example = {'prompt': 'What is Machine Learning?'}
+            inference_config = {
+                'temperature': 0.5,
+                'max_new_tokens': 100,
+            }
             signature = infer_signature(
-                model_input=input_example
+                model_input=input_example,
                 model_output='Machine Learning is...',
                 params=inference_config,
             )

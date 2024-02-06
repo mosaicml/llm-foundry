@@ -19,9 +19,9 @@ from llmfoundry.models.layers.blocks import attn_config_defaults
 # isort: off
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY  # type: ignore (see note)
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
-from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY
+from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY  # type: ignore (see note)
 
-from llmfoundry.utils.warnings import VersionedDeprecationWarning  # type: ignore (see note)
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 ffn_config_defaults: Dict = {
     'ffn_type': 'mptmlp',

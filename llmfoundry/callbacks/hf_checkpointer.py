@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Union
 
+import numpy as np
 import torch
 from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
@@ -139,8 +140,8 @@ class HuggingFaceCheckpointer(Callback):
 
             default_input_example = {
                 'prompt': ['what is ML?'],
-                'temperature': [0.5],
-                'max_tokens': [100]
+                'temperature': np.array([0.5]),
+                'max_tokens': np.array([100]),
             }
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)

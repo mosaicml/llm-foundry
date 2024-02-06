@@ -8,7 +8,7 @@ models:
   model:
     name: hf_causal_lm
     pretrained_model_name_or_path: EleutherAI/gpt-neo-125m
-    init_device: cpu
+    init_device: mixed
     pretrained: true
   tokenizer:
     name: EleutherAI/gpt-neo-125m

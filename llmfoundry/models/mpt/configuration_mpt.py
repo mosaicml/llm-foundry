@@ -163,7 +163,7 @@ class MPTConfig(PretrainedConfig):
             warnings.warn(
                 VersionedDeprecationWarning(
                     'verbose argument for MPTConfig is now ignored and will be removed. Use python_log_level instead.',
-                    remove_version='0.2.0',
+                    remove_version='0.5.0',
                 ))
 
         if 'name' in kwargs:

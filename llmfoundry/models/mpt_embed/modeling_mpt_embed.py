@@ -153,12 +153,16 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
 
         # Temperature for InfoNCELoss
         self.temperature = resolved_om_model_config.get('temperature', 1)
+
+        # Set the vector representation to either be the average of all the individual token vectors,
+        # or the EOS token at the end of the sequence
+        self.vector_representation = resolved_om_model_config.get('contrastive_config',
+                                                                  {}).get('vector_representation','average')
         
         step_size = self.config.to_dict().get("pos_step_size", 2)
         self.pattern = torch.arange(1, step_size, device=model.device)
 
         self.n_active_params = sum(p.numel() for p in self.parameters())
-
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
             try:
@@ -279,12 +283,37 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         # q_last_hidden also has shape [16,128,768]. q_pooled_outputs should be [16,768]
         
         # print('\nq_encoder_outputs.hidden_states[-1].shape: ', q_encoder_outputs.hidden_states[-1].shape)
-        q_last_hidden = queries_last_hidden_state.masked_fill(~queries_batch.get('attention_mask', None)[..., None].bool(), 0.0)
-        q_pooled_outputs = q_last_hidden.sum(dim=1) / queries_batch.get('attention_mask', None).sum(dim=1)[..., None]
-        
-        p_last_hidden = passages_last_hidden_state.masked_fill(~passages_batch.get('attention_mask', None)[..., None].bool(), 0.0)
-        p_pooled_outputs = p_last_hidden.sum(dim=1) / passages_batch.get('attention_mask', None).sum(dim=1)[..., None]
-        
+        if self.vector_representation == 'eos':
+
+            # This assumes that that each query and passage ends with an EOS token
+            
+            # create an array with indicees corresponding to rows along the batch dimension
+            row_indices = torch.arange(queries_batch.get('attention_mask', None).shape[0])
+
+            # need to take the last token in the attention mask that is not padded
+            # flip the mask and then find argmax
+            queries_flipped_mask = ~queries_batch.get('attention_mask', None).bool()
+            last_true_indices = queries_flipped_mask.int().argmax(dim=1) - 1 # need to subtract 1 because it is findinng the first instance of the padded token
+            q_pooled_outputs = queries_last_hidden_state[row_indices,last_true_indices,:] # b,s,h --> b,h
+
+            #print(queries_last_hidden_state[0,:25,0])
+            #print(queries_last_hidden_state[1,:25,0])
+
+            passages_flipped_mask = ~passages_batch.get('attention_mask', None).bool()
+            last_true_indices = passages_flipped_mask.int().argmax(dim=1) - 1
+            p_pooled_outputs = passages_last_hidden_state[row_indices,last_true_indices,:] # b,s,h --> b,h
+
+        else: 
+
+            # Default to taking the average of all the vectors for each token in the sequence
+            q_last_hidden = queries_last_hidden_state.masked_fill(~queries_batch.get('attention_mask', None)[..., None].bool(), 0.0)
+            q_pooled_outputs = q_last_hidden.sum(dim=1) / queries_batch.get('attention_mask', None).sum(dim=1)[..., None]
+            
+            p_last_hidden = passages_last_hidden_state.masked_fill(~passages_batch.get('attention_mask', None)[..., None].bool(), 0.0)
+            p_pooled_outputs = p_last_hidden.sum(dim=1) / passages_batch.get('attention_mask', None).sum(dim=1)[..., None]
+
+
+            
         #print('>>p_pooled_outputs shape:',p_pooled_outputs.shape)
         
         q_pooled_outputs = F.normalize(q_pooled_outputs, dim=-1) # Todo: should be configurable when L2 normalizing
@@ -328,8 +357,8 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         # labels = all_labels
         #print('>>labels',labels.shape) # should be torch.Size([64])
 
-        print('>> mean scores',all_scores.mean())
-        print('>> mean diagonal scores', all_scores.diagonal().mean())
+        #print('>> mean scores',all_scores.mean())
+        #print('>> mean diagonal scores', all_scores.diagonal().mean())
         return all_scores, all_labels
     
     def full_contrastive_scores_and_labels(self, queries: torch.Tensor, passages: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:

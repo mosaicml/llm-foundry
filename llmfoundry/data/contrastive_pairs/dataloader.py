@@ -114,6 +114,9 @@ class StreamingPairsDataset(StreamingDataset):
                 'concatenate, use the --concat_tokens ' +
                 'argument when creating your MDS dataset with concat_c4.py')
 
+        # JP Added for contrastive pretraining
+        self.append_eos_token = kwargs.pop('append_eos_token', None) # this should be part of the dataset config, if specified
+
         if len(kwargs) > 0:
             raise ValueError(
                 f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}'
@@ -132,10 +135,11 @@ class StreamingPairsDataset(StreamingDataset):
             shuffle_block_size = int(shuffle_block_size)
 
         # JP Added
-        # Use EOS as the pad token if none exists
+        # Use EOS as the pad token if none exists (is this the standard for MPT?)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
 
+        
         # Build Dataset
         super().__init__(
             streams=streams,
@@ -182,22 +186,43 @@ class StreamingPairsDataset(StreamingDataset):
                           dtype=np.int64)[:self.max_seq_len].copy())
 
     # How to process a sample
+    #
+    # TO DO: This needs to be cleaned up as of February 7, 2024
+    # We had two dataset formats that need to be consolidated.
+    # The first format was 'text_a' and 'text_b' when there were no hard negatives
+    #
+    # The second format is 'query_text', 'positive_passage' and 'negative_passage' where there
+    # are potentially many negative passages associated with a single positive passage
+    #
     def __getitem__(self,
                     idx: int) -> Union[Dict[str, List[int]], torch.Tensor]:
         sample = super().__getitem__(idx)
         text_samples = []
         # JP: We use this sample to separate text_a column from text_b column
-        text_samples = [sample[item] for item in sample if item.startswith("text_")]
+        if self.append_eos_token:
+            text_samples = [('{}{}').format(sample[item],self.tokenizer.eos_token) for item in sample if item.startswith("text_")]
+        else:
+            text_samples = [sample[item] for item in sample if item.startswith("text_")]
         
         if len(text_samples) == 0 \
             and sample["query_text"] \
             and sample["positive_passage"] \
             and sample["negative_passages"]:
             # CJ: this is gross, I'm sorry
-            text_samples.append(sample["query_text"])
-            text_samples.append(sample["positive_passage"])
-            for negative_sample in pickle.loads(sample["negative_passages"]):
-                text_samples.append(negative_sample)
+            if self.append_eos_token:
+                text_samples.append(sample["query_text"]+self.tokenizer.eos_token)
+                text_samples.append(sample["positive_passage"]+self.tokenizer.eos_token)
+
+                # JP what happens if there are no negative passages?
+                for negative_sample in pickle.loads(sample["negative_passages"]):
+                    text_samples.append(negative_sample+self.tokenizer.eos_token)
+            else:
+                text_samples.append(sample["query_text"])
+                text_samples.append(sample["positive_passage"])
+
+                # JP what happens if there are no negative passages?
+                for negative_sample in pickle.loads(sample["negative_passages"]):
+                    text_samples.append(negative_sample)
             
             
             # Migth be "positive_passage" and "negative_passages"
@@ -207,6 +232,11 @@ class StreamingPairsDataset(StreamingDataset):
             # )
         # JP len of size 2
         # attention mask is created here!
+        #print(self.tokenizer.eos_token)
+        #print(self._tokenize(self.tokenizer.eos_token))
+        #print(self._tokenize('diet related diseases statistics'))
+        #print(self._tokenize('diet related diseases statistics <|endoftext|>'))
+        #print(self._tokenize('diet related diseases statistics<|endoftext|>'))
         token_samples = self._tokenize(text_samples)
         
         return token_samples
@@ -274,6 +304,10 @@ def build_pairs_dataloader(
             'argument when creating your MDS dataset with convert_dataset_hf.py'
         )
 
+    # # JP Added to ensure eos_token_id was specified in cfg.dataset if we append eos token to queries and passages
+    # if cfg.dataset.get('append_eos_token',None):
+    #     assert cfg.dataset.get('eos_token_id',None) is not None, f'eos_token_id should be specified in the dataset config if append_eos_token: True'
+    
     # get kwargs
     streams_dict = cfg.dataset.pop('streams', None)
     mlm_probability = cfg.dataset.pop('mlm_probability', None)

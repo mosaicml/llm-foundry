@@ -203,8 +203,8 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
     if (sequence_id is not None) and attn_uses_sequence_id and (attn_impl
                                                                 == 'flash'):
         # Check if sequence has left padding. If yes, raise an error.
-        if (attention_mask is not None) and (attention_mask[:, 0].sum()
-                                             != attention_mask.shape[0]):
+        if (attention_mask is not None) and (attention_mask[:, 0].sum() !=
+                                             attention_mask.shape[0]):
             raise NotImplementedError(
                 'Left padding is not supported with flash attention when attn_uses_sequence_id is set to True.'
             )
@@ -471,8 +471,8 @@ class MPTModel(MPTPreTrainedModel):
                 # clamp to 0 necessary for torch 2.0 compile()
                 _s_k = max(0, attn_bias.size(-1) - s_k)
                 attn_bias = attn_bias[:, :, :, _s_k:]
-            if prefix_mask is not None and (attention_mask.shape
-                                            != prefix_mask.shape):
+            if prefix_mask is not None and (attention_mask.shape !=
+                                            prefix_mask.shape):
                 raise ValueError(
                     f'attention_mask shape={attention_mask.shape} ' +
                     f'and prefix_mask shape={prefix_mask.shape} are not equal.')
@@ -610,8 +610,8 @@ class MPTModel(MPTPreTrainedModel):
                 past_position = past_key_values[0][0].size(3)
 
         if self.learned_pos_emb or self.rope:
-            if self.learned_pos_emb and (S + past_position
-                                         > self.config.max_seq_len):
+            if self.learned_pos_emb and (S + past_position >
+                                         self.config.max_seq_len):
                 raise ValueError(
                     f'Cannot forward input with past sequence length {past_position} and current sequence length '
                     +
@@ -925,10 +925,10 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     }
                 target_blocks (target_blocks_1, target_blocks_2 above) can be:
                 - a single integer n means the first n transformer block will be candidates for act ckpt
-                - a string of first-m, middle-n, last-k means the first m, middle n and the last k layers are candidates for act ckpt. E.g, 'first-2, last-2' means the first 2 and last 2 transformer blocks are candidates for act ckpt.
-                    middle-n is range [start, end) where ``start = max(max_block_idx // 2 - n // 2, 0), end = min(start + n, max_block_idx + 1)``
+                - a string of first-n, middle-m, last-k, range-i-j means the first n, the middle m,  the last k, or the range [i, j) layers are candidates for act ckpt. E.g, 'first-2, last-2' means the first 2 and last 2 transformer blocks are candidates for act ckpt.
+                    middle-m is range [start, end) where ``start = max(max_block_idx // 2 - m // 2, 0), end = min(start + m, max_block_idx + 1)``
                 - a list of integers corresponds to the list of transformer block ids, e.g., [2] means the second transformer block is the candidate for act ckpt. [2, 3] means the second and third transformer block are candidates.
-                a list of mixed integers and strings of first-m, middle-n, last-k
+                - a list of mixed integers and strings of first-n, middle-m, last-k, range-i-j
 
             An example in yaml config file:,
                 fsdp_config:
@@ -1011,7 +1011,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
                         candidate_block_ids.extend(to_add)
                     else:
                         raise ValueError(
-                            f'target_blocks must be a list of integers or "fist-n", "last-m" or "middle-k" where n, m, k are integers, but got {target_blocks}'
+                            f'target_blocks must be a list of integers or "first-n", "middle-m", "last-k", or "range-i-j" where n, m, k, i, j are integers, but got {target_blocks}'
                         )
             elif isinstance(target_blocks, str):
                 target_blocks = target_blocks.replace(' ', '')
@@ -1020,7 +1020,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     candidate_block_ids.extend(to_add)
             else:
                 raise ValueError(
-                    f'target_blocks must be either a single integer or a list of integers or a comma separated string made of "fist-n", "last-m" or "middle-k" where n, m, k are integers, but got {type(target_blocks)}'
+                    f'target_blocks must be either a single intege, or a list of integers, or a comma separated string made of "first-n", "last-m", "middle-k", "range-i-j", or a list of mixed integers and before-mentioned strings, but got {type(target_blocks)}'
                 )
 
             candidate_block_ids = list(set(candidate_block_ids))

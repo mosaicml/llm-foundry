@@ -24,7 +24,8 @@ from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
-                                              SUPPORTED_EXTENSIONS)
+                                              SUPPORTED_EXTENSIONS,
+                                              is_valid_ift_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
@@ -552,6 +553,29 @@ def test_finetuning_dataloader_streaming(tmp_path: pathlib.Path):
     )
 
     _ = build_finetuning_dataloader(cfg, tokenizer, 4)
+
+
+def test_finetuning_dataloader_is_valid_ift_example():
+    pad_token_id = 7
+    max_seq_len = 4
+
+    valid_example = {'input_ids': [2, 3, 5], 'labels': [8, 9, 7]}
+    assert is_valid_ift_example(pad_token_id, max_seq_len, valid_example)
+
+    too_long_example = {'input_ids': [2, 3, 5, 6, 8], 'labels': [8, 9, 7]}
+    assert not is_valid_ift_example(pad_token_id, max_seq_len, too_long_example)
+
+    empty_input_example = {'input_ids': [], 'labels': [8, 9, 7]}
+    assert not is_valid_ift_example(pad_token_id, max_seq_len,
+                                    empty_input_example)
+
+    empty_labels_example = {'input_ids': [1, 2], 'labels': []}
+    assert not is_valid_ift_example(pad_token_id, max_seq_len,
+                                    empty_labels_example)
+
+    padding_response_example = {'input_ids': [1, 2], 'labels': [7, 7]}
+    assert not is_valid_ift_example(pad_token_id, max_seq_len,
+                                    padding_response_example)
 
 
 @pytest.mark.parametrize('add_bad_data_dropped', [True, False])

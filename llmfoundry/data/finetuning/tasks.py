@@ -380,11 +380,19 @@ class StreamingFinetuningDataset(StreamingDataset):
         sample = super().__getitem__(idx)
         if 'input_ids' in sample:
             # already tokenized data
-            sample['input_ids'] = np.frombuffer(
-                sample['input_ids'],
-                dtype=np.int64)[:self.max_seq_len].tolist().copy()
-            sample['labels'] = np.frombuffer(sample['labels'],
-                                             dtype=np.int64).tolist().copy()
+            if isinstance(sample['input_ids'], bytes):
+                sample['input_ids'] = np.frombuffer(
+                    sample['input_ids'],
+                    dtype=np.int64)[:self.max_seq_len].tolist().copy()
+                sample['labels'] = np.frombuffer(
+                    sample['labels'],
+                    dtype=np.int64)[:self.max_seq_len].tolist().copy()
+            elif isinstance(sample['input_ids'], np.ndarray):
+                sample['input_ids'] = sample[
+                    'input_ids'][:self.max_seq_len].tolist().copy()
+                sample['labels'] = sample['labels'][:self.max_seq_len].tolist(
+                ).copy()
+
             return sample
         return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 

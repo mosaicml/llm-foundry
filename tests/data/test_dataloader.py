@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import ContextManager, Literal, Optional, Union
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 import torch
 import transformers
@@ -25,7 +26,8 @@ from llmfoundry import (build_finetuning_dataloader,
 from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
-                                              is_valid_ift_example)
+                                              is_valid_ift_example,
+                                              tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
@@ -49,8 +51,15 @@ def get_abs_data_path(data_local: str):
     return os.path.join(os.getcwd(), data_local)
 
 
-def build_mock_ft_streaming_dataset(data_path: str, split: str):
-    columns = {'prompt': 'str', 'response': 'str'}
+def build_mock_ft_streaming_dataset(
+        data_path: str,
+        split: str,
+        pretokenize: bool,
+        tokenizer: Optional[transformers.PreTrainedTokenizerBase] = None):
+    if pretokenize:
+        columns = {'input_ids': 'ndarray:uint32', 'labels': 'ndarray:uint32'}
+    else:
+        columns = {'prompt': 'str', 'response': 'str'}
 
     dataset = [{
         'prompt': 'This is just a test1',
@@ -65,7 +74,15 @@ def build_mock_ft_streaming_dataset(data_path: str, split: str):
     with MDSWriter(columns=columns, out=output_path,
                    compression=None) as output_writer:
         for sample in dataset:
-            output_writer.write(sample)
+            if pretokenize:
+                sample = tokenize_formatted_example(sample, tokenizer=tokenizer)
+                sample_to_write = {}
+                for key in columns.keys():
+                    sample_to_write[key] = np.asarray(sample[key],
+                                                      dtype=np.uint32)
+                output_writer.write(sample_to_write)
+            else:
+                output_writer.write(sample)
 
 
 @pytest.mark.parametrize('tokenizer_name', ['gpt2', 'facebook/opt-125m'])
@@ -517,13 +534,21 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
                 assert split in dest_arg, 'split destination should match split name'
 
 
-def test_finetuning_dataloader_streaming(tmp_path: pathlib.Path):
+@pytest.mark.parametrize('pretokenize', [True, False])
+def test_finetuning_dataloader_streaming(pretokenize: bool,
+                                         tmp_path: pathlib.Path):
     max_seq_len = 2048
 
     remote_path = os.path.join(tmp_path, 'remote')
     local_path = os.path.join(tmp_path, 'local')
 
-    build_mock_ft_streaming_dataset(remote_path, 'train')
+    tokenizer = build_tokenizer(
+        tokenizer_name='gpt2',
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
+
+    build_mock_ft_streaming_dataset(remote_path, 'train', pretokenize,
+                                    tokenizer)
 
     cfg = {
         'name': 'finetuning',
@@ -546,11 +571,6 @@ def test_finetuning_dataloader_streaming(tmp_path: pathlib.Path):
     }
 
     cfg = om.create(cfg)
-
-    tokenizer = build_tokenizer(
-        tokenizer_name='gpt2',
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
 
     _ = build_finetuning_dataloader(cfg, tokenizer, 4)
 

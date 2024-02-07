@@ -371,7 +371,6 @@ model:
       target_modules:
       - q_proj
       - k_proj
-      - 'Wqkv'
 ```
 - For efficiency, The MPT model concatenates the `Q`, `K`, and `V` matrices in each attention block into a single `Wqkv` matrix that is three times wider. Currently, LoRA supports a low-rank approximation to this `Wqkv` matrix.
 - When evaluating with PEFT / LoRA separated weight, just set `pretrained_lora_id_or_path` in `model`(Find an example [here](scripts/eval/yamls/hf_lora_eval.yml#L19)).

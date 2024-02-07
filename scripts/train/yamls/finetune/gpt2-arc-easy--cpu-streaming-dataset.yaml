@@ -1,6 +1,9 @@
 max_seq_len: 512
 global_seed: 17
 
+data_local: ./my_data
+data_remote:  # If blank, files must be present in data_local
+
 # Run Name
 run_name:  # If left blank, will be read from env var $RUN_NAME
 
@@ -21,8 +24,8 @@ train_loader:
   name: finetuning
   dataset:
     ############
-    remote: /Users/ning.wang/projects/llm-foundry/scripts/data_prep/example_data/
-    local: /tmp/
+    remote: ${data_remote}
+    local: ${data_local}
     split: train
     ############
     shuffle: true

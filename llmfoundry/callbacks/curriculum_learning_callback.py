@@ -8,7 +8,7 @@ the future.
 """
 
 import logging
-from typing import Any, Dict, Iterable, Union
+from typing import Any, Dict
 
 from composer.core import Callback, State
 from composer.loggers import Logger
@@ -30,23 +30,26 @@ class CurriculumLearning(Callback):
         dataloader (Union[DataLoader, Iterable]): The training dataloader currently being used.
     """
 
-    def __init__(self, dataset_index: int, dataloader: Union[DataLoader,
-                                                             Iterable],
-                 current_dataset_config: Dict):
+    def __init__(self, dataset_index: int, current_dataset_config: Dict):
         self.dataset_index = dataset_index
         self.saved_dataset_index = 0
         self.all_dataset_configs = []
+        self.current_dataset_state = {}
         # The current dataset config is resolved and passed in train.py
         self.current_dataset_config = current_dataset_config
 
-        # Must pass in dataset directly since it is not actually accessible at Event.INIT in
-        # Composer. We need to get the new dataset state to override checkpoint dataset state.
+    def before_load(self, state: State, logger: Logger):
+        del logger
+
+        # Save the current dataset state so we can restore it correctly
+        # if we are resuming with a new dataset.
+        train_loader = state.train_dataloader
         # Check if we are using a DataLoader and StreamingDataset
-        if not isinstance(dataloader, DataLoader):
+        if not isinstance(train_loader, DataLoader):
             raise ValueError(
                 f'CurriculumLearning callback can only be used with a train ',
-                f'dataloader of type DataLoader, but got {type(dataloader)}.')
-        dataset = dataloader.dataset
+                f'dataloader of type DataLoader, but got {type(train_loader)}.')
+        dataset = train_loader.dataset
         if not isinstance(dataset, StreamingDataset):
             raise ValueError(
                 f'CurriculumLearning callback only supports StreamingDataset ',
@@ -74,7 +77,9 @@ class CurriculumLearning(Callback):
             # replace with the new dataset state. This preserves resumption info.
             if self.current_dataset_state['epoch'] < 0:
                 # Make sure the epoch in the loaded state dict is not negative.
-                # Otherwise, the state will be considered stale, and will be ignored.
+                # Since `__iter__` has not yet been called on the dataset, the
+                # epoch index in the dataset will still be -1. We need to ensure
+                # that we set the epoch correctly to 0 in this case.
                 self.current_dataset_state['epoch'] = 0
             dataset.load_state_dict(self.current_dataset_state)
             # Start a new epoch since we are using a new dataset.

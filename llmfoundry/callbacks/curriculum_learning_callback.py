@@ -38,8 +38,6 @@ class CurriculumLearning(Callback):
         self.all_dataset_configs = []
         # The current dataset config is resolved and passed in train.py
         self.current_dataset_config = current_dataset_config
-        self.new_dataset_setup = False
-        self.dataset_config_appended = False
 
         # Must pass in dataset directly since it is not actually accessible at Event.INIT in
         # Composer. We need to get the new dataset state to override checkpoint dataset state.
@@ -83,17 +81,13 @@ class CurriculumLearning(Callback):
             # This will also reset the sample_in_epoch written to checkpoint,
             # making sure that subsequent resumptions proceed correctly.
             state.timestamp = state.timestamp.to_next_epoch()
-            self.new_dataset_setup = True
-        elif self.dataset_index == 0 and len(self.all_dataset_configs) == 0:
-            # Make sure to save our current dataset config if we are just starting training.
-            self.new_dataset_setup = True
-
-    def state_dict(self):
-        if self.new_dataset_setup and not self.dataset_config_appended:
             # Append the new dataset config to the list of all dataset configs.
             self.all_dataset_configs.append(self.current_dataset_config)
-            # Only append the dataset config once, not on every single checkpoint save.
-            self.dataset_config_appended = True
+        elif self.dataset_index == 0 and len(self.all_dataset_configs) == 0:
+            # Make sure to track our current dataset config if we are just starting training.
+            self.all_dataset_configs.append(self.current_dataset_config)
+
+    def state_dict(self):
         return {
             'dataset_index': self.dataset_index,
             'all_dataset_configs': self.all_dataset_configs

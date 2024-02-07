@@ -1,13 +1,14 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import copy
 from typing import Any, Callable
 
+import pytest
 from omegaconf import DictConfig
 from pytest import fixture
-import pytest
 from transformers import PreTrainedTokenizerBase
-import copy
+
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
@@ -22,6 +23,7 @@ def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase):
 @fixture
 def mpt_tokenizer():
     return build_tokenizer('EleutherAI/gpt-neox-20b', {})
+
 
 @fixture
 def build_tiny_mpt(
@@ -70,7 +72,6 @@ def build_tiny_hf_mpt(
     return build
 
 
-
 def tiny_gpt2_model_helper(config):
     transformers = pytest.importorskip('transformers')
 
@@ -110,7 +111,8 @@ def tiny_gpt2_tokenizer_helper():
 def tiny_llama_tokenizer_helper():
     transformers = pytest.importorskip('transformers')
 
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained('huggyllama/llama-7b', use_fast=False)
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
+        'huggyllama/llama-7b', use_fast=False)
     return hf_tokenizer
 
 
@@ -124,13 +126,11 @@ def _session_tiny_llama_tokenizer():  # type: ignore
     return tiny_llama_tokenizer_helper()
 
 
-
-
-
 def tiny_opt_tokenizer_helper():
     transformers = pytest.importorskip('transformers')
 
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained('facebook/opt-125m')
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
+        'facebook/opt-125m')
     hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     return hf_tokenizer
 
@@ -173,5 +173,3 @@ def tiny_opt_tokenizer(_session_tiny_opt_tokenizer):
 @pytest.fixture
 def tiny_opt_model(_session_tiny_opt_model):
     return copy.deepcopy(_session_tiny_opt_model)
-
-

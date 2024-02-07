@@ -1,3 +1,6 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 # Copyright 2022 MosaicML Composer authors
 # SPDX-License-Identifier: Apache-2.0
 
@@ -12,29 +15,49 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
+from composer.metrics.nlp import InContextLearningMetric
+from composer.utils.eval_client import (EvalClient, LambdaEvalClient,
+                                        LocalEvalClient,
+                                        MosaicMLLambdaEvalClient)
 from torch import Tensor
 from torch.nn import functional as F
-from composer.metrics.nlp import InContextLearningMetric
-from composer.utils.eval_client import EvalClient, LambdaEvalClient, LocalEvalClient, MosaicMLLambdaEvalClient
 
 log = logging.getLogger(__name__)
 
 __all__ = [
+    'InContextLearningMetric',
     'InContextLearningLMAccuracy',
     'InContextLearningMultipleChoiceAccuracy',
     'InContextLearningQAAccuracy',
     'InContextLearningCodeEvalAccuracy',
-    'BinaryF1Score',
-    'LanguageCrossEntropy',
-    'MaskedAccuracy',
-    'LanguagePerplexity',
     'InContextLearningLMExpectedCalibrationError',
     'InContextLearningMCExpectedCalibrationError',
 ]
 
 
+class InContextLearningMetric(
+        InContextLearningMetric
+):  # TODO: this is a temporary solution until Max deprecates composer's superclass entirely
+
+    def update(self, batch: dict, output_logits: torch.Tensor,
+               labels: torch.Tensor):
+        """Abstract interface for computing an in-context learning metrics.
+
+        Args:
+            batch (dict): Batch must consist minimally of `input_ids` as well as any other structure needed
+                to compute the metric.
+            output_logits (torch.Tensor): The model outputs evaluated on the batch `input_ids`
+            labels (torch.Tensor): The correct outputs.
+
+        Raises:
+            NotImplementedError: Abstract method must be implemented by subclasses
+        """
+        raise NotImplementedError
+
+
 class InContextLearningQAAccuracy(InContextLearningMetric):
-    r"""Computes accuracy for In-context learning (ICL) question answering (QA) tasks.
+    r"""Computes accuracy for In-context learning (ICL) question answering (QA)
+    tasks.
 
     ICL QA tasks consist of some number of example question answering tasks (referred to as the 'context'), followed by a test task where the model must
     match one of the possible answer aliases (referred to as the 'continuation').
@@ -60,8 +83,16 @@ class InContextLearningQAAccuracy(InContextLearningMetric):
 
     def __init__(self, dist_sync_on_step: bool = False):
         # state from multiple processes
+        warnings.warn(
+            ('InContextLearningQAAccuracy is deprecated and will be removed in a future '
+             'release. Its functionality has been reimplemented '
+             'in llmfoundry.eval.metrics.nlp.InContextLearningQAAccuracy.'),
+            DeprecationWarning,
+        )
         super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.add_state('correct', default=torch.tensor(0.), dist_reduce_fx='sum')
+        self.add_state('correct',
+                       default=torch.tensor(0.),
+                       dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
 
     def normalize_answer(self, answer: str):
@@ -77,7 +108,8 @@ class InContextLearningQAAccuracy(InContextLearningMetric):
             return ' '.join(text.split())
 
         def handle_punc(text: str) -> str:
-            exclude = set(string.punctuation + ''.join([u'‘', u'’', u'´', u'`']))
+            exclude = set(string.punctuation +
+                          ''.join([u'‘', u'’', u'´', u'`']))
             return ''.join(ch if ch not in exclude else ' ' for ch in text)
 
         def lower(text: str) -> str:
@@ -86,9 +118,18 @@ class InContextLearningQAAccuracy(InContextLearningMetric):
         def replace_underscore(text: str) -> str:
             return text.replace('_', ' ')
 
-        return white_space_fix(remove_articles(handle_punc(lower(replace_underscore(answer))))).strip()
+        return white_space_fix(
+            remove_articles(handle_punc(lower(
+                replace_underscore(answer))))).strip()
 
-    def update(self, batch: Optional[Dict[str, Any]], outputs: List[str], labels: List[List[str]]):
+    def update(
+        self,
+        batch: Optional[Dict[str, Any]],
+        outputs: List[str],
+        labels: List[List[str]],
+    ):
+        if batch is None:
+            batch = {}
         cot_delimiter = batch.get('cot_delimiter', '')
         do_normalization = batch.get('do_normalization', True)
         stopping_criteria = batch.get('stopping_criteria', None)
@@ -96,19 +137,24 @@ class InContextLearningQAAccuracy(InContextLearningMetric):
             final_answer = sample_output
 
             if stopping_criteria is not None and len(stopping_criteria) > 0:
-                final_answer = re.split('|'.join(stopping_criteria), final_answer)[0]
+                final_answer = re.split('|'.join(stopping_criteria),
+                                        final_answer)[0]
 
             if cot_delimiter is not None and len(cot_delimiter) > 0:
                 final_answer = final_answer.split(cot_delimiter)[-1]
 
             if do_normalization:
                 cleaned_final_answer = self.normalize_answer(final_answer)
-                cleaned_sample_labels = {self.normalize_answer(label) for label in sample_labels}
+                cleaned_sample_labels = {
+                    self.normalize_answer(label) for label in sample_labels
+                }
             else:
                 cleaned_final_answer = final_answer
                 cleaned_sample_labels = set(sample_labels)
 
-            if any(cleaned_final_answer.startswith(label) for label in cleaned_sample_labels):
+            if any(
+                    cleaned_final_answer.startswith(label)
+                    for label in cleaned_sample_labels):
                 self.correct += torch.tensor(1.0)
             self.total += torch.tensor(1.0)
 
@@ -119,7 +165,8 @@ class InContextLearningQAAccuracy(InContextLearningMetric):
 
 
 class InContextLearningLMAccuracy(InContextLearningMetric):
-    r"""Computes accuracy for In-context learning (ICL) language modeling (LM) tasks.
+    r"""Computes accuracy for In-context learning (ICL) language modeling (LM)
+    tasks.
 
     ICL LM tasks consist of some number of example language modeling tasks (referred to as the 'context'), followed by a test task where the model must correctly predict all the tokens
     following tokens in some passage (referred to as the 'continuation').
@@ -143,15 +190,26 @@ class InContextLearningLMAccuracy(InContextLearningMetric):
     full_state_update = False
 
     def __init__(self, dist_sync_on_step: bool = False):
+        warnings.warn(
+            ('InContextLearningLMAccuracy is deprecated and will be removed in a future '
+             'release. Its functionality has been reimplemented '
+             'in llmfoundry.eval.metrics.nlp.InContextLearningLMAccuracy.'),
+            DeprecationWarning,
+        )
         # state from multiple processes
         super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.add_state('correct', default=torch.tensor(0.), dist_reduce_fx='sum')
+        self.add_state('correct',
+                       default=torch.tensor(0.),
+                       dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
 
-    def update(self, batch: dict, output_logits: torch.Tensor, labels: torch.Tensor):
+    def update(self, batch: dict, output_logits: torch.Tensor,
+               labels: torch.Tensor):
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
-            cont_tok_pred = output_logits[batch_idx].index_select(dim=0, index=cont_idx - 1).argmax(dim=-1)
-            cont_tok_targ = labels[batch_idx].index_select(dim=0, index=cont_idx - 1)
+            cont_tok_pred = output_logits[batch_idx].index_select(
+                dim=0, index=cont_idx - 1).argmax(dim=-1)
+            cont_tok_targ = labels[batch_idx].index_select(dim=0,
+                                                           index=cont_idx - 1)
 
             self.correct += (cont_tok_pred == cont_tok_targ).all().int()
             self.total += torch.tensor(1.0)
@@ -160,59 +218,6 @@ class InContextLearningLMAccuracy(InContextLearningMetric):
         assert isinstance(self.correct, Tensor)
         assert isinstance(self.total, Tensor)
         return self.correct / self.total
-
-
-class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
-    r"""Computes accuracy for In-context learning (ICL) multiple choice (MC) tasks.
-
-    ICL MC tasks consists of a series of questions with some number of possible choices (only one of which can be correct).
-    At inference time each possible choice is given to the model as a separate input and the one for which the model assigns
-    the lowest perplexity to the choice is considered the model's choice. The model is correct if it "chooses" the right answer.
-
-    Context: `The dog is->fuzzy\nthe water is->hot\nthe tree is->`
-    Continuation: `green`
-
-    Adds metric state variables:
-        correct (float): The number of instances where the prediction masked the target.
-        total (float): The number of total instances that were predicted.
-
-    Args:
-        dist_sync_on_step (bool, optional): Synchronize metric state across processes at
-            each forward() before returning the value at the step. Default: ``False``.
-    """
-
-    # Make torchmetrics call update only once
-    full_state_update = False
-
-    def __init__(self, dist_sync_on_step: bool = False):
-        # state from multiple processes
-        super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.add_state('correct', default=torch.tensor(0.0), dist_reduce_fx='sum')
-        self.add_state('total', default=torch.tensor(0.0), dist_reduce_fx='sum')
-
-    def update(self, batch: dict, output_logits: torch.Tensor, labels: torch.Tensor):
-        perplexities = []
-        for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
-            # continuation indices refer to indices in the original input's token space
-            cont_tok_logits = output_logits[batch_idx].index_select(dim=0, index=cont_idx - 1)
-            # labels have been shifted left by one index, so the cont_idx needs to be shifted as well.
-            cont_tok_targ = labels[batch_idx].index_select(dim=0, index=cont_idx - 1)
-            cross_entropy = F.cross_entropy(cont_tok_logits, cont_tok_targ)
-            perplexity = torch.exp(cross_entropy)
-            perplexities.append(perplexity)
-
-        for (start, end), gold_idx in zip(batch['choice_groupings'], batch['gold_indices']):
-            subset = perplexities[start:end]
-            idx_min = subset.index(min(subset))
-
-            if idx_min == gold_idx:
-                self.correct += torch.tensor(1.0)
-            self.total += torch.tensor(1.0)
-
-    def compute(self):
-        assert isinstance(self.correct, Tensor)
-        assert isinstance(self.total, Tensor)
-        return self.correct.float() / self.total
 
 
 class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
@@ -239,9 +244,18 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
     full_state_update = False
 
     def __init__(self, dist_sync_on_step: bool = False):
+        warnings.warn(
+            ('InContextLearningCodeEvalAccuracy is deprecated and will be removed in a future '
+             'release. Its functionality has been reimplemented '
+             'in llmfoundry.eval.metrics.nlp.InContextLearningCodeEvalAccuracy.'
+            ),
+            DeprecationWarning,
+        )
         # state from multiple processes
         super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.add_state('correct', default=torch.tensor(0.), dist_reduce_fx='sum')
+        self.add_state('correct',
+                       default=torch.tensor(0.),
+                       dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
 
         self.eval_device = os.environ.get('CODE_EVAL_DEVICE', None)
@@ -269,8 +283,9 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
                 'to one of `LOCAL` (for unsafe local eval), `LAMBDA` (for AWS lambda ',
                 'evaluation), or `MOSAICML` (for lambda eval through MAPI).')
         else:
-            raise ValueError('Environment variable `CODE_EVAL_DEVICE` must be one of `LOCAL`, '
-                             f'`LAMBDA`, or `MOSAICML` but got {self.eval_device}.')
+            raise ValueError(
+                'Environment variable `CODE_EVAL_DEVICE` must be one of `LOCAL`, '
+                f'`LAMBDA`, or `MOSAICML` but got {self.eval_device}.')
 
         return client
 
@@ -286,7 +301,8 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
             return 1.0
         return 1.0 - float(np.prod(1.0 - k / np.arange(n - c + 1, n + 1)))
 
-    def update(self, batch: Dict[str, Any], outputs: List[str], labels: List[str]):
+    def update(self, batch: Dict[str, Any], outputs: List[str],
+               labels: List[str]):
         """Updates the pass@k accuracy of code generation.
 
         Given a batch of prompts, test cases, and code generations, evaluates the code generations
@@ -316,16 +332,20 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         pass_at_k = batch['pass_at_k']
         num_generations = batch['generation_kwargs']['num_return_sequences']
         processed_outputs = [
-            outputs[i * num_generations:(i + 1) * num_generations] for i in range(len(batch['prompts']))
+            outputs[i * num_generations:(i + 1) * num_generations]
+            for i in range(len(batch['prompts']))
         ]
         payloads = []
         for sample_outputs, sample_prompt, test_inputs, test_outputs, entry_point, language in zip(
-                processed_outputs, batch['prompts'], batch['test_inputs'], batch['test_outputs'], batch['entry_points'],
+                processed_outputs, batch['prompts'], batch['test_inputs'],
+                batch['test_outputs'], batch['entry_points'],
                 batch['languages']):
             self.total += torch.tensor(1.0)
             prompt_payload = []
             for code_gen in sample_outputs:
-                code_gen = re.split(r'\n[A-Za-z0-9#`]', code_gen)[0]  # remove everything after function ends
+                code_gen = re.split(
+                    r'\n[A-Za-z0-9#`]',
+                    code_gen)[0]  # remove everything after function ends
                 final_code = sample_prompt + code_gen  # combine prompt with the code generation
                 generation_payload = []
                 for test_input, test_output in zip(test_inputs, test_outputs):
@@ -349,7 +369,8 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
                 if correct:
                     num_correct += 1
 
-            pass_at_k_rate = self.estimator(num_generations, num_correct, pass_at_k)
+            pass_at_k_rate = self.estimator(num_generations, num_correct,
+                                            pass_at_k)
             self.correct += torch.tensor(pass_at_k_rate)
 
         client.close()  # pyright: ignore [reportOptionalMemberAccess]
@@ -358,3 +379,213 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         assert isinstance(self.correct, Tensor)
         assert isinstance(self.total, Tensor)
         return self.correct / self.total
+
+
+class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
+    r"""Computes accuracy for In-context learning (ICL) multiple choice (MC)
+    tasks.
+
+    ICL MC tasks consists of a series of questions with some number of possible choices (only one of which can be correct).
+    At inference time each possible choice is given to the model as a separate input and the one for which the model assigns
+    the lowest perplexity to the choice is considered the model's choice. The model is correct if it "chooses" the right answer.
+
+    Context: `The dog is->fuzzy\nthe water is->hot\nthe tree is->`
+    Continuation: `green`
+
+    Adds metric state variables:
+        correct (float): The number of instances where the prediction masked the target.
+        total (float): The number of total instances that were predicted.
+
+    Args:
+        dist_sync_on_step (bool, optional): Synchronize metric state across processes at
+            each forward() before returning the value at the step. Default: ``False``.
+    """
+
+    # Make torchmetrics call update only once
+    full_state_update = False
+
+    def __init__(self, dist_sync_on_step: bool = False):
+        warnings.warn(
+            ('InContextLearningMultipleChoiceAccuracy is deprecated and will be removed in a future '
+             'release. Its functionality has been reimplemented '
+             'in llmfoundry.eval.metrics.nlp.InContextLearningMultipleChoiceAccuracy.'
+            ),
+            DeprecationWarning,
+        )
+        # state from multiple processes
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
+        self.add_state('correct',
+                       default=torch.tensor(0.0),
+                       dist_reduce_fx='sum')
+        self.add_state('total', default=torch.tensor(0.0), dist_reduce_fx='sum')
+
+    def update(self, batch: dict, output_logits: torch.Tensor,
+               labels: torch.Tensor):
+        perplexities = []
+        for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
+            # continuation indices refer to indices in the original input's token space
+            cont_tok_logits = output_logits[batch_idx].index_select(
+                dim=0, index=cont_idx - 1)
+            # labels have been shifted left by one index, so the cont_idx needs to be shifted as well.
+            cont_tok_targ = labels[batch_idx].index_select(dim=0,
+                                                           index=cont_idx - 1)
+            cross_entropy = F.cross_entropy(cont_tok_logits, cont_tok_targ)
+            perplexity = torch.exp(cross_entropy)
+            perplexities.append(perplexity)
+
+        for (start, end), gold_idx in zip(batch['choice_groupings'],
+                                          batch['gold_indices']):
+            subset = perplexities[start:end]
+            idx_min = subset.index(min(subset))
+
+            if idx_min == gold_idx:
+                self.correct += torch.tensor(1.0)
+            self.total += torch.tensor(1.0)
+
+    def compute(self):
+        assert isinstance(self.correct, Tensor)
+        assert isinstance(self.total, Tensor)
+        return self.correct.float() / self.total
+
+
+class InContextLearningExpectedCalibrationError(InContextLearningMetric):
+    """Generic class for Expected Calibration Error (ECE) (cite:
+    https://arxiv.org/pdf/1706.04599.pdf).
+
+    Expected calibration error is calculated by dividing predictions into buckets based on the model's confidence (a probability value between 0 and 1).
+    We then calculate the accuracy within each bucket and calculate the average gap between confidence and accuracy
+    across buckets, weighted by the number of samples in each bucket.
+
+    Each task must implement its own definition of "confidence" to be computed via the `update` method.
+
+    Adds metric state variables:
+    bucket_totals (float): The number of instances where the prediction masked the target per bucket.
+    bucket_correct (float): The number of total instances that were predicted per bucket.
+
+    Args:
+        dist_sync_on_step (bool, optional): Synchronize metric state across processes at
+            each forward() before returning the value at the step. Default: ``False``.
+        n_buckets (int): Number of distinct buckets to split the confidence distribution into
+    """
+
+    def __init__(self, dist_sync_on_step: bool = False, n_buckets: int = 10):
+        warnings.warn(
+            ('InContextLearningExpectedCalibrationError is deprecated and will be removed in a future '
+             'release.'),
+            DeprecationWarning,
+        )
+        # state from multiple processes
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
+        self.n_buckets = n_buckets
+        if n_buckets < 1:
+            raise Exception('`n_buckets`')
+        self.add_state('bucket_totals',
+                       default=torch.zeros(n_buckets),
+                       dist_reduce_fx='sum')
+        self.add_state('bucket_correct',
+                       default=torch.zeros(n_buckets),
+                       dist_reduce_fx='sum')
+
+    def update(self, batch: dict, output_logits: torch.Tensor,
+               labels: torch.Tensor):
+        pass
+
+    def compute(self):
+        assert isinstance(self.bucket_correct, Tensor)
+        assert isinstance(self.bucket_totals, Tensor)
+
+        result = torch.tensor(0.0, device=self.bucket_correct.device)
+        total_obs = torch.sum(self.bucket_totals)
+        for i in range(self.n_buckets):
+            if self.bucket_totals[i] == 0:
+                continue
+
+            acc_bucket_i = self.bucket_correct[i] / self.bucket_totals[i]
+            upper_bound = (i + 1) / self.n_buckets
+            lower_bound = i / self.n_buckets
+            conf_bucket_i = torch.tensor((upper_bound + lower_bound) / 2,
+                                         device=self.bucket_correct.device)
+            result += (self.bucket_totals[i] /
+                       total_obs) * torch.abs(acc_bucket_i - conf_bucket_i)
+        return result
+
+
+class InContextLearningMCExpectedCalibrationError(
+        InContextLearningExpectedCalibrationError):
+    r"""Computes Expected Calibration Error (ECE) for In-context learning (ICL)
+    multiple choice (MC) tasks. (source: https://arxiv.org/abs/2012.00955).
+
+    For MC tasks, the model confidence is defined as the softmax of average per-token probability assigned to the top question choice.
+
+    See `InContextLearningExpectedCalibrationError` for more info.
+    """
+
+    # Make torchmetrics call update only once
+    full_state_update = False
+
+    def update(self, batch: Dict[str, Any], output_logits: torch.Tensor,
+               labels: torch.Tensor):
+        output_logits = torch.softmax(output_logits, dim=2)
+        probabilites = []
+        for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
+            cont_tok_logits = output_logits[batch_idx].index_select(
+                dim=0, index=cont_idx - 1)
+            cont_tok_targ = labels[batch_idx].index_select(dim=0,
+                                                           index=cont_idx - 1)
+            probability = cont_tok_logits.index_select(
+                dim=1, index=cont_tok_targ).diagonal().mean()
+            probabilites.append(probability)
+
+        for (start, end), gold_idx in zip(batch['choice_groupings'],
+                                          batch['gold_indices']):
+            subset = probabilites[start:end]
+            idx_max = subset.index(max(subset))
+            confidence = torch.tensor(subset).max() / torch.tensor(subset).sum()
+
+            assert confidence >= 0.0 and confidence <= 1.0
+            bucket_idx = int(confidence * self.n_buckets)
+            if bucket_idx == self.n_buckets:
+                bucket_idx -= 1
+
+            if idx_max == gold_idx:
+                self.bucket_correct[
+                    bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
+
+            self.bucket_totals[
+                bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
+
+
+class InContextLearningLMExpectedCalibrationError(
+        InContextLearningExpectedCalibrationError):
+    r"""Computes Expected Calibration Error (ECE) for In-context learning (ICL)
+    language modeling (LM) tasks. (cite: https://arxiv.org/pdf/1706.04599.pdf).
+
+    For LM tasks, the model confidence is defined as the minimum probability assigned to all tokens in the continuation.
+
+    See `InContextLearningExpectedCalibrationError` for more info.
+    """
+
+    # Make torchmetrics call update only once
+    full_state_update = False
+
+    def update(self, batch: Dict[str, Any], output_logits: torch.Tensor,
+               labels: torch.Tensor):
+        output_logits = torch.softmax(output_logits, dim=2)
+        for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
+            cont_tok_logits = output_logits[batch_idx].index_select(
+                dim=0, index=cont_idx - 1)
+            cont_tok_pred = cont_tok_logits.argmax(dim=-1)
+            confidence = cont_tok_logits.max(dim=-1).values.min()
+            cont_tok_targ = labels[batch_idx].index_select(dim=0,
+                                                           index=cont_idx - 1)
+            assert confidence >= 0.0 and confidence <= 1.0
+            bucket_idx = int(confidence * self.n_buckets)
+            if bucket_idx == self.n_buckets:
+                bucket_idx -= 1
+
+            if (cont_tok_pred == cont_tok_targ).all():
+                self.bucket_correct[
+                    bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
+
+            self.bucket_totals[
+                bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]

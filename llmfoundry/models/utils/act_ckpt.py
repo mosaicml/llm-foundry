@@ -95,6 +95,8 @@ def check_mapping_blocks_overlap(mapping: dict, max_block_idx: int) -> None:
     """Check if the block ids in the mapping overlap with each other."""
     all_blocks = [None] * (max_block_idx + 1)
     for k, v in mapping.items():
+        if v == -1:
+            v = list(range(max_block_idx + 1))
         for vv in v:
             if vv < 0 or vv > max_block_idx:
                 continue

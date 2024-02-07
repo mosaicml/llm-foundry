@@ -351,6 +351,22 @@ class MPTModel(MPTPreTrainedModel):
                 **config.to_dict(),
             ) for _ in range(config.n_layers)
         ])
+
+        def pass_on_block_idx(parent: nn.Module):
+            if not hasattr(parent, 'block_idx') or not hasattr(
+                    parent, 'max_block_idx'):
+                return
+            for child in parent.children():
+                child.block_idx = parent.block_idx
+                child.max_block_idx = parent.max_block_idx
+                if child.children():
+                    pass_on_block_idx(child)
+
+        for i, block in enumerate(self.blocks):
+            block.block_idx = i
+            block.max_block_idx = config.n_layers - 1
+            pass_on_block_idx(block)
+
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         self.rope = config.attn_config['rope']
@@ -949,7 +965,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         act_ckpt_target = getattr(self.config,
                                   'activation_checkpointing_target', None)
         act_ckpt_mod_to_blocks = {}
-        if act_ckpt_target is None:
+        if act_ckpt_target is None or act_ckpt_target == []:
             mod = MPTBlock
             act_ckpt_mod_to_blocks[mod] = -1
         elif isinstance(act_ckpt_target, str):

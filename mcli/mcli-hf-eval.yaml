@@ -1,22 +1,20 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: migrate_subclasses_to_foundry # v0.4.0
+  git_branch: migrate_subclasses_to_foundry  # v0.4.0
   # git_commit:  # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false  # Should be true if using a private repo
 
 command: |
   cd llm-foundry/scripts
-  pip uninstall mosaicml -y
-  pip install git+https://github.com/bmosaicml/composer.git@remove_subclasses_from_composer 
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: mpt-eval
 gpu_num: 8
 gpu_type: a100_80gb
-cluster: r1z1 # replace with your cluster here!
+cluster: r1z1  # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 

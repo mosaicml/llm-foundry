@@ -16,14 +16,13 @@ from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from llmfoundry.eval.metrics.nlp import (InContextLearningCodeEvalAccuracy,
-                              InContextLearningLMAccuracy,
-                              InContextLearningMultipleChoiceAccuracy,
-                              InContextLearningQAAccuracy)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 
+from llmfoundry.eval.metrics.nlp import (
+    InContextLearningCodeEvalAccuracy, InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy, InContextLearningQAAccuracy)
 from llmfoundry.models.layers.attention import (is_flash_v1_installed,
                                                 is_flash_v2_installed)
 

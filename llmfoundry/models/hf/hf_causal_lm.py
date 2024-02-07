@@ -9,12 +9,6 @@ import warnings
 from typing import TYPE_CHECKING, Any, Dict, Mapping
 
 # required for loading a python model into composer
-import transformers
-from llmfoundry.eval.metrics.nlp import (InContextLearningCodeEvalAccuracy,
-                                  InContextLearningLMAccuracy,
-                                  InContextLearningMultipleChoiceAccuracy,
-                                  InContextLearningQAAccuracy,
-                                  )
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
@@ -22,6 +16,9 @@ from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
+from llmfoundry.eval.metrics.nlp import (
+    InContextLearningCodeEvalAccuracy, InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy, InContextLearningQAAccuracy)
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed

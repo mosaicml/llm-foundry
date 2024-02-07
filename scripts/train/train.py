@@ -212,15 +212,6 @@ def main(cfg: DictConfig) -> Trainer:
                                                             'eval_gauntlet',
                                                             must_exist=False,
                                                             default_value=None)
-    if eval_gauntlet_config is None:
-        eval_gauntlet_config = pop_config(cfg,
-                                          'model_gauntlet',
-                                          must_exist=False,
-                                          default_value=None)
-        if eval_gauntlet_config is not None:
-            warnings.warn(
-                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`',
-                DeprecationWarning)
     icl_subset_num_batches: Optional[int] = pop_config(cfg,
                                                        'icl_subset_num_batches',
                                                        must_exist=False,
@@ -545,7 +536,8 @@ def main(cfg: DictConfig) -> Trainer:
     # Now add the eval metrics
     if eval_loader_config is not None and not use_async_eval:
         train_metrics = model.get_metrics(is_train=True)
-        evaluators = add_metrics_to_eval_loaders(evaluators, train_metrics)
+        evaluators = add_metrics_to_eval_loaders(evaluators,
+                                                 list(train_metrics.keys()))
 
     # Build the Trainer
     log.info('Building trainer...')

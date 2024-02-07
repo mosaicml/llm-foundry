@@ -3,7 +3,8 @@
 
 """Enable curriculum learning by resuming with a different dataset.
 
-This callback is currently experimental. The API may change in the future.
+This callback is currently experimental. The API may change without warning in
+the future.
 """
 
 import logging
@@ -20,7 +21,7 @@ log = logging.getLogger(__name__)
 class CurriculumLearning(Callback):
     """Starts an epoch with a different dataset when resuming from a checkpoint.
 
-    This callback is currently experimental. The API may change in the future.
+    This callback is currently experimental. The API may change without warning in the future.
 
     Args:
         dataset_index (int): The index of the dataset currently being used.

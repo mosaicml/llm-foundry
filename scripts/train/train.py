@@ -475,6 +475,8 @@ def main(cfg: DictConfig) -> Trainer:
     )
 
     # Callbacks
+    # This has been moved below dataloader instantiation since some callbacks
+    # (e.g. CurriculumLearning) require access to the dataloader.
     callbacks: List[Callback] = [
         build_callback(str(name), callback_cfg, om.to_container(logged_cfg),
                        train_loader.dataloader)

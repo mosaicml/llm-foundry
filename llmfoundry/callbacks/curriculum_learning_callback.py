@@ -8,7 +8,8 @@ This callback is currently experimental. The API may change in the future.
 
 import logging
 from typing import Any, Dict
-from composer.core import Callback
+from composer.core import Callback, State
+from composer.loggers import Logger
 from streaming import StreamingDataset
 from torch.utils.data import DataLoader
 
@@ -46,9 +47,8 @@ class CurriculumLearning(Callback):
                              f"Instead, got a dataset of type {type(dataset)}")
         # Save the current dataset state so we can restore it if needed.
         self.current_dataset_state = dataset.state_dict(0, False)
-        print("Dataset state at init: ", self.current_dataset_state)
         
-    def after_load(self, state, logger):
+    def after_load(self, state: State, logger: Logger):
         del logger
 
 		# As saved_dataset_index is loaded from state_dict, this only run when
@@ -71,7 +71,6 @@ class CurriculumLearning(Callback):
         elif self.dataset_index == 0 and len(self.all_dataset_configs) == 0:
             # Make sure to save our current dataset config if we are just starting training.
             self.new_dataset_setup = True
-        print("Dataset state AFTER checkpoint load, and potential setup: ", dataset.state_dict(0, False))
     
     def state_dict(self):
         if self.new_dataset_setup and not self.dataset_config_appended:
@@ -79,15 +78,9 @@ class CurriculumLearning(Callback):
             self.all_dataset_configs.append(self.current_dataset_config)
             # Only append the dataset config once, not on every single checkpoint save.
             self.dataset_config_appended = True
-        print("CurriculumLearning callback dataset index: ", self.dataset_index)
-        print("CurriculumLearning callback all dataset configs: ", self.all_dataset_configs)
         return {'dataset_index': self.dataset_index,
                 'all_dataset_configs': self.all_dataset_configs}
     
     def load_state_dict(self, state: Dict[str, Any]):
         self.saved_dataset_index = state.get('dataset_index', 0) 
         self.all_dataset_configs = state.get('all_dataset_configs', [])
-        print("Datasets trained on with CurriculumLearning callback: ")
-        for i, dataset_config in enumerate(self.all_dataset_configs):
-            print(f"Dataset {i} config:")
-            print(dataset_config)

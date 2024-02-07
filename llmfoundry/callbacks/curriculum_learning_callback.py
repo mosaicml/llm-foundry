@@ -26,7 +26,7 @@ class CurriculumLearning(Callback):
         dataset_index (int): The index of the dataset currently being used.
         current_dataset_config (Dict): The configuration of the dataset currently
             being used.
-        dataset (StreamingDataset): The dataset currently being used.
+        dataloader (Union[DataLoader, Iterable]): The training dataloader currently being used.
     """
 
     def __init__(self, dataset_index: int, dataloader: Union[DataLoader,

@@ -161,7 +161,7 @@ def build_callback(
     name: str,
     kwargs: Union[DictConfig, Dict[str, Any]],
     config: Any = None,
-    train_loader: Optional[DataLoader] = None,
+    train_loader: Union[None, DataLoader, Iterable] = None,
 ) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()

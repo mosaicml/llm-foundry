@@ -20,13 +20,7 @@ except ImportError as e:
     ) from e
 
 __all__ = [
-    'FDiffMetrics',
-    'MonolithicCheckpointSaver',
-    'GlobalLRScaling',
-    'LayerFreezing',
-    'ScheduledGarbageCollector',
-    'EvalGauntlet',
-    'HuggingFaceCheckpointer',
-    'AsyncEval',
-    'CurriculumLearning'
+    'FDiffMetrics', 'MonolithicCheckpointSaver', 'GlobalLRScaling',
+    'LayerFreezing', 'ScheduledGarbageCollector', 'EvalGauntlet',
+    'HuggingFaceCheckpointer', 'AsyncEval', 'CurriculumLearning'
 ]

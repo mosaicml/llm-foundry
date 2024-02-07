@@ -7,7 +7,7 @@ This callback is currently experimental. The API may change in the future.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Iterable, Union
 
 from composer.core import Callback, State
 from composer.loggers import Logger
@@ -29,7 +29,8 @@ class CurriculumLearning(Callback):
         dataset (StreamingDataset): The dataset currently being used.
     """
 
-    def __init__(self, dataset_index: int, dataloader: DataLoader,
+    def __init__(self, dataset_index: int, dataloader: Union[DataLoader,
+                                                             Iterable],
                  current_dataset_config: Dict):
         self.dataset_index = dataset_index
         self.saved_dataset_index = 0
@@ -41,7 +42,11 @@ class CurriculumLearning(Callback):
 
         # Must pass in dataset directly since it is not actually accessible at Event.INIT in
         # Composer. We need to get the new dataset state to override checkpoint dataset state.
-        # Check if we are using a StreamingDataset
+        # Check if we are using a DataLoader and StreamingDataset
+        if not isinstance(dataloader, DataLoader):
+            raise ValueError(
+                f'CurriculumLearning callback can only be used with a train ',
+                f'dataloader of type DataLoader, but got {type(dataloader)}.')
         dataset = dataloader.dataset
         if not isinstance(dataset, StreamingDataset):
             raise ValueError(

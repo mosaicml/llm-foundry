@@ -10,7 +10,6 @@ from collections import OrderedDict
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
-from torch.utils.data import DataLoader
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, OptimizerMonitor,
@@ -29,13 +28,15 @@ from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
+from torch.utils.data import DataLoader
 from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
-                                  GlobalLRScaling, HuggingFaceCheckpointer,
-                                  LayerFreezing, MonolithicCheckpointSaver,
-                                  ScheduledGarbageCollector, CurriculumLearning)
+from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
+                                  FDiffMetrics, GlobalLRScaling,
+                                  HuggingFaceCheckpointer, LayerFreezing,
+                                  MonolithicCheckpointSaver,
+                                  ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
@@ -220,7 +221,8 @@ def build_callback(
     elif name == 'curriculum_learning':
         if config is None:
             raise ValueError(
-                'Parameters config is required for curriculum learning callback')
+                'Parameters config is required for curriculum learning callback'
+            )
         if 'train_loader' not in config:
             raise ValueError(
                 'Curriculum learning callback requires a train_loader to be in the run config.'

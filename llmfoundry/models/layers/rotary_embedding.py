@@ -10,14 +10,14 @@ from torch import nn
 class RotaryEmbedding(nn.Module):
 
     def __init__(self, dim: int, max_position_embeddings: int, base: int,
-                 coefficient: float, shift: int,
-                 device: torch.device, dtype: torch.dtype):
+                 coefficient: float, shift: int, device: torch.device,
+                 dtype: torch.dtype):
         super().__init__()
 
         self.max_position_embeddings = max_position_embeddings
 
-        inv_freq = 1.0 / (coefficient*(base
-                          **(torch.arange(0+shift, dim+shift, 2).float().to(device) / dim)))
+        inv_freq = 1.0 / (coefficient * (base**(
+            torch.arange(0 + shift, dim + shift, 2).float().to(device) / dim)))
         t = torch.arange(self.max_position_embeddings).to(inv_freq)
 
         freqs = torch.einsum('i,j->ij', t, inv_freq)

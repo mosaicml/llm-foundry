@@ -1,0 +1,13 @@
+icl_tasks:
+-
+  label: bigbench_hard
+  dataset_uri: eval/local_data/bbh/bbh.jsonl
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  cot_delimiter: "So the answer is "
+  continuation_delimiter: " "
+  question_prelimiter: ""
+  do_normalization: false
+  early_stopping_criteria:
+  - "\n\n\n\n"
+  - "Q:"

@@ -159,10 +159,6 @@ class MPTBlock(nn.Module):
             alibi_slopes=alibi_slopes,
             flash_attn_padding_info=flash_attn_padding_info,
         )
-        print("attn wqkv mean:", self.attn.Wqkv.weight.mean().item())
-        print("attn wqkv std:", self.attn.Wqkv.weight.std().item())
-        print("attn out proj mean:", self.attn.out_proj.weight.mean().item())
-        print("attn out proj std:", self.attn.out_proj.weight.std().item())
         # Moved first layer norm after attention and before residual connection.
         b = self.norm_1(a)
         if self.residual_modification is not None:
@@ -176,10 +172,6 @@ class MPTBlock(nn.Module):
             assert unpad_input is not None
             m, indices, _, _ = unpad_input(m, attention_mask)
         n = self.ffn(m)
-        print("ffn up proj mean:", self.ffn.up_proj.weight.mean().item())
-        print("ffn up proj std:", self.ffn.up_proj.weight.std().item())
-        print("ffn down proj mean:", self.ffn.down_proj.weight.mean().item())
-        print("ffn down proj std:", self.ffn.down_proj.weight.std().item())
         if not self.use_pad_tok_in_ffn:
             assert pad_input is not None
             n = pad_input(n, indices, batch_size, seq_len)

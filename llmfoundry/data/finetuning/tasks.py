@@ -85,7 +85,7 @@ def _get_example_type(example: Example) -> ExampleType:
     Raises:
         KeyError: If the example type is unknown.
     """
-    if not isinstance(example, Dict):
+    if not isinstance(example, Mapping):
         raise TypeError(
             f'Expected example to have dict-like, but found {type(example)}')
     if any(allowed_message_key in example

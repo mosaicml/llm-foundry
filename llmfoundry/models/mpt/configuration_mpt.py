@@ -30,8 +30,8 @@ ffn_config_defaults: Dict = {
 init_config_defaults: Dict = {
     'name': 'kaiming_normal_',
     'fan_mode': 'fan_in',
-    'init_nonlinearity': 'relu',
-    'init_div_is_residual': True,
+    'init_nonlinearity': 'linear', # Changed this to 'linear' from 'relu'!
+    'init_div_is_residual': False, # Changed this to False from True!
     'emb_init_std': None,
     'emb_init_uniform_lim': None,
     'init_std': None,
@@ -51,6 +51,8 @@ class MPTConfig(PretrainedConfig):
         max_seq_len: int = 2048,
         vocab_size: int = 50368,
         resid_pdrop: float = 0.0,
+        residual_modification: Optional[str] = None,
+        residual_coeff: Optional[float] = None,
         emb_pdrop: float = 0.0,
         learned_pos_emb: bool = True,
         attn_config: Dict = attn_config_defaults,
@@ -77,6 +79,11 @@ class MPTConfig(PretrainedConfig):
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
             resid_pdrop (float): The dropout probability applied to the attention output before combining with residual.
+            residual_modification (Optional[str]): The type of residual modification to use. Options: None, 'coefficient', 'layer'.
+                A value of None means no residual modification is used, x = F(x) + x. This is the default.
+                A value of 'coefficient' means x = sqrt(residual_coeff) * F(x) + sqrt(1 - residual_coeff) * x.
+                A value of 'layer' means x = sqrt(1/(2L+1)) * F(x) + sqrt(2L/(2L+1)) * x.
+            residual_coeff (float): The coefficient to use for residual modification. Only used if residual_modification is 'coefficient'.
             emb_pdrop (float): The dropout probability for the embedding layer.
             learned_pos_emb (bool): Whether to use learned positional embeddings
             attn_config (Dict): A dictionary used to configure the model's attention module:
@@ -144,6 +151,8 @@ class MPTConfig(PretrainedConfig):
         self.max_seq_len = max_seq_len
         self.vocab_size = vocab_size
         self.resid_pdrop = resid_pdrop
+        self.residual_modification = residual_modification
+        self.residual_coeff = residual_coeff
         self.emb_pdrop = emb_pdrop
         self.learned_pos_emb = learned_pos_emb
         self.attn_config = attn_config

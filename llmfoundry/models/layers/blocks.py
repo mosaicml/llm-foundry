@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
+import numpy as np
 
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, build_ffn
@@ -55,10 +56,13 @@ class MPTBlock(nn.Module):
         attn_config: Optional[Dict] = None,
         ffn_config: Optional[Dict] = None,
         resid_pdrop: float = 0.0,
+        residual_modification: Optional[str] = None,
+        residual_coeff: Optional[float] = None,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
         no_bias: bool = False,
+        layer_num: int = 1,
         use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
     ):
@@ -114,6 +118,23 @@ class MPTBlock(nn.Module):
 
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
 
+        self.residual_modification = residual_modification
+        if self.residual_modification is not None and \
+            self.residual_modification not in ['coefficient', 'layer']:
+            raise ValueError(f"If using residual_modification, must be set to either ",
+                             f"'coefficient' or 'layer'. Got {self.residual_modification} ",
+                             f"instead.")
+        if self.residual_modification == 'layer':
+            self.branch_coeff_attn = 1/np.sqrt(2*layer_num)
+            self.stream_coeff_attn = np.sqrt((2*layer_num-1)/(2*layer_num))
+            self.branch_coeff_ffn = 1/np.sqrt(2*layer_num+1)
+            self.stream_coeff_ffn = np.sqrt((2*layer_num)/(2*layer_num+1))
+        elif self.residual_modification == 'coefficient':
+            self.branch_coeff_attn = np.sqrt(residual_coeff)
+            self.stream_coeff_attn = np.sqrt(1-residual_coeff)
+            self.branch_coeff_ffn = np.sqrt(residual_coeff)
+            self.stream_coeff_ffn = np.sqrt(1-residual_coeff)
+
     def forward(
         self,
         x: torch.Tensor,
@@ -127,9 +148,8 @@ class MPTBlock(nn.Module):
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
             torch.Tensor, torch.Tensor]]]:
-        a = self.norm_1(x)
-        b, attn_weights, past_key_value = self.attn(
-            a,
+        a, attn_weights, past_key_value = self.attn(
+            x,
             past_key_value=past_key_value,
             attn_bias=attn_bias,
             rotary_emb_w_meta_info=rotary_emb_w_meta_info,
@@ -139,10 +159,13 @@ class MPTBlock(nn.Module):
             alibi_slopes=alibi_slopes,
             flash_attn_padding_info=flash_attn_padding_info,
         )
-        x = x + self.resid_attn_dropout(b)
+        # Moved first layer norm after attention and before residual connection.
+        b = self.norm_1(a)
+        if self.residual_modification is not None:
+            x = self.stream_coeff_attn*x + self.branch_coeff_attn*self.resid_attn_dropout(b)
+        else:
+            x = x + self.resid_attn_dropout(b)
         m = x
-        if self.norm_2 is not None:
-            m = self.norm_2(x)
         batch_size, seq_len = m.size()[:2]
         indices = None
         if not self.use_pad_tok_in_ffn:
@@ -152,5 +175,11 @@ class MPTBlock(nn.Module):
         if not self.use_pad_tok_in_ffn:
             assert pad_input is not None
             n = pad_input(n, indices, batch_size, seq_len)
-        x = x + self.resid_ffn_dropout(n)
+        # Moved second layer norm after FFN and before residual connection.
+        if self.norm_2 is not None:
+            n = self.norm_2(n)
+        if self.residual_modification is not None:
+            x = self.stream_coeff_ffn*x + self.branch_coeff_ffn*self.resid_attn_dropout(b)
+        else:
+            x = x + self.resid_attn_dropout(b)
         return x, attn_weights, past_key_value

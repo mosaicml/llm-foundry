@@ -346,11 +346,13 @@ class MPTModel(MPTPreTrainedModel):
                                           config.d_model,
                                           device=config.init_device)
         self.emb_drop = nn.Dropout(config.emb_pdrop)
+        # Pass in layer information to each MPTBlock
         self.blocks = nn.ModuleList([
             MPTBlock(
                 device=config.init_device,
+                layer_num=l+1,
                 **config.to_dict(),
-            ) for _ in range(config.n_layers)
+            ) for l in range(config.n_layers)
         ])
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 

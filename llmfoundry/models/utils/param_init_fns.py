@@ -12,6 +12,7 @@ from torch import nn
 
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
+from llmfoundry.models.layers.ffn import MPTMLP, MPTGLU
 
 try:
     import transformer_engine.pytorch as te
@@ -86,9 +87,43 @@ def generic_param_init_fn_(
         raise ValueError(
             f'Expected init_div_is_residual to be boolean or numeric, got {init_div_is_residual}'
         )
+    
+    if isinstance(module, MPTGLU):
+        # Make sure that the gate projection is initialized with nonlinearity='relu'
+        # for correct init, since it precedes a nonlinearity.
+        init_fn_(module.gate_proj.weight, nonlinearity='relu')
+        if module.gate_proj.bias is not None:
+            assert isinstance(module.gate_proj.bias, torch.Tensor)
+            torch.nn.init.zeros_(module.gate_proj.bias)
+
+        # Initialize the up and down projections normally, with nonlinearity='linear'
+        init_fn_(module.up_proj.weight)
+        if module.up_proj.bias is not None:
+            assert isinstance(module.up_proj.bias, torch.Tensor)
+            torch.nn.init.zeros_(module.up_proj.bias)
+
+        init_fn_(module.down_proj.weight)
+        if module.down_proj.bias is not None:
+            assert isinstance(module.down_proj.bias, torch.Tensor)
+            torch.nn.init.zeros_(module.down_proj.bias)
+    
+    if isinstance(module, MPTMLP):
+        # Make sure that the up projection is initialized with nonlinearity='relu'
+        # for correct init, since it precedes a nonlinearity.
+        init_fn_(module.up_proj.weight, nonlinearity='relu')
+        if module.up_proj.bias is not None:
+            assert isinstance(module.up_proj.bias, torch.Tensor)
+            torch.nn.init.zeros_(module.up_proj.bias)
+
+        # Initialize the down projection normally, with nonlinearity='linear'
+        init_fn_(module.down_proj.weight)
+        if module.down_proj.bias is not None:
+            assert isinstance(module.down_proj.bias, torch.Tensor)
+            torch.nn.init.zeros_(module.down_proj.bias)
 
     if isinstance(module, tuple(set(FC_CLASS_REGISTRY.values()))):
         # Linear
+
         if hasattr(module, '_fused'):
             fused_init_helper_(module, init_fn_)
         else:

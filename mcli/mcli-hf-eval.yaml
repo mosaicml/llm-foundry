@@ -13,8 +13,8 @@ command: |
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 run_name: mpt-eval
 gpu_num: 8
-# gpu_type: 
-# cluster: # replace with your cluster here!
+# gpu_type:
+# cluster:  # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
@@ -31,13 +31,13 @@ parameters:
     model_name: mosaicml/mpt-7b-instruct
     # Tokenizer
     tokenizer:
-      name: EleutherAI/gpt-neox-20b 
+      name: EleutherAI/gpt-neox-20b
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path:  mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
       init_device: mixed
       pretrained: true
       use_auth_token: false

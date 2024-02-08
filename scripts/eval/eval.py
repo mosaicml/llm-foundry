@@ -199,7 +199,6 @@ def evaluate_model(
         dist_timeout=dist_timeout,
         python_log_level=python_log_level,
     )
-    
 
     if torch.cuda.is_available():
         torch.cuda.synchronize()
@@ -367,9 +366,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         print(models_df.to_markdown(index=False))
 
     return trainers, eval_gauntlet_df
-
-
-
 
 
 def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,

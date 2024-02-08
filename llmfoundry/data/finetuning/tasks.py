@@ -108,43 +108,58 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
 
 
 def _get_role_key(message: Dict[str, str]) -> str:
+    if not isinstance(message, dict):
+        raise TypeError(
+            f'Expected message to be a dict, but found {type(message)}')
     role_keys = _ALLOWED_ROLE_KEYS.intersection(message.keys())
-    assert len(
-        role_keys) == 1, f'Expected 1 role key, but found {len(role_keys)}'
+    if len(role_keys) != 1:
+        raise ValueError(f'Expected 1 role key, but found {len(role_keys)}')
     role_key = list(role_keys)[0]
     return role_key
 
 
 def _get_content_key(message: Dict[str, str]) -> str:
+    if not isinstance(message, dict):
+        raise TypeError(
+            f'Expected message to be a dict, but found {type(message)}')
     content_keys = _ALLOWED_CONTENT_KEYS.intersection(message.keys())
-    assert len(content_keys
-              ) == 1, f'Expected 1 content key, but found {len(content_keys)}'
+    if len(content_keys) != 1:
+        raise ValueError(
+            f'Expected 1 content key, but found {len(content_keys)}')
     content_key = list(content_keys)[0]
     return content_key
 
 
 def _get_message_key(example: ChatFormattedDict):
-    assert len(example.keys()
-              ) == 1, f'Expected 1 message key, but found {len(example.keys())}'
+    if len(example.keys()) != 1:
+        raise ValueError(
+            f'Expected 1 message key, but found {len(example.keys())}')
     message_key = list(example.keys())[0]
-    assert message_key in _ALLOWED_MESSAGES_KEYS, f'Invalid message key: {message_key}'
+    if message_key not in _ALLOWED_MESSAGES_KEYS:
+        raise ValueError(f'Invalid message key: {message_key}')
     return message_key
 
 
 def _validate_chat_formatted_example(example: ChatFormattedDict):
+    if not isinstance(example, dict):
+        raise TypeError(
+            f'Expected example to be a dict, but found {type(example)}')
     messages = example[_get_message_key(example)]
     for message in messages:
-        assert len(message.keys(
-        )) == 2, f'Expected 2 keys in message, but found {len(message.keys())}'
+        if len(message.keys()) != 2:
+            raise ValueError(
+                f'Expected 2 keys in message, but found {len(message.keys())}')
         role_key, _ = _get_role_key(message), _get_content_key(message)
-        assert message[
-            role_key] in _ALLOWED_ROLES, f'Invalid role: {message[role_key]}'
+        if message[role_key] not in _ALLOWED_ROLES:
+            raise ValueError(f'Invalid role: {message[role_key]}')
 
-    assert len(messages) > 1, 'Chat example must have at least two messages'
+    if len(messages) <= 1:
+        raise ValueError('Chat example must have at least two messages')
     last_message = messages[-1]
     role_key = _get_role_key(last_message)
     last_role = last_message[role_key]
-    assert last_role in _ALLOWED_LAST_MESSAGE_ROLES, f'Invalid last message role: {last_role}'
+    if last_role not in _ALLOWED_LAST_MESSAGE_ROLES:
+        raise ValueError(f'Invalid last message role: {last_role}')
 
 
 def _slice_chat_formatted_example(

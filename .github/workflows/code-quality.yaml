@@ -4,7 +4,7 @@ on:
     branches:
     - main
     - release/**
-    # todo: remove before merging
+    # todo: remove this before merging
     - add_finetuning_example_2
   pull_request:
     branches:

@@ -152,9 +152,14 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
         if len(message.keys()) != 2:
             raise ValueError(
                 f'Expected 2 keys in message, but found {len(message.keys())}')
-        role_key, _ = _get_role_key(message), _get_content_key(message)
+        role_key, content_key = _get_role_key(message), _get_content_key(
+            message)
         if message[role_key] not in _ALLOWED_ROLES:
             raise ValueError(f'Invalid role: {message[role_key]}')
+        if not isinstance(message[content_key], str):
+            raise TypeError(
+                f'Expected content to be a string, but found {type(message[content_key])}'
+            )
 
     if len(messages) <= 1:
         raise ValueError('Chat example must have at least two messages')

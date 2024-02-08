@@ -391,3 +391,20 @@ Programming tasks evaluate the model's ability to understand code, write functio
     - Year released: 2023
     - Number of few shot examples: 0
     - Random baseline accuracy: 0%
+
+### Long Context Gauntlet
+
+We've included three different tasks for long (> 4000 tokens) context length evals. They are meant as litmus tests for a model's ability to properly utilize it's longer context length, which is often the result of fine-tuning after pre-training. For some of these datasets, we explicitly create sets where the required information is located in different sections of the input context, either the beginning, middle, or end of the input context.
+
+1. HotPotQAXL
+    - Description: (HotPotQA)[https://hotpotqa.github.io/] is originally a dataset of ten documents and a question requiring comprehension of one or more of the supplied documents. The non-related documents are completely unrelated and called "distractor" documents. To extend this to longer context lengths, we randomly sample documents from the full set of documents across the dataset, adding them to the current datapoint until the set of documents and its question fills the current context length. We insert the "gold" document(s) (the document(s) containing the information that answers the question) within the first third, second third, or last third of the context length.
+    - Lengths: 2k, 4k, 8k, 16k, 32k, 64k
+    - Locations: beginning, middle, end
+2. Key Value Pairs (Needle In a Haystack)
+    - Description: We construct a `.json` of key value pairs, where both the key and value are random hashes. We then ask the model to produce a specific value from a key value pair. The pair is correspondingly located in the first third, second third, or last third of the json.
+    - Lengths: 2k, 4k, 8k, 16k, 32k, 64k
+    - Locations: beginning, middle, end
+2. WikiQA Numeric
+    - Description:
+    - Lengths: 2k, 4k, 8k, 16k
+    - Locations: N/A

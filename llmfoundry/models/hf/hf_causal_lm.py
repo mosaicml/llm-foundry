@@ -256,7 +256,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     'PEFT is not installed, but lora_id_or_path was passed. Please install LLM Foundry with the peft extra to use lora_id_or_path.'
                 )
             from peft import PeftModelForCausalLM
-            model = PeftModelForCausalLM(model, lora_id_or_path)
+            model = PeftModelForCausalLM.from_pretrained(model, lora_id_or_path)
 
         super().__init__(
             model=model,

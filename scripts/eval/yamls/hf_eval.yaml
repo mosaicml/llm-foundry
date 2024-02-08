@@ -33,11 +33,6 @@ models:
 #     kwargs:
 #       model_max_length: ${max_seq_len}
 
-callbacks:
-  eval_output_logging:
-    subset_sample: -1
-    # batch_keys_to_log: [test, test]
-
 device_eval_batch_size: 4
 
 # FSDP config for model sharding
@@ -46,6 +41,7 @@ device_eval_batch_size: 4
 #   mixed_precision: FULL
 #   forward_prefetch: True
 #   limit_all_gathers: True
+
 # integrations:
 # - integration_type: wandb
 #   entity: mosaic-ml
@@ -53,15 +49,6 @@ device_eval_batch_size: 4
 
 loggers:
   wandb: {entity: mosaic-ml, project: maxisawesome}
-
-# icl_tasks: 
-# -
-#   label: triviaqa_sm_sub
-#   dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl
-#   num_fewshot: [3]
-#   icl_task_type: question_answering
-#   icl_subset_num_batches: 2
-#   wandb: {entity: mosaic-ml, project: max}
 
 callbacks:
   eval_output_logging:

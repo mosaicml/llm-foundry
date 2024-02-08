@@ -157,7 +157,7 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         # Set the vector representation to either be the average of all the individual token vectors,
         # or the EOS token at the end of the sequence
         self.vector_representation = resolved_om_model_config.get('contrastive_config',
-                                                                  {}).get('vector_representation','average')
+                                                                  {}).get('vector_representation','avg')
         
         step_size = self.config.to_dict().get("pos_step_size", 2)
         self.pattern = torch.arange(1, step_size, device=model.device)
@@ -302,6 +302,8 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             passages_flipped_mask = ~passages_batch.get('attention_mask', None).bool()
             last_true_indices = passages_flipped_mask.int().argmax(dim=1) - 1
             p_pooled_outputs = passages_last_hidden_state[row_indices,last_true_indices,:] # b,s,h --> b,h
+            #print(last_true_indices)
+            #print('\n')
 
         else: 
 

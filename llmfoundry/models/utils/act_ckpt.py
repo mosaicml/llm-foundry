@@ -119,3 +119,30 @@ def check_mapping_blocks_overlap(mapping: dict, max_block_idx: int) -> None:
                     )
                 else:
                     all_blocks[vv] = k
+
+
+def build_act_ckpt_mod_to_blocks(act_ckpt_target: Any,
+                                 top_module: torch.nn.Module,
+                                 max_block_idx: int) -> dict:
+    act_ckpt_mod_to_blocks = {}
+    if act_ckpt_target is None or act_ckpt_target == []:
+        mod = top_module
+        act_ckpt_mod_to_blocks[mod] = -1
+    elif isinstance(act_ckpt_target, str):
+        mod = get_act_ckpt_module(act_ckpt_target)
+        act_ckpt_mod_to_blocks[mod] = -1
+    elif isinstance(act_ckpt_target, list):
+        for target in act_ckpt_target:
+            mod = get_act_ckpt_module(target)
+            act_ckpt_mod_to_blocks[mod] = -1
+    elif isinstance(act_ckpt_target, dict):
+        for k, v in act_ckpt_target.items():
+            mod = get_act_ckpt_module(k)
+            block_ids = get_target_block_list(v, max_block_idx)
+            act_ckpt_mod_to_blocks[mod] = block_ids
+    else:
+        raise ValueError(
+            f'activation_checkpointing_target must be either a single string or a list or a dict, but got {type(act_ckpt_target)}'
+        )
+
+    return act_ckpt_mod_to_blocks

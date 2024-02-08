@@ -83,8 +83,7 @@ from llmfoundry.models.utils.param_init_fns import (
 )
 
 from llmfoundry.models.utils.act_ckpt import (pass_on_block_idx,
-                                              get_act_ckpt_module,
-                                              get_target_block_list,
+                                              build_act_ckpt_mod_to_blocks,
                                               check_mapping_blocks_overlap)
 
 try:
@@ -954,29 +953,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
         act_ckpt_target = getattr(self.config,
                                   'activation_checkpointing_target', None)
-        act_ckpt_mod_to_blocks = {}
-        if act_ckpt_target is None or act_ckpt_target == []:
-            mod = MPTBlock
-            act_ckpt_mod_to_blocks[mod] = -1
-        elif isinstance(act_ckpt_target, str):
-            mod = get_act_ckpt_module(act_ckpt_target)
-            act_ckpt_mod_to_blocks[mod] = -1
-        elif isinstance(act_ckpt_target, list):
-            for target in act_ckpt_target:
-                mod = get_act_ckpt_module(target)
-                act_ckpt_mod_to_blocks[mod] = -1
-        elif isinstance(act_ckpt_target, dict):
-            for k, v in act_ckpt_target.items():
-                mod = get_act_ckpt_module(k)
-                block_ids = get_target_block_list(v, module.max_block_idx)
-                act_ckpt_mod_to_blocks[mod] = block_ids
-                log.info(
-                    f'For module {mod.__name__}, target_blocks is set as {v} so activation checkpointing is applied to {block_ids} blocks.'
-                )
-        else:
-            raise ValueError(
-                f'activation_checkpointing_target must be either a single string or a list or a dict, but got {type(act_ckpt_target)}'
-            )
+        act_ckpt_mod_to_blocks = build_act_ckpt_mod_to_blocks(
+            act_ckpt_target, MPTBlock, module.max_block_idx)
 
         check_mapping_blocks_overlap(act_ckpt_mod_to_blocks,
                                      module.max_block_idx)

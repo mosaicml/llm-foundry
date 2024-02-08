@@ -37,7 +37,8 @@ class ScheduledGarbageCollector(Callback):
         self.gc_init_state = None
 
     def fit_start(self, state: State, logger: Logger) -> None:
-        del state, logger  # unused
+        #del state, logger  # unused
+        del logger
 
         # cache if automatic garbage collection is enabled; reset at fit_end
         self.gc_init_state = gc.isenabled()

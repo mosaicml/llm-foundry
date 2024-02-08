@@ -145,6 +145,9 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
         raise TypeError(
             f'Expected example to be a dict, but found {type(example)}')
     messages = example[_get_message_key(example)]
+    if not isinstance(messages, list):
+        raise TypeError(
+            f'Expected messages to be a list, but found {type(messages)}')
     for message in messages:
         if len(message.keys()) != 2:
             raise ValueError(

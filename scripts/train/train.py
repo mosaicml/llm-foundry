@@ -584,12 +584,21 @@ def main(cfg: DictConfig) -> Trainer:
     torch.cuda.empty_cache()
     gc.collect()
 
-    # Eval first if requested
-    if eval_first and trainer.state.timestamp.batch.value == 0:
-        trainer.eval()
+    print("\n")
 
-    log.info('Starting training...')
-    trainer.fit()
+    for n, p in trainer.state.model.named_parameters():
+        print("param name:", n)
+        print("param shape:", p.shape)
+        print("param mean:", p.mean().item())
+        print("param std:", p.std().item())
+        print("\n")
+
+    # Eval first if requested
+    # if eval_first and trainer.state.timestamp.batch.value == 0:
+    #     trainer.eval()
+
+    # log.info('Starting training...')
+    # trainer.fit()
 
     log.info('Done.')
     return trainer

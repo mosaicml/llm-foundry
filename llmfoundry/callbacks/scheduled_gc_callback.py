@@ -7,7 +7,6 @@ from typing import Optional
 import torch
 from composer.core import Callback, State
 from composer.loggers import Logger
-from torch.distributed.fsdp.fully_sharded_data_parallel import FullyShardedDataParallel as fsdp
 
 
 def gc_cuda():
@@ -38,8 +37,7 @@ class ScheduledGarbageCollector(Callback):
         self.gc_init_state = None
 
     def fit_start(self, state: State, logger: Logger) -> None:
-        #del state, logger  # unused
-        del logger
+        del state, logger  # unused
 
         # cache if automatic garbage collection is enabled; reset at fit_end
         self.gc_init_state = gc.isenabled()
@@ -47,13 +45,6 @@ class ScheduledGarbageCollector(Callback):
         # disable automatic garbage collection
         gc.disable()
         gc_cuda()
-
-        with fsdp.summon_full_params():
-            print("\n")
-            for n, p in state.model.named_parameters():
-                print("name: ", n)
-                print("param mean: ", p.mean().item())
-                print("param std: ", p.std().item())
 
     def fit_end(self, state: State, logger: Logger) -> None:
         del state, logger  # unused

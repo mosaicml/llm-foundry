@@ -232,12 +232,12 @@ def tokenize_formatted_example(
 
 def is_valid_ift_example(pad_token_id: int, max_seq_len: int,
                          example: Dict) -> bool:
-    """Check if it's an valid ift example.
+    """Check if the example is a valid ift example.
 
     This functions does the following check:
-    a. Length of input_ids should less than max_seq_len
+    a. Length of input_ids should be less than max_seq_len
     b. Both input_ids and labels should not be empty
-    c. Labels should has at least 1 non-padding token.
+    c. Labels should have at least 1 non-padding token.
 
     Args:
         pad_token_id (int): The id of the padding token.
@@ -392,11 +392,19 @@ class StreamingFinetuningDataset(StreamingDataset):
         sample = super().__getitem__(idx)
         if 'input_ids' in sample:
             # already tokenized data
-            sample['input_ids'] = np.frombuffer(
-                sample['input_ids'],
-                dtype=np.int64)[:self.max_seq_len].tolist().copy()
-            sample['labels'] = np.frombuffer(sample['labels'],
-                                             dtype=np.int64).tolist().copy()
+            if isinstance(sample['input_ids'], bytes):
+                sample['input_ids'] = np.frombuffer(
+                    sample['input_ids'],
+                    dtype=np.int64)[:self.max_seq_len].tolist().copy()
+                sample['labels'] = np.frombuffer(
+                    sample['labels'],
+                    dtype=np.int64)[:self.max_seq_len].tolist().copy()
+            elif isinstance(sample['input_ids'], np.ndarray):
+                sample['input_ids'] = sample[
+                    'input_ids'][:self.max_seq_len].tolist().copy()
+                sample['labels'] = sample['labels'][:self.max_seq_len].tolist(
+                ).copy()
+
             return sample
         return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 

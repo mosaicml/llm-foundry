@@ -97,7 +97,7 @@ def parse_args() -> Namespace:
     if len(parsed.data_files) > 0 and len(parsed.data_files) != len(
             parsed.splits):
         raise ValueError(
-            f'If set data_files, data_files and splits must be 1:1 mapping. Got {len(parsed.data_files)=} while {len(parsed.splits)=}'
+            f'If data_files is set, data_files and splits must have the same length. Got {len(parsed.data_files)=} while {len(parsed.splits)=}'
         )
 
     return parsed
@@ -202,7 +202,7 @@ def main(args: Namespace) -> None:
     tokenizer_kwargs.update({'model_max_length': args.max_seq_len})
     if args.tokenizer:
         tokenizer = build_tokenizer(args.tokenizer, tokenizer_kwargs)
-        columns = {'input_ids': 'bytes', 'labels': 'bytes'}
+        columns = {'input_ids': 'ndarray:uint32', 'labels': 'ndarray:uint32'}
     else:
         columns = {'prompt': 'str', 'response': 'str'}
 
@@ -255,7 +255,8 @@ def main(args: Namespace) -> None:
                     sample_to_write = {}
                     # convert to bytes
                     for key in columns.keys():
-                        sample_to_write[key] = np.asarray(sample[key]).tobytes()
+                        sample_to_write[key] = np.asarray(sample[key],
+                                                          dtype=np.uint32)
                     out.write(sample_to_write)
                 else:
                     encoded_sample = {

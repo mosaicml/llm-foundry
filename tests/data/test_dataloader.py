@@ -556,28 +556,26 @@ def test_finetuning_dataloader_streaming(pretokenize: bool,
                                          tmp_path: pathlib.Path):
     max_seq_len = 2048
 
-    remote_path = os.path.join(tmp_path, 'remote')
-    local_path = os.path.join(tmp_path, 'local')
-
     tokenizer = build_tokenizer(
         tokenizer_name='gpt2',
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
-    build_mock_ft_streaming_dataset(remote_path,
-                                    'train',
-                                    pretokenize,
-                                    use_bytes=use_bytes,
-                                    tokenizer=tokenizer)
-    streams_config = {
-        'streams': {
-            '0': {
-                'remote': remote_path,
-                'local': local_path,
-                'split': 'train'
-            }
+    streams_config = {'streams': {}}
+    num_streams = 2
+    for i in range(num_streams):
+        remote_path = os.path.join(tmp_path, f'remote_{i}')
+        local_path = os.path.join(tmp_path, f'local_{i}')
+        build_mock_ft_streaming_dataset(remote_path,
+                                        'train',
+                                        pretokenize,
+                                        use_bytes=use_bytes,
+                                        tokenizer=tokenizer)
+        streams_config['streams'][f'stream_{i}'] = {
+            'remote': remote_path,
+            'local': local_path,
+            'split': 'train'
         }
-    }
 
     cfg = {
         'name': 'finetuning',
@@ -598,7 +596,7 @@ def test_finetuning_dataloader_streaming(pretokenize: bool,
     if use_multiple_streams:
         cfg['dataset'].update(streams_config)
     else:
-        cfg['dataset'].update(streams_config['streams']['0'])
+        cfg['dataset'].update(streams_config['streams']['stream_0'])
 
     cfg = om.create(cfg)
 

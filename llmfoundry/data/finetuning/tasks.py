@@ -35,6 +35,7 @@ import importlib
 import logging
 import os
 import warnings
+from collections.abc import Iterable, Mapping
 from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
@@ -84,7 +85,7 @@ def _get_example_type(example: Example) -> ExampleType:
     Raises:
         KeyError: If the example type is unknown.
     """
-    if not hasattr(example, 'keys'):
+    if not isinstance(example, Mapping):
         raise TypeError(
             f'Expected example to have dict-like, but found {type(example)}')
     if any(allowed_message_key in example
@@ -111,10 +112,10 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
-def _get_role_key(message: Dict[str, str]) -> str:
-    if not hasattr(message, '__getitem__') or not hasattr(message, 'keys'):
+def _get_role_key(message: Mapping[str, str]) -> str:
+    if not isinstance(message, Mapping):
         raise TypeError(
-            f'Expected message to be dict-like, but found {type(message)}')
+            f'Expected message to be a mapping, but found {type(message)}')
     role_keys = _ALLOWED_ROLE_KEYS.intersection(message.keys())
     if len(role_keys) != 1:
         raise ValueError(f'Expected 1 role key, but found {len(role_keys)}')
@@ -122,10 +123,10 @@ def _get_role_key(message: Dict[str, str]) -> str:
     return role_key
 
 
-def _get_content_key(message: Dict[str, str]) -> str:
-    if not hasattr(message, '__getitem__') or not hasattr(message, 'keys'):
+def _get_content_key(message: Mapping[str, str]) -> str:
+    if not isinstance(message, Mapping):
         raise TypeError(
-            f'Expected message to be dict-like, but found {type(message)}')
+            f'Expected message to be a mapping, but found {type(message)}')
     content_keys = _ALLOWED_CONTENT_KEYS.intersection(message.keys())
     if len(content_keys) != 1:
         raise ValueError(
@@ -134,10 +135,10 @@ def _get_content_key(message: Dict[str, str]) -> str:
     return content_key
 
 
-def _get_message_key(example: ChatFormattedDict):
-    if not hasattr(example, 'keys'):
+def _get_message_key(example: Mapping[str, List[Mapping[str, str]]]):
+    if not isinstance(example, Mapping):
         raise TypeError(
-            f'Expected example to have keys(), but found {type(example)}')
+            f'Expected example to be a mapping, but found {type(example)}')
     if len(example.keys()) != 1:
         raise ValueError(
             f'Expected 1 message key, but found {len(example.keys())}')
@@ -147,14 +148,15 @@ def _get_message_key(example: ChatFormattedDict):
     return message_key
 
 
-def _validate_chat_formatted_example(example: ChatFormattedDict):
-    if not hasattr(example, '__getitem__') or not hasattr(example, 'keys'):
+def _validate_chat_formatted_example(example: Mapping[str, List[Mapping[str,
+                                                                        str]]]):
+    if not isinstance(example, Mapping):
         raise TypeError(
-            f'Expected example to be dict-like, but found {type(example)}')
+            f'Expected example to be a mapping, but found {type(example)}')
     messages = example[_get_message_key(example)]
-    if not hasattr(messages, '__iter__'):
+    if not isinstance(messages, Iterable):
         raise TypeError(
-            f'Expected messages to be an iterator, but found {type(messages)}')
+            f'Expected messages to be an iterable, but found {type(messages)}')
     for message in messages:
         role_key, content_key = _get_role_key(message), _get_content_key(
             message)

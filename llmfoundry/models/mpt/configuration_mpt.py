@@ -30,7 +30,7 @@ ffn_config_defaults: Dict = {
 init_config_defaults: Dict = {
     'name': 'kaiming_normal_',
     'fan_mode': 'fan_in',
-    'init_nonlinearity': 'relu',
+    'init_nonlinearity': 'linear',
     'init_div_is_residual': True,
     'emb_init_std': None,
     'emb_init_uniform_lim': None,

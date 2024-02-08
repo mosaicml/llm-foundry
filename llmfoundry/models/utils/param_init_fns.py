@@ -50,7 +50,20 @@ def fused_init_helper_(module: nn.Module, init_fn_: Callable) -> None:
     for s, e in zip(splits[:-1], splits[1:]):
         slice_indices = [slice(None)] * module.weight.ndim
         slice_indices[dim] = slice(s, e)
-        init_fn_(module.weight[slice_indices])
+        if hasattr(module, '_precedes_act') \
+            and module._precedes_act \
+            and 'nonlinearity' in init_fn_.keywords:
+            # if the layer precedes an activation function, we should set the
+            # nonlinearity to 'relu'.
+            init_fn_(module.weight[slice_indices], nonlinearity='relu')
+        elif 'nonlinearity' in init_fn_.keywords:
+            # if the layer does not precede an activation function, we should
+            # set the nonlinearity to 'linear'.
+            init_fn_(module.weight[slice_indices], nonlinearity='linear')
+        else:
+            # We are not using Kaiming initialization in this case, so use
+            # the default init_fn_
+            init_fn_(module.weight[slice_indices])
 
 
 def generic_param_init_fn_(
@@ -92,7 +105,20 @@ def generic_param_init_fn_(
         if hasattr(module, '_fused'):
             fused_init_helper_(module, init_fn_)
         else:
-            init_fn_(module.weight)
+            if hasattr(module, '_precedes_act') \
+                and module._precedes_act \
+                and 'nonlinearity' in init_fn_.keywords:
+                # if the layer precedes an activation function, we should set the
+                # nonlinearity to 'relu'.
+                init_fn_(module.weight, nonlinearity='relu')
+            elif 'nonlinearity' in init_fn_.keywords:
+                # if the layer does not precede an activation function, we should
+                # set the nonlinearity to 'linear'.
+                init_fn_(module.weight, nonlinearity='linear')
+            else:
+                # We are not using Kaiming initialization in this case, so use
+                # the default init_fn_
+                init_fn_(module.weight)
         if module.bias is not None:
             assert isinstance(module.bias, torch.Tensor)
             torch.nn.init.zeros_(module.bias)

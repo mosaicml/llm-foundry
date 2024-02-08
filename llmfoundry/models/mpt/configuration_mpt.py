@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional, Union
 from transformers import PretrainedConfig
 
 from llmfoundry.models.layers.attention import (check_alibi_support,
+                                                is_flash_v1_installed,
                                                 is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import attn_config_defaults
 
@@ -19,6 +20,8 @@ from llmfoundry.models.layers.blocks import attn_config_defaults
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY  # type: ignore (see note)
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY  # type: ignore (see note)
+
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 ffn_config_defaults: Dict = {
     'ffn_type': 'mptmlp',
@@ -62,7 +65,6 @@ class MPTConfig(PretrainedConfig):
         fc_type: str = 'torch',
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
-        verbose: Optional[int] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -113,7 +115,6 @@ class MPTConfig(PretrainedConfig):
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
-            verbose (int): Deprecated.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
             use_cache (bool): Whether or not the model should return the last key/values attentions
@@ -156,11 +157,6 @@ class MPTConfig(PretrainedConfig):
         self.init_config = init_config
         self.fc_type = fc_type
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
-        if verbose is not None:
-            warnings.warn(
-                DeprecationWarning(
-                    'verbose argument for MPTConfig is now ignored and will be removed. Use python_log_level instead.'
-                ))
 
         if 'name' in kwargs:
             del kwargs['name']
@@ -222,6 +218,21 @@ class MPTConfig(PretrainedConfig):
                 'attn_impl'] not in ['torch', 'triton']:
             raise NotImplementedError(
                 'prefix_lm only implemented with torch and triton attention.')
+
+        if self.attn_config['attn_impl'] == 'flash' and is_flash_v1_installed():
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    'Support for Flash Attention v1 is deprecated. Please upgrade to Flash Attention v2.4.2. To install Flash Attention v2.4.2, please run `pip install -e ".[gpu-flash2]"` from the root directory of the llm-foundry repository.',
+                    remove_version='0.6.0',
+                ))
+
+        if self.attn_config[
+                'attn_impl'] == 'triton' and not self.attn_config['prefix_lm']:
+            warnings.warn(
+                UserWarning(
+                    'If not using a Prefix Language Model, we recommend setting "attn_impl" to "flash" instead of "triton".'
+                ))
+
         if self.attn_config['alibi'] and not check_alibi_support(
                 self.attn_config['attn_impl']):
             raise NotImplementedError(

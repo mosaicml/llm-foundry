@@ -28,7 +28,6 @@ from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
-from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
@@ -110,9 +109,8 @@ def build_eval_loaders(
 
 def add_metrics_to_eval_loaders(
     evaluators: List[Evaluator],
-    metrics: Dict[str, Metric],
+    metric_names: List[str],
 ) -> List[Evaluator]:
-    metric_names = list(metrics.keys())
     eval_loaders, other_evaluators = [], []
     for evaluator in evaluators:
         if evaluator.metric_names == []:
@@ -411,6 +409,10 @@ def build_tokenizer(
             int(1e30),
         )
 
+    if not hasattr(tokenizer, 'eos_token') or tokenizer.eos_token is None:
+        raise ValueError(
+            f'The tokenizer {tokenizer_name} must have an eos_token.')
+
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:
         if dist.get_local_rank() == 0:
@@ -511,6 +513,13 @@ def build_icl_evaluators(
             hf_parsing_map = icl_cfg.get('hf_parsing_map', {})
             hf_loading_vars = icl_cfg.get('hf_loading_vars', {}) 
 
+            early_stopping_criteria = icl_cfg.get('early_stopping_criteria',
+                                                  None)
+            if isinstance(early_stopping_criteria, ListConfig):
+                early_stopping_criteria = om.to_container(
+                    early_stopping_criteria)
+            assert early_stopping_criteria is None or isinstance(
+                early_stopping_criteria, list)
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,
@@ -532,9 +541,8 @@ def build_icl_evaluators(
                 has_categories=icl_cfg.get('has_categories', False),
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
                 generation_kwargs=icl_cfg.get('generation_kwargs', {}),
-                early_stopping_criteria=icl_cfg.get('early_stopping_criteria'),
-                do_normalization=icl_cfg.get('do_normalization', True),
-            )
+                early_stopping_criteria=early_stopping_criteria,
+                do_normalization=icl_cfg.get('do_normalization', True))
             if hasattr(
                     icl_cfg,
                     'has_categories') and icl_cfg.has_categories and isinstance(

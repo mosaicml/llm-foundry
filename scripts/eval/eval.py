@@ -18,9 +18,11 @@ from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
+from rich.traceback import install
 from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
 
+install()
 from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
@@ -183,7 +185,8 @@ def evaluate_model(
     # Now add the eval metrics
     if eval_loader_config is not None:
         train_metrics = composer_model.get_metrics(is_train=True)
-        evaluators = add_metrics_to_eval_loaders(evaluators, train_metrics)
+        evaluators = add_metrics_to_eval_loaders(evaluators,
+                                                 list(train_metrics.keys()))
 
     if eval_gauntlet_df is None and eval_gauntlet_callback is not None:
         eval_gauntlet_df = pd.DataFrame(
@@ -245,15 +248,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     model_configs: ListConfig = pop_config(cfg, 'models', must_exist=True)
     eval_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(
         cfg, 'eval_gauntlet', must_exist=False, default_value=None)
-    if eval_gauntlet_config is None:
-        eval_gauntlet_config = pop_config(cfg,
-                                          'model_gauntlet',
-                                          must_exist=False,
-                                          default_value=None)
-        if eval_gauntlet_config:
-            warnings.warn(
-                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`'
-            )
 
     fsdp_dict_cfg: Optional[DictConfig] = pop_config(cfg,
                                                      'fsdp_config',

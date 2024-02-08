@@ -191,7 +191,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             '{% for message in loop_messages %}'
             '{% if loop.index0 == 0 %}'
             '{% if system_message != false %}'
-            "{{ '<|im_start|>system\n' + system_message.strip() + '\n'}}"
+            "{{ '<|im_start|>system\n' + system_message.strip() + '<|im_end|>\n'}}"
             '{% endif %}'
             "{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' }}"
             '{% else %}'
@@ -199,8 +199,6 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             '{% endif %}'
             '{% if (add_generation_prompt == true and loop.last) %}'
             "{{ '\n' + '<|im_start|>' + 'assistant' + '\n' }}"
-            "{% elif (message['role'] == 'assistant') %}"
-            '{{ eos_token }}'
             '{% endif %}'
             '{% endfor %}')
         template = template.replace(

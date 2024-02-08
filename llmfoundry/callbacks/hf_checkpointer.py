@@ -9,7 +9,7 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 import torch
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -20,6 +20,7 @@ from composer.utils import (dist, format_name_with_dist_and_time,
                             maybe_create_remote_uploader_downloader_from_uri,
                             parse_uri)
 from composer.utils.misc import create_interval_scheduler
+from mlflow.transformers import _fetch_model_card, _write_license_information
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
@@ -32,17 +33,41 @@ log = logging.getLogger(__name__)
 _LICENSE_FILE_PATTERN = re.compile(r'license(\.[a-z]+|$)', re.IGNORECASE)
 
 
-def _maybe_get_license_filename(local_dir: str) -> Optional[str]:
+def _maybe_get_license_filename(
+        local_dir: str,
+        pretrained_model_name: Optional[str] = None) -> Optional[str]:
     """Returns the name of the license file if it exists in the local_dir.
 
     Note: This is intended to be consistent with the code in MLflow.
     https://github.com/mlflow/mlflow/blob/5d13d6ec620a02de9a5e31201bf1becdb9722ea5/mlflow/transformers/__init__.py#L1152
 
+    Since LLM Foundry supports local model files being used rather than fetching the files from the Hugging Face Hub,
+    MLflow's logic to fetch and write the license information on model save is not applicable; it will try to search for
+    a Hugging Face repo named after the local path. However, the user can provide the original pretrained model name,
+    in which case this function will use that to fetch the correct license information.
+
     If the license file does not exist, returns None.
     """
     try:
-        return next(file for file in os.listdir(local_dir)
-                    if _LICENSE_FILE_PATTERN.search(file))
+        license_filename = next(file for file in os.listdir(local_dir)
+                                if _LICENSE_FILE_PATTERN.search(file))
+
+        # If a pretrained model name is provided, replace the license file with the correct info from HF Hub.
+        if pretrained_model_name is not None:
+            log.info(
+                f'Overwriting license file {license_filename} with license info for model {pretrained_model_name} from Hugging Face Hub'
+            )
+            os.remove(os.path.join(local_dir, license_filename))
+            model_card = _fetch_model_card(pretrained_model_name)
+
+            local_dir_path = Path(local_dir).absolute()
+            _write_license_information(pretrained_model_name, model_card,
+                                       local_dir_path)
+            license_filename = next(file for file in os.listdir(local_dir)
+                                    if _LICENSE_FILE_PATTERN.search(file))
+
+        return license_filename
+
     except StopIteration:
         return None
 
@@ -70,7 +95,9 @@ class HuggingFaceCheckpointer(Callback):
             that will get passed along to the MLflow ``save_model`` call.
             Expected to contain ``metadata`` and ``task`` keys. If either is
             unspecified, the defaults are ``'text-generation'`` and
-            ``{'task': 'llm/v1/completions'}`` respectively.
+            ``{'task': 'llm/v1/completions'}`` respectively. A default input example
+            and signature intended for text generation is also included under the
+            keys ``input_example`` and ``signature``.
         flatten_imports (Sequence[str]): A sequence of import prefixes that will
             be flattened when editing MPT files.
     """
@@ -101,6 +128,10 @@ class HuggingFaceCheckpointer(Callback):
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:
+            import numpy as np
+            from mlflow.models.signature import ModelSignature
+            from mlflow.types.schema import ColSpec, Schema
+
             # Both the metadata and the task are needed in order for mlflow
             # and databricks optimized model serving to work
             default_metadata = {'task': 'llm/v1/completions'}
@@ -110,6 +141,28 @@ class HuggingFaceCheckpointer(Callback):
                 **passed_metadata
             }
             mlflow_logging_config.setdefault('task', 'text-generation')
+
+            # Define a default input/output that is good for standard text generation LMs
+            input_schema = Schema([
+                ColSpec('string', 'prompt'),
+                ColSpec('double', 'temperature', optional=True),
+                ColSpec('integer', 'max_tokens', optional=True),
+                ColSpec('string', 'stop', optional=True),
+                ColSpec('integer', 'candidate_count', optional=True)
+            ])
+
+            output_schema = Schema([ColSpec('string', 'predictions')])
+
+            default_signature = ModelSignature(inputs=input_schema,
+                                               outputs=output_schema)
+
+            default_input_example = {
+                'prompt': np.array(['What is Machine Learning?'])
+            }
+            mlflow_logging_config.setdefault('input_example',
+                                             default_input_example)
+            mlflow_logging_config.setdefault('signature', default_signature)
+
         self.mlflow_logging_config = mlflow_logging_config
 
         self.huggingface_folder_name_fstr = os.path.join(
@@ -203,14 +256,17 @@ class HuggingFaceCheckpointer(Callback):
             from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
             if state.is_model_ddp:
+                composer_model = state.model.module
                 original_model: PreTrainedModel = state.model.module.model
                 state_dict_model = state.model.module.model
                 original_tokenizer = state.model.module.tokenizer
             elif isinstance(state.model.model, FSDP):
+                composer_model = state.model
                 original_model: PreTrainedModel = state.model.model.module
                 state_dict_model = state.model.model
                 original_tokenizer = state.model.tokenizer
             else:
+                composer_model = state.model
                 original_model: PreTrainedModel = state.model.model
                 state_dict_model = state.model.model
                 original_tokenizer = state.model.tokenizer
@@ -237,10 +293,23 @@ class HuggingFaceCheckpointer(Callback):
                     copied_config.init_device = 'cpu'
 
                 log.debug(f'Creating new model instance')
-                # First create the model instance on meta device to avoid the
-                # initialization cost.
-                with init_empty_weights():
-                    new_model_instance = type(original_model)(copied_config)
+
+                if composer_model.using_peft:
+                    # We don't use meta here because the state dict does not contain the full
+                    # model, only the adapter weights.
+                    active_adapter = original_model.active_adapter
+                    base_model = original_model.get_base_model()
+                    new_base_model_instance = type(base_model)(copied_config)
+
+                    new_model_instance = type(original_model)(
+                        new_base_model_instance,
+                        original_model.peft_config[active_adapter])
+                    new_model_instance.to(dtype=self.dtype)
+                else:
+                    # First create the model instance on meta device to avoid the
+                    # initialization cost.
+                    with init_empty_weights():
+                        new_model_instance = type(original_model)(copied_config)
 
                 # Then load the state dict in with "assign" so that the state dict
                 # is loaded properly even though the model is initially on meta device.
@@ -295,15 +364,30 @@ class HuggingFaceCheckpointer(Callback):
                         # TODO: Remove after mlflow fixes the bug that makes this necessary
                         import mlflow
                         mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
-                        mlflow_logger.save_model(
-                            flavor='transformers',
-                            transformers_model=components,
-                            path=local_save_path,
-                            **self.mlflow_logging_config,
-                        )
+                        model_saving_kwargs: Dict[str, Any] = {
+                            'path': local_save_path
+                        }
+                        if composer_model.using_peft:
+                            model_saving_kwargs['flavor'] = 'peft'
+                            model_saving_kwargs[
+                                'save_pretrained_dir'] = temp_save_dir
+                            model_saving_kwargs[
+                                'metadata'] = self.mlflow_logging_config[
+                                    'metadata']
+                        else:
+                            model_saving_kwargs['flavor'] = 'transformers'
+                            model_saving_kwargs[
+                                'transformers_model'] = components
+                            model_saving_kwargs.update(
+                                self.mlflow_logging_config)
 
+                        mlflow_logger.save_model(**model_saving_kwargs)
+
+                        # Upload the license file generated by mlflow during the model saving.
                         license_filename = _maybe_get_license_filename(
-                            local_save_path)
+                            local_save_path,
+                            self.mlflow_logging_config['metadata'].get(
+                                'pretrained_model_name', None))
                         if license_filename is not None:
                             mlflow_logger._mlflow_client.log_artifact(
                                 mlflow_logger._run_id,

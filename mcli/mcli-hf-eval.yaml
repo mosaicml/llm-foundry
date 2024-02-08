@@ -1,30 +1,20 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-<<<<<<< HEAD
-  git_branch: output_eval_logging
-=======
-<<<<<<< HEAD
-  git_branch: output_eval_logging
-=======
   git_branch: v0.4.0
->>>>>>> main
->>>>>>> e3861070fb7cf3a555db46bc00dc2aaa955e559b
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
 
 command: |
-  pip uninstall mosaicml -y
-  pip install git+https://github.com/bmosaicml/composer.git@error_logging_callback
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: gsm8k-debug
-gpu_num: 32
-gpu_type: a100_40gb
-cluster: r7z2 # replace with your cluster here!
+run_name: mpt-eval
+gpu_num: 8
+# gpu_type: 
+# cluster: # replace with your cluster here!
 
 image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
@@ -38,16 +28,16 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-30b
+    model_name: mosaicml/mpt-7b-instruct
     # Tokenizer
     tokenizer:
-      name:  mosaicml/mpt-30b
+      name: EleutherAI/gpt-neox-20b 
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path:  mosaicml/mpt-30b
+      pretrained_model_name_or_path:  mosaicml/mpt-7b-instruct
       init_device: mixed
       pretrained: true
       use_auth_token: false
@@ -58,13 +48,6 @@ parameters:
     mixed_precision: FULL
     forward_prefetch: True
     limit_all_gathers: True
-
-
-
-  callbacks:
-    eval_output_logging:
-      subset_sample: -1
-      output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_output_logger_30b_base_gsm8k
 
 
   icl_tasks: 'eval/yamls/tasks_v0.2.yaml'

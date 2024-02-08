@@ -131,7 +131,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
     if cfg.dataset.get('remote') is not None or cfg.dataset.get(
             'streams') is not None:
         # Build streaming dataloader
-        streams = build_streams(cfg)
+        streams = build_streams(cfg.dataset)
         dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
             streams=streams,

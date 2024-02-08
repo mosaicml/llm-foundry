@@ -564,8 +564,11 @@ def test_finetuning_dataloader_streaming(pretokenize: bool,
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
-    build_mock_ft_streaming_dataset(remote_path, 'train', pretokenize,
-                                    tokenizer)
+    build_mock_ft_streaming_dataset(remote_path,
+                                    'train',
+                                    pretokenize,
+                                    use_bytes=use_bytes,
+                                    tokenizer=tokenizer)
     streams_config = {
         'streams': {
             '0': {

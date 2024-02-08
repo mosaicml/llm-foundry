@@ -257,6 +257,16 @@ def is_valid_ift_example(pad_token_id: int, max_seq_len: int,
             non_padding_response)
 
 
+def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
+                                  split: Optional[str]):
+    if remote is None or (local == remote):
+        if local is not None and os.path.isdir(local):
+            contents = set(os.listdir(local))
+            if split is not None and split not in contents:
+                raise ValueError(
+                    f'local directory {local} does not contain split {split}')
+
+
 class StreamingFinetuningDataset(StreamingDataset):
     """Finetuning dataset with flexible tokenization using StreamingDataset.
 
@@ -345,20 +355,12 @@ class StreamingFinetuningDataset(StreamingDataset):
                 f'StreamingFinetuningDataset() got an unexpected keyword argument: {kwargs}'
             )
 
-        def _remote_local_validate(remote: Optional[str], local: Optional[str]):
-            if remote is None or (local == remote):
-                if local is not None and os.path.isdir(local):
-                    contents = set(os.listdir(local))
-                    if split not in contents:
-                        raise ValueError(
-                            f'local directory {local} does not contain split {split}'
-                        )
-
         if streams is None:
-            _remote_local_validate(remote, local)
+            _stream_remote_local_validate(remote, local, split)
         else:
             for stream in streams:
-                _remote_local_validate(stream.remote, stream.local)
+                _stream_remote_local_validate(stream.remote, stream.local,
+                                              split)
 
         super().__init__(
             streams=streams,

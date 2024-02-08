@@ -25,7 +25,7 @@ train_loader:
   dataset:
     ############
     streams:
-      0:
+      my_data:
         remote: ${data_remote}
         local: ${data_local}
         split: train

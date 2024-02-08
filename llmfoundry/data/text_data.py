@@ -232,8 +232,8 @@ class ConcatenatedSequenceCollatorWrapper:
         return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
 
 
-def build_streams(dataloader_cfg: DictConfig):
-    streams_dict = dataloader_cfg.dataset.pop('streams', None)
+def build_streams(dataset_cfg: DictConfig):
+    streams_dict = dataset_cfg.pop('streams', None)
     # build streams
     streams = None
     if streams_dict is not None:
@@ -257,7 +257,7 @@ def build_text_dataloader(
     eos_token_id = cfg.dataset.pop('eos_token_id', None)
     bos_token_id = cfg.dataset.pop('bos_token_id', None)
 
-    streams = build_streams(cfg)
+    streams = build_streams(cfg.dataset)
 
     # build dataset potentially with streams
     dataset = StreamingTextDataset(

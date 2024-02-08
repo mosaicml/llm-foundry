@@ -926,12 +926,11 @@ class MPTForCausalLM(MPTPreTrainedModel):
         """The MPT activation checkpointing (act ckpt) function.
 
         When `activation_checkpointing` in fsdp_config is set to true, this function will be called on all the modules in the FSDP wrapped model and determine whether a given module should be activation checkpointed. It checks the checkpointing target (`activation_checkpointing_target` in `model`) which can be specified as below:
-            1. null (or no such field), then ack ckpt the whole MPTBlock on all layers
-            2. a list of modules to act ckpt, e.g.,
+            1. null (or no such field): The whole MPTBlock will be activation checkpointed on all layers
+            2. a list of modules to act ckpt on all layers, e.g.,
                 activation_checkpointing_target:
                     - grouped_query_attention
                     - mptmlp
-                , then ack ckpt all the modules in the list on all layers
             3. a dictionary of module name with target_blocks, e.g.,
                 activation_checkpointing_target:
                     {
@@ -939,13 +938,13 @@ class MPTForCausalLM(MPTPreTrainedModel):
                             "grouped_query_attention": target_blocks_2
                     }
                 target_blocks (target_blocks_1, target_blocks_2 above) can be:
-                - a single integer n means the first n transformer block will be candidates for act ckpt
-                - a string of first-n, middle-m, last-k, range-i-j means the first n, the middle m,  the last k, or the range [i, j) layers are candidates for act ckpt. E.g, 'first-2, last-2' means the first 2 and last 2 transformer blocks are candidates for act ckpt.
+                - a single integer n: the first n transformer block will be activation checkpointed
+                - a string of first-n, middle-m, last-k, range-i-j: the first n, the middle m,  the last k, or the range [i, j) layers will be activation checkpointed. E.g, 'first-2, last-2' means the first 2 and last 2 transformer blocks will be activation checkpointed
                     middle-m is range [start, end) where ``start = max(max_block_idx // 2 - m // 2, 0), end = min(start + m, max_block_idx + 1)``
-                - a list of integers corresponds to the list of transformer block ids, e.g., [2] means the second transformer block is the candidate for act ckpt. [2, 3] means the second and third transformer block are candidates.
+                - a list of integers corresponds to the list of transformer block ids, e.g., [2] means the second transformer block will be activation checkpointed. [2, 3] means the second and third transformer blocks will be activation checkpointed
                 - a list of mixed integers and strings of first-n, middle-m, last-k, range-i-j
 
-            An example in yaml config file:,
+            An example in yaml config file:
                 fsdp_config:
                     activation_checkpointing: true
                 model:
@@ -954,11 +953,10 @@ class MPTForCausalLM(MPTPreTrainedModel):
                             "mptblock": 'first-5',
                             "grouped_query_attention": 'last-35'
                         }
-                does full act ckpt on the first 5 layers and then ack ckpt the grouped_query_attention on the last 35 layers
         """
         if not hasattr(module, 'block_idx'):
             log.debug(
-                f'No activating checkpointing for {module.__class__.__name__}, only transformer block or its submodules are eligible for activation checkpointing.'
+                f'{module.__class__.__name__} cannot be activation checkpointed. Only transformer block or its submodules are eligible for activation checkpointing.'
             )
             return False
 
@@ -981,7 +979,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 block_ids = get_target_block_list(v, module.max_block_idx)
                 act_ckpt_mod_to_blocks[mod] = block_ids
                 log.info(
-                    f'for module {mod.__name__}, target_blocks is set as {v}, activation checkpointing is applied to {block_ids} blocks.'
+                    f'For module {mod.__name__}, target_blocks is set as {v} so activation checkpointing is applied to {block_ids} blocks.'
                 )
         else:
             raise ValueError(

@@ -122,13 +122,13 @@ def _get_content_key(message: Dict[str, str]) -> str:
 
 def _get_message_key(example: ChatFormattedDict):
     assert len(example.keys()) == 1
-    message_key = example.keys()[0]
+    message_key = list(example.keys())[0]
     assert message_key in _ALLOWED_MESSAGES_KEYS
     return message_key
 
 
 def _validate_chat_formatted_example(example: ChatFormattedDict):
-    messages = example[example.keys()[0]]
+    messages = example[_get_message_key(example)]
     for message in messages:
         assert len(message.keys()) == 2
         role_key, _ = _get_role_key(message), _get_content_key(message)

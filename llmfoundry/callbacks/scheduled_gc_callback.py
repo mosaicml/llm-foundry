@@ -46,6 +46,12 @@ class ScheduledGarbageCollector(Callback):
         gc.disable()
         gc_cuda()
 
+        print("\n")
+        for n, p in state.model.named_parameters():
+            print("name: ", n)
+            print("param mean: ", p.mean().item())
+            print("param std: ", p.std().item())
+
     def fit_end(self, state: State, logger: Logger) -> None:
         del state, logger  # unused
 

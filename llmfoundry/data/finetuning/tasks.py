@@ -84,7 +84,11 @@ def _get_example_type(example: Example) -> ExampleType:
     Raises:
         KeyError: If the example type is unknown.
     """
-    if 'messages' in example:
+    if not hasattr(example, 'keys'):
+        raise TypeError(
+            f'Expected example to have dict-like, but found {type(example)}')
+    if any(allowed_message_key in example
+           for allowed_message_key in _ALLOWED_MESSAGES_KEYS):
         return 'chat'
     elif any([
             pr in example
@@ -108,9 +112,9 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
 
 
 def _get_role_key(message: Dict[str, str]) -> str:
-    if not isinstance(message, dict):
+    if not hasattr(message, '__getitem__') or not hasattr(message, 'keys'):
         raise TypeError(
-            f'Expected message to be a dict, but found {type(message)}')
+            f'Expected message to be dict-like, but found {type(message)}')
     role_keys = _ALLOWED_ROLE_KEYS.intersection(message.keys())
     if len(role_keys) != 1:
         raise ValueError(f'Expected 1 role key, but found {len(role_keys)}')
@@ -119,9 +123,9 @@ def _get_role_key(message: Dict[str, str]) -> str:
 
 
 def _get_content_key(message: Dict[str, str]) -> str:
-    if not isinstance(message, dict):
+    if not hasattr(message, '__getitem__') or not hasattr(message, 'keys'):
         raise TypeError(
-            f'Expected message to be a dict, but found {type(message)}')
+            f'Expected message to be dict-like, but found {type(message)}')
     content_keys = _ALLOWED_CONTENT_KEYS.intersection(message.keys())
     if len(content_keys) != 1:
         raise ValueError(
@@ -131,6 +135,9 @@ def _get_content_key(message: Dict[str, str]) -> str:
 
 
 def _get_message_key(example: ChatFormattedDict):
+    if not hasattr(example, 'keys'):
+        raise TypeError(
+            f'Expected example to have keys(), but found {type(example)}')
     if len(example.keys()) != 1:
         raise ValueError(
             f'Expected 1 message key, but found {len(example.keys())}')
@@ -141,19 +148,19 @@ def _get_message_key(example: ChatFormattedDict):
 
 
 def _validate_chat_formatted_example(example: ChatFormattedDict):
-    if not isinstance(example, dict):
+    if not hasattr(example, '__getitem__') or not hasattr(example, 'keys'):
         raise TypeError(
-            f'Expected example to be a dict, but found {type(example)}')
+            f'Expected example to be dict-like, but found {type(example)}')
     messages = example[_get_message_key(example)]
-    if not isinstance(messages, list):
+    if not hasattr(messages, '__iter__'):
         raise TypeError(
-            f'Expected messages to be a list, but found {type(messages)}')
+            f'Expected messages to be an iterator, but found {type(messages)}')
     for message in messages:
+        role_key, content_key = _get_role_key(message), _get_content_key(
+            message)
         if len(message.keys()) != 2:
             raise ValueError(
                 f'Expected 2 keys in message, but found {len(message.keys())}')
-        role_key, content_key = _get_role_key(message), _get_content_key(
-            message)
         if message[role_key] not in _ALLOWED_ROLES:
             raise ValueError(f'Invalid role: {message[role_key]}')
         if not isinstance(message[content_key], str):

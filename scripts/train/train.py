@@ -460,6 +460,12 @@ def main(cfg: DictConfig) -> Trainer:
                             trace_handlers=profiler_trace_handlers,
                             schedule=profiler_schedule)
 
+    # Callbacks
+    callbacks: List[Callback] = [
+        build_callback(str(name), callback_cfg, om.to_container(logged_cfg))
+        for name, callback_cfg in callback_configs.items()
+    ] if callback_configs else []
+
     # Algorithms
     algorithms = [
         build_algorithm(str(name), algorithm_cfg)
@@ -473,15 +479,6 @@ def main(cfg: DictConfig) -> Trainer:
         tokenizer,
         device_train_batch_size,
     )
-
-    # Callbacks
-    # This has been moved below dataloader instantiation since some callbacks
-    # (e.g. CurriculumLearning) require access to the dataloader.
-    callbacks: List[Callback] = [
-        build_callback(str(name), callback_cfg, om.to_container(logged_cfg),
-                       train_loader.dataloader)
-        for name, callback_cfg in callback_configs.items()
-    ] if callback_configs else []
 
     use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
 

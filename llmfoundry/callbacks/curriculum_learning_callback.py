@@ -27,7 +27,6 @@ class CurriculumLearning(Callback):
         dataset_index (int): The index of the dataset currently being used.
         current_dataset_config (Dict): The configuration of the dataset currently
             being used.
-        dataloader (Union[DataLoader, Iterable]): The training dataloader currently being used.
     """
 
     def __init__(self, dataset_index: int, current_dataset_config: Dict):
@@ -55,13 +54,15 @@ class CurriculumLearning(Callback):
                 f'CurriculumLearning callback only supports StreamingDataset ',
                 f'because it requires loading and saving dataset state. ',
                 f'Instead, got a dataset of type {type(dataset)}')
+        assert isinstance(dataset, StreamingDataset)
         # Save the current dataset state so we can restore it if needed.
-        self.current_dataset_state = dataset.state_dict(0, False)
+        self.current_dataset_state = dataset.state_dict(  # type: ignore
+            num_samples=0, from_beginning=False)
 
     def after_load(self, state: State, logger: Logger):
         del logger
 
-        # As saved_dataset_index is loaded from state_dict, this only run when
+        # As saved_dataset_index is loaded from state_dict, this only runs when
         # a user explicitly increments the dataset_index and not on any other
         # resumption, including autoresume.
         train_loader = state._train_dataloader
@@ -81,7 +82,8 @@ class CurriculumLearning(Callback):
                 # epoch index in the dataset will still be -1. We need to ensure
                 # that we set the epoch correctly to 0 in this case.
                 self.current_dataset_state['epoch'] = 0
-            dataset.load_state_dict(self.current_dataset_state)
+            dataset.load_state_dict(  # type: ignore
+                self.current_dataset_state)
             # Start a new epoch since we are using a new dataset.
             # This will also reset the sample_in_epoch written to checkpoint,
             # making sure that subsequent resumptions proceed correctly.

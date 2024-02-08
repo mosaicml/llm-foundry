@@ -28,7 +28,6 @@ from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
-from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
@@ -161,7 +160,6 @@ def build_callback(
     name: str,
     kwargs: Union[DictConfig, Dict[str, Any]],
     config: Any = None,
-    train_loader: Union[None, DataLoader, Iterable] = None,
 ) -> Callback:
     if name == 'lr_monitor':
         return LRMonitor()

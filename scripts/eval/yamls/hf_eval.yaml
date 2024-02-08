@@ -12,7 +12,7 @@ models:
   model:
     name: hf_causal_lm
     pretrained_model_name_or_path: ${model_name_or_path}
-    init_device: cpu
+    init_device: mixed 
     pretrained: true
   tokenizer:
     name: ${model_name_or_path}
@@ -33,6 +33,7 @@ models:
 #     kwargs:
 #       model_max_length: ${max_seq_len}
 
+
 device_eval_batch_size: 4
 
 # FSDP config for model sharding
@@ -50,10 +51,11 @@ device_eval_batch_size: 4
 loggers:
   wandb: {entity: mosaic-ml, project: maxisawesome}
 
+icl_subset_num_batches: 10
+
 callbacks:
   eval_output_logging:
     batch_keys_to_log: []
 
-# icl_tasks: 'eval/yamls/long_context_tasks.yaml'
-icl_tasks: 'eval/yamls/tasks_one_of_each.yaml'
-# eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'
+icl_tasks: 'eval/yamls/tasks_v0.1.yaml'
+eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'

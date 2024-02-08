@@ -66,6 +66,7 @@ from llmfoundry.models.layers.ffn import \
 from llmfoundry.models.layers.ffn import MPTMLP as MPTMLP
 from llmfoundry.models.layers.ffn import build_ffn as build_ffn
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
+from llmfoundry.models.layers.lm_head import LMHead
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
 # NOTE: All utils are imported directly even if unused so that
@@ -762,7 +763,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
         self.lm_head = None
         if not config.tie_word_embeddings:
-            self.lm_head = nn.Linear(
+            self.lm_head = LMHead(
                 config.d_model,
                 config.vocab_size,
                 bias=False,

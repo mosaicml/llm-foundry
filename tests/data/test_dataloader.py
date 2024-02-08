@@ -55,9 +55,16 @@ def build_mock_ft_streaming_dataset(
         data_path: str,
         split: str,
         pretokenize: bool,
+        use_bytes: bool,
         tokenizer: Optional[transformers.PreTrainedTokenizerBase] = None):
     if pretokenize:
-        columns = {'input_ids': 'ndarray:uint32', 'labels': 'ndarray:uint32'}
+        if use_bytes:
+            columns = {'input_ids': 'bytes', 'labels': 'bytes'}
+        else:
+            columns = {
+                'input_ids': 'ndarray:uint32',
+                'labels': 'ndarray:uint32'
+            }
     else:
         columns = {'prompt': 'str', 'response': 'str'}
 
@@ -67,6 +74,9 @@ def build_mock_ft_streaming_dataset(
     }, {
         'prompt': 'This is just a test2',
         'response': 'Hello world2'
+    }, {
+        'prompt': 'This is just a test3',
+        'response': 'Hello world3'
     }]
 
     output_path = os.path.join(data_path, split)
@@ -78,8 +88,11 @@ def build_mock_ft_streaming_dataset(
                 sample = tokenize_formatted_example(sample, tokenizer=tokenizer)
                 sample_to_write = {}
                 for key in columns.keys():
-                    sample_to_write[key] = np.asarray(sample[key],
-                                                      dtype=np.uint32)
+                    if use_bytes:
+                        sample_to_write[key] = np.asarray(sample[key]).tobytes()
+                    else:
+                        sample_to_write[key] = np.asarray(sample[key],
+                                                          dtype=np.uint32)
                 output_writer.write(sample_to_write)
             else:
                 output_writer.write(sample)
@@ -536,8 +549,10 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
 
 @pytest.mark.parametrize('pretokenize', [True, False])
 @pytest.mark.parametrize('use_multiple_streams', [True, False])
+@pytest.mark.parametrize('use_bytes', [True, False])
 def test_finetuning_dataloader_streaming(pretokenize: bool,
                                          use_multiple_streams: bool,
+                                         use_bytes: bool,
                                          tmp_path: pathlib.Path):
     max_seq_len = 2048
 
@@ -581,11 +596,17 @@ def test_finetuning_dataloader_streaming(pretokenize: bool,
         cfg['dataset'].update(streams_config)
     else:
         cfg['dataset'].update(streams_config['streams']['0'])
-    print(f"bigning debug {cfg['dataset']=}")
 
     cfg = om.create(cfg)
 
-    _ = build_finetuning_dataloader(cfg, tokenizer, 4)
+    dataloader = build_finetuning_dataloader(cfg, tokenizer, 2).dataloader
+
+    expected_keys = ['input_ids', 'labels']
+    for batch in dataloader:
+        for key in expected_keys:
+            assert key in batch
+            assert batch[key].shape[0] == 2
+        break
 
 
 def test_finetuning_dataloader_is_valid_ift_example():

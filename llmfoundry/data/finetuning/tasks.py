@@ -391,7 +391,7 @@ class StreamingFinetuningDataset(StreamingDataset):
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         sample = super().__getitem__(idx)
         if 'input_ids' in sample:
-            # already tokenized data
+            # Already tokenized data
             if isinstance(sample['input_ids'], bytes):
                 sample['input_ids'] = np.frombuffer(
                     sample['input_ids'],
@@ -404,6 +404,10 @@ class StreamingFinetuningDataset(StreamingDataset):
                     'input_ids'][:self.max_seq_len].tolist().copy()
                 sample['labels'] = sample['labels'][:self.max_seq_len].tolist(
                 ).copy()
+            else:
+                raise ValueError(
+                    f'Expect input_ids to be bytes or numpy.ndarray type, but got {type(sample["input_ids"])}'
+                )
 
             return sample
         return tokenize_formatted_example(sample, tokenizer=self.tokenizer)

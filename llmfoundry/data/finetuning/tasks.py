@@ -35,6 +35,7 @@ import importlib
 import logging
 import os
 import warnings
+from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
@@ -112,7 +113,7 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
 
 
 def _get_role_key(message: Dict[str, str]) -> str:
-    if not isinstance(message, Dict):
+    if not isinstance(message, Mapping):
         raise TypeError(
             f'Expected message to be a mapping, but found {type(message)}')
     role_keys = _ALLOWED_ROLE_KEYS.intersection(message.keys())
@@ -123,7 +124,7 @@ def _get_role_key(message: Dict[str, str]) -> str:
 
 
 def _get_content_key(message: Dict[str, str]) -> str:
-    if not isinstance(message, Dict):
+    if not isinstance(message, Mapping):
         raise TypeError(
             f'Expected message to be a mapping, but found {type(message)}')
     content_keys = _ALLOWED_CONTENT_KEYS.intersection(message.keys())
@@ -134,8 +135,8 @@ def _get_content_key(message: Dict[str, str]) -> str:
     return content_key
 
 
-def _get_message_key(example: Dict[str, List[Dict[str, str]]]):
-    if not isinstance(example, Dict):
+def _get_message_key(example: ChatFormattedDict):
+    if not isinstance(example, Mapping):
         raise TypeError(
             f'Expected example to be a mapping, but found {type(example)}')
     if len(example.keys()) != 1:
@@ -148,7 +149,7 @@ def _get_message_key(example: Dict[str, List[Dict[str, str]]]):
 
 
 def _validate_chat_formatted_example(example: ChatFormattedDict):
-    if not isinstance(example, Dict):
+    if not isinstance(example, Mapping):
         raise TypeError(
             f'Expected example to be a mapping, but found {type(example)}')
     messages = example[_get_message_key(example)]

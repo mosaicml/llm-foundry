@@ -32,7 +32,7 @@ init_config_defaults: Dict = {
     'fan_mode': 'fan_in',
     'init_nonlinearity': 'linear', # Changed this to 'linear' from 'relu'!
     'init_div_is_residual': False, # Changed this to False from True!
-    'emb_init_std': None,
+    'emb_init_std': 1.0, # Changed this to 1.0 from None!
     'emb_init_uniform_lim': None,
     'init_std': None,
     'init_gain': 0.0,

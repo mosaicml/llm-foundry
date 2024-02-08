@@ -42,6 +42,7 @@ from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
+import numpy as np
 from composer.utils import dist
 from streaming import StreamingDataset
 from transformers import PreTrainedTokenizerBase
@@ -373,6 +374,7 @@ class StreamingFinetuningDataset(StreamingDataset):
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  batching_method: str = 'random',
+                 max_seq_len: int = 2048,
                  **kwargs: Any):
 
         if len(kwargs) > 0:
@@ -412,10 +414,31 @@ class StreamingFinetuningDataset(StreamingDataset):
         )
 
         self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
 
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         sample = super().__getitem__(idx)
+        if 'input_ids' in sample:
+            # Already tokenized data
+            if isinstance(sample['input_ids'], bytes):
+                sample['input_ids'] = np.frombuffer(
+                    sample['input_ids'],
+                    dtype=np.int64)[:self.max_seq_len].tolist().copy()
+                sample['labels'] = np.frombuffer(
+                    sample['labels'],
+                    dtype=np.int64)[:self.max_seq_len].tolist().copy()
+            elif isinstance(sample['input_ids'], np.ndarray):
+                sample['input_ids'] = sample[
+                    'input_ids'][:self.max_seq_len].tolist().copy()
+                sample['labels'] = sample['labels'][:self.max_seq_len].tolist(
+                ).copy()
+            else:
+                raise ValueError(
+                    f'Expect input_ids to be bytes or numpy.ndarray type, but got {type(sample["input_ids"])}'
+                )
+
+            return sample
         return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 
 

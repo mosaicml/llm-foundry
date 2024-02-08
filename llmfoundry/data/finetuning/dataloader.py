@@ -152,6 +152,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             sampling_method=cfg.dataset.get('sampling_method', 'balanced'),
             sampling_granularity=cfg.dataset.get('sampling_granularity', 1),
             batching_method=cfg.dataset.get('batching_method', 'random'),
+            max_seq_len=cfg.dataset.max_seq_len,
         )
 
     else:
@@ -284,6 +285,9 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
             'HuggingFace dataset or set `remote` to use a streaming ' +\
             'dataset, but both were None.'
         )
+    if dataset_cfg.get('max_seq_len') is None:
+        raise ValueError(
+            'In the dataset config, you must set the `max_seq_len`')
 
 
 def _download_remote_hf_dataset(remote_path: str, split: str) -> str:

@@ -35,7 +35,7 @@ import importlib
 import logging
 import os
 import warnings
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping, Sequence
 from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
@@ -67,7 +67,7 @@ DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
 SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
 
 PromptResponseDict = Mapping[str, str]
-ChatFormattedDict = Mapping[str, Iterable[Mapping[str, str]]]
+ChatFormattedDict = Mapping[str, Sequence[Mapping[str, str]]]
 Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
 TokenizedExample = Dict[str, List[int]]
@@ -154,7 +154,7 @@ def _validate_chat_formatted_example(example: Mapping[str, List[Mapping[str,
         raise TypeError(
             f'Expected example to be a mapping, but found {type(example)}')
     messages = example[_get_message_key(example)]
-    if not isinstance(messages, Iterable):
+    if not isinstance(messages, Sequence):
         raise TypeError(
             f'Expected messages to be an iterable, but found {type(messages)}')
     for message in messages:

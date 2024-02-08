@@ -66,8 +66,8 @@ DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
                  '.downloaded_finetuning'))
 SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
 
-PromptResponseDict = Dict[str, str]
-ChatFormattedDict = Dict[str, List[Dict[str, str]]]
+PromptResponseDict = Mapping[str, str]
+ChatFormattedDict = Mapping[str, Iterable[Mapping[str, str]]]
 Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
 TokenizedExample = Dict[str, List[int]]

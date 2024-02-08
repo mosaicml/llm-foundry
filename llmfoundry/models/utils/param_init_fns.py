@@ -14,7 +14,6 @@ from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import MPTMLP, MPTGLU
 from llmfoundry.models.layers.attention import GroupedQueryAttention
-from llmfoundry.models.layers.lm_head import LMHead
 
 try:
     import transformer_engine.pytorch as te
@@ -33,8 +32,7 @@ def torch_default_param_init_fn_(
         module.reset_parameters()
 
 
-def fused_init_helper_(module: nn.Module, init_fn_: Callable,
-                       precedes_activation_fn: bool = False) -> None:
+def fused_init_helper_(module: nn.Module, init_fn_: Callable) -> None:
     # parameter initialization is often based on the parameters shape.
     # If a layer is fused, initialization should be based on the shapes
     # of the original tensor instead of the shape of the fused tensor.
@@ -54,32 +52,11 @@ def fused_init_helper_(module: nn.Module, init_fn_: Callable,
     for s, e in zip(splits[:-1], splits[1:]):
         slice_indices = [slice(None)] * module.weight.ndim
         slice_indices[dim] = slice(s, e)
-        if precedes_activation_fn:
+        if hasattr(module, '_precedes_act') and module._precedes_act:
+            # Initialize module weights preceding activation function correctly.
             init_fn_(module.weight[slice_indices], nonlinearity='relu')
         else:
             init_fn_(module.weight[slice_indices], nonlinearity='linear')
-
-
-def linear_init_helper_(module: nn.Linear, init_fn_: Callable,
-                        init_div_is_residual: Union[int, float, str, bool],
-                        div_is_residual: float,
-                        precedes_activation_fn: bool = False) -> None:
-    if hasattr(module, '_fused'):
-        fused_init_helper_(module, init_fn_, precedes_activation_fn)
-    else:
-        if precedes_activation_fn:
-            init_fn_(module.weight, nonlinearity='relu')
-        else:
-            init_fn_(module.weight, nonlinearity='linear')
-    if module.bias is not None:
-        assert isinstance(module.bias, torch.Tensor)
-        torch.nn.init.zeros_(module.bias)
-
-    if init_div_is_residual is not False and getattr(
-            module, '_is_residual', False):
-        with torch.no_grad():
-            module.weight.div_(div_is_residual)  # type: ignore
-
 
 def generic_param_init_fn_(
     module: nn.Module,
@@ -115,37 +92,24 @@ def generic_param_init_fn_(
             f'Expected init_div_is_residual to be boolean or numeric, got {init_div_is_residual}'
         )
     
-    if isinstance(module, MPTGLU):
-        # Make sure that the gate projection is initialized with nonlinearity='relu'
-        # for correct init, since it precedes a nonlinearity.
-        linear_init_helper_(module.gate_proj, init_fn_, init_div_is_residual,
-                            div_is_residual, precedes_activation_fn=True)
-        linear_init_helper_(module.up_proj, init_fn_, init_div_is_residual,
-                            div_is_residual)
-        linear_init_helper_(module.down_proj, init_fn_, init_div_is_residual,
-                            div_is_residual)
-    
-    if isinstance(module, MPTMLP):
-        # Make sure that the up projection is initialized with nonlinearity='relu'
-        # for correct init, since it precedes a nonlinearity.
-        linear_init_helper_(module.up_proj, init_fn_, init_div_is_residual,
-                            div_is_residual, precedes_activation_fn=True)
-        linear_init_helper_(module.down_proj, init_fn_, init_div_is_residual,
-                            div_is_residual)
+    if isinstance(module, tuple(set(FC_CLASS_REGISTRY.values()))):
+        # Linear
+        if hasattr(module, '_fused'):
+            fused_init_helper_(module, init_fn_)
+        else:
+            if hasattr(module, '_precedes_act') and module._precedes_act:
+                # Initialize module weights preceding activation function correctly.
+                init_fn_(module.weight, nonlinearity='relu')
+            else:
+                init_fn_(module.weight, nonlinearity='linear')
+        if module.bias is not None:
+            assert isinstance(module.bias, torch.Tensor)
+            torch.nn.init.zeros_(module.bias)
 
-    if isinstance(module, GroupedQueryAttention):
-        linear_init_helper_(module.Wqkv, init_fn_, init_div_is_residual,
-                            div_is_residual)
-        linear_init_helper_(module.out_proj, init_fn_, init_div_is_residual,
-                            div_is_residual)
-        
-    if isinstance(module, LMHead):
-        linear_init_helper_(module.weight, init_fn_, init_div_is_residual,
-                            div_is_residual)
-        
-    if isinstance(module, nn.Linear):
-        # Don't do anything, as linears should have already been initialized...
-        pass
+        if init_div_is_residual is not False and getattr(
+                module, '_is_residual', False):
+            with torch.no_grad():
+                module.weight.div_(div_is_residual)  # type: ignore
 
     elif isinstance(module, nn.Embedding):
         # Embedding

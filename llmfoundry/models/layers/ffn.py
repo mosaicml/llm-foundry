@@ -105,6 +105,7 @@ class MPTMLP(nn.Module):
             ffn_hidden_size,
             **self.fc_kwargs,
         )
+        self.up_proj._precedes_act = True
         self.act = act_fn
         self.down_proj = FC_CLASS_REGISTRY[fc_type](
             ffn_hidden_size,
@@ -143,6 +144,8 @@ class MPTGLU(MPTMLP):
             self.up_proj.out_features,
             **self.fc_kwargs,
         )
+        self.gate_proj._precedes_act = True
+        self.up_proj._precedes_act = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x))

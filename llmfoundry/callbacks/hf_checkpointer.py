@@ -394,7 +394,7 @@ class HuggingFaceCheckpointer(Callback):
                                 os.path.join(local_save_path, license_filename),
                             )
 
-                        mlflow_logger.create_model_version(
+                        mlflow_logger.register_model_with_run_id(
                             model_uri=local_save_path,
                             name=self.mlflow_registered_model_name,
                             await_creation_for=3600,

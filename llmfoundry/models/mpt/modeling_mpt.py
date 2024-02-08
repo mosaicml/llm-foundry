@@ -82,7 +82,8 @@ from llmfoundry.models.utils.param_init_fns import (
     MODEL_INIT_REGISTRY,
 )
 
-from llmfoundry.models.utils.act_ckpt import (get_act_ckpt_module,
+from llmfoundry.models.utils.act_ckpt import (pass_on_block_idx,
+                                              get_act_ckpt_module,
                                               get_target_block_list,
                                               check_mapping_blocks_overlap)
 
@@ -352,16 +353,7 @@ class MPTModel(MPTPreTrainedModel):
             ) for _ in range(config.n_layers)
         ])
 
-        def pass_on_block_idx(parent: nn.Module):
-            if not hasattr(parent, 'block_idx') or not hasattr(
-                    parent, 'max_block_idx'):
-                return
-            for child in parent.children():
-                child.block_idx = parent.block_idx
-                child.max_block_idx = parent.max_block_idx
-                if child.children():
-                    pass_on_block_idx(child)
-
+        # Tag all modules in the transformer blocks with the corresponding block_idx and max_block_idx
         for i, block in enumerate(self.blocks):
             block.block_idx = i
             block.max_block_idx = config.n_layers - 1

@@ -3,10 +3,22 @@
 
 from typing import Any
 
+import torch
+
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
+
+
+def pass_on_block_idx(parent: torch.nn.Module):
+    if not hasattr(parent, 'block_idx') or not hasattr(parent, 'max_block_idx'):
+        return
+    for child in parent.children():
+        child.block_idx = parent.block_idx
+        child.max_block_idx = parent.max_block_idx
+        if child.children():
+            pass_on_block_idx(child)
 
 
 def get_act_ckpt_module(mod_name: str) -> Any:

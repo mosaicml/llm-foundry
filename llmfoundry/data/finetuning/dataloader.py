@@ -313,7 +313,7 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
         raise ValueError(
             'In the dataset config, you must set `hf_name` to use a HuggingFace ' +\
             'dataset, or set `remote` to use a streaming dataset, or set ' +\
-            '`streams` to use mutliple streaming datasets,  but all were None.'
+            '`streams` to use multiple streaming datasets,  but all were None.'
         )
     if dataset_cfg.get('max_seq_len') is None:
         raise ValueError(

@@ -401,10 +401,10 @@ We've included three different tasks for long (> 4000 tokens) context length eva
     - Lengths: 2k, 4k, 8k, 16k, 32k, 64k
     - Locations: beginning, middle, end
 2. Key Value Pairs (Needle In a Haystack)
-    - Description: We construct a `.json` of key value pairs, where both the key and value are random hashes. We then ask the model to produce a specific value from a key value pair. The pair is correspondingly located in the first third, second third, or last third of the json.
+    - Description: We construct a `.json` of key value pairs, where both the key and value are random hashes, in the style of (Lost in the Middle)[https://github.com/nelson-liu/lost-in-the-middle]. We ask the model to produce a value given a key from a specific key value pair found int he json. The pair is correspondingly located in the first third, second third, or last third of the json.
     - Lengths: 2k, 4k, 8k, 16k, 32k, 64k
     - Locations: beginning, middle, end
 2. WikiQA Numeric
-    - Description:
+    - Description: (WikiQA Numeric)[https://huggingface.co/datasets/abacusai/WikiQA-Altered_Numeric_QA] is a Wikipedia Question Answering dataset with a focus on questions with numeric answers. We preprocess the data only to easily parse it for our framework.
     - Lengths: 2k, 4k, 8k, 16k
     - Locations: N/A

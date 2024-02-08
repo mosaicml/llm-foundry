@@ -142,6 +142,10 @@ def generic_param_init_fn_(
     if isinstance(module, LMHead):
         linear_init_helper_(module.weight, init_fn_, init_div_is_residual,
                             div_is_residual)
+        
+    if isinstance(module, nn.Linear):
+        # Don't do anything, as linears should have already been initialized...
+        pass
 
     elif isinstance(module, nn.Embedding):
         # Embedding

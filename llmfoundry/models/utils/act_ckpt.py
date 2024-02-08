@@ -121,8 +121,7 @@ def check_mapping_blocks_overlap(mapping: dict, max_block_idx: int) -> None:
                     all_blocks[vv] = k
 
 
-def build_act_ckpt_mod_to_blocks(act_ckpt_target: Any,
-                                 top_module: torch.nn.Module,
+def build_act_ckpt_mod_to_blocks(act_ckpt_target: Any, top_module: Any,
                                  max_block_idx: int) -> dict:
     act_ckpt_mod_to_blocks = {}
     if act_ckpt_target is None or act_ckpt_target == []:

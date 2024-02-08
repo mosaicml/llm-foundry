@@ -54,6 +54,11 @@ __all__ = ['dataset_constructor']
 
 _ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 _ALLOWED_PROMPT_KEYS = {'prompt'}
+_ALLOWED_MESSAGES_KEYS = {'messages'}
+_ALLOWED_ROLE_KEYS = {'role'}
+_ALLOWED_CONTENT_KEYS = {'content'}
+_ALLOWED_ROLES = {'user', 'assistant', 'system'}
+_ALLOWED_LAST_MESSAGE_ROLES = {'assistant'}
 DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
     os.path.join(os.path.realpath(__file__), os.pardir, os.pardir, os.pardir,
                  '.downloaded_finetuning'))
@@ -101,6 +106,41 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
+def _get_role_key(message: Dict[str, str]) -> str:
+    role_keys = _ALLOWED_ROLE_KEYS.intersection(message.keys())
+    assert len(role_keys) == 1
+    role_key = list(role_keys)[0]
+    return role_key
+
+
+def _get_content_key(message: Dict[str, str]) -> str:
+    content_keys = _ALLOWED_CONTENT_KEYS.intersection(message.keys())
+    assert len(content_keys) == 1
+    content_key = list(content_keys)[0]
+    return content_key
+
+
+def _get_message_key(example: ChatFormattedDict):
+    assert len(example.keys()) == 1
+    message_key = example.keys()[0]
+    assert message_key in _ALLOWED_MESSAGES_KEYS
+    return message_key
+
+
+def _validate_chat_formatted_example(example: ChatFormattedDict):
+    messages = example[example.keys()[0]]
+    for message in messages:
+        assert len(message.keys()) == 2
+        role_key, _ = _get_role_key(message), _get_content_key(message)
+        assert message[role_key] in _ALLOWED_ROLES
+
+    assert len(messages) > 1
+    last_message = messages[-1]
+    role_key = _get_role_key(last_message)
+    last_role = last_message[role_key]
+    assert last_role in _ALLOWED_LAST_MESSAGE_ROLES
+
+
 def _slice_chat_formatted_example(
         example: ChatFormattedDict,
         tokenizer: PreTrainedTokenizerBase) -> Tuple[str, str]:
@@ -117,7 +157,8 @@ def _slice_chat_formatted_example(
         ValueError: If the chat example has less than two messages or if the last message is not from the assistant.
         KeyError: If a message does not have a role or content.
     """
-    messages = example['messages']
+    _validate_chat_formatted_example(example)
+    messages = example[_get_message_key(example)]
 
     if len(messages) < 2:
         raise ValueError(

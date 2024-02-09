@@ -14,7 +14,7 @@ class VersionedDeprecationWarning(DeprecationWarning):
         ...     warnings.warn(
         ...         VersionedDeprecationWarning(
         ...             "Function XYZ is deprecated.",
-        ...             after_version="2.0.0"
+        ...             remove_version="2.0.0"
         ...         )
         ...     )
         ...

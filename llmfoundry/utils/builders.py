@@ -30,9 +30,10 @@ from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
-                                  GlobalLRScaling, HuggingFaceCheckpointer,
-                                  LayerFreezing, MonolithicCheckpointSaver,
+from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
+                                  FDiffMetrics, GlobalLRScaling,
+                                  HuggingFaceCheckpointer, LayerFreezing,
+                                  MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
@@ -212,8 +213,18 @@ def build_callback(
         if config is None:
             raise ValueError(
                 'Parameters config is required for async eval callback')
-
         return AsyncEval(**kwargs, training_params=config)
+    elif name == 'curriculum_learning':
+        if config is None:
+            raise ValueError(
+                'Parameters config is required for curriculum learning callback'
+            )
+        if 'train_loader' not in config:
+            raise ValueError(
+                'Curriculum learning callback requires a train_loader key in the run config.'
+            )
+        return CurriculumLearning(**kwargs,
+                                  current_dataset_config=config['train_loader'])
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

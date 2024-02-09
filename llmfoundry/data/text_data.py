@@ -108,13 +108,6 @@ class StreamingTextDataset(StreamingDataset):
                  batching_method: str = 'random',
                  **kwargs: Any):
 
-        group_method = kwargs.pop('group_method', None)
-        if group_method is not None:
-            raise NotImplementedError(
-                'group_method is deprecated and has been removed.\nTo ' +
-                'concatenate, use the --concat_tokens ' +
-                'argument when creating your MDS dataset with concat_c4.py')
-
         if len(kwargs) > 0:
             raise ValueError(
                 f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}'
@@ -239,25 +232,8 @@ class ConcatenatedSequenceCollatorWrapper:
         return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
 
 
-def build_text_dataloader(
-    cfg: DictConfig,
-    tokenizer: PreTrainedTokenizerBase,
-    device_batch_size: int,
-) -> DataSpec:
-    assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
-    if cfg.dataset.get('group_method', None) is not None:
-        raise NotImplementedError(
-            'group_method is deprecated and has been removed.\nTo ' +
-            'concatenate, use the --concat_tokens ' +
-            'argument when creating your MDS dataset with convert_dataset_hf.py'
-        )
-
-    # get kwargs
-    streams_dict = cfg.dataset.pop('streams', None)
-    mlm_probability = cfg.dataset.pop('mlm_probability', None)
-    eos_token_id = cfg.dataset.pop('eos_token_id', None)
-    bos_token_id = cfg.dataset.pop('bos_token_id', None)
-
+def build_streams(dataset_cfg: DictConfig):
+    streams_dict = dataset_cfg.pop('streams', None)
     # build streams
     streams = None
     if streams_dict is not None:
@@ -266,6 +242,22 @@ def build_text_dataloader(
             # stream is the streams kwargs
             # fwd all kwargs with **stream allows streaming to check args
             streams.append(Stream(**stream))
+    return streams
+
+
+def build_text_dataloader(
+    cfg: DictConfig,
+    tokenizer: PreTrainedTokenizerBase,
+    device_batch_size: int,
+) -> DataSpec:
+    assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
+
+    # get kwargs
+    mlm_probability = cfg.dataset.pop('mlm_probability', None)
+    eos_token_id = cfg.dataset.pop('eos_token_id', None)
+    bos_token_id = cfg.dataset.pop('bos_token_id', None)
+
+    streams = build_streams(cfg.dataset)
 
     # build dataset potentially with streams
     dataset = StreamingTextDataset(

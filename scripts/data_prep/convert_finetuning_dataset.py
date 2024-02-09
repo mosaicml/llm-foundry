@@ -1,18 +1,24 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import os
 import platform
+import warnings
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable, List, Optional, Union
 
 import datasets as hf_datasets
+import numpy as np
 import psutil
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 
-from llmfoundry.data.finetuning.tasks import dataset_constructor
+from llmfoundry.data.finetuning.tasks import (dataset_constructor,
+                                              is_valid_ift_example,
+                                              tokenize_formatted_example)
+from llmfoundry.utils.builders import build_tokenizer
 
 
 def parse_args() -> Namespace:
@@ -23,7 +29,7 @@ def parse_args() -> Namespace:
         type=str,
         required=True,
         help=
-        'Name/path of the dataset (e.g., first argument to `datasets.load_dataset`)'
+        'Name of the dataset (e.g., first argument to `datasets.load_dataset`, for jsonl data format, it is `json`)'
     )
     parser.add_argument('--data_subset',
                         type=str,
@@ -38,6 +44,13 @@ def parse_args() -> Namespace:
                         default=None,
                         help='Name or import path of function used to preprocess (reformat) the dataset. ' +\
                              'See README for additional details.')
+    parser.add_argument(
+        '--data_files',
+        nargs='+',
+        default=[],
+        help=
+        'Data file for each split. If set, its length should be exact same as len(splits)'
+    )
     parser.add_argument(
         '--skip-preprocessing',
         action='store_true',
@@ -63,6 +76,9 @@ def parse_args() -> Namespace:
                         default=None,
                         help='(Optional) name of compression algorithm to use.')
     parser.add_argument('--num_workers', type=int, required=False, default=None)
+    parser.add_argument('--tokenizer', type=str, required=False, default=None)
+    parser.add_argument('--tokenizer_kwargs', type=str, required=False)
+    parser.add_argument('--max_seq_len', type=int, default=2048)
 
     parsed = parser.parse_args()
 
@@ -71,6 +87,17 @@ def parse_args() -> Namespace:
                 parsed.splits))) > 0:
         raise ValueError(
             f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.'
+        )
+
+    if parsed.tokenizer_kwargs is not None:
+        parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)
+    else:
+        parsed.tokenizer_kwargs = {}
+
+    if len(parsed.data_files) > 0 and len(parsed.data_files) != len(
+            parsed.splits):
+        raise ValueError(
+            f'If data_files is set, data_files and splits must have the same length. Got {len(parsed.data_files)=} while {len(parsed.splits)=}'
         )
 
     return parsed
@@ -170,12 +197,23 @@ def main(args: Namespace) -> None:
                 'include the "--skip-preprocessing" flag to avoid this error.'
             )
 
-    columns = ['prompt', 'response']
+    tokenizer = None
+    tokenizer_kwargs = args.tokenizer_kwargs
+    tokenizer_kwargs.update({'model_max_length': args.max_seq_len})
+    if args.tokenizer:
+        tokenizer = build_tokenizer(args.tokenizer, tokenizer_kwargs)
+        columns = {'input_ids': 'ndarray:uint32', 'labels': 'ndarray:uint32'}
+    else:
+        columns = {'prompt': 'str', 'response': 'str'}
 
-    for split_name in args.splits:
+    for i, split_name in enumerate(args.splits):
+        data_file = None
+        if len(args.data_files) > 0:
+            data_file = args.data_files[i]
         dataset = hf_datasets.load_dataset(path=args.dataset,
                                            name=args.data_subset,
                                            split=split_name,
+                                           data_files=data_file,
                                            streaming=True)
         loader = build_dataloader(dataset=dataset,
                                   batch_size=512,
@@ -190,12 +228,14 @@ def main(args: Namespace) -> None:
             keep_local = True
         else:
             keep_local = False
-        with MDSWriter(columns={key: 'str' for key in columns},
+        with MDSWriter(columns=columns,
                        out=out,
                        compression=args.compression,
                        keep_local=keep_local) as out:
+            examples_removed = 0
             for sample in tqdm(samples, desc=split_name):
                 formatted_sample = preprocessing_fn(sample)
+
                 if ('prompt'
                         not in formatted_sample) or ('response'
                                                      not in formatted_sample):
@@ -204,11 +244,32 @@ def main(args: Namespace) -> None:
                         '"prompt" and "response" are required keys but at least one was missing ' +\
                         f'from {formatted_sample=}.'
                     )
-                encoded_sample = {
-                    key: formatted_sample[key].encode('utf-8')
-                    for key in columns
-                }
-                out.write(encoded_sample)
+                if tokenizer is not None:
+                    sample = tokenize_formatted_example(sample,
+                                                        tokenizer=tokenizer)
+                    if not is_valid_ift_example(tokenizer.pad_token_id,
+                                                args.max_seq_len, sample):
+                        examples_removed += 1
+                        continue
+
+                    sample_to_write = {}
+                    # convert to bytes
+                    for key in columns.keys():
+                        sample_to_write[key] = np.asarray(sample[key],
+                                                          dtype=np.uint32)
+                    out.write(sample_to_write)
+                else:
+                    encoded_sample = {
+                        key: formatted_sample[key].encode('utf-8')
+                        for key in columns.keys()
+                    }
+                    out.write(encoded_sample)
+        if tokenizer is not None and examples_removed > 0:
+            warnings.warn(
+                f'Dropped {examples_removed} examples where the prompt was longer than {args.max_seq_len}, '
+                +
+                'the prompt or response was empty, or the response was all padding tokens.'
+            )
 
 
 if __name__ == '__main__':

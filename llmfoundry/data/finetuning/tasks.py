@@ -45,7 +45,7 @@ import datasets as hf_datasets
 import huggingface_hub as hf_hub
 import numpy as np
 from composer.utils import dist
-from streaming import StreamingDataset
+from streaming import Stream, StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
@@ -305,12 +305,25 @@ def is_valid_ift_example(pad_token_id: int, max_seq_len: int,
             non_padding_response)
 
 
+def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
+                                  split: Optional[str]):
+    if remote is None or (local == remote):
+        if local is not None and os.path.isdir(local):
+            contents = set(os.listdir(local))
+            if split is not None and split not in contents:
+                raise ValueError(
+                    f'local directory {local} does not contain split {split}')
+
+
 class StreamingFinetuningDataset(StreamingDataset):
     """Finetuning dataset with flexible tokenization using StreamingDataset.
 
     Args:
         tokenizer (Tokenizer): The name of the HuggingFace tokenizer to use to
             tokenize samples.
+        streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
+            which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
         local (str): Local dataset directory where shards are cached by split.
         remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
             its data must exist locally. StreamingDataset uses either ``streams`` or
@@ -361,7 +374,8 @@ class StreamingFinetuningDataset(StreamingDataset):
 
     def __init__(self,
                  tokenizer: PreTrainedTokenizerBase,
-                 local: str,
+                 streams: Optional[Sequence[Stream]] = None,
+                 local: Optional[str] = None,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
                  download_retry: int = 2,
@@ -389,15 +403,15 @@ class StreamingFinetuningDataset(StreamingDataset):
                 f'StreamingFinetuningDataset() got an unexpected keyword argument: {kwargs}'
             )
 
-        if remote is None or (local == remote):
-            if os.path.isdir(local):
-                contents = set(os.listdir(local))
-                if split not in contents:
-                    raise ValueError(
-                        f'local directory {local} does not contain split {split}'
-                    )
+        if streams is None:
+            _stream_remote_local_validate(remote, local, split)
+        else:
+            for stream in streams:
+                _stream_remote_local_validate(stream.remote, stream.local,
+                                              split)
 
         super().__init__(
+            streams=streams,
             local=local,
             remote=remote,
             split=split,

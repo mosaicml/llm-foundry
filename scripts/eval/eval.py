@@ -126,11 +126,7 @@ def evaluate_model(
             'The FSDP config block is not supported when loading ' +
             'Hugging Face models in 8bit.')
 
-    if hasattr(model_cfg.model, 'pretrained_lora_id_or_path'):
-        composer_model = load_peft_model(model_cfg.model, tokenizer,
-                                         num_retries)
-    else:
-        composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
+    composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
                                     num_retries)
 
     # Now add the eval metrics
@@ -156,6 +152,7 @@ def evaluate_model(
     assert composer_model is not None
 
     log.info(f'Building trainer for {model_cfg.model_name}...')
+
     trainer = Trainer(
         run_name=run_name,
         seed=seed,

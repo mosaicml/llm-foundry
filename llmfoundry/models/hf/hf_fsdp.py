@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Union
 from transformers import PreTrainedModel
 from transformers.models.opt.modeling_opt import OPTDecoder
 
+from composer.models.huggingface import maybe_get_underlying_model
+
 if TYPE_CHECKING:
     from peft import PeftModel
 
@@ -142,7 +144,8 @@ def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
 
     # OPT has an extra layer of wrapping, so special case here
     if isinstance(causal_base_model, OPTDecoder):
-        model.model._fsdp_wrap = False
+        underlying_model = maybe_get_underlying_model(model)
+        underlying_model.model._fsdp_wrap = False
     model_block = hf_get_hidden_layers(causal_base_model)
     lm_head = model.get_output_embeddings()
     # some models (OPT) implement .get_input_embeddings for the causal subclass

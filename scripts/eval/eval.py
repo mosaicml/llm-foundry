@@ -19,11 +19,9 @@ from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
-from transformers import (AutoModelForCausalLM, PreTrainedTokenizerBase,
-                          T5ForConditionalGeneration)
+from transformers import PreTrainedTokenizerBase
 
 install()
-from llmfoundry.models import MPTForCausalLM
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_evaluators, build_logger,
@@ -32,52 +30,6 @@ from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device)
 
 log = logging.getLogger(__name__)
-
-
-def load_peft_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-                    num_retries: int) -> ComposerModel:
-    try:
-        from peft import PeftModel
-    except ImportError as e:
-        raise ImportError(
-            f'Error importing from peft. Run `pip install -e .[gpu,peft]`. \n {e}'
-        )
-
-    model_registry = {
-        'mpt_causal_lm': MPTForCausalLM,
-        'hf_causal_lm': AutoModelForCausalLM,
-        'hf_prefix_lm': AutoModelForCausalLM,
-        'hf_t5': T5ForConditionalGeneration,
-    }
-
-    retries = 0
-    composer_model_wrapper = None
-    while retries < num_retries and composer_model_wrapper is None:
-        try:
-            trust_remote_code = model_cfg.get('trust_remote_code', True)
-            use_auth_token = model_cfg.get('use_auth_token', False)
-            model = model_registry[model_cfg.name].from_pretrained(
-                model_cfg.pretrained_model_name_or_path,
-                trust_remote_code=trust_remote_code,
-                use_auth_token=use_auth_token,
-            )
-
-            peft_model = PeftModel.from_pretrained(
-                model, model_cfg.pretrained_lora_id_or_path)
-
-            composer_model_wrapper = COMPOSER_MODEL_REGISTRY[model_cfg.name](
-                peft_model, tokenizer)
-        except Exception as e:
-            retries += 1
-            if retries >= num_retries:
-                raise e
-            else:
-                log.info(
-                    f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
-                )
-
-    assert composer_model_wrapper is not None
-    return composer_model_wrapper
 
 
 def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
@@ -174,12 +126,8 @@ def evaluate_model(
             'The FSDP config block is not supported when loading ' +
             'Hugging Face models in 8bit.')
 
-    if hasattr(model_cfg.model, 'pretrained_lora_id_or_path'):
-        composer_model = load_peft_model(model_cfg.model, tokenizer,
-                                         num_retries)
-    else:
-        composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
-                                    num_retries)
+    composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
+                                num_retries)
 
     # Now add the eval metrics
     if eval_loader_config is not None:
@@ -204,6 +152,7 @@ def evaluate_model(
     assert composer_model is not None
 
     log.info(f'Building trainer for {model_cfg.model_name}...')
+
     trainer = Trainer(
         run_name=run_name,
         seed=seed,

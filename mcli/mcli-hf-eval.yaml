@@ -8,6 +8,8 @@ integrations:
 
 command: |
   cd llm-foundry/scripts
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/mosaicml/composer.git@refactor_update_metric
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
@@ -28,16 +30,16 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: mosaicml/mpt-7b
     # Tokenizer
     tokenizer:
-      name: EleutherAI/gpt-neox-20b
+      name: mosaicml/mpt-7b
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path: mosaicml/mpt-7b
       init_device: mixed
       pretrained: true
       use_auth_token: false

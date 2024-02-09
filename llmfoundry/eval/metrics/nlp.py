@@ -15,12 +15,12 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
-from composer.metrics.nlp import InContextLearningMetric
 from composer.utils.eval_client import (EvalClient, LambdaEvalClient,
                                         LocalEvalClient,
                                         MosaicMLLambdaEvalClient)
 from torch import Tensor
 from torch.nn import functional as F
+from torchmetrics import Metric
 
 log = logging.getLogger(__name__)
 
@@ -35,18 +35,25 @@ __all__ = [
 ]
 
 
-class InContextLearningMetric(
-        InContextLearningMetric
-):  # TODO: this is a temporary solution until Max deprecates composer's superclass entirely
+class InContextLearningMetric(Metric):
 
-    def update(self, batch: dict, output_logits: torch.Tensor,
-               labels: torch.Tensor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.needs_batch = True
+
+    def update(self,
+               batch: dict,
+               outputs: Optional[torch.Tensor] = None,
+               labels: Optional[torch.Tensor] = None):
         """Abstract interface for computing an in-context learning metrics.
+
+        The `outputs` argument is deprecated and will be removed in v0.21 while it's functionality will
+        be moved to `outputs`.
 
         Args:
             batch (dict): Batch must consist minimally of `input_ids` as well as any other structure needed
                 to compute the metric.
-            output_logits (torch.Tensor): The model outputs evaluated on the batch `input_ids`
+            outputs (torch.Tensor): The model outputs evaluated on the batch `input_ids`
             labels (torch.Tensor): The correct outputs.
 
         Raises:
@@ -203,11 +210,11 @@ class InContextLearningLMAccuracy(InContextLearningMetric):
                        dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
 
-    def update(self, batch: dict, output_logits: torch.Tensor,
-               labels: torch.Tensor):
+    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
-            cont_tok_pred = output_logits[batch_idx].index_select(
-                dim=0, index=cont_idx - 1).argmax(dim=-1)
+            cont_tok_pred = outputs[batch_idx].index_select(dim=0,
+                                                            index=cont_idx -
+                                                            1).argmax(dim=-1)
             cont_tok_targ = labels[batch_idx].index_select(dim=0,
                                                            index=cont_idx - 1)
 
@@ -419,13 +426,13 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
                        dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.0), dist_reduce_fx='sum')
 
-    def update(self, batch: dict, output_logits: torch.Tensor,
-               labels: torch.Tensor):
+    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
         perplexities = []
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
             # continuation indices refer to indices in the original input's token space
-            cont_tok_logits = output_logits[batch_idx].index_select(
-                dim=0, index=cont_idx - 1)
+            cont_tok_logits = outputs[batch_idx].index_select(dim=0,
+                                                              index=cont_idx -
+                                                              1)
             # labels have been shifted left by one index, so the cont_idx needs to be shifted as well.
             cont_tok_targ = labels[batch_idx].index_select(dim=0,
                                                            index=cont_idx - 1)
@@ -486,8 +493,7 @@ class InContextLearningExpectedCalibrationError(InContextLearningMetric):
                        default=torch.zeros(n_buckets),
                        dist_reduce_fx='sum')
 
-    def update(self, batch: dict, output_logits: torch.Tensor,
-               labels: torch.Tensor):
+    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
         pass
 
     def compute(self):
@@ -523,13 +529,14 @@ class InContextLearningMCExpectedCalibrationError(
     # Make torchmetrics call update only once
     full_state_update = False
 
-    def update(self, batch: Dict[str, Any], output_logits: torch.Tensor,
+    def update(self, batch: Dict[str, Any], outputs: torch.Tensor,
                labels: torch.Tensor):
-        output_logits = torch.softmax(output_logits, dim=2)
+        outputs = torch.softmax(outputs, dim=2)
         probabilites = []
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
-            cont_tok_logits = output_logits[batch_idx].index_select(
-                dim=0, index=cont_idx - 1)
+            cont_tok_logits = outputs[batch_idx].index_select(dim=0,
+                                                              index=cont_idx -
+                                                              1)
             cont_tok_targ = labels[batch_idx].index_select(dim=0,
                                                            index=cont_idx - 1)
             probability = cont_tok_logits.index_select(
@@ -568,12 +575,13 @@ class InContextLearningLMExpectedCalibrationError(
     # Make torchmetrics call update only once
     full_state_update = False
 
-    def update(self, batch: Dict[str, Any], output_logits: torch.Tensor,
+    def update(self, batch: Dict[str, Any], outputs: torch.Tensor,
                labels: torch.Tensor):
-        output_logits = torch.softmax(output_logits, dim=2)
+        outputs = torch.softmax(outputs, dim=2)
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
-            cont_tok_logits = output_logits[batch_idx].index_select(
-                dim=0, index=cont_idx - 1)
+            cont_tok_logits = outputs[batch_idx].index_select(dim=0,
+                                                              index=cont_idx -
+                                                              1)
             cont_tok_pred = cont_tok_logits.argmax(dim=-1)
             confidence = cont_tok_logits.max(dim=-1).values.min()
             cont_tok_targ = labels[batch_idx].index_select(dim=0,

@@ -38,8 +38,8 @@ import warnings
 from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
-from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
-                    cast)
+from typing import (Any, Callable, Dict, List, Literal, Optional, Set, Tuple,
+                    Union, cast)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
@@ -112,53 +112,38 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
-def _get_role_key(message: Dict[str, str]) -> str:
-    if not isinstance(message, Mapping):
+def _get_key(dictionary: Dict[str, Any], allowed_keys: Set[str]):
+    if not isinstance(dictionary, Mapping):
         raise TypeError(
-            f'Expected message to be a mapping, but found {type(message)}')
-    role_keys = _ALLOWED_ROLE_KEYS.intersection(message.keys())
-    if len(role_keys) != 1:
-        raise ValueError(f'Expected 1 role key, but found {len(role_keys)}')
-    role_key = list(role_keys)[0]
-    return role_key
-
-
-def _get_content_key(message: Dict[str, str]) -> str:
-    if not isinstance(message, Mapping):
-        raise TypeError(
-            f'Expected message to be a mapping, but found {type(message)}')
-    content_keys = _ALLOWED_CONTENT_KEYS.intersection(message.keys())
-    if len(content_keys) != 1:
+            f'Expected dictionary to be a mapping, but found {type(dictionary)}'
+        )
+    desired_keys = allowed_keys.intersection(dictionary.keys())
+    if len(desired_keys) != 1:
         raise ValueError(
-            f'Expected 1 content key, but found {len(content_keys)}')
-    content_key = list(content_keys)[0]
-    return content_key
-
-
-def _get_message_key(example: ChatFormattedDict):
-    if not isinstance(example, Mapping):
-        raise TypeError(
-            f'Expected example to be a mapping, but found {type(example)}')
-    if len(example.keys()) != 1:
-        raise ValueError(
-            f'Expected 1 message key, but found {len(example.keys())}')
-    message_key = list(example.keys())[0]
-    if message_key not in _ALLOWED_MESSAGES_KEYS:
-        raise ValueError(f'Invalid message key: {message_key}')
-    return message_key
+            f'Dictionary has multiple keys in `allowed_keys`: {desired_keys}')
+    return list(desired_keys)[0]
 
 
 def _validate_chat_formatted_example(example: ChatFormattedDict):
     if not isinstance(example, Mapping):
         raise TypeError(
             f'Expected example to be a mapping, but found {type(example)}')
-    messages = example[_get_message_key(example)]
+    messages = example[_get_key(example, _ALLOWED_MESSAGES_KEYS)]
     if not isinstance(messages, List):
         raise TypeError(
             f'Expected messages to be an iterable, but found {type(messages)}')
+    if len(messages) <= 1:
+        raise ValueError('Chat example must have at least two messages')
+
+    last_message = messages[-1]
+    role_key = _get_key(last_message, _ALLOWED_ROLE_KEYS)
+    last_role = last_message[role_key]
+    if last_role not in _ALLOWED_LAST_MESSAGE_ROLES:
+        raise ValueError(f'Invalid last message role: {last_role}')
+
     for message in messages:
-        role_key, content_key = _get_role_key(message), _get_content_key(
-            message)
+        role_key, content_key = _get_key(message, _ALLOWED_ROLE_KEYS), _get_key(
+            message, _ALLOWED_CONTENT_KEYS)
         if len(message.keys()) != 2:
             raise ValueError(
                 f'Expected 2 keys in message, but found {len(message.keys())}')
@@ -168,14 +153,6 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
             raise TypeError(
                 f'Expected content to be a string, but found {type(message[content_key])}'
             )
-
-    if len(messages) <= 1:
-        raise ValueError('Chat example must have at least two messages')
-    last_message = messages[-1]
-    role_key = _get_role_key(last_message)
-    last_role = last_message[role_key]
-    if last_role not in _ALLOWED_LAST_MESSAGE_ROLES:
-        raise ValueError(f'Invalid last message role: {last_role}')
 
 
 def _slice_chat_formatted_example(
@@ -195,18 +172,12 @@ def _slice_chat_formatted_example(
         KeyError: If a message does not have a role or content.
     """
     _validate_chat_formatted_example(example)
-    messages = example[_get_message_key(example)]
+    messages = example[_get_key(example, _ALLOWED_MESSAGES_KEYS)]
 
-    if len(messages) < 2:
-        raise ValueError(
-            f'chat example must have at least two messages. {messages=}')
     last_message = messages[-1]
     if last_message['role'] != 'assistant':
         raise ValueError(
             f'last message must be from assistant. {last_message=}')
-    for message in messages:
-        if 'role' not in message or 'content' not in message:
-            raise KeyError(f'message must have role and content. {message=}')
 
     full_conversation = tokenizer.apply_chat_template(messages, tokenize=False)
     prompt = tokenizer.apply_chat_template(messages[:-1],

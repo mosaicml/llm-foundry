@@ -107,6 +107,9 @@ class StreamingPairsDataset(StreamingDataset):
                  batching_method: str = 'random',
                  **kwargs: Any):
 
+        self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
+
         group_method = kwargs.pop('group_method', None)
         if group_method is not None:
             raise NotImplementedError(
@@ -116,6 +119,12 @@ class StreamingPairsDataset(StreamingDataset):
 
         # JP Added for contrastive pretraining
         self.append_eos_token = kwargs.pop('append_eos_token', None) # this should be part of the dataset config, if specified
+        if self.append_eos_token:
+            self.append_token = self.tokenizer.eos_token
+        else:
+            self.append_token = ''
+        self.prepend_query = kwargs.pop('prepend_query', '')
+        self.prepend_passage = kwargs.pop('prepend_passage', '')
 
         if len(kwargs) > 0:
             raise ValueError(
@@ -164,8 +173,7 @@ class StreamingPairsDataset(StreamingDataset):
             sampling_granularity=sampling_granularity,
             batching_method=batching_method,
         )
-        self.tokenizer = tokenizer
-        self.max_seq_len = max_seq_len
+        
 
     # How to tokenize a text sample to a token sample
     def _tokenize(self, text_sample: Mapping) -> Dict[str, List[int]]:
@@ -198,31 +206,34 @@ class StreamingPairsDataset(StreamingDataset):
                     idx: int) -> Union[Dict[str, List[int]], torch.Tensor]:
         sample = super().__getitem__(idx)
         text_samples = []
+
         # JP: We use this sample to separate text_a column from text_b column
-        if self.append_eos_token:
-            text_samples = [('{}{}').format(sample[item],self.tokenizer.eos_token) for item in sample if item.startswith("text_")]
-        else:
-            text_samples = [sample[item] for item in sample if item.startswith("text_")]
+        # Question: what happens when the passage is longer than the max sequence length?
+        for item in sample:
+            if item.startswith("text_a"):
+                text_samples.append('{}{}{}'.format(self.prepend_query, sample[item], self.append_token))
+            if item.startswith("text_b"):
+                text_samples.append('{}{}{}'.format(self.prepend_passage, sample[item], self.append_token))
+    
         
         if len(text_samples) == 0 \
             and sample["query_text"] \
             and sample["positive_passage"] \
             and sample["negative_passages"]:
             # CJ: this is gross, I'm sorry
-            if self.append_eos_token:
-                text_samples.append(sample["query_text"]+self.tokenizer.eos_token)
-                text_samples.append(sample["positive_passage"]+self.tokenizer.eos_token)
+            text_samples.append('{}{}{}'.format(self.prepend_query, 
+                                                sample["query_text"], 
+                                                self.append_token))
+            text_samples.append('{}{}{}'.format(self.prepend_passage, 
+                                                sample["positive_passage"], 
+                                                self.append_token))
 
-                # JP what happens if there are no negative passages?
-                for negative_sample in pickle.loads(sample["negative_passages"]):
-                    text_samples.append(negative_sample+self.tokenizer.eos_token)
-            else:
-                text_samples.append(sample["query_text"])
-                text_samples.append(sample["positive_passage"])
-
-                # JP what happens if there are no negative passages?
-                for negative_sample in pickle.loads(sample["negative_passages"]):
-                    text_samples.append(negative_sample)
+            # JP what happens if there are no negative passages?
+            for negative_sample in pickle.loads(sample["negative_passages"]):
+                text_samples.append('{}{}{}'.format(self.prepend_passage, 
+                                                    negative_sample,
+                                                    self.append_token))
+        
             
             
             # Migth be "positive_passage" and "negative_passages"

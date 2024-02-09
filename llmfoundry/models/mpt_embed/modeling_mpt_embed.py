@@ -158,6 +158,8 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         # or the EOS token at the end of the sequence
         self.vector_representation = resolved_om_model_config.get('contrastive_config',
                                                                   {}).get('vector_representation','avg')
+        self.normalize_output = resolved_om_model_config.get('contrastive_config',
+                                                                  {}).get('normalize_output',True)
         
         step_size = self.config.to_dict().get("pos_step_size", 2)
         self.pattern = torch.arange(1, step_size, device=model.device)
@@ -296,14 +298,12 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             last_true_indices = queries_flipped_mask.int().argmax(dim=1) - 1 # need to subtract 1 because it is findinng the first instance of the padded token
             q_pooled_outputs = queries_last_hidden_state[row_indices,last_true_indices,:] # b,s,h --> b,h
 
-            #print(queries_last_hidden_state[0,:25,0])
-            #print(queries_last_hidden_state[1,:25,0])
+            # This is another way of achieving the same result
+            # q_pooled_outputs = torch.stack([ queries_last_hidden_state[i, j, :] for i, j in enumerate(queries_batch.get('attention_mask', None).sum(dim=1) - 1)])
 
             passages_flipped_mask = ~passages_batch.get('attention_mask', None).bool()
             last_true_indices = passages_flipped_mask.int().argmax(dim=1) - 1
             p_pooled_outputs = passages_last_hidden_state[row_indices,last_true_indices,:] # b,s,h --> b,h
-            #print(last_true_indices)
-            #print('\n')
 
         else: 
 
@@ -318,8 +318,9 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             
         #print('>>p_pooled_outputs shape:',p_pooled_outputs.shape)
         
-        q_pooled_outputs = F.normalize(q_pooled_outputs, dim=-1) # Todo: should be configurable when L2 normalizing
-        p_pooled_outputs = F.normalize(p_pooled_outputs, dim=-1)
+        if self.normalize_output:
+            q_pooled_outputs = F.normalize(q_pooled_outputs, dim=-1) # Todo: should be configurable when L2 normalizing
+            p_pooled_outputs = F.normalize(p_pooled_outputs, dim=-1)
 
         q_pooled_outputs = q_pooled_outputs.contiguous() # Why do we need to make this contiguous?
         p_pooled_outputs = p_pooled_outputs.contiguous() # Why do we need to make this contiguous?

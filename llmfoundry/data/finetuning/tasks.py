@@ -66,8 +66,8 @@ DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
                  '.downloaded_finetuning'))
 SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
 
-PromptResponseDict = Dict[str, str]
-ChatFormattedDict = Dict[str, List[Dict[str, str]]]
+PromptResponseDict = Mapping[str, str]
+ChatFormattedDict = Mapping[str, List[Dict[str, str]]]
 Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
 TokenizedExample = Dict[str, List[int]]
@@ -112,7 +112,7 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
-def _get_key(dictionary: Dict[str, Any], allowed_keys: Set[str]):
+def _get_key(dictionary: Mapping[str, Any], allowed_keys: Set[str]):
     if not isinstance(dictionary, Mapping):
         raise TypeError(
             f'Expected dictionary to be a mapping, but found {type(dictionary)}'

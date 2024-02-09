@@ -38,8 +38,8 @@ import warnings
 from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
-from typing import (Any, Callable, Dict, List, Literal, Optional, Set, Tuple,
-                    Union, cast)
+from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence, Set,
+                    Tuple, Union, cast)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub

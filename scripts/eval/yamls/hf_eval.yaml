@@ -12,7 +12,7 @@ models:
   model:
     name: hf_causal_lm
     pretrained_model_name_or_path: ${model_name_or_path}
-    init_device: mixed
+    init_device: cpu
     pretrained: true
   tokenizer:
     name: ${model_name_or_path}
@@ -49,13 +49,13 @@ device_eval_batch_size: 4
 #   project: wandb_logging
 
 loggers:
-  wandb: {entity: mosaic-ml, project: maxisawesome}
-
-icl_subset_num_batches: 10
+  wandb: {entity: mosaic-ml, project: maxisawesome, }
 
 callbacks:
   eval_output_logging:
     batch_keys_to_log: []
 
-icl_tasks: 'eval/yamls/tasks_v0.1.yaml'
-eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.1.yaml'
+icl_subset_num_batches: 8
+icl_tasks: "eval/yamls/tasks_one_of_each.yaml"
+# icl_tasks: "eval/yamls/tasks_v0.3.yaml"
+# eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"

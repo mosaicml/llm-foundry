@@ -548,31 +548,38 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
 
 
 @pytest.mark.parametrize('pretokenize', [True, False])
+@pytest.mark.parametrize('use_multiple_streams', [True, False])
 @pytest.mark.parametrize('use_bytes', [True, False])
-def test_finetuning_dataloader_streaming(pretokenize: bool, use_bytes: bool,
+def test_finetuning_dataloader_streaming(pretokenize: bool,
+                                         use_multiple_streams: bool,
+                                         use_bytes: bool,
                                          tmp_path: pathlib.Path):
     max_seq_len = 2048
-
-    remote_path = os.path.join(tmp_path, 'remote')
-    local_path = os.path.join(tmp_path, 'local')
 
     tokenizer = build_tokenizer(
         tokenizer_name='gpt2',
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
-    build_mock_ft_streaming_dataset(remote_path,
-                                    'train',
-                                    pretokenize,
-                                    use_bytes=use_bytes,
-                                    tokenizer=tokenizer)
+    streams_config = {'streams': {}}
+    num_streams = 2
+    for i in range(num_streams):
+        remote_path = os.path.join(tmp_path, f'remote_{i}')
+        local_path = os.path.join(tmp_path, f'local_{i}')
+        build_mock_ft_streaming_dataset(remote_path,
+                                        'train',
+                                        pretokenize,
+                                        use_bytes=use_bytes,
+                                        tokenizer=tokenizer)
+        streams_config['streams'][f'stream_{i}'] = {
+            'remote': remote_path,
+            'local': local_path,
+            'split': 'train'
+        }
 
     cfg = {
         'name': 'finetuning',
         'dataset': {
-            'remote': remote_path,
-            'local': local_path,
-            'split': 'train',
             'max_seq_len': 2048,
             'decoder_only_format': True,
             'allow_pad_trimming': False,
@@ -586,6 +593,10 @@ def test_finetuning_dataloader_streaming(pretokenize: bool, use_bytes: bool,
         'persistent_workers': False,
         'timeout': 0
     }
+    if use_multiple_streams:
+        cfg['dataset'].update(streams_config)
+    else:
+        cfg['dataset'].update(streams_config['streams']['stream_0'])
 
     cfg = om.create(cfg)
 

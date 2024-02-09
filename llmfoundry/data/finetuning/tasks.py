@@ -87,7 +87,7 @@ def _get_example_type(example: Example) -> ExampleType:
     """
     if not isinstance(example, Mapping):
         raise TypeError(
-            f'Expected example to have dict-like, but found {type(example)}')
+            f'Expected example to be a Mapping, but found {type(example)}')
     if any(allowed_message_key in example
            for allowed_message_key in _ALLOWED_MESSAGES_KEYS):
         return 'chat'

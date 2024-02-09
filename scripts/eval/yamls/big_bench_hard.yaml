@@ -8,6 +8,7 @@ icl_tasks:
   continuation_delimiter: " "
   question_prelimiter: ""
   do_normalization: false
+  has_categories: true
   early_stopping_criteria:
   - "\n\n\n\n"
   - "Q:"

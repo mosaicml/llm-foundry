@@ -7,10 +7,9 @@
 import functools
 from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Union
 
+from composer.models.huggingface import maybe_get_underlying_model
 from transformers import PreTrainedModel
 from transformers.models.opt.modeling_opt import OPTDecoder
-
-from composer.models.huggingface import maybe_get_underlying_model
 
 if TYPE_CHECKING:
     from peft import PeftModel

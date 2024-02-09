@@ -127,7 +127,7 @@ def evaluate_model(
             'Hugging Face models in 8bit.')
 
     composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
-                                    num_retries)
+                                num_retries)
 
     # Now add the eval metrics
     if eval_loader_config is not None:

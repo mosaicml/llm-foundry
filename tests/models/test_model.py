@@ -502,13 +502,16 @@ def test_loss_fn():
 
 @pytest.mark.parametrize('peft_config', [
     None,
-    {'peft_type': 'LORA', 'task_type': 'CAUSAL_LM'},
+    {
+        'peft_type': 'LORA',
+        'task_type': 'CAUSAL_LM'
+    },
 ])
-def test_opt_wrapping(peft_config: Optional[dict]):
+def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
     if peft_config is not None:
         _ = pytest.importorskip('peft')
 
-    conf = {
+    conf: dict[str, dict[str, Union[str, dict]]] = {
         'model': {
             'name': 'hf_causal_lm',
             'pretrained_model_name_or_path': 'facebook/opt-125m',

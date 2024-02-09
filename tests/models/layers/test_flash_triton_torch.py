@@ -134,6 +134,10 @@ def test_attn_impl(attn_impl_0: str,
         # zero out the last third of the attention mask
         # to simulate padding
         attention_mask[:, -s // 3:] = 0
+        if sequence_id is not None:
+            sequence_id = sequence_id.masked_fill(
+                ~attention_mask, -1
+            )  # Similar to how we set sequence id for padded tokens: https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249
 
     def gen_bias(attn_impl: str):
         causal = True

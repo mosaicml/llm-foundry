@@ -17,17 +17,20 @@ from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 @pytest.mark.gpu
 @pytest.mark.parametrize('activation_checkpointing', [True, False])
 @pytest.mark.parametrize('activation_checkpointing_target', [
-    'grouped_query_attention', [], ['grouped_query_attention'],
-    ['mptblock', 'grouped_query_attention']
+    'grouped_query_attention', [], ['grouped_query_attention'], {
+        'mptblock': [1],
+        'grouped_query_attention': 'first-1, last-1'
+    }
 ])
 def test_fsdp_act_checkpoint(activation_checkpointing: bool,
-                             activation_checkpointing_target: Union[list, str]):
+                             activation_checkpointing_target: Union[list, str,
+                                                                    dict]):
     device = get_device('gpu')
     model_cfg = {
         'name': 'mpt_causal_lm',
         'd_model': 128,
         'n_heads': 4,
-        'n_layers': 2,
+        'n_layers': 3,
         'expansion_ratio': 1,
         'max_seq_len': 16,
         'vocab_size': 50368,
@@ -59,10 +62,7 @@ def test_fsdp_act_checkpoint(activation_checkpointing: bool,
         assert not isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
             blocks[0], CheckpointWrapper)
-    elif (not activation_checkpointing_target
-         ) or activation_checkpointing_target == [
-             'mptblock', 'grouped_query_attention'
-         ]:
+    elif (not activation_checkpointing_target):
         module = trainer.state.model.model._fsdp_wrapped_module.transformer.blocks[
             0]._fsdp_wrapped_module
         assert isinstance(module, CheckpointWrapper)
@@ -72,6 +72,19 @@ def test_fsdp_act_checkpoint(activation_checkpointing: bool,
         assert isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
             blocks[0]._fsdp_wrapped_module.attn, CheckpointWrapper)
+    elif activation_checkpointing_target == {
+            'mptblock': [1],
+            'grouped_query_attention': 'first-1, last-1'
+    }:
+        assert isinstance(
+            trainer.state.model.model._fsdp_wrapped_module.transformer.
+            blocks[0]._fsdp_wrapped_module.attn, CheckpointWrapper)
+        assert isinstance(
+            trainer.state.model.model._fsdp_wrapped_module.transformer.
+            blocks[1]._fsdp_wrapped_module, CheckpointWrapper)
+        assert isinstance(
+            trainer.state.model.model._fsdp_wrapped_module.transformer.
+            blocks[2]._fsdp_wrapped_module.attn, CheckpointWrapper)
     else:
         raise ValueError(
             f'Unknown activation_checkpointing_target: {activation_checkpointing_target}'

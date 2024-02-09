@@ -466,6 +466,8 @@ def main(cfg: DictConfig) -> Trainer:
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
 
+    use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
+
     # Algorithms
     algorithms = [
         build_algorithm(str(name), algorithm_cfg)
@@ -479,8 +481,6 @@ def main(cfg: DictConfig) -> Trainer:
         tokenizer,
         device_train_batch_size,
     )
-
-    use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
 
     if mosaicml_logger is not None:
         mosaicml_logger.log_metrics({'data_validated': time.time()})

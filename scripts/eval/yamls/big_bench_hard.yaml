@@ -4,11 +4,12 @@ icl_tasks:
   dataset_uri: eval/local_data/bbh/bbh.jsonl
   num_fewshot: [0]
   icl_task_type: question_answering
-  cot_delimiter: "So the answer is "
+  cot_delimiter: "the answer is"
   continuation_delimiter: " "
   question_prelimiter: ""
   do_normalization: false
   has_categories: true
   early_stopping_criteria:
-  - "\n\n\n\n"
-  - "Q:"
+    - "</s>"
+    - "Q:"
+    - "\n\n"

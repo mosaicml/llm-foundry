@@ -70,7 +70,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
-        pretrained_lora_id_or_path = om_model_config.get('pretrained_lora_id_or_path', None)
+        pretrained_lora_id_or_path = om_model_config.get(
+            'pretrained_lora_id_or_path', None)
 
         if not om_model_config.get(
                 'trust_remote_code', True
@@ -256,7 +257,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     'PEFT is not installed, but lora_id_or_path was passed. Please install LLM Foundry with the peft extra to use lora_id_or_path.'
                 )
             from peft import PeftModelForCausalLM
-            model = PeftModelForCausalLM.from_pretrained(model, pretrained_lora_id_or_path)
+            model = PeftModelForCausalLM.from_pretrained(
+                model, pretrained_lora_id_or_path)
 
         super().__init__(
             model=model,

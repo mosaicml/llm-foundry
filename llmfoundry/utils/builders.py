@@ -12,7 +12,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import torch
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
-                                MemoryMonitor, OptimizerMonitor,
+                                MemoryMonitor, MemorySnapshot, OptimizerMonitor,
                                 RuntimeEstimator, SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
@@ -165,6 +165,8 @@ def build_callback(
         return LRMonitor()
     elif name == 'memory_monitor':
         return MemoryMonitor()
+    elif name == 'memory_snapshot':
+        return MemorySnapshot(**kwargs)
     elif name == 'speed_monitor':
         return SpeedMonitor(window_size=kwargs.get('window_size', 1),
                             gpu_flops_available=kwargs.get(

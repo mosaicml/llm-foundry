@@ -29,7 +29,7 @@ try:
     # gated import otherwise.
     import transformers
 
-    from llmfoundry import optim, utils
+    from llmfoundry import optim, registry, utils
     from llmfoundry.data import (ConcatTokensDataset,
                                  MixtureOfDenoisersCollator, NoConcatDataset,
                                  Seq2SeqFinetuningCollator,
@@ -49,7 +49,6 @@ try:
                                        MPTForCausalLM, MPTModel,
                                        MPTPreTrainedModel)
     from llmfoundry.tokenizers import TiktokenTokenizerWrapper
-    from llmfoundry import registry
     if is_flash_v1_installed():
         transformers.utils.is_flash_attn_available = lambda: False
 

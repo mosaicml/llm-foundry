@@ -7,8 +7,9 @@ import os
 import re
 import warnings
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
+import catalogue
 import torch
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
@@ -17,8 +18,8 @@ from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from composer.optim import DecoupledAdamW
 from composer.loggers import LoggerDestination
+from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ComposerScheduler,
                                       ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
@@ -29,6 +30,7 @@ from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from llmfoundry import registry
 from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
                                   FDiffMetrics, GlobalLRScaling,
                                   HuggingFaceCheckpointer, LayerFreezing,
@@ -39,7 +41,6 @@ from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
-from llmfoundry import registry
 
 log = logging.getLogger(__name__)
 
@@ -241,12 +242,45 @@ def build_callback(
         raise ValueError(f'Not sure how to build callback: {name}')
 
 
+def _registry_based_builder(
+    name: str,
+    registry: catalogue.Registry,
+    pre_validation_function: Optional[Callable[[Any], None]],
+    post_validation_function: Optional[Callable[[Any], None]],
+    kwargs: Dict[str, Any],
+) -> Any:
+    registered_item = registry.get(name)
+
+    if pre_validation_function is not None:
+        pre_validation_function(registered_item)
+
+    # If it is a class, construct the class with kwargs
+    # If it is a function, create a partial with kwargs
+    if isinstance(registered_item, type):
+        constructed_item = registered_item(**kwargs)
+    elif callable(registered_item):
+        constructed_item = functools.partial(registered_item, **kwargs)
+    else:
+        raise ValueError(
+            f'Expected {name} to be a class or function, but got {type(registered_item)}'
+        )
+
+    if post_validation_function is not None:
+        post_validation_function(registered_item)
+
+    return constructed_item
+
+
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
-    logger_class = registry.loggers.get(name)
-    if not issubclass(logger_class, LoggerDestination):
-        raise ValueError(f'Not sure how to build logger: {name}')
-    
-    return logger_class(**kwargs)
+    """Builds a logger from the registry."""
+
+    def pre_validation(logger: Any):
+        if not issubclass(logger, LoggerDestination):
+            raise ValueError(f'Not sure how to build logger: {name}')
+
+    return _registry_based_builder(name, registry.loggers, pre_validation, None,
+                                   kwargs)
+
 
 def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
     if name == 'gradient_clipping':

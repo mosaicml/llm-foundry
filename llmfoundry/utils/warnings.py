@@ -1,6 +1,10 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+__all__ = [
+    'VersionedDeprecationWarning',
+]
+
 
 class VersionedDeprecationWarning(DeprecationWarning):
     """A custom deprecation warning class that includes version information.

@@ -7,7 +7,9 @@ import os
 import sys
 import time
 import warnings
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, ModuleType
+from pathlib import Path
+import importlib
 
 import torch
 from composer import Trainer
@@ -130,8 +132,27 @@ def build_composer_model(model_cfg: DictConfig,
             f'Not sure how to build model with name={model_cfg.name}')
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
+def import_file(loc: Union[str, Path]) -> ModuleType:
+    """Import module from a file. Used to load models from a directory.
+
+    name (str): Name of module to load.
+    loc (str / Path): Path to the file.
+    RETURNS: The loaded module.
+    """
+    spec = importlib.util.spec_from_file_location('python_code', str(loc))
+    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return module
 
 def main(cfg: DictConfig) -> Trainer:
+    # Run user provided code if specified
+    code_paths = pop_config(cfg, 'code_paths', must_exist=False, default_value=[], convert=True)
+    for code_path in code_paths:
+        try:
+            import_file(code_path)
+        except Exception as e:
+            raise ValueError(f'Error importing code from {code_path}: {e}')
+
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
         action='ignore',

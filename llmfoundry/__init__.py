@@ -49,6 +49,7 @@ try:
                                        MPTForCausalLM, MPTModel,
                                        MPTPreTrainedModel)
     from llmfoundry.tokenizers import TiktokenTokenizerWrapper
+    from llmfoundry import registry
     if is_flash_v1_installed():
         transformers.utils.is_flash_attn_available = lambda: False
 
@@ -93,6 +94,7 @@ __all__ = [
     'optim',
     'utils',
     'TiktokenTokenizerWrapper',
+    'registry',
 ]
 
 __version__ = '0.5.0'

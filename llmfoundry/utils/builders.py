@@ -17,9 +17,8 @@ from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
-                              TensorboardLogger, WandBLogger)
 from composer.optim import DecoupledAdamW
+from composer.loggers import LoggerDestination
 from composer.optim.scheduler import (ComposerScheduler,
                                       ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
@@ -40,6 +39,7 @@ from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry import registry
 
 log = logging.getLogger(__name__)
 
@@ -242,19 +242,11 @@ def build_callback(
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
-    if name == 'wandb':
-        return WandBLogger(**kwargs)
-    elif name == 'tensorboard':
-        return TensorboardLogger(**kwargs)
-    elif name == 'in_memory_logger':
-        return InMemoryLogger(**kwargs)
-    elif name == 'mlflow':
-        return MLFlowLogger(**kwargs)
-    elif name == 'inmemory':
-        return InMemoryLogger(**kwargs)
-    else:
+    logger_class = registry.loggers.get(name)
+    if not issubclass(logger_class, LoggerDestination):
         raise ValueError(f'Not sure how to build logger: {name}')
-
+    
+    return logger_class(**kwargs)
 
 def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
     if name == 'gradient_clipping':

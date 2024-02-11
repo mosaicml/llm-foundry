@@ -43,6 +43,7 @@ log = logging.getLogger(__name__)
 
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""
+    loaders = [cfg.train_loader]
     for loader in loaders:
         print(f"bigning debug loader: {loader}")
         if loader.name == 'text':

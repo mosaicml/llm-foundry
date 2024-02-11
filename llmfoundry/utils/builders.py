@@ -31,7 +31,7 @@ from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
-                                  FDiffMetrics, GlobalLRScaling,
+                                  FDiffMetrics, Float8Linear, GlobalLRScaling,
                                   HuggingFaceCheckpointer, LayerFreezing,
                                   MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
@@ -225,6 +225,8 @@ def build_callback(
             )
         return CurriculumLearning(**kwargs,
                                   current_dataset_config=config['train_loader'])
+    elif name == 'float8_linear':
+        return Float8Linear(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

@@ -7,6 +7,7 @@ try:
         CurriculumLearning
     from llmfoundry.callbacks.eval_gauntlet_callback import EvalGauntlet
     from llmfoundry.callbacks.fdiff_callback import FDiffMetrics
+    from llmfoundry.callbacks.float8_linear_callback import Float8Linear
     from llmfoundry.callbacks.hf_checkpointer import HuggingFaceCheckpointer
     from llmfoundry.callbacks.monolithic_ckpt_callback import \
         MonolithicCheckpointSaver
@@ -21,6 +22,7 @@ except ImportError as e:
 
 __all__ = [
     'FDiffMetrics',
+    'Float8Linear',
     'MonolithicCheckpointSaver',
     'GlobalLRScaling',
     'LayerFreezing',

@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 
 log = logging.getLogger(__name__)
 
-class Float8Linears(Callback):
+class Float8Linear(Callback):
     """Enable and configure float8 linear layers in the model.
 
     This callback is currently experimental. The API may change without warning in the future.

@@ -484,6 +484,7 @@ class GroupedQueryAttention(nn.Module):
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
+        num_input_bits: Optional[int] = None,
     ):
         super().__init__()
 
@@ -523,6 +524,15 @@ class GroupedQueryAttention(nn.Module):
             'bias': bias,
         }
         fc_kwargs['device'] = device
+
+        # Pass in num_input_bits to the FC layer if it is specified, for activation quantization
+        if num_input_bits is not None and fc_type == 'quantized':
+            self.fc_kwargs['num_input_bits'] = num_input_bits
+        elif num_input_bits is not None:
+            raise ValueError(
+                f'`num_input_bits` is only supported for `fc_type` "quantized" (not {fc_type}).'
+            )
+        
         self.Wqkv = FC_CLASS_REGISTRY[fc_type](
             self.d_model,
             self.d_model + 2 * self.kv_n_heads * self.head_dim,

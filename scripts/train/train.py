@@ -43,19 +43,8 @@ log = logging.getLogger(__name__)
 
 def validate_config(cfg: DictConfig):
     """Validates compatible model and dataloader selection."""
-    loaders = [cfg.train_loader]
-    if 'eval_loader' in cfg:
-        eval_loader = cfg.eval_loader
-        if isinstance(eval_loader, ListConfig):
-            for loader in eval_loader:
-                if loader.label is None:
-                    raise ValueError(
-                        'When specifying multiple evaluation datasets, each one must include the \
-                            `label` attribute.')
-                loaders.append(loader)
-        else:
-            loaders.append(eval_loader)
     for loader in loaders:
+        print(f"bigning debug loader: {loader}")
         if loader.name == 'text':
             if cfg.model.name in ['hf_prefix_lm', 'hf_t5']:
                 raise ValueError(

@@ -35,12 +35,6 @@ class Float8Linears(Callback):
     def init(self, state: State, logger: Logger):
         del state, logger
 
-        from float8_experimental.float8_linear_utils import (
-                swap_linear_with_float8_linear,
-                sync_float8_amax_and_scale_history,
-            )
-        from float8_experimental.float8_linear import Float8Linear
-
         # Configure fp8 training with float8_experimental
         # from float8_experimental import config
         # config.enable_amax_init = False  # only needed for autocast + compile + FSDP +  float8 delayed

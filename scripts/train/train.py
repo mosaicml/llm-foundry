@@ -486,6 +486,7 @@ def main(cfg: DictConfig) -> Trainer:
     else:
         log.info('Building eval loader...')
         eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
+        eval_loader_config = None
         evaluators, _, eval_gauntlet_callback = build_evaluators(
             eval_loader_config,
             icl_tasks_config,

@@ -90,6 +90,7 @@ class MPTMLP(nn.Module):
         act_fn: Callable[[torch.Tensor], torch.Tensor] = _DEFAULT_ACT_FN,
         device: Optional[str] = None,
         bias: bool = True,
+        num_input_bits: Optional[int] = None,
     ):
         super().__init__()
         ffn_hidden_size = resolve_ffn_hidden_size(d_model, expansion_ratio,
@@ -100,6 +101,14 @@ class MPTMLP(nn.Module):
 
         self.fc_kwargs['device'] = device
 
+        # Pass in num_input_bits to the FC layer if it is specified, for activation quantization
+        if num_input_bits is not None and fc_type == 'quantized':
+            self.fc_kwargs['num_input_bits'] = num_input_bits
+        elif num_input_bits is not None:
+            raise ValueError(
+                f'`num_input_bits` is only supported for `fc_type` "quantized" (not {fc_type}).'
+            )
+        
         self.up_proj = FC_CLASS_REGISTRY[fc_type](
             d_model,
             ffn_hidden_size,
@@ -128,6 +137,7 @@ class MPTGLU(MPTMLP):
         act_fn: Callable[[torch.Tensor], torch.Tensor] = _DEFAULT_ACT_FN,
         device: Optional[str] = None,
         bias: bool = True,
+        num_input_bits: Optional[int] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -137,6 +147,7 @@ class MPTGLU(MPTMLP):
             act_fn=act_fn,
             device=device,
             bias=bias,
+            num_input_bits=num_input_bits,
         )
         self.gate_proj = FC_CLASS_REGISTRY[fc_type](
             d_model,
@@ -166,6 +177,7 @@ def build_ffn(
     ffn_act_fn: Optional[dict] = None,
     device: Optional[str] = None,
     bias: bool = True,
+    num_input_bits: Optional[int] = None,
     **kwargs: Any,
 ) -> nn.Module:
     ffn_type = kwargs.pop('ffn_type')
@@ -182,6 +194,7 @@ def build_ffn(
             ffn_hidden_size=ffn_hidden_size,
             device=device,
             bias=bias,
+            num_input_bits=num_input_bits,
         )
     elif ffn_type == 'te_ln_mlp':
         assert te is not None

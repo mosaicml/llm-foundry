@@ -12,3 +12,9 @@ try:
     FC_CLASS_REGISTRY['te'] = te.Linear
 except:
     pass
+
+try:
+    from turbo import QuantizedLinear
+    FC_CLASS_REGISTRY['quantized'] = QuantizedLinear
+except:
+    pass

@@ -16,5 +16,6 @@ except:
 try:
     import float8_experimental
     FC_CLASS_REGISTRY['fp8'] = float8_experimental.float8_linear.Float8Linear
+    FC_CLASS_REGISTRY['fp8dl'] = float8_experimental.float8_linear.Float8DynamicLinear
 except:
     pass

@@ -527,7 +527,7 @@ class GroupedQueryAttention(nn.Module):
 
         # Pass in num_input_bits to the FC layer if it is specified, for activation quantization
         if num_input_bits is not None and fc_type == 'quantized':
-            self.fc_kwargs['num_input_bits'] = num_input_bits
+            fc_kwargs['num_input_bits'] = num_input_bits
         elif num_input_bits is not None:
             raise ValueError(
                 f'`num_input_bits` is only supported for `fc_type` "quantized" (not {fc_type}).'

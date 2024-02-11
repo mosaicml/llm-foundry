@@ -12,3 +12,9 @@ try:
     FC_CLASS_REGISTRY['te'] = te.Linear
 except:
     pass
+
+try:
+    import float8_experimental
+    FC_CLASS_REGISTRY['float8'] = float8_experimental.float8_linear.Float8Linear
+except:
+    pass

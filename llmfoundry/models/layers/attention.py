@@ -700,6 +700,7 @@ class MultiheadAttention(GroupedQueryAttention):
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
+        num_input_bits: Optional[int] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -716,6 +717,7 @@ class MultiheadAttention(GroupedQueryAttention):
             device=device,
             bias=bias,
             sliding_window_size=sliding_window_size,
+            num_input_bits=num_input_bits,
         )
 
 
@@ -741,6 +743,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
+        num_input_bits: Optional[int] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -757,6 +760,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             device=device,
             bias=bias,
             sliding_window_size=sliding_window_size,
+            num_input_bits=num_input_bits,
         )
 
 

@@ -11,7 +11,7 @@ import os
 import re
 import string
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 import torch
@@ -41,11 +41,12 @@ class InContextLearningMetric(Metric):
         super().__init__(*args, **kwargs)
         self.needs_batch = True
 
-    def update(self,
-               batch: dict,
-               output_logits: Optional[torch.Tensor] = None,
-               labels: Optional[torch.Tensor] = None,
-               outputs: Optional[torch.Tensor] = None):
+    def update(
+        self,
+        batch: dict,
+        outputs: torch.Tensor,
+        labels: torch.Tensor,
+    ):
         """Abstract interface for computing an in-context learning metrics.
 
         The `output_logits` argument is deprecated and will be removed in v0.21 while it's functionality will
@@ -61,30 +62,6 @@ class InContextLearningMetric(Metric):
             NotImplementedError: Abstract method must be implemented by subclasses
         """
         raise NotImplementedError
-
-    @staticmethod
-    def rename_args(
-        batch: dict,
-        output_logits: Optional[torch.Tensor] = None,
-        labels: Optional[torch.Tensor] = None,
-        outputs: Optional[torch.Tensor] = None
-    ) -> Tuple[dict, torch.Tensor, torch.Tensor]:
-        if outputs is not None and output_logits is not None:
-            raise ValueError('Cannot use both `outputs` and `output_logits`')
-        if output_logits is not None:
-            warnings.warn(
-                ('`output_logits` has been renamed to `outputs` and will be removed in v0.21'
-                ),
-                DeprecationWarning,
-            )
-            outputs = output_logits
-
-        if labels is None:
-            raise ValueError('`labels` cannot be None')
-        if outputs is None:
-            raise ValueError('`outputs` cannot be None')
-
-        return batch, outputs, labels
 
 
 class InContextLearningQAAccuracy(InContextLearningMetric):
@@ -148,8 +125,12 @@ class InContextLearningQAAccuracy(InContextLearningMetric):
             remove_articles(handle_punc(lower(
                 replace_underscore(answer))))).strip()
 
-    def update(self, outputs: List[str], labels: List[List[str]],
-               batch: Dict[str, Any]):
+    def update(
+        self,
+        batch: Dict[str, Any],
+        outputs: List[str],
+        labels: List[List[str]],
+    ):
         cot_delimiter = batch.get('cot_delimiter', '')
         do_normalization = batch.get('do_normalization', True)
         stopping_criteria = batch.get('stopping_criteria', None)
@@ -217,16 +198,7 @@ class InContextLearningLMAccuracy(InContextLearningMetric):
                        dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
 
-    def update(self,
-               batch: dict,
-               output_logits: Optional[torch.Tensor] = None,
-               labels: Optional[torch.Tensor] = None,
-               outputs: Optional[torch.Tensor] = None):
-        batch, outputs, labels = InContextLearningMetric.rename_args(
-            batch=batch,
-            output_logits=output_logits,
-            labels=labels,
-            outputs=outputs)
+    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
 
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
             cont_tok_pred = outputs[batch_idx].index_select(dim=0,
@@ -275,16 +247,7 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
                        dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.0), dist_reduce_fx='sum')
 
-    def update(self,
-               batch: dict,
-               output_logits: Optional[torch.Tensor] = None,
-               labels: Optional[torch.Tensor] = None,
-               outputs: Optional[torch.Tensor] = None):
-        batch, outputs, labels = InContextLearningMetric.rename_args(
-            batch=batch,
-            output_logits=output_logits,
-            labels=labels,
-            outputs=outputs)
+    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
 
         perplexities = []
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
@@ -347,8 +310,7 @@ class InContextLearningExpectedCalibrationError(InContextLearningMetric):
                        default=torch.zeros(n_buckets),
                        dist_reduce_fx='sum')
 
-    def update(self, batch: dict, output_logits: torch.Tensor,
-               labels: torch.Tensor):
+    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
         pass
 
     def compute(self):
@@ -384,16 +346,7 @@ class InContextLearningMCExpectedCalibrationError(
     # Make torchmetrics call update only once
     full_state_update = False
 
-    def update(self,
-               batch: dict,
-               output_logits: Optional[torch.Tensor] = None,
-               labels: Optional[torch.Tensor] = None,
-               outputs: Optional[torch.Tensor] = None):
-        batch, outputs, labels = InContextLearningMetric.rename_args(
-            batch=batch,
-            output_logits=output_logits,
-            labels=labels,
-            outputs=outputs)
+    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
 
         outputs = torch.softmax(outputs, dim=2)
         probabilites = []
@@ -439,16 +392,7 @@ class InContextLearningLMExpectedCalibrationError(
     # Make torchmetrics call update only once
     full_state_update = False
 
-    def update(self,
-               batch: dict,
-               output_logits: Optional[torch.Tensor] = None,
-               labels: Optional[torch.Tensor] = None,
-               outputs: Optional[torch.Tensor] = None):
-        batch, outputs, labels = InContextLearningMetric.rename_args(
-            batch=batch,
-            output_logits=output_logits,
-            labels=labels,
-            outputs=outputs)
+    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
 
         outputs = torch.softmax(outputs, dim=2)
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):

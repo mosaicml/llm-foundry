@@ -17,7 +17,7 @@ from composer.core import DataSpec
 from torch.utils.data import DataLoader
 
 # isort: off
-from llmfoundry.eval.datasets import (
+from llmfoundry.eval.datasets.in_context_learning_evaluation import (
     InContextLearningDataset, InContextLearningCodeEvalDataset,
     InContextLearningMultipleChoiceTaskDataset, InContextLearningQATaskDataset,
     InContextLearningSchemaTaskDataset, get_icl_task_dataloader, strip_data,

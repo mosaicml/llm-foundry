@@ -42,8 +42,10 @@ def test_tokenize_chat_example_malformed():
             'content': 'user message not followed by an assistant label'
         }]
     }
+    wrong_type = {'messages': 'this is not a list of messages'}
     malformed_chat_examples = [
-        too_few_messages, no_content, ends_with_user_role, no_assistant_message
+        too_few_messages, no_content, ends_with_user_role, no_assistant_message,
+        wrong_type
     ]
     my_tokenizer = build_tokenizer('mosaicml/mpt-7b-8k-chat', {})
     for example in malformed_chat_examples:

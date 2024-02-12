@@ -103,15 +103,15 @@ class MPTMLP(nn.Module):
         if fc_type == 'fp8dl':
             self.up_proj = FC_CLASS_REGISTRY[fc_type](
                 False,
-                d_model,
-                ffn_hidden_size,
+                in_features=d_model,
+                out_features=ffn_hidden_size,
                 **self.fc_kwargs,
             )
             self.act = act_fn
             self.down_proj = FC_CLASS_REGISTRY[fc_type](
                 False,
-                ffn_hidden_size,
-                d_model,
+                in_features=ffn_hidden_size,
+                out_features=d_model,
                 **self.fc_kwargs,
             )
             self.down_proj._is_residual = True

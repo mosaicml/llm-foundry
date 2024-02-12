@@ -526,8 +526,8 @@ class GroupedQueryAttention(nn.Module):
         if fc_type == 'fp8dl':
             self.Wqkv = FC_CLASS_REGISTRY[fc_type](
                 False,
-                self.d_model,
-                self.d_model + 2 * self.kv_n_heads * self.head_dim,
+                in_features=self.d_model,
+                out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
                 **fc_kwargs,
             )
         else:
@@ -563,8 +563,8 @@ class GroupedQueryAttention(nn.Module):
         if fc_type == 'fp8dl':
             self.out_proj = FC_CLASS_REGISTRY[fc_type](
                 False,
-                self.d_model,
-                self.d_model,
+                in_features=self.d_model,
+                out_features=self.d_model,
                 **fc_kwargs,
             )
         else:

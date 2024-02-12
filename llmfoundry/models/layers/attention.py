@@ -524,6 +524,7 @@ class GroupedQueryAttention(nn.Module):
         }
         fc_kwargs['device'] = device
         if fc_type == 'fp8dl':
+            print("fc_kwargs are: ", fc_kwargs)
             fc_kwargs['use_activation_hooks'] = False
         self.Wqkv = FC_CLASS_REGISTRY[fc_type](
             self.d_model,

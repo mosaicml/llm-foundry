@@ -52,8 +52,8 @@ def build_evaluators(
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
     icl_seq_len: int,
-    fewshot_random_seed: Optional[int],
     icl_subset_num_batches: Optional[int],
+    fewshot_random_seed: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
 
     evaluators = []

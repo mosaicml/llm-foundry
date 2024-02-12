@@ -6,9 +6,10 @@
 
 import torch
 
-from llmfoundry.eval.metrics.nlp import (
-    InContextLearningCodeEvalAccuracy, InContextLearningLMAccuracy,
-    InContextLearningMultipleChoiceAccuracy, InContextLearningQAAccuracy)
+from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
+                                     InContextLearningLMAccuracy,
+                                     InContextLearningMultipleChoiceAccuracy,
+                                     InContextLearningQAAccuracy)
 
 
 def test_in_context_learning_lm_accuracy(tiny_gpt2_tokenizer):

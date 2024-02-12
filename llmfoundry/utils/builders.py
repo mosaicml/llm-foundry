@@ -33,8 +33,7 @@ from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
                                   LayerFreezing, MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.eval.datasets.in_context_learning_evaluation import \
-    get_icl_task_dataloader
+from llmfoundry.eval.datasets import get_icl_task_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler

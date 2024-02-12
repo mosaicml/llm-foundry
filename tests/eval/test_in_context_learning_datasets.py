@@ -17,7 +17,7 @@ from composer.core import DataSpec
 from torch.utils.data import DataLoader
 
 # isort: off
-from llmfoundry.eval.datasets.in_context_learning_evaluation import (
+from llmfoundry.eval.datasets import (
     InContextLearningDataset, InContextLearningCodeEvalDataset,
     InContextLearningMultipleChoiceTaskDataset, InContextLearningQATaskDataset,
     InContextLearningSchemaTaskDataset, get_icl_task_dataloader, strip_data,
@@ -30,9 +30,10 @@ from composer.models import HuggingFaceModel
 from composer.trainer import Trainer
 from composer.utils import dist, reproducibility
 
-from llmfoundry.eval.metrics.nlp import (
-    InContextLearningCodeEvalAccuracy, InContextLearningLMAccuracy,
-    InContextLearningMultipleChoiceAccuracy, InContextLearningQAAccuracy)
+from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
+                                     InContextLearningLMAccuracy,
+                                     InContextLearningMultipleChoiceAccuracy,
+                                     InContextLearningQAAccuracy)
 
 
 def test_strip_data():

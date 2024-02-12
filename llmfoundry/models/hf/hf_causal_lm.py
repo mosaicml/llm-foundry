@@ -16,9 +16,10 @@ from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
-from llmfoundry.eval.metrics.nlp import (
-    InContextLearningCodeEvalAccuracy, InContextLearningLMAccuracy,
-    InContextLearningMultipleChoiceAccuracy, InContextLearningQAAccuracy)
+from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
+                                     InContextLearningLMAccuracy,
+                                     InContextLearningMultipleChoiceAccuracy,
+                                     InContextLearningQAAccuracy)
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed

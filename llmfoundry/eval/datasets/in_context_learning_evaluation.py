@@ -11,7 +11,6 @@ import copy
 import json
 import os
 import random
-import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
 import torch
@@ -32,6 +31,7 @@ _MAX_ANSWER_BUFFER_LENGTH = 10
 __all__ = [
     'InContextLearningLMTaskDataset',
     'InContextLearningMultipleChoiceTaskDataset',
+    'InContextLearningSchemaTaskDataset',
     'InContextLearningCodeEvalDataset',
     'InContextLearningQATaskDataset',
     'get_icl_task_dataloader',
@@ -717,13 +717,6 @@ class InContextLearningQATaskDataset(InContextLearningDataset):
                  do_normalization: bool = True,
                  *args,
                  **kwargs):
-        warnings.warn(
-            ('InContextLearningQATaskDataset is deprecated and will be removed in a future '
-             'release. Its functionality has been reimplemented '
-             'in llmfoundry.eval.datasets.in_context_learning_evaluation.InContextLearningQATaskDataset.'
-            ),
-            DeprecationWarning,
-        )
         if kwargs['tokenizer'].eos_token_id is None:
             raise ValueError(
                 '`InContextLearningQATaskDataset` tokenizer must have non-null `eos_token_id`'
@@ -879,13 +872,6 @@ class InContextLearningLMTaskDataset(InContextLearningDataset):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            ('InContextLearningLMTaskDataset is deprecated and will be removed in a future '
-             'release. Its functionality has been reimplemented '
-             'in llmfoundry.eval.datasets.in_context_learning_evaluation.InContextLearningLMTaskDataset.'
-            ),
-            DeprecationWarning,
-        )
         super().__init__(answer_key='continuation',
                          static_keys=['mode'],
                          tensor_keys=[
@@ -940,13 +926,6 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
                  list_of_primitives: Optional[List] = None,
                  *args,
                  **kwargs):
-        warnings.warn(
-            ('InContextLearningMultipleChoiceTaskDataset is deprecated and will be removed in a future '
-             'release. Its functionality has been reimplemented '
-             'in llmfoundry.eval.datasets.in_context_learning_evaluation.InContextLearningMultipleChoiceTaskDataset.'
-            ),
-            DeprecationWarning,
-        )
         self.choices_key = choices_key
         base_batch = {
             'input_ids': [],
@@ -1168,13 +1147,6 @@ class InContextLearningSchemaTaskDataset(
         static_keys = ['mode']
         tensor_keys = ['input_ids', 'labels', 'attention_mask']
         list_of_tensors_keys = ['continuation_indices']
-        warnings.warn(
-            ('InContextLearningSchemaTaskDataset is deprecated and will be removed in a future '
-             'release. Its functionality has been reimplemented '
-             'in llmfoundry.eval.datasets.in_context_learning_evaluation.InContextLearningSchemaTaskDataset.'
-            ),
-            DeprecationWarning,
-        )
         super().__init__(choices_key=choices_key,
                          context_key=choices_key,
                          static_keys=static_keys,
@@ -1377,13 +1349,6 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
         *args,
         **kwargs,
     ):
-        warnings.warn(
-            ('InContextLearningCodeEvalDataset is deprecated and will be removed in a future '
-             'release. Its functionality has been reimplemented '
-             'in llmfoundry.eval.datasets.in_context_learning_evaluation.InContextLearningCodeEvalDataset.'
-            ),
-            DeprecationWarning,
-        )
         if generations_per_sample < pass_at_k:
             raise ValueError(
                 f'generations_per_sample ({generations_per_sample}) must be greater than or equal to pass_at_k ({pass_at_k}) for code evaluation.'
@@ -1552,13 +1517,6 @@ def build_icl_dataloader(
             this might be different)
         3. set the `split_batch` funciton if necessary
     """
-    warnings.warn(
-        ('build_icl_dataloader is deprecated and will be removed in a future '
-         'release. Its functionality has been reimplemented '
-         'in llmfoundry.eval.datasets.in_context_learning_evaluation.build_icl_dataloader.'
-        ),
-        DeprecationWarning,
-    )
     if icl_task_type == 'multiple_choice':
         dataset = InContextLearningMultipleChoiceTaskDataset(
             dataset_uri=dataset_uri,
@@ -1864,13 +1822,6 @@ def get_icl_task_dataloader(
     Returns:
         DataLoader: A dataloader used for performing in-context learning evaluation on the dataset provided.
     """
-    warnings.warn(
-        ('get_icl_task_dataloader is deprecated and will be removed in a future '
-         'release. Its functionality has been reimplemented '
-         'in llmfoundry.eval.datasets.in_context_learning_evaluation.get_icl_task_dataloader.'
-        ),
-        DeprecationWarning,
-    )
     if hf_loading_vars is None:
         hf_loading_vars = {}
     if hf_parsing_map is None:

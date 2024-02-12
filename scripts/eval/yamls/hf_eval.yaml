@@ -52,8 +52,7 @@ loggers:
   wandb: {entity: mosaic-ml, project: maxisawesome, }
 
 callbacks:
-  eval_output_logging:
-    batch_keys_to_log: []
+  eval_output_logging: {}
 
 icl_subset_num_batches: 8
 icl_tasks: "eval/yamls/tasks_one_of_each.yaml"

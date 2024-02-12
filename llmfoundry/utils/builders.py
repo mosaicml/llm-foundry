@@ -12,7 +12,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import torch
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
-                                MemoryMonitor, OptimizerMonitor,
+                                MemoryMonitor, MemorySnapshot, OptimizerMonitor,
                                 RuntimeEstimator, SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
@@ -30,9 +30,10 @@ from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
-                                  GlobalLRScaling, HuggingFaceCheckpointer,
-                                  LayerFreezing, MonolithicCheckpointSaver,
+from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
+                                  FDiffMetrics, GlobalLRScaling,
+                                  HuggingFaceCheckpointer, LayerFreezing,
+                                  MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
@@ -164,6 +165,8 @@ def build_callback(
         return LRMonitor()
     elif name == 'memory_monitor':
         return MemoryMonitor()
+    elif name == 'memory_snapshot':
+        return MemorySnapshot(**kwargs)
     elif name == 'speed_monitor':
         return SpeedMonitor(window_size=kwargs.get('window_size', 1),
                             gpu_flops_available=kwargs.get(
@@ -210,8 +213,18 @@ def build_callback(
         if config is None:
             raise ValueError(
                 'Parameters config is required for async eval callback')
-
         return AsyncEval(**kwargs, training_params=config)
+    elif name == 'curriculum_learning':
+        if config is None:
+            raise ValueError(
+                'Parameters config is required for curriculum learning callback'
+            )
+        if 'train_loader' not in config:
+            raise ValueError(
+                'Curriculum learning callback requires a train_loader key in the run config.'
+            )
+        return CurriculumLearning(**kwargs,
+                                  current_dataset_config=config['train_loader'])
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

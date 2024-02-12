@@ -50,11 +50,11 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs]>=0.19,<0.20',
+    'mosaicml[libcloud,wandb,oci,gcs]>=0.19.1,<0.20',
     'mlflow>=2.10,<3',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.37,<4.38',
-    'mosaicml-streaming>=0.7.2,<0.8',
+    'mosaicml-streaming>=0.7.4,<0.8',
     'torch>=2.1,<2.2',
     'datasets>=2.16,<2.17',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data

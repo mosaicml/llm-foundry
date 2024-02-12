@@ -100,6 +100,9 @@ class MPTMLP(nn.Module):
 
         self.fc_kwargs['device'] = device
 
+        if fc_type == 'fp8dl':
+            self.fc_kwargs['use_activation_hooks'] = False
+
         self.up_proj = FC_CLASS_REGISTRY[fc_type](
             d_model,
             ffn_hidden_size,

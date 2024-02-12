@@ -523,6 +523,8 @@ class GroupedQueryAttention(nn.Module):
             'bias': bias,
         }
         fc_kwargs['device'] = device
+        if fc_type == 'fp8dl':
+            fc_kwargs['use_activation_hooks'] = False
         self.Wqkv = FC_CLASS_REGISTRY[fc_type](
             self.d_model,
             self.d_model + 2 * self.kv_n_heads * self.head_dim,

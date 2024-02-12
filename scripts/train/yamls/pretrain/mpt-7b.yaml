@@ -91,6 +91,9 @@ fsdp_config:
   activation_checkpointing_reentrant: false
   activation_cpu_offload: false
   limit_all_gathers: true
+  device_mesh:
+    - 2
+    - 4
 
 # Logging
 progress_bar: false

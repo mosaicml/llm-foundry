@@ -101,20 +101,33 @@ class MPTMLP(nn.Module):
         self.fc_kwargs['device'] = device
 
         if fc_type == 'fp8dl':
-            self.fc_kwargs['use_activation_hooks'] = False
-
-        self.up_proj = FC_CLASS_REGISTRY[fc_type](
-            d_model,
-            ffn_hidden_size,
-            **self.fc_kwargs,
-        )
-        self.act = act_fn
-        self.down_proj = FC_CLASS_REGISTRY[fc_type](
-            ffn_hidden_size,
-            d_model,
-            **self.fc_kwargs,
-        )
-        self.down_proj._is_residual = True
+            self.up_proj = FC_CLASS_REGISTRY[fc_type](
+                False,
+                d_model,
+                ffn_hidden_size,
+                **self.fc_kwargs,
+            )
+            self.act = act_fn
+            self.down_proj = FC_CLASS_REGISTRY[fc_type](
+                False,
+                ffn_hidden_size,
+                d_model,
+                **self.fc_kwargs,
+            )
+            self.down_proj._is_residual = True
+        else:
+            self.up_proj = FC_CLASS_REGISTRY[fc_type](
+                d_model,
+                ffn_hidden_size,
+                **self.fc_kwargs,
+            )
+            self.act = act_fn
+            self.down_proj = FC_CLASS_REGISTRY[fc_type](
+                ffn_hidden_size,
+                d_model,
+                **self.fc_kwargs,
+            )
+            self.down_proj._is_residual = True
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.down_proj(self.act(self.up_proj(x)))

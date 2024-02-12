@@ -524,13 +524,18 @@ class GroupedQueryAttention(nn.Module):
         }
         fc_kwargs['device'] = device
         if fc_type == 'fp8dl':
-            print("fc_kwargs are: ", fc_kwargs)
-            fc_kwargs['use_activation_hooks'] = False
-        self.Wqkv = FC_CLASS_REGISTRY[fc_type](
-            self.d_model,
-            self.d_model + 2 * self.kv_n_heads * self.head_dim,
-            **fc_kwargs,
-        )
+            self.Wqkv = FC_CLASS_REGISTRY[fc_type](
+                False,
+                self.d_model,
+                self.d_model + 2 * self.kv_n_heads * self.head_dim,
+                **fc_kwargs,
+            )
+        else:
+            self.Wqkv = FC_CLASS_REGISTRY[fc_type](
+                self.d_model,
+                self.d_model + 2 * self.kv_n_heads * self.head_dim,
+                **fc_kwargs,
+            )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = [
             i * self.head_dim
@@ -554,12 +559,20 @@ class GroupedQueryAttention(nn.Module):
             self.attn_fn = scaled_multihead_dot_product_attention
         else:
             raise ValueError(f'{attn_impl=} is an invalid setting.')
-
-        self.out_proj = FC_CLASS_REGISTRY[fc_type](
-            self.d_model,
-            self.d_model,
-            **fc_kwargs,
-        )
+        
+        if fc_type == 'fp8dl':
+            self.out_proj = FC_CLASS_REGISTRY[fc_type](
+                False,
+                self.d_model,
+                self.d_model,
+                **fc_kwargs,
+            )
+        else:
+            self.out_proj = FC_CLASS_REGISTRY[fc_type](
+                self.d_model,
+                self.d_model,
+                **fc_kwargs,
+            )
         self.out_proj._is_residual = True
 
     def forward(

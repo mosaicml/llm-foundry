@@ -53,7 +53,7 @@ def build_evaluators(
     device_eval_batch_size: int,
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int],
-    fewshot_random_seed: Optional[int] = None,
+    fewshot_random_seed: Optional[int] = 1234,
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
 
     evaluators = []
@@ -130,7 +130,7 @@ def build_icl_data_and_gauntlet(
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
     icl_seq_len: int,
-    fewshot_random_seed: Optional[int],
+    fewshot_random_seed: Optional[int] = 1234,
     icl_subset_num_batches: Optional[int] = None
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
     icl_evaluators, logger_keys = build_icl_evaluators(
@@ -446,7 +446,7 @@ def build_icl_evaluators(
     default_max_seq_len: int,
     default_batch_size: int,
     destination_dir: Optional[str] = None,
-    fewshot_random_seed: Optional[int] = None,
+    fewshot_random_seed: Optional[int] = 1234,
     icl_subset_num_batches: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str]]:
     if destination_dir is None:

@@ -240,7 +240,7 @@ class _MaybeQuantizedTensor:
             except ModuleNotFoundError:
                 raise NotImplementedError(
                     'The Lion 8b optimizer requires installing mosaicml-turbo. ',
-                    'Please verify that you have correctly installed it.')
+                    'Please `pip install llm-foundry[turbo]` to install it.')
             self._f_encode = quantize_signed
             self._f_decode = dequantize_signed
 
@@ -406,7 +406,7 @@ def lion8b_step_fused(grads: torch.Tensor,
     except ModuleNotFoundError:
         raise NotImplementedError(
             'The Lion 8b optimizer requires installing mosaicml-turbo. ',
-            'Please verify that you have correctly installed it.')
+            'Please `pip install llm-foundry[turbo]` to install it.')
     return lion8b_step_cuda(grads=grads,
                             weights=weights,
                             momentums=momentums,

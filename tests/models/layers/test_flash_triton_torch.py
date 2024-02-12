@@ -28,7 +28,11 @@ def allclose_helper(t0: torch.Tensor,
     ('triton', 'torch'),
 ])
 @pytest.mark.parametrize('clip_qkv', [True, False])
-@pytest.mark.parametrize('qk_ln', [True, False])
+@pytest.mark.parametrize('qk_ln, qk_gn', [
+    (True, False),
+    (False, True),
+    (False, False),
+])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
     'rope': False
@@ -64,6 +68,7 @@ def test_attn_impl(attn_impl_0: str,
                    attn_impl_1: str,
                    clip_qkv: bool,
                    qk_ln: bool,
+                   qk_gn: bool,
                    pos_emb_config: dict,
                    attn_type: str,
                    attn_uses_sequence_id: bool,
@@ -71,8 +76,8 @@ def test_attn_impl(attn_impl_0: str,
                    device: str = 'cuda'):
     """Compare all attn impl with each other.
 
-    Includes testing with and without attn_clip_qkv, attn_qk_ln, alibi, and
-    rope.
+    Includes testing with and without attn_clip_qkv, attn_qk_ln, attn_qk_gn,
+    alibi, and rope.
     """
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
@@ -100,6 +105,7 @@ def test_attn_impl(attn_impl_0: str,
         'attn_pdrop': 0,
         'clip_qkv': clip_qkv,
         'qk_ln': qk_ln,
+        'qk_gn': qk_gn,
     })
 
     n, s, f = 2, 4, cfg.d_model
@@ -128,6 +134,10 @@ def test_attn_impl(attn_impl_0: str,
         # zero out the last third of the attention mask
         # to simulate padding
         attention_mask[:, -s // 3:] = 0
+        if sequence_id is not None:
+            sequence_id = sequence_id.masked_fill(
+                ~attention_mask, -1
+            )  # Similar to how we set sequence id for padded tokens: https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249
 
     def gen_bias(attn_impl: str):
         causal = True
@@ -269,7 +279,8 @@ def test_attn_impl(attn_impl_0: str,
             'rope_impl'] == 'hf'
 
         # special case that (likely) fails due to numerics
-        if clip_qkv and qk_ln and using_hf_rope and attn_type == 'grouped_query_attention':
+        if (clip_qkv and (qk_ln or qk_gn) and using_hf_rope and
+                attn_type == 'grouped_query_attention'):
             assert allclose_helper(p.grad, tp.grad, atol=2.e-2, rtol=2.e-2)
         else:
             assert allclose_helper(p.grad, tp.grad)

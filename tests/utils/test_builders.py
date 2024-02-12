@@ -48,6 +48,13 @@ def test_tokenizer_builder(tokenizer_name: str, tokenizer_kwargs: dict):
         assert isinstance(tokenizer, PreTrainedTokenizerBase)
 
 
+def test_tokenizer_no_EOS():
+    with pytest.raises(
+            ValueError,
+            match='The tokenizer bert-base-uncased must have an eos_token.'):
+        build_tokenizer('bert-base-uncased', {})
+
+
 def test_build_callback_fails():
     with pytest.raises(ValueError):
         build_callback('nonexistent_callback', {}, {})
@@ -135,14 +142,14 @@ def test_build_logger():
     with pytest.raises(ValueError):
         _ = build_logger('unknown', {})
 
-    logger_cfg = DictConfig({
+    logger_cfg = {
         'project': 'foobar',
         'init_kwargs': {
             'config': {
                 'foo': 'bar',
             }
         }
-    })
+    }
     wandb_logger = build_logger('wandb', logger_cfg)  # type: ignore
     assert isinstance(wandb_logger, WandBLogger)
     assert wandb_logger.project == 'foobar'
@@ -328,13 +335,7 @@ def test_add_metrics_to_eval_loaders():
         )
     ]
 
-    new_evaluators = add_metrics_to_eval_loaders(
-        evaluators,
-        {
-            'new1': 'foo',
-            'new2': 'bar'
-        },  # type: ignore
-    )
+    new_evaluators = add_metrics_to_eval_loaders(evaluators, ['new1', 'new2'])
     assert len(new_evaluators) == 3
 
     assert new_evaluators[0].label == 'second'

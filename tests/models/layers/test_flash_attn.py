@@ -50,7 +50,6 @@ def test_gqa_kv_repetition(kv_n_heads: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
             bsz, seqlen_1, 0, query_1.device, None, None),
         should_repeat_kv_for_gqa=True)
@@ -78,7 +77,6 @@ def test_gqa_kv_repetition(kv_n_heads: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
             bsz, seqlen_1, 0, query_2.device, None, None),
         should_repeat_kv_for_gqa=False)
@@ -136,7 +134,6 @@ def test_seq_id_masking_FA_v2():
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
         flash_attn_padding_info=flash_attn_padding_info_1)
 
     output_1.sum().backward()
@@ -166,7 +163,6 @@ def test_seq_id_masking_FA_v2():
             dropout_p=0.0,
             training=False,
             needs_weights=False,
-            multiquery=False,
             flash_attn_padding_info=flash_attn_padding_info_2)
 
         output_2.sum().backward()
@@ -222,7 +218,6 @@ def test_sliding_window(sliding_window_size: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
             bsz, seqlen_1, 0, query_1.device, None, None),
         should_repeat_kv_for_gqa=True,
@@ -258,7 +253,6 @@ def test_sliding_window(sliding_window_size: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
     )
 
     output_2.sum().backward()
@@ -312,7 +306,6 @@ def test_alibi_bias(n_heads: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
             bsz, seqlen_1, 0, query_1.device, None, None),
         should_repeat_kv_for_gqa=True,
@@ -365,7 +358,6 @@ def test_alibi_bias(n_heads: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
     )
 
     output_2.sum().backward()

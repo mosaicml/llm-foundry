@@ -21,4 +21,4 @@ models:
     kwargs:
       model_name: davinci
 
-icl_tasks: 'eval/yamls/lm_tasks_v0.2.yaml'
+icl_tasks: "eval/yamls/lm_tasks_v0.2.yaml"

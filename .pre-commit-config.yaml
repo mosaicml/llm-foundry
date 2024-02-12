@@ -62,9 +62,9 @@ repos:
   - id: insert-license
     args:
     - --license-filepath
-    - .ci/FILE_HEADER
+    - .pre-commit/FILE_HEADER
     - --comment-style
-    - '#'
+    - "#"
     - --allow-past-years
     types: [python]
 - repo: https://github.com/PyCQA/docformatter

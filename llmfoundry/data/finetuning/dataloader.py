@@ -16,7 +16,7 @@ from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
                                               dataset_constructor)
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
-from llmfoundry.data.text_data import get_tokens_per_batch_func
+from llmfoundry.data.text_data import build_streams, get_tokens_per_batch_func
 
 log = logging.getLogger(__name__)
 
@@ -128,11 +128,14 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
     dataset = None  # for pyright
     sampler = None
-    if cfg.dataset.get('remote') is not None:
+    if cfg.dataset.get('remote') is not None or cfg.dataset.get(
+            'streams') is not None:
         # Build streaming dataloader
+        streams = build_streams(cfg.dataset)
         dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
-            local=cfg.dataset.local,
+            streams=streams,
+            local=cfg.dataset.get('local', None),
             remote=cfg.dataset.get('remote', None),
             split=cfg.dataset.get('split', None),
             download_retry=cfg.dataset.get('download_retry', 2),
@@ -152,6 +155,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             sampling_method=cfg.dataset.get('sampling_method', 'balanced'),
             sampling_granularity=cfg.dataset.get('sampling_granularity', 1),
             batching_method=cfg.dataset.get('batching_method', 'random'),
+            max_seq_len=cfg.dataset.max_seq_len,
         )
 
     else:
@@ -167,11 +171,9 @@ def build_finetuning_dataloader(cfg: DictConfig,
                     'When using a HuggingFace dataset from a URL, you must set the ' + \
                     '`split` key in the dataset config.'
                 )
-            # HF datasets does not support a split with dashes, so we replace dashes
-            # with underscores.
-            split = split.replace('-', '_')
             dataset_name_or_path = _download_remote_hf_dataset(
                 remote_path=dataset_name_or_path, split=split)
+            split = split.replace('-', '_')
 
         # Get the preprocessing function.
         proto_preprocessing_fn = cfg.dataset.get('preprocessing_fn')
@@ -280,12 +282,42 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'Using a streaming dataset requires setting both `remote` and `local`, ' +\
                 'but dataset.local is None.'
             )
+    elif dataset_cfg.get('streams') is not None:
+        # Using the streaming dataset codepath
+        illegal_keys = ['hf_name', 'hf_kwargs', 'preprocessing_fn', 'safe_load']
+        discovered_illegal_keys = []
+        for key in illegal_keys:
+            if dataset_cfg.get(key) is not None:
+                discovered_illegal_keys.append('`' + key + '`')
+        if discovered_illegal_keys:
+            raise ValueError(
+                'The dataset config sets a value for `streams` as well as the ' +\
+                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                'Those keys are used when building from a HuggingFace dataset, but ' +\
+                'setting `streams` instructs the dataset to build from a streaming dataset.'
+            )
+        illegal_keys = ['remote', 'local']
+        discovered_illegal_keys = []
+        for key in illegal_keys:
+            if dataset_cfg.get(key) is not None:
+                discovered_illegal_keys.append('`' + key + '`')
+        if discovered_illegal_keys:
+            raise ValueError(
+                'The dataset config sets a value for `streams` as well as the ' +\
+                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                'Please either use single stream (set remote/local only) ' +\
+                'or put remote/local under streams'
+            )
+
     else:
         raise ValueError(
-            'In the dataset config, you must set either `hf_name` to use a ' +\
-            'HuggingFace dataset or set `remote` to use a streaming ' +\
-            'dataset, but both were None.'
+            'In the dataset config, you must set `hf_name` to use a HuggingFace ' +\
+            'dataset, or set `remote` to use a streaming dataset, or set ' +\
+            '`streams` to use multiple streaming datasets,  but all were None.'
         )
+    if dataset_cfg.get('max_seq_len') is None:
+        raise ValueError(
+            'In the dataset config, you must set the `max_seq_len`')
 
 
 def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
@@ -309,17 +341,20 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     Raises:
         FileNotFoundError: Raised if the dataset file cannot be found with any of the supported extensions.
     """
+    # HF datasets does not support a split with dashes, so we replace dashes with underscores.
+    hf_formatted_split = split.replace('-', '_')
     finetune_dir = os.path.join(
         DOWNLOADED_FT_DATASETS_DIRPATH,
-        split if split != 'data' else 'data_not',
+        hf_formatted_split if hf_formatted_split != 'data' else 'data_not',
     )
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in SUPPORTED_EXTENSIONS:
         name = f'{remote_path.strip("/")}/{split}{extension}'
         destination = str(
             os.path.abspath(
-                os.path.join(finetune_dir, 'data',
-                             f'{split}-00000-of-00001{extension}')))
+                os.path.join(
+                    finetune_dir, 'data',
+                    f'{hf_formatted_split}-00000-of-00001{extension}')))
 
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file

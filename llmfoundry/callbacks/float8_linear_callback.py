@@ -36,9 +36,9 @@ class Float8Linear(Callback):
         del state, logger
 
         # Configure fp8 training with float8_experimental
-        # from float8_experimental import config
-        # config.enable_amax_init = False  # only needed for autocast + compile + FSDP +  float8 delayed
-        # config.enable_pre_and_post_forward = False  # only needed for autocast + compile + FSDP +  float8 delayed
+        from float8_experimental import config
+        config.enable_amax_init = False  # only needed for autocast + compile + FSDP +  float8 delayed
+        config.enable_pre_and_post_forward = False  # only needed for autocast + compile + FSDP +  float8 delayed
 
     def after_train_batch(self, state: State, logger: Logger):
         del logger

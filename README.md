@@ -114,8 +114,8 @@ You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117
 | Docker Image                                           | Torch Version | Cuda Version      | LLM Foundry dependencies installed? |
 | ------------------------------------------------------ | ------------- | ----------------- | ----------------------------------- |
 | `mosaicml/pytorch:2.1.2_cu121-python3.10-ubuntu20.04`  | 2.1.2         | 12.1 (Infiniband) | No                                  |
-| `mosaicml/llm-foundry:2.1.0_cu121_flash2-latest`       | 2.1.0         | 12.1 (Infiniband) | Yes                                 |
-| `mosaicml/llm-foundry:2.1.0_cu121_flash2_aws-latest`   | 2.1.0         | 12.1 (EFA)        | Yes                                 |
+| `mosaicml/llm-foundry:2.1.2_cu121_flash2-latest`       | 2.1.2         | 12.1 (Infiniband) | Yes                                 |
+| `mosaicml/llm-foundry:2.1.2_cu121_flash2_aws-latest`   | 2.1.2         | 12.1 (EFA)        | Yes                                 |
 
 
 # Installation

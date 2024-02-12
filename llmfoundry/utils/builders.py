@@ -497,8 +497,16 @@ def build_icl_evaluators(
             icl_cfg.batch_size = default_batch_size
         if 'pass_at_k' not in icl_cfg:
             icl_cfg.pass_at_k = 1
-        if 'num_beams' not in icl_cfg:
-            icl_cfg.num_beams = 20
+        if 'generations_per_sample' not in icl_cfg:
+            if 'num_beams' in icl_cfg:
+                icl_cfg.generations_per_sample = icl.num_beams
+                warnings.warn(
+                    ('num_beams is deprecated and will be removed in a future release.'
+                     f'Please use generations_per_sample: {icl.num_beams}'),
+                    DeprecationWarning,
+                )
+            else:
+                icl_cfg.generations_per_sample = 20
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
@@ -537,7 +545,7 @@ def build_icl_evaluators(
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
                 pass_at_k=icl_cfg.pass_at_k,
-                generations_per_sample=icl_cfg.num_beams,
+                generations_per_sample=icl_cfg.generations_per_sample,
                 has_categories=icl_cfg.get('has_categories', False),
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
                 early_stopping_criteria=early_stopping_criteria,

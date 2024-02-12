@@ -16,7 +16,7 @@ from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
                                               dataset_constructor)
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
-from llmfoundry.data.text_data import get_tokens_per_batch_func
+from llmfoundry.data.text_data import build_streams, get_tokens_per_batch_func
 
 log = logging.getLogger(__name__)
 
@@ -128,11 +128,14 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
     dataset = None  # for pyright
     sampler = None
-    if cfg.dataset.get('remote') is not None:
+    if cfg.dataset.get('remote') is not None or cfg.dataset.get(
+            'streams') is not None:
         # Build streaming dataloader
+        streams = build_streams(cfg.dataset)
         dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
-            local=cfg.dataset.local,
+            streams=streams,
+            local=cfg.dataset.get('local', None),
             remote=cfg.dataset.get('remote', None),
             split=cfg.dataset.get('split', None),
             download_retry=cfg.dataset.get('download_retry', 2),
@@ -279,11 +282,38 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'Using a streaming dataset requires setting both `remote` and `local`, ' +\
                 'but dataset.local is None.'
             )
+    elif dataset_cfg.get('streams') is not None:
+        # Using the streaming dataset codepath
+        illegal_keys = ['hf_name', 'hf_kwargs', 'preprocessing_fn', 'safe_load']
+        discovered_illegal_keys = []
+        for key in illegal_keys:
+            if dataset_cfg.get(key) is not None:
+                discovered_illegal_keys.append('`' + key + '`')
+        if discovered_illegal_keys:
+            raise ValueError(
+                'The dataset config sets a value for `streams` as well as the ' +\
+                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                'Those keys are used when building from a HuggingFace dataset, but ' +\
+                'setting `streams` instructs the dataset to build from a streaming dataset.'
+            )
+        illegal_keys = ['remote', 'local']
+        discovered_illegal_keys = []
+        for key in illegal_keys:
+            if dataset_cfg.get(key) is not None:
+                discovered_illegal_keys.append('`' + key + '`')
+        if discovered_illegal_keys:
+            raise ValueError(
+                'The dataset config sets a value for `streams` as well as the ' +\
+                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                'Please either use single stream (set remote/local only) ' +\
+                'or put remote/local under streams'
+            )
+
     else:
         raise ValueError(
-            'In the dataset config, you must set either `hf_name` to use a ' +\
-            'HuggingFace dataset or set `remote` to use a streaming ' +\
-            'dataset, but both were None.'
+            'In the dataset config, you must set `hf_name` to use a HuggingFace ' +\
+            'dataset, or set `remote` to use a streaming dataset, or set ' +\
+            '`streams` to use multiple streaming datasets,  but all were None.'
         )
     if dataset_cfg.get('max_seq_len') is None:
         raise ValueError(

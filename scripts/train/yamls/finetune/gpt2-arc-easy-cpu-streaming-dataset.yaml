@@ -24,9 +24,11 @@ train_loader:
   name: finetuning
   dataset:
     ############
-    remote: ${data_remote}
-    local: ${data_local}
-    split: train
+    streams:
+      my_data:
+        remote: ${data_remote}
+        local: ${data_local}
+        split: train
     ############
     shuffle: true
     max_seq_len: ${max_seq_len}

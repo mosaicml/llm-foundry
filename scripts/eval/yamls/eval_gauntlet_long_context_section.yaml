@@ -3,7 +3,7 @@ eval_gauntlet:
   subtract_random_baseline: true
   rescale_accuracy: true
   categories:
-  - name: beginning 
+  - name: beginning
     benchmarks:
     - name: hotpotqa_beginning_2k
       num_fewshot: 0

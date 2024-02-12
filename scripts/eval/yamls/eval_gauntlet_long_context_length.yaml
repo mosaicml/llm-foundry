@@ -26,7 +26,7 @@ eval_gauntlet:
     - name: wikiqa_2k
       num_fewshot: 0
       random_baseline: 0
-  - name: 4k 
+  - name: 4k
     benchmarks:
     - name: hotpotqa_beginning_4k
       num_fewshot: 0
@@ -49,7 +49,7 @@ eval_gauntlet:
     - name: wikiqa_4k
       num_fewshot: 0
       random_baseline: 0
-  - name: 8k 
+  - name: 8k
     benchmarks:
     - name: hotpotqa_beginning_8k
       num_fewshot: 0

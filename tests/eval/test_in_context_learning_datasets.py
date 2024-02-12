@@ -17,12 +17,12 @@ from composer.core import DataSpec
 from torch.utils.data import DataLoader
 
 # isort: off
-from llmfoundry.eval.datasets.in_context_learning_evaluation import (
+from llmfoundry.eval.datasets import (
     InContextLearningDataset, InContextLearningCodeEvalDataset,
     InContextLearningMultipleChoiceTaskDataset, InContextLearningQATaskDataset,
     InContextLearningSchemaTaskDataset, get_icl_task_dataloader, strip_data,
-    _tokenizer_needs_prefix_space, _trim_context, _get_continuation_span,
-    _get_fewshot_sample_idxs, _make_padded_input)
+    tokenizer_needs_prefix_space, trim_context, get_continuation_span,
+    get_fewshot_sample_idxs, make_padded_input)
 # isort: on
 from composer.datasets.utils import MultiTokenEOSCriteria
 from composer.loggers import InMemoryLogger
@@ -53,7 +53,7 @@ def test_strip_data():
     reason="Currently don't have a tokenizer that satisfies this test")
 def test_tokenizer_needs_prefix_space_when_space_not_needed(
         tiny_gpt2_tokenizer):
-    assert not _tokenizer_needs_prefix_space(tiny_gpt2_tokenizer)
+    assert not tokenizer_needs_prefix_space(tiny_gpt2_tokenizer)
 
 
 def test_tokenizer_needs_prefix_space_when_space_needed():
@@ -61,14 +61,14 @@ def test_tokenizer_needs_prefix_space_when_space_needed():
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'facebook/opt-125m',
         use_fast=False)  # type: ignore reportUnboundVariable
-    assert _tokenizer_needs_prefix_space(tokenizer)
+    assert tokenizer_needs_prefix_space(tokenizer)
 
 
 def test_trim_context():
     context = [0] * 99 + [1] * 2037
     continuation = [2] * 10
     max_seq_len = 2048
-    trimmed_context = _trim_context(context,
+    trimmed_context = trim_context(context,
                                     continuation,
                                     max_seq_len=max_seq_len)
     assert len(trimmed_context) == 2038
@@ -79,11 +79,11 @@ def test_trim_context():
 def test_trim_context_no_continuation():
     context = [0] * 2048
     max_seq_len = 2048
-    trimmed_context = _trim_context(context, [], max_seq_len=max_seq_len)
+    trimmed_context = trim_context(context, [], max_seq_len=max_seq_len)
     assert len(trimmed_context) == 2048
     context = [0] * 3000 + [1]
     max_seq_len = 2048
-    trimmed_context = _trim_context(context, [], max_seq_len=max_seq_len)
+    trimmed_context = trim_context(context, [], max_seq_len=max_seq_len)
     assert len(trimmed_context) == 2048
     assert trimmed_context[-1] == 1
 
@@ -91,10 +91,10 @@ def test_trim_context_no_continuation():
 def test_get_continuation_span():
     context = [0] * 200
     continuation = [1] * 3
-    cont_span = _get_continuation_span(context, continuation)
+    cont_span = get_continuation_span(context, continuation)
     assert torch.all(torch.eq(cont_span, torch.tensor([200, 201, 202])))
     continuation = [1]
-    cont_span = _get_continuation_span(context, continuation)
+    cont_span = get_continuation_span(context, continuation)
     assert torch.all(torch.eq(cont_span, torch.tensor([200])))
 
 
@@ -108,7 +108,7 @@ def test_make_padding(tiny_gpt2_tokenizer, padding_side):
     } else pytest.raises(ValueError)
 
     with error_context:
-        input_ids = _make_padded_input(context, [],
+        input_ids = make_padded_input(context, [],
                                        2048,
                                        padding_id,
                                        padding_side=padding_side)
@@ -125,9 +125,9 @@ def test_batch_padding_logic_no_padding(tiny_gpt2_tokenizer):
     continuation = tiny_gpt2_tokenizer(' dog' * 2000)['input_ids']
     context = tiny_gpt2_tokenizer(' cat' * 2000)['input_ids']
     max_seq_len = 2048
-    trimmed_context = _trim_context(context, continuation, max_seq_len)
-    continuation_spans = _get_continuation_span(trimmed_context, continuation)
-    padded_input = _make_padded_input(trimmed_context,
+    trimmed_context = trim_context(context, continuation, max_seq_len)
+    continuation_spans = get_continuation_span(trimmed_context, continuation)
+    padded_input = make_padded_input(trimmed_context,
                                       continuation,
                                       max_seq_len,
                                       tiny_gpt2_tokenizer.pad_token_id,
@@ -141,9 +141,9 @@ def test_batch_padding_logic_with_padding(tiny_gpt2_tokenizer):
     continuation = tiny_gpt2_tokenizer(' dog' * 200)['input_ids']
     context = tiny_gpt2_tokenizer(' cat' * 200)['input_ids']
     max_seq_len = 2048
-    trimmed_context = _trim_context(context, continuation, max_seq_len)
-    continuation_spans = _get_continuation_span(trimmed_context, continuation)
-    padded_input = _make_padded_input(trimmed_context,
+    trimmed_context = trim_context(context, continuation, max_seq_len)
+    continuation_spans = get_continuation_span(trimmed_context, continuation)
+    padded_input = make_padded_input(trimmed_context,
                                       continuation,
                                       max_seq_len,
                                       tiny_gpt2_tokenizer.pad_token_id,
@@ -156,25 +156,25 @@ def test_batch_padding_logic_with_padding(tiny_gpt2_tokenizer):
 def test_fewshot_sample_idxs():
     rng = random.Random(1234)
 
-    fewshot_idxs = _get_fewshot_sample_idxs(dataset_size=5,
+    fewshot_idxs = get_fewshot_sample_idxs(dataset_size=5,
                                             num_fewshot=4,
                                             example_idx=4,
                                             rng=rng)
     assert fewshot_idxs == {0, 1, 2, 3}
 
-    fewshot_idxs = _get_fewshot_sample_idxs(dataset_size=5,
+    fewshot_idxs = get_fewshot_sample_idxs(dataset_size=5,
                                             num_fewshot=5,
                                             example_idx=4,
                                             rng=rng)
     assert fewshot_idxs == {0, 1, 2, 3}
 
-    fewshot_idxs = _get_fewshot_sample_idxs(dataset_size=5,
+    fewshot_idxs = get_fewshot_sample_idxs(dataset_size=5,
                                             num_fewshot=500,
                                             example_idx=4,
                                             rng=rng)
     assert fewshot_idxs == {0, 1, 2, 3}
 
-    fewshot_idxs = _get_fewshot_sample_idxs(dataset_size=10,
+    fewshot_idxs = get_fewshot_sample_idxs(dataset_size=10,
                                             num_fewshot=7,
                                             example_idx=4,
                                             rng=rng)
@@ -189,21 +189,21 @@ def test_fewshot_sample_idxs_randomness():
     rng_2_seed_1234 = random.Random(1234)
     rng_3_seed_11 = random.Random(11)
 
-    rng_1_sample_1 = _get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
+    rng_1_sample_1 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
                                               rng_1_seed_1234)
-    rng_2_sample_1 = _get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
+    rng_2_sample_1 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
                                               rng_2_seed_1234)
-    rng_3_sample_1 = _get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
+    rng_3_sample_1 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
                                               rng_3_seed_11)
 
     assert rng_1_sample_1 == rng_2_sample_1
     assert rng_1_sample_1 != rng_3_sample_1
 
-    rng_1_sample_2 = _get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
+    rng_1_sample_2 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
                                               rng_1_seed_1234)
-    rng_2_sample_2 = _get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
+    rng_2_sample_2 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
                                               rng_2_seed_1234)
-    rng_3_sample_2 = _get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
+    rng_3_sample_2 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
                                               rng_3_seed_11)
 
     assert rng_1_sample_2 == rng_2_sample_2

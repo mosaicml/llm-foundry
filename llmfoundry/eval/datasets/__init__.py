@@ -11,12 +11,17 @@ from llmfoundry.eval.datasets.in_context_learning_evaluation import (
     InContextLearningLMTaskDataset, InContextLearningMultipleChoiceTaskDataset,
     InContextLearningQATaskDataset, InContextLearningSchemaTaskDataset,
     get_icl_task_dataloader)
+from llmfoundry.eval.datasets.utils import (get_continuation_span,
+                                            get_fewshot_sample_idxs,
+                                            make_padded_input, strip_data,
+                                            tokenizer_needs_prefix_space,
+                                            trim_context)
 
 __all__ = [
-    'InContextLearningDataset',
-    'InContextLearningQATaskDataset',
-    'InContextLearningLMTaskDataset',
-    'InContextLearningCodeEvalDataset',
+    'InContextLearningDataset', 'InContextLearningQATaskDataset',
+    'InContextLearningLMTaskDataset', 'InContextLearningCodeEvalDataset',
     'InContextLearningMultipleChoiceTaskDataset',
-    'InContextLearningSchemaTaskDataset',
+    'InContextLearningSchemaTaskDataset', 'get_icl_task_dataloader',
+    'strip_data', 'tokenizer_needs_prefix_space', 'trim_context',
+    'get_continuation_span', 'get_fewshot_sample_idxs', 'make_padded_input'
 ]

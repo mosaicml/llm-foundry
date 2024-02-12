@@ -72,7 +72,7 @@ eval_gauntlet:
     - name: wikiqa_8k
       num_fewshot: 0
       random_baseline: 0
-  - name:  16k
+  - name: 16k
     benchmarks:
     - name: hotpotqa_beginning_16k
       num_fewshot: 0

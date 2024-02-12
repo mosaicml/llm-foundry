@@ -53,6 +53,7 @@ def build_evaluators(
     device_eval_batch_size: int,
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int],
+    fewshot_random_seed: Optional[int] = 1234,
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
 
     evaluators = []
@@ -72,6 +73,7 @@ def build_evaluators(
             tokenizer,
             device_eval_batch_size,
             icl_seq_len,
+            fewshot_random_seed,
             icl_subset_num_batches,
         )
         evaluators.extend(icl_evaluators)
@@ -128,6 +130,7 @@ def build_icl_data_and_gauntlet(
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
     icl_seq_len: int,
+    fewshot_random_seed: Optional[int] = 1234,
     icl_subset_num_batches: Optional[int] = None
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
     icl_evaluators, logger_keys = build_icl_evaluators(
@@ -135,6 +138,7 @@ def build_icl_data_and_gauntlet(
         tokenizer,
         icl_seq_len,
         device_eval_batch_size,
+        fewshot_random_seed=fewshot_random_seed,
         icl_subset_num_batches=icl_subset_num_batches)
     eval_gauntlet_cb = None
     if eval_gauntlet_config is not None:
@@ -442,6 +446,7 @@ def build_icl_evaluators(
     default_max_seq_len: int,
     default_batch_size: int,
     destination_dir: Optional[str] = None,
+    fewshot_random_seed: Optional[int] = 1234,
     icl_subset_num_batches: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str]]:
     if destination_dir is None:
@@ -516,6 +521,10 @@ def build_icl_evaluators(
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
                 os.remove(destination_path)
             dist.barrier()
+
+            hf_parsing_map = icl_cfg.get('hf_parsing_map', {})
+            hf_loading_vars = icl_cfg.get('hf_loading_vars', {})
+
             early_stopping_criteria = icl_cfg.get('early_stopping_criteria',
                                                   None)
             if isinstance(early_stopping_criteria, ListConfig):
@@ -533,13 +542,18 @@ def build_icl_evaluators(
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
+                hf_loading_vars=hf_loading_vars,
+                hf_parsing_map=hf_parsing_map,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
+                fewshot_random_seed=icl_cfg.get('fewshot_random_seed',
+                                                fewshot_random_seed),
                 pass_at_k=icl_cfg.pass_at_k,
                 generations_per_sample=icl_cfg.num_beams,
                 has_categories=icl_cfg.get('has_categories', False),
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
+                generation_kwargs=icl_cfg.get('generation_kwargs', {}),
                 early_stopping_criteria=early_stopping_criteria,
                 do_normalization=icl_cfg.get('do_normalization', True))
             if hasattr(

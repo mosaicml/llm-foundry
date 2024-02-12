@@ -262,7 +262,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                          'log_config',
                                          must_exist=False,
                                          default_value=True)
-                                             
 
     # Pop out interpolation variables.
     pop_config(cfg, 'model_name_or_path', must_exist=False, default_value=None)

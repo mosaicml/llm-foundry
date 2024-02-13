@@ -505,7 +505,7 @@ def build_icl_evaluators(
                     'To specify the number of generations per sample please use '
                     f'generations_per_sample: {icl_cfg.num_beams}. To specify '
                     'the number of beams for beam search decoding please use '
-                    f'num_beams: {icl_cfg.num_beams} in generation_kwargs.')
+                    f'num_beams: {icl_cfg.num_beams} in generation_kwargs.'),
                     DeprecationWarning,
                 )
             else:

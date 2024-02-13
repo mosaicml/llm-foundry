@@ -53,7 +53,6 @@ def build_evaluators(
     device_eval_batch_size: int,
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int],
-    fewshot_random_seed: Optional[int] = 1234,
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
 
     evaluators = []
@@ -73,7 +72,6 @@ def build_evaluators(
             tokenizer,
             device_eval_batch_size,
             icl_seq_len,
-            fewshot_random_seed,
             icl_subset_num_batches,
         )
         evaluators.extend(icl_evaluators)
@@ -130,7 +128,6 @@ def build_icl_data_and_gauntlet(
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
     icl_seq_len: int,
-    fewshot_random_seed: Optional[int] = 1234,
     icl_subset_num_batches: Optional[int] = None
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
     icl_evaluators, logger_keys = build_icl_evaluators(
@@ -138,7 +135,6 @@ def build_icl_data_and_gauntlet(
         tokenizer,
         icl_seq_len,
         device_eval_batch_size,
-        fewshot_random_seed=fewshot_random_seed,
         icl_subset_num_batches=icl_subset_num_batches)
     eval_gauntlet_cb = None
     if eval_gauntlet_config is not None:
@@ -446,7 +442,6 @@ def build_icl_evaluators(
     default_max_seq_len: int,
     default_batch_size: int,
     destination_dir: Optional[str] = None,
-    fewshot_random_seed: Optional[int] = 1234,
     icl_subset_num_batches: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str]]:
     if destination_dir is None:
@@ -504,6 +499,7 @@ def build_icl_evaluators(
             icl_cfg.pass_at_k = 1
         if 'num_beams' not in icl_cfg:
             icl_cfg.num_beams = 20
+        ## NOTE: This is one possible location to set the default
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
@@ -547,8 +543,8 @@ def build_icl_evaluators(
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
-                fewshot_random_seed=icl_cfg.get('fewshot_random_seed',
-                                                fewshot_random_seed),
+                ## NOTE: This is the other possible location to set the default
+                fewshot_random_seed=icl_cfg.get('fewshot_random_seed', 1234),
                 pass_at_k=icl_cfg.pass_at_k,
                 generations_per_sample=icl_cfg.num_beams,
                 has_categories=icl_cfg.get('has_categories', False),

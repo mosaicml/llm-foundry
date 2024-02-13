@@ -501,13 +501,12 @@ def build_icl_evaluators(
             if 'num_beams' in icl_cfg:
                 icl_cfg.generations_per_sample = icl_cfg.num_beams
                 warnings.warn(
-                    x = (
-                        'num_beams is deprecated and will be removed in a future release. '
-                        'To specify the number of generations per sample please use '
-                        f'generations_per_sample: {icl_cfg.num_beams}. To specify '
-                        'the number of beams for beam search decoding please use '
-                        f'num_beams: {icl_cfg.num_beams} in generation_kwargs.')
-                        DeprecationWarning,
+                    ('num_beams is deprecated and will be removed in a future release. '
+                    'To specify the number of generations per sample please use '
+                    f'generations_per_sample: {icl_cfg.num_beams}. To specify '
+                    'the number of beams for beam search decoding please use '
+                    f'num_beams: {icl_cfg.num_beams} in generation_kwargs.')
+                    DeprecationWarning,
                 )
             else:
                 icl_cfg.generations_per_sample = 20

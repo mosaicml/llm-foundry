@@ -499,6 +499,7 @@ def build_icl_evaluators(
             icl_cfg.pass_at_k = 1
         if 'num_beams' not in icl_cfg:
             icl_cfg.num_beams = 20
+        ## NOTE: This is one possible location to set the default
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
@@ -542,6 +543,7 @@ def build_icl_evaluators(
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
+                ## NOTE: This is the other possible location to set the default
                 fewshot_random_seed=icl_cfg.get('fewshot_random_seed', 1234),
                 pass_at_k=icl_cfg.pass_at_k,
                 generations_per_sample=icl_cfg.num_beams,

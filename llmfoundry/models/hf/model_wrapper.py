@@ -120,4 +120,5 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
             return outputs[0]
     
     def flops_per_batch(self, batch: Mapping) -> int:
-        return self._fwd_flops * 3 # approximately 1x for fwd + 2x for bwd
+        bs = batch['input_ids'].shape[0]
+        return self._fwd_flops * 3 * bs # approximately 1x for fwd + 2x for bwd

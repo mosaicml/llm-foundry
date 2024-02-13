@@ -34,7 +34,7 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_evaluators, build_logger,
                                        build_optimizer, build_scheduler,
                                        build_tokenizer)
-from llmfoundry.utils.config_utils import (log_config, pop_config,
+from llmfoundry.utils.config_utils import (import_file, log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
 
@@ -139,6 +139,19 @@ def main(cfg: DictConfig) -> Trainer:
         message=
         'torch.distributed.*_base is a private function and will be deprecated.*'
     )
+
+    # Run user provided code if specified
+    code_paths = pop_config(cfg,
+                            'code_paths',
+                            must_exist=False,
+                            default_value=[],
+                            convert=True)
+    # Import any user provided code
+    for code_path in code_paths:
+        try:
+            import_file(code_path)
+        except Exception as e:
+            raise ValueError(f'Error importing code from {code_path}: {e}')
 
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)

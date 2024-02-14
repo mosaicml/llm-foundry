@@ -253,3 +253,45 @@ Programming tasks evaluate the model's ability to understand code, write functio
     - Year released: 2022
     - Number of few shot examples: 0
     - Random baseline accuracy: 0%
+54. HumanEval Python 25% code generation
+    - Description: HumanEval Python 25% is an easier variant of HumanEval Python in which in addition to the original method signature, the model is also provided 25% of the lines in the canonical solution and expected to complete the reaminder of the program. It consists of 164 samples.
+    - Year released: 2023
+    - Number of few shot examples: 0
+    - Random baseline accuracy: 0%
+55. HumanEval Python 50% code generation
+    - Description: HumanEval Python 50% is an easier variant of HumanEval Python in which in addition to the original method signature, the model is also provided 50% of the lines in the canonical solution and expected to complete the reaminder of the program. It consists of 164 samples.
+    - Year released: 2023
+    - Number of few shot examples: 0
+    - Random baseline accuracy: 0%
+56. HumanEval Python 75% code generation
+    - Description: HumanEval Python 75% is an easier variant of HumanEval Python in which in addition to the original method signature, the model is also provided 75% of the lines in the canonical solution and expected to complete the reaminder of the program. It consists of 164 samples.
+    - Year released: 2023
+    - Number of few shot examples: 0
+    - Random baseline accuracy: 0%
+57. HumanEval Python simple return statement code generation
+    - Description: HumanEval Python simple return statament is an easier variant of HumanEval Python in which the model is provided all of the canonical solution with the exception of the return statement and is expected to complete the return statement. Additionally, this set contains only the problems for which the canonical solution has a "simple" return statement consisting only of a line of the form `return VARIABLE\_NAME`. There are 37 samples.
+    - Year released: 2023
+    - Number of few shot examples: 0
+    - Random baseline accuracy: 0%
+58. HumanEval Python complex return statement code generation
+    - Description: HumanEval Pythom complex return statament is an easier variant of HumanEval Python in which the model is provided all of the canonical solution with the exception of the return statement and is expected to complete the return statement. Additionally, this set contains only the problems for which the canonical solution does not have a "simple" return statement as defined above. There are 127 samples.
+    - Year released: 2023
+    - Number of few shot examples: 0
+    - Random baseline accuracy: 0%
+
+### Long Context Gauntlet
+
+We've included three different tasks for long (> 4000 tokens) context length evals. They are meant as litmus tests for a model's ability to properly utilize it's longer context length, which is often the result of fine-tuning after pre-training. For some of these datasets, we explicitly create sets where the required information is located in different sections of the input context, either the beginning, middle, or end of the input context.
+
+1. HotPotQAXL
+    - Description: (HotPotQA)[https://hotpotqa.github.io/] is originally a dataset of ten documents and a question requiring comprehension of one or more of the supplied documents. The non-related documents are completely unrelated and called "distractor" documents. To extend this to longer context lengths, we randomly sample documents from the full set of documents across the dataset, adding them to the current datapoint until the set of documents and its question fills the current context length. We insert the "gold" document(s) (the document(s) containing the information that answers the question) within the first third, second third, or last third of the context length.
+    - Lengths: 2k, 4k, 8k, 16k, 32k, 64k
+    - Locations: beginning, middle, end
+2. Key Value Pairs (Needle In a Haystack)
+    - Description: We construct a `.json` of key value pairs, where both the key and value are random hashes, in the style of (Lost in the Middle)[https://github.com/nelson-liu/lost-in-the-middle]. We ask the model to produce a value given a key from a specific key value pair found int he json. The pair is correspondingly located in the first third, second third, or last third of the json.
+    - Lengths: 2k, 4k, 8k, 16k, 32k, 64k
+    - Locations: beginning, middle, end
+2. WikiQA Numeric
+    - Description: (WikiQA Numeric)[https://huggingface.co/datasets/abacusai/WikiQA-Altered_Numeric_QA] is a Wikipedia Question Answering dataset with a focus on questions with numeric answers. We preprocess the data only to easily parse it for our framework.
+    - Lengths: 2k, 4k, 8k, 16k
+    - Locations: N/A

@@ -95,6 +95,7 @@ def evaluate_model(
         tokenizer=tokenizer,
         device_eval_batch_size=device_eval_batch_size,
         icl_seq_len=max_seq_len,
+        fewshot_random_seed=seed,
         icl_subset_num_batches=icl_subset_num_batches,
     )
 

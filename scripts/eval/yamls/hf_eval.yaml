@@ -43,7 +43,5 @@ fsdp_config:
   forward_prefetch: True
   limit_all_gathers: True
 
-icl_subset_num_batch: 1
-
 icl_tasks: "eval/yamls/tasks_v0.3.yaml"
 eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"

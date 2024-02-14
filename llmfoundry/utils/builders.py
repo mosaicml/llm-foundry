@@ -551,8 +551,7 @@ def build_icl_evaluators(
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
                 generation_kwargs=icl_cfg.get('generation_kwargs', {}),
                 early_stopping_criteria=early_stopping_criteria,
-                do_normalization=icl_cfg.get('do_normalization', True),
-                generation_kwargs=icl_cfg.get('generation_kwargs'))
+                do_normalization=icl_cfg.get('do_normalization', True))
             if hasattr(
                     icl_cfg,
                     'has_categories') and icl_cfg.has_categories and isinstance(

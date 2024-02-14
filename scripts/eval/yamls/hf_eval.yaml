@@ -37,11 +37,13 @@ models:
 device_eval_batch_size: 4
 
 # FSDP config for model sharding
-# fsdp_config:
-#   sharding_strategy: FULL_SHARD
-#   mixed_precision: FULL
-#   forward_prefetch: True
-#   limit_all_gathers: True
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: FULL
+  forward_prefetch: True
+  limit_all_gathers: True
+
+icl_subset_num_batch: 1
 
 icl_tasks: "eval/yamls/tasks_v0.3.yaml"
 eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"

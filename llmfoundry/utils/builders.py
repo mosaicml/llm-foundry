@@ -67,15 +67,16 @@ def build_evaluators(
     logger_keys = []
     eval_gauntlet_callback = None
     if icl_tasks_config is not None:
-        icl_evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
-            icl_tasks_config,
-            eval_gauntlet_config,
-            tokenizer,
-            device_eval_batch_size,
-            icl_seq_len,
-            fewshot_random_seed,
-            icl_subset_num_batches,
-        )
+        icl_evaluators, logger_keys, eval_gauntlet_callback = (
+            build_icl_data_and_gauntlet(
+                icl_tasks_config,
+                eval_gauntlet_config,
+                tokenizer,
+                device_eval_batch_size,
+                icl_seq_len,
+                fewshot_random_seed,
+                icl_subset_num_batches,
+            ))
         evaluators.extend(icl_evaluators)
 
     return evaluators, logger_keys, eval_gauntlet_callback
@@ -131,7 +132,7 @@ def build_icl_data_and_gauntlet(
     device_eval_batch_size: int,
     icl_seq_len: int,
     fewshot_random_seed: Optional[int] = 1234,
-    icl_subset_num_batches: Optional[int] = None
+    icl_subset_num_batches: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
     icl_evaluators, logger_keys = build_icl_evaluators(
         icl_tasks_config,
@@ -139,7 +140,8 @@ def build_icl_data_and_gauntlet(
         icl_seq_len,
         device_eval_batch_size,
         fewshot_random_seed=fewshot_random_seed,
-        icl_subset_num_batches=icl_subset_num_batches)
+        icl_subset_num_batches=icl_subset_num_batches,
+    )
     eval_gauntlet_cb = None
     if eval_gauntlet_config is not None:
         if isinstance(eval_gauntlet_config, str):
@@ -172,9 +174,10 @@ def build_callback(
     elif name == 'memory_snapshot':
         return MemorySnapshot(**kwargs)
     elif name == 'speed_monitor':
-        return SpeedMonitor(window_size=kwargs.get('window_size', 1),
-                            gpu_flops_available=kwargs.get(
-                                'gpu_flops_available', None))
+        return SpeedMonitor(
+            window_size=kwargs.get('window_size', 1),
+            gpu_flops_available=kwargs.get('gpu_flops_available', None),
+        )
     elif name == 'fdiff':
         return FDiffMetrics(**kwargs)
     elif name == 'runtime_estimator':
@@ -349,8 +352,9 @@ def _extract_param_groups(
             group_params.update(param_group_config)
 
             log.debug(
-                f'Creating optimizer param_group with parameters: {param_names} ' +\
-                f'(extracted using {str_match=}). The param_group optimizer ' +\
+                f'Creating optimizer param_group with parameters: {param_names} '
+                +
+                f'(extracted using {str_match=}). The param_group optimizer ' +
                 f'setting overrides are: {param_group_config}.')
 
             params.append(group_params)
@@ -400,7 +404,8 @@ def build_tokenizer(
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
+    signal_file_path = (
+        f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup')
 
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:
@@ -503,18 +508,15 @@ def build_icl_evaluators(
         if 'pass_at_k' not in icl_cfg:
             icl_cfg.pass_at_k = 1
         if 'generations_per_sample' not in icl_cfg:
-            if 'num_beams' in icl_cfg:
-                icl_cfg.generations_per_sample = icl_cfg.num_beams
-                warnings.warn(
-                    ('num_beams is deprecated and will be removed in a future release. '
-                    'To specify the number of generations per sample please use '
-                    f'generations_per_sample: {icl_cfg.num_beams}. To specify '
-                    'the number of beams for beam search decoding please use '
-                    f'num_beams: {icl_cfg.num_beams} in generation_kwargs.'),
-                    DeprecationWarning,
-                )
-            else:
-                icl_cfg.generations_per_sample = 20
+            icl_cfg.generations_per_sample = 20
+        if 'num_beams' in icl_cfg:
+            icl_cfg.generations_per_sample = icl_cfg.num_beams
+            warnings.warn(
+                ('`num_beams` is deprecated and will be removed in a future release. '
+                 'To specify keyword arguments for `model.generate()`, please use '
+                 '`generation_kwargs` with your corresponding values.'),
+                DeprecationWarning,
+            )
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
@@ -566,26 +568,29 @@ def build_icl_evaluators(
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
                 generation_kwargs=icl_cfg.get('generation_kwargs', {}),
                 early_stopping_criteria=early_stopping_criteria,
-                do_normalization=icl_cfg.get('do_normalization', True))
-            if hasattr(
-                    icl_cfg,
-                    'has_categories') and icl_cfg.has_categories and isinstance(
-                        dataloaders, dict):
+                do_normalization=icl_cfg.get('do_normalization', True),
+            )
+            if (hasattr(icl_cfg, 'has_categories') and
+                    icl_cfg.has_categories and isinstance(dataloaders, dict)):
                 for category in dataloaders.keys():
                     logger_keys.extend([
                         f'metrics/{label}/{category}/{m}' for m in metric_names
                     ])
                     evaluators.append(
-                        Evaluator(label=f'{label}/{category}',
-                                  dataloader=dataloaders[category],
-                                  metric_names=metric_names),)
+                        Evaluator(
+                            label=f'{label}/{category}',
+                            dataloader=dataloaders[category],
+                            metric_names=metric_names,
+                        ),)
             else:
                 logger_keys.extend(
                     [f'metrics/{label}/{m}' for m in metric_names])
                 evaluators.append(
-                    Evaluator(label=label,
-                              dataloader=dataloaders,
-                              metric_names=metric_names,
-                              subset_num_batches=icl_subset_num_batches))
+                    Evaluator(
+                        label=label,
+                        dataloader=dataloaders,
+                        metric_names=metric_names,
+                        subset_num_batches=icl_subset_num_batches,
+                    ))
 
     return evaluators, logger_keys

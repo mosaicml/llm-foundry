@@ -88,14 +88,14 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.19,<0.20',
+    'mosaicml[databricks]>=0.19.1,<0.20',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
     'lz4>=4,<5',
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.19,<0.20',
+    'mosaicml[tensorboard]>=0.19.1,<0.20',
 ]
 
 extra_deps['gpu'] = [
@@ -113,7 +113,7 @@ extra_deps['gpu-flash2'] = [
 ]
 
 extra_deps['peft'] = [
-    'mosaicml[peft]>=0.19,<0.20',
+    'mosaicml[peft]>=0.19.1,<0.20',
 ]
 
 extra_deps['openai'] = [

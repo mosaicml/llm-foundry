@@ -235,7 +235,12 @@ class _MaybeQuantizedTensor:
         self._f_encode = None
         self._f_decode = None
         if self._try_quantize:
-            from turbo import dequantize_signed, quantize_signed
+            try:
+                from turbo import dequantize_signed, quantize_signed
+            except ModuleNotFoundError:
+                raise NotImplementedError(
+                    'The Lion 8b optimizer requires installing mosaicml-turbo. ',
+                    'Please `pip install llm-foundry[turbo]` to install it.')
             self._f_encode = quantize_signed
             self._f_decode = dequantize_signed
 
@@ -396,7 +401,12 @@ def lion8b_step_fused(grads: torch.Tensor,
                 f'Weights must be f32 or match grad dtype {grads.dtype}')
 
     # ------------------------------------------------ actual function call
-    from turbo import lion8b_step_cuda
+    try:
+        from turbo import lion8b_step_cuda
+    except ModuleNotFoundError:
+        raise NotImplementedError(
+            'The Lion 8b optimizer requires installing mosaicml-turbo. ',
+            'Please `pip install llm-foundry[turbo]` to install it.')
     return lion8b_step_cuda(grads=grads,
                             weights=weights,
                             momentums=momentums,

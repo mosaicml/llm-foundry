@@ -29,13 +29,13 @@ class CurriculumLearning(Callback):
             being used.
     """
 
-    def __init__(self, dataset_index: int, current_dataset_config: Dict):
+    def __init__(self, dataset_index: int, train_config: Dict):
         self.dataset_index = dataset_index
         self.saved_dataset_index = 0
         self.all_dataset_configs = []
         self.current_dataset_state = {}
         # The current dataset config is resolved and passed in train.py
-        self.current_dataset_config = current_dataset_config
+        self.current_dataset_config = train_config['dataloader']
 
     def before_load(self, state: State, logger: Logger):
         del logger

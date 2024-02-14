@@ -14,7 +14,6 @@ from composer.callbacks import Generate
 from composer.core import Evaluator
 from composer.loggers import WandBLogger
 from omegaconf import DictConfig, ListConfig
-from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
@@ -122,11 +121,11 @@ def test_build_hf_checkpointer_callback():
             }
         }
         build_callback(name='hf_checkpointer',
-                       kwargs=om.create({
+                       kwargs={
                            'save_folder': save_folder,
                            'save_interval': save_interval,
                            'mlflow_logging_config': mlflow_logging_config_dict
-                       }),
+                       },
                        config={})
 
         assert mock_hf_checkpointer.call_count == 1

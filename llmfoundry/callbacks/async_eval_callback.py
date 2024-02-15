@@ -305,7 +305,7 @@ class AsyncEval(Callback):
         # Check if all shards are present for each checkpoint group
         checkpoints_to_eval = {}
         for checkpoint, checkpoint_ts in checkpointer_checkpoints.items():
-            # eg {save_folder}/ep0-ba1/.
+            # eg {save_folder}/ep0-ba1/file.blah.
             checkpoint_ts_path = Path(checkpoint).parts[-2]
 
             # expecting one shard per gpu + 1 for metadata
@@ -343,7 +343,8 @@ class AsyncEval(Callback):
 
         checkpoints_to_eval = {}
         for checkpoint, checkpoint_ts in checkpointer_checkpoints.items():
-            # eg {save_folder}/ep0-ba1-rank0.pt
+            # This assumes checkpoint_ts_path is unique per checkpoint,
+            # eg the default {save_folder}/ep0-ba1-rank0.pt
             checkpoint_ts_path = Path(checkpoint).parts[-1]
 
             if checkpoint not in unique_remote_checkpoints:
@@ -366,8 +367,11 @@ class AsyncEval(Callback):
         checkpointer = None
         for callback in state.callbacks:
             if isinstance(callback, CheckpointSaver):
-                checkpointer = callback
-                break
+                if checkpointer is None:
+                    checkpointer = callback
+                else:
+                    log.warning(
+                        'Multiple checkpoint savers found. Using the first one')
 
         if not checkpointer:
             warnings.warn('No checkpoint saver callback found. Skipping eval')

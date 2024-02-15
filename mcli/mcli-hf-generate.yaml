@@ -35,7 +35,7 @@ command: |
       "Here's a quick recipe for baking chocolate chip cookies: Start by" \
       "The best 5 cities to visit in Europe are"
 
-image: mosaicml/llm-foundry:2.2.0_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.1.2_cu121_flash2-latest
 name: hf-generate
 
 compute:

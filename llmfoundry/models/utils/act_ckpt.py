@@ -115,7 +115,7 @@ def check_mapping_blocks_overlap(mapping: dict, max_block_idx: int) -> None:
             else:
                 if all_blocks[vv] is not None:
                     raise ValueError(
-                        f'Block {vv} is assigned to both {k} and {all_blocks[vv]}. Each block can only has one granularity of activation checkpointing. Make sure the target_blocks in activation_checkpointing_target do not overlap. For more details, refer to the doc of activation_checkpointing_fn.'
+                        f'Block {vv} is assigned to both {k} and {all_blocks[vv]}. Each block can only have one granularity of activation checkpointing. Make sure the target_blocks in activation_checkpointing_target do not overlap. For more details, refer to the docs of activation_checkpointing_fn.'
                     )
                 else:
                     all_blocks[vv] = k

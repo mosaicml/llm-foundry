@@ -104,10 +104,6 @@ extra_deps['gpu'] = [
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
 ]
 
-extra_deps['turbo'] = [
-    'mosaicml-turbo==0.0.8',
-]
-
 extra_deps['gpu-flash2'] = [
     'flash-attn==2.5.0',
 ]

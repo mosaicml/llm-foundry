@@ -174,6 +174,9 @@ def validate_eval_run_config(
     return run_config
 
 
+CHECKS_PER_INTERVAL = 4
+
+
 class AsyncEval(Callback):
     """Run the eval loop asynchronously as part of a MosaicML platform run.
 
@@ -229,12 +232,15 @@ class AsyncEval(Callback):
         self.interval = validate_interval(interval,
                                           self.training_params['save_interval'])
 
-        # Configures how often to check for new checkpoints
-        self.check_interval = Time(max(self.interval.value // 5, 1),
-                                   self.interval.unit)
+        # Configures how often to check for new checkpoints. This is semi-arbitrary;
+        # really we just want to check often enough to pull relevant checkpoints
+        # but not so often that we're constantly checking
+        check_interval_value = max(self.interval.value // CHECKS_PER_INTERVAL,
+                                   1)
+        self.check_interval = Time(check_interval_value, self.interval.unit)
 
-        # Keep track of checkpoints by interval that have already been evaled
-        # Format: {interval: (checkpoint, run_name)}
+        # Keep track of checkpoints that have already been evaled
+        # Format: {eval_timestamp: (checkpoint, run_name)}
         self.checkpoints_evaled: Dict[Time, Tuple[str, str]] = {}
 
         # Scheduling is based on the check interval, while _get_checkpoints_and_launch_runs
@@ -251,12 +257,12 @@ class AsyncEval(Callback):
 
     def state_dict(self) -> Dict[str, Any]:
         checkpoints_evaled = []
-        for i, (c, rn) in self.checkpoints_evaled.items():
-            interval_dict = {
-                'value': i.value,
-                'unit': i.unit.value,
+        for eval_ts, (checkpoint, run_name) in self.checkpoints_evaled.items():
+            eval_ts_dict = {
+                'value': eval_ts.value,
+                'unit': eval_ts.unit.value,
             }
-            checkpoints_evaled.append((interval_dict, c, rn))
+            checkpoints_evaled.append((eval_ts_dict, checkpoint, run_name))
 
         return {
             'checkpoints_evaled': checkpoints_evaled,
@@ -265,9 +271,9 @@ class AsyncEval(Callback):
     def load_state_dict(self, state_dict: Dict[str, Any]):
         previous_checkpoints_evaled = state_dict.get('checkpoints_evaled', [])
         if previous_checkpoints_evaled:
-            for (i, c, rn) in previous_checkpoints_evaled:
-                interval = Time(i['value'], TimeUnit(i['unit']))
-                self.checkpoints_evaled[interval] = (c, rn)
+            for (eval_ts, checkpoint, run_name) in previous_checkpoints_evaled:
+                eval_ts = Time(eval_ts['value'], TimeUnit(eval_ts['unit']))
+                self.checkpoints_evaled[eval_ts] = (checkpoint, run_name)
 
             log.info(
                 f'Loaded previous checkpoints evaled: {self.checkpoints_evaled}'
@@ -293,26 +299,27 @@ class AsyncEval(Callback):
         # Count the number of shards for each checkpoint group
         remote_file_group_counts = Counter()
         for f in remote_files:
-            interval_path = Path(f).parts[-2]
-            remote_file_group_counts[interval_path] += 1
+            checkpoint_ts_path = Path(f).parts[-2]
+            remote_file_group_counts[checkpoint_ts_path] += 1
 
         # Check if all shards are present for each checkpoint group
         checkpoints_to_eval = {}
-        for checkpoint, interval in checkpointer_checkpoints.items():
+        for checkpoint, checkpoint_ts in checkpointer_checkpoints.items():
             # eg {save_folder}/ep0-ba1/.
-            interval_path = Path(checkpoint).parts[-2]
+            checkpoint_ts_path = Path(checkpoint).parts[-2]
 
             # expecting one shard per gpu + 1 for metadata
             expected_shard_count = dist.get_world_size() + 1
-            if remote_file_group_counts[interval_path] != expected_shard_count:
+            if remote_file_group_counts[
+                    checkpoint_ts_path] != expected_shard_count:
                 log.debug(
                     f'Checkpoint {checkpoint} not fully uploaded (missing shards '
                     +
-                    f'{remote_file_group_counts[interval_path]}/{expected_shard_count}), skipping'
+                    f'{remote_file_group_counts[checkpoint_ts_path]}/{expected_shard_count}), skipping'
                 )
                 continue
 
-            checkpoints_to_eval[interval_path] = interval
+            checkpoints_to_eval[checkpoint_ts_path] = checkpoint_ts
 
         return checkpoints_to_eval
 
@@ -335,16 +342,16 @@ class AsyncEval(Callback):
         unique_remote_checkpoints = set(remote_checkpoints)
 
         checkpoints_to_eval = {}
-        for checkpoint, interval in checkpointer_checkpoints.items():
+        for checkpoint, checkpoint_ts in checkpointer_checkpoints.items():
             # eg {save_folder}/ep0-ba1-rank0.pt
-            interval_path = Path(checkpoint).parts[-1]
+            checkpoint_ts_path = Path(checkpoint).parts[-1]
 
             if checkpoint not in unique_remote_checkpoints:
                 log.debug(
                     f'Checkpoint {checkpoint} not fully uploaded, skipping')
                 continue
 
-            checkpoints_to_eval[interval_path] = interval
+            checkpoints_to_eval[checkpoint_ts_path] = checkpoint_ts
         return checkpoints_to_eval
 
     def _get_checkpoints_and_launch_runs(self, state: State):
@@ -392,19 +399,18 @@ class AsyncEval(Callback):
 
         for checkpoint_interval_path, checkpoint_timestamp in checkpoints_to_eval.items(
         ):
-            checkpoint_interval = checkpoint_timestamp.get(self.interval.unit)
-            if checkpoint_interval.value % self.interval.value != 0:
+            checkpoint_ts = checkpoint_timestamp.get(self.interval.unit)
+            if checkpoint_ts.value % self.interval.value != 0:
                 log.debug(
-                    f'Checkpoint {checkpoint_interval_path} ({checkpoint_interval}) is '
+                    f'Checkpoint {checkpoint_interval_path} ({checkpoint_ts}) is '
                     + f'not at an eval interval ({self.interval}), skipping')
                 continue
-            if checkpoint_interval in self.checkpoints_evaled:
+            if checkpoint_ts in self.checkpoints_evaled:
                 continue  # Skip checkpoints that have already been evaled
 
             full_checkpoint_path = f'{self.checkpoint_save_folder}/{checkpoint_interval_path}'
-            eval_run = self.launch_run(full_checkpoint_path,
-                                       checkpoint_interval)
-            self.checkpoints_evaled[checkpoint_interval] = (
+            eval_run = self.launch_run(full_checkpoint_path, checkpoint_ts)
+            self.checkpoints_evaled[checkpoint_ts] = (
                 full_checkpoint_path,
                 eval_run.name,
             )
@@ -451,8 +457,9 @@ class AsyncEval(Callback):
         log.info(
             f'AsyncEval callback finished. Launched {len(self.checkpoints_evaled)} eval runs:'
         )
-        for interval, (checkpoint, run_name) in self.checkpoints_evaled.items():
-            log.info(f'  {interval}: {checkpoint}, {run_name}')
+        for checkpoint_ts, (checkpoint,
+                            run_name) in self.checkpoints_evaled.items():
+            log.info(f'  {checkpoint_ts}: {checkpoint}, {run_name}')
 
     def _get_current_run(self) -> Run:
         if os.environ.get(MOSAICML_PLATFORM_ENV_VAR,

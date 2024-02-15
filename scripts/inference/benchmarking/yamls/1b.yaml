@@ -12,9 +12,8 @@ tokenizer:
 model:
   name: mpt_causal_lm
   init_device: cpu
-  tokenizer_name: ${tokenizer_name}
   d_model: 2048
-  n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
+  n_heads: 16  # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
   n_layers: 24
   expansion_ratio: 4
   max_seq_len: ${max_seq_len}

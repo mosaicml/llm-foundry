@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 import torch
 import torch.nn as nn
+import transformers
 from einops import rearrange
 from packaging import version
 from torch import nn
@@ -32,6 +33,15 @@ def is_flash_v1_installed():
     except:
         return False
     return version.parse(flash_attn.__version__) < version.parse('2.0.0')
+
+
+def is_transformers_version_gte(hf_version: str) -> bool:
+    return version.parse(transformers.__version__) >= version.parse(hf_version)
+
+
+def check_alibi_support(attention_impl: str) -> bool:
+    return attention_impl != 'flash' or is_flash_v2_installed(
+        v2_version='v2.4.2')
 
 
 # Before importing any transformers models, we need to disable transformers flash attention if
@@ -80,7 +90,7 @@ def scaled_multihead_dot_product_attention(
     key: torch.Tensor,
     value: torch.Tensor,
     n_heads: int,
-    kv_n_heads: Optional[int] = None,
+    kv_n_heads: int,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -89,22 +99,8 @@ def scaled_multihead_dot_product_attention(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
-    multiquery: bool = False,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-
-    if multiquery:
-        warnings.warn(
-            DeprecationWarning(
-                'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.'
-            ))
-        kv_n_heads = 1
-    elif kv_n_heads is None:
-        warnings.warn(
-            DeprecationWarning(
-                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.'
-            ))
-        kv_n_heads = n_heads
 
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
     k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
@@ -209,7 +205,7 @@ def flash_attn_fn(
     key: torch.Tensor,
     value: torch.Tensor,
     n_heads: int,
-    kv_n_heads: Optional[int] = None,
+    kv_n_heads: int,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -219,28 +215,24 @@ def flash_attn_fn(
     training: bool = False,
     needs_weights: bool = False,
     multiquery: bool = False,
+    should_repeat_kv_for_gqa: Optional[bool] = True,
+    sliding_window_size: int = -1,
+    alibi_slopes: Optional[torch.Tensor] = None,
+    flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
+    if key_padding_mask is not None:
+        raise ValueError('key_padding_mask should be None for flash attn.')
+    del key_padding_mask
+    if flash_attn_padding_info is None:
+        raise ValueError('flash_attn_padding_info is required for flash attn.')
     try:
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
     except:
         raise RuntimeError(
-            'Please install flash-attn==1.0.9 or flash-attn==2.3.2')
+            'Please install flash-attn==1.0.9 or flash-attn==2.3.6')
 
     check_valid_inputs(query, key, value)
-
-    if multiquery:
-        warnings.warn(
-            DeprecationWarning(
-                'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.'
-            ))
-        kv_n_heads = 1
-    elif kv_n_heads is None:
-        warnings.warn(
-            DeprecationWarning(
-                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.'
-            ))
-        kv_n_heads = n_heads
 
     if past_key_value is not None:
         if len(past_key_value) != 0:
@@ -250,57 +242,63 @@ def flash_attn_fn(
         past_key_value = (key, value)
 
     if attn_bias is not None:
-        # clamp to 0 necessary for torch 2.0 compile()
-        _s_q = max(0, attn_bias.size(2) - query.size(1))
-        _s_k = max(0, attn_bias.size(3) - key.size(1))
-        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
-
-    if attn_bias is not None:
         raise NotImplementedError(f'attn_bias not implemented for flash attn.')
 
     batch_size, seqlen = query.shape[:2]
 
-    if key_padding_mask is None:
-        key_padding_mask = torch.ones_like(key[:, :, 0], dtype=torch.bool)
-    query_padding_mask = key_padding_mask[:, -query.size(1):]
+    indices_q = flash_attn_padding_info['indices_q']
+    indices_k = flash_attn_padding_info['indices_k']
+    indices_v = flash_attn_padding_info['indices_v']
+    cu_seqlens_q = flash_attn_padding_info['cu_seqlens_q']
+    cu_seqlens_k = flash_attn_padding_info['cu_seqlens_k']
+    max_seqlen_q = flash_attn_padding_info['max_seqlen_q']
+    max_seqlen_k = flash_attn_padding_info['max_seqlen_k']
 
-    query_unpad, indices_q, cu_seqlens_q, max_seqlen_q = bert_padding.unpad_input(
-        query, query_padding_mask)
+    query_unpad = bert_padding.index_first_axis(
+        rearrange(query, 'b s ... -> (b s) ...'), indices_q)
     query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
 
-    key_unpad, _, cu_seqlens_k, max_seqlen_k = bert_padding.unpad_input(
-        key, key_padding_mask)
+    key_unpad = bert_padding.index_first_axis(
+        rearrange(key, 'b s ... -> (b s) ...'), indices_k)
     key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
-    value_unpad, _, _, _ = bert_padding.unpad_input(value, key_padding_mask)
+    value_unpad = bert_padding.index_first_axis(
+        rearrange(value, 'b s ... -> (b s) ...'), indices_v)
     value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
-    # multi-query case
-    if kv_n_heads == 1:
-        # Expanding a tensor does not allocate new memory, but only creates a new
-        # view on the existing tensor where a dimension of size one is expanded
-        # to a larger size by setting the stride to 0.
-        # - pytorch docs
-        #
-        # hopefully the kernels can utilize this and we're jot just wasting BW here
-        key_unpad = key_unpad.expand(key_unpad.size(0), n_heads,
-                                     key_unpad.size(-1))
-        value_unpad = value_unpad.expand(value_unpad.size(0), n_heads,
-                                         value_unpad.size(-1))
-    # grouped query case
-    elif kv_n_heads < n_heads:
-        # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
-        # We repeat each kv head by the group size number to use the underlying MHA kernels
+    if (kv_n_heads < n_heads) and (not is_flash_v2_installed()) and (
+            not should_repeat_kv_for_gqa):
+        raise ValueError(
+            'For Grouped Query Attention or Multi Query Attention, should_repeat_kv_for_gqa should be set to True if not using Flash Attention v2.'
+        )
 
-        # since repeat_kv_for_gqa expects input dims of (b, s, kv_n_heads, d)
-        # we use .view to modify {key, value}_unpad appropriately
+    if should_repeat_kv_for_gqa:
+        # multi-query case
+        if kv_n_heads == 1:
+            # Expanding a tensor does not allocate new memory, but only creates a new
+            # view on the existing tensor where a dimension of size one is expanded
+            # to a larger size by setting the stride to 0.
+            # - pytorch docs
+            #
+            # hopefully the kernels can utilize this and we're jot just wasting BW here
+            key_unpad = key_unpad.expand(key_unpad.size(0), n_heads,
+                                         key_unpad.size(-1))
+            value_unpad = value_unpad.expand(value_unpad.size(0), n_heads,
+                                             value_unpad.size(-1))
+        # grouped query case
+        elif kv_n_heads < n_heads:
+            # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
+            # We repeat each kv head by the group size number to use the underlying MHA kernels
 
-        key_unpad = repeat_kv_for_gqa(
-            key_unpad.view(batch_size, seqlen, kv_n_heads, -1),
-            n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
-        value_unpad = repeat_kv_for_gqa(
-            value_unpad.view(batch_size, seqlen, kv_n_heads, -1),
-            n_heads // kv_n_heads).view(batch_size * seqlen, n_heads, -1)
+            # since repeat_kv_for_gqa expects input dims of (b, s, kv_n_heads, d)
+            # we use .view to modify {key, value}_unpad appropriately
+
+            key_unpad = repeat_kv_for_gqa(
+                key_unpad.view(1, key_unpad.size(0), kv_n_heads, -1),
+                n_heads // kv_n_heads).view(key_unpad.size(0), n_heads, -1)
+            value_unpad = repeat_kv_for_gqa(
+                value_unpad.view(1, value_unpad.size(0), kv_n_heads, -1),
+                n_heads // kv_n_heads).view(value_unpad.size(0), n_heads, -1)
 
     dropout_p = dropout_p if training else 0.0
 
@@ -320,6 +318,12 @@ def flash_attn_fn(
             causal=reset_is_causal,
             return_attn_probs=needs_weights)
     elif is_flash_v2_installed():
+        alibi_kwargs = {}
+        if check_alibi_support('flash'):
+            alibi_kwargs = {'alibi_slopes': alibi_slopes}
+        elif alibi_slopes is not None:
+            raise ValueError(
+                'alibi_slopes is only supported for flash-attn>=2.4.2')
         output_unpad = flash_attn_interface.flash_attn_varlen_func(
             q=query_unpad,
             k=key_unpad,
@@ -331,10 +335,12 @@ def flash_attn_fn(
             dropout_p=dropout_p,
             softmax_scale=softmax_scale,
             causal=reset_is_causal,
-            return_attn_probs=needs_weights)
+            return_attn_probs=needs_weights,
+            window_size=(sliding_window_size, sliding_window_size),
+            **alibi_kwargs)
     else:
         raise RuntimeError(
-            'flash-attn==1.0.9 or flash-attn==2.3.2 is required.')
+            'flash-attn==1.0.9 or flash-attn==2.4.2 is required.')
 
     output = bert_padding.pad_input(
         rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,
@@ -347,7 +353,7 @@ def triton_flash_attn_fn(
     key: torch.Tensor,
     value: torch.Tensor,
     n_heads: int,
-    kv_n_heads: Optional[int] = None,
+    kv_n_heads: int,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -356,7 +362,6 @@ def triton_flash_attn_fn(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
-    multiquery: bool = False,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     try:
@@ -387,19 +392,6 @@ def triton_flash_attn_fn(
             )
 
     check_valid_inputs(query, key, value)
-
-    if multiquery:
-        warnings.warn(
-            DeprecationWarning(
-                'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.'
-            ))
-        kv_n_heads = 1
-    elif kv_n_heads is None:
-        warnings.warn(
-            DeprecationWarning(
-                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.'
-            ))
-        kv_n_heads = n_heads
 
     if past_key_value is not None:
         if len(past_key_value) != 0:
@@ -484,22 +476,26 @@ class GroupedQueryAttention(nn.Module):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        qk_gn: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
         bias: bool = True,
+        sliding_window_size: int = -1,
     ):
         super().__init__()
 
         self.attn_impl = attn_impl
         self.clip_qkv = clip_qkv
         self.qk_ln = qk_ln
+        self.qk_gn = qk_gn
 
         self.d_model = d_model
         self.n_heads = n_heads
         self.kv_n_heads = kv_n_heads
+        self.sliding_window_size = sliding_window_size
 
         self.head_dim = d_model // n_heads
 
@@ -515,6 +511,8 @@ class GroupedQueryAttention(nn.Module):
             raise ValueError(
                 'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads.'
             )
+        if qk_ln and qk_gn:
+            raise ValueError('Only one of qk_ln and qk_gn can be set to True.')
 
         self.softmax_scale = softmax_scale
         if self.softmax_scale is None:
@@ -524,8 +522,7 @@ class GroupedQueryAttention(nn.Module):
         fc_kwargs: dict[str, Any] = {
             'bias': bias,
         }
-        if fc_type != 'te':
-            fc_kwargs['device'] = device
+        fc_kwargs['device'] = device
         self.Wqkv = FC_CLASS_REGISTRY[fc_type](
             self.d_model,
             self.d_model + 2 * self.kv_n_heads * self.head_dim,
@@ -538,11 +535,13 @@ class GroupedQueryAttention(nn.Module):
         ]
         self.Wqkv._fused = (0, fuse_splits)
 
-        if self.qk_ln:
+        if self.qk_ln or self.qk_gn:
             norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
-            self.q_ln = norm_class(self.d_model, device=device)
-            self.k_ln = norm_class(self.kv_n_heads * self.head_dim,
-                                   device=device)
+            norm_size = self.head_dim if qk_gn else d_model
+            self.q_ln = norm_class(norm_size, device=device)
+            if qk_ln:
+                norm_size = self.head_dim * kv_n_heads
+            self.k_ln = norm_class(norm_size, device=device)
 
         if self.attn_impl == 'flash':
             self.attn_fn = flash_attn_fn
@@ -569,6 +568,8 @@ class GroupedQueryAttention(nn.Module):
         rotary_emb_w_meta_info: Optional[dict] = None,
         is_causal: bool = True,
         needs_weights: bool = False,
+        alibi_slopes: Optional[torch.Tensor] = None,
+        flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
             torch.Tensor, torch.Tensor]]]:
         qkv = self.Wqkv(x)
@@ -587,11 +588,16 @@ class GroupedQueryAttention(nn.Module):
 
         key_padding_mask = attention_mask
 
-        if self.qk_ln:
+        if self.qk_ln or self.qk_gn:
             # Applying layernorm to qk
+            q_shape, k_shape = query.shape, key.shape
+            if self.qk_gn:
+                b, s = query.shape[:2]
+                query = query.view(b, s, self.n_heads, -1)
+                key = key.view(b, s, self.kv_n_heads, -1)
             dtype = query.dtype
-            query = self.q_ln(query).to(dtype)
-            key = self.k_ln(key).to(dtype)
+            query = self.q_ln(query).to(dtype).view(q_shape)
+            key = self.k_ln(key).to(dtype).view(k_shape)
 
         if rotary_emb_w_meta_info is not None:
             rotary_emb = rotary_emb_w_meta_info['rotary_emb']
@@ -614,17 +620,33 @@ class GroupedQueryAttention(nn.Module):
                 value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
             elif rotary_emb_w_meta_info['impl'] == 'hf':
                 (cos, sin) = rotary_emb(value, seq_len)
-                # The following two transposes should be removed once the transformers library allows for the specification of the dimension for heads in the call to apply_rotary_pos_emb
-                query = query.transpose(1, 2)
-                key = key.transpose(1, 2)
-                query, key = apply_rotary_pos_emb(query, key, cos, sin,
-                                                  offset_info)
-                # The following two transposes should be removed once the transformers library allows for the specification of the dimension for heads in the call to apply_rotary_pos_emb
-                query = query.transpose(1, 2)
-                key = key.transpose(1, 2)
+                if is_transformers_version_gte('4.36'):
+                    query, key = apply_rotary_pos_emb(query,
+                                                      key,
+                                                      cos,
+                                                      sin,
+                                                      offset_info,
+                                                      unsqueeze_dim=2)
+                else:
+                    query = query.transpose(1, 2)
+                    key = key.transpose(1, 2)
+                    query, key = apply_rotary_pos_emb(query, key, cos, sin,
+                                                      offset_info)
+                    query = query.transpose(1, 2)
+                    key = key.transpose(1, 2)
 
             query = query.view(bsz, seqlen, self.d_model)
             key = key.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
+
+        extra_attn_kwargs = {}
+        if self.attn_impl == 'flash':
+            key_padding_mask = None
+            extra_attn_kwargs = {
+                'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
+                'sliding_window_size': self.sliding_window_size,
+                'alibi_slopes': alibi_slopes,
+                'flash_attn_padding_info': flash_attn_padding_info,
+            }
 
         context, attn_weights, past_key_value = self.attn_fn(
             query,
@@ -640,6 +662,7 @@ class GroupedQueryAttention(nn.Module):
             dropout_p=self.attn_dropout_p,
             training=self.training,
             needs_weights=needs_weights,
+            **extra_attn_kwargs,
         )
 
         return self.out_proj(context), attn_weights, past_key_value
@@ -659,12 +682,14 @@ class MultiheadAttention(GroupedQueryAttention):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        qk_gn: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
         bias: bool = True,
+        sliding_window_size: int = -1,
     ):
         super().__init__(
             d_model=d_model,
@@ -673,12 +698,14 @@ class MultiheadAttention(GroupedQueryAttention):
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
+            qk_gn=qk_gn,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
             device=device,
             bias=bias,
+            sliding_window_size=sliding_window_size,
         )
 
 
@@ -696,12 +723,14 @@ class MultiQueryAttention(GroupedQueryAttention):
         attn_impl: str = 'triton',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
+        qk_gn: bool = False,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         fc_type: str = 'torch',
         device: Optional[str] = None,
         bias: bool = True,
+        sliding_window_size: int = -1,
     ):
         super().__init__(
             d_model=d_model,
@@ -710,12 +739,14 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
+            qk_gn=qk_gn,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             fc_type=fc_type,
             device=device,
             bias=bias,
+            sliding_window_size=sliding_window_size,
         )
 
 
@@ -768,7 +799,8 @@ def build_attn_bias(
 
 def gen_slopes(n_heads: int,
                alibi_bias_max: int = 8,
-               device: Optional[torch.device] = None) -> torch.Tensor:
+               device: Optional[torch.device] = None,
+               return_1d: bool = False) -> torch.Tensor:
     _n_heads = 2**math.ceil(math.log2(n_heads))
     m = torch.arange(1, _n_heads + 1, dtype=torch.float32, device=device)
     m = m.mul(alibi_bias_max / _n_heads)
@@ -779,7 +811,8 @@ def gen_slopes(n_heads: int,
         # Huggingface and FasterTransformer calculate slopes normally,
         # then return this strided concatenation of slopes
         slopes = torch.concat([slopes[1::2], slopes[::2]])[:n_heads]
-
+    if return_1d:
+        return slopes
     return slopes.view(1, n_heads, 1, 1)
 
 

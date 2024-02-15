@@ -1,66 +1,65 @@
 icl_tasks:
 -
   label: human_eval
-  dataset_uri: eval/local_data/programming/human_eval.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/programming/human_eval.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 5
   batch_size: 1
   icl_task_type: code_evaluation
-
 -
   label: human_eval_cpp
-  dataset_uri: eval/local_data/programming/processed_human_eval_cpp.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/programming/processed_human_eval_cpp.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_js
-  dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_return_simple
-  dataset_uri: eval/local_data/programming/human_eval_return_simple.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/programming/human_eval_return_simple.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_return_complex
-  dataset_uri: eval/local_data/programming/human_eval_return_complex.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/programming/human_eval_return_complex.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_25
-  dataset_uri: eval/local_data/programming/human_eval-0.25.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/programming/human_eval-0.25.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_50
-  dataset_uri: eval/local_data/programming/human_eval-0.5.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/programming/human_eval-0.5.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
   label: human_eval_75
-  dataset_uri: eval/local_data/programming/human_eval-0.75.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/programming/human_eval-0.75.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 20
+  num_beams: 5
   batch_size: 1
   icl_task_type: code_evaluation

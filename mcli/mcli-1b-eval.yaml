@@ -1,10 +1,10 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.3.0
+  git_branch: v0.5.0
   # git_commit: # OR use your commit hash
   pip_install: -e .[gpu]
-  ssh_clone: false # Should be true if using a private repo
+  ssh_clone: false  # Should be true if using a private repo
 
 command: |
   cd llm-foundry/scripts/
@@ -20,7 +20,7 @@ compute:
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
-  run_name: # If left blank, will be read from top YAML name for W&B logging and checkpointing
+  run_name:  # If left blank, will be read from top YAML name for W&B logging and checkpointing
   seed: 1
   max_seq_len: 1024
 
@@ -35,7 +35,7 @@ parameters:
       name: mpt_causal_lm
       init_device: mixed
       d_model: 2048
-      n_heads: 16 # Modified 24->16 so that d_head == 128 to satisfy FlashAttention
+      n_heads: 16  # Modified 24->16 so that d_head == 128 to satisfy FlashAttention
       n_layers: 24
       expansion_ratio: 4
       max_seq_len: ${max_seq_len}
@@ -43,7 +43,7 @@ parameters:
       attn_config:
         attn_impl: triton
 
-    load_path: # Add your (non-optional) Composer checkpoint path here!
+    load_path:  # Add your (non-optional) Composer checkpoint path here!
 
   device_eval_batch_size: 4
   precision: amp_fp16
@@ -55,5 +55,5 @@ parameters:
     forward_prefetch: True
     limit_all_gathers: True
 
-  icl_tasks: 'eval/yamls/tasks.yaml'
-  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+  icl_tasks: "eval/yamls/tasks_v0.2.yaml"
+  eval_gauntlet: "eval/yamls/eval_gauntlet_v0.2.yaml"

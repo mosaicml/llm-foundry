@@ -39,8 +39,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
 
     def get_metrics(self, is_train: bool = False):
         if is_train:
-            raise NotImplementedError(
-                'You cannot use inference wrappers for training')
+            metrics = None
         else:
             metrics = self.eval_metrics
 
@@ -55,6 +54,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
         return batch
 
     def eval_forward(self, batch: Batch, outputs: Optional[Any] = None):
+        padding_tok = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id else self.tokenizer.eos_token_id
         # If the batch mode is generate, we will generate a requested number of tokens using the underlying
         # model's generate function. Extra generation kwargs can be passed in via the batch. Strings will
         # be returned from eval_forward
@@ -68,7 +68,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
             expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
             output_logits = torch.nn.functional.one_hot(
                 torch.tensor(tokens[1:cont_idxs[0]]),
-                num_classes=self.tokenizer.vocab_size)
+                num_classes=len(self.tokenizer))
             for i in range(len(expected_cont_tokens)):
                 # decode one token at a time
                 prompt = self.tokenizer.decode(tokens[:cont_idxs[0]] +
@@ -80,9 +80,8 @@ class InferenceAPIEvalWrapper(ComposerModel):
                     [output_logits,
                      next_logit_tensor.reshape(1, -1)])
             padding = torch.nn.functional.one_hot(
-                torch.full((seqlen - output_logits.shape[0],),
-                           self.tokenizer.pad_token_id),
-                num_classes=self.tokenizer.vocab_size)
+                torch.full((seqlen - output_logits.shape[0],), padding_tok),
+                num_classes=len(self.tokenizer))
             output_logits = torch.cat([output_logits, padding])
             output_logits_batch.append(output_logits)
 

@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import torch
 
@@ -58,15 +58,17 @@ class DecoupledLionW_8bit(torch.optim.Optimizer):
             device, or b) step() is executed on a non-CUDA parameter.
     """
 
-    def __init__(self,
-                 params: Iterable[torch.Tensor],
-                 lr: float = 1e-3,
-                 betas: Tuple[float, float] = (0.9, 0.99),
-                 weight_decay: float = 0,
-                 quantize: bool = True,
-                 compress_state_dict: bool = False,
-                 error_correction: bool = False,
-                 _fused: bool = True):  # XXX this flag is mostly for testing...
+    def __init__(
+            self,
+            params: Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]],
+            lr: float = 1e-3,
+            betas: Tuple[float, float] = (0.9, 0.99),
+            weight_decay: float = 0,
+            quantize: bool = True,
+            compress_state_dict: bool = False,
+            error_correction: bool = False,
+            _fused: bool = True,  # XXX this flag is mostly for testing...
+    ):
 
         if lr < 0.0:
             raise ValueError('Invalid learning rate: {}'.format(lr))
@@ -233,9 +235,14 @@ class _MaybeQuantizedTensor:
         self._f_encode = None
         self._f_decode = None
         if self._try_quantize:
-            from turbo import dequantize8b, quantize8b
-            self._f_encode = quantize8b
-            self._f_decode = dequantize8b
+            try:
+                from turbo import dequantize_signed, quantize_signed
+            except ModuleNotFoundError:
+                raise NotImplementedError(
+                    'The Lion 8b optimizer requires installing mosaicml-turbo. ',
+                    'Please `pip install llm-foundry[turbo]` to install it.')
+            self._f_encode = quantize_signed
+            self._f_decode = dequantize_signed
 
         if data is not None:
             self.set_data(data)
@@ -275,7 +282,7 @@ class _MaybeQuantizedTensor:
                     f'on device {data.device} with shape {data.shape}.')
             self.data = None
             assert self._f_encode is not None  # pyright
-            self.quantized, self.scales = self._f_encode(data)
+            self.quantized, self.scales, _ = self._f_encode(data)
         else:
             self.data = data.to(dtype=torch.float32)
             self.quantized = None
@@ -394,7 +401,12 @@ def lion8b_step_fused(grads: torch.Tensor,
                 f'Weights must be f32 or match grad dtype {grads.dtype}')
 
     # ------------------------------------------------ actual function call
-    from turbo import lion8b_step_cuda
+    try:
+        from turbo import lion8b_step_cuda
+    except ModuleNotFoundError:
+        raise NotImplementedError(
+            'The Lion 8b optimizer requires installing mosaicml-turbo. ',
+            'Please `pip install llm-foundry[turbo]` to install it.')
     return lion8b_step_cuda(grads=grads,
                             weights=weights,
                             momentums=momentums,

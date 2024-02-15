@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from composer.utils import dist
 from omegaconf import DictConfig
@@ -25,6 +26,7 @@ def tiny_ft_dataset_path(tmp_path: Path, dataset_size: int = 4) -> Path:
 
 
 @fixture
+@patch('os.cpu_count', MagicMock(return_value=1))
 def tiny_ft_dataloader(tiny_ft_dataset_path: Path,
                        mpt_tokenizer: PreTrainedTokenizerBase,
                        max_seq_len: int = 128,

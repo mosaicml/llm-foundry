@@ -1,6 +1,6 @@
 # In-context learning (ICL) evaluation
 
-This folder contains the MosaicML LLM evaluation suite. It is a [blazingly fast](https://www.mosaicml.com/blog/llm-evaluation-for-icl), multi-GPU-enabled ICL evaluation suite with native [FSDP](https://pytorch.org/docs/stable/fsdp.html) compatibility with any model on the HuggingFace hub and any PyTorch model that implements the [`ComposerModel` interface](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.ComposerModel.html#composermodel). We also include collection of ICL datasets we refer to as our [Model Gauntlet](https://github.com/mosaicml/llm-foundry/blob/scripts/eval/local_data/eval_gauntlet.md) organized into 6 broad categories of competency that we expect good foundation models to have.
+This folder contains the MosaicML LLM evaluation suite. It is a [blazingly fast](https://www.mosaicml.com/blog/llm-evaluation-for-icl), multi-GPU-enabled ICL evaluation suite with native [FSDP](https://pytorch.org/docs/stable/fsdp.html) compatibility with any model on the HuggingFace hub and any PyTorch model that implements the [`ComposerModel` interface](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.ComposerModel.html#composermodel). We also include collection of ICL datasets we refer to as our [Eval Gauntlet](https://github.com/mosaicml/llm-foundry/blob/scripts/eval/local_data/eval_gauntlet.md) organized into 6 broad categories of competency that we expect good foundation models to have.
 
 You can evaluate a model by preparing an evaluation YAML following the format of the examples in the [`scripts/eval/yamls` directory](https://github.com/mosaicml/llm-foundry/tree/main/scripts/eval/yamls).
 
@@ -27,7 +27,7 @@ composer eval/eval.py eval/yamls/hf_eval.yaml \
     model_name_or_path=mosaicml/mpt-7b
 ```
 
-You can also modify the specific benchmarks executed and their formatting by modifying the contents of `tasks.yaml` and you can modify the choice of composite scores and the set of tasks they consist of by modifying `eval_gauntlet.yaml`.
+You can also modify the specific benchmarks executed and their formatting by modifying the contents of `tasks.yaml` and you can modify the choice of composite scores and the set of tasks they consist of by modifying `eval_gauntlet_v0.2.yaml`.
 
 
 ### Evaluation during training
@@ -38,7 +38,7 @@ To run evaluation during training, download this repo, follow the instructions i
 cd llm-foundry/scripts/train
 composer train.py yamls/pretrain/mpt-125m_eval.yaml train_loader.dataset.split=train_small eval_loader.dataset.split=val_small
 ```
-You can also modify the specific benchmarks executed and their formatting by modifying the contents of `tasks.yaml` and you can modify the choice of composite scores and the set of tasks they consist of by modifying `eval_gauntlet.yaml`. You can also choose to either run the full evaluation or run on a subset number of batches per benchmark by setting `icl_subset_num_batches`.
+You can also modify the specific benchmarks executed and their formatting by modifying the contents of `tasks.yaml` and you can modify the choice of composite scores and the set of tasks they consist of by modifying `eval_gauntlet_v0.2.yaml`. You can also choose to either run the full evaluation or run on a subset number of batches per benchmark by setting `icl_subset_num_batches`.
 
 ----
 ## In-depth walkthrough
@@ -131,7 +131,7 @@ An example is given below:
 ```
   icl_tasks: eval/yamls/tasks.yaml # or use tasks_light.yaml
   icl_subset_num_batches: 100 # -1, or omit this key entirely, to evaluate on all batches
-  eval_gauntlet: 'eval/yamls/eval_gauntlet.yaml'
+  eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'
   icl_seq_len: 1024
 ```
 

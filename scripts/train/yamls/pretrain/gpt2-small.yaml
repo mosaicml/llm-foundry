@@ -2,13 +2,13 @@
 # this is NOT a finetuning run
 
 data_local: ./my-copy-c4
-data_remote: # If blank, files must be present in data_local
+data_remote:  # If blank, files must be present in data_local
 tokenizer_name: gpt2
 max_seq_len: 2048
 global_seed: 17
 
 # Run Name
-run_name: # If left blank, will be read from env var $RUN_NAME
+run_name:  # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:
@@ -34,7 +34,6 @@ train_loader:
     remote: ${data_remote}
     split: train
     shuffle: true
-    tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
     shuffle_seed: ${global_seed}
   drop_last: true
@@ -47,7 +46,6 @@ eval_loader:
     remote: ${data_remote}
     split: val
     shuffle: false
-    tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
     shuffle_seed: ${global_seed}
   drop_last: false
@@ -73,7 +71,7 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 33696ba # ~ 17.55B tokens; 150 tokens / param
+max_duration: 33696ba  # ~ 17.55B tokens; 150 tokens / param
 eval_interval: 1000ba
 eval_first: false
 eval_subset_num_batches: -1
@@ -94,7 +92,6 @@ fsdp_config:
   activation_checkpointing_reentrant: false
   activation_cpu_offload: false
   limit_all_gathers: true
-  verbose: false
 
 # Logging
 progress_bar: false

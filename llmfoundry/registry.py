@@ -10,11 +10,13 @@ from composer.algorithms import (Alibi, GatedLinearUnits, GradientClipping,
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, MemorySnapshot, OptimizerMonitor,
                                 RuntimeEstimator, SpeedMonitor)
+from composer.core import Algorithm, Callback
 from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
                               TensorboardLogger, WandBLogger)
-from composer.optim import (ConstantWithWarmupScheduler,
+from composer.optim import (ComposerScheduler, ConstantWithWarmupScheduler,
                             CosineAnnealingWithWarmupScheduler, DecoupledAdamW,
                             LinearWithWarmupScheduler)
+from torch.optim import Optimizer
 
 from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, FDiffMetrics,
                                   GlobalLRScaling, HuggingFaceCheckpointer,
@@ -25,6 +27,26 @@ from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 
 T = TypeVar('T')
+
+
+def create(
+    *namespace: str,
+    generic_type: Type,
+    entry_points: bool = False,
+) -> 'TypedRegistry':
+    """Create a new registry.
+
+    *namespace (str): The namespace, e.g. "spacy" or "spacy", "architectures".
+    entry_points (bool): Accept registered functions from entry points.
+    RETURNS (Registry): The Registry object.
+    """
+    if catalogue.check_exists(*namespace):
+        raise catalogue.RegistryError(f'Namespace already exists: {namespace}')
+
+    # if generic_type is not None:
+    return TypedRegistry[generic_type](namespace, entry_points=entry_points)
+    # else:
+    #     return TypedRegistry(namespace, entry_points=entry_points)
 
 
 class TypedRegistry(catalogue.Registry, Generic[T]):
@@ -47,17 +69,16 @@ class TypedRegistry(catalogue.Registry, Generic[T]):
     def get_entry_points(self) -> Dict[str, T]:
         return super().get_entry_points()
 
-loggers = TypedRegistry[Type[LoggerDestination]]('llm_foundry.loggers',
-                                                 entry_points=True)
 
-loggers.register('wandb', func=InverseSquareRootWithWarmupScheduler)
+loggers = create('llm_foundry.loggers', None, entry_points=True)
+loggers.register('wandb', func=WandBLogger)
 loggers.register('tensorboard', func=TensorboardLogger)
 loggers.register('inmemory', func=InMemoryLogger)
 loggers.register('in_memory_logger',
                  func=InMemoryLogger)  # for backwards compatibility
 loggers.register('mlflow', func=MLFlowLogger)
 
-callbacks = catalogue.create('llm_foundry.callbacks', entry_points=True)
+callbacks = create('llm_foundry.callbacks', Type[Callback], entry_points=True)
 callbacks.register('lr_monitor', func=LRMonitor)
 callbacks.register('memory_monitor', func=MemoryMonitor)
 callbacks.register('memory_snapshot', func=MemorySnapshot)
@@ -74,25 +95,32 @@ callbacks.register('mono_checkpoint_saver', func=MonolithicCheckpointSaver)
 callbacks.register('scheduled_garbage_collector',
                    func=ScheduledGarbageCollector)
 
-callbacks_with_config = catalogue.create('llm_foundry.callbacks_with_config',
-                                         entry_points=True)
+callbacks_with_config = create('llm_foundry.callbacks_with_config',
+                               Type[Callback],
+                               entry_points=True)
 callbacks_with_config.register('async_eval', func=AsyncEval)
 callbacks_with_config.register('curriculum_learning', func=CurriculumLearning)
 
-optimizers = catalogue.create('llm_foundry.optimizers', entry_points=True)
+optimizers = catalogue.create('llm_foundry.optimizers',
+                              Type[Optimizer],
+                              entry_points=True)
 optimizers.register('adalr_lion', func=DecoupledAdaLRLion)
 optimizers.register('clip_lion', func=DecoupledClipLion)
 optimizers.register('decoupled_lionw', func=DecoupledLionW)
 optimizers.register('decoupled_lionw_8b', func=DecoupledLionW_8bit)
 optimizers.register('decoupled_adamw', func=DecoupledAdamW)
 
-algorithms = catalogue.create('llm_foundry.algorithms', entry_points=True)
+algorithms = catalogue.create('llm_foundry.algorithms',
+                              Type[Algorithm],
+                              entry_points=True)
 algorithms.register('gradient_clipping', func=GradientClipping)
 algorithms.register('alibi', func=Alibi)
 algorithms.register('gated_linear_units', func=GatedLinearUnits)
 algorithms.register('low_precision_layernorm', func=LowPrecisionLayerNorm)
 
-schedulers = catalogue.create('llm_foundry.schedulers', entry_points=True)
+schedulers = catalogue.create('llm_foundry.schedulers',
+                              Type[ComposerScheduler],
+                              entry_points=True)
 schedulers.register('constant_with_warmup', func=ConstantWithWarmupScheduler)
 schedulers.register('cosine_with_warmup',
                     func=CosineAnnealingWithWarmupScheduler)

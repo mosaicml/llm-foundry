@@ -269,7 +269,6 @@ class MPTModel(MPTPreTrainedModel):
         # flash does not support prefix_lm and will incorporate any
         # attention_mask inside the attention module
         if self.attn_impl == 'flash':
-            # print('attention_mask shape in modeling_mpt.py', attention_mask.shape) # JP ADDED
             return self.attn_bias, attention_mask
 
         if self.attn_bias is not None:
@@ -408,10 +407,6 @@ class MPTModel(MPTPreTrainedModel):
         # JP REMOVED
         # if (self.training and attention_mask is not None and
         #         attention_mask[:, 0].sum() != attention_mask.shape[0]):
-        #     print(attention_mask)
-        #     print('attention mask shape ', attention_mask.shape) # JP: added
-        #     print('attention_mask[:, 0].sum() ',attention_mask[:, 0].sum()) # JP added
-        #     print('attention_mask.shape[0] ',attention_mask.shape[0]) # JP added
         #     raise NotImplementedError(
         #         'MPT does not support training with left padding.')
 
@@ -589,7 +584,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
         self.transformer: MPTModel = MPTModel(config)
 
-        self.lm_head = None # JP why is this set to none?
+        self.lm_head = None 
         if not config.tie_word_embeddings:
             self.lm_head = nn.Linear(
                 config.d_model,
@@ -597,9 +592,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 bias=False,
                 device=config.init_device,
             )
-            self.lm_head._fsdp_wrap = True # JP Note this _fsdp_wrap function...how important is it?
-            # JP Added
-            # print('lm_head exists')
+            self.lm_head._fsdp_wrap = True
 
         for child in self.transformer.children():
             if isinstance(child, torch.nn.ModuleList):
@@ -652,10 +645,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             self.transformer.set_input_embeddings(new_embeddings)
 
     def tie_weights(self) -> None:
-        # JP Removed
         self.lm_head = None
-        #JP Added
-        #print('is this happening?')
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder
@@ -699,24 +689,16 @@ class MPTForCausalLM(MPTPreTrainedModel):
             use_cache=use_cache,
         )
 
-        # JP Added
-        # print('self.lm_head ',self.lm_head)
         if self.lm_head is not None:
             logits = self.lm_head(outputs.last_hidden_state)
             
             outputs.hidden_states = outputs.last_hidden_state # JP THIS IS A HACK, since outputs.hidden_states seems to be empty
-            # print('outputs.hidden_states.shape',outputs.hidden_states.shape)
         else:
             outputs.hidden_states = outputs.last_hidden_state # JP THIS IS A HACK, since outputs.hidden_states seems to be empty
             # move outputs to same device as weights for token embedding
             # needed to support HF `device_map`
             out = outputs.last_hidden_state # [batch size, sequence length, hidden dimension]
-            out = out.to(self.transformer.wte.weight.device) # this puts tensor on same device as wte JP Added .long() amd then removed
-            # JP Added
-            #print(out)
-            # print('out.shape ',out.shape)
-            
-            # shouldn't this be self.transformer.wte(out, unembed=True)? For some reason I'm running into an error
+            out = out.to(self.transformer.wte.weight.device) # this puts tensor on same device as wte            
             logits = self.transformer.wte(out, True) # input: Tensor, unembed: bool = False
             # JP changed
             #logits = self.transformer.wte(out)

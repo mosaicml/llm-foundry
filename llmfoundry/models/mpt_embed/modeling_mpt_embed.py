@@ -4,7 +4,7 @@
 """This implements InfoNCE Loss using the MPT architecture.
 The resulting model can be used as a vector embedding model
 
-Inspired by Microsoft Research's unilm repository
+This is heavily inspired by Microsoft Research's unilm repository
 https://github.com/microsoft/unilm
 """
 

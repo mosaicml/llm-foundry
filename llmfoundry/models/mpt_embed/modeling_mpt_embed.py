@@ -1,9 +1,11 @@
-# Copyright 2022 MosaicML LLM Foundry authors
+# Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""A simple, flexible implementation of a GPT model.
+"""This implements InfoNCE Loss using the MPT architecture.
+The resulting model can be used as a vector embedding model
 
-Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
+Inspired by Microsoft Research's unilm repository
+https://github.com/microsoft/unilm
 """
 
 import math
@@ -20,7 +22,7 @@ from composer.metrics import (InContextLearningCodeEvalAccuracy,
                               InContextLearningMCExpectedCalibrationError,
                               InContextLearningMultipleChoiceAccuracy,
                               InContextLearningQAAccuracy,
-                              LossMetric) # JP Added
+                              LossMetric)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
@@ -68,13 +70,11 @@ except:
 
 import logging
 
-# JP: imports from mpt/modeling_mpt
 from llmfoundry.models.mpt.modeling_mpt import MPTPreTrainedModel, MPTModel, MPTForCausalLM, ComposerMPTCausalLM
 
 log = logging.getLogger(__name__)
 
-# JP: Added for contrastive loss
-# Todo: does this exist somewhere? Move this to a util?
+# Todo: this could be moved to a util folder?
 def dist_gather_tensor(t: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
 
     """
@@ -96,7 +96,7 @@ def dist_gather_tensor(t: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
 class ComposerMPTContrastiveLM(HuggingFaceModel):
 
     """ 
-    JP: The following code implements a contrastive loss function using the MPT
+    The following code implements a contrastive loss function using the MPT
     architecture.
 
     Note that the MPTForCausalLM architecture can be used as is, provided that `labels=None`
@@ -108,6 +108,9 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
     bidirectional mask
 
     The main addition is the function _compute_scores() in the forward pass, which implements the contrastive loss
+
+    TO DOs:
+    * Correctly implement train metrics for the contrastive loss
     """
 
     def __init__(
@@ -122,13 +125,14 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
         
+        # TO DO
         # train_metrics = [LanguageCrossEntropy(),
         #                  LanguagePerplexity()] if use_train_metrics else []
 
-        # JP Add
+        # TO DO
         train_metrics = [LanguageCrossEntropy()] if use_train_metrics else []
 
-        # JP: These metrics might not work for the contrastive loss
+        # TO DO These metrics might not work for the contrastive loss
         # eval_metrics = [
         #     LanguageCrossEntropy(),
         #     LanguagePerplexity(),
@@ -139,16 +143,17 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         #     InContextLearningLMExpectedCalibrationError(),
         #     InContextLearningMCExpectedCalibrationError(),
         # ]
+
         eval_metrics = []
 
         super().__init__(
             model=model,
             tokenizer=tokenizer,
-            use_logits=False, # JP: set to False
+            use_logits=False, # Note: set to False
             metrics=train_metrics,
-            eval_metrics=eval_metrics, # might be worth setting to []
-            shift_labels=False, # JP: set to False
-            allow_embedding_resizing=True, # JP: Not sure what this does. was set to True
+            eval_metrics=eval_metrics, # Note: might be worth setting to []
+            shift_labels=False, # Note: set to False
+            allow_embedding_resizing=True,
         )
 
         # Temperature for InfoNCELoss
@@ -187,9 +192,10 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
                 f'Specified loss_fn={self.loss_fn} not recognized. `loss_fn` must be one of [`fused_crossentropy`, `torch_crossentropy`].'
             )
 
-    def format_queries_batch(self, batch, last_hidden_state):
+    def format_queries_batch(self, batch: MutableMapping, last_hidden_state):
         """ Format `queries` by selecting every other pair from the batch 
-        JP: Note that there could be a better way to do this
+        TO DO: Note that there should be a better way to do this. However, we chose this option
+        as a way to preserve determinism
         """
         queries = {}
         step_size = self.config.to_dict().get("pos_step_size", 2)
@@ -198,7 +204,7 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             
         return queries, last_hidden_state[0::step_size, :, :]
     
-    def format_passages_batch(self, batch, last_hidden_state):
+    def format_passages_batch(self, batch: MutableMapping, last_hidden_state):
         """ Format `passages` by selecting every other pair from the batch """
         passages = {}
         step_size = self.config.to_dict().get("pos_step_size", 2)
@@ -217,15 +223,12 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             add_bidirectional_mask_if_missing(batch)
         # Note: prefix_mask is only used if model.prefix_lm is True
 
-        # JP - add
-        # Reshape pairs so that 
+        # Reshape pairs
         dim1,dim2,dim3=batch['input_ids'].shape
-        # print(batch['input_ids'].shape)
-        # print(batch['input_ids'].reshape((dim1*dim2,dim3)))
         reshaped_input_ids = batch['input_ids'].reshape((dim1*dim2,dim3))
         batch['input_ids'] = reshaped_input_ids
         
-        # still need TO DO for prefix_mask and input_embeds
+        # TO DO: make sure this also works for prefix_mask and input_embeds
         if 'attention_mask' in batch:
             reshaped_attention_mask = batch['attention_mask'].reshape((dim1*dim2,dim3))
             batch['attention_mask'] = reshaped_attention_mask
@@ -252,7 +255,7 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             inputs_embeds=batch.get('inputs_embeds', None),
         )
     
-    def _compute_scores(self, batch, outputs) -> Tuple:
+    def _compute_scores(self, batch: MutableMapping, outputs) -> Tuple:
 
         """
         Run Pairs through the encoder separately in two passes, designated as q (query) and p (passage)
@@ -260,17 +263,13 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         
         the pooled_outputs is [batch_size, hidden_size]
         
-        Note: at some future point we could use the flag 'token_type_ids' which was used in the original
+        TO DO: at some future point we could use the flag 'token_type_ids' which was used in the original
         BERT formula to keep track of sentences A and sentences B in the next sentence prediction objective
         function. For now we split even and odd rows
         """
         (queries_batch, queries_last_hidden_state) = self.format_queries_batch(batch, outputs.hidden_states)
         (passages_batch, passages_last_hidden_state) = self.format_passages_batch(batch, outputs.hidden_states)
         
-        
-        # print(self.tokenizer.decode(queries_batch['input_ids'][0]))
-        # print(self.tokenizer.decode(passages_batch['input_ids'][0]))
-
         # the output of self.model should be a @dataclass container with values
         # loss, logits, attentions, and hidden_states, which contains Hidden-states of the model at the 
         # output of each layer plus the optional initial embedding outputs.
@@ -284,11 +283,9 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         # for batch of [16,128], q_encoder_outputs.hidden_states has shape [16,128,768] but q_encoder_outputs.hidden_states[-1].shape:  torch.Size([128, 768])
         # q_last_hidden also has shape [16,128,768]. q_pooled_outputs should be [16,768]
         
-        # print('\nq_encoder_outputs.hidden_states[-1].shape: ', q_encoder_outputs.hidden_states[-1].shape)
         if self.vector_representation == 'eos':
 
             # This assumes that that each query and passage ends with an EOS token
-            
             # create an array with indicees corresponding to rows along the batch dimension
             row_indices = torch.arange(queries_batch.get('attention_mask', None).shape[0])
 
@@ -314,21 +311,15 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
             p_last_hidden = passages_last_hidden_state.masked_fill(~passages_batch.get('attention_mask', None)[..., None].bool(), 0.0)
             p_pooled_outputs = p_last_hidden.sum(dim=1) / passages_batch.get('attention_mask', None).sum(dim=1)[..., None]
 
-
-            
-        #print('>>p_pooled_outputs shape:',p_pooled_outputs.shape)
         
         if self.normalize_output:
             q_pooled_outputs = F.normalize(q_pooled_outputs, dim=-1) # Todo: should be configurable when L2 normalizing
             p_pooled_outputs = F.normalize(p_pooled_outputs, dim=-1)
 
-        q_pooled_outputs = q_pooled_outputs.contiguous() # Why do we need to make this contiguous?
-        p_pooled_outputs = p_pooled_outputs.contiguous() # Why do we need to make this contiguous?
+        q_pooled_outputs = q_pooled_outputs.contiguous() 
+        p_pooled_outputs = p_pooled_outputs.contiguous() 
 
         is_distributed = self.config.to_dict().get("is_distributed", True)
-        
-        # if q_pooled_outputs.shape[0] < p_pooled_outputs.shape[0]:
-        #     q_pooled_outputs = q_pooled_outputs.repeat(p_pooled_outputs.shape[0], 1)
         
         if is_distributed:
             # All Gather is included
@@ -349,19 +340,14 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         
         all_scores = all_scores * scale
         
+        # TO DO: Confirm that this is not necessary
         # start = dist.get_global_rank() * q_pooled_outputs.shape[0]
-        
         # local_query_indices = torch.arange(start, start + q_pooled_outputs.shape[0], dtype=torch.long).to(q_pooled_outputs.device)
-        
         # scores = all_scores.index_select(dim=0, index=local_query_indices)
         # all_scores[dist.get_global_rank()] = scores
         # labels = all_labels.index_select(dim=0, index=local_query_indices)s
         # scores = all_scores
         # labels = all_labels
-        #print('>>labels',labels.shape) # should be torch.Size([64])
-
-        #print('>> mean scores',all_scores.mean())
-        #print('>> mean diagonal scores', all_scores.diagonal().mean())
         return all_scores, all_labels
     
     def full_contrastive_scores_and_labels(self, queries: torch.Tensor, passages: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -372,8 +358,6 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
         # this calculates the inner product between query and passage pairs
         qp = torch.mm(queries, passages.t())
 
-        #print('>> qp shape:', qp.shape)
-
         return qp, labels
 
     def loss(self, outputs: CausalLMOutputWithPast,
@@ -383,7 +367,7 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
                 
         loss = self.loss_fn(scores, labels)
 
-        self.labels = labels # JP Added, necessary for train metrics LanguageCrossEntropy
+        self.labels = labels # Note: this is necessary for train metrics LanguageCrossEntropy
         # Note that LanguageCrossEntropy() calculates loss with respect to logits
         # e.g. losses = self.loss_fn(logits, target)
         # This is different from how we are calculating the loss between the output vectors of query vs passage
@@ -414,3 +398,6 @@ class ComposerMPTContrastiveLM(HuggingFaceModel):
                               (self.model.config.d_model * (msl**2)))
 
         return (params_flops_per_seq + attn_flops_per_seq) * 3 * bs
+
+# TO DO
+# class ComposerMPTMaskedLM(HuggingFaceModel):

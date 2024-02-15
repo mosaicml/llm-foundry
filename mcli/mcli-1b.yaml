@@ -3,7 +3,7 @@ integrations:
   git_repo: mosaicml/llm-foundry
   git_branch: v0.5.0
   # git_commit:  # OR use your commit hash
-  pip_install: -e .[gpu]
+  pip_install: -e .[gpu-flash2]
   ssh_clone: false  # Should be true if using a private repo
 
 # We are fetching, converting, and training on the 'val' split
@@ -21,7 +21,7 @@ command: |
     eval_loader.dataset.split=val_small \
     max_duration=100ba \
     eval_interval=0
-image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+image: mosaicml/llm-foundry:2.2.0_cu121_flash2-latest
 name: mpt-1b-gpus-8
 
 compute:

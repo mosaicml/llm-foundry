@@ -1,5 +1,5 @@
 name: c4-2k-pre-tokenized
-image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+image: mosaicml/llm-foundry:2.2.0_cu121_flash2-latest
 compute:
   gpus: 8  # Number of GPUs to use
 

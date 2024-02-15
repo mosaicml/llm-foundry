@@ -3,7 +3,7 @@ integrations:
   git_repo: mosaicml/llm-foundry
   git_branch: v0.5.0
   # git_commit:  # OR use your commit hash
-  pip_install: -e ".[gpu]"
+  pip_install: -e ".[gpu-flash2]"
   ssh_clone: false  # Should be true if using a private repo
 
 command: |
@@ -16,7 +16,7 @@ gpu_num: 8
 # gpu_type:
 # cluster:  # replace with your cluster here!
 
-image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.2.0_cu121_flash2-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:

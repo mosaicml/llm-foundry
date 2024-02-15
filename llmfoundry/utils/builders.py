@@ -502,6 +502,11 @@ def build_icl_evaluators(
         if 'generations_per_sample' not in icl_cfg:
             icl_cfg.generations_per_sample = 1
 
+        if 'num_beams' in icl_cfg:
+            raise ValueError(
+                'num_beams is no longer supported as a top level icl_task parameter.'  + \
+                'Please use generation_kwargs.num_beams instead.')
+
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
         _validate_cfg(icl_cfg)

@@ -212,15 +212,6 @@ def main(cfg: DictConfig) -> Trainer:
                                                             'eval_gauntlet',
                                                             must_exist=False,
                                                             default_value=None)
-    if eval_gauntlet_config is None:
-        eval_gauntlet_config = pop_config(cfg,
-                                          'model_gauntlet',
-                                          must_exist=False,
-                                          default_value=None)
-        if eval_gauntlet_config is not None:
-            warnings.warn(
-                'Use of the key `model_gauntlet` is deprecated, please use the key `eval_gauntlet`',
-                DeprecationWarning)
     icl_subset_num_batches: Optional[int] = pop_config(cfg,
                                                        'icl_subset_num_batches',
                                                        must_exist=False,

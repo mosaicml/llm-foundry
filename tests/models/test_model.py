@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 from accelerate import init_empty_weights
 from composer.core.precision import Precision, get_precision_context
+from composer.models.huggingface import maybe_get_underlying_model
 from composer.optim import DecoupledAdamW
 from composer.trainer.dist_strategy import prepare_fsdp_module
 from composer.utils import dist, get_device, reproducibility
@@ -499,8 +500,18 @@ def test_loss_fn():
                                     atol=1e-4), f'differed at step {i}'
 
 
-def test_opt_wrapping():
-    conf = {
+@pytest.mark.parametrize('peft_config', [
+    None,
+    {
+        'peft_type': 'LORA',
+        'task_type': 'CAUSAL_LM'
+    },
+])
+def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
+    if peft_config is not None:
+        _ = pytest.importorskip('peft')
+
+    conf: dict[str, dict[str, Union[str, dict]]] = {
         'model': {
             'name': 'hf_causal_lm',
             'pretrained_model_name_or_path': 'facebook/opt-125m',
@@ -510,6 +521,9 @@ def test_opt_wrapping():
             'name': 'facebook/opt-125m'
         }
     }
+    if peft_config is not None:
+        conf['model']['peft_config'] = peft_config
+
     config = DictConfig(conf)
 
     tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
@@ -519,10 +533,37 @@ def test_opt_wrapping():
     model = ComposerHFCausalLM(config.model, tokenizer)
 
     # check that all the modules we except are blocked from FSDP wrapping
-    assert not model.model.model._fsdp_wrap
-    assert not model.model.model.decoder._fsdp_wrap
-    assert not model.model.model.decoder.embed_tokens._fsdp_wrap
-    assert not model.model.lm_head._fsdp_wrap
+    underlying_model = maybe_get_underlying_model(model.model)
+    assert not underlying_model.model._fsdp_wrap
+    assert not underlying_model.model.decoder._fsdp_wrap
+    assert not underlying_model.model.decoder.embed_tokens._fsdp_wrap
+    assert not underlying_model.lm_head._fsdp_wrap
+
+
+def test_lora_id():
+    peft = pytest.importorskip('peft')
+
+    conf: dict[str, dict[str, Union[str, dict]]] = {
+        'model': {
+            'name': 'hf_causal_lm',
+            'pretrained_model_name_or_path': 'facebook/opt-350m',
+            'pretrained': 'false',
+            'pretrained_lora_id_or_path': 'ybelkada/opt-350m-lora',
+        },
+        'tokenizer': {
+            'name': 'facebook/opt-350m'
+        }
+    }
+
+    config = DictConfig(conf)
+
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
+    tokenizer = build_tokenizer(config.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
+
+    model = ComposerHFCausalLM(config.model, tokenizer)
+
+    assert isinstance(model.model, peft.PeftModelForCausalLM)
 
 
 @pytest.mark.parametrize('norm_type', NORM_CLASS_REGISTRY.keys())

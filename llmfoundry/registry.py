@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar, Union
 
 import catalogue
 from composer.algorithms import (Alibi, GatedLinearUnits, GradientClipping,
@@ -10,8 +10,8 @@ from composer.algorithms import (Alibi, GatedLinearUnits, GradientClipping,
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, MemorySnapshot, OptimizerMonitor,
                                 RuntimeEstimator, SpeedMonitor)
-from composer.loggers import (InMemoryLogger, MLFlowLogger, TensorboardLogger,
-                              WandBLogger)
+from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
+                              TensorboardLogger, WandBLogger)
 from composer.optim import (ConstantWithWarmupScheduler,
                             CosineAnnealingWithWarmupScheduler, DecoupledAdamW,
                             LinearWithWarmupScheduler)
@@ -24,8 +24,33 @@ from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW, DecoupledLionW_8bit)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 
-loggers = catalogue.create('llm_foundry.loggers', entry_points=True)
-loggers.register('wandb', func=WandBLogger)
+T = TypeVar('T')
+
+
+class TypedRegistry(catalogue.Registry, Generic[T]):
+
+    def __call__(self, name: str, func: T) -> Callable[[T], T]:
+        return super().__call__(name, func)
+
+    def register(self, name: str, func: T) -> T:
+        return super().__call__(name, func=func)
+
+    def get(self, name: str) -> T:
+        return super().get(name)
+
+    def get_all(self) -> Dict[str, T]:
+        return super().get_all()
+
+    def get_entry_point(self, name: str, default: Optional[T] = None) -> T:
+        return super().get_entry_point(name, default=default)
+
+    def get_entry_points(self) -> Dict[str, T]:
+        return super().get_entry_points()
+
+loggers = TypedRegistry[Type[LoggerDestination]]('llm_foundry.loggers',
+                                                 entry_points=True)
+
+loggers.register('wandb', func=InverseSquareRootWithWarmupScheduler)
 loggers.register('tensorboard', func=TensorboardLogger)
 loggers.register('inmemory', func=InMemoryLogger)
 loggers.register('in_memory_logger',
@@ -46,7 +71,8 @@ callbacks.register('huggingface_checkpointer', func=HuggingFaceCheckpointer)
 callbacks.register('global_lr_scaling', func=GlobalLRScaling)
 callbacks.register('layer_freezing', func=LayerFreezing)
 callbacks.register('mono_checkpoint_saver', func=MonolithicCheckpointSaver)
-callbacks.register('scheduled_garbage_collector', func=ScheduledGarbageCollector)
+callbacks.register('scheduled_garbage_collector',
+                   func=ScheduledGarbageCollector)
 
 callbacks_with_config = catalogue.create('llm_foundry.callbacks_with_config',
                                          entry_points=True)
@@ -68,7 +94,8 @@ algorithms.register('low_precision_layernorm', func=LowPrecisionLayerNorm)
 
 schedulers = catalogue.create('llm_foundry.schedulers', entry_points=True)
 schedulers.register('constant_with_warmup', func=ConstantWithWarmupScheduler)
-schedulers.register('cosine_with_warmup', func=CosineAnnealingWithWarmupScheduler)
+schedulers.register('cosine_with_warmup',
+                    func=CosineAnnealingWithWarmupScheduler)
 schedulers.register('linear_decay_with_warmup', func=LinearWithWarmupScheduler)
 schedulers.register('inv_sqrt_with_warmup',
                     func=InverseSquareRootWithWarmupScheduler)

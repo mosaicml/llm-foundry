@@ -69,8 +69,8 @@ def test_trim_context():
     continuation = [2] * 10
     max_seq_len = 2048
     trimmed_context = trim_context(context,
-                                    continuation,
-                                    max_seq_len=max_seq_len)
+                                   continuation,
+                                   max_seq_len=max_seq_len)
     assert len(trimmed_context) == 2038
     assert trimmed_context[0] == 0
     assert trimmed_context[1] == 1
@@ -109,9 +109,9 @@ def test_make_padding(tiny_gpt2_tokenizer, padding_side):
 
     with error_context:
         input_ids = make_padded_input(context, [],
-                                       2048,
-                                       padding_id,
-                                       padding_side=padding_side)
+                                      2048,
+                                      padding_id,
+                                      padding_side=padding_side)
 
         if padding_side == 'left':
             assert input_ids[0] == tiny_gpt2_tokenizer.eos_token_id
@@ -128,10 +128,10 @@ def test_batch_padding_logic_no_padding(tiny_gpt2_tokenizer):
     trimmed_context = trim_context(context, continuation, max_seq_len)
     continuation_spans = get_continuation_span(trimmed_context, continuation)
     padded_input = make_padded_input(trimmed_context,
-                                      continuation,
-                                      max_seq_len,
-                                      tiny_gpt2_tokenizer.pad_token_id,
-                                      padding_side='right')
+                                     continuation,
+                                     max_seq_len,
+                                     tiny_gpt2_tokenizer.pad_token_id,
+                                     padding_side='right')
     assert continuation_spans[0] == 48 and continuation_spans[-1] == 2047
     assert len(padded_input) == 2048
     assert tiny_gpt2_tokenizer.pad_token_id not in padded_input
@@ -144,10 +144,10 @@ def test_batch_padding_logic_with_padding(tiny_gpt2_tokenizer):
     trimmed_context = trim_context(context, continuation, max_seq_len)
     continuation_spans = get_continuation_span(trimmed_context, continuation)
     padded_input = make_padded_input(trimmed_context,
-                                      continuation,
-                                      max_seq_len,
-                                      tiny_gpt2_tokenizer.pad_token_id,
-                                      padding_side='right')
+                                     continuation,
+                                     max_seq_len,
+                                     tiny_gpt2_tokenizer.pad_token_id,
+                                     padding_side='right')
     assert continuation_spans[0] == 200 and continuation_spans[-1] == 399
     assert len(padded_input) == 2048
     assert padded_input[-1] == tiny_gpt2_tokenizer.pad_token_id
@@ -157,27 +157,27 @@ def test_fewshot_sample_idxs():
     rng = random.Random(1234)
 
     fewshot_idxs = get_fewshot_sample_idxs(dataset_size=5,
-                                            num_fewshot=4,
-                                            example_idx=4,
-                                            rng=rng)
+                                           num_fewshot=4,
+                                           example_idx=4,
+                                           rng=rng)
     assert fewshot_idxs == {0, 1, 2, 3}
 
     fewshot_idxs = get_fewshot_sample_idxs(dataset_size=5,
-                                            num_fewshot=5,
-                                            example_idx=4,
-                                            rng=rng)
+                                           num_fewshot=5,
+                                           example_idx=4,
+                                           rng=rng)
     assert fewshot_idxs == {0, 1, 2, 3}
 
     fewshot_idxs = get_fewshot_sample_idxs(dataset_size=5,
-                                            num_fewshot=500,
-                                            example_idx=4,
-                                            rng=rng)
+                                           num_fewshot=500,
+                                           example_idx=4,
+                                           rng=rng)
     assert fewshot_idxs == {0, 1, 2, 3}
 
     fewshot_idxs = get_fewshot_sample_idxs(dataset_size=10,
-                                            num_fewshot=7,
-                                            example_idx=4,
-                                            rng=rng)
+                                           num_fewshot=7,
+                                           example_idx=4,
+                                           rng=rng)
     assert len(fewshot_idxs) == 7 and 4 not in fewshot_idxs
 
 
@@ -190,21 +190,21 @@ def test_fewshot_sample_idxs_randomness():
     rng_3_seed_11 = random.Random(11)
 
     rng_1_sample_1 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
-                                              rng_1_seed_1234)
+                                             rng_1_seed_1234)
     rng_2_sample_1 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
-                                              rng_2_seed_1234)
+                                             rng_2_seed_1234)
     rng_3_sample_1 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
-                                              rng_3_seed_11)
+                                             rng_3_seed_11)
 
     assert rng_1_sample_1 == rng_2_sample_1
     assert rng_1_sample_1 != rng_3_sample_1
 
     rng_1_sample_2 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
-                                              rng_1_seed_1234)
+                                             rng_1_seed_1234)
     rng_2_sample_2 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
-                                              rng_2_seed_1234)
+                                             rng_2_seed_1234)
     rng_3_sample_2 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
-                                              rng_3_seed_11)
+                                             rng_3_seed_11)
 
     assert rng_1_sample_2 == rng_2_sample_2
     assert rng_1_sample_2 != rng_3_sample_2

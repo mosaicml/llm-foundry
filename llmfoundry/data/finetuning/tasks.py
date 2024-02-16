@@ -70,7 +70,7 @@ PromptResponseDict = Mapping[str, str]
 ChatFormattedDict = Mapping[str, List[Dict[str, str]]]
 Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
-TokenizedExample = Dict[str, List[int]]
+TokenizedExample = List[Dict[str, List[int]]]
 
 
 def _get_example_type(example: Example) -> ExampleType:
@@ -157,18 +157,21 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
 
 def _slice_chat_formatted_example(
         example: ChatFormattedDict,
-        tokenizer: PreTrainedTokenizerBase) -> Tuple[str, str]:
-    """Slices the chat example into a formatted prompt and response.
+        tokenizer: PreTrainedTokenizerBase) -> List[Tuple[str, str]]:
+    """Slices the chat example into a list of templated prompt and response, one for each turn.
+    
+    Note: Assistant messages mark the end of chat turns. So there are as many turns as there are
+        assistant messages in the chat example.
 
     Args:
         example (ChatFormattedDict): The chat example containing the messages.
         tokenizer (PreTrainedTokenizerBase): The tokenizer to apply the chat template.
 
     Returns:
-        Tuple[str, str]: The prompt and response as separate strings.
+        List[Tuple[str, str]]: A list of templated prompt and response string pairs, one pair per chat turn.
 
     Raises:
-        ValueError: If the chat example has less than two messages or if the last message is not from the assistant.
+        ValueError: If any chat turn in the example has less than two messages or if the last message is not from the assistant.
         KeyError: If a message does not have a role or content.
     """
     _validate_chat_formatted_example(example)
@@ -179,27 +182,50 @@ def _slice_chat_formatted_example(
         raise ValueError(
             f'last message must be from assistant. {last_message=}')
 
-    full_conversation = tokenizer.apply_chat_template(messages, tokenize=False)
-    prompt = tokenizer.apply_chat_template(messages[:-1],
-                                           tokenize=False,
-                                           add_generation_prompt=True)
-    if prompt != full_conversation[:len(prompt)]:
-        raise ValueError(
-            f'prompt must be the first part of the full conversation. {prompt=}, {full_conversation=}'
-        )
-    response = full_conversation[len(prompt):]
-    if len(response) == 0:
-        raise ValueError(
-            f'chat example must have at least one assistant message. {messages=}'
-        )
-    return prompt, response
+    def slice_out_last_turn(
+        messages_through_current_turn: List[Dict[str, str]],
+        conversation_through_previous_turn: str) -> Tuple[str, str]:
+        full_conversation = tokenizer.apply_chat_template(messages_through_current_turn, tokenize=False)
+        prompt_with_history = tokenizer.apply_chat_template(messages_through_current_turn[:-1],
+                                                            tokenize=False,
+                                                            add_generation_prompt=True)
+        if conversation_through_previous_turn != full_conversation[:len(conversation_through_previous_turn)]:
+            raise ValueError(
+                f'The full conversation must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {full_conversation=}'
+            )
+        if conversation_through_previous_turn != prompt_with_history[:len(conversation_through_previous_turn)]:
+            raise ValueError(
+                f'The prompt_with_histry must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}'
+            )
+        if prompt_with_history != full_conversation[:len(prompt_with_history)]:
+            raise ValueError(
+                f'prompt_with_history must be the first part of the full conversation. {prompt_with_history=}, {full_conversation=}'
+            )
+        prompt = prompt_with_history[len(conversation_through_previous_turn):]
+        response = full_conversation[len(prompt_with_history):]
+        if len(response) == 0:
+            raise ValueError(
+                f'chat example must have at least one assistant message. {messages=}'
+            )
+        return prompt, response
+    
+    templated_prompt_response_turns: List[Tuple[str, str]] = []
+    conversation_through_previous_turn = ''
+    for idx, message in enumerate(messages):
+        if message['role'] == 'assistant':
+            prompt, response = slice_out_last_turn(messages[:idx+1], conversation_through_previous_turn)
+            templated_prompt_response_turns.append((prompt, response))
+            conversation_through_previous_turn += prompt
+            conversation_through_previous_turn += response
+        
+    return templated_prompt_response_turns
 
 
 def _tokenize_chat_formatted_example(
         example: ChatFormattedDict,
         tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
     """Tokenizes a chat-formatted example using the provided tokenizer.
-
+    
     Args:
         example (ChatFormattedDict): The chat-formatted example to tokenize.
         tokenizer (PreTrainedTokenizerBase): The tokenizer to use for tokenization.
@@ -207,8 +233,16 @@ def _tokenize_chat_formatted_example(
     Returns:
         TokenizedExample: The tokenized example.
     """
-    prompt, response = _slice_chat_formatted_example(example, tokenizer)
-    return tokenizer(text=prompt, text_target=response)
+    # Note: We do not add special tokens when tokenizing chat-formatted examples because
+    # special tokens are expected to be added via the tokenizer's chat template. So,
+    # we instead expect the prompt/response outputs of `_slice_chat_formatted_example`
+    # (which calls `apply_chat_template`) to have the correct special tokens already.
+    # We disable padding and truncation because those are handled in the collator needs to
+    # be able to assume that none of the tokens are pad tokens.
+    return [
+        tokenizer(text=prompt, text_target=response, add_special_tokens=False, padding=False, truncation=False)
+        for prompt, response in _slice_chat_formatted_example(example, tokenizer)
+    ]
 
 
 def _tokenize_prompt_response_formatted_example(
@@ -246,7 +280,13 @@ def _tokenize_prompt_response_formatted_example(
             f'Unable to tokenize example because {response_key} was not a string. {example=}'
         )
 
-    return tokenizer(text=prompt, text_target=response)
+    # Note: We default to the tokenizer's add_bos_token and add_eos_token behavior here
+    # (which we do not do for chat-formatted examples). This is because chat examples specifically
+    # go through the tokenizer's `apply_chat_template` method, which handles special tokens,
+    # and these prompt-response-formatted examples do not.
+    # We disable padding and truncation because those are handled in the collator needs to
+    # be able to assume that none of the tokens are pad tokens.
+    return [tokenizer(text=prompt, text_target=response, padding=False, truncation=False)]
 
 
 def tokenize_formatted_example(

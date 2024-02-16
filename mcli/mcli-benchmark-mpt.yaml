@@ -6,7 +6,7 @@ compute:
   # cluster: TODO # Name of the cluster to use for this run
   # gpu_type: a100_80gb # Type of GPU to use. We use a100_80gb in our experiments
 
-image: mosaicml/llm-foundry:2.2.0_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
 integrations:
 - integration_type: git_repo

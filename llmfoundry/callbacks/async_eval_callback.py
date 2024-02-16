@@ -217,6 +217,11 @@ class AsyncEval(Callback):
             if required not in training_params:
                 raise ValueError(f'{required} required for async eval')
 
+        if '/' in training_params.get('save_filename', ''):
+            raise ValueError(
+                'AsyncEval not supported for save_filename that includes a path'
+            )
+
         self.checkpoint_save_folder = training_params['save_folder']
         self.training_params = training_params
         self.eval_run_config = validate_eval_run_config(eval_run_config)

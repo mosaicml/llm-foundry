@@ -7,6 +7,7 @@ icl_tasks:
   generations_per_sample: 5
   batch_size: 1
   icl_task_type: code_evaluation
+  continuation_delimiter: ''
 -
   label: gsm8k
   dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl

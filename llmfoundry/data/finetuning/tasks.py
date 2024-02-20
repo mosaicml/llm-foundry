@@ -70,7 +70,7 @@ PromptResponseDict = Mapping[str, str]
 ChatFormattedDict = Mapping[str, List[Dict[str, str]]]
 Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
-TokenizedExample = List[Dict[str, List[int]]]
+TokenizedExample = Dict[str, List[Dict[str, List[int]]]]
 
 
 def _get_example_type(example: Example) -> ExampleType:
@@ -158,8 +158,8 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
 def _slice_chat_formatted_example(
         example: ChatFormattedDict,
         tokenizer: PreTrainedTokenizerBase) -> List[Tuple[str, str]]:
-    """Slices the chat example into a list of templated prompt and response, one for each turn.
-    
+    """Slices chat example into a list of templated prompt, response turns.
+
     Note: Assistant messages mark the end of chat turns. So there are as many turns as there are
         assistant messages in the chat example.
 
@@ -183,17 +183,21 @@ def _slice_chat_formatted_example(
             f'last message must be from assistant. {last_message=}')
 
     def slice_out_last_turn(
-        messages_through_current_turn: List[Dict[str, str]],
-        conversation_through_previous_turn: str) -> Tuple[str, str]:
-        full_conversation = tokenizer.apply_chat_template(messages_through_current_turn, tokenize=False)
-        prompt_with_history = tokenizer.apply_chat_template(messages_through_current_turn[:-1],
-                                                            tokenize=False,
-                                                            add_generation_prompt=True)
-        if conversation_through_previous_turn != full_conversation[:len(conversation_through_previous_turn)]:
+            messages_through_current_turn: List[Dict[str, str]],
+            conversation_through_previous_turn: str) -> Tuple[str, str]:
+        full_conversation = tokenizer.apply_chat_template(
+            messages_through_current_turn, tokenize=False)
+        prompt_with_history = tokenizer.apply_chat_template(
+            messages_through_current_turn[:-1],
+            tokenize=False,
+            add_generation_prompt=True)
+        if conversation_through_previous_turn != full_conversation[:len(
+                conversation_through_previous_turn)]:
             raise ValueError(
                 f'The full conversation must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {full_conversation=}'
             )
-        if conversation_through_previous_turn != prompt_with_history[:len(conversation_through_previous_turn)]:
+        if conversation_through_previous_turn != prompt_with_history[:len(
+                conversation_through_previous_turn)]:
             raise ValueError(
                 f'The prompt_with_histry must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}'
             )
@@ -208,16 +212,17 @@ def _slice_chat_formatted_example(
                 f'chat example must have at least one assistant message. {messages=}'
             )
         return prompt, response
-    
+
     templated_prompt_response_turns: List[Tuple[str, str]] = []
     conversation_through_previous_turn = ''
     for idx, message in enumerate(messages):
         if message['role'] == 'assistant':
-            prompt, response = slice_out_last_turn(messages[:idx+1], conversation_through_previous_turn)
+            prompt, response = slice_out_last_turn(
+                messages[:idx + 1], conversation_through_previous_turn)
             templated_prompt_response_turns.append((prompt, response))
             conversation_through_previous_turn += prompt
             conversation_through_previous_turn += response
-        
+
     return templated_prompt_response_turns
 
 
@@ -225,7 +230,7 @@ def _tokenize_chat_formatted_example(
         example: ChatFormattedDict,
         tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
     """Tokenizes a chat-formatted example using the provided tokenizer.
-    
+
     Args:
         example (ChatFormattedDict): The chat-formatted example to tokenize.
         tokenizer (PreTrainedTokenizerBase): The tokenizer to use for tokenization.
@@ -239,10 +244,17 @@ def _tokenize_chat_formatted_example(
     # (which calls `apply_chat_template`) to have the correct special tokens already.
     # We disable padding and truncation because those are handled in the collator needs to
     # be able to assume that none of the tokens are pad tokens.
-    return [
-        tokenizer(text=prompt, text_target=response, add_special_tokens=False, padding=False, truncation=False)
-        for prompt, response in _slice_chat_formatted_example(example, tokenizer)
-    ]
+    return {
+        'turns': [
+            tokenizer(text=prompt,
+                      text_target=response,
+                      add_special_tokens=False,
+                      padding=False,
+                      truncation=False)
+            for prompt, response in _slice_chat_formatted_example(
+                example, tokenizer)
+        ]
+    }
 
 
 def _tokenize_prompt_response_formatted_example(
@@ -286,7 +298,14 @@ def _tokenize_prompt_response_formatted_example(
     # and these prompt-response-formatted examples do not.
     # We disable padding and truncation because those are handled in the collator needs to
     # be able to assume that none of the tokens are pad tokens.
-    return [tokenizer(text=prompt, text_target=response, padding=False, truncation=False)]
+    return {
+        'turns': [
+            tokenizer(text=prompt,
+                      text_target=response,
+                      padding=False,
+                      truncation=False)
+        ]
+    }
 
 
 def tokenize_formatted_example(
@@ -319,7 +338,7 @@ def tokenize_formatted_example(
 
 
 def is_valid_ift_example(pad_token_id: int, max_seq_len: int,
-                         example: Dict) -> bool:
+                         example: TokenizedExample) -> bool:
     """Check if the example is a valid ift example.
 
     This functions does the following check:
@@ -331,18 +350,21 @@ def is_valid_ift_example(pad_token_id: int, max_seq_len: int,
         pad_token_id (int): The id of the padding token.
         max_seq_len (int): Maximum sequence length.
         example (Dict): The input example after tokenization, which has
-            ``input_ids`` and ``labels`` fields.
+            a list of dicts, each with ``input_ids`` and ``labels`` fields.
 
     Returns:
         bool: Indicator of whether the input example is valid
     """
-    less_than_max_seq_len = len(example['input_ids']) < max_seq_len
-    non_empty_input = len(example['input_ids']) > 0
-    non_empty_labels = len(example['labels']) > 0
-    non_padding_response = any(
-        token_id != pad_token_id for token_id in example['labels'])
-    return (less_than_max_seq_len and non_empty_input and non_empty_labels and
-            non_padding_response)
+    for turn in example['turns']:
+        less_than_max_seq_len = len(turn['input_ids']) < max_seq_len
+        non_empty_input = len(turn['input_ids']) > 0
+        non_empty_labels = len(turn['labels']) > 0
+        non_padding_response = any(
+            token_id != pad_token_id for token_id in turn['labels'])
+        if not (less_than_max_seq_len and non_empty_input and
+                non_empty_labels and non_padding_response):
+            return False
+    return True
 
 
 def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
@@ -480,8 +502,11 @@ class StreamingFinetuningDataset(StreamingDataset):
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         sample = super().__getitem__(idx)
+        if 'turns' in sample:
+            # Already tokenized in latest format
+            return sample
         if 'input_ids' in sample:
-            # Already tokenized data
+            # Already tokenized data (old format)
             if isinstance(sample['input_ids'], bytes):
                 sample['input_ids'] = np.frombuffer(
                     sample['input_ids'],
@@ -498,8 +523,8 @@ class StreamingFinetuningDataset(StreamingDataset):
                 raise ValueError(
                     f'Expect input_ids to be bytes or numpy.ndarray type, but got {type(sample["input_ids"])}'
                 )
-
-            return sample
+            # Convert to latest format by wrapping sample as a "turn"
+            return {'turns': [sample]}
         return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 
 

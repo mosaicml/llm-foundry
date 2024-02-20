@@ -27,19 +27,21 @@ from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 
 T = TypeVar('T')
+S = TypeVar('S')
 
 
 def create(
     *namespace: str,
-    generic_type: Type,
+    generic_type: Type[S],
     entry_points: bool = False,
-) -> 'TypedRegistry':
+) -> 'TypedRegistry[S]':
     """Create a new registry.
 
     *namespace (str): The namespace, e.g. "spacy" or "spacy", "architectures".
     entry_points (bool): Accept registered functions from entry points.
     RETURNS (Registry): The Registry object.
     """
+
     if catalogue.check_exists(*namespace):
         raise catalogue.RegistryError(f'Namespace already exists: {namespace}')
 
@@ -70,7 +72,10 @@ class TypedRegistry(catalogue.Registry, Generic[T]):
         return super().get_entry_points()
 
 
-loggers = create('llm_foundry.loggers', None, entry_points=True)
+# loggers = TypedRegistry[None]('llm_foundry.loggers', entry_points=True)
+loggers = create('llm_foundry.loggers',
+                 generic_type=Type[Algorithm],
+                 entry_points=True)
 loggers.register('wandb', func=WandBLogger)
 loggers.register('tensorboard', func=TensorboardLogger)
 loggers.register('inmemory', func=InMemoryLogger)

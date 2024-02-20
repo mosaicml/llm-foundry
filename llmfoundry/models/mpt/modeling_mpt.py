@@ -1054,6 +1054,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
+            TokenAccuracy(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),

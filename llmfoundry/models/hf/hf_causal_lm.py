@@ -119,6 +119,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
+            TokenAccuracy(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),

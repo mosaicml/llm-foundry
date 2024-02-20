@@ -165,7 +165,7 @@ Composer currently supports five ICL formats:
 
 ### InContextLearningQATaskDataset
 
-The ICL question answering (QA) task supports free response question answering evaluation using the model’s generate function. A QA dataset consists of a list of JSONs containing a question (under the key `context`), a correct answer (under the key `answer`), and a list of alternative spellings of the answer that would be considered permissible (under the key `aliases`). The QA task works with the NLP metric: [InContextLearningQAAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningQAAccuracy.html) which assigns a model's output to be "correct" if, conditioned on the context, the model's generate method produces a string that is a normalized prefix for either the `answer` or any of the `aliases`.
+The ICL question answering (QA) task supports free response question answering evaluation using the model’s generate function. A QA dataset consists of a list of JSONs containing a question (under the key `context`), a correct answer (under the key `answer`), and a list of alternative spellings of the answer that would be considered permissible (under the key `aliases`). The QA task works with the NLP metric: [InContextLearningGenerationWithAnswersAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningGenerationWithAnswersAccuracy.html) which assigns a model's output to be "correct" if, conditioned on the context, the model's generate method produces a string that is a normalized prefix for either the `answer` or any of the `aliases`.
 
 Required keys for each datum:
 * `context`: str
@@ -205,7 +205,7 @@ Below is a complete YAML section that works with the TriviaQA dataset in [`scrip
     batch_size: 4
     icl_task_type: question_answering
     metric_names:
-    - InContextLearningQAAccuracy
+    - InContextLearningGenerationWithAnswersAccuracy
     prompt_string: '' # this goes at the beginning of each input
     example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates questions from answers

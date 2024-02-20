@@ -65,9 +65,9 @@ def test_icl_eval(eval_cfg: Union[om.ListConfig, om.DictConfig], capfd: Any,
     assert isinstance(eval_cfg, om.DictConfig)
     main(eval_cfg)
     out, _ = capfd.readouterr()
-    expected_results = '| Category                    | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           |          0 | 0-shot            | tiny_mpt |'
+    expected_results = '| Category             | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:---------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| world_knowledge_lite | triviaqa_small |           |          0 | 3-shot            | tiny_mpt |'
     assert expected_results in out
-    expected_results = '| model_name   |   default_average |   language_understanding_lite |\n|:-------------|------------------:|------------------------------:|\n| tiny_mpt     |                 0 |                             0 |'
+    expected_results = '| model_name   |   default_average |   world_knowledge_lite |\n|:-------------|------------------:|-----------------------:|\n| tiny_mpt     |                 0 |                      0 |'
     assert expected_results in out
 
 
@@ -83,12 +83,15 @@ def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
     test_cfg.icl_tasks = om.ListConfig([
         om.DictConfig({
             'label':
-                'lambada_openai',
+                'triviaqa_small',
             'dataset_uri':
-                'eval/local_data/language_understanding/lambada_openai_small.jsonl',
-            'num_fewshot': [0],
+                'eval/local_data/world_knowledge/triviaqa_small.jsonl',
+            'num_fewshot': [3],
             'icl_task_type':
-                'language_modeling'
+                'generation_task_with_answers',
+            'post_processing_funcs': [{
+                'name': 'qa_normalization'
+            }]
         })
     ])
 

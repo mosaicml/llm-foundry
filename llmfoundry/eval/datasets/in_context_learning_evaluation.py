@@ -11,18 +11,20 @@ import copy
 import json
 import os
 import random
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from composer.core import DataSpec
 from composer.core.data_spec import _default_split_batch, _split_list
-from composer.datasets.utils import stop_sequences_criteria
 from composer.utils import MissingConditionalImportError, dist, get_file
 from torch.utils.data import DataLoader, Dataset
 
+from llmfoundry.eval.datasets.post_processing import make_postprocessing_func
 from llmfoundry.eval.datasets.utils import (convert_tokens_to_tensors,
                                             get_continuation_span,
                                             get_fewshot_sample_idxs,
-                                            make_padded_input, strip_data,
+                                            make_padded_input,
+                                            recursive_dict_update,
+                                            stop_sequences_criteria, strip_data,
                                             tokenizer_needs_prefix_space,
                                             trim_context)
 
@@ -39,7 +41,7 @@ __all__ = [
     'InContextLearningMultipleChoiceTaskDataset',
     'InContextLearningSchemaTaskDataset',
     'InContextLearningCodeEvalDataset',
-    'InContextLearningQATaskDataset',
+    'InContextLearningGenerationTaskWithAnswersDataset',
     'get_icl_task_dataloader',
 ]
 
@@ -60,7 +62,7 @@ class InContextLearningDataset(Dataset):
     - construct_context(): Takes a single example dictionary and formulates the context as a string for that eval question.
     - get_answer_from_example(): Takes a single example dictionary and formulates the correct, ground truth answer as a string.
     - tokenize_example(): Tokenizes the example and adds any extra content from the original dictionary that needs to be passed downstream.
-    - read_dataset(): Loads the dataset and does basic parsing. If additional parsing must be done, this is a good place to do so (See InContextLearningQATaskDataset.read_dataset())
+    - read_dataset(): Loads the dataset and does basic parsing. If additional parsing must be done, this is a good place to do so (See InContextLearningGenerationTaskWithAnswersDataset.read_dataset())
 
     Additionally, base_batch and batch_mapping must be defined.
 
@@ -515,7 +517,93 @@ class InContextLearningDataset(Dataset):
         return batched_list
 
 
-class InContextLearningQATaskDataset(InContextLearningDataset):
+class InContextLearningGenerationTaskDataset(InContextLearningDataset):
+
+    def __init__(self,
+                 cot_delimiter: str = '',
+                 early_stopping_criteria: Optional[List[str]] = None,
+                 post_processing_funcs: Optional[List[Tuple[str, Dict]]] = None,
+                 *args,
+                 **kwargs):
+
+        if post_processing_funcs is None:
+            post_processing_funcs = []
+
+        post_processing_funcs = list(
+            map(lambda args: make_postprocessing_func(args[0], **args[1]),
+                post_processing_funcs))
+        # Two post processing functions are specified indirectly (cot and early stopping)
+        # always do early stopping first
+        # then do CoT
+        # then any other postprocessing funcs
+        self.cot_delimiter = cot_delimiter
+        if len(self.cot_delimiter) > 0:
+            if 'chain_of_thought' not in set(
+                    func[0] for func in post_processing_funcs):
+                # only add it by default if not already specified
+                post_processing_funcs.insert(
+                    0,
+                    make_postprocessing_func('chain_of_thought',
+                                             cot_delimiter=self.cot_delimiter))
+
+        self.early_stopping_criteria = early_stopping_criteria
+        if self.early_stopping_criteria is not None and len(
+                self.early_stopping_criteria) > 0:
+            if 'early_stopping' not in set(
+                    func[0] for func in post_processing_funcs):
+                # only add it by default if not already specified
+                post_processing_funcs.insert(
+                    0,
+                    make_postprocessing_func(
+                        'early_stopping',
+                        stopping_criteria=self.early_stopping_criteria))
+
+        if kwargs['tokenizer'].eos_token_id is None:
+            raise ValueError(
+                '`InContextLearningGenerationTaskDataset` tokenizer must have non-null `eos_token_id`'
+            )
+
+        static_keys = [
+            'mode', 'cot_delimiter', 'generation_kwargs', 'stopping_criteria',
+            'post_processing_funcs'
+        ]
+
+        if 'static_keys' in kwargs:
+            kwargs['static_keys'].extend(static_keys)
+
+        super().__init__(*args, **kwargs)
+
+        # NOTE: set these after init call because they take class vars
+        self.base_batch = {
+            'input_ids': [],
+            'mode': 'generate',
+            'labels': [],
+            'post_processing_funcs': post_processing_funcs,
+            'generation_kwargs': {
+                'pad_token_id': self.pad_tok_id,
+                'use_cache': True,
+                'eos_token_id': self.tokenizer.eos_token_id,
+            },
+        }
+
+    def collate_fn(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        batch = super().collate_fn(data)
+        batch_size = batch['input_ids'].shape[0]
+        stopping_criteria = None
+        if self.early_stopping_criteria:
+            if stop_sequences_criteria is None:  # pyright: ignore [reportUnnecessaryComparison]
+                raise MissingConditionalImportError(
+                    extra_deps_group='nlp',
+                    conda_package='transformers',
+                    conda_channel='conda-forge')
+            stopping_criteria = stop_sequences_criteria(
+                self.tokenizer, self.early_stopping_criteria, batch_size)
+        batch['generation_kwargs']['stopping_criteria'] = stopping_criteria
+        return batch
+
+
+class InContextLearningGenerationTaskWithAnswersDataset(
+        InContextLearningGenerationTaskDataset):
     """A dataset that constructs batches for in-context learning question
     answering evaluation. QA tasks evaluate a model's ability to answer
     questions using a consistent format.
@@ -531,23 +619,14 @@ class InContextLearningQATaskDataset(InContextLearningDataset):
         cot_delimiter (str): Delimiter to place between the chain of thought and continuations.
     """
 
-    def __init__(self,
-                 cot_delimiter: str = '',
-                 early_stopping_criteria: Optional[List[str]] = None,
-                 do_normalization: bool = True,
-                 *args,
-                 **kwargs):
+    def __init__(self, *args, **kwargs):
         if kwargs['tokenizer'].eos_token_id is None:
             raise ValueError(
-                '`InContextLearningQATaskDataset` tokenizer must have non-null `eos_token_id`'
+                '`InContextLearningGenerationTaskWithAnswersDataset` tokenizer must have non-null `eos_token_id`'
             )
-        self.cot_delimiter = cot_delimiter
         self.has_cot = False
         self.max_answer_length = 0
-        static_keys = [
-            'mode', 'cot_delimiter', 'generation_length', 'generation_kwargs',
-            'do_normalization', 'stopping_criteria'
-        ]
+        static_keys = ['generation_length']
         tensor_keys = ['input_ids', 'attention_mask']
         list_keys = ['labels']
         super().__init__(padding_side='left',
@@ -558,21 +637,10 @@ class InContextLearningQATaskDataset(InContextLearningDataset):
                          *args,
                          **kwargs)
         # NOTE: set these after init call because they take class vars
-        self.early_stopping_criteria = early_stopping_criteria
-        self.base_batch = {
-            'input_ids': [],
-            'mode': 'generate',
-            'labels': [],
-            'cot_delimiter': self.cot_delimiter,
-            'generation_length': self.max_answer_length,
-            'stopping_criteria': early_stopping_criteria,
-            'do_normalization': do_normalization,
-            'generation_kwargs': {
-                'pad_token_id': self.pad_tok_id,
-                'use_cache': True,
-                'eos_token_id': self.tokenizer.eos_token_id,
-            }
-        }
+        self.base_batch = recursive_dict_update(
+            self.base_batch, { # part of base batch was set in super().__init__
+                'generation_length': self.max_answer_length,
+            })
         self.batch_mapping = {
             'input_ids': self.context_key,
             'labels': 'aliases',
@@ -663,20 +731,197 @@ class InContextLearningQATaskDataset(InContextLearningDataset):
             _MAX_ANSWER_BUFFER_LENGTH if len(self.cot_delimiter) > 0 else 0)
         return max_answer_length
 
-    def collate_fn(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
-        batch = super().collate_fn(data)
-        batch_size = batch['input_ids'].shape[0]
-        stopping_criteria = None
-        if self.early_stopping_criteria:
-            if stop_sequences_criteria is None:  # pyright: ignore [reportUnnecessaryComparison]
-                raise MissingConditionalImportError(
-                    extra_deps_group='nlp',
-                    conda_package='transformers',
-                    conda_channel='conda-forge')
-            stopping_criteria = stop_sequences_criteria(
-                self.tokenizer, self.early_stopping_criteria, batch_size)
-        batch['generation_kwargs']['stopping_criteria'] = stopping_criteria
-        return batch
+
+class InContextLearningCodeEvalDataset(InContextLearningGenerationTaskDataset):
+    """A dataset that constructs batches for in-context learning code
+    evaluation.
+
+    The input format is expected to be a jsonl file with the following fields:
+
+    - task_id: Label of given task
+    - prompt: The code snippet that must be completed
+    - entry_point: The entry to the function/code snippet to generate
+    - canonical_solution: Working solution
+    - test: The checker code that will run to completion if the code generation is valid and otherwise throw assertion
+    - test_inputs: List of test inputs
+    - test_outputs: List of test outputs
+    - language: The language of the code snippet
+
+    Each batch then consists of the following the structure
+
+    - input_ids: Input tensor batch x seqlen x num tokens
+    - mode: Indicates to the model that this is an ICL task and may rely on a custom code path to properly update metrics
+    - mode: Always set to 'generate'
+    - labels: Exact solution for the coding problem
+    - prompts: Prompt for the task
+    - entry_points: List of entry points
+    - test_inputs: List of test inputs
+    - test_outputs: List of test outputs
+    - languages:  List of languages
+    - pass_at_k: Passed value for pass_at_k
+    - generation_length: Derrived maximum generation length
+    - generation_kwargs: Dictionary of kwargs neeeded for generation. Includes the following, which will be individually overwritten
+      by keys in generaiton_kwargs if set (see https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
+      for more details):
+
+        - pad_token_id: ID for padding token, derived automatically
+        - num_beams: How many beams to search for generations, set to 1
+        - num_return_sequences: Value passed for 'generations_per_sample', how many generations per prompt
+        - do_sample: Determines whether model is sampling or greedily decoding. Always set to True
+        - use_cache: Whether or not to use past key values to speed up sampling. Always set to True
+
+    Additional Args:
+        generations_per_sample (int) (defaults to 1): The number of independently computed returned sequences for each element in the batch
+        pass_at_k (int) (defaults to 1): k for how many chances the model gets to write passing code
+    """
+
+    def __init__(
+        self,
+        generations_per_sample: int,
+        pass_at_k: int = 1,
+        *args,
+        **kwargs,
+    ):
+        if generations_per_sample < pass_at_k:
+            raise ValueError(
+                f'generations_per_sample ({generations_per_sample}) must be greater than or equal to pass_at_k ({pass_at_k}) for code evaluation.'
+            )
+        batch_mapping = {
+            'input_ids': 'prompt',
+            'prompts': 'prompt_text',
+            'tests': 'test',
+            'labels': 'canonical_solution',
+            'entry_points': 'entry_point',
+            'test_inputs': 'test_inputs',
+            'test_outputs': 'test_outputs',
+            'languages': 'language'
+        }
+        # Linting complains if these are not set in init
+        self.max_prompt_length = 0
+        self.max_answer_length = 0
+        static_keys = [
+            'mode', 'pass_at_k', 'generation_length', 'generation_kwargs'
+        ]
+        list_keys = [
+            'prompts', 'tests', 'entry_points', 'test_inputs', 'test_outputs',
+            'languages', 'labels'
+        ]
+        tensor_keys = ['input_ids', 'attention_mask']
+        if kwargs.get('post_processing_funcs', None) is None:
+            kwargs['post_processing_funcs'] = []
+        if len(kwargs.get('post_processing_funcs', [])) == 0:
+            # The default post-processing for code eval is regex split on  r'(.*?)\n[A-Za-z0-9#`]'
+            kwargs['post_processing_funcs'].append(('regex_group_search', {
+                'regex': r'(.*?)\n[A-Za-z0-9#`]',
+                'regex_group': 1
+            }))
+        super().__init__(
+            context_key='prompt',
+            answer_key='canonical_solution',
+            strip_dataset=False,
+            static_keys=static_keys,
+            list_keys=list_keys,
+            tensor_keys=tensor_keys,
+            tokenize_labels=False,
+            padding_side='left',
+            batch_mapping=batch_mapping,
+            *args,
+            **kwargs,
+        )
+        self._set_max_prompt_and_answer_lengths()
+        self.dataset = self.dataset.map(self._trim_padding)
+        self.base_batch = recursive_dict_update(
+            self.base_batch,
+            {
+                'prompts': [],
+                'tests': [],
+                'entry_points': [],
+                'test_inputs': [],
+                'test_outputs': [],
+                'languages': [],
+                'pass_at_k':
+                    pass_at_k,
+                'generation_length':
+                    min(self.max_answer_length,
+                        self.max_seq_len - self.max_prompt_length),
+                'generation_kwargs': {
+                    'pad_token_id': self.pad_tok_id,
+                    'num_beams': 1,  # single beam
+                    'num_return_sequences': generations_per_sample,
+                    'do_sample': True,
+                    'use_cache': True,
+                    'eos_token_id': self.tokenizer.eos_token_id
+                }
+            })
+        if 'generation_kwargs' in kwargs:
+            self.update_generation_kwargs(kwargs['generation_kwargs'])
+
+    def _set_max_prompt_and_answer_lengths(self):
+        """Iterates through the dataset and finds the maximum prompt length and
+        sequence lengths.
+
+        Returns:
+            None
+        """
+        max_prompt_length = 0
+        max_answer_length = 0
+        for example in self.dataset:
+            assert isinstance(example, Dict)
+            unpadded_example = [
+                token for token in example[self.context_key]
+                if token != self.pad_tok_id
+            ]
+            max_prompt_length = max(max_prompt_length, len(unpadded_example))
+
+            tokenized_answer = self.tokenizer(
+                example['canonical_solution'],
+                add_special_tokens=False)['input_ids']
+            assert isinstance(tokenized_answer, list)
+            len_tokenized_answer = len(tokenized_answer)
+            max_answer_length = max(max_answer_length, len_tokenized_answer)
+
+        self.max_prompt_length = max_prompt_length
+        self.max_answer_length = max_answer_length + _MAX_ANSWER_BUFFER_LENGTH
+
+    def _trim_padding(self, example: Dict):
+        """Adjusts padding to the maximum prompt length rather than max_seq_len.
+        Needs to be done after the dataset has been processed because we don't
+        know the maximum prompt length until after we've tokenized it.
+
+        Returns:
+            dataset: A HuggingFace Dataset with different padding lengths for example[self.context_key]
+        """
+        # Remove padding tokens applied during tokenization
+        unpadded_prompt = [
+            token for token in example[self.context_key]
+            if token != self.pad_tok_id
+        ]
+        # Reapply padding only to max_prompt_length
+        full_prompt = trim_context(unpadded_prompt, [], self.max_prompt_length)
+        padded_context = make_padded_input(full_prompt, [],
+                                           self.max_prompt_length,
+                                           self.pad_tok_id, self.padding_side)
+
+        example[self.context_key] = padded_context
+        return example
+
+    def tokenize_example(self, prompt_and_fewshot: str, ctxt: str,
+                         example: Dict) -> Dict[str, Any]:
+        """Adds extra code task details to the example dictionary.
+
+        See InContextLearningDataset for more details
+        """
+        tokenized_example = super().tokenize_example(prompt_and_fewshot, ctxt,
+                                                     example)
+        tokenized_example['prompt_text'] = example['prompt']
+        tokenized_example['task_id'] = example['task_id']
+        tokenized_example['canonical_solution'] = example['canonical_solution']
+        tokenized_example['test'] = example['test']
+        tokenized_example['entry_point'] = example['entry_point']
+        tokenized_example['test_inputs'] = example['test_inputs']
+        tokenized_example['test_outputs'] = example['test_outputs']
+        tokenized_example['language'] = example['language']
+        return tokenized_example
 
 
 class InContextLearningLMTaskDataset(InContextLearningDataset):
@@ -1119,214 +1364,29 @@ class InContextLearningSchemaTaskDataset(
         return tokenized_example
 
 
-class InContextLearningCodeEvalDataset(InContextLearningDataset):
-    """A dataset that constructs batches for in-context learning code
-    evaluation.
-
-    The input format is expected to be a jsonl file with the following fields:
-
-    - task_id: Label of given task
-    - prompt: The code snippet that must be completed
-    - entry_point: The entry to the function/code snippet to generate
-    - canonical_solution: Working solution
-    - test: The checker code that will run to completion if the code generation is valid and otherwise throw assertion
-    - test_inputs: List of test inputs
-    - test_outputs: List of test outputs
-    - language: The language of the code snippet
-
-    Each batch then consists of the following the structure
-
-    - input_ids: Input tensor batch x seqlen x num tokens
-    - mode: Indicates to the model that this is an ICL task and may rely on a custom code path to properly update metrics
-    - mode: Always set to 'generate'
-    - labels: Exact solution for the coding problem
-    - prompts: Prompt for the task
-    - entry_points: List of entry points
-    - test_inputs: List of test inputs
-    - test_outputs: List of test outputs
-    - languages:  List of languages
-    - pass_at_k: Passed value for pass_at_k
-    - generation_length: Derrived maximum generation length
-    - generation_kwargs: Dictionary of kwargs neeeded for generation. Includes the following, which will be individually overwritten
-      by keys in generaiton_kwargs if set (see https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
-      for more details):
-
-        - pad_token_id: ID for padding token, derived automatically
-        - num_beams: How many beams to search for generations, set to 1
-        - num_return_sequences: Value passed for 'generations_per_sample', how many generations per prompt
-        - do_sample: Determines whether model is sampling or greedily decoding. Always set to True
-        - use_cache: Whether or not to use past key values to speed up sampling. Always set to True
-
-    Additional Args:
-        generations_per_sample (int) (defaults to 1): The number of independently computed returned sequences for each element in the batch
-        pass_at_k (int) (defaults to 1): k for how many chances the model gets to write passing code
-    """
-
-    def __init__(
-        self,
-        generations_per_sample: int,
-        pass_at_k: int = 1,
-        *args,
-        **kwargs,
-    ):
-        if generations_per_sample < pass_at_k:
-            raise ValueError(
-                f'generations_per_sample ({generations_per_sample}) must be greater than or equal to pass_at_k ({pass_at_k}) for code evaluation.'
-            )
-        batch_mapping = {
-            'input_ids': 'prompt',
-            'prompts': 'prompt_text',
-            'tests': 'test',
-            'labels': 'canonical_solution',
-            'entry_points': 'entry_point',
-            'test_inputs': 'test_inputs',
-            'test_outputs': 'test_outputs',
-            'languages': 'language'
-        }
-        # Linting complains if these are not set in init
-        self.max_prompt_length = 0
-        self.max_answer_length = 0
-        static_keys = [
-            'mode', 'pass_at_k', 'generation_length', 'generation_kwargs'
-        ]
-        list_keys = [
-            'prompts', 'tests', 'entry_points', 'test_inputs', 'test_outputs',
-            'languages', 'labels'
-        ]
-        tensor_keys = ['input_ids', 'attention_mask']
-        super().__init__(
-            context_key='prompt',
-            answer_key='canonical_solution',
-            strip_dataset=False,
-            static_keys=static_keys,
-            list_keys=list_keys,
-            tensor_keys=tensor_keys,
-            tokenize_labels=False,
-            padding_side='left',
-            batch_mapping=batch_mapping,
-            *args,
-            **kwargs,
-        )
-        self._set_max_prompt_and_answer_lengths()
-        self.dataset = self.dataset.map(self._trim_padding)
-        self.base_batch = {
-            'input_ids': [],
-            'mode':
-                'generate',
-            'labels': [],
-            'prompts': [],
-            'tests': [],
-            'entry_points': [],
-            'test_inputs': [],
-            'test_outputs': [],
-            'languages': [],
-            'pass_at_k':
-                pass_at_k,
-            'generation_length':
-                min(self.max_answer_length,
-                    self.max_seq_len - self.max_prompt_length),
-            'generation_kwargs': {
-                'pad_token_id': self.pad_tok_id,
-                'num_beams': 1,  # single beam
-                'num_return_sequences': generations_per_sample,
-                'do_sample': True,
-                'use_cache': True,
-                'eos_token_id': self.tokenizer.eos_token_id
-            }
-        }
-        if 'generation_kwargs' in kwargs:
-            self.update_generation_kwargs(kwargs['generation_kwargs'])
-
-    def _set_max_prompt_and_answer_lengths(self):
-        """Iterates through the dataset and finds the maximum prompt length and
-        sequence lengths.
-
-        Returns:
-            None
-        """
-        max_prompt_length = 0
-        max_answer_length = 0
-        for example in self.dataset:
-            assert isinstance(example, Dict)
-            unpadded_example = [
-                token for token in example[self.context_key]
-                if token != self.pad_tok_id
-            ]
-            max_prompt_length = max(max_prompt_length, len(unpadded_example))
-
-            tokenized_answer = self.tokenizer(
-                example['canonical_solution'],
-                add_special_tokens=False)['input_ids']
-            assert isinstance(tokenized_answer, list)
-            len_tokenized_answer = len(tokenized_answer)
-            max_answer_length = max(max_answer_length, len_tokenized_answer)
-
-        self.max_prompt_length = max_prompt_length
-        self.max_answer_length = max_answer_length + _MAX_ANSWER_BUFFER_LENGTH
-
-    def _trim_padding(self, example: Dict):
-        """Adjusts padding to the maximum prompt length rather than max_seq_len.
-        Needs to be done after the dataset has been processed because we don't
-        know the maximum prompt length until after we've tokenized it.
-
-        Returns:
-            dataset: A HuggingFace Dataset with different padding lengths for example[self.context_key]
-        """
-        # Remove padding tokens applied during tokenization
-        unpadded_prompt = [
-            token for token in example[self.context_key]
-            if token != self.pad_tok_id
-        ]
-        # Reapply padding only to max_prompt_length
-        full_prompt = trim_context(unpadded_prompt, [], self.max_prompt_length)
-        padded_context = make_padded_input(full_prompt, [],
-                                           self.max_prompt_length,
-                                           self.pad_tok_id, self.padding_side)
-
-        example[self.context_key] = padded_context
-        return example
-
-    def tokenize_example(self, prompt_and_fewshot: str, ctxt: str,
-                         example: Dict) -> Dict[str, Any]:
-        """Adds extra code task details to the example dictionary.
-
-        See InContextLearningDataset for more details
-        """
-        tokenized_example = super().tokenize_example(prompt_and_fewshot, ctxt,
-                                                     example)
-        tokenized_example['prompt_text'] = example['prompt']
-        tokenized_example['task_id'] = example['task_id']
-        tokenized_example['canonical_solution'] = example['canonical_solution']
-        tokenized_example['test'] = example['test']
-        tokenized_example['entry_point'] = example['entry_point']
-        tokenized_example['test_inputs'] = example['test_inputs']
-        tokenized_example['test_outputs'] = example['test_outputs']
-        tokenized_example['language'] = example['language']
-        return tokenized_example
-
-
 def build_icl_dataloader(
-        icl_task_type: str,
-        dataset_uri: str,
-        tokenizer: transformers.PreTrainedTokenizerBase,
-        batch_size: int,
-        max_seq_len: int,
-        pad_tok_id: int,
-        num_fewshot: int,
-        prompt_string: str,  # e.g. 'translate english to french:'
-        example_delimiter: str,  # e.g. '\n'
-        continuation_delimiter: str,  # e.g. ''
-        hf_loading_vars: Dict,
-        hf_parsing_map: Dict,
-        destination_path: str,
-        prelimiter: str,  # e.g. 'Question: '
-        cot_delimiter: str,  # e.g. ' ### '
-        fewshot_random_seed: int,
-        pass_at_k: int,
-        generations_per_sample: int,
-        generation_kwargs: Dict,
-        early_stopping_criteria: Optional[List[str]] = None,
-        do_normalization: bool = True) -> DataSpec:
+    icl_task_type: str,
+    dataset_uri: str,
+    tokenizer: transformers.PreTrainedTokenizerBase,
+    batch_size: int,
+    max_seq_len: int,
+    pad_tok_id: int,
+    num_fewshot: int,
+    prompt_string: str,  # e.g. 'translate english to french:'
+    example_delimiter: str,  # e.g. '\n'
+    continuation_delimiter: str,  # e.g. ''
+    hf_loading_vars: Dict,
+    hf_parsing_map: Dict,
+    destination_path: str,
+    prelimiter: str,  # e.g. 'Question: '
+    cot_delimiter: str,  # e.g. ' ### '
+    fewshot_random_seed: int,
+    pass_at_k: int,
+    generations_per_sample: int,
+    generation_kwargs: Dict,
+    early_stopping_criteria: Optional[List[str]] = None,
+    post_processing_funcs: Optional[List[Tuple[str, Dict]]] = None,
+) -> DataSpec:
     """Factory method that builds the specific dataset for the specified
     icl_task_type. See documentation for `get_icl_task_dataloader` for arugment
     documentation.
@@ -1390,8 +1450,8 @@ def build_icl_dataloader(
             generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size
-    elif icl_task_type == 'question_answering':
-        dataset = InContextLearningQATaskDataset(
+    elif icl_task_type == 'generation_task_with_answers':
+        dataset = InContextLearningGenerationTaskWithAnswersDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,
             max_seq_len=max_seq_len,
@@ -1407,9 +1467,8 @@ def build_icl_dataloader(
             hf_parsing_map=hf_parsing_map,
             cot_delimiter=cot_delimiter,
             early_stopping_criteria=early_stopping_criteria,
-            do_normalization=do_normalization,
             generation_kwargs=generation_kwargs,
-        )
+            post_processing_funcs=post_processing_funcs)
         effective_batchsize = batch_size
     elif icl_task_type == 'code_evaluation':
         dataset = InContextLearningCodeEvalDataset(
@@ -1429,7 +1488,7 @@ def build_icl_dataloader(
             pass_at_k=pass_at_k,
             generations_per_sample=generations_per_sample,
             generation_kwargs=generation_kwargs,
-        )
+            post_processing_funcs=post_processing_funcs)
         effective_batchsize = batch_size
     else:
         raise Exception(f'Unrecognized ICL task type: {icl_task_type}')
@@ -1439,11 +1498,8 @@ def build_icl_dataloader(
     split_batch = None
     if isinstance(
             dataset,
-        (
-            InContextLearningMultipleChoiceTaskDataset,
-            InContextLearningQATaskDataset,
-            InContextLearningCodeEvalDataset,
-        ),
+        (InContextLearningMultipleChoiceTaskDataset,
+         InContextLearningGenerationTaskDataset),
     ):
         split_batch = dataset.split_batch
 
@@ -1539,29 +1595,30 @@ def partition_dataset_by_category(dataset_uri: str, destination_path: str,
 
 
 def get_icl_task_dataloader(
-        icl_task_type: str,
-        dataset_uri: str,
-        tokenizer: Union[transformers.PreTrainedTokenizer,
-                         transformers.PreTrainedTokenizerFast],
-        batch_size: int,
-        max_seq_len: int,
-        pad_tok_id: int,
-        num_fewshot: int,
-        prompt_string: str,  # e.g. 'translate english to french:'
-        example_delimiter: str,  # e.g. '\n'
-        continuation_delimiter: str = '',
-        destination_path: str = '',
-        question_prelimiter: str = '',  # e.g. 'Question: '
-        fewshot_random_seed: int = 1234,
-        pass_at_k: int = 1,
-        generations_per_sample: int = 1,
-        cot_delimiter: str = '',
-        has_categories: bool = False,
-        hf_loading_vars: Optional[Dict] = None,
-        hf_parsing_map: Optional[Dict] = None,
-        generation_kwargs: Optional[Dict] = None,
-        early_stopping_criteria: Optional[List[str]] = None,
-        do_normalization: bool = True) -> Union[DataSpec, Dict[str, DataSpec]]:
+    icl_task_type: str,
+    dataset_uri: str,
+    tokenizer: Union[transformers.PreTrainedTokenizer,
+                     transformers.PreTrainedTokenizerFast],
+    batch_size: int,
+    max_seq_len: int,
+    pad_tok_id: int,
+    num_fewshot: int,
+    prompt_string: str,  # e.g. 'translate english to french:'
+    example_delimiter: str,  # e.g. '\n'
+    continuation_delimiter: str = '',
+    destination_path: str = '',
+    question_prelimiter: str = '',  # e.g. 'Question: '
+    fewshot_random_seed: int = 1234,
+    pass_at_k: int = 1,
+    generations_per_sample: int = 1,
+    cot_delimiter: str = '',
+    has_categories: bool = False,
+    hf_loading_vars: Optional[Dict] = None,
+    hf_parsing_map: Optional[Dict] = None,
+    generation_kwargs: Optional[Dict] = None,
+    early_stopping_criteria: Optional[List[str]] = None,
+    post_processing_funcs: Optional[List[Tuple[str, Dict]]] = None,
+) -> Union[DataSpec, Dict[str, DataSpec]]:
     """This constructs a dataloader (or dataloaders if has_categories is True)
     capable of evaluating LLMs on in-context learning language modeling tasks,
     for example LAMBADA. An example usage is below:
@@ -1637,7 +1694,6 @@ def get_icl_task_dataloader(
                                                   for more details)
         early_stopping (List, default = None): A list of strings that, when found in a model's output, will be treated as a stopping criteria at metric computation time.
             Used in QA tasks with CoT
-        do_normalization (bool, default = True): Whether or not to normalize the outputs and labels in InContextLearningQAAccuracy. Only used in QA tasks.
 
     Returns:
         DataLoader: A dataloader used for performing in-context learning evaluation on the dataset provided.
@@ -1681,7 +1737,7 @@ def get_icl_task_dataloader(
                 hf_parsing_map=hf_parsing_map,
                 generation_kwargs=generation_kwargs,
                 early_stopping_criteria=early_stopping_criteria,
-                do_normalization=do_normalization,
+                post_processing_funcs=post_processing_funcs,
             )
         return result_dls
     else:
@@ -1706,5 +1762,5 @@ def get_icl_task_dataloader(
             generations_per_sample=generations_per_sample,
             generation_kwargs=generation_kwargs,
             early_stopping_criteria=early_stopping_criteria,
-            do_normalization=do_normalization,
+            post_processing_funcs=post_processing_funcs,
         )

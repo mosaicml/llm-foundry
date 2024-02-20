@@ -20,10 +20,10 @@ from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 
-from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
-                                     InContextLearningLMAccuracy,
-                                     InContextLearningMultipleChoiceAccuracy,
-                                     InContextLearningQAAccuracy)
+from llmfoundry.eval.metrics import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningGenerationWithAnswersAccuracy, InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy)
 from llmfoundry.models.layers.attention import (is_flash_v1_installed,
                                                 is_flash_v2_installed)
 
@@ -1028,7 +1028,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             LanguagePerplexity(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningQAAccuracy(),
+            InContextLearningGenerationWithAnswersAccuracy(),
             InContextLearningCodeEvalAccuracy(),
         ]
 

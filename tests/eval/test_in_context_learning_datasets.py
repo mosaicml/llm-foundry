@@ -19,7 +19,8 @@ from torch.utils.data import DataLoader
 # isort: off
 from llmfoundry.eval.datasets import (
     InContextLearningDataset, InContextLearningCodeEvalDataset,
-    InContextLearningMultipleChoiceTaskDataset, InContextLearningQATaskDataset,
+    InContextLearningMultipleChoiceTaskDataset,
+    InContextLearningGenerationTaskWithAnswersDataset,
     InContextLearningSchemaTaskDataset, get_icl_task_dataloader, strip_data,
     tokenizer_needs_prefix_space, trim_context, get_continuation_span,
     get_fewshot_sample_idxs, make_padded_input)
@@ -30,10 +31,10 @@ from composer.models import HuggingFaceModel
 from composer.trainer import Trainer
 from composer.utils import dist, reproducibility
 
-from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
-                                     InContextLearningLMAccuracy,
-                                     InContextLearningMultipleChoiceAccuracy,
-                                     InContextLearningQAAccuracy)
+from llmfoundry.eval.metrics import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningGenerationWithAnswersAccuracy, InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy)
 
 
 def test_strip_data():
@@ -327,7 +328,7 @@ def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -337,6 +338,7 @@ def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path):
         prompt_string='',
         example_delimiter='\n',
         continuation_delimiter=': ',
+        post_processing_funcs=[('qa_normalization', {})],
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
         generation_kwargs=None)
     assert len(dl.base_batch['generation_kwargs']) == 3
@@ -352,7 +354,7 @@ def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -362,6 +364,7 @@ def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path):
         prompt_string='',
         example_delimiter='\n',
         continuation_delimiter=': ',
+        post_processing_funcs=[('qa_normalization', {})],
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
         generation_kwargs={'temperature': 0.9})
     assert 'generation_kwargs' in dl.base_batch
@@ -590,7 +593,7 @@ def test_qa_set_cot_no_cot(tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -600,6 +603,7 @@ def test_qa_set_cot_no_cot(tmp_path):
         prompt_string='',
         example_delimiter='\n',
         continuation_delimiter=': ',
+        post_processing_funcs=[('qa_normalization', {})],
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
     assert not dl.has_cot
@@ -615,7 +619,7 @@ def test_qa_set_cot_has_cot(tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -625,6 +629,7 @@ def test_qa_set_cot_has_cot(tmp_path):
         prompt_string='',
         example_delimiter='\n',
         continuation_delimiter=': ',
+        post_processing_funcs=[('qa_normalization', {})],
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
     assert dl.has_cot
@@ -637,7 +642,7 @@ def test_qa_get_max_answer_length(tiny_gpt2_tokenizer, tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -648,6 +653,7 @@ def test_qa_get_max_answer_length(tiny_gpt2_tokenizer, tmp_path):
         example_delimiter='',
         continuation_delimiter='',
         cot_delimiter='',
+        post_processing_funcs=[('qa_normalization', {})],
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
     # empirical number from the small test dataset
@@ -661,7 +667,7 @@ def test_qa_get_answer_from_example_with_no_cot(tmp_path, tiny_gpt2_tokenizer):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tiny_gpt2_tokenizer,
         max_seq_len=1024,
@@ -672,6 +678,7 @@ def test_qa_get_answer_from_example_with_no_cot(tmp_path, tiny_gpt2_tokenizer):
         example_delimiter='\n',
         continuation_delimiter=': ',
         cot_delimiter=' ### ',
+        post_processing_funcs=[('qa_normalization', {})],
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
     answer = dl.get_answer_from_example({
@@ -689,7 +696,7 @@ def test_qa_get_answer_from_example_with_cot(tmp_path, tiny_gpt2_tokenizer):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tiny_gpt2_tokenizer,
         max_seq_len=1024,
@@ -700,6 +707,7 @@ def test_qa_get_answer_from_example_with_cot(tmp_path, tiny_gpt2_tokenizer):
         example_delimiter='\n',
         continuation_delimiter=': ',
         cot_delimiter=' ### ',
+        post_processing_funcs=[('qa_normalization', {})],
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
     dl.has_cot = True
@@ -718,7 +726,7 @@ def test_qa_tokenize_example(tiny_gpt2_tokenizer, tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tiny_gpt2_tokenizer,
         max_seq_len=1024,
@@ -729,6 +737,7 @@ def test_qa_tokenize_example(tiny_gpt2_tokenizer, tmp_path):
         example_delimiter='\n',
         continuation_delimiter=': ',
         cot_delimiter=' ### ',
+        post_processing_funcs=[('qa_normalization', {})],
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
     dl.has_cot = True
@@ -768,7 +777,10 @@ def test_code_adjust_padding(tiny_gpt2_tokenizer, tmp_path):
         destination_path=str(tmp_path / 'test_human_eval_small.jsonl'),
         generation_kwargs=gen_kwargs,
         generations_per_sample=10,
-    )
+        post_processing_funcs=[('regex_group', {
+            'regex': r'(.*?)\n[A-Za-z0-9#`]',
+            'group': 1
+        })])
 
     assert all(
         len(data['prompt']) == 148
@@ -798,7 +810,10 @@ def test_code_update_gen_kwargs(tiny_gpt2_tokenizer, tmp_path):
         destination_path=str(tmp_path / 'test_human_eval_small.jsonl'),
         generation_kwargs=gen_kwargs,
         generations_per_sample=10,
-    )
+        post_processing_funcs=[('regex_group', {
+            'regex': r'(.*?)\n[A-Za-z0-9#`]',
+            'group': 1
+        })])
     assert dl.base_batch['generation_kwargs']['num_beams'] == 9000
     assert dl.base_batch['generation_kwargs']['top_p'] == .95
     assert dl.base_batch['generation_kwargs']['temperature'] == .9
@@ -1367,7 +1382,7 @@ def test_qa_split_batch(tiny_opt_tokenizer, dataset_uri, tmp_path):
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)  # for dist
     dl = get_icl_task_dataloader(
-        icl_task_type='question_answering',
+        icl_task_type='generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=8,
@@ -1424,19 +1439,20 @@ def test_qa_task_dataloader_w_null_eos(dataset_uri, tiny_gpt2_tokenizer,
     seqlen = 512
     tiny_gpt2_tokenizer.eos_token_id = None
     with pytest.raises(ValueError):
-        _ = get_icl_task_dataloader('question_answering',
-                                    dataset_uri,
-                                    tokenizer,
-                                    batch_size,
-                                    max_seq_len=seqlen,
-                                    pad_tok_id=tokenizer.eos_token_id,
-                                    num_fewshot=num_fewshot,
-                                    prompt_string=prompt_string,
-                                    example_delimiter='\n',
-                                    question_prelimiter='Q: ',
-                                    continuation_delimiter='\nA:',
-                                    destination_path=str(
-                                        tmp_path / f'icl_{num_fewshot}.jsonl'))
+        _ = get_icl_task_dataloader(
+            'generation_task_with_answers',
+            dataset_uri,
+            tokenizer,
+            batch_size,
+            max_seq_len=seqlen,
+            pad_tok_id=tokenizer.eos_token_id,
+            num_fewshot=num_fewshot,
+            prompt_string=prompt_string,
+            example_delimiter='\n',
+            question_prelimiter='Q: ',
+            continuation_delimiter='\nA:',
+            post_processing_funcs=[('qa_normalization', {})],
+            destination_path=str(tmp_path / f'icl_{num_fewshot}.jsonl'))
 
 
 @pytest.mark.parametrize('dataset_uri', ['triviaqa_small.jsonl'])
@@ -1454,19 +1470,20 @@ def test_qa_task_dataloader(dataset_uri, tiny_gpt2_tokenizer, tmp_path,
     seqlen = 512
     # empirical number from the small test dataset
     maximum_answer_length = 7
-    dl = get_icl_task_dataloader('question_answering',
-                                 dataset_uri=dataset_uri,
-                                 tokenizer=tokenizer,
-                                 batch_size=batch_size,
-                                 max_seq_len=seqlen,
-                                 pad_tok_id=tokenizer.eos_token_id,
-                                 num_fewshot=num_fewshot,
-                                 prompt_string=prompt_string,
-                                 example_delimiter='\n',
-                                 question_prelimiter='Q: ',
-                                 continuation_delimiter='\nA:',
-                                 destination_path=str(
-                                     tmp_path / f'icl_{num_fewshot}.jsonl'))
+    dl = get_icl_task_dataloader(
+        'generation_task_with_answers',
+        dataset_uri=dataset_uri,
+        tokenizer=tokenizer,
+        batch_size=batch_size,
+        max_seq_len=seqlen,
+        pad_tok_id=tokenizer.eos_token_id,
+        num_fewshot=num_fewshot,
+        prompt_string=prompt_string,
+        example_delimiter='\n',
+        question_prelimiter='Q: ',
+        continuation_delimiter='\nA:',
+        post_processing_funcs=[('qa_normalization', {})],
+        destination_path=str(tmp_path / f'icl_{num_fewshot}.jsonl'))
     assert isinstance(dl, DataSpec)
 
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1513,7 +1530,7 @@ def test_qa_task_with_cot_dataloader(dataset_uri, tiny_gpt2_tokenizer, tmp_path,
     # empirical number from the small test dataset
     maximum_answer_length = 132
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
@@ -2217,7 +2234,7 @@ def test_qa_task_evaluation_opt_tokenizer(tiny_opt_tokenizer, tiny_opt_model,
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
@@ -2227,26 +2244,29 @@ def test_qa_task_evaluation_opt_tokenizer(tiny_opt_tokenizer, tiny_opt_model,
         prompt_string='',
         example_delimiter='\n',
         continuation_delimiter=': ',
+        post_processing_funcs=[('qa_normalization', {})],
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
 
-    evaluator = Evaluator(label='triviaqa',
-                          dataloader=dl,
-                          metric_names=['InContextLearningQAAccuracy'])
+    evaluator = Evaluator(
+        label='triviaqa',
+        dataloader=dl,
+        metric_names=['InContextLearningGenerationWithAnswersAccuracy'])
     model = HuggingFaceModel(
         model=tiny_opt_model,
         tokenizer=tokenizer,
-        eval_metrics=[InContextLearningQAAccuracy()],
+        eval_metrics=[InContextLearningGenerationWithAnswersAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/triviaqa/InContextLearningQAAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/triviaqa/InContextLearningGenerationWithAnswersAccuracy' in in_memory_logger.data.keys(
     )
     assert in_memory_logger.data[
-        'metrics/triviaqa/InContextLearningQAAccuracy'][0][1].item() == 0
+        'metrics/triviaqa/InContextLearningGenerationWithAnswersAccuracy'][0][
+            1].item() == 0
 
 
 @pytest.mark.parametrize('num_fewshot', [5])
@@ -2271,7 +2291,7 @@ def test_qa_task_evaluation_with_cot_opt_tokenizer(tiny_opt_tokenizer,
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
@@ -2285,23 +2305,25 @@ def test_qa_task_evaluation_with_cot_opt_tokenizer(tiny_opt_tokenizer,
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
 
-    evaluator = Evaluator(label='gsm8k',
-                          dataloader=dl,
-                          metric_names=['InContextLearningQAAccuracy'])
+    evaluator = Evaluator(
+        label='gsm8k',
+        dataloader=dl,
+        metric_names=['InContextLearningGenerationWithAnswersAccuracy'])
     model = HuggingFaceModel(
         model=tiny_opt_model,
         tokenizer=tokenizer,
-        eval_metrics=[InContextLearningQAAccuracy()],
+        eval_metrics=[InContextLearningGenerationWithAnswersAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/gsm8k/InContextLearningQAAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/gsm8k/InContextLearningGenerationWithAnswersAccuracy' in in_memory_logger.data.keys(
     )
-    assert in_memory_logger.data['metrics/gsm8k/InContextLearningQAAccuracy'][
-        0][1].item() == 0
+    assert in_memory_logger.data[
+        'metrics/gsm8k/InContextLearningGenerationWithAnswersAccuracy'][0][
+            1].item() == 0
 
 
 @pytest.mark.parametrize('dataset_uri', ['triviaqa_small.jsonl'])
@@ -2323,7 +2345,7 @@ def test_qa_task_evaluation(num_fewshot, dataset_uri, tiny_gpt2_tokenizer,
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
@@ -2333,27 +2355,30 @@ def test_qa_task_evaluation(num_fewshot, dataset_uri, tiny_gpt2_tokenizer,
         prompt_string='',
         example_delimiter='\n',
         continuation_delimiter=': ',
+        post_processing_funcs=[('qa_normalization', {})],
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
 
-    evaluator = Evaluator(label='triviaqa',
-                          dataloader=dl,
-                          metric_names=['InContextLearningQAAccuracy'])
+    evaluator = Evaluator(
+        label='triviaqa',
+        dataloader=dl,
+        metric_names=['InContextLearningGenerationWithAnswersAccuracy'])
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
         tokenizer=tiny_gpt2_tokenizer,
-        eval_metrics=[InContextLearningQAAccuracy()],
+        eval_metrics=[InContextLearningGenerationWithAnswersAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/triviaqa/InContextLearningQAAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/triviaqa/InContextLearningGenerationWithAnswersAccuracy' in in_memory_logger.data.keys(
     )
     assert in_memory_logger.data[
-        'metrics/triviaqa/InContextLearningQAAccuracy'][0][1].item() == 0
+        'metrics/triviaqa/InContextLearningGenerationWithAnswersAccuracy'][0][
+            1].item() == 0
 
 
 @pytest.mark.parametrize('dataset_uri', ['gsm8k_small.jsonl'])
@@ -2376,7 +2401,7 @@ def test_qa_task_with_cot_evaluation(num_fewshot, dataset_uri,
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
@@ -2390,24 +2415,26 @@ def test_qa_task_with_cot_evaluation(num_fewshot, dataset_uri,
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
 
-    evaluator = Evaluator(label='gsm8k',
-                          dataloader=dl,
-                          metric_names=['InContextLearningQAAccuracy'])
+    evaluator = Evaluator(
+        label='gsm8k',
+        dataloader=dl,
+        metric_names=['InContextLearningGenerationWithAnswersAccuracy'])
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
         tokenizer=tiny_gpt2_tokenizer,
-        eval_metrics=[InContextLearningQAAccuracy()],
+        eval_metrics=[InContextLearningGenerationWithAnswersAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/gsm8k/InContextLearningQAAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/gsm8k/InContextLearningGenerationWithAnswersAccuracy' in in_memory_logger.data.keys(
     )
-    assert in_memory_logger.data['metrics/gsm8k/InContextLearningQAAccuracy'][
-        0][1].item() == 0
+    assert in_memory_logger.data[
+        'metrics/gsm8k/InContextLearningGenerationWithAnswersAccuracy'][0][
+            1].item() == 0
 
 
 def test_code_eval_requires_envvar(monkeypatch):
@@ -2730,7 +2757,7 @@ def test_hf_dataloading_custom_parsing(dataset_uri, tiny_gpt2_tokenizer,
     maximum_answer_length = 4
 
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,

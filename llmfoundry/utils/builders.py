@@ -462,8 +462,10 @@ def build_icl_evaluators(
                 icl_cfg.metric_names = [
                     'InContextLearningMultipleChoiceAccuracy'
                 ]
-            elif icl_cfg.icl_task_type == 'question_answering':
-                icl_cfg.metric_names = ['InContextLearningQAAccuracy']
+            elif icl_cfg.icl_task_type == 'generation_task_with_answers':
+                icl_cfg.metric_names = [
+                    'InContextLearningGenerationWithAnswersAccuracy'
+                ]
             elif icl_cfg.icl_task_type == 'code_evaluation':
                 icl_cfg.metric_names = ['InContextLearningCodeEvalAccuracy']
             else:
@@ -502,6 +504,7 @@ def build_icl_evaluators(
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
                 os.remove(destination_path)
             dist.barrier()
+
             early_stopping_criteria = icl_cfg.get('early_stopping_criteria',
                                                   None)
             if isinstance(early_stopping_criteria, ListConfig):
@@ -509,6 +512,16 @@ def build_icl_evaluators(
                     early_stopping_criteria)
             assert early_stopping_criteria is None or isinstance(
                 early_stopping_criteria, list)
+
+            post_processing_funcs = icl_cfg.get('post_processing_funcs', None)
+            if isinstance(post_processing_funcs, ListConfig):
+                post_processing_funcs = list(
+                    map(lambda entry: (entry['name'], entry.get('kwargs', {})),
+                        om.to_container(post_processing_funcs)))
+
+            assert post_processing_funcs is None or isinstance(
+                post_processing_funcs, list)
+
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,
@@ -527,7 +540,7 @@ def build_icl_evaluators(
                 has_categories=icl_cfg.get('has_categories', False),
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
                 early_stopping_criteria=early_stopping_criteria,
-                do_normalization=icl_cfg.get('do_normalization', True))
+                post_processing_funcs=post_processing_funcs)
             if hasattr(
                     icl_cfg,
                     'has_categories') and icl_cfg.has_categories and isinstance(

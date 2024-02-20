@@ -16,10 +16,10 @@ from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
-from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
-                                     InContextLearningLMAccuracy,
-                                     InContextLearningMultipleChoiceAccuracy,
-                                     InContextLearningQAAccuracy)
+from llmfoundry.eval.metrics import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningGenerationWithAnswersAccuracy, InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy)
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
@@ -112,7 +112,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             LanguagePerplexity(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningQAAccuracy(),
+            InContextLearningGenerationWithAnswersAccuracy(),
             InContextLearningCodeEvalAccuracy()
         ]
         if not om_model_config.get('use_train_metrics', True):

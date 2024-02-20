@@ -6,10 +6,11 @@
 
 import torch
 
-from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
-                                     InContextLearningLMAccuracy,
-                                     InContextLearningMultipleChoiceAccuracy,
-                                     InContextLearningQAAccuracy)
+from llmfoundry.eval.datasets.post_processing import make_postprocessing_func
+from llmfoundry.eval.metrics import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningGenerationWithAnswersAccuracy, InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy)
 
 
 def test_in_context_learning_lm_accuracy(tiny_gpt2_tokenizer):
@@ -52,8 +53,12 @@ def test_in_context_learning_qa_accuracy():
         ' the CORREct with weird casing and spacing'
     ]
     labels = [['Correct'], ['blah', 'blah2'], ['blah', 'correct']]
-    batch = {'cot_delimiter': '', 'labels': labels}
-    metric = InContextLearningQAAccuracy()
+    batch = {
+        'cot_delimiter': '',
+        'labels': labels,
+        'post_processing_funcs': [make_postprocessing_func('qa_normalization')]
+    }
+    metric = InContextLearningGenerationWithAnswersAccuracy()
     metric.update(batch, outputs, labels)
 
     assert metric.compute() == (2 / 3)
@@ -68,12 +73,21 @@ def test_in_context_learning_qa_cot_accuracy():
     ]
     labels = [['Correct'], ['blah', 'blah2'], ['blah', 'correct'], ['correct']]
     batch = {
-        'cot_delimiter': ' ### ',
-        'labels': labels,
-        'do_normalization': True,
-        'stopping_criteria': '\n\n'
+        'cot_delimiter':
+            ' ### ',
+        'labels':
+            labels,
+        'do_normalization':
+            True,
+        'stopping_criteria': ['\n\n'],
+        'post_processing_funcs': [
+            make_postprocessing_func('early_stopping',
+                                     stopping_criteria=['\n\n']),
+            make_postprocessing_func('chain_of_thought', cot_delimiter=' ### '),
+            make_postprocessing_func('qa_normalization')
+        ]
     }
-    metric = InContextLearningQAAccuracy()
+    metric = InContextLearningGenerationWithAnswersAccuracy()
     metric.update(batch, outputs, labels)
 
     assert metric.compute() == (2 / 4)
@@ -81,12 +95,12 @@ def test_in_context_learning_qa_cot_accuracy():
 
 def test_in_context_learning_code_eval_accuracy(monkeypatch):
     outputs = [
-        '    return 1 if n <= 1 else fib(n - 1) + fib(n - 1)',  # incorrect
+        '    return 1 if n <= 1 else fib(n - 1) + fib(n - 1)\ndef new_function()',  # incorrect
         '   if n <= 1:\n        return 1\n    return fib(n-1) + fib(n-2)',  # incorrect spacing
-        '    return n * 2',  # correct
-        '    return 2*n',  # correct
+        '    return n * 2\ndef new_function()',  # correct
+        '    return 2*n\ndef new_function()',  # correct
         '    return n + 2',  # incorrect
-        '    return n + 1'
+        '    return n + 1\ndef new_function()'  # correct
     ]  # correct
     labels = []
     prompts = [
@@ -104,12 +118,23 @@ def test_in_context_learning_code_eval_accuracy(monkeypatch):
             'num_beams': 1,
             'num_return_sequences': 2
         },
-        'prompts': prompts,
-        'pass_at_k': 1,
-        'entry_points': entry_points,
-        'test_inputs': test_inputs,
-        'test_outputs': test_outputs,
-        'languages': languages,
+        'prompts':
+            prompts,
+        'pass_at_k':
+            1,
+        'entry_points':
+            entry_points,
+        'test_inputs':
+            test_inputs,
+        'test_outputs':
+            test_outputs,
+        'languages':
+            languages,
+        'post_processing_funcs': [
+            make_postprocessing_func('regex_group_search',
+                                     regex=r'(.*?)\n[A-Za-z0-9#`]',
+                                     regex_group=1)
+        ]
     }
     metric = InContextLearningCodeEvalAccuracy()
     metric.update(batch, outputs, labels)
@@ -120,6 +145,30 @@ def test_in_context_learning_code_eval_accuracy(monkeypatch):
     #   program 3: .5
     # mean: 0.5
     assert metric.compute() == 0.5
+
+    batch = {
+        # This tests deterministic beam search rather than sampling
+        'generation_kwargs': {
+            'num_beams': 1,
+            'num_return_sequences': 2
+        },
+        'prompts': prompts,
+        'pass_at_k': 1,
+        'entry_points': entry_points,
+        'test_inputs': test_inputs,
+        'test_outputs': test_outputs,
+        'languages': languages,
+        # 'post_processing_funcs': [make_postprocessing_func('regex_group_search', regex=r'(.*?)\n[A-Za-z0-9#`]', regex_group=1)]
+    }
+    metric = InContextLearningCodeEvalAccuracy()
+    metric.update(batch, outputs, labels)
+
+    # pass@1 values
+    #   program 1: 0
+    #   program 2: 1
+    #   program 3: .5
+    # mean: 0.5
+    assert metric.compute() == 0.0  # without post processing it is 0
 
 
 def test_in_context_learning_mc_accuracy(tiny_gpt2_tokenizer):

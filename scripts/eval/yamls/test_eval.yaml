@@ -24,17 +24,20 @@ models:
 device_eval_batch_size: 4
 icl_subset_num_batches: 1
 icl_tasks:
-- label: lambada_openai
-  dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
-  num_fewshot: [0]
-  icl_task_type: language_modeling
+- label: triviaqa_small
+  dataset_uri: eval/local_data/world_knowledge/triviaqa_small.jsonl
+  num_fewshot: [3]
+  icl_task_type: generation_task_with_answers
+  post_processing_funcs:
+  -
+    name: qa_normalization
 eval_gauntlet:
   weighting: EQUAL
   subtract_random_baseline: true
   rescale_accuracy: true
   categories:
-  - name: language_understanding_lite
+  - name: world_knowledge_lite
     benchmarks:
-    - name: lambada_openai
-      num_fewshot: 0
+    - name: triviaqa_small
+      num_fewshot: 3
       random_baseline: 0.0

@@ -7,15 +7,16 @@
 """A collection of common torchmetrics."""
 
 from llmfoundry.eval.metrics.nlp import (
-    InContextLearningCodeEvalAccuracy, InContextLearningLMAccuracy,
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningGenerationWithAnswersAccuracy, InContextLearningLMAccuracy,
     InContextLearningLMExpectedCalibrationError,
     InContextLearningMCExpectedCalibrationError, InContextLearningMetric,
-    InContextLearningMultipleChoiceAccuracy, InContextLearningQAAccuracy)
+    InContextLearningMultipleChoiceAccuracy)
 
 __all__ = [
     'InContextLearningLMAccuracy',
     'InContextLearningMultipleChoiceAccuracy',
-    'InContextLearningQAAccuracy',
+    'InContextLearningGenerationWithAnswersAccuracy',
     'InContextLearningMCExpectedCalibrationError',
     'InContextLearningLMExpectedCalibrationError',
     'InContextLearningMetric',

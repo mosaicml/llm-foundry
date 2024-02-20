@@ -7,6 +7,7 @@
 """Utility and helper functions for datasets."""
 from __future__ import annotations
 
+import collections.abc
 import logging
 import random
 from typing import TYPE_CHECKING, Dict, List, Optional, Set
@@ -281,3 +282,12 @@ try:
 except ImportError as e:
     stop_sequences_criteria = None  # pyright: ignore [reportGeneralTypeIssues]
     MultiTokenEOSCriteria = None  # pyright: ignore [reportGeneralTypeIssues]
+
+
+def recursive_dict_update(d, u):
+    for k, v in u.items():
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = recursive_dict_update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d

@@ -1,4 +1,4 @@
-from token_acc import TokenAccuracy
+from llmfoundry.metrics.token_acc import TokenAccuracy
 
 __all__ = [
     'TokenAccuracy',

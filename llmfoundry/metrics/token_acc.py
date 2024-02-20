@@ -1,3 +1,6 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import torch
 from torchmetrics import Metric
 
@@ -5,9 +8,9 @@ __all__ = [
     'TokenAccuracy',
 ]
 
+
 class TokenAccuracy(Metric):
-    """
-    Torchmetric to compute mean accuracy at the token level for language modeling.
+    """Torchmetric to compute token-level accuracy for language modeling.
 
     Adds metric state variables:
         correct_tokens (float): The number of correct token predictions.
@@ -22,15 +25,20 @@ class TokenAccuracy(Metric):
     # Ensures torchmetrics calls update only once
     full_state_update = False
 
-    def __init__(self, ignore_index: int = -100, dist_sync_on_step: bool = False):
+    def __init__(self,
+                 ignore_index: int = -100,
+                 dist_sync_on_step: bool = False):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
         self.ignore_index = ignore_index
-        self.add_state('correct_tokens', default=torch.tensor(0), dist_reduce_fx='sum')
-        self.add_state('total_tokens', default=torch.tensor(0), dist_reduce_fx='sum')
+        self.add_state('correct_tokens',
+                       default=torch.tensor(0),
+                       dist_reduce_fx='sum')
+        self.add_state('total_tokens',
+                       default=torch.tensor(0),
+                       dist_reduce_fx='sum')
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
-        """
-        Updates the internal state with results from a new batch.
+        """Updates the internal state with results from a new batch.
 
         Args:
             preds (~torch.Tensor): The predictions from the model, a Tensor of logits.
@@ -52,8 +60,7 @@ class TokenAccuracy(Metric):
         self.total_tokens += masked_target.numel()
 
     def compute(self) -> torch.Tensor:
-        """
-        Aggregate the state over all processes to compute the metric.
+        """Aggregate the state over all processes to compute the metric.
 
         Returns:
             The mean accuracy across all tokens as a :class:`~torch.Tensor`.

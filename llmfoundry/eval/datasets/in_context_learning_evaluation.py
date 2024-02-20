@@ -526,12 +526,13 @@ class InContextLearningGenerationTaskDataset(InContextLearningDataset):
                  *args,
                  **kwargs):
 
-        if post_processing_funcs is None:
-            post_processing_funcs = []
+        post_processing_func_args = post_processing_funcs
+        if post_processing_func_args is None:
+            post_processing_func_args = []
 
         post_processing_funcs = list(
             map(lambda args: make_postprocessing_func(args[0], **args[1]),
-                post_processing_funcs))
+                post_processing_func_args))
         # Two post processing functions are specified indirectly (cot and early stopping)
         # always do early stopping first
         # then do CoT
@@ -539,7 +540,7 @@ class InContextLearningGenerationTaskDataset(InContextLearningDataset):
         self.cot_delimiter = cot_delimiter
         if len(self.cot_delimiter) > 0:
             if 'chain_of_thought' not in set(
-                    func[0] for func in post_processing_funcs):
+                    func[0] for func in post_processing_func_args):
                 # only add it by default if not already specified
                 post_processing_funcs.insert(
                     0,
@@ -550,7 +551,7 @@ class InContextLearningGenerationTaskDataset(InContextLearningDataset):
         if self.early_stopping_criteria is not None and len(
                 self.early_stopping_criteria) > 0:
             if 'early_stopping' not in set(
-                    func[0] for func in post_processing_funcs):
+                    func[0] for func in post_processing_func_args):
                 # only add it by default if not already specified
                 post_processing_funcs.insert(
                     0,

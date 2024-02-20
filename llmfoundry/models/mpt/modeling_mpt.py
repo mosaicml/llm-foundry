@@ -26,6 +26,7 @@ from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 
+from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.layers.attention import (is_flash_v1_installed,
                                                 is_flash_v2_installed)
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
@@ -1045,8 +1046,11 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         model = MPTForCausalLM(hf_config)
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
-        train_metrics = [LanguageCrossEntropy(),
-                         LanguagePerplexity()] if use_train_metrics else []
+        train_metrics = [
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
+            TokenAccuracy()
+        ] if use_train_metrics else []
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),

@@ -22,6 +22,7 @@ from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
+from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
@@ -110,7 +111,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             )
 
         # Set up training and eval metrics
-        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
+        train_metrics = [
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
+            TokenAccuracy()
+        ]
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),

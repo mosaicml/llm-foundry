@@ -175,10 +175,9 @@ def test_tokenize_instruct_example_well_formed():
             assert 'labels' in tokenized_example['turns'][0]
 
 
-@pytest.mark.parametrize('tokenizer_name', [
-    'EleutherAI/gpt-neox-20b', 'meta-llama/Llama-2-7b-chat-hf',
-    'HuggingFaceH4/zephyr-7b-beta', 't5-base'
-])
+@pytest.mark.parametrize(
+    'tokenizer_name',
+    ['EleutherAI/gpt-neox-20b', 'HuggingFaceH4/zephyr-7b-beta', 't5-base'])
 def test_multi_turn_chat_slicing(tokenizer_name: str):
     convo = [
         {

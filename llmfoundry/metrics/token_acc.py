@@ -47,9 +47,6 @@ class TokenAccuracy(Metric):
         # Convert logits to predicted token indices
         preds = torch.argmax(preds, dim=-1)
 
-        # Ensure predictions and targets are the same shape
-        assert preds.shape == target.shape
-
         # Create mask for non-ignored tokens
         mask = (target != self.ignore_index)
         masked_target = target[mask]

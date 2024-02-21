@@ -86,13 +86,14 @@ def process_file(
     new_files_to_process = []
     nodes_to_remove = []
     for node in ast.walk(tree):
-        # Remove any imports from composer or omegaconf
+        # Remove any imports matching the remove_imports_prefix
         if isinstance(
                 node,
                 ast.ImportFrom) and node.module is not None and _remove_import(
                     node, remove_imports_prefix):
             nodes_to_remove.append(node)
-        # Convert any (remaining) llmfoundry imports into relative imports
+        # Convert any (remaining) imports matching the flatten_imports_prefix
+        # to relative imports
         elif (isinstance(node, ast.ImportFrom) and node.module is not None and
               _flatten_import(node, flatten_imports_prefix)):
             module_path = find_module_file(node.module)

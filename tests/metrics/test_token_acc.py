@@ -1,8 +1,11 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 import torch
 
-
 from llmfoundry.metrics import TokenAccuracy
+
 
 @pytest.mark.parametrize('ignore_index', [-100, -200])
 @pytest.mark.parametrize('vocab_size', [100])

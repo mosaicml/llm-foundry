@@ -180,7 +180,6 @@ class _DummyModule(nn.Module):
     ('decoupled_lionw', {}),
     ('clip_lion', {}),
     ('adalr_lion', {}),
-    pytest.param('decoupled_lionw_8b', {}, marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('opt_additional_config', [
     {
@@ -250,7 +249,6 @@ def test_build_evaluators_empty():
         None,
         tokenizer=None,  # type: ignore
         device_eval_batch_size=1,
-        fewshot_random_seed=1234,
         icl_seq_len=2,
         icl_subset_num_batches=3)
     assert evaluators == []

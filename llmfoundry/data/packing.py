@@ -72,6 +72,7 @@ class BinPackCollator:
                 'labels',
                 'attention_mask',
                 'bidirectional_mask',
+                'sequence_id',
             ]
 
         # Cut everything down to size

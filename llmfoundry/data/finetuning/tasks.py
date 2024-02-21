@@ -716,6 +716,8 @@ class DatasetConstructor:
         hf_tokenization_logger.removeFilter(sequence_length_warning_filter)
 
         assert filtered_dataset is not None
+
+        log.debug('Returning from data prep')
         return filtered_dataset
 
     def build_from_streaming(self, *args: Any,

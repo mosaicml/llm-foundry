@@ -194,6 +194,8 @@ def build_finetuning_dataloader(cfg: DictConfig,
             tokenizer=tokenizer,
             hf_kwargs=cfg.dataset.get('hf_kwargs', {}))
 
+        log.debug('Hugging Face dataset built')
+
         # Ensure dataset is large enough.
         if cfg.drop_last:
             world_size = dist.get_world_size()
@@ -212,10 +214,15 @@ def build_finetuning_dataloader(cfg: DictConfig,
                         +
                         f'of samples in your dataset to at least {minimum_dataset_size}.'
                     )
+
+            log.debug('Drop last check complete')
+
         # Initialize sampler.
         sampler = dist.get_sampler(dataset,
                                    drop_last=cfg.drop_last,
                                    shuffle=cfg.dataset.shuffle)
+
+        log.debug('Sampler initialized')
 
     assert dataset is not None  # for pyright
     dl = DataLoader(
@@ -231,7 +238,11 @@ def build_finetuning_dataloader(cfg: DictConfig,
         timeout=cfg.get('timeout', 0),
     )
 
+    log.debug('Dataloader created')
+
     token_counting_func = get_tokens_per_batch_func()
+
+    log.debug('Returning from build_finetuning_dataloader')
 
     return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 

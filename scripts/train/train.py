@@ -481,6 +481,7 @@ def main(cfg: DictConfig) -> Trainer:
         tokenizer,
         device_train_batch_size,
     )
+    log.info('Train loader built.')
 
     if mosaicml_logger is not None:
         mosaicml_logger.log_metrics({'data_validated': time.time()})
@@ -508,6 +509,7 @@ def main(cfg: DictConfig) -> Trainer:
         )
         if eval_gauntlet_callback is not None:
             callbacks.append(eval_gauntlet_callback)
+        log.info('Eval loader built.')
 
     # Build Model
     log.info('Initializing model...')

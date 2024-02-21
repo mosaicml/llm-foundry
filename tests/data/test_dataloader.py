@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import ContextManager, Literal, Optional, Union
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pytest
 import torch
 import transformers
@@ -33,6 +32,7 @@ from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
 from scripts.data_prep.convert_dataset_hf import main as main_hf
+from scripts.data_prep.convert_finetuning_dataset import get_columns_and_format
 from tests.data_utils import make_tiny_ft_dataset
 
 
@@ -55,18 +55,7 @@ def build_mock_ft_streaming_dataset(
         data_path: str,
         split: str,
         pretokenize: bool,
-        use_bytes: bool,
         tokenizer: Optional[transformers.PreTrainedTokenizerBase] = None):
-    if pretokenize:
-        if use_bytes:
-            columns = {'input_ids': 'bytes', 'labels': 'bytes'}
-        else:
-            columns = {
-                'input_ids': 'ndarray:uint32',
-                'labels': 'ndarray:uint32'
-            }
-    else:
-        columns = {'prompt': 'str', 'response': 'str'}
 
     dataset = [{
         'prompt': 'This is just a test1',
@@ -79,23 +68,34 @@ def build_mock_ft_streaming_dataset(
         'response': 'Hello world3'
     }]
 
+    columns, data_format = get_columns_and_format(dataset, pretokenize,
+                                                  lambda x: x)
+
     output_path = os.path.join(data_path, split)
 
     with MDSWriter(columns=columns, out=output_path,
                    compression=None) as output_writer:
         for sample in dataset:
+
             if pretokenize:
                 sample = tokenize_formatted_example(sample, tokenizer=tokenizer)
-                sample_to_write = {}
-                for key in columns.keys():
-                    if use_bytes:
-                        sample_to_write[key] = np.asarray(sample[key]).tobytes()
-                    else:
-                        sample_to_write[key] = np.asarray(sample[key],
-                                                          dtype=np.uint32)
+                sample_to_write = {'turns': []}
+                # convert to bytes
+                for turn in sample['turns']:
+                    turn_to_write = {}
+                    for key in ['input_ids', 'labels']:
+                        turn_to_write[key] = list(turn[key])
+                    sample_to_write['turns'].append(turn_to_write)
                 output_writer.write(sample_to_write)
             else:
-                output_writer.write(sample)
+                if data_format == 'prompt_response':
+                    encoded_sample = {
+                        key: sample[key].encode('utf-8')
+                        for key in ['prompt', 'response']
+                    }
+                else:
+                    encoded_sample = sample
+                output_writer.write(encoded_sample)
 
 
 @pytest.mark.parametrize('tokenizer_name', ['gpt2', 'facebook/opt-125m'])
@@ -549,10 +549,8 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
 
 @pytest.mark.parametrize('pretokenize', [True, False])
 @pytest.mark.parametrize('use_multiple_streams', [True, False])
-@pytest.mark.parametrize('use_bytes', [True, False])
 def test_finetuning_dataloader_streaming(pretokenize: bool,
                                          use_multiple_streams: bool,
-                                         use_bytes: bool,
                                          tmp_path: pathlib.Path):
     max_seq_len = 2048
 
@@ -569,7 +567,6 @@ def test_finetuning_dataloader_streaming(pretokenize: bool,
         build_mock_ft_streaming_dataset(remote_path,
                                         'train',
                                         pretokenize,
-                                        use_bytes=use_bytes,
                                         tokenizer=tokenizer)
         streams_config['streams'][f'stream_{i}'] = {
             'remote': remote_path,
@@ -614,21 +611,39 @@ def test_finetuning_dataloader_is_valid_ift_example():
     pad_token_id = 7
     max_seq_len = 4
 
-    valid_example = {'input_ids': [2, 3, 5], 'labels': [8, 9, 7]}
+    valid_example = {'turns': [{'input_ids': [2, 3, 5], 'labels': [8, 9, 7]}]}
     assert is_valid_ift_example(pad_token_id, max_seq_len, valid_example)
 
-    too_long_example = {'input_ids': [2, 3, 5, 6, 8], 'labels': [8, 9, 7]}
+    valid_example = {
+        'turns': [{
+            'input_ids': [2, 3, 5],
+            'labels': [8, 9, 7]
+        }] * 3
+    }
+    assert is_valid_ift_example(pad_token_id, max_seq_len, valid_example)
+
+    too_long_example = {
+        'turns': [{
+            'input_ids': [2, 3, 5, 6, 8],
+            'labels': [8, 9, 7]
+        }]
+    }
     assert not is_valid_ift_example(pad_token_id, max_seq_len, too_long_example)
 
-    empty_input_example = {'input_ids': [], 'labels': [8, 9, 7]}
+    empty_input_example = {'turns': [{'input_ids': [], 'labels': [8, 9, 7]}]}
     assert not is_valid_ift_example(pad_token_id, max_seq_len,
                                     empty_input_example)
 
-    empty_labels_example = {'input_ids': [1, 2], 'labels': []}
+    empty_labels_example = {'turns': [{'input_ids': [1, 2], 'labels': []}]}
     assert not is_valid_ift_example(pad_token_id, max_seq_len,
                                     empty_labels_example)
 
-    padding_response_example = {'input_ids': [1, 2], 'labels': [7, 7]}
+    padding_response_example = {
+        'turns': [{
+            'input_ids': [1, 2],
+            'labels': [7, 7]
+        }]
+    }
     assert not is_valid_ift_example(pad_token_id, max_seq_len,
                                     padding_response_example)
 
@@ -800,6 +815,7 @@ def test_token_counting_func_dataloader_setting(
     if dataloader_type in {'finetuning-hf', 'finetuning-streaming'}:
         for b in batch_tokenized:
             b['labels'] = b['input_ids'].copy()  # type: ignore
+        batch_tokenized = [{'turns': [b]} for b in batch_tokenized]
         expected_token_count *= 2
         expected_token_count += 1 * batch_size  # for the eos token
 

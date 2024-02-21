@@ -271,12 +271,7 @@ def main(args: Namespace) -> None:
                             for key in ['prompt', 'response']
                         }
                     else:
-                        encoded_sample = {
-                            'messages': [{
-                                key:
-                                str(turn[key]) for key in ['role', 'content']
-                            } for turn in formatted_sample['messages']]
-                        }
+                        encoded_sample = formatted_sample
                     out.write(encoded_sample)
         if tokenizer is not None and examples_removed > 0:
             warnings.warn(

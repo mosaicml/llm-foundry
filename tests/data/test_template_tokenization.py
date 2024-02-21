@@ -89,7 +89,7 @@ def test_tokenize_chat_example_well_formed():
     ]
 
     expected = [
-        {
+        [{
             'prompt':
                 '''<|im_start|>system
 A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.
@@ -99,36 +99,46 @@ Hello, GPT<|im_end|>
 ''',
             'response':
                 'this is my response<|im_end|>'
-        },
-        {
+        }],
+        [{
             'prompt':
                 '''<|im_start|>system
 A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.
 <|im_start|>user
 Hello, GPT<|im_end|>
 <|im_start|>assistant
-this is my response<|im_end|>
+''',
+            'response':
+                'this is my response<|im_end|>'
+        }, {
+            'prompt':
+                '''
 <|im_start|>user
 Nice to hear that.<|im_end|>
 <|im_start|>assistant
 ''',
             'response':
                 'multi-way chat works too!<|im_end|>'
-        },
+        }],
     ]
 
     chat_tokenizer = build_tokenizer('mosaicml/mpt-7b-8k-chat', {})
     assert len(expected) == len(
         chat_examples)  # if we add a new example, zip shouldn't fail silently
     for chat_example, expected_stringification in zip(chat_examples, expected):
-        prompt, response = _slice_chat_formatted_example(
+        templatized_prompt_response_turns = _slice_chat_formatted_example(
             chat_example, chat_tokenizer)
         tokenized_example = tokenize_formatted_example(chat_example,
                                                        chat_tokenizer)
-        assert prompt == expected_stringification['prompt']
-        assert response == expected_stringification['response']
-        assert 'input_ids' in tokenized_example
-        assert 'labels' in tokenized_example
+        for (prompt, response), exp_str, turn in zip(
+                templatized_prompt_response_turns,
+                expected_stringification,
+                tokenized_example['turns'],
+        ):
+            assert prompt == exp_str['prompt']
+            assert response == exp_str['response']
+            assert 'input_ids' in turn
+            assert 'labels' in turn
 
 
 def test_tokenize_instruct_example_malformed():
@@ -161,5 +171,46 @@ def test_tokenize_instruct_example_well_formed():
 
             example = {prompt_key: 'prompt', response_key: 'response'}
             tokenized_example = tokenize_formatted_example(example, tokenizer)
-            assert 'input_ids' in tokenized_example
-            assert 'labels' in tokenized_example
+            assert 'input_ids' in tokenized_example['turns'][0]
+            assert 'labels' in tokenized_example['turns'][0]
+
+
+@pytest.mark.parametrize('tokenizer_name', [
+    'EleutherAI/gpt-neox-20b', 'meta-llama/Llama-2-7b-chat-hf',
+    'HuggingFaceH4/zephyr-7b-beta', 't5-base'
+])
+def test_multi_turn_chat_slicing(tokenizer_name: str):
+    convo = [
+        {
+            'role': 'system',
+            'content': 'everyone thinks you are so cool'
+        },
+        {
+            'role': 'user',
+            'content': 'hiiii'
+        },
+        {
+            'role': 'assistant',
+            'content': 'yassss'
+        },
+        {
+            'role': 'user',
+            'content': 'HIIIIII!!!'
+        },
+        {
+            'role': 'assistant',
+            'content': 'YASSSSSS'
+        },
+    ]
+
+    tok = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
+
+    templated_prompt_response_turns = _slice_chat_formatted_example(
+        {'messages': convo}, tok)
+
+    reconstructed_chat = ''
+    for prompt, response in templated_prompt_response_turns:
+        reconstructed_chat += prompt + response
+
+    full_chat = tok.apply_chat_template(convo, tokenize=False)
+    assert reconstructed_chat == full_chat

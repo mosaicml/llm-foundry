@@ -242,9 +242,13 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
     token_counting_func = get_tokens_per_batch_func()
 
+    log.debug('Creating DataSpec object')
+
+    ds = DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
+
     log.debug('Returning from build_finetuning_dataloader')
 
-    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
+    return ds
 
 
 def _validate_config(dataset_cfg: DictConfig) -> None:

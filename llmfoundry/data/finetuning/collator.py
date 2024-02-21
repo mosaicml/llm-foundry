@@ -267,7 +267,7 @@ class Seq2SeqFinetuningCollator:
             max_length=self.max_seq_len,
             return_tensors='pt',
         )
-        
+
         batch['sequence_id'] = batch['attention_mask'] - 1
 
         # This logic prevents trimming on at least the first batch

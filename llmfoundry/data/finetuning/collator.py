@@ -124,6 +124,12 @@ class Seq2SeqFinetuningCollator:
                 f'target_prompts must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {self.target_prompts=}'
             )
 
+        if (not self.decoder_only_format) and (self.target_prompts != 'none' or
+                                               self.target_responses != 'last'):
+            raise ValueError(
+                f'When using encoder_decoder format, you must use target_prompts="none" and target_responses="last".'
+            )
+
         self.separator_tokens = []
         if separator_text and decoder_only_format:
             if separator_text == True:
@@ -284,20 +290,35 @@ class Seq2SeqFinetuningCollator:
         return batch
 
     def _process_and_batch_encoder_decoder(
-            self, examples: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
+            self, examples: List[TokenizedExample]) -> Dict[str, torch.Tensor]:
         # The encoder-decoder case is has some gotchas.
         # Steps are explained in comments.
         processed_examples = []
         for example in examples:
-            context = ensure_list(example['input_ids'])
-            target = ensure_list(example['labels'])
-            # ... first, get rid of any padding that was already applied
-            context = [t for t in context if t != self.tokenizer.pad_token_id]
-            target = [t for t in target if t != self.tokenizer.pad_token_id]
-            # ... second, ensure that the target text ends with an eos tag
-            if target[-1] != self.tokenizer.eos_token_id:
-                target = target + [self.tokenizer.eos_token_id]
-            # ... third, we need to pad labels ourselves. Because HF.
+            example = example['turns']
+            context = []
+            target = None
+            for idx, turn in enumerate(example):
+                is_last_turn = idx + 1 == len(example)
+                # We assume that no padding has been applied. If there is a pad token,
+                # it may be because the pad token is the same as another special token.
+                turn_context = ensure_list(turn['input_ids'])
+                turn_target = ensure_list(turn['labels'])
+                # Context always goes into input_ids.
+                context += turn_context
+                # Non-terminal turns go into the input_ids. Terminal target is the target.
+                if is_last_turn:
+                    # Ensure that the target text ends with an eos tag on the last turn
+                    if turn_target[-1] != self.tokenizer.eos_token_id:
+                        turn_target = turn_target + [
+                            self.tokenizer.eos_token_id
+                        ]
+                    target = turn_target
+                else:
+                    context += turn_target
+            assert isinstance(target, list)
+
+            # We need to pad labels ourselves. Because HF.
             if len(target) < self.max_seq_len:
                 i_pad = [_HF_IGNORE_INDEX] * (self.max_seq_len - len(target))
                 target = target + i_pad
@@ -323,11 +344,13 @@ class Seq2SeqFinetuningCollator:
                                   1] + [self.tokenizer.eos_token_id]
 
             # Back into the example
-            example['input_ids'] = context
-            example['attention_mask'] = [1] * len(context)
-            example['labels'] = target
+            processed_example = {
+                'input_ids': context,
+                'labels': target,
+                'attention_mask': [1] * len(context),
+            }
 
-            processed_examples.append(example)
+            processed_examples.append(processed_example)
 
         # Batch examples into a single dict (this also pads)
         batch = self.tokenizer.pad(

@@ -54,12 +54,28 @@ def _flatten_import(
     return False
 
 
+def _remove_import(
+    node: ast.ImportFrom,
+    remove_imports_prefix: Sequence[str],
+) -> bool:
+    """Returns True if import should be removed.
+
+    Checks whether the node starts the same as any of the imports in
+    remove_imports_prefix.
+    """
+    for import_prefix in remove_imports_prefix:
+        if node.module is not None and node.module.startswith(import_prefix):
+            return True
+    return False
+
+
 def process_file(
     file_path: str,
     folder_path: str,
     flatten_imports_prefix: Sequence[str],
+    remove_imports_prefix: Sequence[str],
 ) -> list[str]:
-    with open(file_path, 'r') as f:
+    with open(file_path, 'r', encoding='utf-8') as f:
         source = f.read()
 
     parent_module_name = None
@@ -70,19 +86,21 @@ def process_file(
     new_files_to_process = []
     nodes_to_remove = []
     for node in ast.walk(tree):
-        # Convert any llmfoundry imports into relative imports
-        if (isinstance(node, ast.ImportFrom) and node.module is not None and
-                _flatten_import(node, flatten_imports_prefix)):
+        # Remove any imports matching the remove_imports_prefix
+        if isinstance(
+                node,
+                ast.ImportFrom) and node.module is not None and _remove_import(
+                    node, remove_imports_prefix):
+            nodes_to_remove.append(node)
+        # Convert any (remaining) imports matching the flatten_imports_prefix
+        # to relative imports
+        elif (isinstance(node, ast.ImportFrom) and node.module is not None and
+              _flatten_import(node, flatten_imports_prefix)):
             module_path = find_module_file(node.module)
             node.module = convert_to_relative_import(node.module,
                                                      parent_module_name)
             # Recursively process any llmfoundry files
             new_files_to_process.append(module_path)
-        # Remove any imports from composer or omegaconf
-        elif isinstance(node, ast.ImportFrom) and node.module is not None and (
-                node.module.startswith('composer') or
-                node.module.startswith('omegaconf')):
-            nodes_to_remove.append(node)
         # Remove the Composer* class
         elif (isinstance(node, ast.ClassDef) and
               node.name.startswith('Composer')):
@@ -102,7 +120,7 @@ def process_file(
     if new_filename == '__init__.py':
         new_filename = file_path.split('/')[-2] + '.py'
     new_file_path = os.path.join(folder_path, new_filename)
-    with open(new_file_path, 'w') as f:
+    with open(new_file_path, 'w', encoding='utf-8') as f:
         assert new_tree is not None
         f.write(ast.unparse(new_tree))
 
@@ -110,9 +128,19 @@ def process_file(
 
 
 def edit_files_for_hf_compatibility(
-        folder: str,
-        flatten_imports_prefix: Sequence[str] = ('llmfoundry',),
+    folder: str,
+    flatten_imports_prefix: Sequence[str] = ('llmfoundry',),
+    remove_imports_prefix: Sequence[str] = ('composer', 'omegaconf',
+                                            'llmfoundry.metrics'),
 ) -> None:
+    """Edit files to be compatible with Hugging Face Hub.
+
+    Args:
+        folder (str): The folder to process.
+        flatten_imports_prefix (Sequence[str], optional): Sequence of prefixes to flatten. Defaults to ('llmfoundry',).
+        remove_imports_prefix (Sequence[str], optional): Sequence of prefixes to remove. Takes precedence over flattening.
+            Defaults to ('composer', 'omegaconf', 'llmfoundry.metrics').
+    """
     files_to_process = [
         os.path.join(folder, filename)
         for filename in os.listdir(folder)
@@ -123,7 +151,12 @@ def edit_files_for_hf_compatibility(
     while len(files_to_process) > 0:
         to_process = files_to_process.pop()
         if os.path.isfile(to_process) and to_process.endswith('.py'):
-            to_add = process_file(to_process, folder, flatten_imports_prefix)
+            to_add = process_file(
+                to_process,
+                folder,
+                flatten_imports_prefix,
+                remove_imports_prefix,
+            )
             for file in to_add:
                 if file not in files_processed_and_queued:
                     files_to_process.append(file)

@@ -3,7 +3,6 @@
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
-import torch
 from transformers import PreTrainedTokenizer
 
 DEFAULT_SYSTEM_PROMPT = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
@@ -192,16 +191,14 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             '{% for message in loop_messages %}'
             '{% if loop.index0 == 0 %}'
             '{% if system_message != false %}'
-            "{{ '<|im_start|>system\n' + system_message.strip() + '\n'}}"
+            "{{ '<|im_start|>system\n' + system_message.strip() + '<|im_end|>\n'}}"
             '{% endif %}'
             "{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' }}"
             '{% else %}'
             "{{ '\n' + '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' }}"
             '{% endif %}'
-            '{% if (add_generation_prompt == true) %}'
+            '{% if (add_generation_prompt == true and loop.last) %}'
             "{{ '\n' + '<|im_start|>' + 'assistant' + '\n' }}"
-            "{% elif (message['role'] == 'assistant') %}"
-            '{{ eos_token }}'
             '{% endif %}'
             '{% endfor %}')
         template = template.replace(
@@ -253,7 +250,10 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
     def _convert_id_to_token(self, index: int) -> Optional[str]:
         """Converts an index (integer) in a token (str) using the vocab."""
-        return self.decoder.get(index)
+        # For tokens in either the gap in ids in the tokenizer, or beyond the range of the tokenizer,
+        # we return empty string. This matches the behavior of Hugging Face fast tokenizers,
+        # but not slow tokenizers.
+        return self.decoder.get(index, '')
 
     def convert_tokens_to_string(self, tokens: List[str]) -> str:
         """Converts a sequence of tokens (string) in a single string."""
@@ -354,20 +354,6 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 actual_new_tokens.append(token)
 
         return self.add_tokens(actual_new_tokens, special_tokens=True)
-
-    def construct_logit_tensor(self, logprobs: Dict[str,
-                                                    float]) -> torch.Tensor:
-        """Construct tensor of shape (vocab_size,) mapping words to logprobs.
-
-        Args:
-            logprobs (Dict[str, float]): Dictionary mapping tokens to log probabilities assigned to them by the model.
-        """
-        tensor = torch.tensor([min(logprobs.values()) - 1] * (self.vocab_size))
-        for k in logprobs:
-            encoding = self(k)['input_ids']
-            idx = encoding[0]
-            tensor[idx] = logprobs[k]
-        return tensor
 
 
 TiktokenTokenizerWrapper.register_for_auto_class()

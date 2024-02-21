@@ -6,19 +6,22 @@ import os
 import platform
 import warnings
 from argparse import ArgumentParser, Namespace
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Callable, Dict, Iterable, Optional, Union
 
 import datasets as hf_datasets
-import numpy as np
 import psutil
+from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict
 from streaming import MDSWriter
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from llmfoundry.data.finetuning.tasks import (dataset_constructor,
+from llmfoundry.data.finetuning.tasks import (_get_example_type,
+                                              dataset_constructor,
                                               is_valid_ift_example,
                                               tokenize_formatted_example)
 from llmfoundry.utils.builders import build_tokenizer
+
+HFDataset = Union[DatasetDict, Dataset, IterableDatasetDict, IterableDataset]
 
 
 def parse_args() -> Namespace:
@@ -103,27 +106,7 @@ def parse_args() -> Namespace:
     return parsed
 
 
-class SimpleDataset(IterableDataset):
-    """An IterableDataset that returns text samples for MDSWriter.
-
-    Returns dicts of {'key': bytes} for each 'key' in `columns`
-    """
-
-    def __init__(self, dataset_name: str, data_subset: Union[str, None],
-                 split: str, columns: List[str]):
-        self.hf_dataset = hf_datasets.load_dataset(path=dataset_name,
-                                                   name=data_subset,
-                                                   split=split,
-                                                   streaming=True)
-        self.columns = columns
-
-    def __iter__(self) -> Iterable[Dict[str, bytes]]:
-        for sample in self.hf_dataset:
-            # convert to bytes to store in MDS binary format
-            yield {key: sample[key].encode('utf-8') for key in self.columns}
-
-
-def build_dataloader(dataset: SimpleDataset,
+def build_dataloader(dataset: HFDataset,
                      batch_size: int,
                      num_workers: Optional[int] = None) -> DataLoader:
     if num_workers is None:
@@ -177,6 +160,20 @@ def generate_samples(
             yield {k: v[idx] for k, v in batch.items()}
 
 
+def get_columns_and_format(dataset: HFDataset, tokenizing: bool,
+                           preprocessing_fn: Callable):
+    ex = preprocessing_fn(next(iter(dataset)))
+    example_type = _get_example_type(ex)
+    if tokenizing:
+        return {'turns': 'json'}, example_type
+    if example_type == 'chat':
+        # Chat format
+        return {'messages': 'json'}, example_type
+    else:
+        # Prompt-response format
+        return {'prompt': 'str', 'response': 'str'}, example_type
+
+
 def main(args: Namespace) -> None:
     """Main: create a streaming dataset.
 
@@ -202,9 +199,6 @@ def main(args: Namespace) -> None:
     tokenizer_kwargs.update({'model_max_length': args.max_seq_len})
     if args.tokenizer:
         tokenizer = build_tokenizer(args.tokenizer, tokenizer_kwargs)
-        columns = {'input_ids': 'ndarray:uint32', 'labels': 'ndarray:uint32'}
-    else:
-        columns = {'prompt': 'str', 'response': 'str'}
 
     for i, split_name in enumerate(args.splits):
         data_file = None
@@ -215,10 +209,19 @@ def main(args: Namespace) -> None:
                                            split=split_name,
                                            data_files=data_file,
                                            streaming=True)
-        loader = build_dataloader(dataset=dataset,
-                                  batch_size=512,
-                                  num_workers=args.num_workers)
-        samples = generate_samples(loader)
+        # Determine the output columns
+        columns, example_type = get_columns_and_format(
+            dataset=dataset,
+            tokenizing=tokenizer is not None,
+            preprocessing_fn=preprocessing_fn)
+        # Prepare the iterables
+        if example_type == 'chat':
+            samples = iter(dataset)
+        else:
+            loader = build_dataloader(dataset=dataset,
+                                      batch_size=512,
+                                      num_workers=args.num_workers)
+            samples = generate_samples(loader)
 
         # Write samples
         print(f'Converting {split_name} to MDS format...')
@@ -236,33 +239,44 @@ def main(args: Namespace) -> None:
             for sample in tqdm(samples, desc=split_name):
                 formatted_sample = preprocessing_fn(sample)
 
-                if ('prompt'
-                        not in formatted_sample) or ('response'
-                                                     not in formatted_sample):
-                    raise KeyError(
-                        'Unable to tokenize example because it has not been properly formatted. ' +\
-                        '"prompt" and "response" are required keys but at least one was missing ' +\
-                        f'from {formatted_sample=}.'
-                    )
+                # Use the _get_example_type utility to confirm that the formatted sample
+                # can be interpreted by the tokenization code
+                try:
+                    example_type = _get_example_type(formatted_sample)
+                except Exception as e:
+                    raise ValueError(
+                        'Encountered an error when checking example for proper formatting. ' +\
+                        f'example={formatted_sample}'
+                    ) from e
                 if tokenizer is not None:
-                    sample = tokenize_formatted_example(sample,
+                    sample = tokenize_formatted_example(formatted_sample,
                                                         tokenizer=tokenizer)
                     if not is_valid_ift_example(tokenizer.pad_token_id,
                                                 args.max_seq_len, sample):
                         examples_removed += 1
                         continue
 
-                    sample_to_write = {}
+                    sample_to_write = {'turns': []}
                     # convert to bytes
-                    for key in columns.keys():
-                        sample_to_write[key] = np.asarray(sample[key],
-                                                          dtype=np.uint32)
+                    for turn in sample['turns']:
+                        turn_to_write = {}
+                        for key in ['input_ids', 'labels']:
+                            turn_to_write[key] = list(turn[key])
+                        sample_to_write['turns'].append(turn_to_write)
                     out.write(sample_to_write)
                 else:
-                    encoded_sample = {
-                        key: formatted_sample[key].encode('utf-8')
-                        for key in columns.keys()
-                    }
+                    if example_type == 'prompt_response':
+                        encoded_sample = {
+                            key: formatted_sample[key].encode('utf-8')
+                            for key in ['prompt', 'response']
+                        }
+                    else:
+                        encoded_sample = {
+                            'messages': [{
+                                key:
+                                str(turn[key]) for key in ['role', 'content']
+                            } for turn in formatted_sample['messages']]
+                        }
                     out.write(encoded_sample)
         if tokenizer is not None and examples_removed > 0:
             warnings.warn(

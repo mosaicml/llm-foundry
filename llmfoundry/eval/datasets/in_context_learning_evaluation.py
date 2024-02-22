@@ -1304,6 +1304,104 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
         tokenized_example['language'] = example['language']
         return tokenized_example
 
+class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
+    """A dataset that construct batches for in-context learning RAG generation evaluation
+    Rag generation tasks evaluate a model's ability to answer questions based on passages.
+
+    Args:
+        passage_delimiter (str): Delimiter to place between each passage.
+        passage_query_delimiter (str): Delimiter to place between the last passage and the query.
+    """
+
+    def __init__(self,
+                #  passage_delimiter: str = '\nPassage: ',
+                #  passage_query_delimiter: str = '\nPlease tell me: ',
+                 *args,
+                 **kwargs):
+        # self.passage_delimiter = passage_delimiter
+        # self.passage_query_delimiter = passage_query_delimiter
+        super().__init__(context_key='passages',answer_key="answers",*args, **kwargs)
+        self.max_answer_length = self._get_max_answer_length()
+        self.batch_mapping = {'input_ids': 'context', 'labels': 'answers' }
+        self.default_batch = {
+            'input_ids': [],
+            'mode': 'generate',
+            'labels': [],
+            'generation_length': self.max_answer_length,
+            'generation_kwargs': {
+                'pad_token_id': self.pad_tok_id,
+                'use_cache': True
+            }
+        }
+        import IPython; IPython.embed()
+
+    def _construct_context(self, example: dict, preceding_text: str = '', add_answer: bool = False):
+        """
+        Takes a example and constructs a context. Optionally, appends this to preceeding text (such as a
+        prompt or fewshot examples), as well as optionally adds the correct answer (for fewshot examples)
+
+        Args:
+            example (dict): the example from which to construct the context
+            preceding_text (str): any preceding text, needed to if self.example_delimiter is needed at the beginning
+            add_answer (bool): bool for whether or not to add the answer on the end of the context (needed for fewshot examples)
+
+        Returns:
+            str: The constructed context. The default output context is
+                 formatted as follows: f'{self.prelimiter}{example['self.passages_key']}{example[self.context_key]}{self.continuation_delimiter}'
+        """
+        passages = self.passage_delimiter.lstrip('\n ')
+        passages += f'{self.passage_delimiter}'.join(example[self.context_key])
+        query = example['query']
+        context = f'{self.prelimiter}{passages}{self.passage_query_delimiter}{query}'
+
+        if len(preceding_text) > 0:
+            context = f'{self.example_delimiter}{context}'
+
+        context = f'{context}{self.continuation_delimiter}'
+        if add_answer:
+            context = f'{context}{self._get_answer_from_example(example)}'
+        return context
+    
+    def _get_answer_from_example(self, example: Dict[str, Any], in_context=False) -> str:
+        return example[self.answer_key][0]
+
+    def _get_max_answer_length(self) -> int:
+        f"""
+        Loops over the dataset and finds the longest answer length.
+
+        Returns:
+            int: the maximum answer length with an additional buffer of {_MAX_ANSWER_BUFFER_LENGTH} if chain of thought is present
+        """
+        max_answer_length = 0
+        for example in self.dataset:
+            answer = self._get_answer_from_example(example)
+            max_answer_length = max(max_answer_length, len(self.tokenizer(answer)['input_ids']))
+        max_answer_length = max_answer_length 
+        return max_answer_length
+
+    def collate_fn(self, data):
+        """
+        The function that the dataloader uses to accumulate data into batches
+        Args:
+            data (list): list of tokenized datapoints (dicts returned by self._tokenize_example)
+
+        Returns:
+            dict: dictionary for a single batch
+        """
+        batch = {'input_ids': [], 'mode': 'icl_task', 'labels': [], 'answer_indices': []}
+        for data_pair in data:
+            context_enc = data_pair['context']
+            answer_enc = data_pair['answer']
+
+            inp, answer_span = make_padded_input(context_enc, answer_enc, self.max_seq_len, self.pad_tok_id)
+            batch['input_ids'].append(inp)
+            batch['answer_indices'].append(answer_span)
+            batch['labels'].append(inp)
+
+        batch = self._convert_tokens_to_tensors(batch)
+        batch['attention_mask'] = ~(batch['input_ids'] == self.pad_tok_id)
+        return batch
+
 
 def build_icl_dataloader(
         icl_task_type: str,
@@ -1428,6 +1526,25 @@ def build_icl_dataloader(
             hf_parsing_map=hf_parsing_map,
             pass_at_k=pass_at_k,
             generations_per_sample=generations_per_sample,
+            generation_kwargs=generation_kwargs,
+        )
+        effective_batchsize = batch_size
+    elif icl_task_type == 'rag_generation':
+        dataset = InContextLearningRAGGenerationTaskDataset(
+            dataset_uri=dataset_uri,
+            tokenizer=tokenizer,
+            max_seq_len=max_seq_len,
+            pad_tok_id=pad_tok_id,
+            num_fewshot=num_fewshot,
+            prompt_string=prompt_string,
+            example_delimiter=example_delimiter,
+            continuation_delimiter=continuation_delimiter,
+            # passage_delimiter='\nPassage: ',
+            # passage_query_delimiter='\nQuery: ',
+            destination_path=destination_path,
+            fewshot_random_seed=fewshot_random_seed,
+            hf_loading_vars=hf_loading_vars,
+            hf_parsing_map=hf_parsing_map,
             generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size

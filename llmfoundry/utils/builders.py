@@ -462,8 +462,8 @@ def build_icl_evaluators(
                 icl_cfg.metric_names = [
                     'InContextLearningMultipleChoiceAccuracy'
                 ]
-            elif icl_cfg.icl_task_type == 'question_answering':
-                icl_cfg.metric_names = ['InContextLearningQAAccuracy']
+            elif icl_cfg.icl_task_type == 'generation_task_with_answers':
+                icl_cfg.metric_names = ['InContextLearningGenerationAccuracy']
             elif icl_cfg.icl_task_type == 'code_evaluation':
                 icl_cfg.metric_names = ['InContextLearningCodeEvalAccuracy']
             else:
@@ -483,8 +483,13 @@ def build_icl_evaluators(
             icl_cfg.batch_size = default_batch_size
         if 'pass_at_k' not in icl_cfg:
             icl_cfg.pass_at_k = 1
-        if 'num_beams' not in icl_cfg:
-            icl_cfg.num_beams = 20
+        if 'generations_per_sample' not in icl_cfg:
+            icl_cfg.generations_per_sample = 20
+        
+        if 'num_beams' in icl_cfg:
+            raise ValueError(
+                'num_beams is no longer supported as a top level icl_task parameter.'  + \
+                'Please use generation_kwargs.num_beams instead.')
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
@@ -523,7 +528,7 @@ def build_icl_evaluators(
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
                 pass_at_k=icl_cfg.pass_at_k,
-                generations_per_sample=icl_cfg.num_beams,
+                generations_per_sample=icl_cfg.generations_per_sample,
                 has_categories=icl_cfg.get('has_categories', False),
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
                 early_stopping_criteria=early_stopping_criteria,

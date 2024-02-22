@@ -300,17 +300,25 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
 
     min_ratio = 1
     max_ratio = max_seq_len / 100
+
     profiling_results = profile_packing(dataloader_cfg, tokenizer, min_ratio,
                                         max_ratio, num_packing_ratios,
                                         device_batch_size)
+    
 
     # Obtain the maximum packing_ratio/minimum padding that has no waste.
     # profiling_results are sorted from smallest to largest packing_ratio.
+    import time
+    start = time.time()
+    n = 0
     packing_ratio = 1
     for packing_ratio_candidate, _, waste in profiling_results:
+        n += 1
         if waste is None or waste > 0:
             break
         packing_ratio = packing_ratio_candidate
+    end = time.time()
+    print('total auto time', end-start, n)
 
     # Select the minimum packing ratio across all ranks.
     if dist.is_available() and dist.is_initialized():
@@ -383,7 +391,11 @@ def profile_packing(
     train_dataloader = train_dataspec.dataloader
 
     # Get a bunch of raw examples
+    import time
+    start = time.time()
     big_batch = next(iter(train_dataloader))
+    end = time.time()
+    print('time for big batch', end - start, 'n profiled example', n_profile_examples)
 
     def split_big_batch(raw_batch_size: int) -> List:
         input_ids = big_batch['input_ids'].split(raw_batch_size)
@@ -423,5 +435,6 @@ def profile_packing(
         return padding_percent, waste_percent
 
     for packing_ratio, raw_batch_size in zip(packing_ratios, raw_batch_sizes):
+        print('trying packing ratio with raw batch size', packing_ratio, raw_batch_size)
         padding, waste = profile(raw_batch_size)
         yield (packing_ratio, padding, waste)

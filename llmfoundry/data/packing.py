@@ -331,7 +331,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
 
     # Restore rng state.
     reproducibility.load_rng_state(rng_state)
-    raise Exception(f'Auto packing ratio! {packing_ratio}')
+    
     return packing_ratio
 
 

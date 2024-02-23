@@ -61,7 +61,6 @@ class BinPackCollator:
             examples: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
         return self.pack(batch)
-    
     def pack(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         assert 'attention_mask' in batch
         assert 'input_ids' in batch
@@ -305,18 +304,14 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
 
     min_ratio = 1
     max_ratio = max_seq_len / 100
-
     profiling_results = profile_packing(dataloader_cfg, tokenizer, min_ratio,
                                         max_ratio, num_packing_ratios,
                                         device_batch_size)
-    
 
     # Obtain the maximum packing_ratio/minimum padding that has no waste.
     # profiling_results are sorted from smallest to largest packing_ratio.
-    n = 0
     packing_ratio = 1
     for packing_ratio_candidate, _, waste in profiling_results:
-        n += 1
         if waste is None or waste > 0:
             break
         packing_ratio = packing_ratio_candidate

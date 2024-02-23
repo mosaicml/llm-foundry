@@ -257,7 +257,6 @@ def main(args: Namespace) -> None:
                         continue
 
                     sample_to_write = {'turns': []}
-                    # convert to bytes
                     for turn in sample['turns']:
                         turn_to_write = {}
                         for key in ['input_ids', 'labels']:

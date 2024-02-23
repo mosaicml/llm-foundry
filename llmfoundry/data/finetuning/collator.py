@@ -16,6 +16,74 @@ log = logging.getLogger(__name__)
 _HF_IGNORE_INDEX = -100
 
 
+def ensure_list(x: Union[List, torch.Tensor]) -> List:
+    if isinstance(x, torch.Tensor):
+        x = list(x.flatten())
+    assert isinstance(x, list)
+    return x
+
+
+def validate_target_settings(target_prompts: str, target_responses: str, decoder_only_format: bool):
+    """Raises an error if target settings are invalid"""
+    
+    if (not decoder_only_format) and (target_prompts != 'none' or target_responses != 'last'):
+        raise ValueError(
+            f'When using encoder_decoder format, you must use target_prompts="none" and target_responses="last".'
+        )
+    
+    if target_responses not in {'all', 'last'}:
+        raise ValueError(
+            f'target_responses must be either "last" or "all" but {target_responses=}'
+        )
+
+    if target_prompts.startswith('length>='):
+        cutoff = target_prompts[8:]
+        if not cutoff.isdigit():
+            raise ValueError(
+                f'target_prompts starts with "length>=" but the rest of the string is not digits ({target_prompts=}). ' +\
+                'To use this configuration option, set target_prompts "length>=XX" where "XX" is a positive integer indicating ' +\
+                'the length cutoff. Prompts of at least XX tokens in length will be treated as targets.'
+            )
+        cutoff = int(cutoff)
+        if cutoff <= 0:
+            raise ValueError(
+                f'You are trying to set the target_prompts length cutoff to a negative number {cutoff=}. This is not allowed.'
+            )
+    elif target_prompts not in {'all', 'none'}:
+        raise ValueError(
+            f'target_prompts must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {target_prompts=}'
+        )
+
+###### Functions to implement target_prompts and target_responses choices #####
+def _sequence_to_labels_all(sequence: list[int], is_last_turn: bool, cutoff: Optional[int]=None) -> list[int]:
+    del is_last_turn, cutoff # unused
+    return sequence
+
+def _sequence_to_labels_none(sequence: list[int], is_last_turn: bool, cutoff: Optional[int]=None) -> list[int]:
+    del is_last_turn, cutoff # unused
+    return [_HF_IGNORE_INDEX] * len(sequence)
+
+def _sequence_to_labels_last(sequence: list[int], is_last_turn: bool, cutoff: Optional[int]=None) -> list[int]:
+    del cutoff # unused
+    if is_last_turn:
+        return sequence
+    else:
+        return [_HF_IGNORE_INDEX] * len(sequence)
+    
+def _sequence_to_labels_cutoff(sequence: list[int], is_last_turn: bool, cutoff: Optional[int]=None) -> list[int]:
+    del is_last_turn # unused
+    if len(sequence) >= cutoff:
+        return sequence
+    else:
+        return [_HF_IGNORE_INDEX] * len(sequence)
+    
+_TARGET_POLICY_LOOKUP = {
+    'all': _sequence_to_labels_all,
+    'none': _sequence_to_labels_none,
+    'last': _sequence_to_labels_last,
+    'length': _sequence_to_labels_cutoff,
+}
+    
 class Seq2SeqFinetuningCollator:
     """A general-purpose collator for sequence-to-sequence training/evaluation.
 
@@ -61,7 +129,6 @@ class Seq2SeqFinetuningCollator:
         target_prompts: str = 'none',
         allow_pad_trimming: bool = False,
         separator_text: Optional[Union[str, bool]] = None,
-        format_for_generation: bool = False,
         batch_metadata: Optional[Dict[str, Any]] = None,
     ):
         self.tokenizer = tokenizer
@@ -70,11 +137,6 @@ class Seq2SeqFinetuningCollator:
         self.target_responses = target_responses.lower()
         self.target_prompts = target_prompts.lower()
         self.batch_metadata = batch_metadata or {}
-
-        if format_for_generation:
-            raise ValueError(
-                'Collator feature `format_for_generation` has been removed.')
-        self.format_for_generation = False
 
         # Trimming will always be skipped on at least the first __call__
         self._allow_pad_trimming = allow_pad_trimming
@@ -108,27 +170,14 @@ class Seq2SeqFinetuningCollator:
                 f'{self.__class__.__name__} requires that the tokenizer has the pad token set, but it is None'
             )
 
-        if self.target_responses not in {'all', 'last'}:
-            raise ValueError(
-                f'target_responses must be either "last" or "all" but {self.target_responses=}'
-            )
-
-        if self.target_prompts.startswith('length>='):
-            thresh = self.target_prompts[8:]
-            if not thresh.isdigit() or int(thresh) <= 0:
-                raise ValueError(
-                    f'target_prompts must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {self.target_prompts=}'
-                )
-        elif self.target_prompts not in {'all', 'none'}:
-            raise ValueError(
-                f'target_prompts must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {self.target_prompts=}'
-            )
-
-        if (not self.decoder_only_format) and (self.target_prompts != 'none' or
-                                               self.target_responses != 'last'):
-            raise ValueError(
-                f'When using encoder_decoder format, you must use target_prompts="none" and target_responses="last".'
-            )
+        validate_target_settings(self.target_prompts, self.target_responses, self.decoder_only_format)
+        if self.target_prompts.startswith('length'):
+            self.prompt_cutoff = int(self.target_prompts.split('>=')[-1])
+            self.prompt_to_target = _TARGET_POLICY_LOOKUP['length']
+        else:
+            self.prompt_cutoff = None
+            self.prompt_to_target = _TARGET_POLICY_LOOKUP[self.target_prompts]
+        self.response_to_target = _TARGET_POLICY_LOOKUP[self.target_responses]
 
         self.separator_tokens = []
         if separator_text and decoder_only_format:
@@ -177,11 +226,11 @@ class Seq2SeqFinetuningCollator:
         # Steps explained in comments
         processed_examples = []
         for example in examples:
-            example = example['turns']
+            example_turns = example['turns']
             input_ids = []
             labels = []
-            for idx, turn in enumerate(example):
-                is_last_turn = idx + 1 == len(example)
+            for idx, turn in enumerate(example_turns):
+                is_last_turn = idx + 1 == len(example_turns)
                 # We assume that no padding has been applied. If there is a pad token,
                 # it may be because the pad token is the same as another special token.
                 context = ensure_list(turn['input_ids'])
@@ -196,9 +245,8 @@ class Seq2SeqFinetuningCollator:
                 input_ids += context
                 input_ids += target
                 # Extend the labels, with values depending on the loss-generating policies
-                labels += _context_to_labels(context, self.target_prompts)
-                labels += _target_to_labels(target, is_last_turn,
-                                            self.target_responses)
+                labels += self.prompt_to_target(context, is_last_turn, self.prompt_cutoff)
+                labels += self.response_to_target(target, is_last_turn)
 
             if len(input_ids) != len(labels):
                 raise ValueError(
@@ -393,47 +441,3 @@ class Seq2SeqFinetuningCollator:
             batch[k] = batch[k][:, :keep_tokens].contiguous()
 
         return batch
-
-
-def ensure_list(x: Union[List, torch.Tensor]) -> List:
-    if isinstance(x, torch.Tensor):
-        x = list(x.flatten())
-    assert isinstance(x, list)
-    return x
-
-
-def _context_to_labels(context: list[int], policy: str):
-    policy = policy.lower()
-    if policy == 'none':
-        return [_HF_IGNORE_INDEX] * len(context)
-    if policy.startswith('length>='):
-        thresh = policy[8:]
-        if not thresh.isdigit():
-            raise ValueError(
-                f'policy must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {policy=}'
-            )
-        thresh = int(thresh)
-        if thresh <= 0:
-            raise ValueError(
-                f'policy must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {policy=}'
-            )
-    elif policy == 'all':
-        thresh = 0
-    else:
-        raise ValueError(
-            f'policy must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {policy=}'
-        )
-    if len(context) >= thresh:
-        return context
-    else:
-        return [_HF_IGNORE_INDEX] * len(context)
-
-
-def _target_to_labels(target: list[int], is_last_turn: bool, policy: str):
-    policy = policy.lower()
-    if policy == 'last':
-        return target if is_last_turn else [_HF_IGNORE_INDEX] * len(target)
-    elif policy == 'all':
-        return target
-    else:
-        raise ValueError(f'policy must either be "all", "last", but {policy=}')

@@ -11,7 +11,8 @@ from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
+from llmfoundry.data.finetuning.collator import (Seq2SeqFinetuningCollator,
+                                                 validate_target_settings)
 from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
                                               dataset_constructor)
@@ -330,31 +331,14 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
         raise ValueError(
             'In the dataset config, you must set the `max_seq_len`')
 
+    # Raise an error if the target_prompts + target_responses + decoder_only_format settings
+    # are invalid
     target_responses = str(
         dataset_cfg.get('target_responses', _DEFAULT_TARGET_RESPONSES)).lower()
     target_prompts = str(
         dataset_cfg.get('target_prompts', _DEFAULT_TARGET_PROMPTS)).lower()
-    encoder_decoder = dataset_cfg.decoder_only_format
-    if encoder_decoder:
-        if (target_prompts != 'none') and (target_responses != 'last'):
-            raise ValueError(
-                'When using encoder_decoder_format (decoder_only_format=False), you must use ' +\
-                f'target_responses="last" and target_prompts="none" but {target_responses=} and {target_prompts=}.'
-            )
-    if target_responses not in {'all', 'last'}:
-        raise ValueError(
-            f'target_responses must be either "last" or "all" but {target_responses=}'
-        )
-    if target_prompts.startswith('length>='):
-        thresh = target_prompts[8:]
-        if not thresh.isdigit() or int(thresh) <= 0:
-            raise ValueError(
-                f'target_prompts must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {target_prompts=}'
-            )
-    elif target_prompts not in {'all', 'none'}:
-        raise ValueError(
-            f'target_prompts must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {target_prompts=}'
-        )
+    decoder_only_format = dataset_cfg.decoder_only_format
+    validate_target_settings(target_prompts, target_responses, decoder_only_format)
 
 
 def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
@@ -509,7 +493,7 @@ if __name__ == '__main__':
             'split':
                 'train',
             'packing_ratio':
-                None,  #18.0,
+                18.0,
             'max_seq_len':
                 2048,
             'decoder_only_format':

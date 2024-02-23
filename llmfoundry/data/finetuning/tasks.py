@@ -207,10 +207,6 @@ def _slice_chat_formatted_example(
             )
         prompt = prompt_with_history[len(conversation_through_previous_turn):]
         response = full_conversation[len(prompt_with_history):]
-        if len(response) == 0:
-            raise ValueError(
-                f'chat example must have at least one assistant message. {messages=}'
-            )
         return prompt, response
 
     templated_prompt_response_turns: List[Tuple[str, str]] = []

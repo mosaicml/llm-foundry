@@ -61,6 +61,7 @@ class BinPackCollator:
             examples: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
         return self.pack(batch)
+
     def pack(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         assert 'attention_mask' in batch
         assert 'input_ids' in batch
@@ -76,7 +77,9 @@ class BinPackCollator:
         sizes, trimmed_examples = _trim_batch(batch)
         return self.pack_trimmed_examples(trimmed_examples, sizes)
 
-    def pack_trimmed_examples(self, trimmed_examples: List[Dict[str, torch.Tensor]], sizes: List[int]) -> Dict[str, torch.Tensor]:
+    def pack_trimmed_examples(self, trimmed_examples: List[Dict[str,
+                                                                torch.Tensor]],
+                              sizes: List[int]) -> Dict[str, torch.Tensor]:
         # Apply our CS 101 bin packing algorithm.
         packed_examples, n_packed_tokens, n_total_tokens, leftover_bins = _first_fit_bin_packing(
             sizes=sizes,
@@ -97,7 +100,10 @@ class BinPackCollator:
                        padding_side=self.padding_side)
         return batch
 
-def _trim_batch(batch: Dict[str, torch.Tensor]) -> Tuple[List[int], List[Dict[str, torch.Tensor]]]:
+
+def _trim_batch(
+    batch: Dict[str, torch.Tensor]
+) -> Tuple[List[int], List[Dict[str, torch.Tensor]]]:
     # Cut everything down to size
     sizes, trimmed_examples = [], []
     for idx in range(batch['attention_mask'].shape[0]):
@@ -105,6 +111,7 @@ def _trim_batch(batch: Dict[str, torch.Tensor]) -> Tuple[List[int], List[Dict[st
         sizes.append(size)
         trimmed_examples.append(trimmed_example)
     return sizes, trimmed_examples
+
 
 def _extract_trim_batch_idx(batch: Dict[str, torch.Tensor],
                             idx: int) -> Tuple[int, Dict[str, torch.Tensor]]:
@@ -407,10 +414,10 @@ def profile_packing(
 
         # Simulate feeding the packing collator a bunch of data
         for idx in range(0, len(trimmed_examples_copy), raw_batch_size):
-            batch = trimmed_examples_copy[idx:idx+raw_batch_size]
+            batch = trimmed_examples_copy[idx:idx + raw_batch_size]
             if len(batch) < device_batch_size:
                 continue
-            packer.pack_trimmed_examples(batch, sizes[idx:idx+raw_batch_size])
+            packer.pack_trimmed_examples(batch, sizes[idx:idx + raw_batch_size])
 
         if packer.n_packed_examples == 0:
             log.debug(

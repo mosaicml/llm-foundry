@@ -3,7 +3,7 @@ max_seq_len: 8192
 global_seed: 17
 
 # Run Name
-run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
+run_name:  # If left blank, will be read from env var $COMPOSER_RUN_NAME
 
 # Model
 model:
@@ -135,12 +135,12 @@ icl_tasks:
   icl_task_type: multiple_choice
   metric_names:
   - InContextLearningMultipleChoiceAccuracy
-  prompt_string: '' # this goes at the beginning of each input
-  example_delimiter: '\n' # this goes between fewshot examples
-  continuation_delimiter: ' ' # this separates questions from answers
+  prompt_string: ""  # this goes at the beginning of each input
+  example_delimiter: "\n"  # this goes between fewshot examples
+  continuation_delimiter: " "  # this separates questions from answers
 -
   label: hellaswag
-  dataset_uri: # ADD YOUR OWN DATASET URI
+  dataset_uri:  # ADD YOUR OWN DATASET URI
   num_fewshot:
   - 0
   batch_size: 4
@@ -148,12 +148,12 @@ icl_tasks:
   icl_task_type: multiple_choice
   metric_names:
   - InContextLearningMultipleChoiceAccuracy
-  prompt_string: '' # this goes at the beginning of each input
-  example_delimiter: '\n' # this goes between fewshot examples
-  continuation_delimiter: ' ' # this separates questions from answers
+  prompt_string: ""  # this goes at the beginning of each input
+  example_delimiter: "\n"  # this goes between fewshot examples
+  continuation_delimiter: " "  # this separates questions from answers
 -
   label: arc_easy
-  dataset_uri: # ADD YOUR OWN DATASET URI
+  dataset_uri:  # ADD YOUR OWN DATASET URI
   num_fewshot:
   - 0
   batch_size: 4
@@ -161,6 +161,6 @@ icl_tasks:
   icl_task_type: multiple_choice
   metric_names:
   - InContextLearningMultipleChoiceAccuracy
-  prompt_string: '' # this goes at the beginning of each input
-  example_delimiter: '\n' # this goes between fewshot examples
-  continuation_delimiter: ' ' # this separates questions from answers
+  prompt_string: ""  # this goes at the beginning of each input
+  example_delimiter: "\n"  # this goes between fewshot examples
+  continuation_delimiter: " "  # this separates questions from answers

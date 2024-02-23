@@ -8,7 +8,9 @@ from typing import Any, Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
-from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.attention import (check_alibi_support,
+                                                is_flash_v1_installed,
+                                                is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import attn_config_defaults
 
 # NOTE: All utils are imported directly even if unused so that
@@ -18,6 +20,8 @@ from llmfoundry.models.layers.blocks import attn_config_defaults
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY  # type: ignore (see note)
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY  # type: ignore (see note)
+
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 ffn_config_defaults: Dict = {
     'ffn_type': 'mptmlp',
@@ -61,7 +65,6 @@ class MPTConfig(PretrainedConfig):
         fc_type: str = 'torch',
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
-        verbose: Optional[int] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -81,6 +84,7 @@ class MPTConfig(PretrainedConfig):
                 attn_pdrop (float): The dropout probability for the attention layers.
                 attn_impl (str): The attention implementation to use. One of 'torch', 'flash', or 'triton'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
+                qk_gn (bool): Whether to apply group normalization to the queries and keys in the attention layer.
                 clip_qkv (Optional[float]): If not None, clip the queries, keys, and values in the attention layer to
                     this value.
                 softmax_scale (Optional[float]): If not None, scale the softmax in the attention layer by this value. If None,
@@ -107,11 +111,10 @@ class MPTConfig(PretrainedConfig):
                     factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling.type.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
-                ffn_type (str): type of ffn to use. Options: mptmlp, mptgeglu, te_ln_mlp
+                ffn_type (str): type of ffn to use. Options: mptmlp, mptglu, te_ln_mlp
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
-            verbose (int): Deprecated.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
             use_cache (bool): Whether or not the model should return the last key/values attentions
@@ -154,11 +157,6 @@ class MPTConfig(PretrainedConfig):
         self.init_config = init_config
         self.fc_type = fc_type
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
-        if verbose is not None:
-            warnings.warn(
-                DeprecationWarning(
-                    'verbose argument for MPTConfig is now ignored and will be removed. Use python_log_level instead.'
-                ))
 
         if 'name' in kwargs:
             del kwargs['name']
@@ -220,11 +218,26 @@ class MPTConfig(PretrainedConfig):
                 'attn_impl'] not in ['torch', 'triton']:
             raise NotImplementedError(
                 'prefix_lm only implemented with torch and triton attention.')
-        if self.attn_config['alibi'] and self.attn_config['attn_impl'] not in [
-                'torch', 'triton'
-        ]:
+
+        if self.attn_config['attn_impl'] == 'flash' and is_flash_v1_installed():
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    'Support for Flash Attention v1 is deprecated. Please upgrade to Flash Attention v2.4.2. To install Flash Attention v2.4.2, please run `pip install -e ".[gpu-flash2]"` from the root directory of the llm-foundry repository.',
+                    remove_version='0.6.0',
+                ))
+
+        if self.attn_config[
+                'attn_impl'] == 'triton' and not self.attn_config['prefix_lm']:
+            warnings.warn(
+                UserWarning(
+                    'If not using a Prefix Language Model, we recommend setting "attn_impl" to "flash" instead of "triton".'
+                ))
+
+        if self.attn_config['alibi'] and not check_alibi_support(
+                self.attn_config['attn_impl']):
             raise NotImplementedError(
-                'alibi only implemented with torch and triton attention.')
+                'alibi only implemented with torch, triton, and flash (v2.4.2 or higher) attention.'
+            )
         if self.attn_config['attn_uses_sequence_id'] and not (
                 self.attn_config['attn_impl'] in ['torch', 'triton'] or
             (self.attn_config['attn_impl'] == 'flash' and
@@ -291,14 +304,24 @@ class MPTConfig(PretrainedConfig):
                     + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
                     'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
                 )
-        if self.ffn_config['ffn_type'] in ['mptmlp', 'mptgeglu']:
+        if self.ffn_config['ffn_type'] == 'mptgeglu':
+            raise ValueError(
+                'API CHANGE: `ffn_type=="mptgeglu"` changed to `ffn_type=="mptglu"`. '
+                +
+                'See [#829](https://github.com/mosaicml/llm-foundry/pull/829) for details.'
+            )
+        elif self.ffn_config['ffn_type'] in ['mptmlp', 'mptglu']:
             self.ffn_config['fc_type'] = self.fc_type
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
             self.ffn_config['bias'] = not self.no_bias
+            if 'ffn_act_fn' in self.ffn_config.keys():
+                raise ValueError(
+                    f'Transformer Engine block does not support custom activation functions.'
+                )
         if not self.use_pad_tok_in_ffn:
             try:
                 from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
             except:
                 raise ImportError(
-                    'In order to set `use_pad_tok_in_ffn=False`, please install flash-attn==1.0.9 or flash-attn==2.3.2'
+                    'In order to set `use_pad_tok_in_ffn=False`, please install flash-attn==1.0.9 or flash-attn==2.3.6'
                 )

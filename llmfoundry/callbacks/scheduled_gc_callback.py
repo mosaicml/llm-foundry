@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
+from typing import Optional
 
 import torch
 from composer.core import Callback, State
@@ -19,16 +20,19 @@ class ScheduledGarbageCollector(Callback):
     """Disable automatic garbage collection and collect garbage at interval.
 
     Args:
-        batch_interval (int): Number of batches between checkpoints call to gc.collect()
+        batch_interval (int): Number of batches between calls to gc.collect()
+        gen_1_batch_interval(int, optional): Number of batches between calls to gc.collect(1)
         eval_keep_disabled (bool): keep gc disabled during eval (default: False)
     """
 
     def __init__(
         self,
         batch_interval: int,
+        gen_1_batch_interval: Optional[int] = None,
         eval_keep_disabled: bool = False,
     ):
         self.batch_interval = batch_interval
+        self.gen_1_batch_interval = gen_1_batch_interval
         self.eval_keep_disabled = eval_keep_disabled
         self.gc_init_state = None
 
@@ -55,6 +59,9 @@ class ScheduledGarbageCollector(Callback):
 
     def before_dataloader(self, state: State, logger: Logger) -> None:
         del logger  # unused
+
+        if self.gen_1_batch_interval is not None and state.timestamp.batch.value % self.gen_1_batch_interval == 0:
+            gc.collect(1)
 
         if state.timestamp.batch.value % self.batch_interval == 0:
             gc_cuda()

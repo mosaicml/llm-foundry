@@ -108,13 +108,6 @@ class StreamingTextDataset(StreamingDataset):
                  batching_method: str = 'random',
                  **kwargs: Any):
 
-        group_method = kwargs.pop('group_method', None)
-        if group_method is not None:
-            raise NotImplementedError(
-                'group_method is deprecated and has been removed.\nTo ' +
-                'concatenate, use the --concat_tokens ' +
-                'argument when creating your MDS dataset with concat_c4.py')
-
         if len(kwargs) > 0:
             raise ValueError(
                 f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}'
@@ -239,25 +232,8 @@ class ConcatenatedSequenceCollatorWrapper:
         return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
 
 
-def build_text_dataloader(
-    cfg: DictConfig,
-    tokenizer: PreTrainedTokenizerBase,
-    device_batch_size: int,
-) -> DataSpec:
-    assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
-    if cfg.dataset.get('group_method', None) is not None:
-        raise NotImplementedError(
-            'group_method is deprecated and has been removed.\nTo ' +
-            'concatenate, use the --concat_tokens ' +
-            'argument when creating your MDS dataset with convert_dataset_hf.py'
-        )
-
-    # get kwargs
-    streams_dict = cfg.dataset.pop('streams', None)
-    mlm_probability = cfg.dataset.pop('mlm_probability', None)
-    eos_token_id = cfg.dataset.pop('eos_token_id', None)
-    bos_token_id = cfg.dataset.pop('bos_token_id', None)
-
+def build_streams(dataset_cfg: DictConfig):
+    streams_dict = dataset_cfg.pop('streams', None)
     # build streams
     streams = None
     if streams_dict is not None:
@@ -266,6 +242,22 @@ def build_text_dataloader(
             # stream is the streams kwargs
             # fwd all kwargs with **stream allows streaming to check args
             streams.append(Stream(**stream))
+    return streams
+
+
+def build_text_dataloader(
+    cfg: DictConfig,
+    tokenizer: PreTrainedTokenizerBase,
+    device_batch_size: int,
+) -> DataSpec:
+    assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
+
+    # get kwargs
+    mlm_probability = cfg.dataset.pop('mlm_probability', None)
+    eos_token_id = cfg.dataset.pop('eos_token_id', None)
+    bos_token_id = cfg.dataset.pop('bos_token_id', None)
+
+    streams = build_streams(cfg.dataset)
 
     # build dataset potentially with streams
     dataset = StreamingTextDataset(
@@ -325,9 +317,10 @@ def get_tokens_per_batch_func(
     """
 
     def get_num_samples_in_batch(batch: Batch) -> int:
-        if not isinstance(batch, Mapping) or 'attention_mask' not in batch:
+        if not isinstance(batch, Mapping) or ('attention_mask' not in batch and
+                                              'input_ids' not in batch):
             raise ValueError(
-                'get_tokens_per_batch_func() requires a batch with an attention_mask key'
+                'get_tokens_per_batch_func() requires a batch with an attention_mask key or an input_ids key'
             )
 
         if not decoder_only and 'decoder_attention_mask' not in batch:
@@ -336,7 +329,10 @@ def get_tokens_per_batch_func(
             )
 
         # Count number of non padding tokens in batch
-        input_ids_tokens = int(torch.sum(batch['attention_mask']).item())
+        if 'attention_mask' in batch:
+            input_ids_tokens = int(torch.sum(batch['attention_mask']).item())
+        else:
+            input_ids_tokens = batch['input_ids'].numel()
 
         # For encoder decoder models only
         decoder_input_ids_tokens = 0

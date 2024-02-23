@@ -8,7 +8,7 @@ max_seq_len: 2048
 global_seed: 17
 
 # Run Name
-run_name: # If left blank, will be read from env var $RUN_NAME
+run_name:  # If left blank, will be read from env var $RUN_NAME
 
 # Model
 # These must match pretraining
@@ -16,7 +16,7 @@ model:
   name: mpt_causal_lm
   init_device: meta
   d_model: 2048
-  n_heads: 16 # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
+  n_heads: 16  # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
   n_layers: 24
   expansion_ratio: 4
   max_seq_len: ${max_seq_len}
@@ -71,7 +71,7 @@ eval_loader:
 
 # Optimization
 scheduler:
-  name: linear_decay_with_warmup # linear no warmup is HF default which dolly used
+  name: linear_decay_with_warmup  # linear no warmup is HF default which dolly used
   t_warmup: 0ba
   alpha_f: 0
 
@@ -136,4 +136,4 @@ callbacks:
 # Load from remote object store
 # REPLACE THE BELOW with you own checkpoint!
 load_path: oci://my-bucket/my-folder/mpt-1b/checkpoints/some_checkpoint.pt
-load_weights_only: true # Only load the weights, not the optimizer state, LR schedule, etc
+load_weights_only: true  # Only load the weights, not the optimizer state, LR schedule, etc

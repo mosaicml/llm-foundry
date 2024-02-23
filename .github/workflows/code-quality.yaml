@@ -20,14 +20,14 @@ defaults:
 jobs:
   code-quality:
     runs-on: ubuntu-20.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       matrix:
         python_version:
-        - '3.9'
-        - '3.10'
+        - "3.9"
+        - "3.10"
         pip_deps:
-        - '[dev]'
+        - "[dev]"
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4

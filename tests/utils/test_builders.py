@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 from composer.callbacks import Generate
 from composer.core import Evaluator
+from composer.loggers import WandBLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
@@ -20,8 +21,8 @@ from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_callback, build_eval_loaders,
-                                       build_evaluators, build_optimizer,
-                                       build_tokenizer)
+                                       build_evaluators, build_logger,
+                                       build_optimizer, build_tokenizer)
 
 
 @pytest.mark.parametrize('tokenizer_name,tokenizer_kwargs', [
@@ -47,9 +48,16 @@ def test_tokenizer_builder(tokenizer_name: str, tokenizer_kwargs: dict):
         assert isinstance(tokenizer, PreTrainedTokenizerBase)
 
 
+def test_tokenizer_no_EOS():
+    with pytest.raises(
+            ValueError,
+            match='The tokenizer bert-base-uncased must have an eos_token.'):
+        build_tokenizer('bert-base-uncased', {})
+
+
 def test_build_callback_fails():
     with pytest.raises(ValueError):
-        build_callback('nonexistent_callback', {})
+        build_callback('nonexistent_callback', {}, {})
 
 
 @pytest.mark.parametrize(
@@ -65,12 +73,15 @@ def test_build_generate_callback(
                            autospec=True) as mock_generate:
         mock_generate.return_value = None
         build_callback(
-            'generate_callback', {
+            'generate_callback',
+            {
                 'prompts': ['hello'],
                 interval_key: interval_value,
                 'foo': 'bar',
                 'something': 'else',
-            })
+            },
+            {},
+        )
 
         assert mock_generate.call_count == 1
         _, _, kwargs = mock_generate.mock_calls[0]
@@ -85,11 +96,15 @@ def test_build_generate_callback_unspecified_interval():
         with mock.patch.object(Generate, '__init__',
                                autospec=True) as mock_generate:
             mock_generate.return_value = None
-            build_callback('generate_callback', {
-                'prompts': ['hello'],
-                'foo': 'bar',
-                'something': 'else',
-            })
+            build_callback(
+                'generate_callback',
+                {
+                    'prompts': ['hello'],
+                    'foo': 'bar',
+                    'something': 'else',
+                },
+                {},
+            )
 
 
 def test_build_hf_checkpointer_callback():
@@ -111,7 +126,8 @@ def test_build_hf_checkpointer_callback():
                            'save_folder': save_folder,
                            'save_interval': save_interval,
                            'mlflow_logging_config': mlflow_logging_config_dict
-                       }))
+                       }),
+                       config={})
 
         assert mock_hf_checkpointer.call_count == 1
         _, _, kwargs = mock_hf_checkpointer.mock_calls[0]
@@ -120,6 +136,31 @@ def test_build_hf_checkpointer_callback():
         assert isinstance(kwargs['mlflow_logging_config'], dict)
         assert isinstance(kwargs['mlflow_logging_config']['metadata'], dict)
         assert kwargs['mlflow_logging_config'] == mlflow_logging_config_dict
+
+
+def test_build_logger():
+    with pytest.raises(ValueError):
+        _ = build_logger('unknown', {})
+
+    logger_cfg = {
+        'project': 'foobar',
+        'init_kwargs': {
+            'config': {
+                'foo': 'bar',
+            }
+        }
+    }
+    wandb_logger = build_logger('wandb', logger_cfg)  # type: ignore
+    assert isinstance(wandb_logger, WandBLogger)
+    assert wandb_logger.project == 'foobar'
+
+    # confirm the typing conversion from DictConfig to dict,
+    # wandb.init() will fail if config is not explicitly
+    # dict type
+    ik = wandb_logger._init_kwargs
+    assert ik == {'config': {'foo': 'bar'}, 'project': 'foobar'}
+    assert isinstance(ik, dict)
+    assert isinstance(ik['config'], dict)
 
 
 class _DummyModule(nn.Module):
@@ -139,7 +180,6 @@ class _DummyModule(nn.Module):
     ('decoupled_lionw', {}),
     ('clip_lion', {}),
     ('adalr_lion', {}),
-    pytest.param('decoupled_lionw_8b', {}, marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('opt_additional_config', [
     {
@@ -294,13 +334,7 @@ def test_add_metrics_to_eval_loaders():
         )
     ]
 
-    new_evaluators = add_metrics_to_eval_loaders(
-        evaluators,
-        {
-            'new1': 'foo',
-            'new2': 'bar'
-        },  # type: ignore
-    )
+    new_evaluators = add_metrics_to_eval_loaders(evaluators, ['new1', 'new2'])
     assert len(new_evaluators) == 3
 
     assert new_evaluators[0].label == 'second'

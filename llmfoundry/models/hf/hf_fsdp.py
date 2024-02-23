@@ -5,11 +5,14 @@
 # which is MIT licensed
 
 import functools
-from typing import Any, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Union
 
-import torch
+from composer.models.huggingface import maybe_get_underlying_model
 from transformers import PreTrainedModel
 from transformers.models.opt.modeling_opt import OPTDecoder
+
+if TYPE_CHECKING:
+    from peft import PeftModel
 
 
 # helper functions
@@ -78,21 +81,20 @@ def hf_get_causal_base_model(model: PreTrainedModel) -> Any:
 def hf_get_hidden_layers(model: PreTrainedModel) -> Any:
     """Returns the hidden layers of the specified model.
 
+    Expects to receive the causal decoder backbone, not he XXForCausalLM wrapper.
+
     NOTE: Different model configurations have different hidden layer attribute names.
-        - transformer.h: (BloomForCausalLM, GPT2LMHeadModel, GPTJForCausalLM)
-        - model.decoder.layers: (OPTForCausalLM)
-        - gpt_neox.layers: (GPTNeoXForCausalLM)
-        - model.layers: (LlaMaForCausalLM)
-        - transformer.blocks: (MPTForCausalLM)
+        - h: (BloomForCausalLM, GPT2LMHeadModel, GPTJForCausalLM)
+        - decoder.layers: (OPTForCausalLM)
+        - layers: (GPTNeoXForCausalLM, LlaMaForCausalLM)
+        - blocks: (MPTForCausalLM)
     """
     hidden_layers_attrs = (
-        'transformer.h',  # BLOOM, GPT2, GPTJ
-        'model.decoder.layers',  # OPT
-        'gpt_neox.layers',  # GPTNeoX
+        'h',  # BLOOM, GPT2, GPTJ
+        'decoder.layers',  # OPT
+        'layers',  # GPTNeoX, Llama, ProphetNet, Marian (from encoder)
         'block',  # T5, BART, Pegasus (from encoder)
-        'layers',  # ProphetNet, Marian (from encoder)
-        'model.layers',  # LLaMa
-        'transformer.blocks',  # MPT
+        'blocks',  # MPT
     )
     layers = findattr(model, hidden_layers_attrs)
     if layers is None:
@@ -129,7 +131,8 @@ def prepare_hf_model_for_fsdp(model: PreTrainedModel,
         prepare_hf_causal_lm_model_for_fsdp(model, init_device)
 
 
-def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
+def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
+                                                     'PeftModel'],
                                         init_device: Optional[str]) -> None:
     """FSDP wrap a HuggingFace decoder.
 
@@ -140,8 +143,9 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
 
     # OPT has an extra layer of wrapping, so special case here
     if isinstance(causal_base_model, OPTDecoder):
-        model.model._fsdp_wrap = False
-    model_block = hf_get_hidden_layers(model)
+        underlying_model = maybe_get_underlying_model(model)
+        underlying_model.model._fsdp_wrap = False
+    model_block = hf_get_hidden_layers(causal_base_model)
     lm_head = model.get_output_embeddings()
     # some models (OPT) implement .get_input_embeddings for the causal subclass
     # but all of them implement it for the base model
@@ -159,41 +163,31 @@ def prepare_hf_causal_lm_model_for_fsdp(model: PreTrainedModel,
                 f'Unable to FSDP-wrap this model! `{mod_name}` does not ' +
                 'follow common layer/weight naming conventions.')
     block_type = type(model_block[0])
-    if init_device == 'mixed':
-        # For FSDP with models with different device initializations, `mixed`, which
-        # initializes the model on rank 0 on `cpu` and on all other ranks on `meta,``
-        # we need to tag all child modules that are torch.nn.Modules with `_fsdp_wrap`.
-        for child in model.children():
-            if isinstance(child, type(causal_base_model)):
-                continue
-            if isinstance(child, torch.nn.Module):
-                child._fsdp_wrap = True
 
-        for child in causal_base_model.children():
-            if isinstance(child, torch.nn.ModuleList):
-                continue
-            if isinstance(child, torch.nn.Module):
-                child._fsdp_wrap = True
+    # When using the HF LM models,
+    # the weights of the self.lm_head and self.transformer.wte are tied.
+    # This tying occurs inside the `self.post_init()` function.
+    # This is a hurdle for FSDP because they need to be in the same FSDP block
+    # These lines ensures that both modules stay together in the top-most block when
+    # the model has this tying enabled (almost all do; this property defaults to True)
+    if model.config.tie_word_embeddings:
+        causal_base_model._fsdp_wrap = False
+        tied_embeddings._fsdp_wrap = False
+        lm_head._fsdp_wrap = False
 
-        if model.config.tie_word_embeddings and not model.config.model_type == 'mpt':
-            raise ValueError(
-                'The passed in HuggingFaceModel has tied word embeddings ' +
-                'and the passed in initialization device is `mixed.` ' +
-                'In order to support this initialization scheme, we would need to break '
-                +
-                'the weight tying. As a result, either use a different initialization scheme '
-                + 'or in the model config set `tie_word_embeddings=False.`')
-    else:
-        # When using the HF LM models,
-        # the weights of the self.lm_head and self.transformer.wte are tied.
-        # This tying occurs inside the `self.post_init()` function.
-        # This is a hurdle for FSDP because they need to be in the same FSDP block
-        # These lines ensures that both modules stay together in the top-most block when
-        # the model has this tying enabled (almost all do; this property defaults to True)
-        if model.config.tie_word_embeddings:
-            causal_base_model._fsdp_wrap = False
-            tied_embeddings._fsdp_wrap = False
-            lm_head._fsdp_wrap = False
+    # PEFT layers should be individually wrapped
+    # TODO: Revisit this if we enforce use_orig_params=True, which seems to support
+    # mixed frozen/unfrozen FSDP modules
+    if hasattr(model, 'peft_type') and model.peft_type is not None:
+        peft_type = model.peft_type.lower()
+        active_adapters = [adapter.lower() for adapter in model.active_adapters]
+        for name, module in model.named_modules():
+            if peft_type in name.lower() and any(
+                    adapter in name.lower() for adapter in active_adapters):
+                has_parameters = next(module.parameters(), None) is not None
+                has_buffers = next(module.buffers(), None) is not None
+                if has_parameters or has_buffers:
+                    module._fsdp_wrap = True
 
     # FSDP Wrap and Activation Checkpoint every model block
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)

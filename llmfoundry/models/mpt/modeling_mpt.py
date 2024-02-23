@@ -24,8 +24,10 @@ from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
                                      InContextLearningLMAccuracy,
                                      InContextLearningMultipleChoiceAccuracy,
                                      InContextLearningGenerationAccuracy)
+from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.layers.attention import (is_flash_v1_installed,
                                                 is_flash_v2_installed)
+from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
@@ -53,17 +55,11 @@ from transformers.models.llama.modeling_llama import \
 from transformers.models.llama.modeling_llama import \
     LlamaRotaryEmbedding as HFRotaryEmbedding
 
-from llmfoundry.models.layers.attention import (ATTN_CLASS_REGISTRY,
-                                                attn_bias_shape,
+from llmfoundry.models.layers.attention import (attn_bias_shape,
                                                 build_attn_bias, gen_slopes)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY as FC_CLASS_REGISTRY
-from llmfoundry.models.layers.ffn import \
-    FFN_CLASS_REGISTRY as FFN_CLASS_REGISTRY
-from llmfoundry.models.layers.ffn import MPTMLP as MPTMLP
 from llmfoundry.models.layers.ffn import build_ffn as build_ffn
-from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
 # NOTE: All utils are imported directly even if unused so that
@@ -84,6 +80,10 @@ from llmfoundry.models.utils.param_init_fns import (
     generic_param_init_fn_,  # type: ignore (see note)
     MODEL_INIT_REGISTRY,
 )
+
+from llmfoundry.models.utils.act_ckpt import (pass_on_block_idx,
+                                              build_act_ckpt_mod_to_blocks,
+                                              check_mapping_blocks_overlap)
 
 try:
     from llmfoundry.models.layers.flash_attn_triton import flash_attn_func as flash_attn_func
@@ -350,6 +350,13 @@ class MPTModel(MPTPreTrainedModel):
                 **config.to_dict(),
             ) for _ in range(config.n_layers)
         ])
+
+        # Tag all modules in the transformer blocks with the corresponding block_idx and max_block_idx
+        for i, block in enumerate(self.blocks):
+            block.block_idx = i
+            block.max_block_idx = config.n_layers - 1
+            pass_on_block_idx(block)
+
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         self.rope = config.attn_config['rope']
@@ -817,7 +824,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
             self.transformer.set_input_embeddings(new_embeddings)
 
     def tie_weights(self) -> None:
-        self.lm_head = None
+        if getattr(self.config, 'tie_word_embeddings', True):
+            self.lm_head = None
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder
@@ -906,41 +914,57 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
-        act_ckpt_list = getattr(self.config, 'activation_checkpointing_target',
-                                None) or ['MPTBlock']
-        if isinstance(act_ckpt_list, str):
-            act_ckpt_list = [act_ckpt_list]
-        elif not isinstance(act_ckpt_list, list):
-            raise ValueError(
-                f'activation_checkpointing_target must be either a single string or a list, but got {type(act_ckpt_list)}'
+        """The MPT activation checkpointing (act ckpt) function.
+
+        When `activation_checkpointing` in fsdp_config is set to true, this function will be called on all the modules in the FSDP wrapped model and determine whether a given module should be activation checkpointed. It checks the checkpointing target (`activation_checkpointing_target` in `model`) which can be specified as below:
+            1. null (or no such field): The whole MPTBlock will be activation checkpointed on all layers
+            2. a list of modules to act ckpt on all layers, e.g.,
+                activation_checkpointing_target:
+                    - grouped_query_attention
+                    - mptmlp
+            3. a dictionary of module name with target_blocks, e.g.,
+                activation_checkpointing_target:
+                    {
+                            "mptblock": target_blocks_1,
+                            "grouped_query_attention": target_blocks_2
+                    }
+                target_blocks (target_blocks_1, target_blocks_2 above) can be:
+                - a single integer n: the first n transformer block will be activation checkpointed
+                - a string of first-n, middle-m, last-k, range-i-j: the first n, the middle m,  the last k, or the range [i, j) layers will be activation checkpointed. E.g, 'first-2, last-2' means the first 2 and last 2 transformer blocks will be activation checkpointed
+                    middle-m is range [start, end) where ``start = max(max_block_idx // 2 - m // 2, 0), end = min(start + m, max_block_idx + 1)``
+                - a list of integers corresponds to the list of transformer block ids, e.g., [2] means the second transformer block will be activation checkpointed. [2, 3] means the second and third transformer blocks will be activation checkpointed
+                - a list of mixed integers and strings of first-n, middle-m, last-k, range-i-j
+
+            An example in yaml config file:
+                fsdp_config:
+                    activation_checkpointing: true
+                model:
+                    activation_checkpointing_target:
+                        {
+                            "mptblock": 'first-5',
+                            "grouped_query_attention": 'last-35'
+                        }
+        """
+        if not hasattr(module, 'block_idx'):
+            log.debug(
+                f'{module.__class__.__name__} cannot be activation checkpointed. Only transformer block or its submodules are eligible for activation checkpointing.'
             )
+            return False
 
-        if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
-            if len(act_ckpt_list) > 1:
-                log.info(
-                    'Activation checkpointing MPTBlock only (ignoring other sub-block modules specified in activation_checkpointing_target).'
-                )
-            return isinstance(module, MPTBlock)
+        act_ckpt_target = getattr(self.config,
+                                  'activation_checkpointing_target', None)
+        act_ckpt_mod_to_blocks = build_act_ckpt_mod_to_blocks(
+            act_ckpt_target, MPTBlock, module.max_block_idx)
 
-        mod_types = ()
-        for mod_name in act_ckpt_list:
-            if mod_name.lower() == 'mptblock':
-                mod_types += (MPTBlock,)
-            elif mod_name in ATTN_CLASS_REGISTRY:
-                mod_types += (ATTN_CLASS_REGISTRY[mod_name],)
-            elif mod_name in FFN_CLASS_REGISTRY:
-                mod_types += (FFN_CLASS_REGISTRY[mod_name],)
-            elif mod_name in NORM_CLASS_REGISTRY:
-                mod_types += (NORM_CLASS_REGISTRY[mod_name],)
-            else:
-                msg = ', '.join(
-                    list(ATTN_CLASS_REGISTRY.keys()) +
-                    list(FFN_CLASS_REGISTRY.keys()) +
-                    list(NORM_CLASS_REGISTRY.keys()) + ['MPTBlock'])
-                raise ValueError(
-                    f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option out of available options {msg}.'
-                )
-        return isinstance(module, mod_types)
+        check_mapping_blocks_overlap(act_ckpt_mod_to_blocks,
+                                     module.max_block_idx)
+
+        for k in act_ckpt_mod_to_blocks.keys():
+            if isinstance(module, k):
+                blocks = act_ckpt_mod_to_blocks[k]
+                return True if blocks == -1 else module.block_idx in blocks
+
+        return False
 
     def prepare_inputs_for_generation(
         self,
@@ -1021,11 +1045,15 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         model = MPTForCausalLM(hf_config)
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
-        train_metrics = [LanguageCrossEntropy(),
-                         LanguagePerplexity()] if use_train_metrics else []
+        train_metrics = [
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
+            TokenAccuracy()
+        ] if use_train_metrics else []
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
+            TokenAccuracy(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningGenerationAccuracy(),

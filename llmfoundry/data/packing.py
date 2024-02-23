@@ -318,7 +318,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
             break
         packing_ratio = packing_ratio_candidate
     end = time.time()
-    print('total auto time', end-start, n)
+    print('total auto time', end-start, n, packing_ratio)
 
     # Select the minimum packing ratio across all ranks.
     if dist.is_available() and dist.is_initialized():

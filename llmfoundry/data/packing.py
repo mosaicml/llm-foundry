@@ -331,7 +331,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
 
     # Restore rng state.
     reproducibility.load_rng_state(rng_state)
-    
+
     return packing_ratio
 
 
@@ -395,14 +395,7 @@ def profile_packing(
     big_batch = next(iter(train_dataloader))
 
     # # Cut everything down to size
-    # sizes, trimmed_examples = _trim_batch(big_batch)
-
-    # Cut everything down to size
-    sizes, trimmed_examples = [], []
-    for idx in range(big_batch['attention_mask'].shape[0]):
-        size, trimmed_example = _extract_trim_batch_idx(big_batch, idx)
-        sizes.append(size)
-        trimmed_examples.append(trimmed_example)
+    sizes, trimmed_examples = _trim_batch(big_batch)
 
     def profile(raw_batch_size: int) -> Tuple[Optional[float], Optional[float]]:
         # Copy trimmed examples so that the dicts are not shared.

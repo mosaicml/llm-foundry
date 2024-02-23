@@ -287,7 +287,7 @@ class Seq2SeqFinetuningCollator:
                 1 if label == _HF_IGNORE_INDEX else 0 for label in labels
             ]
 
-            # Annoyingly, we need to pad the everything but input_ids
+            # Annoyingly, we need to pad everything but input_ids
             # and attention_mask ourselves
             n_total = len(input_ids)
             i_pad = [_HF_IGNORE_INDEX] * (self.max_seq_len - n_total)

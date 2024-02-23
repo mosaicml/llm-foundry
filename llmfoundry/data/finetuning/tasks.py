@@ -238,7 +238,7 @@ def _tokenize_chat_formatted_example(
     # special tokens are expected to be added via the tokenizer's chat template. So,
     # we instead expect the prompt/response outputs of `_slice_chat_formatted_example`
     # (which calls `apply_chat_template`) to have the correct special tokens already.
-    # We disable padding and truncation because those are handled in the collator needs to
+    # We disable padding and truncation because those are handled in the collator, which needs to
     # be able to assume that none of the tokens are pad tokens.
     return {
         'turns': [
@@ -292,7 +292,7 @@ def _tokenize_prompt_response_formatted_example(
     # (which we do not do for chat-formatted examples). This is because chat examples specifically
     # go through the tokenizer's `apply_chat_template` method, which handles special tokens,
     # and these prompt-response-formatted examples do not.
-    # We disable padding and truncation because those are handled in the collator needs to
+    # We disable padding and truncation because those are handled in the collator, which needs to
     # be able to assume that none of the tokens are pad tokens.
     return {
         'turns': [

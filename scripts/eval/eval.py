@@ -56,6 +56,15 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
     return composer_model
 
 
+def log_analytics_details(mosaicml_logger: MosaicMLLogger, model_name: str):
+    mosaicml_logger.log_metrics({
+        'uses_llmfoundry': True,
+        'model_name': model_name,
+        'llmfoundry_run_type': 'Eval',
+    })
+    mosaicml_logger._flush_metadata(force_flush=True)
+
+
 def evaluate_model(
     model_cfg: DictConfig,
     dist_timeout: Union[float, int],
@@ -118,6 +127,7 @@ def evaluate_model(
                                None)
 
         if mosaicml_logger is not None:
+            log_analytics_details(mosaicml_logger, model_cfg.model_name)
             mosaicml_logger.log_metrics(metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
 

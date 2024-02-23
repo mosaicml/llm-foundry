@@ -131,6 +131,15 @@ def build_composer_model(model_cfg: DictConfig,
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
 
+def log_analytics_details(mosaicml_logger: MosaicMLLogger, model_name: str):
+    mosaicml_logger.log_metrics({
+        'uses_llmfoundry': True,
+        'model_name': model_name,
+        'llmfoundry_run_type': 'Training',
+    })
+    mosaicml_logger._flush_metadata(force_flush=True)
+
+
 def main(cfg: DictConfig) -> Trainer:
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
@@ -424,6 +433,7 @@ def main(cfg: DictConfig) -> Trainer:
             # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
             mosaicml_logger = MosaicMLLogger()
             loggers.append(mosaicml_logger)
+            log_analytics_details(mosaicml_logger, model_config.name)
 
     if metadata is not None:
         # Flatten the metadata for logging

@@ -71,7 +71,7 @@ train_loader:
   name: finetuning
   dataset:
     split: train
-    hf_name: mosaicml/dolly_hhrlhf
+    hf_name: sam-mosaic/iv4-chatml-4k
     shuffle: true
     max_seq_len: 4096
     eos_token_id: 0

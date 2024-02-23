@@ -826,7 +826,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
             self.transformer.set_input_embeddings(new_embeddings)
 
     def tie_weights(self) -> None:
-        self.lm_head = None
+        if getattr(self.config, 'tie_word_embeddings', True):
+            self.lm_head = None
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder

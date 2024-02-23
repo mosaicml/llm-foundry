@@ -393,7 +393,7 @@ def profile_packing(
     sizes, trimmed_examples = _trim_batch(big_batch)
 
     def profile(raw_batch_size: int) -> Tuple[Optional[float], Optional[float]]:
-        # Copy trimmed examples so that the dicts are not shared.
+        # Copy trimmed examples so that the dicts are not shared between profiling runs.
         trimmed_examples_copy = [te.copy() for te in trimmed_examples]
 
         # Create the packing collator.

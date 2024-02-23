@@ -95,7 +95,9 @@ class HuggingFaceCheckpointer(Callback):
             that will get passed along to the MLflow ``save_model`` call.
             Expected to contain ``metadata`` and ``task`` keys. If either is
             unspecified, the defaults are ``'text-generation'`` and
-            ``{'task': 'llm/v1/completions'}`` respectively.
+            ``{'task': 'llm/v1/completions'}`` respectively. A default input example
+            and signature intended for text generation is also included under the
+            keys ``input_example`` and ``signature``.
         flatten_imports (Sequence[str]): A sequence of import prefixes that will
             be flattened when editing MPT files.
     """
@@ -126,6 +128,10 @@ class HuggingFaceCheckpointer(Callback):
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:
+            import numpy as np
+            from mlflow.models.signature import ModelSignature
+            from mlflow.types.schema import ColSpec, Schema
+
             # Both the metadata and the task are needed in order for mlflow
             # and databricks optimized model serving to work
             default_metadata = {'task': 'llm/v1/completions'}
@@ -135,6 +141,28 @@ class HuggingFaceCheckpointer(Callback):
                 **passed_metadata
             }
             mlflow_logging_config.setdefault('task', 'text-generation')
+
+            # Define a default input/output that is good for standard text generation LMs
+            input_schema = Schema([
+                ColSpec('string', 'prompt'),
+                ColSpec('double', 'temperature', optional=True),
+                ColSpec('integer', 'max_tokens', optional=True),
+                ColSpec('string', 'stop', optional=True),
+                ColSpec('integer', 'candidate_count', optional=True)
+            ])
+
+            output_schema = Schema([ColSpec('string', 'predictions')])
+
+            default_signature = ModelSignature(inputs=input_schema,
+                                               outputs=output_schema)
+
+            default_input_example = {
+                'prompt': np.array(['What is Machine Learning?'])
+            }
+            mlflow_logging_config.setdefault('input_example',
+                                             default_input_example)
+            mlflow_logging_config.setdefault('signature', default_signature)
+
         self.mlflow_logging_config = mlflow_logging_config
 
         self.huggingface_folder_name_fstr = os.path.join(
@@ -366,8 +394,8 @@ class HuggingFaceCheckpointer(Callback):
                                 os.path.join(local_save_path, license_filename),
                             )
 
-                        mlflow_logger.register_model(
+                        mlflow_logger.register_model_with_run_id(
                             model_uri=local_save_path,
                             name=self.mlflow_registered_model_name,
-                            await_registration_for=3600,
+                            await_creation_for=3600,
                         )

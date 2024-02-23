@@ -20,6 +20,7 @@ from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
                                      InContextLearningLMAccuracy,
                                      InContextLearningMultipleChoiceAccuracy,
                                      InContextLearningGenerationAccuracy)
+from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
@@ -68,6 +69,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
+        pretrained_lora_id_or_path = om_model_config.get(
+            'pretrained_lora_id_or_path', None)
 
         if not om_model_config.get(
                 'trust_remote_code', True
@@ -106,10 +109,15 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             )
 
         # Set up training and eval metrics
-        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
+        train_metrics = [
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
+            TokenAccuracy()
+        ]
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
+            TokenAccuracy(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningGenerationAccuracy(),
@@ -244,6 +252,15 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         peft_config = None
         if peft_config_dict is not None:
             peft_config = self._get_peft_config(peft_config_dict)
+
+        if pretrained_lora_id_or_path is not None:
+            if not peft_installed:
+                raise ValueError(
+                    'PEFT is not installed, but lora_id_or_path was passed. Please install LLM Foundry with the peft extra to use lora_id_or_path.'
+                )
+            from peft import PeftModelForCausalLM
+            model = PeftModelForCausalLM.from_pretrained(
+                model, pretrained_lora_id_or_path)
 
         super().__init__(
             model=model,

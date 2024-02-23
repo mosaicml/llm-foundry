@@ -522,8 +522,7 @@ class GroupedQueryAttention(nn.Module):
         fc_kwargs: dict[str, Any] = {
             'bias': bias,
         }
-        if fc_type != 'te':
-            fc_kwargs['device'] = device
+        fc_kwargs['device'] = device
         self.Wqkv = FC_CLASS_REGISTRY[fc_type](
             self.d_model,
             self.d_model + 2 * self.kv_n_heads * self.head_dim,

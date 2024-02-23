@@ -12,7 +12,7 @@ models:
   model:
     name: hf_causal_lm
     pretrained_model_name_or_path: ${model_name_or_path}
-    init_device: cpu
+    init_device: mixed
     pretrained: true
   tokenizer:
     name: ${model_name_or_path}

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import ContextManager, Literal, Optional, Union
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 import torch
 import transformers
@@ -55,6 +56,8 @@ def build_mock_ft_streaming_dataset(
         data_path: str,
         split: str,
         pretokenize: bool,
+        backwards_compatibility_mode: bool,
+        use_bytes: bool,
         tokenizer: Optional[transformers.PreTrainedTokenizerBase] = None):
 
     dataset = [{
@@ -68,19 +71,57 @@ def build_mock_ft_streaming_dataset(
         'response': 'Hello world3'
     }]
 
+    output_path = os.path.join(data_path, split)
+
+    if use_bytes and not backwards_compatibility_mode:
+        raise ValueError(
+            'use_bytes should only be true when using backwards_compatibility_mode'
+        )
+
+    # This is the old code-path, which we want to maintain test coverage of
+    # for backwards compatibility
+    if backwards_compatibility_mode:
+        if pretokenize:
+            if use_bytes:
+                columns = {'input_ids': 'bytes', 'labels': 'bytes'}
+            else:
+                columns = {
+                    'input_ids': 'ndarray:uint32',
+                    'labels': 'ndarray:uint32'
+                }
+        else:
+            columns = {'prompt': 'str', 'response': 'str'}
+
+        with MDSWriter(columns=columns, out=output_path,
+                       compression=None) as output_writer:
+            for sample in dataset:
+                if pretokenize:
+                    sample = tokenize_formatted_example(sample,
+                                                        tokenizer=tokenizer)
+                    # Unpack the first turn to account for changes in `tokenize_formatted_example`
+                    sample = sample['turns'][0]
+                    sample_to_write = {}
+                    for key in columns.keys():
+                        if use_bytes:
+                            sample_to_write[key] = np.asarray(
+                                sample[key]).tobytes()
+                        else:
+                            sample_to_write[key] = np.asarray(sample[key],
+                                                              dtype=np.uint32)
+                    output_writer.write(sample_to_write)
+                else:
+                    output_writer.write(sample)
+        return
+
     columns, data_format = get_columns_and_format(dataset, pretokenize,
                                                   lambda x: x)
-
-    output_path = os.path.join(data_path, split)
 
     with MDSWriter(columns=columns, out=output_path,
                    compression=None) as output_writer:
         for sample in dataset:
-
             if pretokenize:
                 sample = tokenize_formatted_example(sample, tokenizer=tokenizer)
                 sample_to_write = {'turns': []}
-                # convert to bytes
                 for turn in sample['turns']:
                     turn_to_write = {}
                     for key in ['input_ids', 'labels']:
@@ -549,8 +590,12 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
 
 @pytest.mark.parametrize('pretokenize', [True, False])
 @pytest.mark.parametrize('use_multiple_streams', [True, False])
+@pytest.mark.parametrize(('backwards_compatibility_mode', 'use_bytes'),
+                         [[False, False], [True, False], [True, True]])
 def test_finetuning_dataloader_streaming(pretokenize: bool,
                                          use_multiple_streams: bool,
+                                         backwards_compatibility_mode: bool,
+                                         use_bytes: bool,
                                          tmp_path: pathlib.Path):
     max_seq_len = 2048
 
@@ -564,10 +609,13 @@ def test_finetuning_dataloader_streaming(pretokenize: bool,
     for i in range(num_streams):
         remote_path = os.path.join(tmp_path, f'remote_{i}')
         local_path = os.path.join(tmp_path, f'local_{i}')
-        build_mock_ft_streaming_dataset(remote_path,
-                                        'train',
-                                        pretokenize,
-                                        tokenizer=tokenizer)
+        build_mock_ft_streaming_dataset(
+            remote_path,
+            'train',
+            pretokenize,
+            backwards_compatibility_mode=backwards_compatibility_mode,
+            use_bytes=use_bytes,
+            tokenizer=tokenizer)
         streams_config['streams'][f'stream_{i}'] = {
             'remote': remote_path,
             'local': local_path,

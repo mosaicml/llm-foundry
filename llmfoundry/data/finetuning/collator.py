@@ -23,14 +23,15 @@ def ensure_list(x: Union[List, torch.Tensor]) -> List:
     return x
 
 
-def validate_target_settings(target_prompts: str, target_responses: str, decoder_only_format: bool):
-    """Raises an error if target settings are invalid"""
-    
-    if (not decoder_only_format) and (target_prompts != 'none' or target_responses != 'last'):
+def validate_target_settings(target_prompts: str, target_responses: str,
+                             decoder_only_format: bool):
+    """Raises an error if target settings are invalid."""
+    if (not decoder_only_format) and (target_prompts != 'none' or
+                                      target_responses != 'last'):
         raise ValueError(
             f'When using encoder_decoder format, you must use target_prompts="none" and target_responses="last".'
         )
-    
+
     if target_responses not in {'all', 'last'}:
         raise ValueError(
             f'target_responses must be either "last" or "all" but {target_responses=}'
@@ -54,36 +55,52 @@ def validate_target_settings(target_prompts: str, target_responses: str, decoder
             f'target_prompts must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {target_prompts=}'
         )
 
+
 ###### Functions to implement target_prompts and target_responses choices #####
-def _sequence_to_labels_all(sequence: list[int], is_last_turn: bool, cutoff: Optional[int]=None) -> list[int]:
-    del is_last_turn, cutoff # unused
+def _sequence_to_labels_all(sequence: list[int],
+                            is_last_turn: bool,
+                            cutoff: Optional[int] = None) -> list[int]:
+    del is_last_turn, cutoff  # unused
     return sequence
 
-def _sequence_to_labels_none(sequence: list[int], is_last_turn: bool, cutoff: Optional[int]=None) -> list[int]:
-    del is_last_turn, cutoff # unused
+
+def _sequence_to_labels_none(sequence: list[int],
+                             is_last_turn: bool,
+                             cutoff: Optional[int] = None) -> list[int]:
+    del is_last_turn, cutoff  # unused
     return [_HF_IGNORE_INDEX] * len(sequence)
 
-def _sequence_to_labels_last(sequence: list[int], is_last_turn: bool, cutoff: Optional[int]=None) -> list[int]:
-    del cutoff # unused
+
+def _sequence_to_labels_last(sequence: list[int],
+                             is_last_turn: bool,
+                             cutoff: Optional[int] = None) -> list[int]:
+    del cutoff  # unused
     if is_last_turn:
         return sequence
     else:
         return [_HF_IGNORE_INDEX] * len(sequence)
-    
-def _sequence_to_labels_cutoff(sequence: list[int], is_last_turn: bool, cutoff: Optional[int]=None) -> list[int]:
-    del is_last_turn # unused
+
+
+def _sequence_to_labels_cutoff(sequence: list[int],
+                               is_last_turn: bool,
+                               cutoff: Optional[int] = None) -> list[int]:
+    del is_last_turn  # unused
+    if cutoff is None:
+        raise ValueError('input ``cutoff`` must be provided')
     if len(sequence) >= cutoff:
         return sequence
     else:
         return [_HF_IGNORE_INDEX] * len(sequence)
-    
+
+
 _TARGET_POLICY_LOOKUP = {
     'all': _sequence_to_labels_all,
     'none': _sequence_to_labels_none,
     'last': _sequence_to_labels_last,
     'length': _sequence_to_labels_cutoff,
 }
-    
+
+
 class Seq2SeqFinetuningCollator:
     """A general-purpose collator for sequence-to-sequence training/evaluation.
 
@@ -170,7 +187,8 @@ class Seq2SeqFinetuningCollator:
                 f'{self.__class__.__name__} requires that the tokenizer has the pad token set, but it is None'
             )
 
-        validate_target_settings(self.target_prompts, self.target_responses, self.decoder_only_format)
+        validate_target_settings(self.target_prompts, self.target_responses,
+                                 self.decoder_only_format)
         if self.target_prompts.startswith('length'):
             self.prompt_cutoff = int(self.target_prompts.split('>=')[-1])
             self.prompt_to_target = _TARGET_POLICY_LOOKUP['length']
@@ -245,7 +263,8 @@ class Seq2SeqFinetuningCollator:
                 input_ids += context
                 input_ids += target
                 # Extend the labels, with values depending on the loss-generating policies
-                labels += self.prompt_to_target(context, is_last_turn, self.prompt_cutoff)
+                labels += self.prompt_to_target(context, is_last_turn,
+                                                self.prompt_cutoff)
                 labels += self.response_to_target(target, is_last_turn)
 
             if len(input_ids) != len(labels):

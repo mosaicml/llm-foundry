@@ -39,7 +39,7 @@ __all__ = [
     'InContextLearningMultipleChoiceTaskDataset',
     'InContextLearningSchemaTaskDataset',
     'InContextLearningCodeEvalDataset',
-    'InContextLearningQATaskDataset',
+    'InContextLearningGenerationWithAnswersTaskDataset',
     'get_icl_task_dataloader',
 ]
 
@@ -60,7 +60,7 @@ class InContextLearningDataset(Dataset):
     - construct_context(): Takes a single example dictionary and formulates the context as a string for that eval question.
     - get_answer_from_example(): Takes a single example dictionary and formulates the correct, ground truth answer as a string.
     - tokenize_example(): Tokenizes the example and adds any extra content from the original dictionary that needs to be passed downstream.
-    - read_dataset(): Loads the dataset and does basic parsing. If additional parsing must be done, this is a good place to do so (See InContextLearningQATaskDataset.read_dataset())
+    - read_dataset(): Loads the dataset and does basic parsing. If additional parsing must be done, this is a good place to do so (See InContextLearningGenerationWithAnswersTaskDataset.read_dataset())
 
     Additionally, base_batch and batch_mapping must be defined.
 
@@ -515,10 +515,10 @@ class InContextLearningDataset(Dataset):
         return batched_list
 
 
-class InContextLearningQATaskDataset(InContextLearningDataset):
-    """A dataset that constructs batches for in-context learning question
-    answering evaluation. QA tasks evaluate a model's ability to answer
-    questions using a consistent format.
+class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset):
+    """A dataset that constructs batches for in-context learning generation tasks with
+    answers. Generation tasks with evaluate a model's ability to generate responses and
+    score them against a set of gold-standard answers.
 
     The input format is expected to be a jsonl file with the following fields:
     - context: The question
@@ -539,7 +539,7 @@ class InContextLearningQATaskDataset(InContextLearningDataset):
                  **kwargs):
         if kwargs['tokenizer'].eos_token_id is None:
             raise ValueError(
-                '`InContextLearningQATaskDataset` tokenizer must have non-null `eos_token_id`'
+                '`InContextLearningGenerationWithAnswersTaskDataset` tokenizer must have non-null `eos_token_id`'
             )
         self.cot_delimiter = cot_delimiter
         self.has_cot = False
@@ -1120,8 +1120,8 @@ class InContextLearningSchemaTaskDataset(
 
 
 class InContextLearningCodeEvalDataset(InContextLearningDataset):
-    """A dataset that constructs batches for in-context learning code
-    evaluation.
+    """
+    A dataset that constructs batches for in-context learning code evaluation.
 
     The input format is expected to be a jsonl file with the following fields:
 
@@ -1153,7 +1153,6 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
 
         - pad_token_id: ID for padding token, derived automatically
         - num_beams: How many beams to search for generations, set to 1
-        - num_return_sequences: Value passed for 'generations_per_sample', how many generations per prompt
         - do_sample: Determines whether model is sampling or greedily decoding. Always set to True
         - use_cache: Whether or not to use past key values to speed up sampling. Always set to True
 
@@ -1165,11 +1164,13 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
     def __init__(
         self,
         generations_per_sample: int,
-        pass_at_k: int = 1,
+        pass_at_k: Union[int, list[int]] = 1,
         *args,
         **kwargs,
     ):
-        if generations_per_sample < pass_at_k:
+        if isinstance(pass_at_k, int):
+            pass_at_k = [pass_at_k]
+        if generations_per_sample < max(pass_at_k):
             raise ValueError(
                 f'generations_per_sample ({generations_per_sample}) must be greater than or equal to pass_at_k ({pass_at_k}) for code evaluation.'
             )
@@ -1181,17 +1182,29 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             'entry_points': 'entry_point',
             'test_inputs': 'test_inputs',
             'test_outputs': 'test_outputs',
-            'languages': 'language'
+            'languages': 'language',
+            'sample_id': 'sample_id',
         }
         # Linting complains if these are not set in init
         self.max_prompt_length = 0
         self.max_answer_length = 0
         static_keys = [
-            'mode', 'pass_at_k', 'generation_length', 'generation_kwargs'
+            'mode',
+            'pass_at_k',
+            'generation_length',
+            'generation_kwargs',
+            'generations_per_sample',
+            'dataset_size',
         ]
         list_keys = [
-            'prompts', 'tests', 'entry_points', 'test_inputs', 'test_outputs',
-            'languages', 'labels'
+            'prompts',
+            'tests',
+            'entry_points',
+            'test_inputs',
+            'test_outputs',
+            'languages',
+            'labels',
+            'sample_id',
         ]
         tensor_keys = ['input_ids', 'attention_mask']
         super().__init__(
@@ -1208,11 +1221,12 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             **kwargs,
         )
         self._set_max_prompt_and_answer_lengths()
+        dataset_size = len(self.dataset)
         self.dataset = self.dataset.map(self._trim_padding)
+        self.dataset = self.repeat_dataset(self.dataset, generations_per_sample)
         self.base_batch = {
             'input_ids': [],
-            'mode':
-                'generate',
+            'mode': 'generate',
             'labels': [],
             'prompts': [],
             'tests': [],
@@ -1220,26 +1234,41 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             'test_inputs': [],
             'test_outputs': [],
             'languages': [],
-            'pass_at_k':
-                pass_at_k,
-            'generation_length':
-                min(self.max_answer_length,
-                    self.max_seq_len - self.max_prompt_length),
+            'pass_at_k': pass_at_k,
+            'generation_length': min(self.max_answer_length, self.max_seq_len - self.max_prompt_length),
             'generation_kwargs': {
                 'pad_token_id': self.pad_tok_id,
                 'num_beams': 1,  # single beam
-                'num_return_sequences': generations_per_sample,
                 'do_sample': True,
+                'temperature': 0.2,  # good default for code
                 'use_cache': True,
-                'eos_token_id': self.tokenizer.eos_token_id
-            }
+                'eos_token_id': self.tokenizer.eos_token_id,
+            },
+            'sample_id': [],
+            'pass_at_k': list(pass_at_k),
+            'generations_per_sample': generations_per_sample,
+            'dataset_size': dataset_size,
         }
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])
 
+    def repeat_dataset(self, dataset: HFDataset, repetitions: int) -> HFDataset:
+
+        def _repeat_dataset():
+            for i, sample in enumerate(dataset):
+                for _ in range(repetitions):
+                    assert isinstance(sample, dict)
+                    yield {'sample_id': i, **sample}
+
+        from datasets import Dataset as HFDataset  # pyright: ignore[reportGeneralTypeIssues]
+
+        repeated_dataset = HFDataset.from_generator(_repeat_dataset)
+        assert isinstance(repeated_dataset, HFDataset)
+        return repeated_dataset
+
     def _set_max_prompt_and_answer_lengths(self):
-        """Iterates through the dataset and finds the maximum prompt length and
-        sequence lengths.
+        """
+        Iterates through the dataset and finds the maximum prompt length and sequence lengths
 
         Returns:
             None
@@ -1248,15 +1277,10 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
         max_answer_length = 0
         for example in self.dataset:
             assert isinstance(example, Dict)
-            unpadded_example = [
-                token for token in example[self.context_key]
-                if token != self.pad_tok_id
-            ]
+            unpadded_example = [token for token in example[self.context_key] if token != self.pad_tok_id]
             max_prompt_length = max(max_prompt_length, len(unpadded_example))
 
-            tokenized_answer = self.tokenizer(
-                example['canonical_solution'],
-                add_special_tokens=False)['input_ids']
+            tokenized_answer = self.tokenizer(example['canonical_solution'], add_special_tokens=False)['input_ids']
             assert isinstance(tokenized_answer, list)
             len_tokenized_answer = len(tokenized_answer)
             max_answer_length = max(max_answer_length, len_tokenized_answer)
@@ -1265,35 +1289,29 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
         self.max_answer_length = max_answer_length + _MAX_ANSWER_BUFFER_LENGTH
 
     def _trim_padding(self, example: Dict):
-        """Adjusts padding to the maximum prompt length rather than max_seq_len.
-        Needs to be done after the dataset has been processed because we don't
-        know the maximum prompt length until after we've tokenized it.
+        """
+        Adjusts padding to the maximum prompt length rather than max_seq_len.
+        Needs to be done after the dataset has been processed because we don't know the maximum
+        prompt length until after we've tokenized it.
 
         Returns:
             dataset: A HuggingFace Dataset with different padding lengths for example[self.context_key]
         """
         # Remove padding tokens applied during tokenization
-        unpadded_prompt = [
-            token for token in example[self.context_key]
-            if token != self.pad_tok_id
-        ]
+        unpadded_prompt = [token for token in example[self.context_key] if token != self.pad_tok_id]
         # Reapply padding only to max_prompt_length
         full_prompt = trim_context(unpadded_prompt, [], self.max_prompt_length)
-        padded_context = make_padded_input(full_prompt, [],
-                                           self.max_prompt_length,
-                                           self.pad_tok_id, self.padding_side)
+        padded_context = make_padded_input(full_prompt, [], self.max_prompt_length, self.pad_tok_id, self.padding_side)
 
         example[self.context_key] = padded_context
         return example
 
-    def tokenize_example(self, prompt_and_fewshot: str, ctxt: str,
-                         example: Dict) -> Dict[str, Any]:
-        """Adds extra code task details to the example dictionary.
-
+    def tokenize_example(self, prompt_and_fewshot: str, ctxt: str, example: Dict) -> Dict[str, Any]:
+        """
+        Adds extra code task details to the example dictionary.
         See InContextLearningDataset for more details
         """
-        tokenized_example = super().tokenize_example(prompt_and_fewshot, ctxt,
-                                                     example)
+        tokenized_example = super().tokenize_example(prompt_and_fewshot, ctxt, example)
         tokenized_example['prompt_text'] = example['prompt']
         tokenized_example['task_id'] = example['task_id']
         tokenized_example['canonical_solution'] = example['canonical_solution']
@@ -1403,6 +1421,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         return batch
 
 
+
 def build_icl_dataloader(
         icl_task_type: str,
         dataset_uri: str,
@@ -1488,8 +1507,8 @@ def build_icl_dataloader(
             generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size
-    elif icl_task_type == 'question_answering':
-        dataset = InContextLearningQATaskDataset(
+    elif icl_task_type == 'generation_task_with_answers':
+        dataset = InContextLearningGenerationWithAnswersTaskDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,
             max_seq_len=max_seq_len,
@@ -1558,7 +1577,7 @@ def build_icl_dataloader(
             dataset,
         (
             InContextLearningMultipleChoiceTaskDataset,
-            InContextLearningQATaskDataset,
+            InContextLearningGenerationWithAnswersTaskDataset,
             InContextLearningCodeEvalDataset,
         ),
     ):
@@ -1726,7 +1745,7 @@ def get_icl_task_dataloader(
                 )
 
     Args:
-        icl_task_type (str): Name of icl_task type. One of ['multiple_choice', 'schema', 'language_modeling', 'question_answering', 'code_evaluation']
+        icl_task_type (str): Name of icl_task type. One of ['multiple_choice', 'schema', 'language_modeling', 'generation_task_with_answers', 'code_evaluation']
         dataset_uri (str): A local path, a remote path beginning with ``s3://`` or another backend, or a HuggingFace dataset uri prepended with ``hf://``.
             Alternate backends must be supported by :meth:`composer.utils.maybe_create_object_store_from_uri`.
             A local dataset must consist of rows of JSON data points with task dependant fields.
@@ -1754,7 +1773,7 @@ def get_icl_task_dataloader(
                                                   for more details)
         early_stopping (List, default = None): A list of strings that, when found in a model's output, will be treated as a stopping criteria at metric computation time.
             Used in QA tasks with CoT
-        do_normalization (bool, default = True): Whether or not to normalize the outputs and labels in InContextLearningQAAccuracy. Only used in QA tasks.
+        do_normalization (bool, default = True): Whether or not to normalize the outputs and labels in InContextLearningGenerationWithAnswersTaskDataset. Only used in QA tasks.
 
     Returns:
         DataLoader: A dataloader used for performing in-context learning evaluation on the dataset provided.

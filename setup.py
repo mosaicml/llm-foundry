@@ -50,19 +50,19 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs]>=0.19,<0.20',
+    'mosaicml[libcloud,wandb,oci,gcs]>=0.19.1,<0.20',
     'mlflow>=2.10,<3',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.37,<4.38',
-    'mosaicml-streaming>=0.7.2,<0.8',
-    'torch>=2.1,<2.2',
+    'mosaicml-streaming>=0.7.4,<0.8',
+    'torch>=2.2,<2.3',
     'datasets>=2.16,<2.17',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
     'einops==0.7.0',
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
-    'mosaicml-cli>=0.5.27,<1',
+    'mosaicml-cli>=0.6.10,<1',
     'onnx==1.14.0',
     'onnxruntime==1.15.1',
     'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
@@ -88,29 +88,28 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.19,<0.20',
+    'mosaicml[databricks]>=0.19.1,<0.20',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
     'lz4>=4,<5',
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.19,<0.20',
+    'mosaicml[tensorboard]>=0.19.1,<0.20',
 ]
 
 extra_deps['gpu'] = [
     'flash-attn==1.0.9',
-    'mosaicml-turbo==0.0.8',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
 ]
+
 extra_deps['gpu-flash2'] = [
     'flash-attn==2.5.0',
-    'mosaicml-turbo==0.0.8',
 ]
 
 extra_deps['peft'] = [
-    'mosaicml[peft]>=0.19,<0.20',
+    'mosaicml[peft]>=0.19.1,<0.20',
 ]
 
 extra_deps['openai'] = [

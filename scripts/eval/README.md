@@ -155,7 +155,7 @@ This document explains the ICL formats compatible with [Composer](https://github
 
 Composer currently supports five ICL formats:
 
-1. [InContextLearningQATaskDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L103)
+1. [InContextLearningGenerationWithAnswersTaskDataset](TODO)
 2. [InContextLearningLMTaskDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L293)
 3. [InContextLearningMultipleChoiceTaskDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L444)
 4. [InContextLearningSchemaTaskDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L676)
@@ -163,9 +163,9 @@ Composer currently supports five ICL formats:
 
 ----
 
-### InContextLearningQATaskDataset
+### InContextLearningGenerationWithAnswersTaskDataset
 
-The ICL question answering (QA) task supports free response question answering evaluation using the model’s generate function. A QA dataset consists of a list of JSONs containing a question (under the key `context`), a correct answer (under the key `answer`), and a list of alternative spellings of the answer that would be considered permissible (under the key `aliases`). The QA task works with the NLP metric: [InContextLearningQAAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningQAAccuracy.html) which assigns a model's output to be "correct" if, conditioned on the context, the model's generate method produces a string that is a normalized prefix for either the `answer` or any of the `aliases`.
+The ICL generation with answers task supports free response generation evaluation using the model’s generate function. A generation dataset consists of a list of JSONs containing a prompt (under the key `context`), a correct answer (under the key `answer`), and a list of alternative answers that would be considered permissible (under the key `aliases`). The generation task works with the NLP metric: [InContextLearningGenerationAccuracy](TODO) which assigns a model's output to be "correct" if, conditioned on the context, the model's generate method produces a string that is a normalized prefix for either the `answer` or any of the `aliases`.
 
 Required keys for each datum:
 * `context`: str
@@ -178,7 +178,7 @@ An example datum is below:
 {"context": "What star sign is Jamie Lee Curtis?", "answer": "Scorpio", "aliases": ["Scorpio", "Skorpio"]}
 ```
 
-The QA task expects a **prompt string**, a **continuation delimiter** to separate questions from answers, an **example delimiter** to separate few shot examples from one another, and a **question prelimiter** to put before each question. If using the following settings, with 2 examples in context, the above datum may be rendered to the model as:
+The generation task expects a **prompt string**, a **continuation delimiter** to separate questions from answers, an **example delimiter** to separate few shot examples from one another, and a **question prelimiter** to put before each question. If using the following settings, with 2 examples in context, the above datum may be rendered to the model as:
 
 ```jsx
 prompt_string: "Answer the following trivia question:\n", example_delimiter: "\n", continuation_delimiter: " Answer: ", question_prelimiter: "Question: "
@@ -203,9 +203,9 @@ Below is a complete YAML section that works with the TriviaQA dataset in [`scrip
     - 5
     - 10
     batch_size: 4
-    icl_task_type: question_answering
+    icl_task_type: generation_task_with_answers
     metric_names:
-    - InContextLearningQAAccuracy
+    - InContextLearningGenerationAccuracy
     prompt_string: '' # this goes at the beginning of each input
     example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates questions from answers

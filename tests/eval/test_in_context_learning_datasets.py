@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 # isort: off
 from llmfoundry.eval.datasets import (
     InContextLearningDataset, InContextLearningCodeEvalDataset,
-    InContextLearningMultipleChoiceTaskDataset, InContextLearningQATaskDataset,
+    InContextLearningMultipleChoiceTaskDataset, InContextLearningGenerationWithAnswersTaskDataset,
     InContextLearningSchemaTaskDataset, get_icl_task_dataloader, strip_data,
     tokenizer_needs_prefix_space, trim_context, get_continuation_span,
     get_fewshot_sample_idxs, make_padded_input)
@@ -33,7 +33,7 @@ from composer.utils import dist, reproducibility
 from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
                                      InContextLearningLMAccuracy,
                                      InContextLearningMultipleChoiceAccuracy,
-                                     InContextLearningQAAccuracy)
+                                     InContextLearningGenerationAccuracy)
 
 
 def test_strip_data():
@@ -69,8 +69,8 @@ def test_trim_context():
     continuation = [2] * 10
     max_seq_len = 2048
     trimmed_context = trim_context(context,
-                                    continuation,
-                                    max_seq_len=max_seq_len)
+                                   continuation,
+                                   max_seq_len=max_seq_len)
     assert len(trimmed_context) == 2038
     assert trimmed_context[0] == 0
     assert trimmed_context[1] == 1
@@ -109,9 +109,9 @@ def test_make_padding(tiny_gpt2_tokenizer, padding_side):
 
     with error_context:
         input_ids = make_padded_input(context, [],
-                                       2048,
-                                       padding_id,
-                                       padding_side=padding_side)
+                                      2048,
+                                      padding_id,
+                                      padding_side=padding_side)
 
         if padding_side == 'left':
             assert input_ids[0] == tiny_gpt2_tokenizer.eos_token_id
@@ -128,10 +128,10 @@ def test_batch_padding_logic_no_padding(tiny_gpt2_tokenizer):
     trimmed_context = trim_context(context, continuation, max_seq_len)
     continuation_spans = get_continuation_span(trimmed_context, continuation)
     padded_input = make_padded_input(trimmed_context,
-                                      continuation,
-                                      max_seq_len,
-                                      tiny_gpt2_tokenizer.pad_token_id,
-                                      padding_side='right')
+                                     continuation,
+                                     max_seq_len,
+                                     tiny_gpt2_tokenizer.pad_token_id,
+                                     padding_side='right')
     assert continuation_spans[0] == 48 and continuation_spans[-1] == 2047
     assert len(padded_input) == 2048
     assert tiny_gpt2_tokenizer.pad_token_id not in padded_input
@@ -144,10 +144,10 @@ def test_batch_padding_logic_with_padding(tiny_gpt2_tokenizer):
     trimmed_context = trim_context(context, continuation, max_seq_len)
     continuation_spans = get_continuation_span(trimmed_context, continuation)
     padded_input = make_padded_input(trimmed_context,
-                                      continuation,
-                                      max_seq_len,
-                                      tiny_gpt2_tokenizer.pad_token_id,
-                                      padding_side='right')
+                                     continuation,
+                                     max_seq_len,
+                                     tiny_gpt2_tokenizer.pad_token_id,
+                                     padding_side='right')
     assert continuation_spans[0] == 200 and continuation_spans[-1] == 399
     assert len(padded_input) == 2048
     assert padded_input[-1] == tiny_gpt2_tokenizer.pad_token_id
@@ -157,27 +157,27 @@ def test_fewshot_sample_idxs():
     rng = random.Random(1234)
 
     fewshot_idxs = get_fewshot_sample_idxs(dataset_size=5,
-                                            num_fewshot=4,
-                                            example_idx=4,
-                                            rng=rng)
+                                           num_fewshot=4,
+                                           example_idx=4,
+                                           rng=rng)
     assert fewshot_idxs == {0, 1, 2, 3}
 
     fewshot_idxs = get_fewshot_sample_idxs(dataset_size=5,
-                                            num_fewshot=5,
-                                            example_idx=4,
-                                            rng=rng)
+                                           num_fewshot=5,
+                                           example_idx=4,
+                                           rng=rng)
     assert fewshot_idxs == {0, 1, 2, 3}
 
     fewshot_idxs = get_fewshot_sample_idxs(dataset_size=5,
-                                            num_fewshot=500,
-                                            example_idx=4,
-                                            rng=rng)
+                                           num_fewshot=500,
+                                           example_idx=4,
+                                           rng=rng)
     assert fewshot_idxs == {0, 1, 2, 3}
 
     fewshot_idxs = get_fewshot_sample_idxs(dataset_size=10,
-                                            num_fewshot=7,
-                                            example_idx=4,
-                                            rng=rng)
+                                           num_fewshot=7,
+                                           example_idx=4,
+                                           rng=rng)
     assert len(fewshot_idxs) == 7 and 4 not in fewshot_idxs
 
 
@@ -190,21 +190,21 @@ def test_fewshot_sample_idxs_randomness():
     rng_3_seed_11 = random.Random(11)
 
     rng_1_sample_1 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
-                                              rng_1_seed_1234)
+                                             rng_1_seed_1234)
     rng_2_sample_1 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
-                                              rng_2_seed_1234)
+                                             rng_2_seed_1234)
     rng_3_sample_1 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 1,
-                                              rng_3_seed_11)
+                                             rng_3_seed_11)
 
     assert rng_1_sample_1 == rng_2_sample_1
     assert rng_1_sample_1 != rng_3_sample_1
 
     rng_1_sample_2 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
-                                              rng_1_seed_1234)
+                                             rng_1_seed_1234)
     rng_2_sample_2 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
-                                              rng_2_seed_1234)
+                                             rng_2_seed_1234)
     rng_3_sample_2 = get_fewshot_sample_idxs(dataset_size, num_fewshot, 2,
-                                              rng_3_seed_11)
+                                             rng_3_seed_11)
 
     assert rng_1_sample_2 == rng_2_sample_2
     assert rng_1_sample_2 != rng_3_sample_2
@@ -327,7 +327,7 @@ def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationWithAnswersTaskDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -352,7 +352,7 @@ def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationWithAnswersTaskDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -590,7 +590,7 @@ def test_qa_set_cot_no_cot(tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationWithAnswersTaskDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -615,7 +615,7 @@ def test_qa_set_cot_has_cot(tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationWithAnswersTaskDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -637,7 +637,7 @@ def test_qa_get_max_answer_length(tiny_gpt2_tokenizer, tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationWithAnswersTaskDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -661,7 +661,7 @@ def test_qa_get_answer_from_example_with_no_cot(tmp_path, tiny_gpt2_tokenizer):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationWithAnswersTaskDataset(
         dataset_uri=dataset_uri,
         tokenizer=tiny_gpt2_tokenizer,
         max_seq_len=1024,
@@ -689,7 +689,7 @@ def test_qa_get_answer_from_example_with_cot(tmp_path, tiny_gpt2_tokenizer):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationWithAnswersTaskDataset(
         dataset_uri=dataset_uri,
         tokenizer=tiny_gpt2_tokenizer,
         max_seq_len=1024,
@@ -718,7 +718,7 @@ def test_qa_tokenize_example(tiny_gpt2_tokenizer, tmp_path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningQATaskDataset(
+    dl = InContextLearningGenerationWithAnswersTaskDataset(
         dataset_uri=dataset_uri,
         tokenizer=tiny_gpt2_tokenizer,
         max_seq_len=1024,
@@ -1367,7 +1367,7 @@ def test_qa_split_batch(tiny_opt_tokenizer, dataset_uri, tmp_path):
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)  # for dist
     dl = get_icl_task_dataloader(
-        icl_task_type='question_answering',
+        icl_task_type='generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=8,
@@ -1424,7 +1424,7 @@ def test_qa_task_dataloader_w_null_eos(dataset_uri, tiny_gpt2_tokenizer,
     seqlen = 512
     tiny_gpt2_tokenizer.eos_token_id = None
     with pytest.raises(ValueError):
-        _ = get_icl_task_dataloader('question_answering',
+        _ = get_icl_task_dataloader('generation_task_with_answers',
                                     dataset_uri,
                                     tokenizer,
                                     batch_size,
@@ -1454,7 +1454,7 @@ def test_qa_task_dataloader(dataset_uri, tiny_gpt2_tokenizer, tmp_path,
     seqlen = 512
     # empirical number from the small test dataset
     maximum_answer_length = 7
-    dl = get_icl_task_dataloader('question_answering',
+    dl = get_icl_task_dataloader('generation_task_with_answers',
                                  dataset_uri=dataset_uri,
                                  tokenizer=tokenizer,
                                  batch_size=batch_size,
@@ -1513,7 +1513,7 @@ def test_qa_task_with_cot_dataloader(dataset_uri, tiny_gpt2_tokenizer, tmp_path,
     # empirical number from the small test dataset
     maximum_answer_length = 132
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
@@ -1621,7 +1621,7 @@ def test_code_eval_split_batch(dataset_uri, tmp_path):
         'code_evaluation',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
-        batch_size=8,
+        batch_size=5,
         max_seq_len=1024,
         pad_tok_id=tokenizer.eos_token_id,
         num_fewshot=2,
@@ -1629,28 +1629,16 @@ def test_code_eval_split_batch(dataset_uri, tmp_path):
         example_delimiter='\n',
         continuation_delimiter='',
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
-        generations_per_sample=4,
+        generations_per_sample=3,
     )
 
     assert isinstance(dl, DataSpec)  # pyright
+    batches = list(dl.dataloader)
 
-    batch = next(iter(dl.dataloader))
-    split_batch = dl.split_batch(batch, 3)
+    for k in ('input_ids', 'attention_mask'):
+        assert [b[k].shape[0] for b in batches] == [5, 5, 2]
 
-    assert len(split_batch) == 2
-    split1 = split_batch[0]
-    split2 = split_batch[1]
-
-    assert split1['input_ids'].shape[0] == 3
-    assert split2['input_ids'].shape[0] == 1
-
-    assert split1['attention_mask'].shape[0] == 3
-    assert split2['attention_mask'].shape[0] == 1
-
-    assert isinstance(split1['mode'], str)
-    assert isinstance(split2['mode'], str)
-
-    list_split = {
+    list_keys = {
         'labels': str,
         'prompts': str,
         'tests': str,
@@ -1659,36 +1647,30 @@ def test_code_eval_split_batch(dataset_uri, tmp_path):
         'test_outputs': list,
         'languages': str,
     }
-    for k, v in list_split.items():
-        assert len(split1[k]) == 3
-        assert len(split2[k]) == 1
-        assert all(isinstance(val, v) for val in split1[k] + split2[k])
 
-    assert isinstance(split1['pass_at_k'], int)
-    assert isinstance(split2['pass_at_k'], int)
+    for batch, size in zip(batches, [5, 5, 2]):
+        for field, type_ in list_keys.items():
+            assert len(batch[field]) == size
+            assert all(isinstance(val, type_) for val in batch[field])
 
-    assert isinstance(split1['generation_length'], int)
-    assert isinstance(split2['generation_length'], int)
-
-    assert isinstance(split1['generation_kwargs'], dict)
-    assert isinstance(split2['generation_kwargs'], dict)
-
+    static_keys = {'pass_at_k': (int, list), 'generation_length': int, 'generation_kwargs': dict}
+    for batch in batches:
+        for field, type_ in static_keys.items():
+            assert isinstance(batch[field], type_)
 
 @pytest.mark.parametrize('dataset_uri', ['human_eval_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 2])
 @pytest.mark.parametrize('prompt_string', ['Please code:\n', ''])
 @pytest.mark.parametrize('generations_per_sample', [1, 3])
-def test_code_eval_sentpiece_dataloader(dataset_uri, tmp_path, num_fewshot,
-                                        prompt_string, generations_per_sample):
+def test_code_eval_sentpiece_dataloader(dataset_uri, tmp_path, num_fewshot, prompt_string, generations_per_sample,
+                                        tiny_llama_tokenizer):
     pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    transformers = pytest.importorskip('transformers')
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'huggyllama/llama-7b')  # type: ignore reportUnboundVariable
+    tokenizer = tiny_llama_tokenizer
     dataset_uri = f'{local_data}/{dataset_uri}'
-    batch_size = 4
+    batch_size = 5
     seqlen = 2048
 
     dl = get_icl_task_dataloader('code_evaluation',
@@ -1702,55 +1684,58 @@ def test_code_eval_sentpiece_dataloader(dataset_uri, tmp_path, num_fewshot,
                                  example_delimiter='\n',
                                  continuation_delimiter='',
                                  question_prelimiter='Code start: \n',
-                                 destination_path=str(
-                                     tmp_path / f'icl_{num_fewshot}.jsonl'),
+                                 destination_path=str(tmp_path / f'icl_{num_fewshot}.jsonl'),
                                  generations_per_sample=generations_per_sample)
     assert isinstance(dl, DataSpec)
 
     assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
+    batches = list(dl.dataloader)
+    dataset_size = len(open(dataset_uri, 'r').read().strip().split('\n'))
+    dataset_size *= generations_per_sample
 
     max_prompt_length = 0
-    if isinstance(dl.dataloader.dataset, InContextLearningCodeEvalDataset):
-        max_prompt_length = dl.dataloader.dataset.max_prompt_length
-    assert tuple(batch['input_ids'].shape) == (batch_size, max_prompt_length)
-    assert tuple(batch['attention_mask'].shape) == (batch_size,
-                                                    max_prompt_length)
-    assert batch['mode'] == 'generate'
-    # the maximum generation length from the small test data
-    assert batch['generation_length'] == 129
-    assert any(item[0] != tokenizer.eos_token_id
-               for item in batch['input_ids'])  # longest should be pushed left
 
-    decoded_batch = tokenizer.batch_decode(batch['input_ids'])
-    assert all(
-        item.count('Code start: \n') == num_fewshot + 1
-        for item in decoded_batch)
+    has_left_padding = []
+    for i, batch in enumerate(batches):
+        if isinstance(dl.dataloader.dataset, InContextLearningCodeEvalDataset):
+            max_prompt_length = dl.dataloader.dataset.max_prompt_length
+        N = len(batches)
+        bs = batch_size if i < N - 1 else dataset_size - (N - 1) * batch_size
+        assert tuple(batch['input_ids'].shape) == (bs, max_prompt_length)
+        assert tuple(batch['attention_mask'].shape) == (bs, max_prompt_length)
+        assert batch['mode'] == 'generate'
+        # the maximum generation length from the small test data
+        assert batch['generation_length'] == 129
+        has_left_padding.extend([item[0] == tokenizer.eos_token_id for item in batch['input_ids']])
+    assert not all(has_left_padding)  # longest should be pushed left
 
-    if len(prompt_string) > 0:
-        assert all(item.count('Please code:\n') == 1 for item in decoded_batch)
+    decoded_batches = [tokenizer.batch_decode(batch['input_ids']) for batch in batches]
+    for decoded_batch in decoded_batches:
+        assert all(item.count('Code start: \n') == num_fewshot + 1 for item in decoded_batch)
 
-    assert batch['labels'] == [
+        if len(prompt_string) > 0:
+            assert all(item.count('Please code:\n') == 1 for item in decoded_batch)
+
+    labels = [
         '    for idx, elem in enumerate(numbers):\n        for idx2, elem2 in enumerate(numbers):\n            if idx != idx2:\n                distance = abs(elem - elem2)\n                if distance < threshold:\n                    return True\n\n    return False\n',
         "    result = []\n    current_string = []\n    current_depth = 0\n\n    for c in paren_string:\n        if c == '(':\n            current_depth += 1\n            current_string.append(c)\n        elif c == ')':\n            current_depth -= 1\n            current_string.append(c)\n\n            if current_depth == 0:\n                result.append(''.join(current_string))\n                current_string.clear()\n\n    return result\n",
         '    return number % 1.0\n',
         '    balance = 0\n\n    for op in operations:\n        balance += op\n        if balance < 0:\n            return True\n\n    return False\n',
     ]
 
-    assert decoded_batch[0].endswith(
-        "Code start: \nfrom typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n"
-    )
-    assert decoded_batch[1].endswith(
-        "Code start: \nfrom typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n"
-    )
-    assert decoded_batch[2].endswith(
-        "Code start: \n\n\ndef truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n"
-    )
-    assert decoded_batch[3].endswith(
+    # assert decoded_batch[0].endswith(
+    samples = [
+        "Code start: \nfrom typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n",
+        "Code start: \nfrom typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n",
+        "Code start: \n\n\ndef truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n",
         "Code start: \nfrom typing import List\n\n\ndef below_zero(operations: List[int]) -> bool:\n    \"\"\" You're given a list of deposit and withdrawal operations on a bank account that starts with\n    zero balance. Your task is to detect if at any point the balance of account fallls below zero, and\n    at that point function should return True. Otherwise it should return False.\n    >>> below_zero([1, 2, 3])\n    False\n    >>> below_zero([1, 2, -4, 5])\n    True\n    \"\"\"\n"
-    )
-
-
+    ]
+    for i in range(4):
+        for j in range(generations_per_sample):
+            k = i * generations_per_sample + j
+            b, n = divmod(k, batch_size)
+            assert batches[b]['labels'][n] == labels[i]
+            assert decoded_batches[b][n].endswith(samples[i])
 @pytest.mark.parametrize('dataset_uri', ['human_eval_small.jsonl'])
 def test_code_eval_test_cases(dataset_uri, tmp_path):
     pytest.importorskip('datasets')
@@ -1838,15 +1823,13 @@ def test_code_eval_pass_at_k_validity(dataset_uri, tmp_path):
 @pytest.mark.parametrize('num_fewshot', [0, 2])
 @pytest.mark.parametrize('prompt_string', ['Please code:\n', ''])
 @pytest.mark.parametrize('generations_per_sample', [1, 3])
-def test_code_eval_task_dataloader(dataset_uri, tmp_path, num_fewshot,
-                                   prompt_string, generations_per_sample):
+def test_code_eval_task_dataloader(dataset_uri, tmp_path, num_fewshot, prompt_string, generations_per_sample):
     pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
     transformers = pytest.importorskip('transformers')
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'mosaicml/mpt-7b')  # type: ignore reportUnboundVariable
+    tokenizer = transformers.AutoTokenizer.from_pretrained('mosaicml/mpt-7b')  # type: ignore reportUnboundVariable
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 4
     seqlen = 2048
@@ -1862,8 +1845,7 @@ def test_code_eval_task_dataloader(dataset_uri, tmp_path, num_fewshot,
                                  example_delimiter='\n',
                                  continuation_delimiter='',
                                  question_prelimiter='Code start: \n',
-                                 destination_path=str(
-                                     tmp_path / f'icl_{num_fewshot}.jsonl'),
+                                 destination_path=str(tmp_path / f'icl_{num_fewshot}.jsonl'),
                                  generations_per_sample=generations_per_sample,
                                  generation_kwargs={
                                      'temperature': .9,
@@ -1872,59 +1854,60 @@ def test_code_eval_task_dataloader(dataset_uri, tmp_path, num_fewshot,
     assert isinstance(dl, DataSpec)
 
     assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
+    batches = list(dl.dataloader)
+    dataset_size = len(open(dataset_uri, 'r').read().strip().split('\n'))
+    dataset_size *= generations_per_sample
 
-    max_prompt_length = 0
-    if isinstance(dl.dataloader.dataset, InContextLearningCodeEvalDataset):
-        max_prompt_length = dl.dataloader.dataset.max_prompt_length
-    assert tuple(batch['input_ids'].shape) == (batch_size, max_prompt_length)
-    assert tuple(batch['attention_mask'].shape) == (batch_size,
-                                                    max_prompt_length)
-    assert batch['mode'] == 'generate'
-    # the maximum generation length from the small test data
-    assert batch['generation_length'] == 122
-    assert any(item[0] != tokenizer.eos_token_id
-               for item in batch['input_ids'])  # longest should be pushed left
+    has_left_padding = []
+    for i, batch in enumerate(batches):
+        max_prompt_length = 0
+        if isinstance(dl.dataloader.dataset, InContextLearningCodeEvalDataset):
+            max_prompt_length = dl.dataloader.dataset.max_prompt_length
+        N = len(batches)
+        bs = batch_size if i < N - 1 else dataset_size - (N - 1) * batch_size
+        assert tuple(batch['input_ids'].shape) == (bs, max_prompt_length)
+        assert tuple(batch['attention_mask'].shape) == (bs, max_prompt_length)
+        assert batch['mode'] == 'generate'
+        # the maximum generation length from the small test data
+        assert batch['generation_length'] == 122
+        has_left_padding.extend([item[0] == tokenizer.eos_token_id for item in batch['input_ids']])
+    assert not all(has_left_padding)  # longest should be pushed left
 
-    decoded_batch = tokenizer.batch_decode(batch['input_ids'])
-    assert all(
-        item.count('Code start: \n') == num_fewshot + 1
-        for item in decoded_batch)
+    decoded_batches = [tokenizer.batch_decode(batch['input_ids']) for batch in batches]
+    for decoded_batch in decoded_batches:
+        assert all(item.count('Code start: \n') == num_fewshot + 1 for item in decoded_batch)
 
-    if len(prompt_string) > 0:
-        assert all(item.count('Please code:\n') == 1 for item in decoded_batch)
+        if len(prompt_string) > 0:
+            assert all(item.count('Please code:\n') == 1 for item in decoded_batch)
 
-    assert batch['labels'] == [
+    labels = [
         '    for idx, elem in enumerate(numbers):\n        for idx2, elem2 in enumerate(numbers):\n            if idx != idx2:\n                distance = abs(elem - elem2)\n                if distance < threshold:\n                    return True\n\n    return False\n',
         "    result = []\n    current_string = []\n    current_depth = 0\n\n    for c in paren_string:\n        if c == '(':\n            current_depth += 1\n            current_string.append(c)\n        elif c == ')':\n            current_depth -= 1\n            current_string.append(c)\n\n            if current_depth == 0:\n                result.append(''.join(current_string))\n                current_string.clear()\n\n    return result\n",
         '    return number % 1.0\n',
         '    balance = 0\n\n    for op in operations:\n        balance += op\n        if balance < 0:\n            return True\n\n    return False\n',
     ]
 
-    assert decoded_batch[0].endswith(
-        "Code start: \nfrom typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n"
-    )
-    assert decoded_batch[1].endswith(
-        "Code start: \nfrom typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n"
-    )
-    assert decoded_batch[2].endswith(
-        "Code start: \n\n\ndef truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n"
-    )
-    assert decoded_batch[3].endswith(
+    # assert decoded_batch[0].endswith(
+    samples = [
+        "Code start: \nfrom typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n",
+        "Code start: \nfrom typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n",
+        "Code start: \n\n\ndef truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n",
         "Code start: \nfrom typing import List\n\n\ndef below_zero(operations: List[int]) -> bool:\n    \"\"\" You're given a list of deposit and withdrawal operations on a bank account that starts with\n    zero balance. Your task is to detect if at any point the balance of account fallls below zero, and\n    at that point function should return True. Otherwise it should return False.\n    >>> below_zero([1, 2, 3])\n    False\n    >>> below_zero([1, 2, -4, 5])\n    True\n    \"\"\"\n"
-    )
-
-
+    ]
+    for i in range(4):
+        for j in range(generations_per_sample):
+            k = i * generations_per_sample + j
+            b, n = divmod(k, batch_size)
+            assert batches[b]['labels'][n] == labels[i]
+            assert decoded_batches[b][n].endswith(samples[i])
 @pytest.mark.parametrize('dataset_uri', ['human_eval_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 1])
-def test_eval_split_batch(tiny_opt_tokenizer, dataset_uri, num_fewshot,
-                          tmp_path):
+def test_eval_split_batch(tiny_opt_tokenizer, dataset_uri, num_fewshot, tmp_path):
     pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     transformers = pytest.importorskip('transformers')
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'mosaicml/mpt-7b')  # type: ignore reportUnboundVariable
+    tokenizer = transformers.AutoTokenizer.from_pretrained('mosaicml/mpt-7b')  # type: ignore reportUnboundVariable
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 4
     seqlen = 512
@@ -1940,8 +1923,7 @@ def test_eval_split_batch(tiny_opt_tokenizer, dataset_uri, num_fewshot,
                                  example_delimiter='\n',
                                  continuation_delimiter='',
                                  question_prelimiter='Code start: \n',
-                                 destination_path=str(
-                                     tmp_path / f'icl_{num_fewshot}.jsonl'),
+                                 destination_path=str(tmp_path / f'icl_{num_fewshot}.jsonl'),
                                  generations_per_sample=1,
                                  generation_kwargs={
                                      'temperature': .9,
@@ -1965,11 +1947,9 @@ def test_eval_split_batch(tiny_opt_tokenizer, dataset_uri, num_fewshot,
         assert microbatch['generation_kwargs']['top_k'] == 40
         assert microbatch['generation_kwargs']['pad_token_id'] == 0
         assert microbatch['generation_kwargs']['num_beams'] == 1
-        assert microbatch['generation_kwargs']['num_return_sequences'] == 1
         assert microbatch['generation_kwargs']['do_sample'] == True
         assert microbatch['generation_kwargs']['use_cache'] == True
         assert microbatch['generation_kwargs']['eos_token_id'] == 0
-
 
 @pytest.mark.parametrize('dataset_uri', ['lambada_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 5])
@@ -2217,7 +2197,7 @@ def test_qa_task_evaluation_opt_tokenizer(tiny_opt_tokenizer, tiny_opt_model,
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
@@ -2232,21 +2212,21 @@ def test_qa_task_evaluation_opt_tokenizer(tiny_opt_tokenizer, tiny_opt_model,
 
     evaluator = Evaluator(label='triviaqa',
                           dataloader=dl,
-                          metric_names=['InContextLearningQAAccuracy'])
+                          metric_names=['InContextLearningGenerationAccuracy'])
     model = HuggingFaceModel(
         model=tiny_opt_model,
         tokenizer=tokenizer,
-        eval_metrics=[InContextLearningQAAccuracy()],
+        eval_metrics=[InContextLearningGenerationAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/triviaqa/InContextLearningQAAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/triviaqa/InContextLearningGenerationAccuracy' in in_memory_logger.data.keys(
     )
     assert in_memory_logger.data[
-        'metrics/triviaqa/InContextLearningQAAccuracy'][0][1].item() == 0
+        'metrics/triviaqa/InContextLearningGenerationAccuracy'][0][1].item() == 0
 
 
 @pytest.mark.parametrize('num_fewshot', [5])
@@ -2271,7 +2251,7 @@ def test_qa_task_evaluation_with_cot_opt_tokenizer(tiny_opt_tokenizer,
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
@@ -2287,20 +2267,20 @@ def test_qa_task_evaluation_with_cot_opt_tokenizer(tiny_opt_tokenizer,
 
     evaluator = Evaluator(label='gsm8k',
                           dataloader=dl,
-                          metric_names=['InContextLearningQAAccuracy'])
+                          metric_names=['InContextLearningGenerationAccuracy'])
     model = HuggingFaceModel(
         model=tiny_opt_model,
         tokenizer=tokenizer,
-        eval_metrics=[InContextLearningQAAccuracy()],
+        eval_metrics=[InContextLearningGenerationAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/gsm8k/InContextLearningQAAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/gsm8k/InContextLearningGenerationAccuracy' in in_memory_logger.data.keys(
     )
-    assert in_memory_logger.data['metrics/gsm8k/InContextLearningQAAccuracy'][
+    assert in_memory_logger.data['metrics/gsm8k/InContextLearningGenerationAccuracy'][
         0][1].item() == 0
 
 
@@ -2323,7 +2303,7 @@ def test_qa_task_evaluation(num_fewshot, dataset_uri, tiny_gpt2_tokenizer,
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
@@ -2338,22 +2318,22 @@ def test_qa_task_evaluation(num_fewshot, dataset_uri, tiny_gpt2_tokenizer,
 
     evaluator = Evaluator(label='triviaqa',
                           dataloader=dl,
-                          metric_names=['InContextLearningQAAccuracy'])
+                          metric_names=['InContextLearningGenerationAccuracy'])
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
         tokenizer=tiny_gpt2_tokenizer,
-        eval_metrics=[InContextLearningQAAccuracy()],
+        eval_metrics=[InContextLearningGenerationAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/triviaqa/InContextLearningQAAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/triviaqa/InContextLearningGenerationAccuracy' in in_memory_logger.data.keys(
     )
     assert in_memory_logger.data[
-        'metrics/triviaqa/InContextLearningQAAccuracy'][0][1].item() == 0
+        'metrics/triviaqa/InContextLearningGenerationAccuracy'][0][1].item() == 0
 
 
 @pytest.mark.parametrize('dataset_uri', ['gsm8k_small.jsonl'])
@@ -2376,7 +2356,7 @@ def test_qa_task_with_cot_evaluation(num_fewshot, dataset_uri,
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
@@ -2392,21 +2372,21 @@ def test_qa_task_with_cot_evaluation(num_fewshot, dataset_uri,
 
     evaluator = Evaluator(label='gsm8k',
                           dataloader=dl,
-                          metric_names=['InContextLearningQAAccuracy'])
+                          metric_names=['InContextLearningGenerationAccuracy'])
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
         tokenizer=tiny_gpt2_tokenizer,
-        eval_metrics=[InContextLearningQAAccuracy()],
+        eval_metrics=[InContextLearningGenerationAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/gsm8k/InContextLearningQAAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/gsm8k/InContextLearningGenerationAccuracy' in in_memory_logger.data.keys(
     )
-    assert in_memory_logger.data['metrics/gsm8k/InContextLearningQAAccuracy'][
+    assert in_memory_logger.data['metrics/gsm8k/InContextLearningGenerationAccuracy'][
         0][1].item() == 0
 
 
@@ -2476,7 +2456,7 @@ def test_code_eval_microbatching(monkeypatch, tiny_opt_tokenizer,
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
     torch.use_deterministic_algorithms(False)
-    trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
+    trainer.eval(eval_dataloader=evaluator)
     torch.use_deterministic_algorithms(True)
     assert 'metrics/humaneval/InContextLearningCodeEvalAccuracy' in in_memory_logger.data.keys(
     )
@@ -2532,7 +2512,7 @@ def test_code_eval_sentpiece_evaluation(monkeypatch, num_fewshot, dataset_uri,
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
     torch.use_deterministic_algorithms(False)
-    trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
+    trainer.eval(eval_dataloader=evaluator)
     torch.use_deterministic_algorithms(True)
     assert 'metrics/humaneval/InContextLearningCodeEvalAccuracy' in in_memory_logger.data.keys(
     )
@@ -2589,7 +2569,7 @@ def test_code_eval_task_evaluation(monkeypatch, num_fewshot, dataset_uri,
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
     torch.use_deterministic_algorithms(False)
-    trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
+    trainer.eval(eval_dataloader=evaluator)
     torch.use_deterministic_algorithms(True)
     assert 'metrics/humaneval/InContextLearningCodeEvalAccuracy' in in_memory_logger.data.keys(
     )
@@ -2730,7 +2710,7 @@ def test_hf_dataloading_custom_parsing(dataset_uri, tiny_gpt2_tokenizer,
     maximum_answer_length = 4
 
     dl = get_icl_task_dataloader(
-        'question_answering',
+        'generation_task_with_answers',
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,

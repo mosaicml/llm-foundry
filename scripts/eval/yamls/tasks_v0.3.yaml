@@ -3,7 +3,7 @@ icl_tasks:
   label: gsm8k
   dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
   num_fewshot: [0]
-  icl_task_type: question_answering
+  icl_task_type: generation_task_with_answers
   cot_delimiter: "The answer is "
   continuation_delimiter: "\n\nA:"
   question_prelimiter: ""
@@ -15,13 +15,13 @@ icl_tasks:
   label: triviaqa_sm_sub
   dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl
   num_fewshot: [3]
-  icl_task_type: question_answering
+  icl_task_type: generation_task_with_answers
   do_normalization: true
 -
   label: svamp
   dataset_uri: eval/local_data/symbolic_problem_solving/svamp.jsonl
   num_fewshot: [5]
-  icl_task_type: question_answering
+  icl_task_type: generation_task_with_answers
   cot_delimiter: "The answer is "
   continuation_delimiter: "\n\nA:"
   question_prelimiter: "Question: "

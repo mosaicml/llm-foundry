@@ -1,5 +1,5 @@
 name: c4-2k-pre-tokenized
-image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 compute:
   gpus: 8  # Number of GPUs to use
 
@@ -14,7 +14,7 @@ integrations:
   - oci-cli==3.23.2
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.4.0
+  git_branch: v0.5.0
   # git_commit: # OR use your commit hash
   pip_install: "."
   ssh_clone: false  # Should be true if using a private repo

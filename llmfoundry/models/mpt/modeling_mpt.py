@@ -1117,7 +1117,10 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
     def loss(self, outputs: CausalLMOutputWithPast,
              batch: Mapping) -> torch.Tensor:
-        targets = self.get_targets(batch)
+        if 'labels_rolled_and_masked' in batch:
+            targets = batch['labels_rolled_and_masked']
+        else:
+            targets = self.get_targets(batch)
         return self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
                             targets.view(-1))
 

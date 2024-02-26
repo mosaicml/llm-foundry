@@ -133,9 +133,8 @@ def build_composer_model(model_cfg: DictConfig,
 
 def log_analytics_details(mosaicml_logger: MosaicMLLogger, model_name: str):
     mosaicml_logger.log_metrics({
-        'uses_llmfoundry': True,
-        'model_name': model_name,
-        'llmfoundry_run_type': 'Training',
+        'llmfoundry/model_name': model_name,
+        'llmfoundry/llmfoundry_run_type': 'training',
     })
     mosaicml_logger._flush_metadata(force_flush=True)
 

@@ -58,9 +58,8 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
 
 def log_analytics_details(mosaicml_logger: MosaicMLLogger, model_name: str):
     mosaicml_logger.log_metrics({
-        'uses_llmfoundry': True,
-        'model_name': model_name,
-        'llmfoundry_run_type': 'Eval',
+        'llmfoundry/model_name': model_name,
+        'llmfoundry/llmfoundry_run_type': 'eval',
     })
     mosaicml_logger._flush_metadata(force_flush=True)
 

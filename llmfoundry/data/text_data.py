@@ -193,7 +193,8 @@ class RollMaskLabelsCollatorWrapper:
 
     def __call__(self, examples: List[Any]) -> Dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
-        batch['labels_rolled_and_masked'] = torch.roll(batch['labels'], shifts=-1)
+        batch['labels_rolled_and_masked'] = torch.roll(batch['labels'],
+                                                       shifts=-1)
         batch['labels_rolled_and_masked'][:, -1] = -100
         return batch
 
@@ -284,7 +285,7 @@ def build_text_dataloader(
         tokenizer=dataset.tokenizer,
         mlm=mlm_probability is not None,
         mlm_probability=mlm_probability)
-    
+
     collate_fn = RollMaskLabelsCollatorWrapper(base_collator=collate_fn)
 
     if (eos_token_id is not None) or (bos_token_id is not None):

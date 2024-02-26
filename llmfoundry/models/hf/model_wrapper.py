@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from collections import UserDict
 from typing import TYPE_CHECKING, List, Mapping, Optional
-import logging
-log = logging.getLogger(__name__)
 
 import torch
 import transformers

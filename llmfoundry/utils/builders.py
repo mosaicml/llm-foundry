@@ -503,7 +503,6 @@ def build_icl_evaluators(
                 'num_beams is no longer supported as a top level icl_task parameter.'  + \
                 'Please use generation_kwargs.num_beams instead.')
 
-
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
         _validate_cfg(icl_cfg)

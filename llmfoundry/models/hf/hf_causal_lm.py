@@ -17,9 +17,9 @@ from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
 from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
+                                     InContextLearningGenerationAccuracy,
                                      InContextLearningLMAccuracy,
-                                     InContextLearningMultipleChoiceAccuracy,
-                                     InContextLearningGenerationAccuracy)
+                                     InContextLearningMultipleChoiceAccuracy)
 from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss

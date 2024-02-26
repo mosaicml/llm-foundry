@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import TYPE_CHECKING, Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 
 import torch
 
 __all__ = [
-    'add_vision_dataset_transform',
     'MultiTokenEOSCriteria',
 ]
 
@@ -249,7 +248,7 @@ try:
         def __call__(self,
                      input_ids: torch.LongTensor,
                      scores: Optional[torch.FloatTensor] = None,
-                     **kwargs) -> bool:
+                     **kwargs: Dict[str, Any]) -> bool:
             # For efficiency, we compare the last n tokens where n is the number of tokens in the stop_sequence
             lookback_ids_batch = input_ids[:, :][:, -self.stop_sequence_id_len:]
             lookback_tokens_batch = self.tokenizer.batch_decode(

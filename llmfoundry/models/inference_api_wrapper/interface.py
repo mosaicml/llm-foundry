@@ -10,10 +10,10 @@ from composer.models import ComposerModel
 from torchmetrics import Metric
 from transformers import AutoTokenizer
 
-from llmfoundry.eval.metrics import (InContextLearningLMAccuracy,
+from llmfoundry.eval.metrics import (InContextLearningGenerationAccuracy,
+                                     InContextLearningLMAccuracy,
                                      InContextLearningMetric,
-                                     InContextLearningMultipleChoiceAccuracy,
-                                     InContextLearningGenerationAccuracy)
+                                     InContextLearningMultipleChoiceAccuracy)
 
 
 class InferenceAPIEvalWrapper(ComposerModel):

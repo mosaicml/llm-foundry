@@ -12,9 +12,10 @@ import re
 import string
 import warnings
 from typing import Any, Dict, List
-from composer.utils import dist
+
 import numpy as np
 import torch
+from composer.utils import dist
 from composer.utils.eval_client import (EvalClient, LambdaEvalClient,
                                         LocalEvalClient,
                                         MosaicMLLambdaEvalClient)
@@ -28,7 +29,7 @@ __all__ = [
     'InContextLearningMetric',
     'InContextLearningLMAccuracy',
     'InContextLearningMultipleChoiceAccuracy',
-    'InContextLearningGenerationWithAnswersTaskDataset',
+    'InContextLearningGenerationAccuracy',
     'InContextLearningCodeEvalAccuracy',
     'InContextLearningLMExpectedCalibrationError',
     'InContextLearningMCExpectedCalibrationError',
@@ -37,7 +38,7 @@ __all__ = [
 
 class InContextLearningMetric(Metric):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):  # pyright: ignore
         super().__init__(*args, **kwargs)
         self.needs_batch = True
 
@@ -65,8 +66,7 @@ class InContextLearningMetric(Metric):
 
 
 class InContextLearningGenerationAccuracy(InContextLearningMetric):
-    r"""Computes accuracy for In-context learning (ICL) question answering (QA)
-    tasks.
+    r"""Computes accuracy for In-context learning (ICL) generation tasks.
 
     ICL QA tasks consist of some number of example question answering tasks (referred to as the 'context'), followed by a test task where the model must
     match one of the possible answer aliases (referred to as the 'continuation').
@@ -166,8 +166,7 @@ class InContextLearningGenerationAccuracy(InContextLearningMetric):
 
 
 class InContextLearningLMAccuracy(InContextLearningMetric):
-    r"""Computes accuracy for In-context learning (ICL) language modeling (LM)
-    tasks.
+    r"""Computes accuracy for In-context learning language modeling tasks.
 
     ICL LM tasks consist of some number of example language modeling tasks (referred to as the 'context'), followed by a test task where the model must correctly predict all the tokens
     following tokens in some passage (referred to as the 'continuation').
@@ -217,8 +216,7 @@ class InContextLearningLMAccuracy(InContextLearningMetric):
 
 
 class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
-    r"""Computes accuracy for In-context learning (ICL) multiple choice (MC)
-    tasks.
+    r"""Computes accuracy for In-context learning multiple choice tasks.
 
     ICL MC tasks consists of a series of questions with some number of possible choices (only one of which can be correct).
     At inference time each possible choice is given to the model as a separate input and the one for which the model assigns
@@ -278,8 +276,9 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
 
 
 class InContextLearningExpectedCalibrationError(InContextLearningMetric):
-    """Generic class for Expected Calibration Error (ECE) (cite:
-    https://arxiv.org/pdf/1706.04599.pdf).
+    """Generic class for Expected Calibration Error (ECE).
+
+    Citation: https://arxiv.org/pdf/1706.04599.pdf
 
     Expected calibration error is calculated by dividing predictions into buckets based on the model's confidence (a probability value between 0 and 1).
     We then calculate the accuracy within each bucket and calculate the average gap between confidence and accuracy
@@ -336,6 +335,7 @@ class InContextLearningExpectedCalibrationError(InContextLearningMetric):
 class InContextLearningMCExpectedCalibrationError(
         InContextLearningExpectedCalibrationError):
     r"""Computes Expected Calibration Error (ECE) for In-context learning (ICL)
+
     multiple choice (MC) tasks. (source: https://arxiv.org/abs/2012.00955).
 
     For MC tasks, the model confidence is defined as the softmax of average per-token probability assigned to the top question choice.
@@ -382,6 +382,7 @@ class InContextLearningMCExpectedCalibrationError(
 class InContextLearningLMExpectedCalibrationError(
         InContextLearningExpectedCalibrationError):
     r"""Computes Expected Calibration Error (ECE) for In-context learning (ICL)
+
     language modeling (LM) tasks. (cite: https://arxiv.org/pdf/1706.04599.pdf).
 
     For LM tasks, the model confidence is defined as the minimum probability assigned to all tokens in the continuation.
@@ -415,6 +416,7 @@ class InContextLearningLMExpectedCalibrationError(
             self.bucket_totals[
                 bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
 
+
 class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
     r"""Computes accuracy for In-context learning (ICL) code evaluation tasks.
 
@@ -443,7 +445,9 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
 
         self._initialized = False
-
+        self.dataset_size = 0
+        self.pass_at_k = []
+        self.num_generations = 0
         self.eval_device = os.environ.get('CODE_EVAL_DEVICE', None)
         if self.eval_device is not None:
             self.eval_device = self.eval_device.upper()
@@ -469,8 +473,9 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
                 'to one of `LOCAL` (for unsafe local eval), `LAMBDA` (for AWS lambda ',
                 'evaluation), or `MOSAICML` (for lambda eval through MAPI).')
         else:
-            raise ValueError('Environment variable `CODE_EVAL_DEVICE` must be one of `LOCAL`, '
-                             f'`LAMBDA`, or `MOSAICML` but got {self.eval_device}.')
+            raise ValueError(
+                'Environment variable `CODE_EVAL_DEVICE` must be one of `LOCAL`, '
+                f'`LAMBDA`, or `MOSAICML` but got {self.eval_device}.')
 
         return client
 
@@ -493,12 +498,17 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         self.num_generations = batch['generations_per_sample']
 
         # We need to defer the accumulator initialization because it depends on dataset size
-        self.add_state('correct', default=torch.zeros(self.dataset_size, device=device), dist_reduce_fx='sum')
-        self.add_state('total', default=torch.zeros(self.dataset_size, device=device), dist_reduce_fx='sum')
+        self.add_state('correct',
+                       default=torch.zeros(self.dataset_size, device=device),
+                       dist_reduce_fx='sum')
+        self.add_state('total',
+                       default=torch.zeros(self.dataset_size, device=device),
+                       dist_reduce_fx='sum')
         dist.barrier()
         self._initialized = True
 
-    def update(self, batch: Dict[str, Any], outputs: List[str], labels: List[str]):
+    def update(self, batch: Dict[str, Any], outputs: List[str],
+               labels: List[str]):
         """Updates the pass@k accuracy of code generation.
 
         Given a batch of prompts, test cases, and code generations, evaluates the code generations
@@ -529,13 +539,16 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         client = self.get_client()
 
         for sample_id, code_gen, sample_prompt, test_inputs, test_outputs, entry_point, language in zip(
-                batch['sample_id'], outputs, batch['prompts'], batch['test_inputs'], batch['test_outputs'],
+                batch['sample_id'], outputs, batch['prompts'],
+                batch['test_inputs'], batch['test_outputs'],
                 batch['entry_points'], batch['languages']):
 
             idx = sample_id
             self.total[idx] += 1.0
 
-            code_gen = re.split(r'\n[A-Za-z0-9#`]', code_gen)[0]  # remove everything after function ends
+            code_gen = re.split(
+                r'\n[A-Za-z0-9#`]',
+                code_gen)[0]  # remove everything after function ends
             final_code = sample_prompt + code_gen  # combine prompt with the code generation
 
             test_results = []
@@ -562,19 +575,24 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         complete = self.total == self.num_generations  # so that eval subset batches can be used
 
         if complete.sum() < (self.total != 0).sum():
-            warnings.warn('Some samples in the dataset have less than the expected number of generations. '
-                          'This is expected if you are using a subset of the dataset for evaluation.')
+            warnings.warn(
+                'Some samples in the dataset have less than the expected number of generations. '
+                'This is expected if you are using a subset of the dataset for evaluation.'
+            )
 
         if (self.correct > self.total).any().item():
             raise ValueError(
-                'Internal error some samples have more correct than  total generations. This should not happen.')
+                'Internal error some samples have more correct than  total generations. This should not happen.'
+            )
 
         results = {}
         n = self.num_generations
 
         for k in self.pass_at_k:
-            pass_at_k = sum([self.estimator(n, int(c.item()), k) for c in self.correct[complete]
-                            ]) / complete.sum().item()
+            pass_at_k = sum([
+                self.estimator(n, int(c.item()), k)
+                for c in self.correct[complete]
+            ]) / complete.sum().item()
             results[f'pass@{k}'] = torch.tensor(pass_at_k)
 
         if len(results) == 1:  # backwards compatibility

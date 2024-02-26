@@ -72,7 +72,7 @@ def build_tiny_hf_mpt(
     return build
 
 
-def tiny_gpt2_model_helper(config):
+def tiny_gpt2_model_helper(config):  # type: ignore
     transformers = pytest.importorskip('transformers')
 
     return transformers.AutoModelForCausalLM.from_config(config)
@@ -108,6 +108,21 @@ def tiny_gpt2_tokenizer_helper():
     return hf_tokenizer
 
 
+@pytest.fixture
+def tiny_gpt2_model(_session_tiny_gpt2_model):  # type: ignore
+    return copy.deepcopy(_session_tiny_gpt2_model)
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_gpt2_tokenizer():  # type: ignore
+    return tiny_gpt2_tokenizer_helper()
+
+
+@pytest.fixture
+def tiny_gpt2_tokenizer(_session_tiny_gpt2_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_gpt2_tokenizer)
+
+
 def tiny_llama_tokenizer_helper():
     transformers = pytest.importorskip('transformers')
 
@@ -117,13 +132,13 @@ def tiny_llama_tokenizer_helper():
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_gpt2_tokenizer():  # type: ignore
-    return tiny_gpt2_tokenizer_helper()
-
-
-@pytest.fixture(scope='session')
 def _session_tiny_llama_tokenizer():  # type: ignore
     return tiny_llama_tokenizer_helper()
+
+
+@pytest.fixture
+def tiny_llama_tokenizer(_session_tiny_llama_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_llama_tokenizer)
 
 
 def tiny_opt_tokenizer_helper():
@@ -135,41 +150,45 @@ def tiny_opt_tokenizer_helper():
     return hf_tokenizer
 
 
+def tiny_opt_model_helper(config):  # type: ignore
+    transformers = pytest.importorskip('transformers')
+
+    return transformers.AutoModelForCausalLM.from_config(config)
+
+
 @pytest.fixture(scope='session')
 def _session_tiny_opt_tokenizer():  # type: ignore
     return tiny_opt_tokenizer_helper()
 
 
-@pytest.fixture
-def tiny_gpt2_config(_session_tiny_gpt2_config):
-    return copy.deepcopy(_session_tiny_gpt2_config)
+@pytest.fixture(scope='session')
+def _session_tiny_opt_config():  # type: ignore
+    return tiny_opt_config_helper()
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_opt_model(_session_tiny_opt_config):  # type: ignore
+    return tiny_opt_model_helper(_session_tiny_opt_config)
+
+
+def tiny_opt_config_helper():
+    transformers = pytest.importorskip('transformers')
+
+    tiny_overrides = {
+        'n_embd': 2,
+        'n_head': 2,
+        'n_layer': 2,
+        'vocab_size': 50272
+    }
+    return transformers.AutoConfig.from_pretrained('facebook/opt-125m',
+                                                   **tiny_overrides)
 
 
 @pytest.fixture
-def tiny_gpt2_tokenizer(_session_tiny_gpt2_tokenizer):
-    return copy.deepcopy(_session_tiny_gpt2_tokenizer)
-
-
-@pytest.fixture
-def tiny_llama_tokenizer(_session_tiny_llama_tokenizer):
-    return copy.deepcopy(_session_tiny_llama_tokenizer)
-
-
-@pytest.fixture
-def tiny_gpt2_model(_session_tiny_gpt2_model):
-    return copy.deepcopy(_session_tiny_gpt2_model)
-
-
-@pytest.fixture
-def tiny_opt_config(_session_tiny_opt_config):
-    return copy.deepcopy(_session_tiny_opt_config)
-
-
-@pytest.fixture
-def tiny_opt_tokenizer(_session_tiny_opt_tokenizer):
+def tiny_opt_tokenizer(_session_tiny_opt_tokenizer):  # type: ignore
     return copy.deepcopy(_session_tiny_opt_tokenizer)
 
 
 @pytest.fixture
-def tiny_opt_model(_session_tiny_opt_model):
+def tiny_opt_model(_session_tiny_opt_model):  # type: ignore
     return copy.deepcopy(_session_tiny_opt_model)

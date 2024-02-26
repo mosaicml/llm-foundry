@@ -16,7 +16,7 @@ from llmfoundry.utils.builders import build_icl_evaluators
 
 @pytest.fixture(scope='module')
 def openai_api_key_env_var() -> str:
-    os.environ['OPENAI_API_KEY'] = 'dummy'
+    # os.environ['OPENAI_API_KEY'] = 'dummy'
     return os.environ['OPENAI_API_KEY']
 
 
@@ -24,18 +24,29 @@ def load_icl_config():
     return DictConfig({
         'icl_tasks':
             ListConfig([
+                # DictConfig({
+                #     'label':
+                #         'jeopardy',
+                #     'dataset_uri':
+                #         'scripts/eval/local_data/world_knowledge/jeopardy_all.jsonl',
+                #     'num_fewshot': [0, 1],
+                #     'icl_task_type':
+                #         'language_modeling',
+                #     'continuation_delimiter':
+                #         '\nAnswer: ',
+                #     'has_categories':
+                #         True
+                # }),
                 DictConfig({
                     'label':
-                        'jeopardy',
+                        'triviaqa',
                     'dataset_uri':
-                        'scripts/eval/local_data/world_knowledge/jeopardy_all.jsonl',
+                        'scripts/eval/local_data/world_knowledge/triviaqa_small.jsonl',
                     'num_fewshot': [0, 1],
                     'icl_task_type':
-                        'language_modeling',
+                        'question_answering',
                     'continuation_delimiter':
-                        '\nAnswer: ',
-                    'has_categories':
-                        True
+                        '',
                 })
             ])
     })
@@ -153,3 +164,32 @@ def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
         )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
         )
         assert acc == 0.5
+
+
+
+def test_openai_api_eval_wrapper_real_key(tmp_path: str, openai_api_key_env_var: str):
+    _ = pytest.importorskip('openai')
+    model_name = 'gpt-3.5-turbo-instruct'
+    tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
+                                         pad_token='<|endoftext|>')
+    model = OpenAICausalLMEvalWrapper(model_cfg={'version': model_name},
+                                      tokenizer=tokenizer)
+    # with patch.object(model, 'client') as mock:
+        # mock.completions.create = mock_create
+    task_cfg = load_icl_config()
+    evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
+                                            tokenizer,
+                                            1024,
+                                            2,
+                                            destination_dir=str(tmp_path))
+
+    batch = next(evaluators[0].dataloader.dataloader.__iter__())
+    result = model.eval_forward(batch)
+    model.update_metric(batch,
+                        result,
+                        metric=model.get_metrics()
+                        ['InContextLearningQAAccuracy'])  # pyright: ignore
+    acc = model.get_metrics(
+    )['InContextLearningQAAccuracy'].compute(  # pyright: ignore
+    )  # pyright: ignore
+    assert acc == 0.5

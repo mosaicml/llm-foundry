@@ -76,7 +76,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
         completion = self.try_generate_completion(prompt, num_tokens)
         return self.process_result(completion)
 
-    def try_generate_completion(self, prompt: str, num_tokens: int):
+    def try_generate_completion(self, prompt: str, num_tokens: int, generation_kwargs: Optional[dict] = None):
         try:
             from openai import APITimeoutError, RateLimitError
         except ImportError as e:
@@ -87,6 +87,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
         tries = 0
         completion = None
         delay = 1
+        breakpoint()
         while tries < MAX_RETRIES:
             tries += 1
             try:
@@ -111,14 +112,17 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
+        self.model_cfg = model_cfg
 
-        self.generate_completion = lambda prompt, num_tokens: self.client.chat.completions.create(
+    def generate_completion(self, prompt, num_tokens, generation_kwargs):
+        breakpoint()
+        return self.client.chat.completions.create(
             model=self.model_name,
             messages=[{
                 'role':
                     'system',
                 'content':
-                    model_cfg.get('system_role_prompt',
+                    self.model_cfg.get('system_role_prompt',
                                   'Please complete the following text: ')
             }, {
                 'role': 'user',

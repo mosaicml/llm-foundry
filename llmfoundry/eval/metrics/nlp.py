@@ -29,7 +29,7 @@ __all__ = [
     'InContextLearningMetric',
     'InContextLearningLMAccuracy',
     'InContextLearningMultipleChoiceAccuracy',
-    'InContextLearningGenerationAccuracy',
+    'InContextLearningGenerationExactMatchAccuracy',
     'InContextLearningCodeEvalAccuracy',
     'InContextLearningLMExpectedCalibrationError',
     'InContextLearningMCExpectedCalibrationError',
@@ -65,7 +65,7 @@ class InContextLearningMetric(Metric):
         raise NotImplementedError
 
 
-class InContextLearningGenerationAccuracy(InContextLearningMetric):
+class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
     r"""Computes accuracy for In-context learning (ICL) generation tasks.
 
     ICL QA tasks consist of some number of example question answering tasks (referred to as the 'context'), followed by a test task where the model must
@@ -577,6 +577,7 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         if complete.sum() < (self.total != 0).sum():
             warnings.warn(
                 'Some samples in the dataset have less than the expected number of generations. '
+                +
                 'This is expected if you are using a subset of the dataset for evaluation.'
             )
 

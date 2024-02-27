@@ -46,7 +46,8 @@ __all__ = [
 
 
 class InContextLearningDataset(Dataset):
-    """A base dataset that constructs batches for in-context learning task
+    r"""A base dataset that constructs batches for in-context learning task.
+
     evaluations. The dataset format is expected to be a local jsonl file, a
     cloud link to a jsonl file, or a Hugging Face dataset link. 'context' refers
     to the input a model will recieve before generating an output. For example,
@@ -194,14 +195,15 @@ class InContextLearningDataset(Dataset):
         return batch['input_ids'].shape[0]
 
     def update_generation_kwargs(self, generation_kwargs: Dict) -> None:
-        """Updates self.base_batch with the passed in generation_kwargs. This
-        must be run after self.base_batch is set (for example, if
+        r"""Updates self.base_batch with the passed in generation_kwargs.
+
+        This must be run after self.base_batch is set (for example, if
         self.base_batch is set after __init__() is run, likely because
         base_batch needs a class variable like self.pad_tok_id or
         self.max_answer_length).
 
         Args:
-            dict: Keyword arguments that be written into base_batch['generation_kwargs']
+            generation_kwargs (Dict): Keyword arguments that be written into base_batch['generation_kwargs']
         """
         if generation_kwargs:
             if 'generation_kwargs' not in self.base_batch:
@@ -302,7 +304,8 @@ class InContextLearningDataset(Dataset):
                           example: Dict,
                           preceding_text: str = '',
                           add_answer: bool = False) -> str:
-        """Takes an example and constructs a context, i.e. the input the model
+        """Takes an example and constructs a context, i.e. the input the model.
+
         reads for this example. Optionally adds the correct answer (for fewshot
         examples) and handles example delimiters.
 
@@ -341,7 +344,8 @@ class InContextLearningDataset(Dataset):
         return cont
 
     def _fix_eos_on_preamble(self, input_ids: List[int]) -> List[int]:
-        """If the input_ids is empty then input_ids will be a 0-length List
+        """If the input_ids is empty then input_ids will be a 0-length List.
+
         unless the tokenizer adds special tokens to empty strings (e.g. OPT
         tokenizer). If there is an EOS token added, we need to remove it so it
         is not in the middle of the prompt, as the specific eval question's
@@ -433,7 +437,8 @@ class InContextLearningDataset(Dataset):
         prompt_string: str,
         fewshot_rng: random.Random,
     ) -> Dict[str, Any]:
-        """Prepares a single example from a HF Dataset into tokenized format
+        """Prepares a single example from a HF Dataset into tokenized format.
+
         with prompt and fewshot examples.
 
         Each task consists of a context and a continuation as well as an optional prompt and optional list of
@@ -459,7 +464,8 @@ class InContextLearningDataset(Dataset):
         return tokenized_example
 
     def collate_fn(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """The function that the dataloader uses to accumulate data into
+        """The function that the dataloader uses to accumulate data into.
+
         batches.
 
         Args:
@@ -482,7 +488,8 @@ class InContextLearningDataset(Dataset):
 
     def split_batch(self, batch: Any,
                     microbatch_size: int) -> List[Dict[str, Any]]:
-        """Handling for certain specialty columns that must be split into
+        """Handling for certain specialty columns that must be split into.
+
         batches in different formats.
 
         Args:
@@ -519,7 +526,8 @@ class InContextLearningDataset(Dataset):
 
 class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset
                                                        ):
-    """A dataset that constructs batches for in-context learning generation
+    """A dataset that constructs batches for in-context learning generation.
+
     tasks with answers. Generation tasks with evaluate a model's ability to
     generate responses and score them against a set of gold-standard answers.
 
@@ -613,8 +621,10 @@ class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset
     def get_answer_from_example(self,
                                 example: Dict,
                                 in_context: bool = False) -> str:
-        """
-        Returns the answer from the example. Applies chain of thought if self.has_cot is marked as true.
+        """Returns the answer from the example. Applies chain of thought if.
+
+        self.has_cot is marked as true.
+
         Args:
             example (Dict): The example from which to retrieve the answer
 
@@ -628,8 +638,8 @@ class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset
 
     def tokenize_example(self, prompt_and_fewshot: str, ctxt: str,
                          example: Dict) -> Dict[str, Any]:
-        """
-        Run text through the tokenizer and handle special cases.
+        """Run text through the tokenizer and handle special cases.
+
         Args:
             prompt_and_fewshot (str): The collection of the prompt and fewshot examples that belongs before the example's context
             ctx (str): The specific example's derrived context
@@ -644,11 +654,10 @@ class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset
         return tokenized_example
 
     def _get_max_answer_length(self, dataset: Iterable[dict]) -> int:
-        f"""
-        Loops over the dataset and finds the longest answer length.
+        """Loops over the dataset and finds the longest answer length.
 
         Returns:
-            int: The maximum answer length with an additional buffer of {_MAX_ANSWER_BUFFER_LENGTH} if chain of thought is present
+            int: The maximum answer length with an additional buffer of 10 if chain of thought is present
         """
         max_answer_length = 0
         for example in dataset:
@@ -686,7 +695,8 @@ class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset
 
 
 class InContextLearningLMTaskDataset(InContextLearningDataset):
-    """A dataset that constructs batches for in-context learning language
+    """A dataset that constructs batches for in-context learning language.
+
     modeling evaluation. Language modeling tasks test a model's ability to
     properly predict tokens based on preceding tokens.
 
@@ -720,7 +730,8 @@ class InContextLearningLMTaskDataset(InContextLearningDataset):
 
 
 class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
-    """A dataset that construct batches for in-context learning multiple choice
+    """A dataset that construct batches for in-context learning multiple choice.
+
     evaluation.
 
     If each question has N answer choices, we construct N distinct inputs per question. In order to ensure
@@ -788,8 +799,8 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
     def get_answer_from_example(self,
                                 example: Dict,
                                 in_context: bool = False) -> str:
-        """
-        Returns the correct answer from the example's choices.
+        """Returns the correct answer from the example's choices.
+
         Args:
             example (Dict): The example from which to retrieve the answer
 
@@ -802,8 +813,8 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
 
     def tokenize_example(self, prompt_and_fewshot: str, ctxt: str,
                          example: Dict) -> Dict[str, Any]:
-        """
-        Runs text through the tokenizer and handle special cases.
+        """Runs text through the tokenizer and handle special cases.
+
         Args:
             prompt_and_fewshot (str): The collection of the prompt and fewshot examples that belongs before the example's context
             ctx (str): The specific example's derrived context
@@ -862,7 +873,8 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
         return tokenized_example
 
     def collate_fn(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """The function that the dataloader uses to accumulate data into
+        """The function that the dataloader uses to accumulate data into.
+
         batches. We run each distinct query + answer choice through the model
         separately and determine which answer has the lowest per-token-
         perplexity.
@@ -900,7 +912,8 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
 
     def split_batch(self, batch: Any,
                     microbatch_size: int) -> List[Dict[str, Any]]:
-        """Split batch while ensuring all continuations are in the same
+        """Split batch while ensuring all continuations are in the same.
+
         microbatch.
 
         In ICL Multiple Choice, we duplicate each data point for each possible continuation.
@@ -951,7 +964,8 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
 
 class InContextLearningSchemaTaskDataset(
         InContextLearningMultipleChoiceTaskDataset):
-    """A dataset that constructs batches for in-context learning schema
+    """A dataset that constructs batches for in-context learning schema.
+
     evaluation. A schema task involves sentences with a fill-in-the-blank where
     the user needs to choose the correct word to fill in from a set of N
     options. We use the partial evaluation technique from
@@ -1000,7 +1014,10 @@ class InContextLearningSchemaTaskDataset(
                           example: Dict[str, Any],
                           preceding_text: str = '',
                           add_answer: bool = False) -> str:
-        """Takes a example and constructs a context with the correct context for
+        """Takes a example and constructs a context with the correct context.
+
+        for.
+
         the example's continuation.
 
         Args:
@@ -1023,8 +1040,9 @@ class InContextLearningSchemaTaskDataset(
     def _construct_multiple_contexts(self,
                                      example: Dict,
                                      preceding_text: str = '') -> List[str]:
-        """Takes a example and constructs all contexts. Optionally, appends this
-        to preceeding text (such as a prompt or fewshot examples).
+        """Takes a example and constructs all contexts.
+
+        Optionally, appends this to preceeding text (such as a prompt or fewshot examples).
 
         Args:
             example (Dict): The example from which to construct the context
@@ -1053,7 +1071,8 @@ class InContextLearningSchemaTaskDataset(
         prompt_string: str,
         fewshot_rng: random.Random,
     ) -> Dict[str, Any]:
-        """Prepares a single example from a HF Dataset into tokenized format
+        """Prepares a single example from a HF Dataset into tokenized format.
+
         with prompt and fewshot examples.
 
         Each task consists of multiple contexts and a single, correct continuation. Will preprend fewshot examples and
@@ -1133,7 +1152,8 @@ class InContextLearningSchemaTaskDataset(
 
 
 class InContextLearningCodeEvalDataset(InContextLearningDataset):
-    """A dataset that constructs batches for in-context learning code
+    """A dataset that constructs batches for in-context learning code.
+
     evaluation.
 
     The input format is expected to be a jsonl file with the following fields:
@@ -1288,7 +1308,8 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
         return repeated_dataset
 
     def _set_max_prompt_and_answer_lengths(self):
-        """Iterates through the dataset and finds the maximum prompt length and
+        """Iterates through the dataset and finds the maximum prompt length and.
+
         sequence lengths.
 
         Returns:
@@ -1316,6 +1337,7 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
 
     def _trim_padding(self, example: Dict):
         """Adjusts padding to the maximum prompt length rather than max_seq_len.
+
         Needs to be done after the dataset has been processed because we don't
         know the maximum prompt length until after we've tokenized it.
 
@@ -1377,7 +1399,8 @@ def build_icl_dataloader(
         generation_kwargs: Dict,
         early_stopping_criteria: Optional[List[str]] = None,
         do_normalization: bool = True) -> DataSpec:
-    """Factory method that builds the specific dataset for the specified
+    """Factory method that builds the specific dataset for the specified.
+
     icl_task_type. See documentation for `get_icl_task_dataloader` for arugment
     documentation.
 
@@ -1513,7 +1536,8 @@ def build_icl_dataloader(
 def partition_dataset_by_category(dataset_uri: str, destination_path: str,
                                   hf_loading_vars: Dict,
                                   hf_parsing_map: Dict) -> Dict[str, str]:
-    """If has_categories is enabled, we partition the dataset into a separate
+    """If has_categories is enabled, we partition the dataset into a separate.
+
     dataset for each category value in the data and write each partition to a
     local file.
 
@@ -1524,6 +1548,7 @@ def partition_dataset_by_category(dataset_uri: str, destination_path: str,
     Raises:
         MissingConditionalImportError: If datasets not installed raise exception.
         Exception: If 'category' key missing from dataset, raise exception.
+
     Returns:
         Dict[str, str]: Mapping of category names to partitioned dataset local files names.
     """
@@ -1612,7 +1637,8 @@ def get_icl_task_dataloader(
         generation_kwargs: Optional[Dict] = None,
         early_stopping_criteria: Optional[List[str]] = None,
         do_normalization: bool = True) -> Union[DataSpec, Dict[str, DataSpec]]:
-    """This constructs a dataloader (or dataloaders if has_categories is True)
+    r"""Constructs a dataloader (or dataloaders if has_categories is True)
+
     capable of evaluating LLMs on in-context learning language modeling tasks,
     for example LAMBADA. An example usage is below:
 

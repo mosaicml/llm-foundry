@@ -16,10 +16,10 @@ from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
-from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
-                                     InContextLearningGenerationAccuracy,
-                                     InContextLearningLMAccuracy,
-                                     InContextLearningMultipleChoiceAccuracy)
+from llmfoundry.eval.metrics import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningGenerationExactMatchAccuracy, InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy)
 from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
@@ -120,7 +120,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             TokenAccuracy(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningGenerationAccuracy(),
+            InContextLearningGenerationExactMatchAccuracy(),
             InContextLearningCodeEvalAccuracy()
         ]
         if not om_model_config.get('use_train_metrics', True):

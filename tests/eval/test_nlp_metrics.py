@@ -10,10 +10,10 @@ import pytest
 import torch
 import transformers
 
-from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
-                                     InContextLearningGenerationAccuracy,
-                                     InContextLearningLMAccuracy,
-                                     InContextLearningMultipleChoiceAccuracy)
+from llmfoundry.eval.metrics import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningGenerationExactMatchAccuracy, InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy)
 
 
 def test_in_context_learning_lm_accuracy(
@@ -58,7 +58,7 @@ def test_in_context_learning_qa_accuracy():
     ]
     labels = [['Correct'], ['blah', 'blah2'], ['blah', 'correct']]
     batch = {'cot_delimiter': '', 'labels': labels}
-    metric = InContextLearningGenerationAccuracy()
+    metric = InContextLearningGenerationExactMatchAccuracy()
     metric.update(batch, outputs, labels)
 
     assert metric.compute() == (2 / 3)
@@ -78,7 +78,7 @@ def test_in_context_learning_qa_cot_accuracy():
         'do_normalization': True,
         'stopping_criteria': '\n\n'
     }
-    metric = InContextLearningGenerationAccuracy()
+    metric = InContextLearningGenerationExactMatchAccuracy()
     metric.update(batch, outputs, labels)
 
     assert metric.compute() == (2 / 4)

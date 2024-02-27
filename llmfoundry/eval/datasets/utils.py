@@ -24,7 +24,8 @@ if TYPE_CHECKING:
 
 
 def strip_data(example: Dict) -> Dict:
-    """Remove white space from the begging and end of string values in a
+    """Remove white space from the begging and end of string values in a.
+
     dictionary.
 
     Args:
@@ -41,6 +42,7 @@ def strip_data(example: Dict) -> Dict:
 def tokenizer_needs_prefix_space(
         tokenizer: transformers.PreTrainedTokenizerBase) -> bool:
     """Test for whether a prefix space is needed before the continuation.
+
     Sentencepiece tokenization should not have a prefix space, but gpt2 style
     BPE should.
 
@@ -57,7 +59,8 @@ def tokenizer_needs_prefix_space(
 
 def trim_context(context_enc: List, continuation_enc: List,
                  max_seq_len: int) -> List:
-    """Trims a list of tokens down to `max_seq_len` if the length of the list
+    """Trims a list of tokens down to `max_seq_len` if the length of the list.
+
     plus the continuation is more than `max_seq_len`. It will always trim tokens
     from the left, i.e. tokens at the beginning of the context will be removed.
 
@@ -84,7 +87,10 @@ def trim_context(context_enc: List, continuation_enc: List,
 
 def get_continuation_span(context_enc: List,
                           continuation_enc: List) -> torch.Tensor:
-    """Gets the list of indices of the continuation tokens for language modeling
+    """Gets the list of indices of the continuation tokens for language.
+
+    modeling.
+
     or generation tasks.
 
     Args:
@@ -104,7 +110,8 @@ def make_padded_input(context_enc: List,
                       max_seq_len: int,
                       pad_tok_id: int,
                       padding_side: str = 'right') -> torch.Tensor:
-    """Takes an encoded context and continuation and clips the beginning of the
+    """Takes an encoded context and continuation and clips the beginning of the.
+
     context if they're too long. Adds the padding token to the specified side.
 
     Args:
@@ -118,7 +125,6 @@ def make_padded_input(context_enc: List,
         input (torch.tensor): The padded and encoded context
         continuation_span (torch.tensor): The _inclusive_ range of indices corresponding to the continuation
     """
-
     inp = torch.tensor(
         (context_enc + continuation_enc),
         dtype=torch.long,
@@ -158,7 +164,8 @@ def make_padded_input(context_enc: List,
 
 def convert_tokens_to_tensors(batch: Dict,
                               tokenize_labels: bool) -> Dict[str, Any]:
-    """HF Datasets converts tensors into lists when we store them, and we don't
+    """HF Datasets converts tensors into lists when we store them, and we don't.
+
     want to use `type='torch'` because some content in the dataset, like
     generation args or single ints, should not be converted.
 
@@ -182,9 +189,10 @@ def convert_tokens_to_tensors(batch: Dict,
 
 def get_fewshot_sample_idxs(dataset_size: int, num_fewshot: int,
                             example_idx: int, rng: random.Random) -> Set[int]:
-    """
-    Samples indices without replacement. If num_fewshot exceeds the number of unique examples in the dataset,
-    then we will have fewer than num_fewshot examples in context.
+    """Samples indices without replacement. If num_fewshot exceeds the number.
+
+    of unique examples in the dataset, then we will have fewer than num_fewshot examples in context.
+
     Args:
         dataset_size (int): Length of the dataset
         num_fewshot (int): Number of examples to prepend

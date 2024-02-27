@@ -33,10 +33,10 @@ from composer.models import HuggingFaceModel
 from composer.trainer import Trainer
 from composer.utils import dist, reproducibility
 
-from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
-                                     InContextLearningGenerationAccuracy,
-                                     InContextLearningLMAccuracy,
-                                     InContextLearningMultipleChoiceAccuracy)
+from llmfoundry.eval.metrics import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningGenerationExactMatchAccuracy, InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy)
 
 
 def test_strip_data():
@@ -2289,24 +2289,25 @@ def test_qa_task_evaluation_opt_tokenizer(
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
 
-    evaluator = Evaluator(label='triviaqa',
-                          dataloader=dl,
-                          metric_names=['InContextLearningGenerationAccuracy'])
+    evaluator = Evaluator(
+        label='triviaqa',
+        dataloader=dl,
+        metric_names=['InContextLearningGenerationExactMatchAccuracy'])
     model = HuggingFaceModel(
         model=tiny_opt_model,
         tokenizer=tokenizer,
-        eval_metrics=[InContextLearningGenerationAccuracy()],
+        eval_metrics=[InContextLearningGenerationExactMatchAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/triviaqa/InContextLearningGenerationAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/triviaqa/InContextLearningGenerationExactMatchAccuracy' in in_memory_logger.data.keys(
     )
     assert in_memory_logger.data[
-        'metrics/triviaqa/InContextLearningGenerationAccuracy'][0][1].item(
-        ) == 0
+        'metrics/triviaqa/InContextLearningGenerationExactMatchAccuracy'][0][
+            1].item() == 0
 
 
 @pytest.mark.parametrize('num_fewshot', [5])
@@ -2346,23 +2347,25 @@ def test_qa_task_evaluation_with_cot_opt_tokenizer(
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
 
-    evaluator = Evaluator(label='gsm8k',
-                          dataloader=dl,
-                          metric_names=['InContextLearningGenerationAccuracy'])
+    evaluator = Evaluator(
+        label='gsm8k',
+        dataloader=dl,
+        metric_names=['InContextLearningGenerationExactMatchAccuracy'])
     model = HuggingFaceModel(
         model=tiny_opt_model,
         tokenizer=tokenizer,
-        eval_metrics=[InContextLearningGenerationAccuracy()],
+        eval_metrics=[InContextLearningGenerationExactMatchAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/gsm8k/InContextLearningGenerationAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/gsm8k/InContextLearningGenerationExactMatchAccuracy' in in_memory_logger.data.keys(
     )
     assert in_memory_logger.data[
-        'metrics/gsm8k/InContextLearningGenerationAccuracy'][0][1].item() == 0
+        'metrics/gsm8k/InContextLearningGenerationExactMatchAccuracy'][0][
+            1].item() == 0
 
 
 @pytest.mark.parametrize('dataset_uri', ['triviaqa_small.jsonl'])
@@ -2399,25 +2402,26 @@ def test_qa_task_evaluation(num_fewshot: int, dataset_uri: str,
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
 
-    evaluator = Evaluator(label='triviaqa',
-                          dataloader=dl,
-                          metric_names=['InContextLearningGenerationAccuracy'])
+    evaluator = Evaluator(
+        label='triviaqa',
+        dataloader=dl,
+        metric_names=['InContextLearningGenerationExactMatchAccuracy'])
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
         tokenizer=tiny_gpt2_tokenizer,
-        eval_metrics=[InContextLearningGenerationAccuracy()],
+        eval_metrics=[InContextLearningGenerationExactMatchAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/triviaqa/InContextLearningGenerationAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/triviaqa/InContextLearningGenerationExactMatchAccuracy' in in_memory_logger.data.keys(
     )
     assert in_memory_logger.data[
-        'metrics/triviaqa/InContextLearningGenerationAccuracy'][0][1].item(
-        ) == 0
+        'metrics/triviaqa/InContextLearningGenerationExactMatchAccuracy'][0][
+            1].item() == 0
 
 
 @pytest.mark.parametrize('dataset_uri', ['gsm8k_small.jsonl'])
@@ -2455,24 +2459,26 @@ def test_qa_task_with_cot_evaluation(
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
     )
 
-    evaluator = Evaluator(label='gsm8k',
-                          dataloader=dl,
-                          metric_names=['InContextLearningGenerationAccuracy'])
+    evaluator = Evaluator(
+        label='gsm8k',
+        dataloader=dl,
+        metric_names=['InContextLearningGenerationExactMatchAccuracy'])
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
         tokenizer=tiny_gpt2_tokenizer,
-        eval_metrics=[InContextLearningGenerationAccuracy()],
+        eval_metrics=[InContextLearningGenerationExactMatchAccuracy()],
         use_logits=True,
     )
 
     trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
 
     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/gsm8k/InContextLearningGenerationAccuracy' in in_memory_logger.data.keys(
+    assert 'metrics/gsm8k/InContextLearningGenerationExactMatchAccuracy' in in_memory_logger.data.keys(
     )
     assert in_memory_logger.data[
-        'metrics/gsm8k/InContextLearningGenerationAccuracy'][0][1].item() == 0
+        'metrics/gsm8k/InContextLearningGenerationExactMatchAccuracy'][0][
+            1].item() == 0
 
 
 def test_code_eval_requires_envvar(monkeypatch: pytest.MonkeyPatch):

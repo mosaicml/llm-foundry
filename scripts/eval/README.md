@@ -165,7 +165,7 @@ Composer currently supports five ICL formats:
 
 ### InContextLearningGenerationWithAnswersTaskDataset
 
-The ICL generation with answers task supports free response generation evaluation using the model’s generate function. A generation dataset consists of a list of JSONs containing a prompt (under the key `context`), a correct answer (under the key `answer`), and a list of alternative answers that would be considered permissible (under the key `aliases`). The generation task works with the NLP metric: [InContextLearningGenerationAccuracy](TODO) which assigns a model's output to be "correct" if, conditioned on the context, the model's generate method produces a string that is a normalized prefix for either the `answer` or any of the `aliases`.
+The ICL generation with answers task supports free response generation evaluation using the model’s generate function. A generation dataset consists of a list of JSONs containing a prompt (under the key `context`), a correct answer (under the key `answer`), and a list of alternative answers that would be considered permissible (under the key `aliases`). The generation task works with the NLP metric: [InContextLearningGenerationExactMatchAccuracy](TODO) which assigns a model's output to be "correct" if, conditioned on the context, the model's generate method produces a string that is a normalized prefix for either the `answer` or any of the `aliases`.
 
 Required keys for each datum:
 * `context`: str
@@ -205,7 +205,7 @@ Below is a complete YAML section that works with the TriviaQA dataset in [`scrip
     batch_size: 4
     icl_task_type: generation_task_with_answers
     metric_names:
-    - InContextLearningGenerationAccuracy
+    - InContextLearningGenerationExactMatchAccuracy
     prompt_string: '' # this goes at the beginning of each input
     example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates questions from answers

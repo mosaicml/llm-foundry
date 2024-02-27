@@ -6,6 +6,7 @@
 
 """A collection of common torchmetrics for NLP tasks."""
 
+import ast
 import logging
 import os
 import re
@@ -586,25 +587,8 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
 
 
 class InContextLearningLLMAsAJudge(InContextLearningMetric):
-    r"""Computes accuracy for In-context learning (ICL) question answering (QA) tasks.
-
-    ICL QA tasks consist of some number of example question answering tasks (referred to as the 'context'), followed by a test task where the model must
-    match one of the possible answer aliases (referred to as the 'continuation').
-
-    For example, the model may be provided the context below and evaluated on its ability to correctly predict the continuation.
-
-    Context: `Question: Who was president of the United States in 2012?\nAnswer: Barack Obama\nQuestion: Is water wet?\nAnswer: `
-    Continuation: [`yes`, `no`]
-
-    Both predictions and answers will be normalized before comparison.
-
-    Adds metric state variables:
-        correct (float): The number of instances where the prediction was a prefix for any of the answer aliases.
-        total (float): The number of total instances that were predicted.
-
-    Args:
-        dist_sync_on_step (bool, optional): Synchronize metric state across processes at
-            each forward() before returning the value at the step. Default: ``False``.
+    r"""LLMAsAJudge
+    uses gpt3.5 turbo unless otherwise specified
     """
 
     # Make torchmetrics call update only once
@@ -614,36 +598,36 @@ class InContextLearningLLMAsAJudge(InContextLearningMetric):
 
     BASE_EQUIVALENCE_PROMPT = """Please determine whether the supplied statements or answers are equivalent. 
 If one statment has a long continuation, only consider the first segment of the statement.
-Respond with either "Yes" or "No". Any response other than one "Yes" or "No" is unusable and will not be scored, so please adhere to the instructions carefully.
+Respond with either [[Yes]] or [[No]]. Any response other than one [[Yes]] or [[No]] is unusable and will not be scored, so please adhere to the instructions carefully.
 Here are some examples to help you understand the task. They are not a part of the statements we are comparing.
 
 Statement 1: The sky is blue.
 Statement 2: The sky is blue.
-Result: Yes
+Result: [[Yes]]
 
 Statement 1: Computer hard drive
 Statement 2: Solid state drive
-Result: No
+Result: [[No]]
 
 Statement 1: Potatos are nutritious.
 Statement 2: Taters have many healthy benefits.
-Result: Yes
+Result: [[Yes]]
 
 Statement 1: Pytorch
 Statement 2: no.
-Result: No
+Result: [[No]]
 
 Statement 1: The American team was the first to win the World Championship.
 Statement 2: America
-Result: Yes 
+Result: [[Yes]]
 
 Statement 1:  Yes\nQuestion: What is the name of the British Army_s first major infantry regiment?\nAnswer: The
 Statement 2: Yes
-Result: Yes
+Result: [[Yes]]
 
 Statement 1:  Dik-dik\nQuestion: What type of animal is a kik-kik?\nAnswer: D
 Statement 2: Antelope
-Result: No
+Result: [[No]]
 
 The statements follow:
 """
@@ -651,14 +635,15 @@ The statements follow:
 Statement 2: {statement2}
 Result: """
 
+    # Inspired by mtbench
+    pattern = r'\[\[(.*?)\]\]' # pyright: ignore[reportInvalidStringEscapeSequence]
+
     def __init__(self, dist_sync_on_step: bool = False, tokenizer: Optional[Any] = None, prompt: Optional[str] = None):
         # state from multiple processes
         super().__init__(dist_sync_on_step=dist_sync_on_step)
         self.add_state('correct', default=torch.tensor(0.), dist_reduce_fx='sum')
         self.add_state('invalid_judge_response', default=torch.tensor(0.), dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
-        # TODO: allow different models
-        # self.init_openai()
         self.client = None
 
     def init_openai(self):
@@ -671,9 +656,23 @@ Result: """
                 conda_channel='conda-forge') from e
         self.client = OpenAI()
 
-    def call_judge(self, sample_answer: str, sample_label: str) -> List[str]:
+    def score_result(self, result: str, category: str):
+        parsed_result = None
+        match = re.search(self.ONE_SCORE_PATTERN, result)
+        if not match:
+            match = re.search(self.ONE_SCORE_PATTERN_BACKUP, result)
+        if match:
+            parsed_result = ast.literal_eval(match.groups()[0])
+            if parsed_result == 'Yes':
+                self.correct += 1
+        else:
+            self.invalid_judge_response += 1
+        self.total += 1
+
+    def call_judge(self, sample_answer: str, sample_label: str, metric_kwargs: Dict) -> List[str]:
         # TODO: allow different models
-        openai_user_input = deepcopy(self.BASE_USER_INPOUT)
+        openai_user_input = metric_kwargs.get('judge_prompt', deepcopy(self.BASE_USER_INPOUT))
+
         if sample_answer.startswith(' '):
             sample_answer = sample_answer.lstrip()
 
@@ -683,32 +682,25 @@ Result: """
             formatted_input = openai_user_input.format(statement1=sample_answer, statement2=sample_label)
         else:
             formatted_input = openai_user_input.format(statement1=sample_label, statement2=sample_answer)
+        system_prompt = metric_kwargs.get('system_prompt', self.BASE_EQUIVALENCE_PROMPT)
         response = self.client.chat.completions.create(
-            # TODO: allow configurations
-            model="gpt-3.5-turbo",
-            messages=[{'role': 'system', 'content': self.BASE_EQUIVALENCE_PROMPT},
+            model=metric_kwargs.get('judge_model_name', "gpt-3.5-turbo"),
+            messages=[{'role': 'system', 'content': system_prompt},
                       { 'role': 'user', 'content': formatted_input}],
             max_tokens=10
         )
-        if "Yes" not in response.choices[0].message.content and "No" not in response.choices[0].message.content:
-            print("Found an illformatted response:")
-            print(formatted_input + response.choices[0].message.content)
-
         return response.choices[0].message.content 
 
     def update(self, batch: Dict[str, Any], outputs: List[str], labels: List[List[str]]):
         if not self.client:
             self.init_openai()  
+
+        import IPython; IPython.embed()
+        metric_kwargs = batch.get('metric_kwargs', {})
         for sample_output, sample_answer in zip(outputs, batch['answer']):
             sample_output = sample_output.split("\n")[0]
-            result = self.call_judge(sample_output, sample_answer)
-            if result.endswith("Yes"):
-                self.correct += torch.tensor(1.0)
-            elif result.endswith("No"):
-                pass
-            else:
-                self.invalid_judge_response += torch.tensor(1.0)
-            self.total += torch.tensor(1.0)
+            result = self.call_judge(sample_output, sample_answer, prompt=metric_kwargs.get("judge_prompt"))
+            self.score_result(result)
 
         # OpenAI Client can't be copied by deepcopy and will throw an error, so we delete it after we use it
         # Initializatin takes ~12 ms

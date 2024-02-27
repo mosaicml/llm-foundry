@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   pytest-cpu:
-    uses: ./.github/workflows/pytest-cpu.yaml
+    uses: mosaicml/ci-testing/.github/workflows/pytest-cpu.yaml@v0.0.2
     strategy:
       matrix:
         include:
@@ -28,8 +28,10 @@ jobs:
     with:
       container: ${{ matrix.container }}
       name: ${{ matrix.name }}
+      pip_deps: "[all-cpu]"
       pytest-command: ${{ matrix.pytest_command }}
       pytest-markers: ${{ matrix.markers }}
+      safe_directory: llm-foundry
   coverage:
     uses: ./.github/workflows/coverage.yaml
     name: Coverage Results

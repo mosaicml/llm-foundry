@@ -316,8 +316,9 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         if self.eval_device == 'LOCAL':
             warnings.warn(
                 'Running code eval locally may be insecure. Please set environment variable CODE_EVAL_DEVICE '
+                +
                 'to LAMBDA to run on remote. To use Lambdas, spin up your instance that checks code, set the URL as '
-                'CODE_EVAL_URL and the API key as CODE_EVAL_APIKEY.')
+                + 'CODE_EVAL_URL and the API key as CODE_EVAL_APIKEY.')
             log.debug('Running code eval locally.')
             client = LocalEvalClient()
         elif self.eval_device == 'LAMBDA':
@@ -327,13 +328,15 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         elif self.eval_device is None:
             raise ValueError(
                 'Attempting to use InContextLearningCodeEvalAccuracy but environment '
+                +
                 'variable `CODE_EVAL_DEVICE` is not set. Please set it to `CODE_EVAL_DEVICE` '
-                'to one of `LOCAL` (for unsafe local eval), `LAMBDA` (for AWS lambda ',
-                'evaluation), or `MOSAICML` (for lambda eval through MAPI).')
+                +
+                'to one of `LOCAL` (for unsafe local eval), `LAMBDA` (for AWS lambda '
+                + 'evaluation), or `MOSAICML` (for lambda eval through MAPI).')
         else:
             raise ValueError(
                 'Environment variable `CODE_EVAL_DEVICE` must be one of `LOCAL`, '
-                f'`LAMBDA`, or `MOSAICML` but got {self.eval_device}.')
+                + f'`LAMBDA`, or `MOSAICML` but got {self.eval_device}.')
 
         return client
 

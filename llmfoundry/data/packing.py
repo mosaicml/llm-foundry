@@ -396,7 +396,7 @@ def profile_packing(
     # Get a bunch of raw examples
     big_batch = next(iter(train_dataloader))
 
-    # # Cut everything down to size
+    # Cut everything down to size
     sizes, trimmed_examples = _trim_batch(big_batch)
 
     def profile(raw_batch_size: int) -> Tuple[Optional[float], Optional[float]]:

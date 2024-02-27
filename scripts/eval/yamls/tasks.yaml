@@ -181,6 +181,7 @@ icl_tasks:
 #   num_beams: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
+#   continuation_delimiter: ''
 # -
 #   label: human_eval_cpp
 #   dataset_uri: eval/local_data/programming/processed_human_eval_cpp.jsonl
@@ -189,6 +190,7 @@ icl_tasks:
 #   num_beams: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
+#   continuation_delimiter: ''
 # -
 #   label: human_eval_js
 #   dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl
@@ -197,6 +199,7 @@ icl_tasks:
 #   num_beams: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
+#   continuation_delimiter: ''
 # -
 #   label: human_eval_return_simple
 #   dataset_uri: eval/local_data/programming/human_eval_return_simple.jsonl
@@ -205,6 +208,7 @@ icl_tasks:
 #   num_beams: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
+#   continuation_delimiter: ''
 # -
 #   label: human_eval_return_complex
 #   dataset_uri: eval/local_data/programming/human_eval_return_complex.jsonl
@@ -213,6 +217,7 @@ icl_tasks:
 #   num_beams: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
+#   continuation_delimiter: ''
 # -
 #   label: human_eval_25
 #   dataset_uri: eval/local_data/programming/human_eval-0.25.jsonl
@@ -221,6 +226,7 @@ icl_tasks:
 #   num_beams: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
+#   continuation_delimiter: ''
 # -
 #   label: human_eval_50
 #   dataset_uri: eval/local_data/programming/human_eval-0.5.jsonl
@@ -229,6 +235,7 @@ icl_tasks:
 #   num_beams: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
+#   continuation_delimiter: ''
 # -
 #   label: human_eval_75
 #   dataset_uri: eval/local_data/programming/human_eval-0.75.jsonl
@@ -237,3 +244,4 @@ icl_tasks:
 #   num_beams: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
+#   continuation_delimiter: ''

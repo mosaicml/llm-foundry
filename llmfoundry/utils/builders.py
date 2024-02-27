@@ -12,8 +12,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import torch
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
-                                MemoryMonitor, MemorySnapshot, OptimizerMonitor,
-                                RuntimeEstimator, SpeedMonitor)
+                                MemoryMonitor, MemorySnapshot, OOMObserver,
+                                OptimizerMonitor, RuntimeEstimator,
+                                SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -37,7 +38,7 @@ from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
                                   ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                              DecoupledLionW, DecoupledLionW_8bit)
+                              DecoupledLionW)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
@@ -165,6 +166,8 @@ def build_callback(
         return LRMonitor()
     elif name == 'memory_monitor':
         return MemoryMonitor()
+    elif name == 'oom_observer':
+        return OOMObserver(**kwargs)
     elif name == 'memory_snapshot':
         return MemorySnapshot(**kwargs)
     elif name == 'speed_monitor':
@@ -370,8 +373,6 @@ def build_optimizer(model: torch.nn.Module, name: str,
         return DecoupledClipLion(params, **optimizer_config)
     elif name == 'adalr_lion':
         return DecoupledAdaLRLion(params, **optimizer_config)
-    elif name == 'decoupled_lionw_8b':
-        return DecoupledLionW_8bit(params, **optimizer_config)
     else:
         raise ValueError(f'Not sure how to build optimizer: {name}')
 

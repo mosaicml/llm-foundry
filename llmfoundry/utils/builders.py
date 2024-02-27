@@ -484,6 +484,7 @@ def build_icl_evaluators(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg.icl_task_type}.'
                 )
 
+        # Set defaults
         if 'prompt_string' not in icl_cfg:
             icl_cfg.prompt_string = ''
         if 'example_delimiter' not in icl_cfg:
@@ -505,10 +506,14 @@ def build_icl_evaluators(
                 'num_beams is no longer supported as a top level icl_task parameter.'  + \
                 'Please use generation_kwargs.num_beams instead.')
 
+    def _get_parsing_vars(icl_cfg: DictConfig):
+        import IPython; IPython.embed()
+        pass
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
         _validate_cfg(icl_cfg)
+        parsing_vars = _get_parsing_vars(icl_cfg)
         for num_fewshot in list(icl_cfg.num_fewshot):
             if tokenizer.pad_token_id is None:
                 # Current workaround to support GPT2 tokenizer with `pad_token_id = None`
@@ -522,9 +527,6 @@ def build_icl_evaluators(
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
                 os.remove(destination_path)
             dist.barrier()
-
-            hf_parsing_map = icl_cfg.get('hf_parsing_map', {})
-            hf_loading_vars = icl_cfg.get('hf_loading_vars', {})
 
             early_stopping_criteria = icl_cfg.get('early_stopping_criteria',
                                                   None)
@@ -541,14 +543,14 @@ def build_icl_evaluators(
                 max_seq_len=icl_cfg.max_seq_len,
                 pad_tok_id=pad_tok_id,
                 num_fewshot=num_fewshot,
+                fewshot_random_seed=icl_cfg.fewshot_random_seed,
+                destination_path=destination_path,
+                hf_loading_vars=icl_cfg.get('hf_parsing_map', {}),
+                hf_parsing_map=icl_cfg.get('hf_loading_vars', {}),
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
-                hf_loading_vars=hf_loading_vars,
-                hf_parsing_map=hf_parsing_map,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
-                destination_path=destination_path,
-                fewshot_random_seed=icl_cfg.fewshot_random_seed,
                 pass_at_k=icl_cfg.pass_at_k,
                 generations_per_sample=icl_cfg.generations_per_sample,
                 has_categories=icl_cfg.get('has_categories', False),

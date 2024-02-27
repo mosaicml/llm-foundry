@@ -1486,20 +1486,22 @@ def build_icl_dataloader(
         max_seq_len: int,
         pad_tok_id: int,
         num_fewshot: int,
-        prompt_string: str,  # e.g. 'translate english to french:'
-        example_delimiter: str,  # e.g. '\n'
-        continuation_delimiter: str,  # e.g. ''
+        fewshot_random_seed: int,
         hf_loading_vars: Dict,
         hf_parsing_map: Dict,
         destination_path: str,
-        prelimiter: str,  # e.g. 'Question: '
-        cot_delimiter: str,  # e.g. ' ### '
-        fewshot_random_seed: int,
-        pass_at_k: int,
-        generations_per_sample: int,
-        generation_kwargs: Dict,
-        early_stopping_criteria: Optional[List[str]] = None,
-        do_normalization: bool = True) -> DataSpec:
+        **kwargs) -> DataSpec:
+
+        # prompt_string: str,  # e.g. 'translate english to french:'
+        # example_delimiter: str,  # e.g. '\n'
+        # continuation_delimiter: str,  # e.g. ''
+        # prelimiter: str,  # e.g. 'Question: '
+        # cot_delimiter: str,  # e.g. ' ### '
+        # pass_at_k: int,
+        # generations_per_sample: int,
+        # generation_kwargs: Dict,
+        # early_stopping_criteria: Optional[List[str]] = None,
+        # do_normalization: bool = True) -> DataSpec:
     """Factory method that builds the specific dataset for the specified
     icl_task_type. See documentation for `get_icl_task_dataloader` for arugment
     documentation.
@@ -1517,14 +1519,15 @@ def build_icl_dataloader(
             max_seq_len=max_seq_len,
             pad_tok_id=pad_tok_id,
             num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            destination_path=destination_path,
             fewshot_random_seed=fewshot_random_seed,
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
-            generation_kwargs=generation_kwargs,
+            destination_path=destination_path,
+            **kwargs
+            # prompt_string=prompt_string,
+            # example_delimiter=example_delimiter,
+            # continuation_delimiter=continuation_delimiter,
+            # generation_kwargs=generation_kwargs,
         )
         batch_size = max(dataset.num_choices, batch_size)
         effective_batchsize = batch_size // dataset.num_choices
@@ -1535,14 +1538,15 @@ def build_icl_dataloader(
             max_seq_len=max_seq_len,
             pad_tok_id=pad_tok_id,
             num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            destination_path=destination_path,
             fewshot_random_seed=fewshot_random_seed,
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
-            generation_kwargs=generation_kwargs,
+            destination_path=destination_path,
+            **kwargs
+            # prompt_string=prompt_string,
+            # example_delimiter=example_delimiter,
+            # continuation_delimiter=continuation_delimiter,
+            # generation_kwargs=generation_kwargs,
         )
         batch_size = max(dataset.num_choices, batch_size)
         effective_batchsize = batch_size // dataset.num_choices
@@ -1553,14 +1557,15 @@ def build_icl_dataloader(
             max_seq_len=max_seq_len,
             pad_tok_id=pad_tok_id,
             num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            destination_path=destination_path,
             fewshot_random_seed=fewshot_random_seed,
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
-            generation_kwargs=generation_kwargs,
+            destination_path=destination_path,
+            **kwargs
+            # prompt_string=prompt_string,
+            # example_delimiter=example_delimiter,
+            # continuation_delimiter=continuation_delimiter,
+            # generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size
     elif icl_task_type == 'generation_task_with_answers':
@@ -1570,18 +1575,19 @@ def build_icl_dataloader(
             max_seq_len=max_seq_len,
             pad_tok_id=pad_tok_id,
             num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            destination_path=destination_path,
-            prelimiter=prelimiter,
             fewshot_random_seed=fewshot_random_seed,
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
-            cot_delimiter=cot_delimiter,
-            early_stopping_criteria=early_stopping_criteria,
-            do_normalization=do_normalization,
-            generation_kwargs=generation_kwargs,
+            destination_path=destination_path,
+            **kwargs
+            # prompt_string=prompt_string,
+            # example_delimiter=example_delimiter,
+            # continuation_delimiter=continuation_delimiter,
+            # prelimiter=prelimiter,
+            # cot_delimiter=cot_delimiter,
+            # early_stopping_criteria=early_stopping_criteria,
+            # do_normalization=do_normalization,
+            # generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size
     elif icl_task_type == 'code_evaluation':
@@ -1591,17 +1597,18 @@ def build_icl_dataloader(
             max_seq_len=max_seq_len,
             pad_tok_id=pad_tok_id,
             num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            destination_path=destination_path,
-            prelimiter=prelimiter,
             fewshot_random_seed=fewshot_random_seed,
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
-            pass_at_k=pass_at_k,
-            generations_per_sample=generations_per_sample,
-            generation_kwargs=generation_kwargs,
+            destination_path=destination_path,
+            **kwargs
+            # prompt_string=prompt_string,
+            # example_delimiter=example_delimiter,
+            # continuation_delimiter=continuation_delimiter,
+            # prelimiter=prelimiter,
+            # pass_at_k=pass_at_k,
+            # generations_per_sample=generations_per_sample,
+            # generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size
     elif icl_task_type == 'rag_generation':
@@ -1611,16 +1618,17 @@ def build_icl_dataloader(
             max_seq_len=max_seq_len,
             pad_tok_id=pad_tok_id,
             num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            # passage_delimiter='\nPassage: ',
-            # passage_query_delimiter='\nQuery: ',
-            destination_path=destination_path,
             fewshot_random_seed=fewshot_random_seed,
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
-            generation_kwargs=generation_kwargs,
+            destination_path=destination_path,
+            **kwargs
+            # prompt_string=prompt_string,
+            # example_delimiter=example_delimiter,
+            # continuation_delimiter=continuation_delimiter,
+            # passage_delimiter='\nPassage: ',
+            # passage_query_delimiter='\nQuery: ',
+            # generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size
     else:

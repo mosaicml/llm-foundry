@@ -528,7 +528,7 @@ class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset
                                                        ):
     """A dataset that constructs batches for in-context learning generation.
 
-    tasks with answers. Generation tasks with evaluate a model's ability to
+    tasks with answers. Generation tasks evaluate a model's ability to
     generate responses and score them against a set of gold-standard answers.
 
     The input format is expected to be a jsonl file with the following fields:
@@ -540,6 +540,8 @@ class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset
 
     Additional Args:
         cot_delimiter (str): Delimiter to place between the chain of thought and continuations.
+        early_stopping_criteria (Optional[List[str]]): Optional strings to trigger early stopping.
+        do_normalization (bool): Flag indicating whether to normalize generations before providing output.
     """
 
     def __init__(
@@ -1712,8 +1714,8 @@ def get_icl_task_dataloader(
                                                   keyword args in this fucntion (see https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
                                                   for more details)
         early_stopping (List, default = None): A list of strings that, when found in a model's output, will be treated as a stopping criteria at metric computation time.
-            Used in QA tasks with CoT
-        do_normalization (bool, default = True): Whether or not to normalize the outputs and labels in InContextLearningGenerationWithAnswersTaskDataset. Only used in QA tasks.
+            Used in generation tasks with CoT
+        do_normalization (bool, default = True): Whether or not to normalize the outputs and labels in InContextLearningGenerationWithAnswersTaskDataset. Only used in generation tasks.
 
     Returns:
         DataLoader: A dataloader used for performing in-context learning evaluation on the dataset provided.

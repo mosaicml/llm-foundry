@@ -145,7 +145,8 @@ You can use the default `icl_tasks` and `eval_gauntlet` configs or specify your 
 
 ICL evaluation measures a model’s ability to solve novel problems by being provided examples in-context without ever being specifically trained to answer such questions.
 
-Composer supports a number of different standard ICL formats and allows users to upload their own datasets that correspond to those formats.
+We supports a number of different standard ICL formats and allows users to upload their own datasets that correspond to those formats. All of our ICL task types are implemented in `llm-foundry/llmfoundry/eval/datasets/in_context_learning_evaluation.py` while all of our ICL
+metrics are implemented in `llm-foundry/llmfoundry/eval/metrics/nlp.py`. You can see which metrics work with which task types in the `llmfoundry.utils.builders.build_icl_evaluators` helper function.
 
 This document explains the ICL formats compatible with [Composer](https://github.com/mosaicml/composer), summarizes how to add new datasets in those formats, and catalogs the datasets currently used by the research team to evaluate models.
 
@@ -153,19 +154,19 @@ This document explains the ICL formats compatible with [Composer](https://github
 
 ## Supported ICL formats
 
-Composer currently supports five ICL formats:
+llm-foundry currently supports five ICL formats:
 
-1. [InContextLearningGenerationWithAnswersTaskDataset](TODO)
-2. [InContextLearningLMTaskDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L293)
-3. [InContextLearningMultipleChoiceTaskDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L444)
-4. [InContextLearningSchemaTaskDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L676)
-5. [InContextLearningCodeEvalDataset](https://github.com/mosaicml/composer/blob/336bf8db3e2c09ae942d4bf8a819935106589d1a/composer/datasets/in_context_learning_evaluation.py#L852)
+1. InContextLearningGenerationWithAnswersTaskDataset
+2. InContextLearningLMTaskDataset
+3. InContextLearningMultipleChoiceTaskDataset
+4. InContextLearningSchemaTaskDataset
+5. InContextLearningCodeEvalDataset
 
 ----
 
 ### InContextLearningGenerationWithAnswersTaskDataset
 
-The ICL generation with answers task supports free response generation evaluation using the model’s generate function. A generation dataset consists of a list of JSONs containing a prompt (under the key `context`), a correct answer (under the key `answer`), and a list of alternative answers that would be considered permissible (under the key `aliases`). The generation task works with the NLP metric: [InContextLearningGenerationExactMatchAccuracy](TODO) which assigns a model's output to be "correct" if, conditioned on the context, the model's generate method produces a string that is a normalized prefix for either the `answer` or any of the `aliases`.
+The ICL generation with answers task supports free response generation evaluation using the model’s generate function. A generation dataset consists of a list of JSONs containing a prompt (under the key `context`), a correct answer (under the key `answer`), and a list of alternative answers that would be considered permissible (under the key `aliases`). The generation task works with the NLP metric: InContextLearningGenerationExactMatchAccuracy which assigns a model's output to be "correct" if, conditioned on the context, the model's generate method produces a string that is a normalized prefix for either the `answer` or any of the `aliases`.
 
 Required keys for each datum:
 * `context`: str
@@ -215,7 +216,7 @@ Below is a complete YAML section that works with the TriviaQA dataset in [`scrip
 
 ### InContextLearningLMTaskDataset
 
-The ICL language modeling (LM) task assesses the model’s ability to predict a precise sequence of tokens (called a continuation) following some context using the model’s `forward` function. An LM dataset consists of a list of JSONs containing a context (under the key `context`) and a continuation (under the key `continuation` that the model must correctly predict conditioned on the context. The LM task uses the NLP metric [InContextLearningLMAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningLMAccuracy.html), which assigns a model's output to be "correct" if, conditioned on the context tokens, the model's argmax output logits exactly match the tokens in the continuation.
+The ICL language modeling (LM) task assesses the model’s ability to predict a precise sequence of tokens (called a continuation) following some context using the model’s `forward` function. An LM dataset consists of a list of JSONs containing a context (under the key `context`) and a continuation (under the key `continuation` that the model must correctly predict conditioned on the context. The LM task uses the NLP metric InContextLearningLMAccuracy, which assigns a model's output to be "correct" if, conditioned on the context tokens, the model's argmax output logits exactly match the tokens in the continuation.
 
 Required keys for each datum:
 * `context`: str
@@ -256,7 +257,7 @@ Below is a YAML section that works with the Lambada OpenAI dataset in [`scripts/
 
 ### InContextLearningMultipleChoiceTaskDataset
 
-The ICL multiple choice (MC) task assesses the model’s ability to answer multiple choice questions by assigning highest per token probability to the correct answer. An MC dataset consists of a list of JSONs containing a query (under the key `query`), a list of choices (under the key `choices`), and the index indicating the correct answer (under the key `gold`). The MC task works with the NLP metric [InContextLearningMultipleChoiceAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningMultipleChoiceAccuracy.html), which separately runs the model's `forward()` method on the query prepended to each choice, and then determines the model to be correct if the correct choice has the lowest per token perplexity conditioned on the query.
+The ICL multiple choice (MC) task assesses the model’s ability to answer multiple choice questions by assigning highest per token probability to the correct answer. An MC dataset consists of a list of JSONs containing a query (under the key `query`), a list of choices (under the key `choices`), and the index indicating the correct answer (under the key `gold`). The MC task works with the NLP metric InContextLearningMultipleChoiceAccuracy, which separately runs the model's `forward()` method on the query prepended to each choice, and then determines the model to be correct if the correct choice has the lowest per token perplexity conditioned on the query.
 
 Required keys for each datum:
 * `query`: str
@@ -294,7 +295,6 @@ Below is a YAML section that works with the HellaSwag dataset in [`scripts/eval/
     icl_task_type: multiple_choice
     metric_names:
     - InContextLearningMultipleChoiceAccuracy
-    - InContextLearningMCExpectedCalibrationError
     prompt_string: '' # this goes at the beginning of each input
     example_delimiter: "\n" # this goes between fewshot examples
     continuation_delimiter: ' ' # this separates questions from answers
@@ -306,7 +306,7 @@ Below is a YAML section that works with the HellaSwag dataset in [`scripts/eval/
 
 The ICL schema task assesses the model’s ability to determine which of some set of possible contexts (under the key `context_options`) makes a sequence of tokens (under the key `continuation`) most likely, with the correct context indicated by "gold". This task is based on [A Simple Method for Commonsense Reasoning](https://arxiv.org/abs/1806.02847).
 
-The schema task works with the NLP metric [InContextLearningMultipleChoiceAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningMultipleChoiceAccuracy.html), which separately runs the model's `forward()` method on each context option prepended to the continuation and rates the model correct if it assigns minimum per token perplexity to the continuation conditioned on the true context.
+The schema task works with the NLP metric InContextLearningMultipleChoiceAccuracy, which separately runs the model's `forward()` method on each context option prepended to the continuation and rates the model correct if it assigns minimum per token perplexity to the continuation conditioned on the true context.
 
 Required keys for each datum:
 * query: str

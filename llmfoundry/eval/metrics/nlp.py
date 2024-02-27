@@ -66,17 +66,17 @@ class InContextLearningMetric(Metric):
 
 
 class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
-    r"""Computes accuracy for In-context learning (ICL) generation tasks.
+    r"""Computes exact match for in-context learning generation tasks.
 
-    ICL QA tasks consist of some number of example question answering tasks (referred to as the 'context'), followed by a test task where the model must
-    match one of the possible answer aliases (referred to as the 'continuation').
+    ICL generation tasks consist of some number of prompted generation tasks with correct answers
+    followed by a test task where the model must correctly produce one of a number of valid answers.
 
     For example, the model may be provided the context below and evaluated on its ability to correctly predict the continuation.
 
     Context: `Question: Who was president of the United States in 2012?\nAnswer: Barack Obama\nQuestion: Is water wet?\nAnswer: `
-    Continuation: [`yes`, `no`]
+    Answers: [`yes`]
 
-    Both predictions and answers will be normalized before comparison.
+    The model will be expected to correctly produce one of the answers, following some optional normalization.
 
     Adds metric state variables:
         correct (float): The number of instances where the prediction was a prefix for any of the answer aliases.
@@ -275,148 +275,6 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
         return self.correct.float() / self.total
 
 
-class InContextLearningExpectedCalibrationError(InContextLearningMetric):
-    """Generic class for Expected Calibration Error (ECE).
-
-    Citation: https://arxiv.org/pdf/1706.04599.pdf
-
-    Expected calibration error is calculated by dividing predictions into buckets based on the model's confidence (a probability value between 0 and 1).
-    We then calculate the accuracy within each bucket and calculate the average gap between confidence and accuracy
-    across buckets, weighted by the number of samples in each bucket.
-
-    Each task must implement its own definition of "confidence" to be computed via the `update` method.
-
-    Adds metric state variables:
-    bucket_totals (float): The number of instances where the prediction masked the target per bucket.
-    bucket_correct (float): The number of total instances that were predicted per bucket.
-
-    Args:
-        dist_sync_on_step (bool, optional): Synchronize metric state across processes at
-            each forward() before returning the value at the step. Default: ``False``.
-        n_buckets (int): Number of distinct buckets to split the confidence distribution into
-    """
-
-    def __init__(self, dist_sync_on_step: bool = False, n_buckets: int = 10):
-        # state from multiple processes
-        super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.n_buckets = n_buckets
-        if n_buckets < 1:
-            raise Exception('`n_buckets`')
-        self.add_state('bucket_totals',
-                       default=torch.zeros(n_buckets),
-                       dist_reduce_fx='sum')
-        self.add_state('bucket_correct',
-                       default=torch.zeros(n_buckets),
-                       dist_reduce_fx='sum')
-
-    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
-        pass
-
-    def compute(self):
-        assert isinstance(self.bucket_correct, Tensor)
-        assert isinstance(self.bucket_totals, Tensor)
-
-        result = torch.tensor(0.0, device=self.bucket_correct.device)
-        total_obs = torch.sum(self.bucket_totals)
-        for i in range(self.n_buckets):
-            if self.bucket_totals[i] == 0:
-                continue
-
-            acc_bucket_i = self.bucket_correct[i] / self.bucket_totals[i]
-            upper_bound = (i + 1) / self.n_buckets
-            lower_bound = i / self.n_buckets
-            conf_bucket_i = torch.tensor((upper_bound + lower_bound) / 2,
-                                         device=self.bucket_correct.device)
-            result += (self.bucket_totals[i] /
-                       total_obs) * torch.abs(acc_bucket_i - conf_bucket_i)
-        return result
-
-
-class InContextLearningMCExpectedCalibrationError(
-        InContextLearningExpectedCalibrationError):
-    r"""Computes Expected Calibration Error (ECE) for In-context learning (ICL)
-
-    multiple choice (MC) tasks. (source: https://arxiv.org/abs/2012.00955).
-
-    For MC tasks, the model confidence is defined as the softmax of average per-token probability assigned to the top question choice.
-
-    See `InContextLearningExpectedCalibrationError` for more info.
-    """
-
-    # Make torchmetrics call update only once
-    full_state_update = False
-
-    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
-
-        outputs = torch.softmax(outputs, dim=2)
-        probabilites = []
-        for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
-            cont_tok_logits = outputs[batch_idx].index_select(dim=0,
-                                                              index=cont_idx -
-                                                              1)
-            cont_tok_targ = labels[batch_idx].index_select(dim=0,
-                                                           index=cont_idx - 1)
-            probability = cont_tok_logits.index_select(
-                dim=1, index=cont_tok_targ).diagonal().mean()
-            probabilites.append(probability)
-
-        for (start, end), gold_idx in zip(batch['choice_groupings'],
-                                          batch['gold_indices']):
-            subset = probabilites[start:end]
-            idx_max = subset.index(max(subset))
-            confidence = torch.tensor(subset).max() / torch.tensor(subset).sum()
-
-            assert confidence >= 0.0 and confidence <= 1.0
-            bucket_idx = int(confidence * self.n_buckets)
-            if bucket_idx == self.n_buckets:
-                bucket_idx -= 1
-
-            if idx_max == gold_idx:
-                self.bucket_correct[
-                    bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
-
-            self.bucket_totals[
-                bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
-
-
-class InContextLearningLMExpectedCalibrationError(
-        InContextLearningExpectedCalibrationError):
-    r"""Computes Expected Calibration Error (ECE) for In-context learning (ICL)
-
-    language modeling (LM) tasks. (cite: https://arxiv.org/pdf/1706.04599.pdf).
-
-    For LM tasks, the model confidence is defined as the minimum probability assigned to all tokens in the continuation.
-
-    See `InContextLearningExpectedCalibrationError` for more info.
-    """
-
-    # Make torchmetrics call update only once
-    full_state_update = False
-
-    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
-
-        outputs = torch.softmax(outputs, dim=2)
-        for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
-            cont_tok_logits = outputs[batch_idx].index_select(dim=0,
-                                                              index=cont_idx -
-                                                              1)
-            cont_tok_pred = cont_tok_logits.argmax(dim=-1)
-            confidence = cont_tok_logits.max(dim=-1).values.min()
-            cont_tok_targ = labels[batch_idx].index_select(dim=0,
-                                                           index=cont_idx - 1)
-            assert confidence >= 0.0 and confidence <= 1.0
-            bucket_idx = int(confidence * self.n_buckets)
-            if bucket_idx == self.n_buckets:
-                bucket_idx -= 1
-
-            if (cont_tok_pred == cont_tok_targ).all():
-                self.bucket_correct[
-                    bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
-
-            self.bucket_totals[
-                bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
-
-
 class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
     r"""Computes accuracy for In-context learning (ICL) code evaluation tasks.
 
@@ -600,3 +458,145 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
             return list(results.values())[0]
 
         return results
+
+
+class InContextLearningExpectedCalibrationError(InContextLearningMetric):
+    """Generic class for Expected Calibration Error (ECE).
+
+    Citation: https://arxiv.org/pdf/1706.04599.pdf
+
+    Expected calibration error is calculated by dividing predictions into buckets based on the model's confidence (a probability value between 0 and 1).
+    We then calculate the accuracy within each bucket and calculate the average gap between confidence and accuracy
+    across buckets, weighted by the number of samples in each bucket.
+
+    Each task must implement its own definition of "confidence" to be computed via the `update` method.
+
+    Adds metric state variables:
+    bucket_totals (float): The number of instances where the prediction masked the target per bucket.
+    bucket_correct (float): The number of total instances that were predicted per bucket.
+
+    Args:
+        dist_sync_on_step (bool, optional): Synchronize metric state across processes at
+            each forward() before returning the value at the step. Default: ``False``.
+        n_buckets (int): Number of distinct buckets to split the confidence distribution into
+    """
+
+    def __init__(self, dist_sync_on_step: bool = False, n_buckets: int = 10):
+        # state from multiple processes
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
+        self.n_buckets = n_buckets
+        if n_buckets < 1:
+            raise Exception('`n_buckets`')
+        self.add_state('bucket_totals',
+                       default=torch.zeros(n_buckets),
+                       dist_reduce_fx='sum')
+        self.add_state('bucket_correct',
+                       default=torch.zeros(n_buckets),
+                       dist_reduce_fx='sum')
+
+    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
+        pass
+
+    def compute(self):
+        assert isinstance(self.bucket_correct, Tensor)
+        assert isinstance(self.bucket_totals, Tensor)
+
+        result = torch.tensor(0.0, device=self.bucket_correct.device)
+        total_obs = torch.sum(self.bucket_totals)
+        for i in range(self.n_buckets):
+            if self.bucket_totals[i] == 0:
+                continue
+
+            acc_bucket_i = self.bucket_correct[i] / self.bucket_totals[i]
+            upper_bound = (i + 1) / self.n_buckets
+            lower_bound = i / self.n_buckets
+            conf_bucket_i = torch.tensor((upper_bound + lower_bound) / 2,
+                                         device=self.bucket_correct.device)
+            result += (self.bucket_totals[i] /
+                       total_obs) * torch.abs(acc_bucket_i - conf_bucket_i)
+        return result
+
+
+class InContextLearningMCExpectedCalibrationError(
+        InContextLearningExpectedCalibrationError):
+    r"""Computes Expected Calibration Error (ECE) for In-context learning (ICL)
+
+    multiple choice (MC) tasks. (source: https://arxiv.org/abs/2012.00955).
+
+    For MC tasks, the model confidence is defined as the softmax of average per-token probability assigned to the top question choice.
+
+    See `InContextLearningExpectedCalibrationError` for more info.
+    """
+
+    # Make torchmetrics call update only once
+    full_state_update = False
+
+    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
+
+        outputs = torch.softmax(outputs, dim=2)
+        probabilites = []
+        for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
+            cont_tok_logits = outputs[batch_idx].index_select(dim=0,
+                                                              index=cont_idx -
+                                                              1)
+            cont_tok_targ = labels[batch_idx].index_select(dim=0,
+                                                           index=cont_idx - 1)
+            probability = cont_tok_logits.index_select(
+                dim=1, index=cont_tok_targ).diagonal().mean()
+            probabilites.append(probability)
+
+        for (start, end), gold_idx in zip(batch['choice_groupings'],
+                                          batch['gold_indices']):
+            subset = probabilites[start:end]
+            idx_max = subset.index(max(subset))
+            confidence = torch.tensor(subset).max() / torch.tensor(subset).sum()
+
+            assert confidence >= 0.0 and confidence <= 1.0
+            bucket_idx = int(confidence * self.n_buckets)
+            if bucket_idx == self.n_buckets:
+                bucket_idx -= 1
+
+            if idx_max == gold_idx:
+                self.bucket_correct[
+                    bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
+
+            self.bucket_totals[
+                bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
+
+
+class InContextLearningLMExpectedCalibrationError(
+        InContextLearningExpectedCalibrationError):
+    r"""Computes Expected Calibration Error (ECE) for In-context learning (ICL)
+
+    language modeling (LM) tasks. (cite: https://arxiv.org/pdf/1706.04599.pdf).
+
+    For LM tasks, the model confidence is defined as the minimum probability assigned to all tokens in the continuation.
+
+    See `InContextLearningExpectedCalibrationError` for more info.
+    """
+
+    # Make torchmetrics call update only once
+    full_state_update = False
+
+    def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
+
+        outputs = torch.softmax(outputs, dim=2)
+        for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
+            cont_tok_logits = outputs[batch_idx].index_select(dim=0,
+                                                              index=cont_idx -
+                                                              1)
+            cont_tok_pred = cont_tok_logits.argmax(dim=-1)
+            confidence = cont_tok_logits.max(dim=-1).values.min()
+            cont_tok_targ = labels[batch_idx].index_select(dim=0,
+                                                           index=cont_idx - 1)
+            assert confidence >= 0.0 and confidence <= 1.0
+            bucket_idx = int(confidence * self.n_buckets)
+            if bucket_idx == self.n_buckets:
+                bucket_idx -= 1
+
+            if (cont_tok_pred == cont_tok_targ).all():
+                self.bucket_correct[
+                    bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
+
+            self.bucket_totals[
+                bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]

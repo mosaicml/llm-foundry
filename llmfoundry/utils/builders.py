@@ -10,36 +10,55 @@ from collections import OrderedDict
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
-from composer import algorithms
-from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
-                                MemoryMonitor, MemorySnapshot, OptimizerMonitor,
-                                RuntimeEstimator, SpeedMonitor)
-from composer.core import Algorithm, Callback, Evaluator
-from composer.datasets.in_context_learning_evaluation import \
-    get_icl_task_dataloader
-from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
-                              TensorboardLogger, WandBLogger)
-from composer.optim import DecoupledAdamW
-from composer.optim.scheduler import (ComposerScheduler,
-                                      ConstantWithWarmupScheduler,
-                                      CosineAnnealingWithWarmupScheduler,
-                                      LinearWithWarmupScheduler)
-from composer.utils import dist
+from icecream import ic
+from llmfoundry.callbacks import (
+    AsyncEval,
+    CurriculumLearning,
+    EvalGauntlet,
+    FDiffMetrics,
+    GlobalLRScaling,
+    HuggingFaceCheckpointer,
+    LayerFreezing,
+    MonolithicCheckpointSaver,
+    ScheduledGarbageCollector,
+)
+from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.optim import DecoupledAdaLRLion, DecoupledClipLion, DecoupledLionW
+from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
+from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
-                                  FDiffMetrics, GlobalLRScaling,
-                                  HuggingFaceCheckpointer, LayerFreezing,
-                                  MonolithicCheckpointSaver,
-                                  ScheduledGarbageCollector)
-from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                              DecoupledLionW)
-from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
-from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from composer import algorithms
+from composer.callbacks import (
+    EarlyStopper,
+    Generate,
+    LRMonitor,
+    MemoryMonitor,
+    MemorySnapshot,
+    OptimizerMonitor,
+    RuntimeEstimator,
+    SpeedMonitor,
+)
+from composer.core import Algorithm, Callback, Evaluator
+from composer.datasets.in_context_learning_evaluation import get_icl_task_dataloader
+from composer.loggers import (
+    InMemoryLogger,
+    LoggerDestination,
+    MLFlowLogger,
+    TensorboardLogger,
+    WandBLogger,
+)
+from composer.optim import DecoupledAdamW
+from composer.optim.scheduler import (
+    ComposerScheduler,
+    ConstantWithWarmupScheduler,
+    CosineAnnealingWithWarmupScheduler,
+    LinearWithWarmupScheduler,
+)
+from composer.utils import dist
 
 log = logging.getLogger(__name__)
 
@@ -482,6 +501,7 @@ def build_icl_evaluators(
                 raise ValueError(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg.icl_task_type}.'
                 )
+        # ic(icl_cfg.metric_names, icl_cfg.icl_task_type)
 
         if 'prompt_string' not in icl_cfg:
             icl_cfg.prompt_string = ''
@@ -511,6 +531,7 @@ def build_icl_evaluators(
                 pad_tok_id = tokenizer.pad_token_id
             label = f'{icl_cfg.label}/{num_fewshot}-shot'
             metric_names = list(icl_cfg.metric_names)
+            # ic(metric_names)
             # TODO: fix Composer bug when copying local paths and destination exists
             destination_path = f'{destination_dir}/{icl_cfg.label}-{num_fewshot}.jsonl'
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
@@ -550,6 +571,7 @@ def build_icl_evaluators(
                 generation_kwargs=icl_cfg.get('generation_kwargs', {}),
                 early_stopping_criteria=early_stopping_criteria,
                 do_normalization=icl_cfg.get('do_normalization', True))
+            # ic(dataloaders)
             if hasattr(
                     icl_cfg,
                     'has_categories') and icl_cfg.has_categories and isinstance(
@@ -565,6 +587,7 @@ def build_icl_evaluators(
             else:
                 logger_keys.extend(
                     [f'metrics/{label}/{m}' for m in metric_names])
+                # ic(metric_names)
                 evaluators.append(
                     Evaluator(label=label,
                               dataloader=dataloaders,

@@ -8,26 +8,34 @@ import os
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, Mapping
 
-# required for loading a python model into composer
-from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
-                                  InContextLearningLMAccuracy,
-                                  InContextLearningLMExpectedCalibrationError,
-                                  InContextLearningMCExpectedCalibrationError,
-                                  InContextLearningMultipleChoiceAccuracy,
-                                  InContextLearningQAAccuracy,
-                                  LanguageCrossEntropy, LanguagePerplexity)
-from composer.models.huggingface import peft_installed
-from composer.utils import dist
-from omegaconf import DictConfig
-from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
-                          PreTrainedTokenizerBase)
-
 from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
+from omegaconf import DictConfig
+from transformers import (
+    AutoConfig,
+    AutoModelForCausalLM,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
+)
+
+# required for loading a python model into composer
+from composer.metrics.nlp import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningLMAccuracy,
+    InContextLearningLMExpectedCalibrationError,
+    InContextLearningMCExpectedCalibrationError,
+    InContextLearningMultipleChoiceAccuracy,
+    InContextLearningMultipleChoiceMultipleAnswersProb,
+    InContextLearningQAAccuracy,
+    LanguageCrossEntropy,
+    LanguagePerplexity,
+)
+from composer.models.huggingface import peft_installed
+from composer.utils import dist
 
 if TYPE_CHECKING:
     from peft import PeftConfig
@@ -125,7 +133,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             InContextLearningQAAccuracy(),
             InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError()
+            InContextLearningMCExpectedCalibrationError(),
+            InContextLearningMultipleChoiceMultipleAnswersProb(),
         ]
         if not om_model_config.get('use_train_metrics', True):
             train_metrics = []
@@ -287,10 +296,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
         log.debug(
             f'Patching llama attention with {attention_patch_type} attention')
+        from llmfoundry.models.layers.llama_attention_monkeypatch import (
+            get_llama_attention_patch_fn,
+        )
         from transformers.models.llama.modeling_llama import LlamaAttention
-
-        from llmfoundry.models.layers.llama_attention_monkeypatch import \
-            get_llama_attention_patch_fn
         LlamaAttention.forward = get_llama_attention_patch_fn(
             attention_patch_type)
         model.config.use_cache = False

@@ -10,32 +10,35 @@ from __future__ import annotations
 
 import math
 import warnings
-from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
-                    Union)
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.metrics import (InContextLearningCodeEvalAccuracy,
-                              InContextLearningLMAccuracy,
-                              InContextLearningLMExpectedCalibrationError,
-                              InContextLearningMCExpectedCalibrationError,
-                              InContextLearningMultipleChoiceAccuracy,
-                              InContextLearningQAAccuracy)
+from llmfoundry.metrics import TokenAccuracy
+from llmfoundry.models.layers.attention import (
+    is_flash_v1_installed,
+    is_flash_v2_installed,
+)
+from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
+
+from composer.metrics import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningLMAccuracy,
+    InContextLearningLMExpectedCalibrationError,
+    InContextLearningMCExpectedCalibrationError,
+    InContextLearningMultipleChoiceAccuracy,
+    InContextLearningMultipleChoiceMultipleAnswersProb,
+    InContextLearningQAAccuracy,
+)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 
-from llmfoundry.metrics import TokenAccuracy
-from llmfoundry.models.layers.attention import (is_flash_v1_installed,
-                                                is_flash_v2_installed)
-from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
-
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
         from flash_attn import bert_padding
-        from flash_attn.layers.rotary import \
-            RotaryEmbedding as DAILRotaryEmbedding
+        from flash_attn.layers.rotary import RotaryEmbedding as DAILRotaryEmbedding
     except Exception as e:
         raise e
 
@@ -45,24 +48,31 @@ if is_flash_v1_installed():
     except Exception as e:
         raise e
 
-from omegaconf import DictConfig
-from omegaconf import OmegaConf as om
-from transformers import PreTrainedModel, PreTrainedTokenizerBase
-from transformers.modeling_outputs import (BaseModelOutputWithPast,
-                                           CausalLMOutputWithPast)
-from transformers.models.llama.modeling_llama import \
-    LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaLinearScalingRotaryEmbedding as HFLinearScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaRotaryEmbedding as HFRotaryEmbedding
-
-from llmfoundry.models.layers.attention import (attn_bias_shape,
-                                                build_attn_bias, gen_slopes)
+from llmfoundry.models.layers.attention import (
+    attn_bias_shape,
+    build_attn_bias,
+    gen_slopes,
+)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.ffn import build_ffn as build_ffn
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
+from omegaconf import DictConfig
+from omegaconf import OmegaConf as om
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
+from transformers.modeling_outputs import (
+    BaseModelOutputWithPast,
+    CausalLMOutputWithPast,
+)
+from transformers.models.llama.modeling_llama import (
+    LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding,
+)
+from transformers.models.llama.modeling_llama import (
+    LlamaLinearScalingRotaryEmbedding as HFLinearScalingRotaryEmbedding,
+)
+from transformers.models.llama.modeling_llama import (
+    LlamaRotaryEmbedding as HFRotaryEmbedding,
+)
 
 # NOTE: All utils are imported directly even if unused so that
 # HuggingFace can detect all the needed files to copy into its modules folder.
@@ -1062,6 +1072,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             InContextLearningCodeEvalAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
             InContextLearningMCExpectedCalibrationError(),
+            InContextLearningMultipleChoiceMultipleAnswersProb(),
         ]
 
         super().__init__(
@@ -1079,8 +1090,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
             try:
-                from flash_attn.losses.cross_entropy import \
-                    CrossEntropyLoss as FusedCrossEntropyLoss
+                from flash_attn.losses.cross_entropy import (
+                    CrossEntropyLoss as FusedCrossEntropyLoss,
+                )
 
                 self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
             except:

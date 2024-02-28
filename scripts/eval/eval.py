@@ -11,23 +11,25 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
-from composer.loggers import MosaicMLLogger
-from composer.loggers.logger_destination import LoggerDestination
-from composer.models.base import ComposerModel
-from composer.trainer import Trainer
-from composer.utils import dist, get_device, reproducibility
+from icecream import ic
+from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.utils.builders import (
+    add_metrics_to_eval_loaders,
+    build_evaluators,
+    build_logger,
+    build_tokenizer,
+)
+from llmfoundry.utils.config_utils import log_config, pop_config, process_init_device
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 from transformers import PreTrainedTokenizerBase
 
-install()
-from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
-                                       build_evaluators, build_logger,
-                                       build_tokenizer)
-from llmfoundry.utils.config_utils import (log_config, pop_config,
-                                           process_init_device)
+from composer.loggers import MosaicMLLogger
+from composer.loggers.logger_destination import LoggerDestination
+from composer.models.base import ComposerModel
+from composer.trainer import Trainer
+from composer.utils import dist, get_device, reproducibility
 
 log = logging.getLogger(__name__)
 
@@ -130,8 +132,10 @@ def evaluate_model(
                                 num_retries)
 
     # Now add the eval metrics
+    # ic(eval_loader_config)
     if eval_loader_config is not None:
         train_metrics = composer_model.get_metrics(is_train=True)
+        # ic(train_metrics)
         evaluators = add_metrics_to_eval_loaders(evaluators,
                                                  list(train_metrics.keys()))
 

@@ -138,8 +138,8 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger, model_config: DictCon
 
     # TODO: do we need to check if pretrained_model_name_or_path exists? not sure if 
     # this is verified before this function is called
-    if model_config.get('name') == "hf_casual_lm":
-        metrics["model_name"] = model_config.get('pretrained_model_name_or_path')    
+    if model_config.get('name') == 'hf_casual_lm':
+        metrics['model_name'] = model_config.get('pretrained_model_name_or_path')    
     
     mosaicml_logger.log_metrics(metrics)
     mosaicml_logger._flush_metadata(force_flush=True)

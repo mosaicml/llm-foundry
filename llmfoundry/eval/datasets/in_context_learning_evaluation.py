@@ -183,6 +183,7 @@ class InContextLearningDataset(Dataset):
                 'prompt_string': prompt_string,
                 'fewshot_rng': fewshot_rng,
             },
+            # load_from_cache_file=False,
         )
 
     def __getitem__(self, index: int) -> Dict:
@@ -1357,12 +1358,12 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
 
     def __init__(
             self,
-            #  passage_delimiter: str = '\nPassage: ',
-            #  passage_query_delimiter: str = '\nPlease tell me: ',
+            passage_delimiter: str = ' ',
+            passage_query_delimiter: str = '\nQuery: ',
             *args,
             **kwargs):
-        # self.passage_delimiter = passage_delimiter
-        # self.passage_query_delimiter = passage_query_delimiter
+        self.passage_delimiter = passage_delimiter
+        self.passage_query_delimiter = passage_query_delimiter
         super().__init__(context_key='passages',
                          answer_key='answers',
                          tokenize_labels=False,
@@ -1392,17 +1393,17 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         return dataset.map(
             lambda example: {
                 'passages':
-                    ' '.join([passage for passage in example['passages']]),
+                    self.passage_delimiter.join([passage for passage in example['passages']]),
                 'answers':
                     example['answers'][0],
                 'query':
                     example['query']
             })
 
-    def _construct_context(self,
-                           example: dict,
-                           preceding_text: str = '',
-                           add_answer: bool = False):
+    def construct_context(self,
+                          example: dict,
+                          preceding_text: str = '',
+                          add_answer: bool = False):
         """Takes a example and constructs a context. Optionally, appends this to
         preceeding text (such as a prompt or fewshot examples), as well as
         optionally adds the correct answer (for fewshot examples)
@@ -1416,8 +1417,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             str: The constructed context. The default output context is
                  formatted as follows: f'{self.prelimiter}{example['self.passages_key']}{example[self.context_key]}{self.continuation_delimiter}'
         """
-        passages = self.passage_delimiter.lstrip('\n ')
-        passages += f'{self.passage_delimiter}'.join(example[self.context_key])
+        passages = example['passages']
         query = example['query']
         context = f'{self.prelimiter}{passages}{self.passage_query_delimiter}{query}'
 
@@ -1464,9 +1464,10 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             'labels': [],
             'answer_indices': []
         }
+        import IPython; IPython.embed()
         for data_pair in data:
-            context_enc = data_pair['context']
-            answer_enc = data_pair['answer']
+            context_enc = data_pair['passages']
+            answer_enc = data_pair['query']
 
             inp, answer_span = make_padded_input(context_enc, answer_enc,
                                                  self.max_seq_len,

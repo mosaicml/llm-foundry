@@ -56,12 +56,12 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
     return composer_model
 
 
-def log_analytics_details(mosaicml_logger: MosaicMLLogger, model_name: str):
-    mosaicml_logger.log_metrics({
-        'llmfoundry/model_name': model_name,
-        'llmfoundry/llmfoundry_run_type': 'eval',
+def log_analytics_details(mosaicml_logger: MosaicMLLogger, model_cfg: DictConfig):
+    # TODO: do we need error checking?
+    mosaicml_logger.log_metrics({        
+        'llmfoundry/llmfoundry_run_type': 'eval',  
+        'llmfoundry/llmfoundry_model_name': model_cfg.get('model_name'),
     })
-    mosaicml_logger._flush_metadata(force_flush=True)
 
 
 def evaluate_model(
@@ -126,7 +126,7 @@ def evaluate_model(
                                None)
 
         if mosaicml_logger is not None:
-            log_analytics_details(mosaicml_logger, model_cfg.model_name)
+            log_analytics_details(mosaicml_logger, model_cfg)
             mosaicml_logger.log_metrics(metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
 

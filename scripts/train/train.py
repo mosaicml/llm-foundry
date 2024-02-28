@@ -136,8 +136,7 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger, model_config: DictCon
         'llmfoundry/llmfoundry_run_type': 'training'
     }
 
-    # TODO: do we need to check if pretrained_model_name_or_path exists? not sure if 
-    # this is verified before this function is called
+    # TODO: do we need error checking here?
     if model_config.get('name') == 'hf_casual_lm':
         metrics['model_name'] = model_config.get('pretrained_model_name_or_path')    
     

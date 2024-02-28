@@ -49,6 +49,31 @@ def test_remote_code_false_mpt(
                                                          tokenizer)
 
 
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
+def test_tie_weights(tie_word_embeddings: bool):
+    # Test that the tie_weights function sets lm_head correctly
+    hf_config = MPTConfig(init_device='cpu',
+                          d_model=128,
+                          n_heads=4,
+                          n_layers=2,
+                          expansion_ratio=2,
+                          max_seq_len=2048,
+                          attn_config={
+                              'attn_impl': 'torch',
+                          },
+                          no_bias=True,
+                          tie_word_embeddings=tie_word_embeddings)
+
+    mpt = MPTForCausalLM(hf_config)
+
+    assert mpt.config.tie_word_embeddings == tie_word_embeddings
+    mpt.tie_weights()
+    if tie_word_embeddings:
+        assert mpt.lm_head is None
+    else:
+        assert mpt.lm_head is not None
+
+
 @pytest.mark.parametrize('model_cfg_overrides', [
     {
         'max_seq_len': 1024

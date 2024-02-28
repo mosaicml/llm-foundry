@@ -11,7 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
-from icecream import ic
+
+# from icecream import ic
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (
     add_metrics_to_eval_loaders,

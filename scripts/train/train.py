@@ -149,7 +149,7 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
         metrics['llmfoundry/eval_dataset_hf_name'] = eval_loader_config.get('dataset').get('hf_name')
 
     # TODO: do we need error checking here?
-    if model_config.get('name') == 'hf_casual_lm':
+    if model_config['name'] == 'hf_casual_lm':
         metrics['llmfoundry/model_name'] = model_config.get('pretrained_model_name_or_path')    
 
     if train_loader_config.get('name') == 'finetuning':

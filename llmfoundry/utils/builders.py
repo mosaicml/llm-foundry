@@ -507,7 +507,6 @@ def build_icl_evaluators(
                 'Please use generation_kwargs.num_beams instead.')
 
     def _get_parsing_vars(icl_cfg: DictConfig):
-        import IPython; IPython.embed()
         pass
 
     for icl_cfg in icl_tasks_list:
@@ -545,8 +544,8 @@ def build_icl_evaluators(
                 num_fewshot=num_fewshot,
                 fewshot_random_seed=icl_cfg.fewshot_random_seed,
                 destination_path=destination_path,
-                hf_loading_vars=icl_cfg.get('hf_parsing_map', {}),
-                hf_parsing_map=icl_cfg.get('hf_loading_vars', {}),
+                hf_loading_vars=icl_cfg.get('hf_loading_vars', {}),
+                hf_parsing_map=icl_cfg.get('hf_parsing_map', {}),
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
                 continuation_delimiter=icl_cfg.continuation_delimiter,

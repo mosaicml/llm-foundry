@@ -19,7 +19,6 @@ from composer.datasets.utils import stop_sequences_criteria
 from composer.utils import MissingConditionalImportError, dist, get_file
 from torch.utils.data import DataLoader, Dataset
 
-from llmfoundry.eval.datasets import Dataset as HFDataset
 from llmfoundry.eval.datasets.utils import (convert_tokens_to_tensors,
                                             get_continuation_span,
                                             get_fewshot_sample_idxs,
@@ -41,6 +40,7 @@ __all__ = [
     'InContextLearningSchemaTaskDataset',
     'InContextLearningCodeEvalDataset',
     'InContextLearningGenerationWithAnswersTaskDataset',
+    'InContextLearningRAGGenerationTaskDataset',
     'get_icl_task_dataloader',
 ]
 
@@ -130,6 +130,7 @@ class InContextLearningDataset(Dataset):
         hf_loading_vars: Optional[Dict] = None,
         hf_parsing_map: Optional[Dict] = None,
         generation_kwargs: Optional[Dict] = None,
+        **kwargs
     ):
         try:
             import datasets
@@ -1364,6 +1365,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         # self.passage_query_delimiter = passage_query_delimiter
         super().__init__(context_key='passages',
                          answer_key='answers',
+                         tokenize_labels=False,
                          *args,
                          **kwargs)
         self.max_answer_length = self._get_max_answer_length()
@@ -1372,8 +1374,8 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             'input_ids': [],
             'mode': 'generate',
             'labels': [],
-            'generation_length': self.max_answer_length,
             'generation_kwargs': {
+                'max_new_tokens': self.max_answer_length,
                 'pad_token_id': self.pad_tok_id,
                 'use_cache': True
             }
@@ -1429,8 +1431,8 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
 
     def _get_answer_from_example(self,
                                  example: Dict[str, Any],
-                                 in_context=False) -> str:
-        return example[self.answer_key][0]
+                                 ) -> str:
+        return example[self.answer_key]
 
     def _get_max_answer_length(self) -> int:
         f"""

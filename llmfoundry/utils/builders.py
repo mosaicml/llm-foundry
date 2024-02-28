@@ -10,7 +10,8 @@ from collections import OrderedDict
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
-from icecream import ic
+
+# from icecream import ic
 from llmfoundry.callbacks import (
     AsyncEval,
     CurriculumLearning,

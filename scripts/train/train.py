@@ -131,15 +131,26 @@ def build_composer_model(model_cfg: DictConfig,
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
 
-def log_analytics_details(mosaicml_logger: MosaicMLLogger, model_config: DictConfig):
+def log_analytics_details(mosaicml_logger: MosaicMLLogger, 
+                          model_config: DictConfig, 
+                          train_loader_config: DictConfig,
+                          load_path: Union[str, None]):
     metrics = {
         'llmfoundry/llmfoundry_run_type': 'training'
     }
 
     # TODO: do we need error checking here?
     if model_config.get('name') == 'hf_casual_lm':
-        metrics['model_name'] = model_config.get('pretrained_model_name_or_path')    
-    
+        metrics['llmfoundry/model_name'] = model_config.get('pretrained_model_name_or_path')    
+
+    if train_loader_config.get('name') == 'finetuning':
+        metrics['llmfoundry/llm_foundry_run_subtype'] = 'IFT (finetuning)'
+    if train_loader_config.get('name') == 'text':
+        if load_path is not None or model_config.get('pretrained') == True:
+            metrics['llmfoundry/llm_foundry_run_subtype'] = 'CPT (finetuning)'
+        else:
+            metrics['llmfoundry/llm_foundry_run_subtype'] = 'Pretraining'
+        
     mosaicml_logger.log_metrics(metrics)
     mosaicml_logger._flush_metadata(force_flush=True)
 
@@ -437,7 +448,7 @@ def main(cfg: DictConfig) -> Trainer:
             # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
             mosaicml_logger = MosaicMLLogger()
             loggers.append(mosaicml_logger)
-            log_analytics_details(mosaicml_logger, model_config)
+            log_analytics_details(mosaicml_logger, model_config, train_loader_config, load_path)
 
     if metadata is not None:
         # Flatten the metadata for logging

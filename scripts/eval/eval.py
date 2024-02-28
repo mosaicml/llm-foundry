@@ -56,12 +56,25 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
     return composer_model
 
 
-def log_analytics_details(mosaicml_logger: MosaicMLLogger, model_cfg: DictConfig):
+def log_analytics_details(mosaicml_logger: MosaicMLLogger, 
+                          model_cfg: DictConfig):
     # TODO: do we need error checking?
-    mosaicml_logger.log_metrics({        
+    metrics = {        
         'llmfoundry/llmfoundry_run_type': 'eval',  
         'llmfoundry/llmfoundry_model_name': model_cfg.get('model_name'),
-    })
+    }
+    
+    """
+    TODO: how do we get llmfoundry_run_subtype for eval?
+
+    right now, we have the following run subtypes for eval:
+        -- Gauntlet
+        -- ICL
+        -- Finetuning
+        -- Batch Generation
+        -- Checkpoint Conversion
+    """
+    mosaicml_logger.log_metrics(metrics)
 
 
 def evaluate_model(
@@ -126,7 +139,6 @@ def evaluate_model(
                                None)
 
         if mosaicml_logger is not None:
-            log_analytics_details(mosaicml_logger, model_cfg)
             mosaicml_logger.log_metrics(metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
 
@@ -159,6 +171,8 @@ def evaluate_model(
         )
 
     assert composer_model is not None
+
+    log_analytics_details(mosaicml_logger, model_cfg)
 
     log.info(f'Building trainer for {model_cfg.model_name}...')
 

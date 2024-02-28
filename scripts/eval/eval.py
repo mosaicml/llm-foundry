@@ -75,6 +75,8 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
         -- Checkpoint Conversion
     """
     mosaicml_logger.log_metrics(metrics)
+    mosaicml_logger._flush_metadata(force_flush=True)
+
 
 
 def evaluate_model(
@@ -171,8 +173,9 @@ def evaluate_model(
         )
 
     assert composer_model is not None
-
-    log_analytics_details(mosaicml_logger, model_cfg)
+    
+    if mosaicml_logger is not None:
+        log_analytics_details(mosaicml_logger, model_cfg)
 
     log.info(f'Building trainer for {model_cfg.model_name}...')
 

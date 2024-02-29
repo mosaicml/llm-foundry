@@ -3,7 +3,7 @@ integrations:
   git_repo: mosaicml/llm-foundry
   git_branch: v0.5.0
   # git_commit:  # OR use your commit hash
-  pip_install: -e ".[gpu]"
+  pip_install: -e ".[gpu-flash2]"
   ssh_clone: false  # Should be true if using a private repo
 
 command: |

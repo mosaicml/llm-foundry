@@ -134,26 +134,26 @@ def builder(
     return constructed_item
 
 
-loggers = create('llm_foundry',
+loggers = create('llmfoundry',
                  'loggers',
                  generic_type=Type[LoggerDestination],
                  entry_points=True)
-callbacks = create('llm_foundry',
+callbacks = create('llmfoundry',
                    'callbacks',
                    generic_type=Type[Callback],
                    entry_points=True)
 callbacks_with_config = create('llm_foundry.callbacks_with_config',
                                generic_type=Type[Callback],
                                entry_points=True)
-optimizers = create('llm_foundry',
+optimizers = create('llmfoundry',
                     'optimizers',
                     generic_type=Type[Optimizer],
                     entry_points=True)
-algorithms = create('llm_foundry',
+algorithms = create('llmfoundry',
                     'algorithms',
                     generic_type=Type[Algorithm],
                     entry_points=True)
-schedulers = create('llm_foundry',
+schedulers = create('llmfoundry',
                     'schedulers',
                     generic_type=Type[ComposerScheduler],
                     entry_points=True)
@@ -167,7 +167,7 @@ callbacks.register('optimizer_monitor', func=OptimizerMonitor)
 callbacks.register('generate_callback', func=Generate)
 callbacks.register('early_stopper', func=EarlyStopper)
 callbacks.register('fdiff_metrics', func=FDiffMetrics)
-callbacks.register('huggingface_checkpointer', func=HuggingFaceCheckpointer)
+callbacks.register('hf_checkpointer', func=HuggingFaceCheckpointer)
 callbacks.register('global_lr_scaling', func=GlobalLRScaling)
 callbacks.register('layer_freezing', func=LayerFreezing)
 callbacks.register('mono_checkpoint_saver', func=MonolithicCheckpointSaver)

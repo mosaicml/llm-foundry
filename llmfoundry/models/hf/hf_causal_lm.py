@@ -19,7 +19,8 @@ from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
 from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
                                      InContextLearningLMAccuracy,
                                      InContextLearningMultipleChoiceAccuracy,
-                                     InContextLearningGenerationAccuracy)
+                                     InContextLearningGenerationAccuracy,
+                                     InContextLearningLLMAsAJudge)
 from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
@@ -121,7 +122,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningGenerationAccuracy(),
-            InContextLearningCodeEvalAccuracy()
+            InContextLearningCodeEvalAccuracy(),
+            InContextLearningLLMAsAJudge()
         ]
         if not om_model_config.get('use_train_metrics', True):
             train_metrics = []

@@ -31,10 +31,11 @@ __all__ = [
     'InContextLearningMetric',
     'InContextLearningLMAccuracy',
     'InContextLearningMultipleChoiceAccuracy',
-    'InContextLearningGenerationWithAnswersTaskDataset',
+    'InContextLearningGenerationAccuracy',
     'InContextLearningCodeEvalAccuracy',
     'InContextLearningLMExpectedCalibrationError',
     'InContextLearningMCExpectedCalibrationError',
+    'InContextLearningLLMAsAJudge'
 ]
 
 
@@ -565,7 +566,7 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         complete = self.total == self.num_generations  # so that eval subset batches can be used
 
         if complete.sum() < (self.total != 0).sum():
-            warnings.warn('Some samples in the dataset have less than the expected number of generations. '
+            warnings.warn('Some samples in the dataset have less than the expected number of generations. ' + \
                           'This is expected if you are using a subset of the dataset for evaluation.')
 
         if (self.correct > self.total).any().item():

@@ -539,8 +539,8 @@ class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset
                  cot_delimiter: str = '',
                  early_stopping_criteria: Optional[List[str]] = None,
                  do_normalization: bool = True,
-                 *args,
-                 **kwargs):
+                 *args: Any,
+                 **kwargs: Any):
         if kwargs['tokenizer'].eos_token_id is None:
             raise ValueError(
                 '`InContextLearningGenerationWithAnswersTaskDataset` tokenizer must have non-null `eos_token_id`'
@@ -695,7 +695,7 @@ class InContextLearningLMTaskDataset(InContextLearningDataset):
     See InContextLearningDataset for more details.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(answer_key='continuation',
                          static_keys=['mode'],
                          tensor_keys=[
@@ -748,8 +748,8 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
                  list_of_tensors_keys: Optional[List] = None,
                  list_of_tuples_keys: Optional[List] = None,
                  list_of_primitives: Optional[List] = None,
-                 *args,
-                 **kwargs):
+                 *args: Any,
+                 **kwargs: Any):
         self.choices_key = choices_key
         base_batch = {
             'input_ids': [],
@@ -967,7 +967,7 @@ class InContextLearningSchemaTaskDataset(
     - choice_groupings: Indicates which indices of the batch correspond to which questions
     """
 
-    def __init__(self, choices_key='context_options', *args, **kwargs):
+    def __init__(self, choices_key='context_options', *args: Any, **kwargs: Any):
         static_keys = ['mode']
         tensor_keys = ['input_ids', 'labels', 'attention_mask']
         list_of_tensors_keys = ['continuation_indices']
@@ -1169,8 +1169,8 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
         self,
         generations_per_sample: int,
         pass_at_k: Union[int, list[int]] = 1,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ):
         if isinstance(pass_at_k, int):
             pass_at_k = [pass_at_k]
@@ -1360,27 +1360,33 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             self,
             passage_delimiter: str = ' ',
             passage_query_delimiter: str = '\nQuery: ',
-            *args,
-            **kwargs):
+            *args: Any,
+            **kwargs: Any):
         self.passage_delimiter = passage_delimiter
         self.passage_query_delimiter = passage_query_delimiter
+        batch_mapping = {'input_ids': 'passages', 'labels': 'answers', 'queries':'query'}
         super().__init__(context_key='passages',
                          answer_key='answers',
                          tokenize_labels=False,
+                         batch_mapping=batch_mapping,
+                         padding_side="left",
                          *args,
                          **kwargs)
         self.max_answer_length = self._get_max_answer_length()
-        self.batch_mapping = {'input_ids': 'context', 'labels': 'answers'}
-        self.default_batch = {
+        self.base_batch = {
             'input_ids': [],
             'mode': 'generate',
             'labels': [],
+            'queries': [],
+            'generation_length': self.max_answer_length,
             'generation_kwargs': {
-                'max_new_tokens': self.max_answer_length,
+                # 'max_new_tokens': self.max_answer_length,
                 'pad_token_id': self.pad_tok_id,
                 'use_cache': True
             }
         }
+        if 'generation_kwargs' in kwargs:
+            self.update_generation_kwargs(kwargs['generation_kwargs'])
 
     def read_dataset(
             self,
@@ -1448,39 +1454,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
                                     len(self.tokenizer(answer)['input_ids']))
         max_answer_length = max_answer_length
         return max_answer_length
-
-    def collate_fn(self, data):
-        """
-        The function that the dataloader uses to accumulate data into batches
-        Args:
-            data (list): list of tokenized datapoints (dicts returned by self._tokenize_example)
-
-        Returns:
-            dict: dictionary for a single batch
-        """
-        batch = {
-            'input_ids': [],
-            'mode': 'icl_task',
-            'labels': [],
-            'answer_indices': []
-        }
-        import IPython; IPython.embed()
-        for data_pair in data:
-            context_enc = data_pair['passages']
-            answer_enc = data_pair['query']
-
-            inp, answer_span = make_padded_input(context_enc, answer_enc,
-                                                 self.max_seq_len,
-                                                 self.pad_tok_id)
-            batch['input_ids'].append(inp)
-            batch['answer_indices'].append(answer_span)
-            batch['labels'].append(inp)
-
-        batch = self._convert_tokens_to_tensors(batch)
-        batch['attention_mask'] = ~(batch['input_ids'] == self.pad_tok_id)
-        return batch
-
-
+        
 def build_icl_dataloader(
         icl_task_type: str,
         dataset_uri: str,
@@ -1493,7 +1467,7 @@ def build_icl_dataloader(
         hf_loading_vars: Dict,
         hf_parsing_map: Dict,
         destination_path: str,
-        **kwargs) -> DataSpec:
+        **kwargs: Any) -> DataSpec:
 
         # prompt_string: str,  # e.g. 'translate english to french:'
         # example_delimiter: str,  # e.g. '\n'

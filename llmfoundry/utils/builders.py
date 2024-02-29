@@ -159,22 +159,36 @@ def build_callback(
 ) -> Callback:
     """Builds a callback from the registry."""
     registry_to_use = registry.callbacks
-    if registry.contains(name, registry.callbacks_with_config):
+    if name in registry.callbacks_with_config:
         kwargs['config'] = config
         registry_to_use = registry.callbacks_with_config
 
-    return registry.builder(name, registry_to_use, Callback, None, kwargs)
+    return registry.builder(name=name,
+                            registry=registry_to_use,
+                            partial_function=True,
+                            pre_validation_function=Callback,
+                            post_validation_function=None,
+                            **kwargs)
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
     """Builds a logger from the registry."""
-    return registry.builder(name, registry.loggers, LoggerDestination, None,
-                            kwargs)
+    return registry.builder(name=name,
+                            registry=registry.loggers,
+                            partial_function=True,
+                            pre_validation_function=LoggerDestination,
+                            post_validation_function=None,
+                            **kwargs)
 
 
 def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
     """Builds an algorithm from the registry."""
-    return registry.builder(name, registry.algorithms, Algorithm, None, kwargs)
+    return registry.builder(name=name,
+                            registry=registry.algorithms,
+                            partial_function=True,
+                            pre_validation_function=Algorithm,
+                            post_validation_function=None,
+                            **kwargs)
 
 
 def _extract_param_groups(
@@ -283,13 +297,24 @@ def build_optimizer(model: torch.nn.Module, name: str,
     params = _extract_param_groups(model, optimizer_config)
     kwargs = optimizer_config
     kwargs['params'] = params
-    return registry.builder(name, registry.optimizers, Optimizer, None, kwargs)
+    return registry.builder(name=name,
+                            registry=registry.optimizers,
+                            partial_function=True,
+                            pre_validation_function=Optimizer,
+                            post_validation_function=None,
+                            **kwargs)
 
 
 def build_scheduler(name: str,
                     scheduler_config: Dict[str, Any]) -> ComposerScheduler:
-    return registry.builder(name, registry.schedulers, ComposerScheduler, None,
-                            scheduler_config)
+    return registry.builder(
+        name=name,
+        registry=registry.schedulers,
+        partial_function=True,
+        pre_validation_function=ComposerScheduler,
+        post_validation_function=None,
+        **scheduler_config,
+    )
 
 
 def build_tokenizer(

@@ -101,13 +101,13 @@ def builder(
     registered_item = registry.get(name)
 
     if pre_validation_function is not None:
-        if isinstance(pre_validation_function, Callable):
-            pre_validation_function(registered_item)
-        elif isinstance(pre_validation_function, type):
+        if isinstance(pre_validation_function, type):
             if not issubclass(registered_item, pre_validation_function):
                 raise ValueError(
                     f'Expected {name} to be of type {pre_validation_function}, but got {type(registered_item)}'
                 )
+        elif isinstance(pre_validation_function, Callable):
+            pre_validation_function(registered_item)
         else:
             raise ValueError(
                 f'Expected pre_validation_function to be a callable or a type, but got {type(pre_validation_function)}'

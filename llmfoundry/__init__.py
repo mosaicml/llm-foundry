@@ -29,7 +29,7 @@ try:
     # gated import otherwise.
     import transformers
 
-    from llmfoundry import optim, registry, utils
+    from llmfoundry import loggers, optim, registry, utils
     from llmfoundry.data import (ConcatTokensDataset,
                                  MixtureOfDenoisersCollator, NoConcatDataset,
                                  Seq2SeqFinetuningCollator,
@@ -92,6 +92,7 @@ __all__ = [
     'build_alibi_bias',
     'optim',
     'utils',
+    'loggers',
     'TiktokenTokenizerWrapper',
     'registry',
 ]

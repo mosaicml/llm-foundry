@@ -37,7 +37,7 @@ class TypedRegistry(catalogue.Registry, Generic[T]):
         return super().__call__(name, func)
 
     def register(self, name: str, func: T) -> T:
-        return super().__call__(name, func=func)
+        return super().register(name, func=func)
 
     def get(self, name: str) -> T:
         return super().get(name)
@@ -66,7 +66,7 @@ def create(
     Returns:
         The TypedRegistry object.
     """
-    if catalogue.check_exists(*namespace):
+    if catalogue.check_exists(namespace):
         raise catalogue.RegistryError(f'Namespace already exists: {namespace}')
 
     return TypedRegistry[generic_type](namespace, entry_points=entry_points)
@@ -138,15 +138,15 @@ callbacks = create('llm_foundry.callbacks', Type[Callback], entry_points=True)
 callbacks_with_config = create('llm_foundry.callbacks_with_config',
                                Type[Callback],
                                entry_points=True)
-optimizers = catalogue.create('llm_foundry.optimizers',
-                              Type[Optimizer],
-                              entry_points=True)
-algorithms = catalogue.create('llm_foundry.algorithms',
-                              Type[Algorithm],
-                              entry_points=True)
-schedulers = catalogue.create('llm_foundry.schedulers',
-                              Type[ComposerScheduler],
-                              entry_points=True)
+optimizers = create('llm_foundry.optimizers',
+                    Type[Optimizer],
+                    entry_points=True)
+algorithms = create('llm_foundry.algorithms',
+                    Type[Algorithm],
+                    entry_points=True)
+schedulers = create('llm_foundry.schedulers',
+                    Type[ComposerScheduler],
+                    entry_points=True)
 
 callbacks.register('lr_monitor', func=LRMonitor)
 callbacks.register('memory_monitor', func=MemoryMonitor)

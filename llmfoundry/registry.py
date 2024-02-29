@@ -79,7 +79,7 @@ def builder(
     pre_validation_function: Optional[Union[Callable[[Any], None],
                                             type]] = None,
     post_validation_function: Optional[Callable[[Any], None]] = None,
-    **kwargs: Dict[str, Any],
+    **kwargs: Any,
 ) -> Any:
     """Helper function to build an item from the registry.
 

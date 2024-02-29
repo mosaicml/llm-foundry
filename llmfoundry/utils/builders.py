@@ -168,7 +168,7 @@ def build_callback(
                             partial_function=True,
                             pre_validation_function=Callback,
                             post_validation_function=None,
-                            **kwargs)
+                            kwargs=kwargs)
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
@@ -178,7 +178,7 @@ def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
                             partial_function=True,
                             pre_validation_function=LoggerDestination,
                             post_validation_function=None,
-                            **kwargs)
+                            kwargs=kwargs)
 
 
 def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
@@ -188,7 +188,7 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
                             partial_function=True,
                             pre_validation_function=Algorithm,
                             post_validation_function=None,
-                            **kwargs)
+                            kwargs=kwargs)
 
 
 def _extract_param_groups(
@@ -302,7 +302,7 @@ def build_optimizer(model: torch.nn.Module, name: str,
                             partial_function=True,
                             pre_validation_function=Optimizer,
                             post_validation_function=None,
-                            **kwargs)
+                            kwargs=kwargs)
 
 
 def build_scheduler(name: str,
@@ -313,7 +313,7 @@ def build_scheduler(name: str,
         partial_function=True,
         pre_validation_function=ComposerScheduler,
         post_validation_function=None,
-        **scheduler_config,
+        kwargs=scheduler_config,
     )
 
 

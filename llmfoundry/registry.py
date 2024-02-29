@@ -5,26 +5,10 @@ import functools
 from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar, Union
 
 import catalogue
-from composer.algorithms import (Alibi, GatedLinearUnits, GradientClipping,
-                                 LowPrecisionLayerNorm)
-from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
-                                MemoryMonitor, MemorySnapshot, OOMObserver,
-                                OptimizerMonitor, RuntimeEstimator,
-                                SpeedMonitor)
 from composer.core import Algorithm, Callback
 from composer.loggers import LoggerDestination
-from composer.optim import (ComposerScheduler, ConstantWithWarmupScheduler,
-                            CosineAnnealingWithWarmupScheduler, DecoupledAdamW,
-                            LinearWithWarmupScheduler)
+from composer.optim import ComposerScheduler
 from torch.optim import Optimizer
-
-from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, FDiffMetrics,
-                                  GlobalLRScaling, HuggingFaceCheckpointer,
-                                  LayerFreezing, MonolithicCheckpointSaver,
-                                  ScheduledGarbageCollector)
-from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                              DecoupledLionW)
-from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 
 T = TypeVar('T')
 S = TypeVar('S')
@@ -158,38 +142,11 @@ schedulers = create('llmfoundry',
                     generic_type=Type[ComposerScheduler],
                     entry_points=True)
 
-callbacks.register('lr_monitor', func=LRMonitor)
-callbacks.register('memory_monitor', func=MemoryMonitor)
-callbacks.register('memory_snapshot', func=MemorySnapshot)
-callbacks.register('speed_monitor', func=SpeedMonitor)
-callbacks.register('runtime_estimator', func=RuntimeEstimator)
-callbacks.register('optimizer_monitor', func=OptimizerMonitor)
-callbacks.register('generate_callback', func=Generate)
-callbacks.register('early_stopper', func=EarlyStopper)
-callbacks.register('fdiff_metrics', func=FDiffMetrics)
-callbacks.register('hf_checkpointer', func=HuggingFaceCheckpointer)
-callbacks.register('global_lr_scaling', func=GlobalLRScaling)
-callbacks.register('layer_freezing', func=LayerFreezing)
-callbacks.register('mono_checkpoint_saver', func=MonolithicCheckpointSaver)
-callbacks.register('scheduled_gc', func=ScheduledGarbageCollector)
-callbacks.register('oom_observer', func=OOMObserver)
-
-callbacks_with_config.register('async_eval', func=AsyncEval)
-callbacks_with_config.register('curriculum_learning', func=CurriculumLearning)
-
-optimizers.register('adalr_lion', func=DecoupledAdaLRLion)
-optimizers.register('clip_lion', func=DecoupledClipLion)
-optimizers.register('decoupled_lionw', func=DecoupledLionW)
-optimizers.register('decoupled_adamw', func=DecoupledAdamW)
-
-algorithms.register('gradient_clipping', func=GradientClipping)
-algorithms.register('alibi', func=Alibi)
-algorithms.register('gated_linear_units', func=GatedLinearUnits)
-algorithms.register('low_precision_layernorm', func=LowPrecisionLayerNorm)
-
-schedulers.register('constant_with_warmup', func=ConstantWithWarmupScheduler)
-schedulers.register('cosine_with_warmup',
-                    func=CosineAnnealingWithWarmupScheduler)
-schedulers.register('linear_decay_with_warmup', func=LinearWithWarmupScheduler)
-schedulers.register('inv_sqrt_with_warmup',
-                    func=InverseSquareRootWithWarmupScheduler)
+__all__ = [
+    'loggers',
+    'callbacks',
+    'callbacks_with_config',
+    'optimizers',
+    'algorithms',
+    'schedulers',
+]

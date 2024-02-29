@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 try:
+    from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
+                                    MemoryMonitor, MemorySnapshot, OOMObserver,
+                                    OptimizerMonitor, RuntimeEstimator,
+                                    SpeedMonitor)
+
     from llmfoundry.callbacks.async_eval_callback import AsyncEval
     from llmfoundry.callbacks.curriculum_learning_callback import \
         CurriculumLearning
@@ -14,10 +19,30 @@ try:
                                                            LayerFreezing)
     from llmfoundry.callbacks.scheduled_gc_callback import \
         ScheduledGarbageCollector
+    from llmfoundry.registry import callbacks, callbacks_with_config
 except ImportError as e:
     raise ImportError(
         'Please make sure to pip install . to get requirements for llm-foundry.'
     ) from e
+
+callbacks.register('lr_monitor', func=LRMonitor)
+callbacks.register('memory_monitor', func=MemoryMonitor)
+callbacks.register('memory_snapshot', func=MemorySnapshot)
+callbacks.register('speed_monitor', func=SpeedMonitor)
+callbacks.register('runtime_estimator', func=RuntimeEstimator)
+callbacks.register('optimizer_monitor', func=OptimizerMonitor)
+callbacks.register('generate_callback', func=Generate)
+callbacks.register('early_stopper', func=EarlyStopper)
+callbacks.register('fdiff_metrics', func=FDiffMetrics)
+callbacks.register('hf_checkpointer', func=HuggingFaceCheckpointer)
+callbacks.register('global_lr_scaling', func=GlobalLRScaling)
+callbacks.register('layer_freezing', func=LayerFreezing)
+callbacks.register('mono_checkpoint_saver', func=MonolithicCheckpointSaver)
+callbacks.register('scheduled_gc', func=ScheduledGarbageCollector)
+callbacks.register('oom_observer', func=OOMObserver)
+
+callbacks_with_config.register('async_eval', func=AsyncEval)
+callbacks_with_config.register('curriculum_learning', func=CurriculumLearning)
 
 __all__ = [
     'FDiffMetrics',

@@ -171,8 +171,7 @@ callbacks.register('hf_checkpointer', func=HuggingFaceCheckpointer)
 callbacks.register('global_lr_scaling', func=GlobalLRScaling)
 callbacks.register('layer_freezing', func=LayerFreezing)
 callbacks.register('mono_checkpoint_saver', func=MonolithicCheckpointSaver)
-callbacks.register('scheduled_garbage_collector',
-                   func=ScheduledGarbageCollector)
+callbacks.register('scheduled_gc', func=ScheduledGarbageCollector)
 callbacks.register('oom_observer', func=OOMObserver)
 
 callbacks_with_config.register('async_eval', func=AsyncEval)

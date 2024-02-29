@@ -8,7 +8,6 @@ on:
     branches:
     - main
     - release/**
-  workflow_call:
   workflow_dispatch:
 # Cancel old runs when a new commit is pushed to the same branch if not on main or dev
 concurrency:
@@ -30,14 +29,13 @@ jobs:
         - "[dev]"
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - name: Get composite run steps repository
+      uses: actions/checkout@v3
       with:
-        python-version: ${{ matrix.python_version }}
-    - name: Setup
-      run: |
-        set -ex
-        python -m pip install --upgrade 'pip<23' wheel
-        python -m pip install --upgrade .${{ matrix.pip_deps }}
-    - name: Run checks
-      run: |
-        pre-commit run --all-files
+        repository: mosaicml/ci-testing
+        ref: v0.0.2
+        path: ./ci-testing
+    - uses: ./ci-testing/.github/actions/code-quality
+      with:
+        python_version: ${{ matrix.python_version }}
+        pip_deps: ${{ matrix.pip_deps }}

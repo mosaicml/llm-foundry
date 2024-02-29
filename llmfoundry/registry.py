@@ -53,7 +53,7 @@ class TypedRegistry(catalogue.Registry, Generic[T]):
 
 
 def create(
-    namespace: str,
+    *namespace: str,
     generic_type: Type[S],
     entry_points: bool = False,
 ) -> 'TypedRegistry[S]':
@@ -66,7 +66,7 @@ def create(
     Returns:
         The TypedRegistry object.
     """
-    if catalogue.check_exists(namespace):
+    if catalogue.check_exists(*namespace):
         raise catalogue.RegistryError(f'Namespace already exists: {namespace}')
 
     return TypedRegistry[generic_type](namespace, entry_points=entry_points)
@@ -134,21 +134,28 @@ def builder(
     return constructed_item
 
 
-loggers = create('llm_foundry.loggers',
+loggers = create('llm_foundry',
+                 'loggers',
                  generic_type=Type[LoggerDestination],
                  entry_points=True)
-callbacks = create('llm_foundry.callbacks', Type[Callback], entry_points=True)
+callbacks = create('llm_foundry',
+                   'callbacks',
+                   generic_type=Type[Callback],
+                   entry_points=True)
 callbacks_with_config = create('llm_foundry.callbacks_with_config',
-                               Type[Callback],
+                               generic_type=Type[Callback],
                                entry_points=True)
-optimizers = create('llm_foundry.optimizers',
-                    Type[Optimizer],
+optimizers = create('llm_foundry',
+                    'optimizers',
+                    generic_type=Type[Optimizer],
                     entry_points=True)
-algorithms = create('llm_foundry.algorithms',
-                    Type[Algorithm],
+algorithms = create('llm_foundry',
+                    'algorithms',
+                    generic_type=Type[Algorithm],
                     entry_points=True)
-schedulers = create('llm_foundry.schedulers',
-                    Type[ComposerScheduler],
+schedulers = create('llm_foundry',
+                    'schedulers',
+                    generic_type=Type[ComposerScheduler],
                     entry_points=True)
 
 callbacks.register('lr_monitor', func=LRMonitor)

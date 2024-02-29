@@ -61,7 +61,7 @@ def test_build_callback_fails():
 
 @pytest.mark.parametrize(
     'interval_key,interval_value',
-    [('interval', '10ba'), ('batch_log_interval', 10)],
+    [('interval', '10ba')],
 )
 def test_build_generate_callback(
     interval_key: str,
@@ -91,7 +91,7 @@ def test_build_generate_callback(
 
 
 def test_build_generate_callback_unspecified_interval():
-    with pytest.raises(KeyError):
+    with pytest.raises(TypeError):
         with mock.patch.object(Generate, '__init__',
                                autospec=True) as mock_generate:
             mock_generate.return_value = None

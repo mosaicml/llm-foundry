@@ -1666,7 +1666,7 @@ def test_generate_with_past_kv(attn_impl: str, pos_emb_config: dict,
 ])
 @pytest.mark.parametrize('generation_kwargs', [{
     'max_new_tokens': 2,
-    'generations_per_sample': 4,
+    'num_beams': 4,
     'top_k': 5,
     'penalty_alpha': 0.4
 }])

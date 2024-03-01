@@ -12,8 +12,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import torch
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
-                                MemoryMonitor, MemorySnapshot, OptimizerMonitor,
-                                RuntimeEstimator, SpeedMonitor)
+                                MemoryMonitor, MemorySnapshot, OOMObserver,
+                                OptimizerMonitor, RuntimeEstimator,
+                                SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -37,7 +38,7 @@ from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
                                   ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                              DecoupledLionW, DecoupledLionW_8bit)
+                              DecoupledLionW)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
@@ -53,7 +54,6 @@ def build_evaluators(
     device_eval_batch_size: int,
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int],
-    fewshot_random_seed: Optional[int] = 1234,
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
 
     evaluators = []
@@ -73,7 +73,6 @@ def build_evaluators(
             tokenizer,
             device_eval_batch_size,
             icl_seq_len,
-            fewshot_random_seed,
             icl_subset_num_batches,
         )
         evaluators.extend(icl_evaluators)
@@ -130,7 +129,6 @@ def build_icl_data_and_gauntlet(
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
     icl_seq_len: int,
-    fewshot_random_seed: Optional[int] = 1234,
     icl_subset_num_batches: Optional[int] = None
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
     icl_evaluators, logger_keys = build_icl_evaluators(
@@ -138,7 +136,6 @@ def build_icl_data_and_gauntlet(
         tokenizer,
         icl_seq_len,
         device_eval_batch_size,
-        fewshot_random_seed=fewshot_random_seed,
         icl_subset_num_batches=icl_subset_num_batches)
     eval_gauntlet_cb = None
     if eval_gauntlet_config is not None:
@@ -169,6 +166,8 @@ def build_callback(
         return LRMonitor()
     elif name == 'memory_monitor':
         return MemoryMonitor()
+    elif name == 'oom_observer':
+        return OOMObserver(**kwargs)
     elif name == 'memory_snapshot':
         return MemorySnapshot(**kwargs)
     elif name == 'speed_monitor':
@@ -374,8 +373,6 @@ def build_optimizer(model: torch.nn.Module, name: str,
         return DecoupledClipLion(params, **optimizer_config)
     elif name == 'adalr_lion':
         return DecoupledAdaLRLion(params, **optimizer_config)
-    elif name == 'decoupled_lionw_8b':
-        return DecoupledLionW_8bit(params, **optimizer_config)
     else:
         raise ValueError(f'Not sure how to build optimizer: {name}')
 
@@ -446,7 +443,6 @@ def build_icl_evaluators(
     default_max_seq_len: int,
     default_batch_size: int,
     destination_dir: Optional[str] = None,
-    fewshot_random_seed: Optional[int] = 1234,
     icl_subset_num_batches: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str]]:
     if destination_dir is None:
@@ -502,8 +498,15 @@ def build_icl_evaluators(
             icl_cfg.batch_size = default_batch_size
         if 'pass_at_k' not in icl_cfg:
             icl_cfg.pass_at_k = 1
-        if 'num_beams' not in icl_cfg:
-            icl_cfg.num_beams = 20
+        if 'fewshot_random_seed' not in icl_cfg:
+            icl_cfg.fewshot_random_seed = 1234
+        if 'generations_per_sample' not in icl_cfg:
+            icl_cfg.generations_per_sample = 1
+
+        if 'num_beams' in icl_cfg:
+            raise ValueError(
+                'num_beams is no longer supported as a top level icl_task parameter.'  + \
+                'Please use generation_kwargs.num_beams instead.')
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
@@ -547,10 +550,9 @@ def build_icl_evaluators(
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
-                fewshot_random_seed=icl_cfg.get('fewshot_random_seed',
-                                                fewshot_random_seed),
+                fewshot_random_seed=icl_cfg.fewshot_random_seed,
                 pass_at_k=icl_cfg.pass_at_k,
-                generations_per_sample=icl_cfg.num_beams,
+                generations_per_sample=icl_cfg.generations_per_sample,
                 has_categories=icl_cfg.get('has_categories', False),
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
                 generation_kwargs=icl_cfg.get('generation_kwargs', {}),

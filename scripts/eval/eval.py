@@ -197,10 +197,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                             convert=True)
     # Import any user provided code
     for code_path in code_paths:
-        try:
-            import_file(code_path)
-        except Exception as e:
-            raise ValueError(f'Error importing code from {code_path}: {e}')
+        import_file(code_path)
 
     om.resolve(cfg)
 

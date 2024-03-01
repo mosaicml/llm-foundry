@@ -149,10 +149,7 @@ def main(cfg: DictConfig) -> Trainer:
                             convert=True)
     # Import any user provided code
     for code_path in code_paths:
-        try:
-            import_file(code_path)
-        except Exception as e:
-            raise ValueError(f'Error importing code from {code_path}: {e}')
+        import_file(code_path)
 
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)

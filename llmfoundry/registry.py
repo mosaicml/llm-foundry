@@ -17,10 +17,10 @@ S = TypeVar('S')
 class TypedRegistry(catalogue.Registry, Generic[T]):
     """A thin wrapper around catalogue.Registry to add static typing."""
 
-    def __call__(self, name: str, func: T) -> Callable[[T], T]:
+    def __call__(self, name: str, func: Optional[T] = None) -> Callable[[T], T]:
         return super().__call__(name, func)
 
-    def register(self, name: str, func: T) -> T:
+    def register(self, name: str, *, func: Optional[T] = None) -> T:
         return super().register(name, func=func)
 
     def get(self, name: str) -> T:

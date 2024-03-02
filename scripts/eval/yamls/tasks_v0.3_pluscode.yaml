@@ -1,13 +1,19 @@
 icl_tasks:
 -
-  label: human_eval
-  dataset_uri: eval/local_data/programming/human_eval.jsonl  # ADD YOUR OWN DATASET URI
-  num_fewshot: [0]
-  pass_at_k: 1
-  generations_per_sample: 5
-  batch_size: 1
-  icl_task_type: code_evaluation
-  continuation_delimiter: ''
+  icl_tasks:
+  - label: human-eval
+    pass_at_k:
+    - 1
+    dataset_uri: eval/local_data/programming/human_eval.jsonl
+    num_fewshot:
+    - 0
+    icl_task_type: code_evaluation
+    generation_kwargs:
+      top_p: 0.95
+      temperature: 0.2
+      max_new_tokens: 512
+    continuation_delimiter: ''
+    generations_per_sample: 50
 -
   label: gsm8k
   dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl

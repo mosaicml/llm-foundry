@@ -3,7 +3,7 @@
 
 import importlib.metadata
 import pathlib
-from importlib.metadata import EntryPoint, EntryPoints, SelectableGroups
+from importlib.metadata import EntryPoint
 from typing import Any, Callable, Type, Union
 
 import catalogue
@@ -101,14 +101,22 @@ class TestLogger(InMemoryLogger):
 def test_registry_entrypoint(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(catalogue, 'Registry', {})
 
+    # monkeypatch.setattr(
+    #     importlib.metadata, 'entry_points', lambda: SelectableGroups([(
+    #         'llmfoundry_test_registry',
+    #         EntryPoints([
+    #             EntryPoint(name='test_entry',
+    #                        value='composer.loggers:InMemoryLogger',
+    #                        group='llmfoundry_test_registry')
+    #         ]))]))
     monkeypatch.setattr(
-        importlib.metadata, 'entry_points', lambda: SelectableGroups([(
-            'llmfoundry_test_registry',
-            EntryPoints([
+        importlib.metadata, 'entry_points', lambda: {
+            'llmfoundry_test_registry': [
                 EntryPoint(name='test_entry',
                            value='composer.loggers:InMemoryLogger',
                            group='llmfoundry_test_registry')
-            ]))]))
+            ]
+        })
 
     monkeypatch.setattr(catalogue, 'AVAILABLE_ENTRY_POINTS',
                         importlib.metadata.entry_points())

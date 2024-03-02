@@ -71,4 +71,7 @@ __all__ = [
     'optimizers',
     'algorithms',
     'schedulers',
+    'create',
+    'builder',
+    'TypedRegistry',
 ]

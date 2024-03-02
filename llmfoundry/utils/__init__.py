@@ -10,8 +10,11 @@ from llmfoundry.utils.checkpoint_conversion_helpers import (
 from llmfoundry.utils.config_utils import (calculate_batch_size_info,
                                            log_config, pop_config,
                                            update_batch_size_info)
+# yapf: disable
 from llmfoundry.utils.model_download_utils import (
     download_from_hf_hub, download_from_http_fileserver)
+
+# yapf: enable
 
 __all__ = [
     'build_callback',

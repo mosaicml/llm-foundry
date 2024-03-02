@@ -74,6 +74,7 @@ install_requires = [
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
     'catalogue>=2,<3',
+    'typer[all]<1',
 ]
 
 extra_deps = {}
@@ -145,4 +146,7 @@ setup(
     install_requires=install_requires,
     extras_require=extra_deps,
     python_requires='>=3.9',
+    entry_points={
+        'console_scripts': ['llmfoundry = llmfoundry.cli.cli:app'],
+    },
 )

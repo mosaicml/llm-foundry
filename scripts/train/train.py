@@ -130,7 +130,7 @@ def build_composer_model(model_cfg: DictConfig,
             f'Not sure how to build model with name={model_cfg.name}')
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
-
+# TODO cleanup / decompose logic
 def log_analytics_details(mosaicml_logger: MosaicMLLogger, 
                           model_config: DictConfig, 
                           train_loader_config: DictConfig,
@@ -140,9 +140,9 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
                           save_folder: Union[str, None]):
     metrics = {
         'llmfoundry/llmfoundry_run_type': 'training',
-        'llmfoundry/train_loader_name': train_loader_config.get('name'),
         'llmfoundry/tokenizer_name': tokenizer_name,
-        'llmfoundry/train_dataset_hf_name': train_loader_config.get('dataset').get('hf_name'),
+        'llmfoundry/train_loader_name': train_loader_config.get('name'),
+        'llmfoundry/train_loader_workers': train_loader_config.get('dataset').get('num_workers'),
     }
 
     # TODO: what's a good name for this? ideally we want the keys to be the same for 
@@ -152,14 +152,8 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
     if save_folder is not None:
         metrics['llmfoundry/cloud_provider_saving'] = save_folder.split(':')[0]
 
-    if eval_loader_config is not None:
-        metrics['llmfoundry/eval_loader_name'] = eval_loader_config.get('name')
-        metrics['llmfoundry/eval_dataset_hf_name'] = eval_loader_config.get('dataset').get('hf_name')
-
-    # TODO: do we need error checking here?
-    if model_config['name'] == 'hf_casual_lm':
-        metrics['llmfoundry/model_name'] = model_config.get('pretrained_model_name_or_path')    
-
+    if train_loader_config.get('dataset').get('hf_name', None) is not None:
+        metrics['llmfoundry/train_dataset_hf_name'] = train_loader_config.get('dataset').get('hf_name')
     if train_loader_config.get('name') == 'finetuning':
         metrics['llmfoundry/llmfoundry_run_subtype'] = 'IFT (finetuning)'
     elif train_loader_config.get('name') == 'text':
@@ -167,7 +161,17 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
             metrics['llmfoundry/llmfoundry_run_subtype'] = 'CPT (finetuning)'
         else:
             metrics['llmfoundry/llmfoundry_run_subtype'] = 'Pre-training'
-        
+
+    if eval_loader_config is not None:
+        metrics['llmfoundry/eval_loader_name'] = eval_loader_config.get('name')
+        metrics['llmfoundry/eval_loader_workers'] = eval_loader_config.get('dataset').get('num_workers')
+        if eval_loader_config.get('dataset').get('hf_name', None) is not None:
+            metrics['llmfoundry/eval_dataset_hf_name'] = eval_loader_config.get('dataset').get('hf_name', None)
+
+    # TODO: do we need error checking here?
+    if model_config['name'] == 'hf_casual_lm':
+        metrics['llmfoundry/model_name'] = model_config.get('pretrained_model_name_or_path')    
+
     mosaicml_logger.log_metrics(metrics)
     mosaicml_logger._flush_metadata(force_flush=True)
 

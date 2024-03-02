@@ -136,13 +136,21 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
                           train_loader_config: DictConfig,
                           eval_loader_config: Union[DictConfig, ListConfig, None],
                           tokenizer_name: str,
-                          load_path: Union[str, None]):
+                          load_path: Union[str, None],
+                          save_folder: Union[str, None]):
     metrics = {
         'llmfoundry/llmfoundry_run_type': 'training',
         'llmfoundry/train_loader_name': train_loader_config.get('name'),
         'llmfoundry/tokenizer_name': tokenizer_name,
         'llmfoundry/train_dataset_hf_name': train_loader_config.get('dataset').get('hf_name'),
     }
+
+    # TODO: what's a good name for this? ideally we want the keys to be the same for 
+    # training and eval to make querying easier.
+    if load_path is not None:
+        metrics['llmfoundry/cloud_provider_loading'] = load_path.split(':')[0]
+    if save_folder is not None:
+        metrics['llmfoundry/cloud_provider_saving'] = save_folder.split(':')[0]
 
     if eval_loader_config is not None:
         metrics['llmfoundry/eval_loader_name'] = eval_loader_config.get('name')
@@ -153,12 +161,12 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
         metrics['llmfoundry/model_name'] = model_config.get('pretrained_model_name_or_path')    
 
     if train_loader_config.get('name') == 'finetuning':
-        metrics['llmfoundry/llm_foundry_run_subtype'] = 'IFT (finetuning)'
+        metrics['llmfoundry/llmfoundry_run_subtype'] = 'IFT (finetuning)'
     elif train_loader_config.get('name') == 'text':
         if load_path is not None or model_config.get('pretrained') == True:
-            metrics['llmfoundry/llm_foundry_run_subtype'] = 'CPT (finetuning)'
+            metrics['llmfoundry/llmfoundry_run_subtype'] = 'CPT (finetuning)'
         else:
-            metrics['llmfoundry/llm_foundry_run_subtype'] = 'Pre-training'
+            metrics['llmfoundry/llmfoundry_run_subtype'] = 'Pre-training'
         
     mosaicml_logger.log_metrics(metrics)
     mosaicml_logger._flush_metadata(force_flush=True)
@@ -462,7 +470,8 @@ def main(cfg: DictConfig) -> Trainer:
                                   train_loader_config, 
                                   eval_loader_config, 
                                   tokenizer_name,
-                                  load_path)
+                                  load_path,
+                                  save_folder)
 
     if metadata is not None:
         # Flatten the metadata for logging

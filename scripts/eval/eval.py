@@ -58,12 +58,16 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
 
 def log_analytics_details(mosaicml_logger: MosaicMLLogger, 
                           model_config: DictConfig,
-                          tokenizer_name: str):
+                          tokenizer_name: str,
+                          load_path: Union[str, None]):
     metrics = {        
         'llmfoundry/llmfoundry_run_type': 'eval',  
         'llmfoundry/model_name': model_config.get('model_name'),
         'llmfoundry/tokenizer_name': tokenizer_name
     }
+
+    if load_path is not None:
+        metrics['llmfoundry/cloud_provider_loading'] = load_path.split(':')[0]
 
     """
     TODO: right now, we need to get the following subtypes for eval:
@@ -173,7 +177,7 @@ def evaluate_model(
     assert composer_model is not None
     
     if mosaicml_logger is not None:
-        log_analytics_details(mosaicml_logger, model_cfg, tokenizer_name)
+        log_analytics_details(mosaicml_logger, model_cfg, tokenizer_name, load_path)
 
     log.info(f'Building trainer for {model_cfg.model_name}...')
 

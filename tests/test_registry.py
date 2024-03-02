@@ -127,7 +127,7 @@ def test_registry_builder(monkeypatch: pytest.MonkeyPatch):
         'test_registry',
         entry_points=False,
         generic_type=Union[Type[LoggerDestination],
-                           Callable[..., Type[LoggerDestination]]])
+                           Callable[..., LoggerDestination]])
 
     class TestLoggerDestination(LoggerDestination):
         pass

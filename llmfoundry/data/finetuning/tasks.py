@@ -246,7 +246,15 @@ def _tokenize_prompt_response_formatted_example(
             f'Unable to tokenize example because {response_key} was not a string. {example=}'
         )
 
-    return tokenizer(text=prompt, text_target=response)
+    tokenized_sample = tokenizer(text=prompt, text_target=response)
+
+    # Remove the BOS token from the start of the labels if it was automatically added
+    if hasattr(tokenizer, 'add_bos_token') and tokenizer.add_bos_token:
+        if tokenizer.bos_token_id is not None and tokenized_sample['labels'][
+                0] == tokenizer.bos_token_id:
+            tokenized_sample['labels'] = tokenized_sample['labels'][1:]
+
+    return tokenized_sample
 
 
 def tokenize_formatted_example(

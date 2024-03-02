@@ -13,6 +13,7 @@ import torch
 from composer import Trainer
 from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
+from composer.metrics.nlp import InContextLearningMetric
 from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
                                               MOSAICML_PLATFORM_ENV_VAR)
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
@@ -534,9 +535,9 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Now add the eval metrics
     if eval_loader_config is not None and not use_async_eval:
-        train_metrics = model.get_metrics(is_train=False)
-        evaluators = add_metrics_to_eval_loaders(evaluators,
-                                                 list(train_metrics.keys()))
+        eval_metrics = model.get_metrics(is_train=False)
+        non_icl_metrics = [metric_name for metric_name, metric in eval_metrics.items() if not isinstance(metric, InContextLearningMetric)]
+        evaluators = add_metrics_to_eval_loaders(evaluators, non_icl_metrics)
 
     # Build the Trainer
     log.info('Building trainer...')

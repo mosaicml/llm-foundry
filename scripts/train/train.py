@@ -534,7 +534,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Now add the eval metrics
     if eval_loader_config is not None and not use_async_eval:
-        train_metrics = model.get_metrics(is_train=True)
+        train_metrics = model.get_metrics(is_train=False)
         evaluators = add_metrics_to_eval_loaders(evaluators,
                                                  list(train_metrics.keys()))
 

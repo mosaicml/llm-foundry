@@ -141,8 +141,8 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
     metrics = {
         'llmfoundry/llmfoundry_run_type': 'training',
         'llmfoundry/tokenizer_name': tokenizer_name,
-        'llmfoundry/train_loader_name': train_loader_config['name'],
-        'llmfoundry/train_loader_workers': train_loader_config['dataset'].get('num_workers'),
+        'llmfoundry/train_loader_name': train_loader_config.get('name'),
+        'llmfoundry/train_loader_workers': train_loader_config.get('dataset').get('num_workers'),
     }
 
     # TODO: what's a good name for this? ideally we want the keys to be the same for 
@@ -152,11 +152,11 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
     if save_folder is not None:
         metrics['llmfoundry/cloud_provider_saving'] = save_folder.split(':')[0]
 
-    if train_loader_config['dataset'].get('hf_name', None) is not None:
-        metrics['llmfoundry/train_dataset_hf_name'] = train_loader_config['dataset'].get('hf_name')
-    if train_loader_config['name'] == 'finetuning':
+    if train_loader_config.get('dataset').get('hf_name', None) is not None:
+        metrics['llmfoundry/train_dataset_hf_name'] = train_loader_config.get('dataset').get('hf_name')
+    if train_loader_config.get('name') == 'finetuning':
         metrics['llmfoundry/llmfoundry_run_subtype'] = 'IFT (finetuning)'
-    elif train_loader_config['name'] == 'text':
+    elif train_loader_config.get('name') == 'text':
         if load_path is not None or model_config.get('pretrained') == True:
             metrics['llmfoundry/llmfoundry_run_subtype'] = 'CPT (finetuning)'
         else:
@@ -164,9 +164,9 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
 
     if eval_loader_config is not None:
         metrics['llmfoundry/eval_loader_name'] = eval_loader_config.get('name')
-        metrics['llmfoundry/eval_loader_workers'] = eval_loader_config['dataset'].get('num_workers')
+        metrics['llmfoundry/eval_loader_workers'] = eval_loader_config.get('dataset').get('num_workers')
         if eval_loader_config.get('dataset').get('hf_name', None) is not None:
-            metrics['llmfoundry/eval_dataset_hf_name'] = eval_loader_config['dataset'].get('hf_name', None)
+            metrics['llmfoundry/eval_dataset_hf_name'] = eval_loader_config.get('dataset').get('hf_name', None)
 
     # TODO: do we need error checking here?
     if model_config['name'] == 'hf_casual_lm':

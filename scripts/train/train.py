@@ -269,7 +269,7 @@ def main(cfg: DictConfig) -> Trainer:
         cfg,
         'save_latest_filename',
         must_exist=False,
-        default_value='latest-rank{rank}_sharded_magic_keyword.pt'
+        default_value='latest-sharded-rank{rank}'
         if is_state_dict_sharded else 'latest-rank{rank}.pt')
     save_overwrite: bool = pop_config(cfg,
                                       'save_overwrite',

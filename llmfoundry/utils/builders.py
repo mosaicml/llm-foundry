@@ -499,10 +499,11 @@ def build_icl_evaluators(
             icl_cfg.batch_size = default_batch_size
         if 'pass_at_k' not in icl_cfg:
             icl_cfg.pass_at_k = 1
-        if 'generations_per_sample' not in icl_cfg:
-            icl_cfg.generations_per_sample = 20
         if 'fewshot_random_seed' not in icl_cfg:
             icl_cfg.fewshot_random_seed = 1234
+        if 'generations_per_sample' not in icl_cfg:
+            icl_cfg.generations_per_sample = 1
+
         if 'num_beams' in icl_cfg:
             raise ValueError(
                 'num_beams is no longer supported as a top level icl_task parameter.'  + \

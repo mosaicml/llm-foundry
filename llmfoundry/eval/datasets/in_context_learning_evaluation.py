@@ -19,13 +19,14 @@ from composer.core.data_spec import _default_split_batch, _split_list
 from composer.datasets.utils import stop_sequences_criteria
 from composer.utils import MissingConditionalImportError, dist, get_file
 from torch.utils.data import DataLoader, Dataset
-
+import logging
 from llmfoundry.eval.datasets.utils import (convert_tokens_to_tensors,
                                             get_continuation_span,
                                             get_fewshot_sample_idxs,
                                             make_padded_input, strip_data,
                                             tokenizer_needs_prefix_space,
                                             trim_context)
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     import transformers
@@ -1465,7 +1466,9 @@ def build_icl_dataloader(
             generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size
-    elif icl_task_type == 'generation_task_with_answers':
+    elif icl_task_type == 'generation_task_with_answers' or icl_task_type == "question_answering":
+        if icl_task_type == "question_answering":
+            log.warning(f"ICL task type `question_answering` has been deprecated, please use `generation_task_with_answers`.")
         dataset = InContextLearningGenerationWithAnswersTaskDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,

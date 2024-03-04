@@ -11,8 +11,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
-
-# from icecream import ic
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (
     add_metrics_to_eval_loaders,
@@ -133,10 +131,8 @@ def evaluate_model(
                                 num_retries)
 
     # Now add the eval metrics
-    # ic(eval_loader_config)
     if eval_loader_config is not None:
         train_metrics = composer_model.get_metrics(is_train=True)
-        # ic(train_metrics)
         evaluators = add_metrics_to_eval_loaders(evaluators,
                                                  list(train_metrics.keys()))
 
@@ -366,7 +362,7 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
         # dl_name is either 2-tuple (benchmark_name, num_fewshot)
         # or 3-tuple (benchmark_name, num_fewshot, subcategory)
         dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
-        if 'Accuracy' not in metric_name:
+        if 'Accuracy' not in metric_name and 'Prob' not in metric_name:
             continue
 
         metric = trainer.state.eval_metrics.get('/'.join(dl_name),

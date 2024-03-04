@@ -135,15 +135,19 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
                           model_config: DictConfig, 
                           train_loader_config: DictConfig,
                           eval_loader_config: Union[DictConfig, ListConfig, None],
+                          callback_configs: Union[DictConfig, None],
                           tokenizer_name: str,
                           load_path: Union[str, None],
                           save_folder: Union[str, None]):
     metrics = {
-        'llmfoundry/llmfoundry_run_type': 'training',
         'llmfoundry/tokenizer_name': tokenizer_name,
+        'llmfoundry/llmfoundry_run_type': 'training',
         'llmfoundry/train_loader_name': train_loader_config.get('name'),
         'llmfoundry/train_loader_workers': train_loader_config.get('dataset').get('num_workers'),
     }
+
+    if callback_configs is not None:
+        metrics['llmfoundry/callbacks'] = [name for name, _ in callback_configs.items()]
 
     # TODO: what's a good name for this? ideally we want the keys to be the same for 
     # training and eval to make querying easier.
@@ -170,7 +174,12 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
 
     # TODO: do we need error checking here?
     if model_config['name'] == 'hf_casual_lm':
-        metrics['llmfoundry/model_name'] = model_config.get('pretrained_model_name_or_path')    
+        metrics['llmfoundry/model_name'] = model_config.get('pretrained_model_name_or_path')
+    if model_config.get('vocab_size', None) is not None:
+        metrics['llmfoundry/vocab_size'] =  model_config.get('vocab_size'),
+    if model_config.get('d_model', None) is not None:
+        metrics['llmfoundry/d_model'] = model_config.get('d_model')
+
 
     mosaicml_logger.log_metrics(metrics)
     mosaicml_logger._flush_metadata(force_flush=True)
@@ -473,6 +482,7 @@ def main(cfg: DictConfig) -> Trainer:
                                   model_config, 
                                   train_loader_config, 
                                   eval_loader_config, 
+                                  callback_configs,
                                   tokenizer_name,
                                   load_path,
                                   save_folder)

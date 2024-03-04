@@ -62,9 +62,14 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
                           load_path: Union[str, None]):
     metrics = {        
         'llmfoundry/llmfoundry_run_type': 'eval',  
+        'llmfoundry/tokenizer_name': tokenizer_name,
         'llmfoundry/model_name': model_config.get('model_name'),
-        'llmfoundry/tokenizer_name': tokenizer_name
     }
+
+    if model_config.get('vocab_size', None) is not None:
+        metrics['llmfoundry/vocab_size'] = model_config.get('vocab_size')
+    if model_config.get('d_model', None) is not None:
+        metrics['llmfoundry/d_model'] = model_config.get('d_model')
 
     if load_path is not None:
         metrics['llmfoundry/cloud_provider_loading'] = load_path.split(':')[0]

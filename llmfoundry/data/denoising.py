@@ -6,6 +6,7 @@
 import logging
 import random
 import sys
+import warnings
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
@@ -20,6 +21,7 @@ from llmfoundry.data.packing import BinPackCollator
 from llmfoundry.data.text_data import (StreamingTextDataset,
                                        get_tokens_per_batch_func)
 from llmfoundry.models import utils
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 __all__ = ['MixtureOfDenoisersCollator', 'build_text_denoising_dataloader']
 
@@ -429,6 +431,9 @@ def build_text_denoising_dataloader(
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """
+    warnings.warn(
+        VersionedDeprecationWarning('Text denoising is deprecated.',
+                                    remove_version='0.7.0'))
     assert cfg.name == 'text_denoising', f'Tried to build_denoising text dataloader with cfg.name={cfg.name}'
 
     collate_fn = MixtureOfDenoisersCollator(

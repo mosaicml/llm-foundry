@@ -263,7 +263,7 @@ def main(cfg: DictConfig) -> Trainer:
                                             must_exist=False,
                                             default_value=None)
     is_state_dict_sharded: bool = (fsdp_config.get('state_dict_type', 'sharded')
-                                   == 'sharded') if fsdp_config else True
+                                   == 'sharded') if fsdp_config else False
     save_latest_filename: str = pop_config(
         cfg,
         'save_latest_filename',

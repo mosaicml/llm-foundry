@@ -219,7 +219,7 @@ class MPTConfig(PretrainedConfig):
                 VersionedDeprecationWarning(
                     'Support for Prefix Language Models is deprecated.',
                     remove_version='0.7.0'))
-        if self.atten_config['attn_impl'] == 'triton':
+        if self.attn_config['attn_impl'] == 'triton':
             warnings.warn(
                 VersionedDeprecationWarning(
                     'Support for triton attention is deprecated. Please use torch or flash attention.',

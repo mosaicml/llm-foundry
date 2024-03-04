@@ -143,6 +143,7 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
         inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1],
         tuple)
 
+
 def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
     """Test using use_train_metrics=False does not disable eval metrics."""
     c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)

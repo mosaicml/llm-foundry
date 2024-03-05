@@ -1,15 +1,15 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.4.0
+  git_branch: v0.5.0
   # git_commit: # OR use your commit hash
-  pip_install: -e .[gpu]
-  ssh_clone: false # Should be true if using a private repo
+  pip_install: -e .[gpu-flash2]
+  ssh_clone: false  # Should be true if using a private repo
 
 command: |
   cd llm-foundry/scripts
   composer train/train.py /mnt/config/parameters.yaml
-image: mosaicml/llm-foundry:1.13.1_cu117-latest
+image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 name: llama2-finetune
 
 compute:
@@ -26,7 +26,7 @@ parameters:
   global_seed: 17
 
   # Run Name
-  run_name: # If left blank, will be read from env var $RUN_NAME
+  run_name:  # If left blank, will be read from env var $RUN_NAME
 
   max_split_size_mb: 512
 
@@ -140,7 +140,7 @@ parameters:
     memory_monitor: {}
     runtime_estimator: {}
 
-  load_weights_only: true # Only load the weights, not the optimizer state, LR schedule, etc
+  load_weights_only: true  # Only load the weights, not the optimizer state, LR schedule, etc
 
 #   loggers:
 #     wandb: {}

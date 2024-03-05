@@ -1,3 +1,6 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 """MosaicML LLM Foundry package setup."""
 
 import os
@@ -47,18 +50,19 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,mlflow,oci,gcs]>=0.17.2,<0.18',
+    'mosaicml[libcloud,wandb,oci,gcs]>=0.20,<0.21',
+    'mlflow>=2.10,<3',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
-    'transformers>=4.36,<4.37',
-    'mosaicml-streaming>=0.7.2,<0.8',
-    'torch>=2.1,<2.1.1',
-    'datasets==2.15.0',
+    'transformers>=4.37,<4.38',
+    'mosaicml-streaming>=0.7.4,<0.8',
+    'torch>=2.2,<2.3',
+    'datasets>=2.16,<2.17',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
     'einops==0.7.0',
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
-    'mosaicml-cli>=0.5.27,<1',
+    'mosaicml-cli>=0.6.10,<1',
     'onnx==1.14.0',
     'onnxruntime==1.15.1',
     'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
@@ -84,32 +88,28 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.17.2,<0.18',
+    'mosaicml[databricks]>=0.20,<0.21',
+    'databricks-sql-connector>=3,<4',
+    'databricks-connect==14.1.0',
+    'lz4>=4,<5',
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.17.2,<0.18',
+    'mosaicml[tensorboard]>=0.20,<0.21',
 ]
 
 extra_deps['gpu'] = [
     'flash-attn==1.0.9',
-    'mosaicml-turbo==0.0.7',
     # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
     'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
 ]
+
 extra_deps['gpu-flash2'] = [
-    'flash-attn==2.4.2',
-    'mosaicml-turbo==0.0.7',
+    'flash-attn==2.5.0',
 ]
 
 extra_deps['peft'] = [
-    'loralib==0.1.1',  # lora core
-    'bitsandbytes==0.39.1',  # 8bit
-    # bitsandbytes dependency; TODO: eliminate when incorporated to bitsandbytes
-    'scipy>=1.10.0,<=1.11.0',
-    # TODO: pin peft when it stabilizes.
-    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'peft==0.4.0',
+    'mosaicml[peft]>=0.20,<0.21',
 ]
 
 extra_deps['openai'] = [

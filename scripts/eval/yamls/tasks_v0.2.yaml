@@ -4,44 +4,43 @@ icl_tasks:
   dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl
   num_fewshot: [3]
   icl_task_type: language_modeling
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
   has_categories: true
 -
   label: triviaqa_sm_sub
   dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl
   num_fewshot: [3]
   icl_task_type: question_answering
-#BROKEN
-#-
-#  label: gsm8k
-#  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k.jsonl
-#  num_fewshot: [8, 5]
-#  icl_task_type: question_answering
-#  cot_delimiter: ' #### '
-#  continuation_delimiter: "\nA: Let's think step by step. "
-#  question_prelimiter: "Q: "
-#-
-#  label: agi_eval_sat_math
-#  dataset_uri: eval/local_data/symbolic_problem_solving/agi_eval_sat_math.jsonl
-#  num_fewshot: [3]
-#  icl_task_type: question_answering
-#  cot_delimiter: ' #### '
-#  continuation_delimiter: "\nA: Let's think step by step. "
-#-
-#  label: aqua
-#  dataset_uri: eval/local_data/symbolic_problem_solving/aqua.jsonl
-#  num_fewshot: [3]
-#  icl_task_type: question_answering
-#  cot_delimiter: ' #### '
-#  continuation_delimiter: "\nA: Let's think step by step. "
-#-
-#  label: svamp
-#  dataset_uri: eval/local_data/symbolic_problem_solving/svamp.jsonl
-#  num_fewshot: [5]
-#  icl_task_type: question_answering
-#  continuation_delimiter: "\nUsing the formula below:\n"
-#  cot_delimiter: ' #### '
-#  question_prelimiter: "Q: "
+-
+  label: gsm8k
+  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k.jsonl
+  num_fewshot: [8, 5]
+  icl_task_type: question_answering
+  cot_delimiter: " #### "
+  continuation_delimiter: "\nA: Let's think step by step. "
+  question_prelimiter: "Q: "
+-
+  label: agi_eval_sat_math
+  dataset_uri: eval/local_data/symbolic_problem_solving/agi_eval_sat_math.jsonl
+  num_fewshot: [3]
+  icl_task_type: question_answering
+  cot_delimiter: " #### "
+  continuation_delimiter: "\nA: Let's think step by step. "
+-
+  label: aqua
+  dataset_uri: eval/local_data/symbolic_problem_solving/aqua.jsonl
+  num_fewshot: [3]
+  icl_task_type: question_answering
+  cot_delimiter: " #### "
+  continuation_delimiter: "\nA: Let's think step by step. "
+-
+  label: svamp
+  dataset_uri: eval/local_data/symbolic_problem_solving/svamp.jsonl
+  num_fewshot: [5]
+  icl_task_type: question_answering
+  continuation_delimiter: "\nUsing the formula below:\n"
+  cot_delimiter: " #### "
+  question_prelimiter: "Q: "
 -
   label: bigbench_qa_wikidata
   dataset_uri: eval/local_data/world_knowledge/bigbench_qa_wikidata.jsonl
@@ -52,19 +51,19 @@ icl_tasks:
   dataset_uri: eval/local_data/world_knowledge/arc_easy.jsonl
   num_fewshot: [3]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: arc_challenge
   dataset_uri: eval/local_data/world_knowledge/arc_challenge.jsonl
   num_fewshot: [3, 25]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: mmlu
   dataset_uri: eval/local_data/world_knowledge/mmlu.jsonl
   num_fewshot: [5]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
   has_categories: true
 -
   label: copa
@@ -86,7 +85,7 @@ icl_tasks:
   dataset_uri: eval/local_data/commonsense_reasoning/piqa.jsonl
   num_fewshot: [0]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: openbook_qa
   dataset_uri: eval/local_data/commonsense_reasoning/openbook_qa.jsonl
@@ -187,7 +186,7 @@ icl_tasks:
   dataset_uri: eval/local_data/reading_comprehension/boolq.jsonl
   num_fewshot: [0]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: agi_eval_sat_en
   dataset_uri: eval/local_data/reading_comprehension/agi_eval_sat_en.jsonl

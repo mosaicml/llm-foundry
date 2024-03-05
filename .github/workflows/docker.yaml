@@ -7,28 +7,28 @@ on:
     branches:
     - main
     paths:
-    - ./Dockerfile
+    - Dockerfile
     - .github/workflows/docker.yaml
   workflow_dispatch: {}
 jobs:
   docker-build:
-    runs-on: ubuntu-latest
+    runs-on: mosaic-4wide
     if: github.repository_owner == 'mosaicml'
     strategy:
       matrix:
         include:
-        - name: '2.1.0_cu121'
-          base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
-          dep_groups: '[gpu]'
-        - name: '2.1.0_cu121_flash2'
-          base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
-          dep_groups: '[gpu-flash2]'
-        - name: '2.1.0_cu121_aws'
-          base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04-aws
-          dep_groups: '[gpu]'
-        - name: '2.1.0_cu121_flash2_aws'
-          base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04-aws
-          dep_groups: '[gpu-flash2]'
+        - name: "2.2.0_cu121_flash2"
+          base_image: mosaicml/pytorch:2.2.0_cu121-python3.11-ubuntu20.04
+          dep_groups: "[gpu-flash2]"
+        - name: "2.2.0_cu121_flash2_aws"
+          base_image: mosaicml/pytorch:2.2.0_cu121-python3.11-ubuntu20.04-aws
+          dep_groups: "[gpu-flash2]"
+        - name: "2.2.1_cu121_flash2"
+          base_image: mosaicml/pytorch:2.2.1_cu121-python3.11-ubuntu20.04
+          dep_groups: "[gpu-flash2]"
+        - name: "2.2.1_cu121_flash2_aws"
+          base_image: mosaicml/pytorch:2.2.1_cu121-python3.11-ubuntu20.04-aws
+          dep_groups: "[gpu-flash2]"
     steps:
     - name: Maximize Build Space on Worker
       uses: easimon/maximize-build-space@v4
@@ -88,5 +88,6 @@ jobs:
         cache-from: type=registry,ref=${{ env.IMAGE_CACHE }}
         cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max
         build-args: |
+          BRANCH_NAME=${{ github.head_ref || github.ref_name }}
           BASE_IMAGE=${{ matrix.base_image }}
           DEP_GROUPS=${{ matrix.dep_groups }}

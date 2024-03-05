@@ -72,7 +72,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
             expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
             output_logits = torch.nn.functional.one_hot(
                 torch.tensor(tokens[1:cont_idxs[0]]),
-                num_classes=self.tokenizer.vocab_size)
+                num_classes=len(self.tokenizer))
             for i in range(len(expected_cont_tokens)):
                 # decode one token at a time
                 prompt = self.tokenizer.decode(tokens[:cont_idxs[0]] +
@@ -85,7 +85,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
                      next_logit_tensor.reshape(1, -1)])
             padding = torch.nn.functional.one_hot(
                 torch.full((seqlen - output_logits.shape[0],), padding_tok),
-                num_classes=self.tokenizer.vocab_size)
+                num_classes=len(self.tokenizer))
             output_logits = torch.cat([output_logits, padding])
             output_logits_batch.append(output_logits)
 

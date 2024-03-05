@@ -8,7 +8,7 @@
 
 from llmfoundry.eval.datasets.in_context_learning_evaluation import (
     InContextLearningCodeEvalDataset, InContextLearningDataset,
-    InContextLearningGenerationWithAnswersTaskDataset,
+    InContextLearningGenerationTaskWithAnswersDataset,
     InContextLearningLMTaskDataset, InContextLearningMultipleChoiceTaskDataset,
     InContextLearningSchemaTaskDataset, get_icl_task_dataloader)
 from llmfoundry.eval.datasets.utils import (get_continuation_span,
@@ -19,7 +19,7 @@ from llmfoundry.eval.datasets.utils import (get_continuation_span,
 
 __all__ = [
     'InContextLearningDataset',
-    'InContextLearningGenerationWithAnswersTaskDataset',
+    'InContextLearningGenerationTaskWithAnswersDataset',
     'InContextLearningLMTaskDataset', 'InContextLearningCodeEvalDataset',
     'InContextLearningMultipleChoiceTaskDataset',
     'InContextLearningSchemaTaskDataset', 'get_icl_task_dataloader',

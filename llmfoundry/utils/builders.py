@@ -476,7 +476,7 @@ def build_icl_evaluators(
                 icl_cfg.metric_names = [
                     'InContextLearningMultipleChoiceAccuracy'
                 ]
-            elif icl_cfg.icl_task_type == 'generation_task_with_answers' or icl_cfg.icl_task_type == "question_answering":
+            elif icl_cfg.icl_task_type == 'generation_task_with_answers' or icl_cfg.icl_task_type == 'question_answering':
                 icl_cfg.metric_names = [
                     'InContextLearningGenerationExactMatchAccuracy'
                 ]

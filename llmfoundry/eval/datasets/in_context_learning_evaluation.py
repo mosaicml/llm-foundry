@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 import os
 import random
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
@@ -19,13 +20,14 @@ from composer.core.data_spec import _default_split_batch, _split_list
 from composer.datasets.utils import stop_sequences_criteria
 from composer.utils import MissingConditionalImportError, dist, get_file
 from torch.utils.data import DataLoader, Dataset
-import logging
+
 from llmfoundry.eval.datasets.utils import (convert_tokens_to_tensors,
                                             get_continuation_span,
                                             get_fewshot_sample_idxs,
                                             make_padded_input, strip_data,
                                             tokenizer_needs_prefix_space,
                                             trim_context)
+
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
@@ -41,7 +43,7 @@ __all__ = [
     'InContextLearningMultipleChoiceTaskDataset',
     'InContextLearningSchemaTaskDataset',
     'InContextLearningCodeEvalDataset',
-    'InContextLearningGenerationWithAnswersTaskDataset',
+    'InContextLearningGenerationTaskWithAnswersDataset',
     'get_icl_task_dataloader',
 ]
 
@@ -63,7 +65,7 @@ class InContextLearningDataset(Dataset):
     - construct_context(): Takes a single example dictionary and formulates the context as a string for that eval question.
     - get_answer_from_example(): Takes a single example dictionary and formulates the correct, ground truth answer as a string.
     - tokenize_example(): Tokenizes the example and adds any extra content from the original dictionary that needs to be passed downstream.
-    - read_dataset(): Loads the dataset and does basic parsing. If additional parsing must be done, this is a good place to do so (See InContextLearningGenerationWithAnswersTaskDataset.read_dataset())
+    - read_dataset(): Loads the dataset and does basic parsing. If additional parsing must be done, this is a good place to do so (See InContextLearningGenerationTaskWithAnswersDataset.read_dataset())
 
     Additionally, base_batch and batch_mapping must be defined.
 
@@ -525,7 +527,7 @@ class InContextLearningDataset(Dataset):
         return batched_list
 
 
-class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset
+class InContextLearningGenerationTaskWithAnswersDataset(InContextLearningDataset
                                                        ):
     """A dataset that constructs batches for in-context learning generation.
 
@@ -545,23 +547,22 @@ class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset
         do_normalization (bool): Flag indicating whether to normalize generations before providing output.
     """
 
-    def __init__(
-            self,
-            cot_delimiter: str = '',
-            early_stopping_criteria: Optional[List[str]] = None,
-            do_normalization: bool = True,
-            *args,  # pyright: ignore
-            **kwargs):  # pyright: ignore
+    def __init__(self,
+                 cot_delimiter: str = '',
+                 early_stopping_criteria: Optional[List[str]] = None,
+                 do_normalization: bool = True,
+                 *args: Any,
+                 **kwargs: Any):
         if kwargs['tokenizer'].eos_token_id is None:
             raise ValueError(
-                '`InContextLearningGenerationWithAnswersTaskDataset` tokenizer must have non-null `eos_token_id`'
+                '`InContextLearningGenerationTaskWithAnswersDataset` tokenizer must have non-null `eos_token_id`'
             )
         self.cot_delimiter = cot_delimiter
         self.has_cot = False
         self.max_answer_length = 0
         static_keys = [
-            'mode', 'cot_delimiter', 'generation_length', 'generation_kwargs',
-            'do_normalization', 'stopping_criteria'
+            'mode', 'cot_delimiter', 'generation_kwargs', 'do_normalization',
+            'stopping_criteria'
         ]
         tensor_keys = ['input_ids', 'attention_mask']
         list_keys = ['labels']
@@ -579,13 +580,13 @@ class InContextLearningGenerationWithAnswersTaskDataset(InContextLearningDataset
             'mode': 'generate',
             'labels': [],
             'cot_delimiter': self.cot_delimiter,
-            'generation_length': self.max_answer_length,
             'stopping_criteria': early_stopping_criteria,
             'do_normalization': do_normalization,
             'generation_kwargs': {
                 'pad_token_id': self.pad_tok_id,
                 'use_cache': True,
                 'eos_token_id': self.tokenizer.eos_token_id,
+                'max_new_tokens': self.max_answer_length,
             }
         }
         self.batch_mapping = {
@@ -710,7 +711,7 @@ class InContextLearningLMTaskDataset(InContextLearningDataset):
     See InContextLearningDataset for more details.
     """
 
-    def __init__(self, *args, **kwargs):  # pyright: ignore
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(answer_key='continuation',
                          static_keys=['mode'],
                          tensor_keys=[
@@ -758,15 +759,14 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
         choices_key (str): The key under which the choices are stored in the saved dataset. Defaults to 'choices'.
     """
 
-    def __init__(
-            self,
-            choices_key: str = 'choices',
-            static_keys: Optional[List] = None,
-            list_of_tensors_keys: Optional[List] = None,
-            list_of_tuples_keys: Optional[List] = None,
-            list_of_primitives: Optional[List] = None,
-            *args,  # pyright: ignore
-            **kwargs):  # pyright: ignore
+    def __init__(self,
+                 choices_key: str = 'choices',
+                 static_keys: Optional[List] = None,
+                 list_of_tensors_keys: Optional[List] = None,
+                 list_of_tuples_keys: Optional[List] = None,
+                 list_of_primitives: Optional[List] = None,
+                 *args: Any,
+                 **kwargs: Any):
         self.choices_key = choices_key
         base_batch = {
             'input_ids': [],
@@ -989,11 +989,10 @@ class InContextLearningSchemaTaskDataset(
     - choice_groupings: Indicates which indices of the batch correspond to which questions
     """
 
-    def __init__(
-            self,
-            choices_key: str = 'context_options',
-            *args,  # pyright: ignore
-            **kwargs):  # pyright: ignore
+    def __init__(self,
+                 choices_key: str = 'context_options',
+                 *args: Any,
+                 **kwargs: Any):
         static_keys = ['mode']
         tensor_keys = ['input_ids', 'labels', 'attention_mask']
         list_of_tensors_keys = ['continuation_indices']
@@ -1037,7 +1036,7 @@ class InContextLearningSchemaTaskDataset(
         context = context_options[gold_idx]
         if len(preceding_text) > 0:
             context = f'{self.example_delimiter}{context}'
-        context = f'{context}{self.continuation_delimiter}{continuation}'
+        context = f'{self.prelimiter}{context}{self.continuation_delimiter}{continuation}'
         return context
 
     def _construct_multiple_contexts(self,
@@ -1061,9 +1060,11 @@ class InContextLearningSchemaTaskDataset(
             else:
                 cont_del = self.continuation_delimiter
             context_options = [
-                f'{self.example_delimiter}{c}{cont_del}'
+                f'{self.prelimiter}{self.example_delimiter}{c}{cont_del}'
                 for c in context_options
             ]
+        else:
+            context_options = [f'{self.prelimiter}{c}' for c in context_options]
         return context_options
 
     def _prep_example(
@@ -1182,7 +1183,6 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
     - test_outputs: List of test outputs
     - languages:  List of languages
     - pass_at_k: Passed value for pass_at_k
-    - generation_length: Derrived maximum generation length
     - generation_kwargs: Dictionary of kwargs neeeded for generation. Includes the following, which will be individually overwritten
       by keys in generaiton_kwargs if set (see https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
       for more details):
@@ -1198,11 +1198,11 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
     """
 
     def __init__(
-            self,
-            generations_per_sample: int,
-            pass_at_k: Union[int, list[int]] = 1,
-            *args,  # pyright: ignore
-            **kwargs,  # pyright: ignore
+        self,
+        generations_per_sample: int,
+        pass_at_k: Union[int, list[int]] = 1,
+        *args: Any,
+        **kwargs: Any,
     ):
         if isinstance(pass_at_k, int):
             pass_at_k = [pass_at_k]
@@ -1227,7 +1227,6 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
         static_keys = [
             'mode',
             'pass_at_k',
-            'generation_length',
             'generation_kwargs',
             'generations_per_sample',
             'dataset_size',
@@ -1262,8 +1261,7 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
         self.dataset = self.repeat_dataset(self.dataset, generations_per_sample)
         self.base_batch = {
             'input_ids': [],
-            'mode':
-                'generate',
+            'mode': 'generate',
             'labels': [],
             'prompts': [],
             'tests': [],
@@ -1271,26 +1269,28 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             'test_inputs': [],
             'test_outputs': [],
             'languages': [],
-            'pass_at_k':
-                pass_at_k,
-            'generation_length':
-                min(self.max_answer_length,
-                    self.max_seq_len - self.max_prompt_length),
+            'pass_at_k': pass_at_k,
             'generation_kwargs': {
-                'pad_token_id': self.pad_tok_id,
-                'num_beams': 1,  # single beam
-                'do_sample': True,
-                'temperature': 0.2,  # good default for code
-                'use_cache': True,
-                'eos_token_id': self.tokenizer.eos_token_id,
+                'pad_token_id':
+                    self.pad_tok_id,
+                'num_beams':
+                    1,  # single beam
+                'do_sample':
+                    True,
+                'temperature':
+                    0.2,  # good default for code
+                'use_cache':
+                    True,
+                'eos_token_id':
+                    self.tokenizer.eos_token_id,
+                'max_new_tokens':
+                    min(self.max_answer_length,
+                        self.max_seq_len - self.max_prompt_length),
             },
             'sample_id': [],
-            'pass_at_k':
-                list(pass_at_k),
-            'generations_per_sample':
-                generations_per_sample,
-            'dataset_size':
-                dataset_size,
+            'pass_at_k': list(pass_at_k),
+            'generations_per_sample': generations_per_sample,
+            'dataset_size': dataset_size,
         }
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])
@@ -1469,10 +1469,12 @@ def build_icl_dataloader(
             generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size
-    elif icl_task_type == 'generation_task_with_answers' or icl_task_type == "question_answering":
-        if icl_task_type == "question_answering":
-            log.warning(f"ICL task type `question_answering` has been deprecated, please use `generation_task_with_answers`.")
-        dataset = InContextLearningGenerationWithAnswersTaskDataset(
+    elif icl_task_type == 'generation_task_with_answers' or icl_task_type == 'question_answering':
+        if icl_task_type == 'question_answering':
+            log.warning(
+                f'ICL task type `question_answering` has been deprecated, please use `generation_task_with_answers`.'
+            )
+        dataset = InContextLearningGenerationTaskWithAnswersDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,
             max_seq_len=max_seq_len,
@@ -1522,7 +1524,7 @@ def build_icl_dataloader(
             dataset,
         (
             InContextLearningMultipleChoiceTaskDataset,
-            InContextLearningGenerationWithAnswersTaskDataset,
+            InContextLearningGenerationTaskWithAnswersDataset,
             InContextLearningCodeEvalDataset,
         ),
     ):
@@ -1721,7 +1723,7 @@ def get_icl_task_dataloader(
                                                   for more details)
         early_stopping (List, default = None): A list of strings that, when found in a model's output, will be treated as a stopping criteria at metric computation time.
             Used in generation tasks with CoT
-        do_normalization (bool, default = True): Whether or not to normalize the outputs and labels in InContextLearningGenerationWithAnswersTaskDataset. Only used in generation tasks.
+        do_normalization (bool, default = True): Whether or not to normalize the outputs and labels in InContextLearningGenerationTaskWithAnswersDataset. Only used in generation tasks.
 
     Returns:
         DataLoader: A dataloader used for performing in-context learning evaluation on the dataset provided.

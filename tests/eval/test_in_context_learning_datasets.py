@@ -21,7 +21,7 @@ from torch.utils.data import DataLoader
 from llmfoundry.eval.datasets import (
     InContextLearningDataset, InContextLearningCodeEvalDataset,
     InContextLearningMultipleChoiceTaskDataset,
-    InContextLearningGenerationWithAnswersTaskDataset,
+    InContextLearningGenerationTaskWithAnswersDataset,
     InContextLearningSchemaTaskDataset, get_icl_task_dataloader, strip_data,
     tokenizer_needs_prefix_space, trim_context, get_continuation_span,
     get_fewshot_sample_idxs, make_padded_input)
@@ -337,7 +337,7 @@ def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningGenerationWithAnswersTaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -349,7 +349,7 @@ def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path):
         continuation_delimiter=': ',
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
         generation_kwargs=None)
-    assert len(dl.base_batch['generation_kwargs']) == 3
+    assert len(dl.base_batch['generation_kwargs']) == 4
 
 
 def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path: Path):
@@ -362,7 +362,7 @@ def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path: Path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningGenerationWithAnswersTaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -376,7 +376,7 @@ def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path: Path):
         generation_kwargs={'temperature': 0.9})
     assert 'generation_kwargs' in dl.base_batch
     assert dl.base_batch['generation_kwargs']['temperature'] == 0.9
-    assert len(dl.base_batch['generation_kwargs']) == 4
+    assert len(dl.base_batch['generation_kwargs']) == 5
 
 
 @pytest.mark.filterwarnings(
@@ -603,7 +603,7 @@ def test_qa_set_cot_no_cot(tmp_path: Path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningGenerationWithAnswersTaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -628,7 +628,7 @@ def test_qa_set_cot_has_cot(tmp_path: Path):
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningGenerationWithAnswersTaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -651,7 +651,7 @@ def test_qa_get_max_answer_length(
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningGenerationWithAnswersTaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
@@ -676,7 +676,7 @@ def test_qa_get_answer_from_example_with_no_cot(
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningGenerationWithAnswersTaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tiny_gpt2_tokenizer,
         max_seq_len=1024,
@@ -705,7 +705,7 @@ def test_qa_get_answer_from_example_with_cot(
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningGenerationWithAnswersTaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tiny_gpt2_tokenizer,
         max_seq_len=1024,
@@ -735,7 +735,7 @@ def test_qa_tokenize_example(tiny_gpt2_tokenizer: transformers.AutoTokenizer,
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = InContextLearningGenerationWithAnswersTaskDataset(
+    dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tiny_gpt2_tokenizer,
         max_seq_len=1024,
@@ -872,8 +872,10 @@ def test_mc_tokenize_example(tiny_gpt2_tokenizer: transformers.AutoTokenizer,
     assert untokenized_inputs == correct_output
 
 
+@pytest.mark.parametrize('prelimiter', ['', 'This is a question: '])
 def test_schema_construct_context(
-        tiny_gpt2_tokenizer: transformers.AutoTokenizer, tmp_path: Path):
+        prelimiter: str, tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+        tmp_path: Path):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/winograd_small.jsonl'
     tokenizer = tiny_gpt2_tokenizer
@@ -888,6 +890,7 @@ def test_schema_construct_context(
         num_fewshot=num_fewshot,
         fewshot_random_seed=1,
         prompt_string='',
+        prelimiter=prelimiter,
         example_delimiter='\n',
         continuation_delimiter=' ### ',
         destination_path=str(tmp_path / 'test_human_eval_small.jsonl'),
@@ -898,13 +901,17 @@ def test_schema_construct_context(
         'continuation': 'this is a continuation'
     }
     constructed_context = dl.construct_context(example)
-    assert constructed_context == 'cont one ### this is a continuation'
+    assert constructed_context == f'{prelimiter}cont one ### this is a continuation'
     constructed_context = dl.construct_context(example, preceding_text='text')
-    assert constructed_context == '\ncont one ### this is a continuation'
+    assert constructed_context == f'{prelimiter}\ncont one ### this is a continuation'
 
 
+@pytest.mark.parametrize('prelimiter', ['', 'This is a question: '])
 def test_schema_construct_multiple_contexts(
-        tiny_gpt2_tokenizer: transformers.AutoTokenizer, tmp_path: Path):
+    prelimiter: str,
+    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tmp_path: Path,
+):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/winograd_small.jsonl'
     tokenizer = tiny_gpt2_tokenizer
@@ -919,21 +926,26 @@ def test_schema_construct_multiple_contexts(
         pad_tok_id=tokenizer.eos_token_id,
         num_fewshot=num_fewshot,
         fewshot_random_seed=1,
+        prelimiter=prelimiter,
         prompt_string=prompt_string,
         example_delimiter='\n',
         continuation_delimiter=' ### ',
         destination_path=str(tmp_path / 'test_human_eval_small.jsonl'),
     )
     example = {
-        'context_options': ['cont one', 'cont two'],
+        'context_options': [f'cont one', 'cont two'],
         'gold': 0,
         'continuation': 'this is a continuation'
     }
     constructed_contexts = dl._construct_multiple_contexts(example)
-    assert constructed_contexts == ['cont one', 'cont two']
+    assert constructed_contexts == [
+        f'{prelimiter}cont one', f'{prelimiter}cont two'
+    ]
     constructed_contexts = dl._construct_multiple_contexts(
         example, preceding_text='some text')
-    assert constructed_contexts == ['\ncont one ###', '\ncont two ###']
+    assert constructed_contexts == [
+        f'{prelimiter}\ncont one ###', f'{prelimiter}\ncont two ###'
+    ]
 
 
 def test_schema_tokenize_example(
@@ -1120,7 +1132,8 @@ def test_lm_task_dataloader(dataset_uri: str,
 
 
 @pytest.mark.parametrize('dataset_uri', ['winograd_small.jsonl'])
-def test_schema_task_dataloader(dataset_uri: str,
+@pytest.mark.parametrize('prelimiter', ['', 'This is a question: '])
+def test_schema_task_dataloader(dataset_uri: str, prelimiter: str,
                                 tiny_gpt2_tokenizer: transformers.AutoTokenizer,
                                 tmp_path: Path):
     pytest.importorskip('datasets')
@@ -1140,6 +1153,7 @@ def test_schema_task_dataloader(dataset_uri: str,
                                  num_fewshot=1,
                                  prompt_string='',
                                  example_delimiter='\n',
+                                 question_prelimiter=prelimiter,
                                  continuation_delimiter='',
                                  destination_path=str(tmp_path / 'icl.jsonl'))
     assert isinstance(dl, DataSpec)
@@ -1437,8 +1451,8 @@ def test_qa_split_batch(tiny_opt_tokenizer: transformers.AutoTokenizer,
     assert len(split2['labels']) == 1
     assert all(isinstance(v, list) for v in split1['labels'] + split2['labels'])
 
-    assert isinstance(split1['generation_length'], int)
-    assert isinstance(split2['generation_length'], int)
+    assert isinstance(split1['generation_kwargs']['max_new_tokens'], int)
+    assert isinstance(split2['generation_kwargs']['max_new_tokens'], int)
 
     assert isinstance(split1['generation_kwargs'], dict)
     assert isinstance(split2['generation_kwargs'], dict)
@@ -1517,7 +1531,7 @@ def test_qa_task_dataloader(dataset_uri: str,
     assert batch['mode'] == 'generate'
     # the maximum generation length from the small test data
 
-    assert batch['generation_length'] == maximum_answer_length
+    assert batch['generation_kwargs']['max_new_tokens'] == maximum_answer_length
     assert all(item[0] == tokenizer.eos_token_id for item in batch['input_ids'])
 
     decoded_batch = tokenizer.batch_decode(batch['input_ids'])
@@ -1574,7 +1588,7 @@ def test_qa_task_with_cot_dataloader(
                                                     maximum_answer_length)
     assert batch['mode'] == 'generate'
     # the maximum generation length from the small test data
-    assert batch['generation_length'] == maximum_answer_length
+    assert batch['generation_kwargs']['max_new_tokens'] == maximum_answer_length
     assert all(item[0] == tokenizer.eos_token_id for item in batch['input_ids'])
     decoded_batch = tokenizer.batch_decode(batch['input_ids'])
     assert all(item.count('Q: ') == num_fewshot + 1 for item in decoded_batch)
@@ -1598,7 +1612,8 @@ def test_qa_task_with_cot_dataloader(
 
 
 @pytest.mark.parametrize('dataset_uri', ['piqa_small.jsonl'])
-def test_mc_task_dataloader(dataset_uri: str,
+@pytest.mark.parametrize('prelimiter', ['', 'This is a question: '])
+def test_mc_task_dataloader(dataset_uri: str, prelimiter: str,
                             tiny_gpt2_tokenizer: transformers.AutoTokenizer,
                             tmp_path: Path):
     pytest.importorskip('datasets')
@@ -1609,6 +1624,7 @@ def test_mc_task_dataloader(dataset_uri: str,
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 2
     seqlen = 64
+    example_delimiter = '\n'
     dl = get_icl_task_dataloader('multiple_choice',
                                  dataset_uri=dataset_uri,
                                  tokenizer=tokenizer,
@@ -1617,8 +1633,9 @@ def test_mc_task_dataloader(dataset_uri: str,
                                  pad_tok_id=tokenizer.eos_token_id,
                                  num_fewshot=1,
                                  prompt_string='',
-                                 example_delimiter='\n',
-                                 continuation_delimiter=': ',
+                                 question_prelimiter=prelimiter,
+                                 example_delimiter=example_delimiter,
+                                 continuation_delimiter='\nA: ',
                                  destination_path=str(tmp_path / 'icl.jsonl'))
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1643,6 +1660,14 @@ def test_mc_task_dataloader(dataset_uri: str,
 
     min_idx = min(batch['continuation_indices'][0]).item()
     max_idx = max(batch['continuation_indices'][0]).item()
+    assert tokenizer.decode(batch['input_ids'][0][min_idx:max_idx +
+                                                  1]) == ' Pour it onto a plate'
+    q1 = 'how do you shake something?\nA: '
+    a1 = 'move it up and down and side to side quickly.'
+    q2 = "When boiling butter, when it's ready, you can\nA:"
+    assert tokenizer.decode(
+        batch['input_ids'][0][:min_idx]
+    ) == f'{prelimiter}{q1}{a1}{example_delimiter}{prelimiter}{q2}'
     assert tokenizer.decode(batch['input_ids'][0][min_idx:max_idx +
                                                   1]) == ' Pour it onto a plate'
 
@@ -1694,12 +1719,11 @@ def test_code_eval_split_batch(dataset_uri: str, tmp_path: Path):
             assert len(batch[field]) == size
             assert all(isinstance(val, type_) for val in batch[field])
 
-    static_keys = {
-        'pass_at_k': (int, list),
-        'generation_length': int,
-        'generation_kwargs': dict
-    }
+    static_keys = {'pass_at_k': (int, list), 'generation_kwargs': dict}
     for batch in batches:
+        assert 'generation_kwargs' in batch
+        assert 'max_new_tokens' in batch['generation_kwargs']
+        assert isinstance(batch['generation_kwargs']['max_new_tokens'], int)
         for field, type_ in static_keys.items():
             assert isinstance(batch[field], type_)
 
@@ -1754,7 +1778,7 @@ def test_code_eval_sentpiece_dataloader(
         assert tuple(batch['attention_mask'].shape) == (bs, max_prompt_length)
         assert batch['mode'] == 'generate'
         # the maximum generation length from the small test data
-        assert batch['generation_length'] == 129
+        assert batch['generation_kwargs']['max_new_tokens'] == 129
         has_left_padding.extend(
             [item[0] == tokenizer.eos_token_id for item in batch['input_ids']])
     assert not all(has_left_padding)  # longest should be pushed left
@@ -1832,7 +1856,7 @@ def test_code_eval_test_cases(dataset_uri: str, tmp_path: Path):
                                                     max_prompt_length)
     assert batch['mode'] == 'generate'
     # the maximum generation length from the small test data
-    assert batch['generation_length'] == 129
+    assert batch['generation_kwargs']['max_new_tokens'] == 129
     assert any(item[0] != tokenizer.eos_token_id
                for item in batch['input_ids'])  # longest should be pushed left
 
@@ -1930,7 +1954,7 @@ def test_code_eval_task_dataloader(dataset_uri: str, tmp_path: Path,
         assert tuple(batch['attention_mask'].shape) == (bs, max_prompt_length)
         assert batch['mode'] == 'generate'
         # the maximum generation length from the small test data
-        assert batch['generation_length'] == 122
+        assert batch['generation_kwargs']['max_new_tokens'] == 122
         has_left_padding.extend(
             [item[0] == tokenizer.eos_token_id for item in batch['input_ids']])
     assert not all(has_left_padding)  # longest should be pushed left

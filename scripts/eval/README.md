@@ -156,7 +156,7 @@ This document explains the ICL formats compatible with [Composer](https://github
 
 llm-foundry currently supports five ICL formats:
 
-1. InContextLearningGenerationWithAnswersTaskDataset
+1. InContextLearningGenerationTaskWithAnswersDataset
 2. InContextLearningLMTaskDataset
 3. InContextLearningMultipleChoiceTaskDataset
 4. InContextLearningSchemaTaskDataset
@@ -164,7 +164,7 @@ llm-foundry currently supports five ICL formats:
 
 ----
 
-### InContextLearningGenerationWithAnswersTaskDataset
+### InContextLearningGenerationTaskWithAnswersDataset
 
 The ICL generation with answers task supports free response generation evaluation using the model’s generate function. A generation dataset consists of a list of JSONs containing a prompt (under the key `context`), a correct answer (under the key `answer`), and a list of alternative answers that would be considered permissible (under the key `aliases`). The generation task works with the NLP metric: InContextLearningGenerationExactMatchAccuracy which assigns a model's output to be "correct" if, conditioned on the context, the model's generate method produces a string that is a normalized prefix for either the `answer` or any of the `aliases`.
 

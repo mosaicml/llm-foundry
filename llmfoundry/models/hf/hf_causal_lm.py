@@ -26,6 +26,7 @@ from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 if TYPE_CHECKING:
     from peft import PeftConfig
@@ -280,6 +281,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             raise ValueError(
                 f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
             )
+
+        warnings.warn(
+            VersionedDeprecationWarning(
+                'Attention patches for Llama models are deprecated. We recommend `use_flash_attention_2: True` for Llama models.',
+                remove_version='0.7.0'))
 
         log.debug(
             f'Patching llama attention with {attention_patch_type} attention')

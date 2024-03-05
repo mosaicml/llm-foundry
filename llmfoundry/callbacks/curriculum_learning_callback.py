@@ -100,14 +100,14 @@ class CurriculumLearning(Callback):
             # Make sure to track our current dataset config if we are just starting training.
             self.all_dataset_configs.append(self.current_dataset_config)
 
-    def batch_start(self, state: State, logger: Logger) -> None:
+    def before_dataloader(self, state: State, logger: Logger) -> None:
         del logger
         if (self.current_dataset_max_duration is not None) and (
                 state.timestamp > self.current_dataset_max_duration):
-            state.stop_training()
             log.debug(
                 f'Training stopped for the current dataset in curriculum learning as the training has reached current_dataset_max_duration = {self.current_dataset_max_duration}.'
             )
+            state.stop_training()
 
     def state_dict(self):
         return {

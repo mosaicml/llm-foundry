@@ -586,7 +586,6 @@ class InContextLearningGenerationTaskWithAnswersDataset(InContextLearningDataset
                 'pad_token_id': self.pad_tok_id,
                 'use_cache': True,
                 'eos_token_id': self.tokenizer.eos_token_id,
-                'max_new_tokens': self.max_answer_length,
             },
             'generation_length':
                 self.
@@ -1289,9 +1288,6 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
                     True,
                 'eos_token_id':
                     self.tokenizer.eos_token_id,
-                'max_new_tokens':
-                    min(self.max_answer_length,
-                        self.max_seq_len - self.max_prompt_length),
             },
             'sample_id': [],
             'pass_at_k':

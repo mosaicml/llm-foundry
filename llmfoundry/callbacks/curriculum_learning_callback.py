@@ -106,7 +106,7 @@ class CurriculumLearning(Callback):
                 state.timestamp > self.current_dataset_max_duration):
             state.stop_training()
             log.debug(
-                f'Training stopped as the current dataset in curriculum learning has been used for {self.current_dataset_max_duration} tokens'
+                f'Training stopped for the current dataset in curriculum learning as the training has reached current_dataset_max_duration = {self.current_dataset_max_duration}.'
             )
 
     def state_dict(self):

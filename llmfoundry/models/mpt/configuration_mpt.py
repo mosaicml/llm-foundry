@@ -214,6 +214,17 @@ class MPTConfig(PretrainedConfig):
         if self.attn_config['attn_impl'] not in ['torch', 'flash', 'triton']:
             raise ValueError(
                 f"Unknown attn_impl={self.attn_config['attn_impl']}")
+        if self.attn_config['prefix_lm']:
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    'Support for Prefix Language Models is deprecated.',
+                    remove_version='0.7.0'))
+        if self.attn_config['attn_impl'] == 'triton':
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    'Support for triton attention is deprecated. Please use torch or flash attention.',
+                    remove_version='0.7.0'))
+
         if self.attn_config['prefix_lm'] and self.attn_config[
                 'attn_impl'] not in ['torch', 'triton']:
             raise NotImplementedError(

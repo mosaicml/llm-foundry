@@ -562,7 +562,7 @@ class InContextLearningGenerationTaskWithAnswersDataset(InContextLearningDataset
         self.max_answer_length = 0
         static_keys = [
             'mode', 'cot_delimiter', 'generation_kwargs', 'do_normalization',
-            'stopping_criteria'
+            'generation_length', 'stopping_criteria'
         ]
         tensor_keys = ['input_ids', 'attention_mask']
         list_keys = ['labels']
@@ -587,7 +587,10 @@ class InContextLearningGenerationTaskWithAnswersDataset(InContextLearningDataset
                 'use_cache': True,
                 'eos_token_id': self.tokenizer.eos_token_id,
                 'max_new_tokens': self.max_answer_length,
-            }
+            },
+            'generation_length':
+                self.
+                max_answer_length,  # TODO: deprecate with next composer udpate
         }
         self.batch_mapping = {
             'input_ids': self.context_key,
@@ -1229,6 +1232,7 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             'pass_at_k',
             'generation_kwargs',
             'generations_per_sample',
+            'generation_length',
             'dataset_size',
         ]
         list_keys = [
@@ -1261,7 +1265,8 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
         self.dataset = self.repeat_dataset(self.dataset, generations_per_sample)
         self.base_batch = {
             'input_ids': [],
-            'mode': 'generate',
+            'mode':
+                'generate',
             'labels': [],
             'prompts': [],
             'tests': [],
@@ -1269,7 +1274,8 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             'test_inputs': [],
             'test_outputs': [],
             'languages': [],
-            'pass_at_k': pass_at_k,
+            'pass_at_k':
+                pass_at_k,
             'generation_kwargs': {
                 'pad_token_id':
                     self.pad_tok_id,
@@ -1288,9 +1294,15 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
                         self.max_seq_len - self.max_prompt_length),
             },
             'sample_id': [],
-            'pass_at_k': list(pass_at_k),
-            'generations_per_sample': generations_per_sample,
-            'dataset_size': dataset_size,
+            'pass_at_k':
+                list(pass_at_k),
+            'generations_per_sample':
+                generations_per_sample,
+            'dataset_size':
+                dataset_size,
+            'generation_length':  # TODO: deprecate with next composer release
+                min(self.max_answer_length,
+                    self.max_seq_len - self.max_prompt_length),
         }
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])

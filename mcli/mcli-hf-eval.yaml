@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.5.0
+  git_branch: migrate_subclasses_to_foundry  # v0.5.0
   # git_commit:  # OR use your commit hash
   pip_install: -e ".[gpu-flash2]"
   ssh_clone: false  # Should be true if using a private repo
@@ -11,12 +11,12 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: mpt-eval
+name: mpt-eval
 gpu_num: 8
-# gpu_type:
-# cluster:  # replace with your cluster here!
+gpu_type: a100_80gb
+cluster: r1z1  # replace with your cluster here!
 
-image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.2.0_cu121_flash2-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
@@ -28,7 +28,7 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: mosaicml/mpt-7b
     # Tokenizer
     tokenizer:
       name: EleutherAI/gpt-neox-20b
@@ -37,7 +37,7 @@ parameters:
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path: mosaicml/mpt-7b
       init_device: mixed
       pretrained: true
       use_auth_token: false

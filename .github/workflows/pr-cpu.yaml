@@ -23,6 +23,10 @@ jobs:
           container: mosaicml/pytorch:2.2.0_cpu-python3.11-ubuntu20.04
           markers: "not gpu"
           pytest_command: "coverage run -m pytest"
+        - name: "cpu-2.2.1"
+          container: mosaicml/pytorch:2.2.1_cpu-python3.11-ubuntu20.04
+          markers: "not gpu"
+          pytest_command: "coverage run -m pytest"
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     with:

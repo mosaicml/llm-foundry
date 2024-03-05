@@ -100,7 +100,7 @@ class CurriculumLearning(Callback):
             # Make sure to track our current dataset config if we are just starting training.
             self.all_dataset_configs.append(self.current_dataset_config)
 
-    def before_dataloader(self, state: State, logger: Logger) -> None:
+    def batch_checkpoint(self, state: State, logger: Logger) -> None:
         del logger
         if (self.current_dataset_max_duration is not None) and (
                 state.timestamp > self.current_dataset_max_duration):

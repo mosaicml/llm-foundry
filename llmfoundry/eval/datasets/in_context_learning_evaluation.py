@@ -1352,6 +1352,14 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
     evaluation RAG generation tasks evaluate a model's ability to answer
     questions based on passages.
 
+    JSONL:
+        query_id: int, the query id
+        document: string, the document containing the answer
+        query: string, the question
+        answers: string, the correct answer to the query
+        distractor_document_ids: list of strings, each string is a query_id for a distractor document
+        distractor_documents: list of strings, each string is a passage not relevant to the query
+
     Args:
         passage_delimiter (str): Delimiter to place between each passage.
         passage_query_delimiter (str): Delimiter to place between the last passage and the query.
@@ -1365,13 +1373,13 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             **kwargs: Any):
         self.passage_delimiter = passage_delimiter
         self.passage_query_delimiter = passage_query_delimiter
-        batch_mapping = {'input_ids': 'documents', 'labels': 'answers', 'queries':'query'}
+        batch_mapping = {'input_ids': 'documents', 'labels': 'answer', 'queries':'query'}
         static_keys = []
         list_keys = []
         tensor_keys = []
 
         super().__init__(context_key='documents',
-                         answer_key='answers',
+                         answer_key='answer',
                          tokenize_labels=False,
                          batch_mapping=batch_mapping,
                          padding_side="left",
@@ -1403,12 +1411,13 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             hf_parsing_map: Dict[str, Any] | None = None) -> 'HFDataset':
         dataset = super().read_dataset(dataset_uri, destination_path,
                                        hf_loading_vars, hf_parsing_map)
+        # TODO: These should not be hardcoded
         return dataset.map(
             lambda example: {
                 'documents':
                     self.passage_delimiter.join([passage for passage in example['documents']]),
-                'answers':
-                    example['answers'][0],
+                'answer':
+                    example['answer'],
                 'query':
                     example['query']
             })

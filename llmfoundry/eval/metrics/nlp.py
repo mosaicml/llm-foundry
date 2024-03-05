@@ -709,5 +709,4 @@ Result: """
     def compute(self):
         assert isinstance(self.correct, Tensor)
         assert isinstance(self.total, Tensor)
-        import IPython; IPython.embed()
         return self.correct / self.total

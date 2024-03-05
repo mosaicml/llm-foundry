@@ -2861,7 +2861,7 @@ def test_hf_dataloading_custom_parsing(
                                                     maximum_answer_length)
     assert batch['mode'] == 'generate'
     # the maximum generation length from the small test data
-    assert batch['generation_length'] == maximum_answer_length
+    assert batch['generation_kwargs']['max_new_tokens'] == maximum_answer_length
     assert all(item[0] == tokenizer.eos_token_id for item in batch['input_ids'])
 
     decoded_batch = tokenizer.batch_decode(batch['input_ids'])

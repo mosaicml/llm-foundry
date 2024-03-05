@@ -273,10 +273,14 @@ def main(cfg: DictConfig) -> Trainer:
                                             'save_folder',
                                             must_exist=False,
                                             default_value=None)
-    save_latest_filename: str = pop_config(cfg,
-                                           'save_latest_filename',
-                                           must_exist=False,
-                                           default_value='latest-rank{rank}.pt')
+    is_state_dict_sharded: bool = (fsdp_config.get('state_dict_type', 'full')
+                                   == 'sharded') if fsdp_config else False
+    save_latest_filename: str = pop_config(
+        cfg,
+        'save_latest_filename',
+        must_exist=False,
+        default_value='latest-sharded-rank{rank}'
+        if is_state_dict_sharded else 'latest-rank{rank}.pt')
     save_overwrite: bool = pop_config(cfg,
                                       'save_overwrite',
                                       must_exist=False,

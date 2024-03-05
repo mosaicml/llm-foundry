@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections import UserDict
 from typing import TYPE_CHECKING, List, Mapping, Optional
 
@@ -16,6 +17,7 @@ from transformers import PreTrainedTokenizerBase
 from transformers.utils.generic import ModelOutput
 
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 if TYPE_CHECKING:
     from peft import PeftConfig
@@ -92,6 +94,10 @@ class HuggingFaceModelWithZLoss(HuggingFaceModel):
             loss, logits = outputs[:2]
         if self.z_loss == 0.0:
             return loss
+
+        warnings.warn(
+            VersionedDeprecationWarning('z-loss is deprecated.',
+                                        remove_version='0.7.0'))
 
         # Add a z_loss to the standard loss
         logits_flat = logits.view(-1, logits.size(-1))

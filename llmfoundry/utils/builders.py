@@ -24,6 +24,7 @@ from llmfoundry import registry
 from llmfoundry.callbacks import EvalGauntlet
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.utils.registry_utils import builder
 
 log = logging.getLogger(__name__)
 
@@ -163,32 +164,32 @@ def build_callback(
         kwargs['config'] = config
         registry_to_use = registry.callbacks_with_config
 
-    return registry.builder(name=name,
-                            registry=registry_to_use,
-                            partial_function=True,
-                            pre_validation_function=Callback,
-                            post_validation_function=None,
-                            kwargs=kwargs)
+    return builder(name=name,
+                   registry=registry_to_use,
+                   partial_function=True,
+                   pre_validation_function=Callback,
+                   post_validation_function=None,
+                   kwargs=kwargs)
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
     """Builds a logger from the registry."""
-    return registry.builder(name=name,
-                            registry=registry.loggers,
-                            partial_function=True,
-                            pre_validation_function=LoggerDestination,
-                            post_validation_function=None,
-                            kwargs=kwargs)
+    return builder(name=name,
+                   registry=registry.loggers,
+                   partial_function=True,
+                   pre_validation_function=LoggerDestination,
+                   post_validation_function=None,
+                   kwargs=kwargs)
 
 
 def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
     """Builds an algorithm from the registry."""
-    return registry.builder(name=name,
-                            registry=registry.algorithms,
-                            partial_function=True,
-                            pre_validation_function=Algorithm,
-                            post_validation_function=None,
-                            kwargs=kwargs)
+    return builder(name=name,
+                   registry=registry.algorithms,
+                   partial_function=True,
+                   pre_validation_function=Algorithm,
+                   post_validation_function=None,
+                   kwargs=kwargs)
 
 
 def _extract_param_groups(
@@ -297,17 +298,17 @@ def build_optimizer(model: torch.nn.Module, name: str,
     params = _extract_param_groups(model, optimizer_config)
     kwargs = optimizer_config
     kwargs['params'] = params
-    return registry.builder(name=name,
-                            registry=registry.optimizers,
-                            partial_function=True,
-                            pre_validation_function=Optimizer,
-                            post_validation_function=None,
-                            kwargs=kwargs)
+    return builder(name=name,
+                   registry=registry.optimizers,
+                   partial_function=True,
+                   pre_validation_function=Optimizer,
+                   post_validation_function=None,
+                   kwargs=kwargs)
 
 
 def build_scheduler(name: str,
                     scheduler_config: Dict[str, Any]) -> ComposerScheduler:
-    return registry.builder(
+    return builder(
         name=name,
         registry=registry.schedulers,
         partial_function=True,

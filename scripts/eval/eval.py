@@ -56,12 +56,11 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
     return composer_model
 
 
-def log_analytics_details(mosaicml_logger: MosaicMLLogger, 
-                          model_config: DictConfig,
-                          tokenizer_name: str,
+def log_analytics_details(mosaicml_logger: MosaicMLLogger,
+                          model_config: DictConfig, tokenizer_name: str,
                           load_path: Union[str, None]):
-    metrics = {        
-        'llmfoundry/llmfoundry_run_type': 'eval',  
+    metrics = {
+        'llmfoundry/llmfoundry_run_type': 'eval',
         'llmfoundry/tokenizer_name': tokenizer_name,
         'llmfoundry/model_name': model_config.get('model_name'),
     }
@@ -70,10 +69,11 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
         metrics['llmfoundry/vocab_size'] = model_config.get('vocab_size')
     if model_config.get('d_model', None) is not None:
         metrics['llmfoundry/d_model'] = model_config.get('d_model')
+    if model_config.get('n_heads', None) is not None:
+        metrics['llmfoundry/n_heads'] = model_config.get('n_heads')
 
     if load_path is not None:
         metrics['llmfoundry/cloud_provider_loading'] = load_path.split(':')[0]
-
     """
     TODO: right now, we need to get the following subtypes for eval:
         -- Gauntlet?
@@ -180,9 +180,10 @@ def evaluate_model(
         )
 
     assert composer_model is not None
-    
+
     if mosaicml_logger is not None:
-        log_analytics_details(mosaicml_logger, model_cfg, tokenizer_name, load_path)
+        log_analytics_details(mosaicml_logger, model_cfg, tokenizer_name,
+                              load_path)
 
     log.info(f'Building trainer for {model_cfg.model_name}...')
 

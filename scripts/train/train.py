@@ -130,26 +130,35 @@ def build_composer_model(model_cfg: DictConfig,
             f'Not sure how to build model with name={model_cfg.name}')
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
+
 # TODO cleanup / decompose logic
-def log_analytics_details(mosaicml_logger: MosaicMLLogger, 
-                          model_config: DictConfig, 
+def log_analytics_details(mosaicml_logger: MosaicMLLogger,
+                          model_config: DictConfig,
                           train_loader_config: DictConfig,
-                          eval_loader_config: Union[DictConfig, ListConfig, None],
-                          callback_configs: Union[DictConfig, None],
-                          tokenizer_name: str,
-                          load_path: Union[str, None],
-                          save_folder: Union[str, None]):
+                          eval_loader_config: Union[DictConfig, ListConfig,
+                                                    None],
+                          callback_configs: Union[DictConfig,
+                                                  None], tokenizer_name: str,
+                          load_path: Union[str,
+                                           None], save_folder: Union[str,
+                                                                     None]):
     metrics = {
-        'llmfoundry/tokenizer_name': tokenizer_name,
-        'llmfoundry/llmfoundry_run_type': 'training',
-        'llmfoundry/train_loader_name': train_loader_config.get('name'),
-        'llmfoundry/train_loader_workers': train_loader_config.get('dataset').get('num_workers'),
+        'llmfoundry/tokenizer_name':
+            tokenizer_name,
+        'llmfoundry/llmfoundry_run_type':
+            'training',
+        'llmfoundry/train_loader_name':
+            train_loader_config.get('name'),
+        'llmfoundry/train_loader_workers':
+            train_loader_config.get('dataset').get('num_workers'),
     }
 
     if callback_configs is not None:
-        metrics['llmfoundry/callbacks'] = [name for name, _ in callback_configs.items()]
+        metrics['llmfoundry/callbacks'] = [
+            name for name, _ in callback_configs.items()
+        ]
 
-    # TODO: what's a good name for this? ideally we want the keys to be the same for 
+    # TODO: what's a good name for this? ideally we want the keys to be the same for
     # training and eval to make querying easier.
     if load_path is not None:
         metrics['llmfoundry/cloud_provider_loading'] = load_path.split(':')[0]
@@ -157,7 +166,8 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
         metrics['llmfoundry/cloud_provider_saving'] = save_folder.split(':')[0]
 
     if train_loader_config.get('dataset').get('hf_name', None) is not None:
-        metrics['llmfoundry/train_dataset_hf_name'] = train_loader_config.get('dataset').get('hf_name')
+        metrics['llmfoundry/train_dataset_hf_name'] = train_loader_config.get(
+            'dataset').get('hf_name')
     if train_loader_config.get('name') == 'finetuning':
         metrics['llmfoundry/llmfoundry_run_subtype'] = 'IFT (finetuning)'
     elif train_loader_config.get('name') == 'text':
@@ -168,18 +178,22 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
 
     if eval_loader_config is not None:
         metrics['llmfoundry/eval_loader_name'] = eval_loader_config.get('name')
-        metrics['llmfoundry/eval_loader_workers'] = eval_loader_config.get('dataset').get('num_workers')
+        metrics['llmfoundry/eval_loader_workers'] = eval_loader_config.get(
+            'dataset').get('num_workers')
         if eval_loader_config.get('dataset').get('hf_name', None) is not None:
-            metrics['llmfoundry/eval_dataset_hf_name'] = eval_loader_config.get('dataset').get('hf_name', None)
+            metrics['llmfoundry/eval_dataset_hf_name'] = eval_loader_config.get(
+                'dataset').get('hf_name', None)
 
     # TODO: do we need error checking here?
     if model_config['name'] == 'hf_casual_lm':
-        metrics['llmfoundry/model_name'] = model_config.get('pretrained_model_name_or_path')
+        metrics['llmfoundry/model_name'] = model_config.get(
+            'pretrained_model_name_or_path')
     if model_config.get('vocab_size', None) is not None:
-        metrics['llmfoundry/vocab_size'] =  model_config.get('vocab_size'),
+        metrics['llmfoundry/vocab_size'] = model_config.get('vocab_size'),
     if model_config.get('d_model', None) is not None:
         metrics['llmfoundry/d_model'] = model_config.get('d_model')
-
+    if model_config.get('n_heads', None) is not None:
+        metrics['llmfoundry/n_heads'] = model_config.get('n_heads')
 
     mosaicml_logger.log_metrics(metrics)
     mosaicml_logger._flush_metadata(force_flush=True)
@@ -478,13 +492,9 @@ def main(cfg: DictConfig) -> Trainer:
             # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
             mosaicml_logger = MosaicMLLogger()
             loggers.append(mosaicml_logger)
-            log_analytics_details(mosaicml_logger, 
-                                  model_config, 
-                                  train_loader_config, 
-                                  eval_loader_config, 
-                                  callback_configs,
-                                  tokenizer_name,
-                                  load_path,
+            log_analytics_details(mosaicml_logger, model_config,
+                                  train_loader_config, eval_loader_config,
+                                  callback_configs, tokenizer_name, load_path,
                                   save_folder)
 
     if metadata is not None:

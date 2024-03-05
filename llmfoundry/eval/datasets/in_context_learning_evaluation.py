@@ -130,7 +130,7 @@ class InContextLearningDataset(Dataset):
         hf_loading_vars: Optional[Dict] = None,
         hf_parsing_map: Optional[Dict] = None,
         generation_kwargs: Optional[Dict] = None,
-        **kwargs
+        **kwargs: Any
     ):
         try:
             import datasets
@@ -238,6 +238,7 @@ class InContextLearningDataset(Dataset):
                 hf_loading_vars = {}
             dataset = load_dataset(dataset_uri, **hf_loading_vars)
             if hf_parsing_map:
+                # TODO: removed cast to str 
                 dataset_parsing_func = lambda example: {
                     k: ' '.join([str(example[col]) for col in v])
                     for k, v in hf_parsing_map.items(
@@ -1348,7 +1349,7 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
 
 class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
     """A dataset that construct batches for in-context learning RAG generation
-    evaluation Rag generation tasks evaluate a model's ability to answer
+    evaluation RAG generation tasks evaluate a model's ability to answer
     questions based on passages.
 
     Args:
@@ -1364,8 +1365,12 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             **kwargs: Any):
         self.passage_delimiter = passage_delimiter
         self.passage_query_delimiter = passage_query_delimiter
-        batch_mapping = {'input_ids': 'passages', 'labels': 'answers', 'queries':'query'}
-        super().__init__(context_key='passages',
+        batch_mapping = {'input_ids': 'documents', 'labels': 'answers', 'queries':'query'}
+        static_keys = []
+        list_keys = []
+        tensor_keys = []
+
+        super().__init__(context_key='documents',
                          answer_key='answers',
                          tokenize_labels=False,
                          batch_mapping=batch_mapping,
@@ -1378,6 +1383,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             'mode': 'generate',
             'labels': [],
             'queries': [],
+            'metric_kwargs': {},
             'generation_length': self.max_answer_length,
             'generation_kwargs': {
                 # 'max_new_tokens': self.max_answer_length,
@@ -1387,6 +1393,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         }
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])
+        import IPython; IPython.embed()
 
     def read_dataset(
             self,
@@ -1398,8 +1405,8 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
                                        hf_loading_vars, hf_parsing_map)
         return dataset.map(
             lambda example: {
-                'passages':
-                    self.passage_delimiter.join([passage for passage in example['passages']]),
+                'documents':
+                    self.passage_delimiter.join([passage for passage in example['documents']]),
                 'answers':
                     example['answers'][0],
                 'query':
@@ -1423,7 +1430,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             str: The constructed context. The default output context is
                  formatted as follows: f'{self.prelimiter}{example['self.passages_key']}{example[self.context_key]}{self.continuation_delimiter}'
         """
-        passages = example['passages']
+        passages = example['documents']
         query = example['query']
         context = f'{self.prelimiter}{passages}{self.passage_query_delimiter}{query}'
 

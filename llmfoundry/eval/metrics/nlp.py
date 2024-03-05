@@ -657,13 +657,11 @@ Result: """
                 conda_channel='conda-forge') from e
         self.client = OpenAI()
 
-    def score_result(self, result: str, category: str):
-        parsed_result = None
-        match = re.search(self.ONE_SCORE_PATTERN, result)
-        if not match:
-            match = re.search(self.ONE_SCORE_PATTERN_BACKUP, result)
+    def score_result(self, result: str):
+        # parsed_result = None
+        match = re.search(self.pattern, result)
         if match:
-            parsed_result = ast.literal_eval(match.groups()[0])
+            parsed_result = match.groups()[0]
             if parsed_result == 'Yes':
                 self.correct += 1
         else:
@@ -696,11 +694,11 @@ Result: """
         if not self.client:
             self.init_openai()  
 
-        import IPython; IPython.embed()
         metric_kwargs = batch.get('metric_kwargs', {})
-        for sample_output, sample_answer in zip(outputs, batch['answer']):
+        for sample_output, sample_answer in zip(outputs, labels):
+            # TODO: Is this valid?
             sample_output = sample_output.split("\n")[0]
-            result = self.call_judge(sample_output, sample_answer, prompt=metric_kwargs.get("judge_prompt"))
+            result = self.call_judge(sample_output, sample_answer, metric_kwargs)
             self.score_result(result)
 
         # OpenAI Client can't be copied by deepcopy and will throw an error, so we delete it after we use it
@@ -709,9 +707,7 @@ Result: """
         self.client = None
 
     def compute(self):
-        print('correct:', self.correct)
-        print('total:', self.total)
-        print('invalid:', self.invalid_judge_response)
         assert isinstance(self.correct, Tensor)
         assert isinstance(self.total, Tensor)
+        import IPython; IPython.embed()
         return self.correct / self.total

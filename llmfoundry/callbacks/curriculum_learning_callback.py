@@ -8,7 +8,7 @@ the future.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from composer.core import Callback, State
 from composer.loggers import Logger
@@ -29,8 +29,14 @@ class CurriculumLearning(Callback):
             being used.
     """
 
-    def __init__(self, dataset_index: int, current_dataset_config: Dict):
+    def __init__(
+        self,
+        current_dataset_config: Dict,
+        dataset_index: int,
+        current_dataset_max_duration: Optional[str] = None,
+    ):
         self.dataset_index = dataset_index
+        self.current_dataset_max_duration = current_dataset_max_duration
         self.saved_dataset_index = 0
         self.all_dataset_configs = []
         self.current_dataset_state = {}
@@ -93,6 +99,15 @@ class CurriculumLearning(Callback):
         elif self.dataset_index == 0 and len(self.all_dataset_configs) == 0:
             # Make sure to track our current dataset config if we are just starting training.
             self.all_dataset_configs.append(self.current_dataset_config)
+
+    def batch_start(self, state: State, logger: Logger) -> None:
+        del logger
+        if (self.current_dataset_max_duration is not None) and (
+                state.timestamp > self.current_dataset_max_duration):
+            state.stop_training()
+            log.debug(
+                f'Training stopped as the current dataset in curriculum learning has been used for {self.current_dataset_max_duration} tokens'
+            )
 
     def state_dict(self):
         return {

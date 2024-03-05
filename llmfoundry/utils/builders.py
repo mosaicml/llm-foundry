@@ -226,8 +226,8 @@ def build_callback(
             raise ValueError(
                 'Curriculum learning callback requires a train_loader key in the run config.'
             )
-        return CurriculumLearning(**kwargs,
-                                  current_dataset_config=config['train_loader'])
+        return CurriculumLearning(current_dataset_config=config['train_loader'],
+                                  **kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 

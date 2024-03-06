@@ -74,14 +74,22 @@ class BinPackCollator:
                 'bidirectional_mask',
                 'sequence_id',
             ]
-
         # Cut everything down to size
-        sizes, trimmed_examples = [], []
-        for idx in range(batch['attention_mask'].shape[0]):
-            size, trimmed_example = _extract_trim_batch_idx(batch, idx)
-            sizes.append(size)
-            trimmed_examples.append(trimmed_example)
+        sizes, trimmed_examples = _trim_batch(batch)
+        return self._pack_trimmed_examples(trimmed_examples, sizes)
 
+    def _pack_trimmed_examples(self, trimmed_examples: List[Dict[str,
+                                                                 torch.Tensor]],
+                               sizes: List[int]) -> Dict[str, torch.Tensor]:
+        """Packs trimmed examples into fixed-size bins and repads them.
+
+        Args:
+            trimmed_examples (List[Dict[str, torch.Tensor]]): A list of trimmed examples.
+            sizes (List[int]): The sizes of the trimmed examples.
+
+        Returns:
+            Dict[str, torch.Tensor]: A batch of repadded examples ready for processing
+        """
         # Apply our CS 101 bin packing algorithm.
         packed_examples, n_packed_tokens, n_total_tokens, leftover_bins = _first_fit_bin_packing(
             sizes=sizes,
@@ -101,6 +109,26 @@ class BinPackCollator:
                        pad_token_id=self.pad_token_id,
                        padding_side=self.padding_side)
         return batch
+
+
+def _trim_batch(
+    batch: Dict[str, torch.Tensor]
+) -> Tuple[List[int], List[Dict[str, torch.Tensor]]]:
+    """Trims padding off all examples in batch.
+
+    Args:
+        batch (Dict[str, torch.Tensor]): Batch of padded data with tensors as values.
+
+    Returns:
+        A tuple with unpadded lengths of examples and a list of each trimmed example from the batch.
+    """
+    # Cut everything down to size
+    sizes, trimmed_examples = [], []
+    for idx in range(batch['attention_mask'].shape[0]):
+        size, trimmed_example = _extract_trim_batch_idx(batch, idx)
+        sizes.append(size)
+        trimmed_examples.append(trimmed_example)
+    return sizes, trimmed_examples
 
 
 def _extract_trim_batch_idx(batch: Dict[str, torch.Tensor],
@@ -386,18 +414,14 @@ def profile_packing(
     # Get a bunch of raw examples
     big_batch = next(iter(train_dataloader))
 
-    def split_big_batch(raw_batch_size: int) -> List:
-        input_ids = big_batch['input_ids'].split(raw_batch_size)
-        batches = [{'input_ids': x} for x in input_ids]
-
-        for key in big_batch.keys():
-            if key == 'input_ids':
-                continue
-            for idx, split in enumerate(big_batch[key].split(raw_batch_size)):
-                batches[idx].update({key: split})
-        return batches
+    # Cut everything down to size
+    sizes, trimmed_examples = _trim_batch(big_batch)
 
     def profile(raw_batch_size: int) -> Tuple[Optional[float], Optional[float]]:
+        # Copy trimmed examples so that the dicts are not shared between profiling runs.
+        trimmed_examples_copy = [te.copy() for te in trimmed_examples]
+
+        # Create the packing collator.
         packer = BinPackCollator(
             collator=lambda x: x,
             target_batch_size=device_batch_size,
@@ -407,10 +431,12 @@ def profile_packing(
             max_leftover_bins_to_keep=max_leftovers_to_keep)
 
         # Simulate feeding the packing collator a bunch of data
-        for batch in split_big_batch(raw_batch_size):
-            if batch['input_ids'].shape[0] < device_batch_size:
+        for idx in range(0, len(trimmed_examples_copy), raw_batch_size):
+            batch = trimmed_examples_copy[idx:idx + raw_batch_size]
+            if len(batch) < device_batch_size:
                 continue
-            packer.pack(batch)
+            packer._pack_trimmed_examples(batch,
+                                          sizes[idx:idx + raw_batch_size])
 
         if packer.n_packed_examples == 0:
             log.debug(

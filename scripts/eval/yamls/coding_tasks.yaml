@@ -4,7 +4,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/human_eval.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 5
+  generations_per_sample: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -12,7 +12,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/processed_human_eval_cpp.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 5
+  generations_per_sample: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -20,7 +20,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 5
+  generations_per_sample: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -28,7 +28,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/human_eval_return_simple.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 5
+  generations_per_sample: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -36,7 +36,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/human_eval_return_complex.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 5
+  generations_per_sample: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -44,7 +44,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/human_eval-0.25.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 5
+  generations_per_sample: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -52,7 +52,7 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/human_eval-0.5.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 5
+  generations_per_sample: 5
   batch_size: 1
   icl_task_type: code_evaluation
 -
@@ -60,6 +60,6 @@ icl_tasks:
   dataset_uri: eval/local_data/programming/human_eval-0.75.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   pass_at_k: 1
-  num_beams: 5
+  generations_per_sample: 5
   batch_size: 1
   icl_task_type: code_evaluation

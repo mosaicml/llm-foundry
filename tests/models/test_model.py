@@ -1222,6 +1222,7 @@ def test_generate_with_device_map(tmp_path: pathlib.Path, world_size: int,
         'transformer.blocks.0': 0,
         'transformer.blocks.1': 1 if world_size == 2 else 0,
         'transformer.norm_f': 1 if world_size == 2 else 0,
+        'lm_head': 1 if world_size == 2 else 0,
     }
 
     pipe = pipeline(

@@ -222,6 +222,32 @@ def _slice_chat_formatted_example(
     return templated_prompt_response_turns
 
 
+def _tokenize_with_bos_removal(tokenizer: PreTrainedTokenizerBase, text: str,
+                               text_target: str) -> Dict[str, List[int]]:
+    """Tokenizes the prompt and response using the provided tokenizer.
+
+    Args:
+        tokenizer (PreTrainedTokenizerBase): The tokenizer to use for tokenization.
+        prompt (str): The prompt to tokenize.
+        text_target (str): The response to tokenize.
+
+    Returns:
+        Dict[str, List[int]]: The tokenized text and text_target.
+    """
+    tokenized_sample = tokenizer(text=text,
+                                 text_target=text_target,
+                                 padding=False,
+                                 truncation=False)
+
+    # Remove the BOS token from the start of the labels if it was automatically added
+    if hasattr(tokenizer, 'add_bos_token') and tokenizer.add_bos_token:
+        if tokenizer.bos_token_id is not None and tokenized_sample['labels'][
+                0] == tokenizer.bos_token_id:
+            tokenized_sample['labels'] = tokenized_sample['labels'][1:]
+
+    return tokenized_sample
+
+
 def _tokenize_chat_formatted_example(
         example: ChatFormattedDict,
         tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
@@ -296,10 +322,11 @@ def _tokenize_prompt_response_formatted_example(
     # be able to assume that none of the tokens are pad tokens.
     return {
         'turns': [
-            tokenizer(text=prompt,
-                      text_target=response,
-                      padding=False,
-                      truncation=False)
+            _tokenize_with_bos_removal(
+                tokenizer=tokenizer,
+                text=prompt,
+                text_target=response,
+            )
         ]
     }
 

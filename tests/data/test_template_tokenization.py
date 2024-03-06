@@ -190,38 +190,3 @@ def test_tokenize_no_labels_bos_pr():
     assert len(tokenized_example['labels']) == 1
     assert tokenized_example['labels'][0] != tokenizer.bos_token_id
     assert tokenized_example['input_ids'][0] != tokenizer.bos_token_id
-
-
-def test_tokenize_no_labels_bos_chat():
-    # This tokenizer automatically adds bos tokens
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'mistralai/Mixtral-8x7B-v0.1')
-
-    example = {
-        'messages': [{
-            'role': 'user',
-            'content': 'Hello, GPT'
-        }, {
-            'role': 'assistant',
-            'content': 'response'
-        }]
-    }
-
-    assert tokenizer.add_bos_token == True
-
-    tokenized_example = tokenize_formatted_example(example, tokenizer)
-
-    assert len(tokenized_example['labels']) == 4
-    assert tokenized_example['labels'][0] != tokenizer.bos_token_id
-    assert tokenized_example['input_ids'][0] == tokenizer.bos_token_id
-
-    # This tokenizer does not have the add_bos_token attribute
-    tokenizer = transformers.AutoTokenizer.from_pretrained('mosaicml/mpt-7b')
-
-    assert not hasattr(tokenizer, 'add_bos_token')
-
-    tokenized_example = tokenize_formatted_example(example, tokenizer)
-
-    assert len(tokenized_example['labels']) == 2
-    assert tokenized_example['labels'][0] != tokenizer.bos_token_id
-    assert tokenized_example['input_ids'][0] != tokenizer.bos_token_id

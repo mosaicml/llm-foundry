@@ -231,11 +231,7 @@ def _tokenize_chat_formatted_example(
         TokenizedExample: The tokenized example.
     """
     prompt, response = _slice_chat_formatted_example(example, tokenizer)
-    return _tokenize_with_bos_removal(
-        tokenizer=tokenizer,
-        text=prompt,
-        text_target=response,
-    )
+    return tokenizer(text=prompt, text_target=response)
 
 
 def _tokenize_prompt_response_formatted_example(

@@ -507,11 +507,16 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Dataloaders
     log.info('Building train loader...')
-    train_loader = build_dataloader(
-        train_loader_config,
-        tokenizer,
-        device_train_batch_size,
-    )
+    try:
+        train_loader = build_dataloader(
+            train_loader_config,
+            tokenizer,
+            device_train_batch_size,
+        )
+    except Exception as e:
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_failure_reason(e)
+        raise e
 
     if mosaicml_logger is not None:
         mosaicml_logger.log_metrics({'data_validated': time.time()})

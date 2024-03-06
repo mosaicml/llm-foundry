@@ -11,6 +11,9 @@ from glob import glob
 from typing import Iterable, List, Tuple, cast
 
 import psutil
+from composer.loggers import MosaicMLLogger
+from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
+                                              MOSAICML_PLATFORM_ENV_VAR)
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
                             parse_uri)
 from streaming import MDSWriter
@@ -22,6 +25,11 @@ from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
                                               merge_shard_groups)
 
 log = logging.getLogger(__name__)
+if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
+) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
+    # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set
+    mosaicml_logger = MosaicMLLogger()
+
 DONE_FILENAME = '.text_to_mds_conversion_done'
 
 
@@ -369,6 +377,7 @@ def convert_text_to_mds(
 
     object_names = get_object_names(input_folder)
     if len(object_names) == 0:
+        #flag-ft-error
         raise ValueError(f'No text files were found at {input_folder}.')
 
     # Check if the text files in the bucket have already been processed.
@@ -386,6 +395,7 @@ def convert_text_to_mds(
     ).name if is_remote_output else output_folder
 
     if os.path.isdir(output_folder) and len(os.listdir(output_folder)) > 0:
+        # flag-ft-error
         raise FileExistsError(
             f'{output_folder=} is not empty. Please remove or empty it.')
 

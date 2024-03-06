@@ -19,6 +19,9 @@ import pyarrow as pa
 import pyspark.sql.connect.proto as pb2
 import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
 import requests
+from composer.loggers import MosaicMLLogger
+from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
+                                              MOSAICML_PLATFORM_ENV_VAR)
 from databricks import sql
 from databricks.connect import DatabricksSession
 from databricks.sdk import WorkspaceClient
@@ -37,6 +40,10 @@ MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
 log = logging.getLogger(__name__)
+if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
+) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
+    # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set
+    mosaicml_logger = MosaicMLLogger()
 
 Result = namedtuple(
     'Result', ['url', 'row_count', 'compressed_size', 'uncompressed_size'
@@ -401,6 +408,7 @@ def validate_and_get_cluster_info(cluster_id: str,
         w = WorkspaceClient()
         res = w.clusters.get(cluster_id=cluster_id)
         if res is None:
+            # flag-ft-error
             raise ValueError(
                 f'Cluster id {cluster_id} does not exist. Check cluster id and try again!'
             )
@@ -436,6 +444,7 @@ def validate_and_get_cluster_info(cluster_id: str,
                     cluster_id=cluster_id).getOrCreate()
 
         except Exception as e:
+            # flag-ft-error
             raise RuntimeError(
                 'Failed to create databricks connection. Check hostname and access token!'
             ) from e
@@ -449,6 +458,7 @@ def validate_and_get_cluster_info(cluster_id: str,
                 access_token=databricks_token,
             )
         except Exception as e:
+            # flag-ft-error: double check that you have data_prep_cluster_id
             raise RuntimeError(
                 'Failed to create sql connection to db workspace. To use sql connect, you need to provide http_path and cluster_id!'
             ) from e
@@ -461,12 +471,14 @@ def fetch_DT(args: Namespace) -> None:
 
     obj = urllib.parse.urlparse(args.json_output_folder)
     if obj.scheme != '':
+        # flag-ft-error
         raise ValueError(
             f'Check the json_output_folder and verify it is a local path!')
 
     if os.path.exists(args.json_output_folder):
         if not os.path.isdir(args.json_output_folder) or os.listdir(
                 args.json_output_folder):
+            # flag-ft-error
             raise RuntimeError(
                 f'A file or a folder {args.json_output_folder} already exists and is not empty. Remove it and retry!'
             )

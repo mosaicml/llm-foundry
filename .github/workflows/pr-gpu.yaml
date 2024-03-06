@@ -19,13 +19,13 @@ jobs:
     strategy:
       matrix:
         include:
-        - name: "gpu-2.2.0"
-          container: mosaicml/pytorch:2.2.0_cu121-python3.11-ubuntu20.04
+        - name: "gpu-2.2.1"
+          container: mosaicml/pytorch:2.2.1_cu121-python3.11-ubuntu20.04
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-        - name: "gpu-2.2.0-flash2"
-          container: mosaicml/llm-foundry:2.2.0_cu121_flash2-latest
+        - name: "gpu-2.2.1-flash2"
+          container: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
           markers: "gpu"
           pip_deps: "[all-flash2]"
           pytest_command: "coverage run -m pytest"

@@ -195,6 +195,29 @@ def _slice_chat_formatted_example(
     return prompt, response
 
 
+def _tokenize_with_bos_removal(tokenizer: PreTrainedTokenizerBase, text: str,
+                               text_target: str) -> TokenizedExample:
+    """Tokenizes the prompt and response using the provided tokenizer.
+
+    Args:
+        tokenizer (PreTrainedTokenizerBase): The tokenizer to use for tokenization.
+        prompt (str): The prompt to tokenize.
+        response (str): The response to tokenize.
+
+    Returns:
+        TokenizedExample: The tokenized example.
+    """
+    tokenized_sample = tokenizer(text=text, text_target=text_target)
+
+    # Remove the BOS token from the start of the labels if it was automatically added
+    if hasattr(tokenizer, 'add_bos_token') and tokenizer.add_bos_token:
+        if tokenizer.bos_token_id is not None and tokenized_sample['labels'][
+                0] == tokenizer.bos_token_id:
+            tokenized_sample['labels'] = tokenized_sample['labels'][1:]
+
+    return tokenized_sample
+
+
 def _tokenize_chat_formatted_example(
         example: ChatFormattedDict,
         tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
@@ -246,7 +269,11 @@ def _tokenize_prompt_response_formatted_example(
             f'Unable to tokenize example because {response_key} was not a string. {example=}'
         )
 
-    return tokenizer(text=prompt, text_target=response)
+    return _tokenize_with_bos_removal(
+        tokenizer=tokenizer,
+        text=prompt,
+        text_target=response,
+    )
 
 
 def tokenize_formatted_example(

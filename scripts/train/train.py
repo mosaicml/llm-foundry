@@ -188,12 +188,12 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
 
         for loader_config in eval_loader_configs:
             eval_loader_info = {}
-            eval_loader_info['eval_loader_name'] = loader_config.get('name')
-            eval_loader_info['eval_loader_workers'] = loader_config.get(
-                'dataset').get('num_workers')
-            if loader_config.get('dataset').get('hf_name', None) is not None:
-                eval_loader_info['eval_dataset_hf_name'] = loader_config.get(
-                    'dataset').get('hf_name', None)
+            eval_loader_info['eval_loader_name'] = loader_config['name']
+            eval_loader_info['eval_loader_workers'] = loader_config['dataset'][
+                'num_workers']
+            if loader_config['dataset'].get('hf_name', None) is not None:
+                eval_loader_info['eval_dataset_hf_name'] = loader_config[
+                    'dataset']['hf_name']
 
             # Log as a key-sorted JSON string, so that we can easily parse it in Spark / SQL
             metrics['llmfoundry/eval_loaders'].append(

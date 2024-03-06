@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import copy
 import gc
+import json
 import logging
 import os
 import sys
@@ -178,12 +179,25 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
             metrics['llmfoundry/llmfoundry_run_subtype'] = 'Pre-training'
 
     if eval_loader_config is not None:
-        metrics['llmfoundry/eval_loader_name'] = eval_loader_config.get('name')
-        metrics['llmfoundry/eval_loader_workers'] = eval_loader_config.get(
-            'dataset').get('num_workers')
-        if eval_loader_config.get('dataset').get('hf_name', None) is not None:
-            metrics['llmfoundry/eval_dataset_hf_name'] = eval_loader_config.get(
-                'dataset').get('hf_name', None)
+        metrics['llmfoundry/eval_loaders'] = []
+
+        # If we have a dict config, then we only have one eval loader.
+        eval_loader_configs = eval_loader_config
+        if isinstance(eval_loader_config, DictConfig):
+            eval_loader_configs = ListConfig([eval_loader_config])
+
+        for loader_config in eval_loader_configs:
+            eval_loader_info = {}
+            eval_loader_info['eval_loader_name'] = loader_config.get('name')
+            eval_loader_info['eval_loader_workers'] = loader_config.get(
+                'dataset').get('num_workers')
+            if loader_config.get('dataset').get('hf_name', None) is not None:
+                eval_loader_info['eval_dataset_hf_name'] = loader_config.get(
+                    'dataset').get('hf_name', None)
+
+            # Log as a key-sorted JSON string, so that we can easily parse it in Spark / SQL
+            metrics['llmfoundry/eval_loaders'].append(
+                json.dumps(eval_loader_info, sort_keys=True))
 
     # TODO: do we need error checking here?
     if model_config['name'] == 'hf_casual_lm':

@@ -15,13 +15,14 @@ from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
 from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
                                               MOSAICML_PLATFORM_ENV_VAR)
-from composer.metrics.nlp import InContextLearningMetric
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
+
+from llmfoundry.eval.metrics.nlp import InContextLearningMetric
 
 install()
 
@@ -536,7 +537,6 @@ def main(cfg: DictConfig) -> Trainer:
     # Optimizer
     optimizer_name: str = optimizer_config.pop('name')
     optimizer = build_optimizer(model, optimizer_name, optimizer_config)
-
     # Now add the eval metrics
     if eval_loader_config is not None and not use_async_eval:
         eval_metrics = model.get_metrics(is_train=False)

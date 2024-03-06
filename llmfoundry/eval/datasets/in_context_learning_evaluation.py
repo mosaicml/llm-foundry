@@ -1276,18 +1276,12 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             'pass_at_k':
                 pass_at_k,
             'generation_kwargs': {
-                'pad_token_id':
-                    self.pad_tok_id,
-                'num_beams':
-                    1,  # single beam
-                'do_sample':
-                    True,
-                'temperature':
-                    0.2,  # good default for code
-                'use_cache':
-                    True,
-                'eos_token_id':
-                    self.tokenizer.eos_token_id,
+                'pad_token_id': self.pad_tok_id,
+                'num_beams': 1,  # single beam
+                'do_sample': True,
+                'temperature': 0.2,  # good default for code
+                'use_cache': True,
+                'eos_token_id': self.tokenizer.eos_token_id,
             },
             'sample_id': [],
             'pass_at_k':

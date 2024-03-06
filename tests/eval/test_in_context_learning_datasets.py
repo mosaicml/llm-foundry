@@ -349,7 +349,7 @@ def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path):
         continuation_delimiter=': ',
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
         generation_kwargs=None)
-    assert len(dl.base_batch['generation_kwargs']) == 4
+    assert len(dl.base_batch['generation_kwargs']) == 3
 
 
 def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path: Path):
@@ -376,7 +376,7 @@ def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path: Path):
         generation_kwargs={'temperature': 0.9})
     assert 'generation_kwargs' in dl.base_batch
     assert dl.base_batch['generation_kwargs']['temperature'] == 0.9
-    assert len(dl.base_batch['generation_kwargs']) == 5
+    assert len(dl.base_batch['generation_kwargs']) == 4
 
 
 @pytest.mark.filterwarnings(
@@ -1451,8 +1451,8 @@ def test_qa_split_batch(tiny_opt_tokenizer: transformers.AutoTokenizer,
     assert len(split2['labels']) == 1
     assert all(isinstance(v, list) for v in split1['labels'] + split2['labels'])
 
-    assert isinstance(split1['generation_kwargs']['max_new_tokens'], int)
-    assert isinstance(split2['generation_kwargs']['max_new_tokens'], int)
+    assert isinstance(split1['generation_length'], int)
+    assert isinstance(split2['generation_length'], int)
 
     assert isinstance(split1['generation_kwargs'], dict)
     assert isinstance(split2['generation_kwargs'], dict)
@@ -1531,7 +1531,7 @@ def test_qa_task_dataloader(dataset_uri: str,
     assert batch['mode'] == 'generate'
     # the maximum generation length from the small test data
 
-    assert batch['generation_kwargs']['max_new_tokens'] == maximum_answer_length
+    assert batch['generation_length'] == maximum_answer_length
     assert all(item[0] == tokenizer.eos_token_id for item in batch['input_ids'])
 
     decoded_batch = tokenizer.batch_decode(batch['input_ids'])
@@ -1588,7 +1588,7 @@ def test_qa_task_with_cot_dataloader(
                                                     maximum_answer_length)
     assert batch['mode'] == 'generate'
     # the maximum generation length from the small test data
-    assert batch['generation_kwargs']['max_new_tokens'] == maximum_answer_length
+    assert batch['generation_length'] == maximum_answer_length
     assert all(item[0] == tokenizer.eos_token_id for item in batch['input_ids'])
     decoded_batch = tokenizer.batch_decode(batch['input_ids'])
     assert all(item.count('Q: ') == num_fewshot + 1 for item in decoded_batch)
@@ -1719,11 +1719,12 @@ def test_code_eval_split_batch(dataset_uri: str, tmp_path: Path):
             assert len(batch[field]) == size
             assert all(isinstance(val, type_) for val in batch[field])
 
-    static_keys = {'pass_at_k': (int, list), 'generation_kwargs': dict}
+    static_keys = {
+        'pass_at_k': (int, list),
+        'generation_length': int,
+        'generation_kwargs': dict
+    }
     for batch in batches:
-        assert 'generation_kwargs' in batch
-        assert 'max_new_tokens' in batch['generation_kwargs']
-        assert isinstance(batch['generation_kwargs']['max_new_tokens'], int)
         for field, type_ in static_keys.items():
             assert isinstance(batch[field], type_)
 
@@ -1778,7 +1779,7 @@ def test_code_eval_sentpiece_dataloader(
         assert tuple(batch['attention_mask'].shape) == (bs, max_prompt_length)
         assert batch['mode'] == 'generate'
         # the maximum generation length from the small test data
-        assert batch['generation_kwargs']['max_new_tokens'] == 129
+        assert batch['generation_length'] == 129
         has_left_padding.extend(
             [item[0] == tokenizer.eos_token_id for item in batch['input_ids']])
     assert not all(has_left_padding)  # longest should be pushed left
@@ -1856,7 +1857,7 @@ def test_code_eval_test_cases(dataset_uri: str, tmp_path: Path):
                                                     max_prompt_length)
     assert batch['mode'] == 'generate'
     # the maximum generation length from the small test data
-    assert batch['generation_kwargs']['max_new_tokens'] == 129
+    assert batch['generation_length'] == 129
     assert any(item[0] != tokenizer.eos_token_id
                for item in batch['input_ids'])  # longest should be pushed left
 
@@ -1954,7 +1955,7 @@ def test_code_eval_task_dataloader(dataset_uri: str, tmp_path: Path,
         assert tuple(batch['attention_mask'].shape) == (bs, max_prompt_length)
         assert batch['mode'] == 'generate'
         # the maximum generation length from the small test data
-        assert batch['generation_kwargs']['max_new_tokens'] == 122
+        assert batch['generation_length'] == 122
         has_left_padding.extend(
             [item[0] == tokenizer.eos_token_id for item in batch['input_ids']])
     assert not all(has_left_padding)  # longest should be pushed left
@@ -2861,7 +2862,7 @@ def test_hf_dataloading_custom_parsing(
                                                     maximum_answer_length)
     assert batch['mode'] == 'generate'
     # the maximum generation length from the small test data
-    assert batch['generation_kwargs']['max_new_tokens'] == maximum_answer_length
+    assert batch['generation_length'] == maximum_answer_length
     assert all(item[0] == tokenizer.eos_token_id for item in batch['input_ids'])
 
     decoded_batch = tokenizer.batch_decode(batch['input_ids'])

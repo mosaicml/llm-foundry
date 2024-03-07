@@ -181,10 +181,9 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
     if eval_loader_config is not None:
         metrics['llmfoundry/eval_loaders'] = []
 
-        # If we have a dict config, then we only have one eval loader.
         if isinstance(eval_loader_config, ListConfig):
             eval_loader_configs:ListConfig = eval_loader_config
-        if isinstance(eval_loader_config, DictConfig):
+        else:
             eval_loader_configs = ListConfig([eval_loader_config])
 
         for loader_config in eval_loader_configs:

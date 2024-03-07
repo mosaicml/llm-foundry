@@ -231,7 +231,7 @@ def _tokenize_with_bos_removal(tokenizer: PreTrainedTokenizerBase, text: str,
 
     Args:
         tokenizer (PreTrainedTokenizerBase): The tokenizer to use for tokenization.
-        prompt (str): The prompt to tokenize.
+        text (str): The prompt to tokenize.
         text_target (str): The response to tokenize.
 
     Returns:

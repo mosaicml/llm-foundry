@@ -331,7 +331,8 @@ def main(cfg: DictConfig) -> Trainer:
                                                must_exist=True)
     eval_interval: Union[int, str] = pop_config(cfg,
                                                 'eval_interval',
-                                                must_exist=True)
+                                                default_value=1,
+                                                must_exist=False)
     precision: str = pop_config(cfg, 'precision', must_exist=True)
     max_seq_len: int = pop_config(cfg, 'max_seq_len', must_exist=True)
 

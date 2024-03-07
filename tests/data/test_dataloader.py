@@ -24,9 +24,11 @@ from streaming import MDSWriter
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data import build_dataloader
-from llmfoundry.data.finetuning.collator import validate_target_settings
+from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
+                                                 validate_target_settings)
 from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
+                                              dataset_constructor,
                                               is_valid_ift_example,
                                               tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
@@ -805,6 +807,72 @@ def test_malformed_data(
             actual_num_batches += 1
 
         assert actual_num_batches == expected_num_batches
+
+
+def test_finetune_dataloader_pure_pad_responses():
+    """Test that dataloader can handle pure-pad responses."""
+
+    @dataset_constructor.register('pad-response')
+    def pad_preprocessing_function(  # type: ignore
+            inp: dict[str, str]) -> dict[str, str]:
+        """Split out prompt/response from text."""
+        try:
+            prompt, response = inp['text'].split('### Response:')
+            prompt += '### Response:'
+        except Exception as e:
+            raise ValueError(
+                f"Unable to extract prompt/response from 'text'={inp['text']}"
+            ) from e
+        return {'prompt': prompt, 'response': '|PAD|' * len(response.split())}
+
+    cfg = om.create({
+        'dataset': {
+            'hf_name': 'tatsu-lab/alpaca',
+            'preprocessing_fn': 'pad-response',
+            'split': 'train',
+            'packing_ratio': 18.0,
+            'max_seq_len': 2048,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'shuffle': True,
+            'target_responses': 'last',
+            'target_prompts': 'none',
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        'pin_memory': False,
+        'prefetch_factor': None,
+        'persistent_workers': False,
+        'timeout': 0
+    })
+
+    tokenizer_name = 'EleutherAI/gpt-neox-20b'
+    tokenizer_kwargs = {
+        'model_max_length': cfg.dataset.max_seq_len,
+        'pad_token': '|PAD|'
+    }
+    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+
+    assert tokenizer('|PAD|').input_ids[0] == tokenizer.pad_token_id
+
+    device_batch_size = 1
+    dataloader = build_finetuning_dataloader(cfg, tokenizer,
+                                             device_batch_size).dataloader
+
+    # We should be able to iterate through this dataset without crashing
+    for i, batch in enumerate(dataloader):
+        # This check here just makes sure that the labels sequence is all padding
+        # (except for an EOS at the end)
+        for subseq in range(int(batch['sequence_id'][0].max()) + 1):
+            is_subseq = batch['sequence_id'][0] == subseq
+            labels = batch['labels'][
+                0,
+                torch.
+                logical_and(is_subseq, batch['labels'][0] != _HF_IGNORE_INDEX)]
+            assert all(labels[:-1] == tokenizer.pad_token_id)
+        if i >= 20:
+            break
+        continue
 
 
 @pytest.mark.parametrize('pad_token_id', [0, 100, 1000])

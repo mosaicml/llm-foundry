@@ -511,11 +511,11 @@ def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
     if peft_config is not None:
         _ = pytest.importorskip('peft')
 
-    conf: dict[str, dict[str, Union[str, dict]]] = {
+    conf: dict[str, dict[str, Any]] = {
         'model': {
             'name': 'hf_causal_lm',
             'pretrained_model_name_or_path': 'facebook/opt-125m',
-            'pretrained': 'false'
+            'pretrained': False
         },
         'tokenizer': {
             'name': 'facebook/opt-125m'

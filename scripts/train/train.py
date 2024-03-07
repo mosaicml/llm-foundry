@@ -15,6 +15,7 @@ from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
 from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
                                               MOSAICML_PLATFORM_ENV_VAR)
+from composer.metrics.nlp import InContextLearningMetric
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
@@ -248,7 +249,8 @@ def main(cfg: DictConfig) -> Trainer:
                                                must_exist=True)
     eval_interval: Union[int, str] = pop_config(cfg,
                                                 'eval_interval',
-                                                must_exist=True)
+                                                default_value=1,
+                                                must_exist=False)
     precision: str = pop_config(cfg, 'precision', must_exist=True)
     max_seq_len: int = pop_config(cfg, 'max_seq_len', must_exist=True)
 
@@ -262,10 +264,14 @@ def main(cfg: DictConfig) -> Trainer:
                                             'save_folder',
                                             must_exist=False,
                                             default_value=None)
-    save_latest_filename: str = pop_config(cfg,
-                                           'save_latest_filename',
-                                           must_exist=False,
-                                           default_value='latest-rank{rank}.pt')
+    is_state_dict_sharded: bool = (fsdp_config.get('state_dict_type', 'full')
+                                   == 'sharded') if fsdp_config else False
+    save_latest_filename: str = pop_config(
+        cfg,
+        'save_latest_filename',
+        must_exist=False,
+        default_value='latest-sharded-rank{rank}'
+        if is_state_dict_sharded else 'latest-rank{rank}.pt')
     save_overwrite: bool = pop_config(cfg,
                                       'save_overwrite',
                                       must_exist=False,
@@ -534,9 +540,12 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Now add the eval metrics
     if eval_loader_config is not None and not use_async_eval:
-        train_metrics = model.get_metrics(is_train=True)
-        evaluators = add_metrics_to_eval_loaders(evaluators,
-                                                 list(train_metrics.keys()))
+        eval_metrics = model.get_metrics(is_train=False)
+        non_icl_metrics = [
+            metric_name for metric_name, metric in eval_metrics.items()
+            if not isinstance(metric, InContextLearningMetric)
+        ]
+        evaluators = add_metrics_to_eval_loaders(evaluators, non_icl_metrics)
 
     # Build the Trainer
     log.info('Building trainer...')

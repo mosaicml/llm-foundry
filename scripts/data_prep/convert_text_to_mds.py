@@ -23,8 +23,11 @@ from transformers import AutoTokenizer
 from llmfoundry.data import ConcatTokensDataset
 from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
                                               merge_shard_groups)
+from llmfoundry.utils.exceptions import (InputFolderMissingDataError,
+                                         OutputFolderNotEmptyError)
 
 log = logging.getLogger(__name__)
+mosaicml_logger = None
 if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
 ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
     # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set
@@ -378,7 +381,7 @@ def convert_text_to_mds(
     object_names = get_object_names(input_folder)
     if len(object_names) == 0:
         #flag-ft-error
-        raise ValueError(f'No text files were found at {input_folder}.')
+        raise InputFolderMissingDataError(input_folder)
 
     # Check if the text files in the bucket have already been processed.
     if not reprocess and is_already_processed(output_folder, args_str,
@@ -396,8 +399,7 @@ def convert_text_to_mds(
 
     if os.path.isdir(output_folder) and len(os.listdir(output_folder)) > 0:
         # flag-ft-error
-        raise FileExistsError(
-            f'{output_folder=} is not empty. Please remove or empty it.')
+        raise OutputFolderNotEmptyError(output_folder)
 
     if processes > 1:
         # Download and convert the text files in parallel
@@ -456,14 +458,18 @@ def _args_str(original_args: Namespace) -> str:
 
 if __name__ == '__main__':
     args = parse_args()
-    convert_text_to_mds(tokenizer_name=args.tokenizer,
-                        output_folder=args.output_folder,
-                        input_folder=args.input_folder,
-                        concat_tokens=args.concat_tokens,
-                        eos_text=args.eos_text,
-                        bos_text=args.bos_text,
-                        no_wrap=args.no_wrap,
-                        compression=args.compression,
-                        processes=args.processes,
-                        reprocess=args.reprocess,
-                        args_str=_args_str(args))
+    try:
+        convert_text_to_mds(tokenizer_name=args.tokenizer,
+                            output_folder=args.output_folder,
+                            input_folder=args.input_folder,
+                            concat_tokens=args.concat_tokens,
+                            eos_text=args.eos_text,
+                            bos_text=args.bos_text,
+                            no_wrap=args.no_wrap,
+                            compression=args.compression,
+                            processes=args.processes,
+                            reprocess=args.reprocess,
+                            args_str=_args_str(args))
+    except Exception as e:
+        mosaicml_logger.log_exception(e)
+        raise e

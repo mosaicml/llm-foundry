@@ -36,10 +36,17 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
 
+from llmfoundry.utils.exceptions import (ClusterDoesNotExistError,
+                                         FailedToConnectToDatabricksError,
+                                         FailedToCreateSQLConnectionError,
+                                         JSONOutputFolderExistsError,
+                                         JSONOutputFolderNotLocalError)
+
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
 log = logging.getLogger(__name__)
+mosaicml_logger = None
 if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
 ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
     # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set
@@ -409,9 +416,8 @@ def validate_and_get_cluster_info(cluster_id: str,
         res = w.clusters.get(cluster_id=cluster_id)
         if res is None:
             # flag-ft-error
-            raise ValueError(
-                f'Cluster id {cluster_id} does not exist. Check cluster id and try again!'
-            )
+            raise ClusterDoesNotExistError(cluster_id)
+
         stripped_runtime = re.sub(
             r'[a-zA-Z]',
             '',
@@ -445,9 +451,7 @@ def validate_and_get_cluster_info(cluster_id: str,
 
         except Exception as e:
             # flag-ft-error
-            raise RuntimeError(
-                'Failed to create databricks connection. Check hostname and access token!'
-            ) from e
+            raise FailedToConnectToDatabricksError() from e
     else:
         try:
             dbsql = sql.connect(
@@ -459,9 +463,7 @@ def validate_and_get_cluster_info(cluster_id: str,
             )
         except Exception as e:
             # flag-ft-error: double check that you have data_prep_cluster_id
-            raise RuntimeError(
-                'Failed to create sql connection to db workspace. To use sql connect, you need to provide http_path and cluster_id!'
-            ) from e
+            raise FailedToCreateSQLConnectionError() from e
     return method, dbsql, sparkSession
 
 
@@ -472,16 +474,13 @@ def fetch_DT(args: Namespace) -> None:
     obj = urllib.parse.urlparse(args.json_output_folder)
     if obj.scheme != '':
         # flag-ft-error
-        raise ValueError(
-            f'Check the json_output_folder and verify it is a local path!')
+        raise JSONOutputFolderNotLocalError()
 
     if os.path.exists(args.json_output_folder):
         if not os.path.isdir(args.json_output_folder) or os.listdir(
                 args.json_output_folder):
             # flag-ft-error
-            raise RuntimeError(
-                f'A file or a folder {args.json_output_folder} already exists and is not empty. Remove it and retry!'
-            )
+            raise JSONOutputFolderExistsError(args.json_output_folder)
 
     os.makedirs(args.json_output_folder, exist_ok=True)
 
@@ -558,13 +557,19 @@ if __name__ == '__main__':
         help=
         'The name of the combined final jsonl that combines all partitioned jsonl'
     )
+
     args = parser.parse_args()
 
-    from databricks.sdk import WorkspaceClient
-    w = WorkspaceClient()
-    args.DATABRICKS_HOST = w.config.host
-    args.DATABRICKS_TOKEN = w.config.token
+    try:
+        w = WorkspaceClient()
+        args.DATABRICKS_HOST = w.config.host
+        args.DATABRICKS_TOKEN = w.config.token
 
-    tik = time.time()
-    fetch_DT(args)
-    log.info('Elapsed time', time.time() - tik)
+        tik = time.time()
+        fetch_DT(args)
+        log.info('Elapsed time', time.time() - tik)
+
+    except Exception as e:
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_exception(e)
+        raise e

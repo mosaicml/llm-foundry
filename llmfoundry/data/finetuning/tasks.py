@@ -38,22 +38,34 @@ import warnings
 from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
-from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence, Set,
-                    Tuple, Union, cast)
+from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
+                    Tuple, Union, cast,)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
 import numpy as np
 from composer.loggers import MosaicMLLogger
 from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
+                                              MOSAICML_PLATFORM_ENV_VAR,)
 from composer.utils import dist
 from streaming import Stream, StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
-                                                 stitch_turns_decoder_only,
-                                                 stitch_turns_encoder_decoder)
+from llmfoundry.utils.exceptions import (IncorrectMessageKeyQuantityError,
+                                         InitialPromptMissingError,
+                                         InvalidContentTypeError,
+                                         InvalidFileExtensionError,
+                                         InvalidLastChatMessageRoleError,
+                                         InvalidPromptResponseKeysError,
+                                         InvalidPromptTypeError,
+                                         InvalidResponseTypeError,
+                                         InvalidRoleError,
+                                         MissingChatAssistantMessageError,
+                                         MissingLocalPathSplitError,
+                                         NotEnoughChatDataError,
+                                         TooManyKeysInExampleError,
+                                         UnableToProcessPromptResponseError,
+                                         UnknownConversationTypeError,)
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)
@@ -96,7 +108,6 @@ def _get_example_type(example: Example) -> ExampleType:
         KeyError: If the example type is unknown.
     """
     if not isinstance(example, Mapping):
-        # flag-ft-error
         raise TypeError(
             f'Expected example to be a Mapping, but found {type(example)}')
     if any(allowed_message_key in example
@@ -109,7 +120,7 @@ def _get_example_type(example: Example) -> ExampleType:
         return 'prompt_response'
     else:
         # flag-ft-error: not prompt or conversation format
-        raise KeyError(f'Unknown conversation type {example=}')
+        raise UnknownConversationTypeError(example)
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:
@@ -124,17 +135,15 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
-def _get_key(dictionary: Mapping[str, Any], allowed_keys: Set[str]):
+def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
     if not isinstance(dictionary, Mapping):
-        # flag-ft-error
         raise TypeError(
             f'Expected dictionary to be a mapping, but found {type(dictionary)}'
         )
     desired_keys = allowed_keys.intersection(dictionary.keys())
     if len(desired_keys) != 1:
         # flag-ft-error: don't use completion and response
-        raise ValueError(
-            f'Dictionary has multiple keys in `allowed_keys`: {desired_keys}')
+        raise TooManyKeysInExampleError(allowed_keys, desired_keys)
     return list(desired_keys)[0]
 
 
@@ -148,30 +157,28 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
             f'Expected messages to be an iterable, but found {type(messages)}')
     if len(messages) <= 1:
         # flag-ft-error
-        raise ValueError('Chat example must have at least two messages')
+        raise NotEnoughChatDataError()
 
     last_message = messages[-1]
     role_key = _get_key(last_message, _ALLOWED_ROLE_KEYS)
     last_role = last_message[role_key]
     if last_role not in _ALLOWED_LAST_MESSAGE_ROLES:
         # flag-ft-error
-        raise ValueError(f'Invalid last message role: {last_role}')
+        raise InvalidLastChatMessageRoleError(last_role,
+                                              _ALLOWED_LAST_MESSAGE_ROLES)
 
     for message in messages:
         role_key, content_key = _get_key(message, _ALLOWED_ROLE_KEYS), _get_key(
             message, _ALLOWED_CONTENT_KEYS)
         if len(message.keys()) != 2:
             # flag-ft-error
-            raise ValueError(
-                f'Expected 2 keys in message, but found {len(message.keys())}')
+            raise IncorrectMessageKeyQuantityError(len(message.keys()))
         if message[role_key] not in _ALLOWED_ROLES:
             # flag-ft-error
-            raise ValueError(f'Invalid role: {message[role_key]}')
+            raise InvalidRoleError(message[role_key])
         if not isinstance(message[content_key], str):
             # flag-ft-error
-            raise TypeError(
-                f'Expected content to be a string, but found {type(message[content_key])}'
-            )
+            raise InvalidContentTypeError(type(message[content_key]))
 
 
 def _slice_chat_formatted_example(
@@ -199,8 +206,8 @@ def _slice_chat_formatted_example(
     last_message = messages[-1]
     if last_message['role'] != 'assistant':
         # flag-ft-error
-        raise ValueError(
-            f'last message must be from assistant. {last_message=}')
+        raise InvalidLastChatMessageRoleError(last_message['role'],
+                                              set(['assistant']))
 
     def slice_out_last_turn(
             messages_through_current_turn: List[Dict[str, str]],
@@ -309,17 +316,11 @@ def _tokenize_prompt_response_formatted_example(
 
     if len(prompt_keys) != 1:
         # flag-ft-error
-        raise KeyError(
-            f'Unable to tokenize example because {len(prompt_keys)} of the allowed prompt keys ' +\
-            f'were present in {example_keys=}. Please specify exactly one. {_ALLOWED_PROMPT_KEYS=}'
-        )
+        raise TooManyKeysInExampleError(_ALLOWED_PROMPT_KEYS, prompt_keys)
 
     if len(response_keys) != 1:
         # flag-ft-error
-        raise KeyError(
-            f'Unable to tokenize example because {len(response_keys)} of the allowed response keys ' +\
-            f'were present in {example_keys=}. Please specify exactly one. {_ALLOWED_RESPONSE_KEYS=}'
-        )
+        raise TooManyKeysInExampleError(_ALLOWED_RESPONSE_KEYS, response_keys)
 
     prompt_key = prompt_keys.pop()
     response_key = response_keys.pop()
@@ -328,15 +329,11 @@ def _tokenize_prompt_response_formatted_example(
 
     if not isinstance(prompt, str):
         # flag-ft-error
-        raise TypeError(
-            f'Unable to tokenize example because {prompt_key} was not a string. {example=}'
-        )
+        raise InvalidPromptTypeError(type(prompt_key))
 
     if not isinstance(response, str):
         # flag-ft-error
-        raise TypeError(
-            f'Unable to tokenize example because {response_key} was not a string. {example=}'
-        )
+        raise InvalidResponseTypeError(type(response_key))
 
     # Note: We default to the tokenizer's add_bos_token and add_eos_token behavior here
     # (which we do not do for chat-formatted examples). This is because chat examples specifically
@@ -382,7 +379,7 @@ def tokenize_formatted_example(
             prompt_response_example, tokenizer)
     else:
         # flag-ft-error
-        raise ValueError(f'Unknown conversation type {example_format=}')
+        raise UnknownConversationTypeError(example)
 
 
 def is_valid_ift_example(max_seq_len: int, target_prompts: str,
@@ -450,8 +447,7 @@ def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
             contents = set(os.listdir(local))
             if split is not None and split not in contents:
                 # flag-ft-error
-                raise ValueError(
-                    f'local directory {local} does not contain split {split}')
+                raise MissingLocalPathSplitError(local, split)
 
 
 class StreamingFinetuningDataset(StreamingDataset):
@@ -660,9 +656,7 @@ class DatasetConstructor:
         def _preprocessor(example: Dict[str, Any]) -> Dict[str, str]:
             if list(mapping.keys()) != ['prompt', 'response']:
                 # flag-ft-error
-                raise ValueError(
-                    f'Expected {mapping=} to have keys "prompt" and "response".'
-                )
+                raise InvalidPromptResponseKeysError(mapping)
             return {
                 'prompt': example[mapping['prompt']],
                 'response': example[mapping['response']]
@@ -783,9 +777,8 @@ class DatasetConstructor:
                             local_dir=local_dataset_dir)
                         if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
                             # flag-ft-error
-                            raise FileNotFoundError(
-                                f'safe_load is set to True. No data files with safe extensions {SUPPORTED_EXTENSIONS} '
-                                + f'found for dataset {dataset_name}. ')
+                            raise InvalidFileExtensionError(
+                                dataset_name, SUPPORTED_EXTENSIONS)
                     # Set dataset_name to the downloaded location.
                     dataset_name = local_dataset_dir
 
@@ -800,9 +793,8 @@ class DatasetConstructor:
                         Path(f).suffix in SUPPORTED_EXTENSIONS
                         for f in dataset_files):
                     # flag-ft-error
-                    raise ValueError(
-                        f'Dataset at local path {dataset_name} contains invalid file types. '
-                        + f'Allowed file types are: {SUPPORTED_EXTENSIONS}')
+                    raise InvalidFileExtensionError(dataset_name,
+                                                    SUPPORTED_EXTENSIONS)
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,
                                                **hf_kwargs)
@@ -880,9 +872,8 @@ def alpaca_preprocessing_function(inp: Dict) -> Dict[str, str]:
         prompt += '### Response:'
     except Exception as e:
         # flag-ft-error
-        raise ValueError(
-            f"Unable to extract prompt/response from 'text'={inp['text']}"
-        ) from e
+        raise UnableToProcessPromptResponseError(inp) from e
+
     return {'prompt': prompt, 'response': response}
 
 
@@ -899,8 +890,7 @@ def dolly_preprocessing_function(inp: Dict) -> Dict[str, str]:
         response = inp['output']
     except Exception as e:
         # flag-ft-error
-        raise ValueError(
-            f'Unable to extract prompt/response from {inp=}') from e
+        raise UnableToProcessPromptResponseError(inp) from e
     return {'prompt': prompt, 'response': response}
 
 
@@ -927,6 +917,5 @@ def muennighoff_tokenize_function(inp: Dict) -> Dict[str, str]:
             response = ' ' + response
     except Exception as e:
         # flag-ft-error
-        raise ValueError(
-            f'Unable to process prompt/response from {inp=}') from e
+        raise UnableToProcessPromptResponseError(inp) from e
     return {'prompt': prompt, 'response': response}

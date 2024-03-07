@@ -24,6 +24,7 @@ from streaming import MDSWriter
 from llmfoundry import (build_finetuning_dataloader,
                         build_text_denoising_dataloader)
 from llmfoundry.data import build_dataloader
+from llmfoundry.data.finetuning.collator import validate_target_settings
 from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
                                               is_valid_ift_example,
@@ -655,45 +656,75 @@ def test_finetuning_dataloader_streaming(pretokenize: bool,
         break
 
 
-def test_finetuning_dataloader_is_valid_ift_example():
-    pad_token_id = 7
+@pytest.mark.parametrize('target_prompts', ['none', 'all', 'length>=2'])
+@pytest.mark.parametrize('target_responses', ['last', 'all'])
+@pytest.mark.parametrize('decoder_only_format', [True, False])
+def test_finetuning_dataloader_is_valid_ift_example(
+    target_prompts: str,
+    target_responses: str,
+    decoder_only_format: bool,
+):
+    if not decoder_only_format:
+        if (target_prompts != 'none') or (target_responses != 'last'):
+            pytest.xfail(
+                'Must use "none" and "last" for target prompts and responses if not using decoder_only_format'
+            )
+    # This should pass
+    validate_target_settings(target_prompts, target_responses,
+                             decoder_only_format)
+
     max_seq_len = 4
 
     valid_example = {'turns': [{'input_ids': [2, 3, 5], 'labels': [8, 9, 7]}]}
-    assert is_valid_ift_example(pad_token_id, max_seq_len, valid_example)
+    assert is_valid_ift_example(max_seq_len, target_prompts, target_responses,
+                                decoder_only_format, valid_example)
 
-    valid_example = {
+    maybe_too_long_example = {
         'turns': [{
             'input_ids': [2, 3, 5],
             'labels': [8, 9, 7]
         }] * 3
     }
-    assert is_valid_ift_example(pad_token_id, max_seq_len, valid_example)
+    if any([
+            target_responses == 'all',
+            target_prompts in {'all', 'length>=2'},
+            decoder_only_format == False,
+    ]):
+        assert is_valid_ift_example(max_seq_len, target_prompts,
+                                    target_responses, decoder_only_format,
+                                    maybe_too_long_example)
+    else:
+        assert not is_valid_ift_example(max_seq_len, target_prompts,
+                                        target_responses, decoder_only_format,
+                                        maybe_too_long_example)
 
-    too_long_example = {
+    another_maybe_too_long_example = {
         'turns': [{
             'input_ids': [2, 3, 5, 6, 8],
             'labels': [8, 9, 7]
         }]
     }
-    assert not is_valid_ift_example(pad_token_id, max_seq_len, too_long_example)
+    if any([
+            target_prompts in {'all', 'length>=2'},
+            decoder_only_format == False,
+    ]):
+        assert is_valid_ift_example(max_seq_len, target_prompts,
+                                    target_responses, decoder_only_format,
+                                    another_maybe_too_long_example)
+    else:
+        assert not is_valid_ift_example(max_seq_len, target_prompts,
+                                        target_responses, decoder_only_format,
+                                        another_maybe_too_long_example)
 
     empty_input_example = {'turns': [{'input_ids': [], 'labels': [8, 9, 7]}]}
-    assert not is_valid_ift_example(pad_token_id, max_seq_len,
+    assert not is_valid_ift_example(max_seq_len, target_prompts,
+                                    target_responses, decoder_only_format,
                                     empty_input_example)
 
     empty_labels_example = {'turns': [{'input_ids': [1, 2], 'labels': []}]}
-    assert not is_valid_ift_example(pad_token_id, max_seq_len,
+    assert not is_valid_ift_example(max_seq_len, target_prompts,
+                                    target_responses, decoder_only_format,
                                     empty_labels_example)
-
-    padding_response_example = {
-        'turns': [{
-            'input_ids': [1, 2],
-            'labels': [7, 7]
-        }]
-    }
-    assert not is_valid_ift_example(pad_token_id, max_seq_len,
-                                    padding_response_example)
 
 
 @pytest.mark.parametrize('add_bad_data_dropped', [True, False])

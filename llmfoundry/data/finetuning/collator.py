@@ -8,12 +8,12 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
-from llmfoundry.data.finetuning.tasks import TokenizedExample
-
 log = logging.getLogger(__name__)
 
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
+
+TokenizedExample = Dict[str, List[Dict[str, List[int]]]]
 
 
 def ensure_list(x: Union[List, torch.Tensor]) -> List:
@@ -101,6 +101,81 @@ _TARGET_POLICY_LOOKUP = {
 }
 
 
+def stitch_turns_decoder_only(
+        example_turns: list[dict[str, list[int]]],
+        target_prompts: str,
+        target_responses: str,
+        eos_token_id: Optional[int] = None,
+        validate: bool = False) -> tuple[list[int], list[int]]:
+    target_prompts = target_prompts.lower()
+    target_responses = target_responses.lower()
+
+    if validate:
+        validate_target_settings(target_prompts,
+                                 target_responses,
+                                 decoder_only_format=True)
+
+    if target_prompts.startswith('length'):
+        prompt_cutoff = int(target_prompts.split('>=')[-1])
+        prompt_to_target = _TARGET_POLICY_LOOKUP['length']
+    else:
+        prompt_cutoff = None
+        prompt_to_target = _TARGET_POLICY_LOOKUP[target_prompts]
+    response_to_target = _TARGET_POLICY_LOOKUP[target_responses]
+
+    input_ids = []
+    labels = []
+    for idx, turn in enumerate(example_turns):
+        is_last_turn = idx + 1 == len(example_turns)
+        # We assume that no padding has been applied. If there is a pad token,
+        # it may be because the pad token is the same as another special token.
+        context = ensure_list(turn['input_ids'])
+        target = ensure_list(turn['labels'])
+        # If an EOS token id is given, ensure that the target sequence ends with it.
+        if is_last_turn and eos_token_id is not None:
+            if target[-1] != eos_token_id:
+                target = target + [eos_token_id]
+        # Extend the input_ids
+        input_ids += context
+        input_ids += target
+        # Extend the labels, with values depending on the loss-generating policies
+        labels += prompt_to_target(context, is_last_turn, prompt_cutoff)
+        labels += response_to_target(target, is_last_turn)
+
+    if len(input_ids) != len(labels):
+        raise ValueError(
+            f'input_ids and labels should be the same length, {len(input_ids)=}, {len(labels)=}'
+        )
+    return input_ids, labels
+
+
+def stitch_turns_encoder_decoder(
+    example_turns: list[dict[str, list[int]]],
+    eos_token_id: Optional[int] = None,
+) -> tuple[list[int], list[int]]:
+    context = []
+    target = None
+    for idx, turn in enumerate(example_turns):
+        is_last_turn = idx + 1 == len(example_turns)
+        # We assume that no padding has been applied. If there is a pad token,
+        # it may be because the pad token is the same as another special token.
+        turn_context = ensure_list(turn['input_ids'])
+        turn_target = ensure_list(turn['labels'])
+        # Context always goes into input_ids.
+        context += turn_context
+        # Non-terminal turns go into the input_ids. Terminal target is the target.
+        if is_last_turn:
+            # If an EOS token id is given, ensure that the target sequence ends with it.
+            if eos_token_id is not None and turn_target[-1] != eos_token_id:
+                turn_target = turn_target + [eos_token_id]
+            target = turn_target
+        else:
+            context += turn_target
+    if target is None:
+        raise ValueError('target is still None but should be list[int]')
+    return context, target
+
+
 class Seq2SeqFinetuningCollator:
     """A general-purpose collator for sequence-to-sequence training/evaluation.
 
@@ -129,10 +204,6 @@ class Seq2SeqFinetuningCollator:
         allow_pad_trimming (bool, optional): Whether to allow the collator
             to trim padding, which may result in smaller but inconsistent batch
             sizes. Default: ``False`` ensures that all sequences are max_seq_len.
-        separator_text (str | bool, optional): If a string is provided, it will
-            be used to separate the context and target sequences (appended to end
-            of context). If ``True``, will use the tokenizer's sep_token, which must
-            be defined. Only applicable for decoder-only formatting.
         batch_metadata (dict, optional): A dictionary of metadata which will be added
             to the batch.
     """
@@ -145,7 +216,6 @@ class Seq2SeqFinetuningCollator:
         target_responses: str = 'last',
         target_prompts: str = 'none',
         allow_pad_trimming: bool = False,
-        separator_text: Optional[Union[str, bool]] = None,
         batch_metadata: Optional[Dict[str, Any]] = None,
     ):
         self.tokenizer = tokenizer
@@ -197,22 +267,6 @@ class Seq2SeqFinetuningCollator:
             self.prompt_to_target = _TARGET_POLICY_LOOKUP[self.target_prompts]
         self.response_to_target = _TARGET_POLICY_LOOKUP[self.target_responses]
 
-        self.separator_tokens = []
-        if separator_text and decoder_only_format:
-            if separator_text == True:
-                # Use the tokenizer's sep token or throw an error if undefined
-                if self.tokenizer.sep_token_id is None:
-                    raise ValueError(
-                        'Setting separator_text=True requires that the tokenizer has sep_token_id but it has not been set. ' +\
-                        'Please pass a string argument for separator_text or set sep_token_id in the tokenizer.'
-                    )
-                self.separator_tokens = [self.tokenizer.sep_token_id]
-            else:
-                # Convert the string separator_text into token(s)
-                self.separator_tokens = tokenizer(
-                    separator_text, add_special_tokens=False).input_ids
-
-        self._warned_skipped = False
         self._warned_truncated = False
         self._warned_context = False
         self._warned_target = False
@@ -244,33 +298,12 @@ class Seq2SeqFinetuningCollator:
         # Steps explained in comments
         processed_examples = []
         for example in examples:
-            example_turns = example['turns']
-            input_ids = []
-            labels = []
-            for idx, turn in enumerate(example_turns):
-                is_last_turn = idx + 1 == len(example_turns)
-                # We assume that no padding has been applied. If there is a pad token,
-                # it may be because the pad token is the same as another special token.
-                context = ensure_list(turn['input_ids'])
-                target = ensure_list(turn['labels'])
-                # Append any separator tokens to the context tokens
-                if self.separator_tokens:
-                    context = context + self.separator_tokens
-                # Ensure that the target text ends with an eos tag on the last turn
-                if is_last_turn and target[-1] != self.tokenizer.eos_token_id:
-                    target = target + [self.tokenizer.eos_token_id]
-                # Extend the input_ids
-                input_ids += context
-                input_ids += target
-                # Extend the labels, with values depending on the loss-generating policies
-                labels += self.prompt_to_target(context, is_last_turn,
-                                                self.prompt_cutoff)
-                labels += self.response_to_target(target, is_last_turn)
-
-            if len(input_ids) != len(labels):
-                raise ValueError(
-                    f'input_ids and labels should be the same length, {len(input_ids)=}, {len(labels)=}'
-                )
+            input_ids, labels = stitch_turns_decoder_only(
+                example_turns=example['turns'],
+                target_prompts=self.target_prompts,
+                target_responses=self.target_responses,
+                eos_token_id=self.tokenizer.eos_token_id,
+            )
 
             orig_size = len(input_ids)
             # We may need to truncate the input_ids / labels in order to maintain max_seq_len
@@ -278,17 +311,16 @@ class Seq2SeqFinetuningCollator:
                 input_ids = input_ids[:self.max_seq_len]
                 labels = labels[:self.max_seq_len]
 
-                # Check to make sure there are still loss-generating tokens. Skip if not.
+                # Check to make sure there are still loss-generating tokens. Error if not.
                 if len([l for l in labels if l != _HF_IGNORE_INDEX]) == 0:
-                    if not self._warned_skipped:
-                        warnings.warn(
-                            f'Skipping example because truncating to max_seq_len={self.max_seq_len} has ' +\
-                            f'removed all loss-generating tokens. Pre-truncation sequence length was {orig_size}.' +\
-                            f'If this causes downstream issues because of inconsistent batch sizes, ' +\
-                            f'consider increasing max_seq_len or using example packing.'
-                        )
-                        self._warned_skipped = True
-                    continue
+                    raise ValueError(
+                        f'Truncating to max_seq_len={self.max_seq_len} has removed all loss-generating tokens. ' +\
+                        f'Pre-truncation sequence length was {orig_size}. ' +\
+                        'This sample should have been filtered out before reaching the collator. If using ' +\
+                        'pre-tokenized streaming data, this may have resulted from using different ' +\
+                        '``target_prompts``, ``target_responses``, or ``max_seq_len`` ' +\
+                        'settings when preparing the streaming dataset than what are currently being used.'
+                    )
 
                 # Still issue a warning when truncating
                 if not self._warned_truncated:
@@ -364,28 +396,10 @@ class Seq2SeqFinetuningCollator:
         # Steps are explained in comments.
         processed_examples = []
         for example in examples:
-            example = example['turns']
-            context = []
-            target = None
-            for idx, turn in enumerate(example):
-                is_last_turn = idx + 1 == len(example)
-                # We assume that no padding has been applied. If there is a pad token,
-                # it may be because the pad token is the same as another special token.
-                turn_context = ensure_list(turn['input_ids'])
-                turn_target = ensure_list(turn['labels'])
-                # Context always goes into input_ids.
-                context += turn_context
-                # Non-terminal turns go into the input_ids. Terminal target is the target.
-                if is_last_turn:
-                    # Ensure that the target text ends with an eos tag on the last turn
-                    if turn_target[-1] != self.tokenizer.eos_token_id:
-                        turn_target = turn_target + [
-                            self.tokenizer.eos_token_id
-                        ]
-                    target = turn_target
-                else:
-                    context += turn_target
-            assert isinstance(target, list)
+            context, target = stitch_turns_encoder_decoder(
+                example_turns=example['turns'],
+                eos_token_id=self.tokenizer.eos_token_id,
+            )
 
             # We need to pad labels ourselves. Because HF.
             if len(target) < self.max_seq_len:

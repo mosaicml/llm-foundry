@@ -226,6 +226,9 @@ def test_tokenize_no_labels_bos_pr():
 
     tokenized_example = tokenize_formatted_example(example, tokenizer)
 
+    # Extract the first turn
+    tokenized_example = tokenized_example['turns'][0]
+
     assert len(tokenized_example['labels']) == 1
     assert tokenized_example['labels'][0] != tokenizer.bos_token_id
     assert tokenized_example['input_ids'][0] == tokenizer.bos_token_id
@@ -236,6 +239,9 @@ def test_tokenize_no_labels_bos_pr():
     assert not hasattr(tokenizer, 'add_bos_token')
 
     tokenized_example = tokenize_formatted_example(example, tokenizer)
+
+    # Extract the first turn
+    tokenized_example = tokenized_example['turns'][0]
 
     assert len(tokenized_example['labels']) == 1
     assert tokenized_example['labels'][0] != tokenizer.bos_token_id

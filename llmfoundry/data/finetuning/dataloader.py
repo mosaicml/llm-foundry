@@ -204,6 +204,11 @@ def build_finetuning_dataloader(cfg: DictConfig,
             max_seq_len=cfg.dataset.max_seq_len,
             preprocessing_fn=preprocessing_fn,
             tokenizer=tokenizer,
+            target_prompts=cfg.dataset.get('target_prompts',
+                                           _DEFAULT_TARGET_PROMPTS),
+            target_responses=cfg.dataset.get('target_responses',
+                                             _DEFAULT_TARGET_RESPONSES),
+            decoder_only_format=cfg.dataset.decoder_only_format,
             hf_kwargs=cfg.dataset.get('hf_kwargs', {}))
 
         # Ensure dataset is large enough.
@@ -338,7 +343,8 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
     target_prompts = str(
         dataset_cfg.get('target_prompts', _DEFAULT_TARGET_PROMPTS)).lower()
     decoder_only_format = dataset_cfg.decoder_only_format
-    validate_target_settings(target_prompts, target_responses, decoder_only_format)
+    validate_target_settings(target_prompts, target_responses,
+                             decoder_only_format)
 
 
 def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
@@ -498,8 +504,6 @@ if __name__ == '__main__':
                 2048,
             'decoder_only_format':
                 True,
-            'separator_text':
-                False,
             'allow_pad_trimming':
                 False,
             'num_canonical_nodes':

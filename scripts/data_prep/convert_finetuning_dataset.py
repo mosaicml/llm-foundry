@@ -15,6 +15,7 @@ from streaming import MDSWriter
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from llmfoundry.data.finetuning.collator import validate_target_settings
 from llmfoundry.data.finetuning.tasks import (_get_example_type,
                                               dataset_constructor,
                                               is_valid_ift_example,
@@ -81,7 +82,30 @@ def parse_args() -> Namespace:
     parser.add_argument('--num_workers', type=int, required=False, default=None)
     parser.add_argument('--tokenizer', type=str, required=False, default=None)
     parser.add_argument('--tokenizer_kwargs', type=str, required=False)
+
+    ##### Used to determine whether an example needs to be filtered out ####
     parser.add_argument('--max_seq_len', type=int, default=2048)
+    parser.add_argument(
+        '--target_prompts',
+        type=str,
+        default='none',
+        help='Used to determine which samples are valid at max_seq_len. ' +\
+             'This is the policy for when to use prompts as training targets. Default "none" means prompts are never used as training targets.'
+    )
+    parser.add_argument(
+        '--target_responses',
+        type=str,
+        default='last',
+        help='Used to determine which samples are valid at max_seq_len. ' +\
+             'This is the policy for which responses to treat as training targets. Default "last" means the only the final response (if multi-turn) is used.'
+    )
+    parser.add_argument(
+        '--encoder_decoder',
+        action='store_true',
+        help='Used to determine which samples are valid at max_seq_len. ' +\
+             'Set this flag if the data are intended to be used to train an encoder-decoder model. If so, you must use the default ' +\
+            '``target_prompts`` and ``target_responses`` settings of "none" and "last", respectively.'
+    )
 
     parsed = parser.parse_args()
 
@@ -194,6 +218,13 @@ def main(args: Namespace) -> None:
                 'include the "--skip-preprocessing" flag to avoid this error.'
             )
 
+    # Make sure the target settings are valid
+    validate_target_settings(
+        target_prompts=args.target_prompts,
+        target_responses=args.target_responses,
+        decoder_only_format=not args.encoder_decoder,
+    )
+
     tokenizer = None
     tokenizer_kwargs = args.tokenizer_kwargs
     tokenizer_kwargs.update({'model_max_length': args.max_seq_len})
@@ -251,8 +282,12 @@ def main(args: Namespace) -> None:
                 if tokenizer is not None:
                     sample = tokenize_formatted_example(formatted_sample,
                                                         tokenizer=tokenizer)
-                    if not is_valid_ift_example(tokenizer.pad_token_id,
-                                                args.max_seq_len, sample):
+                    if not is_valid_ift_example(
+                            args.max_seq_len,
+                            target_prompts=args.target_prompts,
+                            target_responses=args.target_responses,
+                            decoder_only_format=not args.encoder_decoder,
+                            example=sample):
                         examples_removed += 1
                         continue
 

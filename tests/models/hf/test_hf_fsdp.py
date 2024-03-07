@@ -1,11 +1,14 @@
-from typing import Union
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
+from composer.models.huggingface import maybe_get_underlying_model
 from omegaconf import DictConfig
 
-from llmfoundry.models.hf.hf_fsdp import maybe_get_underlying_model
 from llmfoundry.models.hf import ComposerHFCausalLM
 
+
 def test_olmo_wraps():
-    config: dict[str, dict[str, Union[str, dict]]] = {
+    conf: dict = {
         'model': {
             'name': 'hf_causal_lm',
             'pretrained_model_name_or_path': 'allenai/OLMo-7B',
@@ -16,7 +19,7 @@ def test_olmo_wraps():
         },
     }
 
-    config = DictConfig(config)
+    config = DictConfig(conf)
 
     model = ComposerHFCausalLM(config.model, None)
 

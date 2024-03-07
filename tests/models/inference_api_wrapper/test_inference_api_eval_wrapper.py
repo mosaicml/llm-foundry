@@ -24,19 +24,19 @@ def load_icl_config():
     return DictConfig({
         'icl_tasks':
             ListConfig([
-                # DictConfig({
-                #     'label':
-                #         'jeopardy',
-                #     'dataset_uri':
-                #         'scripts/eval/local_data/world_knowledge/jeopardy_all.jsonl',
-                #     'num_fewshot': [0, 1],
-                #     'icl_task_type':
-                #         'language_modeling',
-                #     'continuation_delimiter':
-                #         '\nAnswer: ',
-                #     'has_categories':
-                #         True
-                # }),
+                DictConfig({
+                    'label':
+                        'jeopardy',
+                    'dataset_uri':
+                        'scripts/eval/local_data/world_knowledge/jeopardy_all.jsonl',
+                    'num_fewshot': [0, 1],
+                    'icl_task_type':
+                        'language_modeling',
+                    'continuation_delimiter':
+                        '\nAnswer: ',
+                    'has_categories':
+                        True
+                }),
                 DictConfig({
                     'label':
                         'triviaqa',
@@ -45,6 +45,19 @@ def load_icl_config():
                     'num_fewshot': [0, 1],
                     'icl_task_type':
                         'question_answering',
+                    'continuation_delimiter':
+                        '',
+                }),
+                DictConfig({
+                    'label':
+                        'humaneval',
+                    'dataset_uri':
+                        'scripts/eval/local_data/programming/human_eval.jsonl',
+                    'num_fewshot': [0],
+                    'icl_task_type':
+                        'code_evaluation',
+                    'pass_at_k': 1,
+                    'num_samples': 5,
                     'continuation_delimiter':
                         '',
                 })
@@ -58,16 +71,17 @@ class MockTopLogProb:
         self.top_logprobs = [{expected_token: 0}]
 
 
-class MockLogprob:
+class MockTokenOutput:
 
     def __init__(self, expected_token: str) -> None:
         self.logprobs = MockTopLogProb(expected_token)
+        self.text = expected_token
 
 
 class MockCompletion:
 
     def __init__(self, expected_token: str) -> None:
-        self.choices = [MockLogprob(expected_token)]
+        self.choices = [MockTokenOutput(expected_token)]
 
 
 class MockContent:
@@ -88,15 +102,22 @@ class MockChatCompletion:
         setattr(self, 'choices', [MockMessage(expected_token)])
 
 
-def mock_create(**kwargs: Dict[str, str]):
+def mock_create_jeopardy(**kwargs: Dict[str, str]):
     prompt = kwargs['prompt']
-    if prompt == 'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer:':  # pyright: ignore[reportUnnecessaryComparison]
+    assert isinstance(prompt, str)
+    if prompt.endswith(
+            'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer:'
+    ):  # pyright: ignore[reportUnnecessaryComparison]
         return MockCompletion(' Tre')
 
-    elif prompt == 'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Tre':  # pyright: ignore[reportUnnecessaryComparison]
+    elif prompt.endswith(
+            'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Tre'
+    ):  # pyright: ignore[reportUnnecessaryComparison]
         return MockCompletion('ason')
 
-    elif prompt == 'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Treason':  # pyright: ignore[reportUnnecessaryComparison]
+    elif prompt.endswith(
+            'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer: Treason'
+    ):  # pyright: ignore[reportUnnecessaryComparison]
         return MockCompletion('!')
 
     else:
@@ -104,16 +125,28 @@ def mock_create(**kwargs: Dict[str, str]):
         return MockCompletion(' ')
 
 
-def test_openai_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
+def mock_create_triviaqa(**kwargs: Dict[str, str]):
+    prompt = kwargs['prompt']
+    assert isinstance(prompt, str)
+    if prompt.endswith(
+            'Question: Who was the man behind The Chipmunks?\nAnswer:'
+    ):  # pyright: ignore[reportUnnecessaryComparison]
+        return MockCompletion('David Seville')
+    else:
+        # dummy token to make sure the model is incorrect on any other prompt
+        return MockCompletion(' ')
+
+
+def test_openai_completions_api_eval_wrapper(tmp_path: str,
+                                             openai_api_key_env_var: str):
     _ = pytest.importorskip('openai')
 
-    model_name = 'davinci'
+    model_name = 'gpt-3.5-turbo-instruct'
     tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
                                          pad_token='<|endoftext|>')
     model = OpenAICausalLMEvalWrapper(model_cfg={'version': model_name},
                                       tokenizer=tokenizer)
     with patch.object(model, 'client') as mock:
-        mock.completions.create = mock_create
 
         task_cfg = load_icl_config()
         evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
@@ -122,16 +155,36 @@ def test_openai_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
                                              2,
                                              destination_dir=str(tmp_path))
 
-        batch = next(evaluators[0].dataloader.dataloader.__iter__())
-        result = model.eval_forward(batch)
-        model.update_metric(batch,
-                            result,
-                            metric=model.get_metrics()
-                            ['InContextLearningLMAccuracy'])  # pyright: ignore
-        acc = model.get_metrics(
-        )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
-        )  # pyright: ignore
-        assert acc == 0.5
+        for evaluator in evaluators:
+            if evaluator.label == 'jeopardy/0-shot/american_history' or evaluator.label == 'jeopardy/1-shot/american_history':
+                mock.completions.create = mock_create_jeopardy
+                batch = next(evaluator.dataloader.dataloader.__iter__())
+                result = model.eval_forward(batch)
+                model.get_metrics()['InContextLearningLMAccuracy'].total = 0.0
+                model.get_metrics()['InContextLearningLMAccuracy'].correct = 0.0
+
+                model.update_metric(
+                    batch,
+                    result,
+                    metric=model.get_metrics()
+                    ['InContextLearningLMAccuracy'])  # pyright: ignore
+                acc = model.get_metrics(
+                )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
+                )  # pyright: ignore
+                assert acc == 0.5
+            elif evaluator.label == 'triviaqa/0-shot' or evaluator.label == 'triviaqa/1-shot':
+                mock.completions.create = mock_create_triviaqa
+                batch = next(evaluator.dataloader.dataloader.__iter__())
+                result = model.eval_forward(batch)
+                model.update_metric(
+                    batch,
+                    result,
+                    metric=model.get_metrics()
+                    ['InContextLearningQAAccuracy'])  # pyright: ignore
+                acc = model.get_metrics(
+                )['InContextLearningQAAccuracy'].compute(  # pyright: ignore
+                )  # pyright: ignore
+                assert acc == 0.5
 
 
 def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
@@ -143,9 +196,6 @@ def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
     chatmodel = OpenAIChatAPIEvalWrapper(model_cfg={'version': model_name},
                                          tokenizer=tokenizer)
     with patch.object(chatmodel, 'client') as mock:
-        mock.chat.completions.create.return_value = MockChatCompletion(
-            'Treason!')
-
         task_cfg = load_icl_config()
         evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
                                              tokenizer,
@@ -153,43 +203,38 @@ def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
                                              2,
                                              destination_dir=str(tmp_path))
 
-        batch = next(evaluators[0].dataloader.dataloader.__iter__())
-        result = chatmodel.eval_forward(batch)
-        chatmodel.update_metric(
-            batch,
-            result,
-            metric=chatmodel.get_metrics()
-            ['InContextLearningLMAccuracy'])  # pyright: ignore
-        acc = chatmodel.get_metrics(
-        )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
-        )
-        assert acc == 0.5
+        for evaluator in evaluators:
 
+            if evaluator.label == 'jeopardy/0-shot/american_history' or evaluator.label == 'jeopardy/1-shot/american_history':
+                mock.chat.completions.create.return_value = MockChatCompletion(
+                    'Treason!')
+                batch = next(evaluator.dataloader.dataloader.__iter__())
+                result = chatmodel.eval_forward(batch)
+                chatmodel.get_metrics(
+                )['InContextLearningLMAccuracy'].total = 0.0
+                chatmodel.get_metrics(
+                )['InContextLearningLMAccuracy'].correct = 0.0
 
-
-def test_openai_api_eval_wrapper_real_key(tmp_path: str, openai_api_key_env_var: str):
-    _ = pytest.importorskip('openai')
-    model_name = 'gpt-3.5-turbo-instruct'
-    tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
-                                         pad_token='<|endoftext|>')
-    model = OpenAICausalLMEvalWrapper(model_cfg={'version': model_name},
-                                      tokenizer=tokenizer)
-    # with patch.object(model, 'client') as mock:
-        # mock.completions.create = mock_create
-    task_cfg = load_icl_config()
-    evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
-                                            tokenizer,
-                                            1024,
-                                            2,
-                                            destination_dir=str(tmp_path))
-
-    batch = next(evaluators[0].dataloader.dataloader.__iter__())
-    result = model.eval_forward(batch)
-    model.update_metric(batch,
-                        result,
-                        metric=model.get_metrics()
-                        ['InContextLearningQAAccuracy'])  # pyright: ignore
-    acc = model.get_metrics(
-    )['InContextLearningQAAccuracy'].compute(  # pyright: ignore
-    )  # pyright: ignore
-    assert acc == 0.5
+                chatmodel.update_metric(
+                    batch,
+                    result,
+                    metric=chatmodel.get_metrics()
+                    ['InContextLearningLMAccuracy'])  # pyright: ignore
+                acc = chatmodel.get_metrics(
+                )['InContextLearningLMAccuracy'].compute(  # pyright: ignore
+                )  # pyright: ignore
+                assert acc == 0.5
+            elif evaluator.label == 'triviaqa/0-shot' or evaluator.label == 'triviaqa/1-shot':
+                mock.chat.completions.create.return_value = MockChatCompletion(
+                    'David Seville')
+                batch = next(evaluator.dataloader.dataloader.__iter__())
+                result = chatmodel.eval_forward(batch)
+                chatmodel.update_metric(
+                    batch,
+                    result,
+                    metric=chatmodel.get_metrics()
+                    ['InContextLearningQAAccuracy'])  # pyright: ignore
+                acc = chatmodel.get_metrics(
+                )['InContextLearningQAAccuracy'].compute(  # pyright: ignore
+                )  # pyright: ignore
+                assert acc == 0.5

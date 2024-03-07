@@ -58,12 +58,24 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
 
 def log_analytics_details(mosaicml_logger: MosaicMLLogger,
                           model_config: DictConfig, tokenizer_name: str,
-                          load_path: Union[str, None]):
+                          load_path: Union[str,
+                                           None], icl_tasks: Union[str,
+                                                                   ListConfig],
+                          eval_gauntlet_config: Optional[Union[str,
+                                                               DictConfig]]):
     metrics = {
         'llmfoundry/llmfoundry_run_type': 'eval',
         'llmfoundry/tokenizer_name': tokenizer_name,
         'llmfoundry/model_name': model_config.get('model_name'),
     }
+
+    if eval_gauntlet_config is not None:
+        metrics['llmfoundry/gauntlet_configured'] = True
+
+    if isinstance(icl_tasks, str):
+        metrics['llmfoundry/icl_configured'] = True
+    elif len(icl_tasks) > 0:
+        metrics['llmfoundry/icl_configured'] = True
 
     if model_config.get('vocab_size', None) is not None:
         metrics['llmfoundry/vocab_size'] = model_config.get('vocab_size')
@@ -76,8 +88,6 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
         metrics['llmfoundry/cloud_provider_loading'] = load_path.split(':')[0]
     """
     TODO: right now, we need to get the following subtypes for eval:
-        -- Gauntlet?
-        -- ICL?
         -- Batch Generation
         -- Checkpoint Conversion
     """
@@ -183,7 +193,7 @@ def evaluate_model(
 
     if mosaicml_logger is not None:
         log_analytics_details(mosaicml_logger, model_cfg, tokenizer_name,
-                              load_path)
+                              load_path, icl_tasks, eval_gauntlet_config)
 
     log.info(f'Building trainer for {model_cfg.model_name}...')
 

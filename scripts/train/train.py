@@ -141,9 +141,10 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
                                                     None],
                           callback_configs: Union[DictConfig,
                                                   None], tokenizer_name: str,
-                          load_path: Union[str,
-                                           None], save_folder: Union[str,
-                                                                     None]):
+                          load_path: Union[str, None], save_folder: Union[str,
+                                                                          None],
+                          icl_tasks_config: Optional[Union[ListConfig, str]],
+                          eval_gauntlet: Optional[Union[DictConfig, str]]):
     metrics = {
         'llmfoundry/tokenizer_name':
             tokenizer_name,
@@ -159,6 +160,15 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
         metrics['llmfoundry/callbacks'] = [
             name for name, _ in callback_configs.items()
         ]
+
+    if eval_gauntlet is not None:
+        metrics['llmfoundry/gauntlet_configured'] = True
+
+    if icl_tasks_config is not None:
+        if isinstance(icl_tasks_config, str):
+            metrics['llmfoundry/icl_configured'] = True
+        elif len(icl_tasks_config) > 0:
+            metrics['llmfoundry/icl_configured'] = True
 
     # TODO: what's a good name for this? ideally we want the keys to be the same for
     # training and eval to make querying easier.
@@ -512,10 +522,10 @@ def main(cfg: DictConfig) -> Trainer:
             # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
             mosaicml_logger = MosaicMLLogger()
             loggers.append(mosaicml_logger)
-            log_analytics_details(mosaicml_logger, model_config,
-                                  train_loader_config, eval_loader_config,
-                                  callback_configs, tokenizer_name, load_path,
-                                  save_folder)
+            # log_analytics_details(mosaicml_logger, model_config,
+            #                       train_loader_config, eval_loader_config,
+            #                       callback_configs, tokenizer_name, load_path,
+            #                       save_folder)
 
     if metadata is not None:
         # Flatten the metadata for logging
@@ -600,6 +610,11 @@ def main(cfg: DictConfig) -> Trainer:
         )
         if eval_gauntlet_callback is not None:
             callbacks.append(eval_gauntlet_callback)
+
+    log_analytics_details(mosaicml_logger, model_config, train_loader_config,
+                          eval_loader_config, callback_configs, tokenizer_name,
+                          load_path, save_folder, icl_tasks_config,
+                          eval_gauntlet_config)
 
     # Build Model
     log.info('Initializing model...')

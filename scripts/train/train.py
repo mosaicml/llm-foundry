@@ -182,15 +182,15 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
         metrics['llmfoundry/eval_loaders'] = []
 
         if isinstance(eval_loader_config, ListConfig):
-            eval_loader_configs:ListConfig = eval_loader_config
+            eval_loader_configs: ListConfig = eval_loader_config
         else:
             eval_loader_configs = ListConfig([eval_loader_config])
 
         for loader_config in eval_loader_configs:
             eval_loader_info = {}
             eval_loader_info['eval_loader_name'] = loader_config.get('name')
-            eval_loader_info['eval_loader_workers'] = loader_config.get('dataset').get(
-                'num_workers')
+            eval_loader_info['eval_loader_workers'] = loader_config.get(
+                'dataset').get('num_workers')
             if loader_config['dataset'].get('hf_name', None) is not None:
                 eval_loader_info['eval_dataset_hf_name'] = loader_config.get(
                     'dataset').get('hf_name')

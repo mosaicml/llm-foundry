@@ -611,10 +611,11 @@ def main(cfg: DictConfig) -> Trainer:
         if eval_gauntlet_callback is not None:
             callbacks.append(eval_gauntlet_callback)
 
-    log_analytics_details(mosaicml_logger, model_config, train_loader_config,
-                          eval_loader_config, callback_configs, tokenizer_name,
-                          load_path, save_folder, icl_tasks_config,
-                          eval_gauntlet_config)
+    if mosaicml_logger is not None:
+        log_analytics_details(mosaicml_logger, model_config, train_loader_config,
+                            eval_loader_config, callback_configs, tokenizer_name,
+                            load_path, save_folder, icl_tasks_config,
+                            eval_gauntlet_config)
 
     # Build Model
     log.info('Initializing model...')

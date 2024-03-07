@@ -2053,6 +2053,7 @@ def test_eval_split_batch(mpt_tokenizer: transformers.AutoTokenizer,
 @pytest.mark.world_size(2)
 def test_lm_task_evaluation(dataset_uri: str, num_fewshot: int,
                             tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+                            tiny_gpt2_model: transformers.AutoModelForCausalLM,
                             tmp_path: Path):
     pytest.importorskip('datasets')
     in_memory_logger = InMemoryLogger(
@@ -2079,11 +2080,8 @@ def test_lm_task_evaluation(dataset_uri: str, num_fewshot: int,
                           dataloader=dl,
                           metric_names=['InContextLearningLMAccuracy'])
 
-    transformers = pytest.importorskip('transformers')
-    config = transformers.AutoConfig.from_pretrained('EleutherAI/gpt-neo-125M')
-    model = transformers.AutoModelForCausalLM.from_config(config)
     model = HuggingFaceModel(
-        model=model,
+        model=tiny_gpt2_model,
         tokenizer=None,
         eval_metrics=[InContextLearningLMAccuracy()],
         use_logits=True,

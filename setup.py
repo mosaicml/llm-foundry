@@ -112,6 +112,10 @@ extra_deps['peft'] = [
     'mosaicml[peft]>=0.20.1,<0.21',
 ]
 
+extra_deps['olmo'] = [
+    'ai2-olmo>0.2.4',
+]
+
 extra_deps['openai'] = [
     'openai==1.3.8',
     'tiktoken==0.4.0',

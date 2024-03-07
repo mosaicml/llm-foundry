@@ -69,7 +69,8 @@ def hf_get_causal_base_model(model: PreTrainedModel) -> Any:
     if hasattr(model, 'get_decoder'):
         return model.get_decoder()
 
-    decoder_attrs = ('transformer', 'model.decoder', 'gpt_neox', 'model.transformer')
+    decoder_attrs = ('transformer', 'model.decoder', 'gpt_neox',
+                     'model.transformer')
     causal_base_model = findattr(model, decoder_attrs)
     if causal_base_model is None:
         raise ValueError(
@@ -141,8 +142,8 @@ def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
     """
     causal_base_model = hf_get_causal_base_model(model)
 
-    # OPT has an extra layer of wrapping, so special case here
-    if isinstance(causal_base_model, OPTDecoder):
+    # OPT and olmo have an extra layer of wrapping, so special case here
+    if isinstance(causal_base_model, OPTDecoder) or model.config.model_type == 'olmo':
         underlying_model = maybe_get_underlying_model(model)
         underlying_model.model._fsdp_wrap = False
     model_block = hf_get_hidden_layers(causal_base_model)

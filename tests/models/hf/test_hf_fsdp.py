@@ -1,0 +1,28 @@
+from typing import Union
+from omegaconf import DictConfig
+
+from llmfoundry.models.hf.hf_fsdp import maybe_get_underlying_model
+from llmfoundry.models.hf import ComposerHFCausalLM
+
+def test_olmo_wraps():
+    config: dict[str, dict[str, Union[str, dict]]] = {
+        'model': {
+            'name': 'hf_causal_lm',
+            'pretrained_model_name_or_path': 'allenai/OLMo-7B',
+            'pretrained': False,
+            'config_overrides': {
+                'n_layers': 2,
+            }
+        },
+    }
+
+    config = DictConfig(config)
+
+    model = ComposerHFCausalLM(config.model, None)
+
+    # check that all the modules we except are blocked from FSDP wrapping
+    underlying_model = maybe_get_underlying_model(model.model)
+    assert not underlying_model.model._fsdp_wrap
+    assert not underlying_model.model.transformer._fsdp_wrap
+    assert not underlying_model.model.transformer.wte._fsdp_wrap
+    assert not underlying_model.model.transformer.ff_out._fsdp_wrap

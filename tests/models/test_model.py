@@ -515,7 +515,7 @@ def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
         'model': {
             'name': 'hf_causal_lm',
             'pretrained_model_name_or_path': 'facebook/opt-125m',
-            'pretrained': 'false'
+            'pretrained': False
         },
         'tokenizer': {
             'name': 'facebook/opt-125m'

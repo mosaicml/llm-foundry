@@ -1354,11 +1354,10 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
 
     JSONL:
         query_id: int, the query id
-        document: string, the document containing the answer
         query: string, the question
-        answers: string, the correct answer to the query
-        distractor_document_ids: list of strings, each string is a query_id for a distractor document
-        distractor_documents: list of strings, each string is a passage not relevant to the query
+        answer: string, the correct answer to the query
+        golden_ids: list of ints, indices into the documents 
+        documents: list of strings 
 
     Args:
         passage_delimiter (str): Delimiter to place between each passage.

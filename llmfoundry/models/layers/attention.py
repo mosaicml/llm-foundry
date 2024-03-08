@@ -619,19 +619,34 @@ class GroupedQueryAttention(nn.Module):
 
                 value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
             elif rotary_emb_w_meta_info['impl'] == 'hf':
-                (cos, sin) = rotary_emb(value, seq_len)
-                if is_transformers_version_gte('4.36'):
-                    query, key = apply_rotary_pos_emb(query,
-                                                      key,
-                                                      cos,
-                                                      sin,
-                                                      offset_info,
+                if is_transformers_version_gte('4.38'):
+                    (cos, sin) = rotary_emb(x=value,
+                                            position_ids=offset_info,
+                                            seq_len=None)
+                else:
+                    (cos, sin) = rotary_emb(x=value, seq_len=seq_len)
+                if is_transformers_version_gte('4.38'):
+                    query, key = apply_rotary_pos_emb(q=query,
+                                                      k=key,
+                                                      cos=cos,
+                                                      sin=sin,
+                                                      position_ids=None,
+                                                      unsqueeze_dim=2)
+                elif is_transformers_version_gte('4.36'):
+                    query, key = apply_rotary_pos_emb(q=query,
+                                                      k=key,
+                                                      cos=cos,
+                                                      sin=sin,
+                                                      position_ids=offset_info,
                                                       unsqueeze_dim=2)
                 else:
                     query = query.transpose(1, 2)
                     key = key.transpose(1, 2)
-                    query, key = apply_rotary_pos_emb(query, key, cos, sin,
-                                                      offset_info)
+                    query, key = apply_rotary_pos_emb(q=query,
+                                                      k=key,
+                                                      cos=cos,
+                                                      sin=sin,
+                                                      position_ids=offset_info)
                     query = query.transpose(1, 2)
                     key = key.transpose(1, 2)
 

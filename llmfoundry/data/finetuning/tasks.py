@@ -39,20 +39,19 @@ from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
-                    Tuple, Union, cast,)
+                    Tuple, Union, cast)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
 import numpy as np
 from composer.loggers import MosaicMLLogger
 from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR,)
+                                              MOSAICML_PLATFORM_ENV_VAR)
 from composer.utils import dist
 from streaming import Stream, StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.utils.exceptions import (IncorrectMessageKeyQuantityError,
-                                         InitialPromptMissingError,
                                          InvalidContentTypeError,
                                          InvalidFileExtensionError,
                                          InvalidLastChatMessageRoleError,
@@ -60,12 +59,11 @@ from llmfoundry.utils.exceptions import (IncorrectMessageKeyQuantityError,
                                          InvalidPromptTypeError,
                                          InvalidResponseTypeError,
                                          InvalidRoleError,
-                                         MissingChatAssistantMessageError,
                                          MissingLocalPathSplitError,
                                          NotEnoughChatDataError,
                                          TooManyKeysInExampleError,
                                          UnableToProcessPromptResponseError,
-                                         UnknownConversationTypeError,)
+                                         UnknownConversationTypeError)
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)

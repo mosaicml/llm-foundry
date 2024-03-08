@@ -23,7 +23,7 @@ from omegaconf import OmegaConf as om
 from streaming import MDSWriter
 
 from llmfoundry import (build_finetuning_dataloader,
-                        build_text_denoising_dataloader,)
+                        build_text_denoising_dataloader)
 from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
                                                  validate_target_settings)
@@ -31,10 +31,10 @@ from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
                                               dataset_constructor,
                                               is_valid_ift_example,
-                                              tokenize_formatted_example,)
+                                              tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
-                                       get_tokens_per_batch_func,)
+                                       get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 from scripts.data_prep.convert_finetuning_dataset import get_columns_and_format
@@ -490,8 +490,7 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
     if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
         error_context = pytest.raises(ValueError, match='Your dataset')
     if invalid_dataset:
-        error_context = pytest.raises(TypeError,
-                                      match='Expected prompt to be')
+        error_context = pytest.raises(TypeError, match='Expected prompt to be')
 
     with error_context:
         _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
@@ -792,8 +791,7 @@ def test_malformed_data(
 
     error_context = contextlib.nullcontext()
     if add_bad_data_error:
-        error_context = pytest.raises(TypeError,
-                                      match='Expected prompt to be')
+        error_context = pytest.raises(TypeError, match='Expected prompt to be')
 
     with error_context:
         dl = build_finetuning_dataloader(cfg, tokenizer,

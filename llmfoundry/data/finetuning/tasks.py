@@ -46,7 +46,7 @@ import huggingface_hub as hf_hub
 import numpy as np
 from composer.loggers import MosaicMLLogger
 from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR,)
+                                              MOSAICML_PLATFORM_ENV_VAR)
 from composer.utils import dist
 from streaming import Stream, StreamingDataset
 from transformers import PreTrainedTokenizerBase

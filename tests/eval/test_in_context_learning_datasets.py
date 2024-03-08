@@ -2047,52 +2047,52 @@ def test_eval_split_batch(mpt_tokenizer: transformers.AutoTokenizer,
         assert microbatch['generation_kwargs']['eos_token_id'] == 0
 
 
-# @pytest.mark.parametrize('dataset_uri', ['lambada_small.jsonl'])
-# @pytest.mark.parametrize('num_fewshot', [0, 5])
-# @pytest.mark.gpu
-# @pytest.mark.world_size(2)
-# def test_lm_task_evaluation(dataset_uri: str, num_fewshot: int,
-#                             tiny_gpt2_tokenizer: transformers.AutoTokenizer,
-#                             tiny_gpt2_model: transformers.AutoModelForCausalLM,
-#                             tmp_path: Path):
-#     pytest.importorskip('datasets')
-#     in_memory_logger = InMemoryLogger(
-#     )  # track the logged metrics in the in_memory_logger
-#     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
-#     dataset_uri = f'{local_data}/{dataset_uri}'
-#     tokenizer = tiny_gpt2_tokenizer
-#     batch_size = 2
-#     dl = get_icl_task_dataloader(
-#         'language_modeling',
-#         dataset_uri=dataset_uri,
-#         tokenizer=tokenizer,
-#         batch_size=batch_size,
-#         max_seq_len=2048,
-#         pad_tok_id=tokenizer.eos_token_id,
-#         num_fewshot=num_fewshot,
-#         prompt_string='',
-#         example_delimiter='\n',
-#         continuation_delimiter='',
-#         destination_path=str(tmp_path / 'icl.jsonl'),
-#     )
+@pytest.mark.parametrize('dataset_uri', ['lambada_small.jsonl'])
+@pytest.mark.parametrize('num_fewshot', [0, 5])
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
+def test_lm_task_evaluation(dataset_uri: str, num_fewshot: int,
+                            tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+                            tiny_gpt2_model: transformers.AutoModelForCausalLM,
+                            tmp_path: Path):
+    pytest.importorskip('datasets')
+    in_memory_logger = InMemoryLogger(
+    )  # track the logged metrics in the in_memory_logger
+    local_data = os.path.join(os.path.dirname(__file__), 'local_data')
+    dataset_uri = f'{local_data}/{dataset_uri}'
+    tokenizer = tiny_gpt2_tokenizer
+    batch_size = 2
+    dl = get_icl_task_dataloader(
+        'language_modeling',
+        dataset_uri=dataset_uri,
+        tokenizer=tokenizer,
+        batch_size=batch_size,
+        max_seq_len=2048,
+        pad_tok_id=tokenizer.eos_token_id,
+        num_fewshot=num_fewshot,
+        prompt_string='',
+        example_delimiter='\n',
+        continuation_delimiter='',
+        destination_path=str(tmp_path / 'icl.jsonl'),
+    )
 
-#     evaluator = Evaluator(label='lambada',
-#                           dataloader=dl,
-#                           metric_names=['InContextLearningLMAccuracy'])
+    evaluator = Evaluator(label='lambada',
+                          dataloader=dl,
+                          metric_names=['InContextLearningLMAccuracy'])
 
-#     model = HuggingFaceModel(
-#         model=tiny_gpt2_model,
-#         tokenizer=None,
-#         eval_metrics=[InContextLearningLMAccuracy()],
-#         use_logits=True,
-#     )
+    model = HuggingFaceModel(
+        model=tiny_gpt2_model,
+        tokenizer=tokenizer,
+        eval_metrics=[InContextLearningLMAccuracy()],
+        use_logits=True,
+    )
 
-#     trainer = Trainer(model=model, max_duration='1ep', loggers=in_memory_logger)
-#     trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-#     assert 'metrics/lambada/InContextLearningLMAccuracy' in in_memory_logger.data.keys(
-#     )
-#     assert in_memory_logger.data['metrics/lambada/InContextLearningLMAccuracy'][
-#         0][1].item() == 0
+    trainer = Trainer(model=model, max_duration='1ep', loggers=in_memory_logger)
+    trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
+    assert 'metrics/lambada/InContextLearningLMAccuracy' in in_memory_logger.data.keys(
+    )
+    assert in_memory_logger.data['metrics/lambada/InContextLearningLMAccuracy'][
+        0][1].item() == 0
 
 
 @pytest.mark.parametrize('num_fewshot', [0, 5])
@@ -2165,7 +2165,7 @@ def test_mc_task_evaluation_subcategories(
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/{dataset_uri}'
     tokenizer = tiny_gpt2_tokenizer
-    batch_size = 8
+    batch_size = 16
     max_seq_len = 64
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
@@ -2590,8 +2590,8 @@ def test_code_eval_microbatching(
 )
 def test_code_eval_sentpiece_evaluation(
         monkeypatch: pytest.MonkeyPatch, num_fewshot: int, dataset_uri: str,
-        tiny_t5_tokenizer: transformers.AutoTokenizer,
-        tiny_t5_model: transformers.AutoModelForCausalLM, tmp_path: Path,
+        tiny_opt_tokenizer: transformers.AutoTokenizer,
+        tiny_opt_model: transformers.AutoModelForCausalLM, tmp_path: Path,
         generations_per_sample: int):
     pytest.importorskip('datasets')
     monkeypatch.setenv('CODE_EVAL_DEVICE', 'LOCAL')
@@ -2599,7 +2599,7 @@ def test_code_eval_sentpiece_evaluation(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/{dataset_uri}'
-    tokenizer = tiny_t5_tokenizer
+    tokenizer = tiny_opt_tokenizer
     batch_size = 2
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
@@ -2622,8 +2622,8 @@ def test_code_eval_sentpiece_evaluation(
                           dataloader=dl,
                           metric_names=['InContextLearningCodeEvalAccuracy'])
     model = HuggingFaceModel(
-        model=tiny_t5_model,
-        tokenizer=tiny_t5_tokenizer,
+        model=tiny_opt_model,
+        tokenizer=tiny_opt_tokenizer,
         eval_metrics=[InContextLearningCodeEvalAccuracy()],
         use_logits=True,
     )

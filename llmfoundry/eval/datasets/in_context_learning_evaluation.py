@@ -1375,15 +1375,18 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         self.passage_delimiter = passage_delimiter
         self.passage_query_delimiter = passage_query_delimiter
         batch_mapping = {'input_ids': 'documents', 'labels': 'answer', 'queries':'query'}
-        static_keys = []
-        list_keys = []
-        tensor_keys = []
+        static_keys = ['mode', 'metric_kwargs', 'generation_length', 'generation_kwargs']
+        list_keys = ['labels', 'queries']
+        tensor_keys = ['input_ids', 'attention_mask']
 
         super().__init__(context_key='documents',
                          answer_key='answer',
                          tokenize_labels=False,
                          batch_mapping=batch_mapping,
                          padding_side="left",
+                         static_keys=static_keys,
+                         list_keys=list_keys,
+                         tensor_keys=tensor_keys,
                          *args,
                          **kwargs)
         self.max_answer_length = self._get_max_answer_length()

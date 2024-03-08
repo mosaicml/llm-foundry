@@ -1387,6 +1387,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
                          *args,
                          **kwargs)
         self.max_answer_length = self._get_max_answer_length()
+        self.dataset = self.dataset.map(self._trim_padding)
         self.base_batch = {
             'input_ids': [],
             'mode': 'generate',
@@ -1471,6 +1472,30 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
                                     len(self.tokenizer(answer)['input_ids']))
         max_answer_length = max_answer_length
         return max_answer_length
+
+    def _trim_padding(self, example: Dict):
+        """Adjusts padding to the max_seq_len - max_answer_length rather than max_seq_len.
+        Needs to be done after the dataset has been processed because we don't
+        know the maximum prompt length until after we've tokenized it.
+
+        Returns:
+            dataset: A HuggingFace Dataset with different padding lengths for example[self.context_key]
+        """
+        # TODO: Properly inherit this from the base class
+        # Remove padding tokens applied during tokenization
+        unpadded_prompt = [
+            token for token in example[self.context_key]
+            if token != self.pad_tok_id
+        ]
+        # Reapply padding only to max_prompt_length
+        full_prompt = trim_context(unpadded_prompt, [], self.max_seq_len)
+        padded_context = make_padded_input(full_prompt, [],
+                                           self.max_seq_len - self.max_answer_length,
+                                           self.pad_tok_id, self.padding_side)
+
+        example[self.context_key] = padded_context
+        return example
+
         
 def build_icl_dataloader(
         icl_task_type: str,

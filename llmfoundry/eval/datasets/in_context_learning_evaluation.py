@@ -1490,7 +1490,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         #     if token != self.pad_tok_id
         # ]
         # Reapply padding only to max_prompt_length
-        full_prompt = trim_context(example[self.context_key], [], self.max_seq_len)
+        full_prompt = trim_context(example[self.context_key], [], self.max_seq_len - self.max_answer_length)
         padded_context = make_padded_input(full_prompt, [],
                                            self.max_seq_len - self.max_answer_length,
                                            self.pad_tok_id, self.padding_side)

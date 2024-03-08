@@ -619,7 +619,9 @@ class GroupedQueryAttention(nn.Module):
 
                 value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
             elif rotary_emb_w_meta_info['impl'] == 'hf':
-                (cos, sin) = rotary_emb(x=value, position_ids=offset_info, seq_len=None)
+                (cos, sin) = rotary_emb(x=value,
+                                        position_ids=offset_info,
+                                        seq_len=None)
                 if is_transformers_version_gte('4.36'):
                     query, key = apply_rotary_pos_emb(q=query,
                                                       k=key,
@@ -630,12 +632,11 @@ class GroupedQueryAttention(nn.Module):
                 else:
                     query = query.transpose(1, 2)
                     key = key.transpose(1, 2)
-                    query, key = apply_rotary_pos_emb(
-                        q=query,
-                        k=key,
-                        cos=cos,
-                        sin=sin,
-                        position_ids=None)
+                    query, key = apply_rotary_pos_emb(q=query,
+                                                      k=key,
+                                                      cos=cos,
+                                                      sin=sin,
+                                                      position_ids=None)
                     query = query.transpose(1, 2)
                     key = key.transpose(1, 2)
 

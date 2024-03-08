@@ -1366,7 +1366,9 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
 
     def __init__(
             self,
-            passage_delimiter: str = ' ',
+            # TODO: pass this in properly
+            # passage_delimiter: str = ' ',
+            passage_delimiter: str = '\nPassage: ',
             passage_query_delimiter: str = '\nQuery: ',
             *args: Any,
             **kwargs: Any):
@@ -1400,7 +1402,6 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         }
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])
-        import IPython; IPython.embed()
 
     def read_dataset(
             self,
@@ -1411,6 +1412,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         dataset = super().read_dataset(dataset_uri, destination_path,
                                        hf_loading_vars, hf_parsing_map)
         # TODO: These should not be hardcoded
+        # import IPython; IPython.embed()
         return dataset.map(
             lambda example: {
                 'documents':

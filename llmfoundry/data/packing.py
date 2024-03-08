@@ -72,6 +72,7 @@ class BinPackCollator:
                 'labels',
                 'attention_mask',
                 'bidirectional_mask',
+                'sequence_id',
             ]
         # Cut everything down to size
         sizes, trimmed_examples = _trim_batch(batch)
@@ -382,7 +383,7 @@ def profile_packing(
 
     # Turn off packing for the dataloader (we want raw, pre-packed examples)
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
-    dataloader_cfg.dataset.packing_ratio = None
+    dataloader_cfg.dataset.packing_ratio = 1.0
     dataloader_cfg.drop_last = False
     dataloader_cfg.num_workers = 0
     dataloader_cfg.prefetch_factor = None

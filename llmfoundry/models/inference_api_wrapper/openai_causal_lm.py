@@ -13,6 +13,9 @@ import torch
 from composer.core.types import Batch
 from composer.utils.import_helpers import MissingConditionalImportError
 from transformers import AutoTokenizer
+from openai.types.chat.chat_completion import ChatCompletion
+from openai.types.completion import Completion
+from openai.types.completion_choice import Logprobs
 
 log = logging.getLogger(__name__)
 
@@ -24,10 +27,6 @@ __all__ = [
     'OpenAIChatAPIEvalWrapper',
 ]
 
-if TYPE_CHECKING:
-    from openai.types.chat.chat_completion import ChatCompletion
-    from openai.types.completion import Completion
-    from openai.types.completion_choice import Logprobs
 
 MAX_RETRIES = 10
 
@@ -226,7 +225,6 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 tokens = tokens.tolist()
                 tokens = [t for t in tokens if t != padding_tok]
                 prompt = self.tokenizer.decode(tokens)
-                sample_outputs = []
                 for _ in range(
                         0,
                         batch.get('generation_kwargs',
@@ -235,15 +233,9 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                         prompt,
                         num_tokens=batch['generation_length'],
                         generation_kwargs=batch.get('generation_kwargs', {}))
-                    assert api_output is not None
-                    assert isinstance(api_output, ChatCompletion)
 
                     sample_output = self.completion_to_string(api_output)[0]
-                    sample_outputs.append(sample_output)
-                if len(sample_outputs) == 1:
-                    sample_outputs = sample_outputs[0]
-
-                outputs.append(sample_outputs)
+                    outputs.append(sample_output)
             return outputs
         else:
             output_logits_batch = []

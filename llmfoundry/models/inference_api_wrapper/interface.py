@@ -10,6 +10,7 @@ from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
                                   InContextLearningMCExpectedCalibrationError,
                                   InContextLearningMultipleChoiceAccuracy,
+                                  InContextLearningCodeEvalAccuracy,
                                   InContextLearningQAAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
 from composer.models import ComposerModel
@@ -30,7 +31,8 @@ class InferenceAPIEvalWrapper(ComposerModel):
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),
             InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError()
+            InContextLearningMCExpectedCalibrationError(),
+            InContextLearningCodeEvalAccuracy(),
         ]
         self.eval_metrics = {
             metric.__class__.__name__: metric for metric in eval_metrics
@@ -70,7 +72,6 @@ class InferenceAPIEvalWrapper(ComposerModel):
                 tokens = tokens.tolist()
                 tokens = [t for t in tokens if t != padding_tok]
                 prompt = self.tokenizer.decode(tokens)
-                sample_outputs = []
                 for i in range(
                         0,
                         batch.get('generation_kwargs',
@@ -80,11 +81,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
                         num_tokens=batch['generation_length'],
                         generation_kwargs=batch.get('generation_kwargs', {}))
                     sample_output = self.completion_to_string(api_output)[0]
-                    sample_outputs.append(sample_output)
-                if len(sample_outputs) == 1:
-                    sample_outputs = sample_outputs[0]
-
-                outputs.append(sample_outputs)
+                    outputs.append(sample_output)
             return outputs
         else:
             # forward-based implementation

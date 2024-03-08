@@ -1,0 +1,271 @@
+icl_tasks:
+- label: gsm8k
+  dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
+  num_fewshot:
+  - 0
+  icl_task_type: question_answering
+  cot_delimiter: 'The answer is '
+  continuation_delimiter: '
+
+
+    A:'
+  question_prelimiter: ''
+  do_normalization: false
+  early_stopping_criteria:
+  - '
+
+
+    '
+  - 'Question:'
+- label: triviaqa_sm_sub
+  dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/triviaqa_sm_sub.jsonl
+  num_fewshot:
+  - 3
+  icl_task_type: question_answering
+  do_normalization: true
+- label: svamp
+  dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/svamp.jsonl
+  num_fewshot:
+  - 5
+  icl_task_type: question_answering
+  cot_delimiter: 'The answer is '
+  continuation_delimiter: '
+
+
+    A:'
+  question_prelimiter: 'Question: '
+  do_normalization: false
+  early_stopping_criteria:
+  - '
+
+
+    '
+  - 'Question:'
+- label: jeopardy
+  dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/jeopardy_all.jsonl
+  num_fewshot:
+  - 3
+  icl_task_type: language_modeling
+  continuation_delimiter: '
+
+    Answer: '
+  has_categories: true
+- label: bigbench_qa_wikidata
+  dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/bigbench_qa_wikidata.jsonl
+  num_fewshot:
+  - 3
+  icl_task_type: language_modeling
+- label: arc_easy
+  dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/arc_easy.jsonl
+  num_fewshot:
+  - 3
+  icl_task_type: multiple_choice
+  continuation_delimiter: '
+
+    Answer:'
+  task_type: question_answering
+- label: arc_challenge
+  dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/arc_challenge.jsonl
+  num_fewshot:
+  - 3
+  - 25
+  icl_task_type: multiple_choice
+  continuation_delimiter: '
+
+    Answer:'
+  task_type: question_answering
+- label: mmlu
+  dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/mmlu.jsonl
+  num_fewshot:
+  - 5
+  icl_task_type: multiple_choice
+  continuation_delimiter: '
+
+    Answer:'
+  has_categories: true
+  task_type: question_answering
+- label: copa
+  dataset_uri: eval/local_data/api_compatible_gauntlet/commonsense_reasoning/copa.jsonl
+  num_fewshot:
+  - 0
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: siqa
+  dataset_uri: eval/local_data/api_compatible_gauntlet/commonsense_reasoning/siqa.jsonl
+  num_fewshot:
+  - 3
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: commonsense_qa
+  dataset_uri: eval/local_data/api_compatible_gauntlet/commonsense_reasoning/commonsense_qa.jsonl
+  num_fewshot:
+  - 0
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: piqa
+  dataset_uri: eval/local_data/api_compatible_gauntlet/commonsense_reasoning/piqa.jsonl
+  num_fewshot:
+  - 0
+  icl_task_type: multiple_choice
+  continuation_delimiter: '
+
+    Answer:'
+  task_type: question_answering
+- label: openbook_qa
+  dataset_uri: eval/local_data/api_compatible_gauntlet/commonsense_reasoning/openbook_qa.jsonl
+  num_fewshot:
+  - 10
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: bigbench_strange_stories
+  dataset_uri: eval/local_data/api_compatible_gauntlet/commonsense_reasoning/bigbench_strange_stories.jsonl
+  num_fewshot:
+  - 0
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: bigbench_strategy_qa
+  dataset_uri: eval/local_data/api_compatible_gauntlet/commonsense_reasoning/bigbench_strategy_qa.jsonl
+  num_fewshot:
+  - 0
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: bigbench_dyck_languages
+  dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/bigbench_dyck_languages.jsonl
+  num_fewshot:
+  - 5
+  icl_task_type: language_modeling
+- label: lambada_openai
+  dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/lambada_openai.jsonl
+  num_fewshot:
+  - 0
+  icl_task_type: language_modeling
+- label: hellaswag
+  dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/hellaswag.jsonl
+  num_fewshot:
+  - 0
+  - 10
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: winograd
+  dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/winograd_wsc.jsonl
+  num_fewshot:
+  - 3
+  icl_task_type: schema
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: winogrande
+  dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/winogrande.jsonl
+  num_fewshot:
+  - 5
+  icl_task_type: schema
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: bigbench_elementary_math_qa
+  dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/bigbench_elementary_math_qa.jsonl
+  num_fewshot:
+  - 1
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: agi_eval_lsat_ar
+  dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/agi_eval_lsat_ar.jsonl
+  num_fewshot:
+  - 5
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: bigbench_cs_algorithms
+  dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/bigbench_cs_algorithms.jsonl
+  num_fewshot:
+  - 10
+  icl_task_type: language_modeling
+- label: bigbench_operators
+  dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/bigbench_operators.jsonl
+  num_fewshot:
+  - 3
+  icl_task_type: language_modeling
+- label: simple_arithmetic_nospaces
+  dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/simple_arithmetic_nospaces.jsonl
+  num_fewshot:
+  - 5
+  icl_task_type: language_modeling
+- label: simple_arithmetic_withspaces
+  dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/simple_arithmetic_withspaces.jsonl
+  num_fewshot:
+  - 5
+  icl_task_type: language_modeling
+- label: squad
+  dataset_uri: eval/local_data/api_compatible_gauntlet/reading_comprehension/squad.jsonl
+  num_fewshot:
+  - 3
+  icl_task_type: language_modeling
+- label: agi_eval_lsat_rc
+  dataset_uri: eval/local_data/api_compatible_gauntlet/reading_comprehension/agi_eval_lsat_rc.jsonl
+  num_fewshot:
+  - 5
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: agi_eval_lsat_lr
+  dataset_uri: eval/local_data/api_compatible_gauntlet/reading_comprehension/agi_eval_lsat_lr.jsonl
+  num_fewshot:
+  - 5
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'
+- label: coqa
+  dataset_uri: eval/local_data/api_compatible_gauntlet/reading_comprehension/coqa.jsonl
+  num_fewshot:
+  - 0
+  icl_task_type: language_modeling
+- label: boolq
+  dataset_uri: eval/local_data/api_compatible_gauntlet/reading_comprehension/boolq.jsonl
+  num_fewshot:
+  - 0
+  icl_task_type: multiple_choice
+  continuation_delimiter: '
+
+    Answer:'
+  task_type: question_answering
+- label: agi_eval_sat_en
+  dataset_uri: eval/local_data/api_compatible_gauntlet/reading_comprehension/agi_eval_sat_en.jsonl
+  num_fewshot:
+  - 5
+  icl_task_type: multiple_choice
+  task_type: question_answering
+  continuation_delimiter: '
+
+    Answer:'

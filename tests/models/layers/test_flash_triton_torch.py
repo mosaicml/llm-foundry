@@ -79,13 +79,6 @@ def test_attn_impl(attn_impl_0: str,
     Includes testing with and without attn_clip_qkv, attn_qk_ln, attn_qk_gn,
     alibi, and rope.
     """
-    print(f'attn_impl_0: {attn_impl_0}, attn_impl_1: {attn_impl_1}')
-    print(f'clip_qkv: {clip_qkv}, qk_ln: {qk_ln}, qk_gn: {qk_gn}')
-    print(f'pos_emb_config: {pos_emb_config}')
-    print(f'attn_type: {attn_type}')
-    print(f'attn_uses_sequence_id: {attn_uses_sequence_id}')
-    print(f'pad_attention_mask: {pad_attention_mask}')
-
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
     if alibi and not (check_alibi_support(attn_impl_0) and

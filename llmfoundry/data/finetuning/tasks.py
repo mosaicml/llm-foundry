@@ -39,14 +39,11 @@ from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
-                    Tuple, Union, cast)
+                    Tuple, Union, cast,)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
 import numpy as np
-from composer.loggers import MosaicMLLogger
-from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
 from composer.utils import dist
 from streaming import Stream, StreamingDataset
 from transformers import PreTrainedTokenizerBase
@@ -59,18 +56,15 @@ from llmfoundry.utils.exceptions import (IncorrectMessageKeyQuantityError,
                                          InvalidPromptTypeError,
                                          InvalidResponseTypeError,
                                          InvalidRoleError,
+                                         MissingHuggingFaceURLSplitError,
                                          MissingLocalPathSplitError,
                                          NotEnoughChatDataError,
                                          TooManyKeysInExampleError,
                                          UnableToProcessPromptResponseError,
-                                         UnknownConversationTypeError)
+                                         UnknownConversationTypeError,)
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)
-if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
-) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
-    # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set
-    mosaicml_logger = MosaicMLLogger()
 
 __all__ = ['dataset_constructor']
 
@@ -793,6 +787,9 @@ class DatasetConstructor:
                     # flag-ft-error
                     raise InvalidFileExtensionError(dataset_name,
                                                     SUPPORTED_EXTENSIONS)
+            if split is None:
+                raise MissingHuggingFaceURLSplitError()
+            
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,
                                                **hf_kwargs)

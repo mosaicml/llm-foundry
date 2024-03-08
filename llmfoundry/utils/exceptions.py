@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Dict, List
 
 
-# Dataloader exceptions
+# Finetuning dataloader exceptions
 class MissingHuggingFaceURLSplitError(ValueError):
     """Error thrown when a split is not found in a Hugging Face dataset used by
     the dataloader."""

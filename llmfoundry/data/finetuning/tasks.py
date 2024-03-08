@@ -329,11 +329,11 @@ def _tokenize_prompt_response_formatted_example(
 
     if not isinstance(prompt, str):
         # flag-ft-error
-        raise InvalidPromptTypeError(type(prompt_key))
+        raise InvalidPromptTypeError(type(prompt))
 
     if not isinstance(response, str):
         # flag-ft-error
-        raise InvalidResponseTypeError(type(response_key))
+        raise InvalidResponseTypeError(type(response))
 
     # Note: We default to the tokenizer's add_bos_token and add_eos_token behavior here
     # (which we do not do for chat-formatted examples). This is because chat examples specifically

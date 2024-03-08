@@ -1370,10 +1370,12 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             # passage_delimiter: str = ' ',
             passage_delimiter: str = '\nPassage: ',
             passage_query_delimiter: str = '\nQuery: ',
+            use_gold_docs_only: bool = True,
             *args: Any,
             **kwargs: Any):
         self.passage_delimiter = passage_delimiter
         self.passage_query_delimiter = passage_query_delimiter
+        self.use_gold_docs_only = use_gold_docs_only
         batch_mapping = {'input_ids': 'documents', 'labels': 'answer', 'queries':'query'}
         static_keys = ['mode', 'metric_kwargs', 'generation_length', 'generation_kwargs']
         list_keys = ['labels', 'queries']
@@ -1407,6 +1409,13 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])
 
+    def _filter_to_gold_documents(self, example: Dict[str, Any]):
+        gold_idxes = example['gold_idxs']
+        documents = example['documents']
+        filtered_documents = [documents[idx] for idx in gold_idxes]
+        example['documents'] = filtered_documents
+        return example
+
     def read_dataset(
             self,
             dataset_uri: str,
@@ -1416,7 +1425,8 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         dataset = super().read_dataset(dataset_uri, destination_path,
                                        hf_loading_vars, hf_parsing_map)
         # TODO: These should not be hardcoded
-        # import IPython; IPython.embed()
+        if self.use_gold_docs_only:
+            dataset = dataset.map(self._filter_to_gold_documents)
         return dataset.map(
             lambda example: {
                 'documents':

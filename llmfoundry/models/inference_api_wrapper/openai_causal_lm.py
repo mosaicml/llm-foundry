@@ -12,10 +12,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 import torch
 from composer.core.types import Batch
 from composer.utils.import_helpers import MissingConditionalImportError
-from transformers import AutoTokenizer
 from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.completion import Completion
 from openai.types.completion_choice import Logprobs
+from transformers import AutoTokenizer
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +26,6 @@ __all__ = [
     'OpenAICausalLMEvalWrapper',
     'OpenAIChatAPIEvalWrapper',
 ]
-
 
 MAX_RETRIES = 10
 
@@ -234,7 +233,10 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                         num_tokens=batch['generation_length'],
                         generation_kwargs=batch.get('generation_kwargs', {}))
 
-                    sample_output = self.completion_to_string(api_output)[0]
+                    assert api_output is not None
+                    sample_output = self.completion_to_string(
+                        api_output)[  # pyright: ignore
+                            0]
                     outputs.append(sample_output)
             return outputs
         else:

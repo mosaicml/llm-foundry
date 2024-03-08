@@ -1,24 +1,24 @@
 seed: 1
-max_seq_len: 1024
+max_seq_len: 2048
 device_eval_batch_size: 4
 models:
+# -
+#   model_name: openai/gpt-3.5-turbo
+#   model:
+#     name: openai_chat
+#     version: gpt-3.5-turbo
+#   tokenizer:
+#     name: tiktoken
+#     kwargs:
+#       model_name: gpt-3.5-turbo
 -
-  model_name: openai/gpt-3.5-turbo
-  model:
-    name: openai_chat
-    version: gpt-3.5-turbo
-  tokenizer:
-    name: tiktoken
-    kwargs:
-      model_name: gpt-3.5-turbo
--
-  model_name: openai/davinci
+  model_name: openai/gpt-3.5-turbo-instruct
   model:
     name: openai_causal_lm
-    version: davinci
+    version: gpt-3.5-turbo-instruct
   tokenizer:
     name: tiktoken
     kwargs:
-      model_name: davinci
+      model_name: gpt-3.5-turbo-instruct
 
-icl_tasks: "eval/yamls/lm_tasks_v0.2.yaml"
+icl_tasks: "eval/yamls/api_compatible_tasks_v0.3.yaml"

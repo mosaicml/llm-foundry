@@ -6,11 +6,11 @@ from typing import Any, Dict, Optional
 import torch
 from composer.core.types import Batch
 from composer.metrics import InContextLearningMetric
-from composer.metrics.nlp import (InContextLearningLMAccuracy,
+from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
+                                  InContextLearningLMAccuracy,
                                   InContextLearningLMExpectedCalibrationError,
                                   InContextLearningMCExpectedCalibrationError,
                                   InContextLearningMultipleChoiceAccuracy,
-                                  InContextLearningCodeEvalAccuracy,
                                   InContextLearningQAAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
 from composer.models import ComposerModel
@@ -131,7 +131,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
             metric.update(batch=batch, outputs=outputs, labels=self.labels)
         else:
             raise NotImplementedError(
-                'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task'
+                'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task,mode=generate'
             )
 
     def forward(self):

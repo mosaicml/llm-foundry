@@ -39,7 +39,7 @@ from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
-                    Tuple, Union, cast,)
+                    Tuple, Union, cast)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
@@ -61,7 +61,7 @@ from llmfoundry.utils.exceptions import (IncorrectMessageKeyQuantityError,
                                          NotEnoughChatDataError,
                                          TooManyKeysInExampleError,
                                          UnableToProcessPromptResponseError,
-                                         UnknownConversationTypeError,)
+                                         UnknownConversationTypeError)
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)
@@ -789,7 +789,7 @@ class DatasetConstructor:
                                                     SUPPORTED_EXTENSIONS)
             if split is None:
                 raise MissingHuggingFaceURLSplitError()
-            
+
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,
                                                **hf_kwargs)

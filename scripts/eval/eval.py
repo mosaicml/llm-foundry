@@ -28,6 +28,7 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device)
+from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
@@ -188,6 +189,18 @@ def evaluate_model(
 
 
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
+    # Run user provided code if specified
+    code_paths = pop_config(cfg,
+                            'code_paths',
+                            must_exist=False,
+                            default_value=[],
+                            convert=True)
+    for code_path in code_paths:
+        try:
+            import_file(code_path)
+        except Exception as e:
+            raise ValueError(f'Error importing code from {code_path}: {e}')
+
     om.resolve(cfg)
 
     # Create copy of config for logging

@@ -2,14 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 import copy
 import gc
-import importlib
 import logging
 import os
 import sys
 import time
 import warnings
-from pathlib import Path
-from types import ModuleType
 from typing import Any, Dict, List, Optional, Union
 
 import torch
@@ -41,6 +38,7 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
+from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
@@ -150,20 +148,6 @@ def build_composer_model(model_cfg: DictConfig,
         raise ValueError(
             f'Not sure how to build model with name={model_cfg.name}')
     return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
-
-
-def import_file(loc: Union[str, Path]) -> ModuleType:
-    """Import module from a file. Used to load models from a directory.
-
-    name (str): Name of module to load.
-    loc (str / Path): Path to the file.
-    RETURNS: The loaded module.
-    """
-    spec = importlib.util.spec_from_file_location(  # type: ignore
-        'python_code', str(loc))
-    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
 
 
 def main(cfg: DictConfig) -> Trainer:

@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
+import importlib.util
+from pathlib import Path
+from types import ModuleType
 from typing import (Any, Callable, Dict, Generic, Optional, Sequence, Type,
                     TypeVar, Union)
 
@@ -128,3 +131,17 @@ def builder(
         post_validation_function(registered_item)
 
     return constructed_item
+
+
+def import_file(loc: Union[str, Path]) -> ModuleType:
+    """Import module from a file. Used to load models from a directory.
+
+    name (str): Name of module to load.
+    loc (str / Path): Path to the file.
+    RETURNS: The loaded module.
+    """
+    spec = importlib.util.spec_from_file_location(  # type: ignore
+        'python_code', str(loc))
+    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return module

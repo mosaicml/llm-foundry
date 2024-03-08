@@ -55,7 +55,6 @@ def build_evaluators(
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int],
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
-
     evaluators = []
     if eval_loader_config is not None:
         evaluators = build_eval_loaders(

@@ -1482,15 +1482,13 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             dataset: A HuggingFace Dataset with different padding lengths for example[self.context_key]
         """
         # TODO: Properly inherit this from the base class
-        # TODO: why does remove padding break this?
         # Remove padding tokens applied during tokenization
-        # print(len(example[self.context_key]))
-        # unpadded_prompt = [
-        #     token for token in example[self.context_key]
-        #     if token != self.pad_tok_id
-        # ]
+        unpadded_prompt = [
+            token for token in example[self.context_key]
+            if token != self.pad_tok_id
+        ]
         # Reapply padding only to max_prompt_length
-        full_prompt = trim_context(example[self.context_key], [], self.max_seq_len - self.max_answer_length)
+        full_prompt = trim_context(unpadded_prompt, [], self.max_seq_len - self.max_answer_length)
         padded_context = make_padded_input(full_prompt, [],
                                            self.max_seq_len - self.max_answer_length,
                                            self.pad_tok_id, self.padding_side)

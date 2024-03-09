@@ -8,6 +8,7 @@ from composer.core import Callback
 
 __all__ = ['CallbackWithConfig']
 
+
 class CallbackWithConfig(Callback, abc.ABC):
 
     def __init__(self, config: dict[str, Any], *args: Any,

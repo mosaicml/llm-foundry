@@ -16,8 +16,6 @@ from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 OptimizerMonitor, RuntimeEstimator,
                                 SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
-from composer.datasets.in_context_learning_evaluation import \
-    get_icl_task_dataloader
 from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
                               TensorboardLogger, WandBLogger)
 from composer.optim import DecoupledAdamW
@@ -37,6 +35,7 @@ from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
                                   MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.eval.datasets import get_icl_task_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
@@ -479,15 +478,18 @@ def build_icl_evaluators(
                 icl_cfg.metric_names = [
                     'InContextLearningMultipleChoiceAccuracy'
                 ]
-            elif icl_cfg.icl_task_type == 'question_answering':
-                icl_cfg.metric_names = ['InContextLearningQAAccuracy']
+            elif icl_cfg.icl_task_type == 'generation_task_with_answers':
+                icl_cfg.metric_names = ['InContextLearningGenerationAccuracy']
             elif icl_cfg.icl_task_type == 'code_evaluation':
                 icl_cfg.metric_names = ['InContextLearningCodeEvalAccuracy']
+            elif icl_cfg.icl_task_type == 'rag_generation':
+                icl_cfg.metric_names = ['InContextLearningLLMAsAJudge']
             else:
                 raise ValueError(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg.icl_task_type}.'
                 )
 
+        # Set defaults
         if 'prompt_string' not in icl_cfg:
             icl_cfg.prompt_string = ''
         if 'example_delimiter' not in icl_cfg:
@@ -500,19 +502,22 @@ def build_icl_evaluators(
             icl_cfg.batch_size = default_batch_size
         if 'pass_at_k' not in icl_cfg:
             icl_cfg.pass_at_k = 1
+        if 'generations_per_sample' not in icl_cfg:
+            icl_cfg.generations_per_sample = 20
         if 'fewshot_random_seed' not in icl_cfg:
             icl_cfg.fewshot_random_seed = 1234
-        if 'generations_per_sample' not in icl_cfg:
-            icl_cfg.generations_per_sample = 1
-
         if 'num_beams' in icl_cfg:
             raise ValueError(
                 'num_beams is no longer supported as a top level icl_task parameter.'  + \
                 'Please use generation_kwargs.num_beams instead.')
 
+    def _get_parsing_vars(icl_cfg: DictConfig):
+        pass
+
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
         _validate_cfg(icl_cfg)
+        parsing_vars = _get_parsing_vars(icl_cfg)
         for num_fewshot in list(icl_cfg.num_fewshot):
             if tokenizer.pad_token_id is None:
                 # Current workaround to support GPT2 tokenizer with `pad_token_id = None`
@@ -526,9 +531,6 @@ def build_icl_evaluators(
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
                 os.remove(destination_path)
             dist.barrier()
-
-            hf_parsing_map = icl_cfg.get('hf_parsing_map', {})
-            hf_loading_vars = icl_cfg.get('hf_loading_vars', {})
 
             early_stopping_criteria = icl_cfg.get('early_stopping_criteria',
                                                   None)
@@ -545,19 +547,19 @@ def build_icl_evaluators(
                 max_seq_len=icl_cfg.max_seq_len,
                 pad_tok_id=pad_tok_id,
                 num_fewshot=num_fewshot,
+                fewshot_random_seed=icl_cfg.fewshot_random_seed,
+                destination_path=destination_path,
+                hf_loading_vars=icl_cfg.get('hf_loading_vars', {}),
+                hf_parsing_map=icl_cfg.get('hf_parsing_map', {}),
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
-                hf_loading_vars=hf_loading_vars,
-                hf_parsing_map=hf_parsing_map,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
-                destination_path=destination_path,
-                fewshot_random_seed=icl_cfg.fewshot_random_seed,
                 pass_at_k=icl_cfg.pass_at_k,
                 generations_per_sample=icl_cfg.generations_per_sample,
                 has_categories=icl_cfg.get('has_categories', False),
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
-                generation_kwargs=icl_cfg.get('generation_kwargs', {}),
+                generatrag_generation_tasksion_kwargs=icl_cfg.get('generation_kwargs', {}),
                 early_stopping_criteria=early_stopping_criteria,
                 do_normalization=icl_cfg.get('do_normalization', True))
             if hasattr(

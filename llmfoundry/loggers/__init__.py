@@ -8,7 +8,7 @@ from llmfoundry.registry import loggers
 
 # loggers.register('wandb', func=WandBLogger)
 loggers.register('tensorboard', func=TensorboardLogger)
-loggers.register('inmemory', func=InMemoryLogger)
+# loggers.register('inmemory', func=InMemoryLogger)
 loggers.register('in_memory_logger',
                  func=InMemoryLogger)  # for backwards compatibility
 # loggers.register('mlflow', func=MLFlowLogger)

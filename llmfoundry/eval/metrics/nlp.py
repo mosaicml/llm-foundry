@@ -646,6 +646,7 @@ Result: """
         self.add_state('invalid_judge_response', default=torch.tensor(0.), dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
         self.client = None
+        self.metric_result_dict = {'context': [], 'output': [], 'result': [], 'score':[]}
 
     def init_openai(self):
         try:
@@ -660,13 +661,18 @@ Result: """
     def score_result(self, result: str):
         # parsed_result = None
         match = re.search(self.pattern, result)
+        result = None 
         if match:
             parsed_result = match.groups()[0]
             if parsed_result == 'Yes':
                 self.correct += 1
+                result = 1
+            else:
+                result = 0
         else:
             self.invalid_judge_response += 1
         self.total += 1
+        return result
 
     def call_judge(self, sample_answer: str, sample_label: str, metric_kwargs: Dict) -> List[str]:
         # TODO: allow different models
@@ -694,12 +700,19 @@ Result: """
         if not self.client:
             self.init_openai()  
 
+        metric_result_dict = deepcopy(self.metric_result_dict)
         metric_kwargs = batch.get('metric_kwargs', {})
+
         for sample_output, sample_answer in zip(outputs, labels):
             # TODO: Is this valid?
             sample_output = sample_output.split("\n")[0]
+            metric_result_dict['context'].append(batch['input_ids'])
+            metric_result_dict['output'].append(sample_output)
             result = self.call_judge(sample_output, sample_answer, metric_kwargs)
-            self.score_result(result)
+            metric_result_dict['result'].append(result)
+            
+            score = self.score_result(result)
+            metric_result_dict['score'].append(score)
 
         # OpenAI Client can't be copied by deepcopy and will throw an error, so we delete it after we use it
         # Initializatin takes ~12 ms

@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from composer.callbacks import CheckpointSaver
-from composer.core import Callback, Event, State, Time, Timestamp, TimeUnit
+from composer.core import Event, State, Time, Timestamp, TimeUnit
 from composer.loggers import Logger
 from composer.loggers.mosaicml_logger import (MOSAICML_PLATFORM_ENV_VAR,
                                               RUN_NAME_ENV_VAR)
@@ -23,7 +23,6 @@ from composer.utils.file_helpers import list_remote_objects
 from composer.utils.misc import create_interval_scheduler
 
 from llmfoundry.interfaces import CallbackWithConfig
-
 from mcli import Run, RunConfig, create_run, get_run
 
 log = logging.getLogger(__name__)

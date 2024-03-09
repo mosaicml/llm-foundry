@@ -10,7 +10,7 @@ the future.
 import logging
 from typing import Any, Dict
 
-from composer.core import Callback, State
+from composer.core import State
 from composer.loggers import Logger
 from streaming import StreamingDataset
 from torch.utils.data import DataLoader

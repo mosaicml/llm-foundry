@@ -22,6 +22,8 @@ from composer.utils import dist
 from composer.utils.file_helpers import list_remote_objects
 from composer.utils.misc import create_interval_scheduler
 
+from llmfoundry.interfaces import CallbackWithConfig
+
 from mcli import Run, RunConfig, create_run, get_run
 
 log = logging.getLogger(__name__)
@@ -177,7 +179,7 @@ def validate_eval_run_config(
 CHECKS_PER_INTERVAL = 4
 
 
-class AsyncEval(Callback):
+class AsyncEval(CallbackWithConfig):
     """Run the eval loop asynchronously as part of a MosaicML platform run.
 
     This callback is currently experimental. The API may change in the future.

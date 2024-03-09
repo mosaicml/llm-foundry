@@ -1366,7 +1366,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
 
     def __init__(
             self,
-            # TODO: pass this in properly
+            # TODO: pass these in properly
             # passage_delimiter: str = ' ',
             passage_delimiter: str = '\nPassage: ',
             passage_query_delimiter: str = '\nQuery: ',

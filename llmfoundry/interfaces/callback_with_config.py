@@ -6,6 +6,7 @@ from typing import Any
 
 from composer.core import Callback
 
+__all__ = ['CallbackWithConfig']
 
 class CallbackWithConfig(Callback, abc.ABC):
 

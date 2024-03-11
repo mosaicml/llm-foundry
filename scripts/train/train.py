@@ -30,6 +30,7 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.utils.registry_utils import import_file
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_algorithm, build_callback,
                                        build_evaluators, build_logger,
@@ -158,10 +159,7 @@ def main(cfg: DictConfig) -> Trainer:
                             default_value=[],
                             convert=True)
     for code_path in code_paths:
-        try:
-            import_file(code_path)
-        except Exception as e:
-            raise ValueError(f'Error importing code from {code_path}: {e}')
+        import_file(code_path)
 
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
@@ -170,6 +168,16 @@ def main(cfg: DictConfig) -> Trainer:
         message=
         'torch.distributed.*_base is a private function and will be deprecated.*'
     )
+
+    # Run user provided code if specified
+    code_paths = pop_config(cfg,
+                            'code_paths',
+                            must_exist=False,
+                            default_value=[],
+                            convert=True)
+    # Import any user provided code
+    for code_path in code_paths:
+        import_file(code_path)
 
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)

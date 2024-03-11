@@ -3,6 +3,7 @@
 
 import importlib.metadata
 import pathlib
+import os
 from importlib.metadata import EntryPoint
 from typing import Any, Callable, Type, Union
 
@@ -12,7 +13,6 @@ from composer.loggers import InMemoryLogger, LoggerDestination
 
 from llmfoundry import registry
 from llmfoundry.utils import registry_utils
-from scripts.train.train import import_file
 
 
 def test_expected_registries_exist():
@@ -85,12 +85,14 @@ from composer.loggers import InMemoryLogger
 @loggers.register('test_logger')
 class TestLogger(InMemoryLogger):
     pass
+import os
+os.environ['TEST_ENVIRON_REGISTRY_KEY'] = 'test'
 """
 
     with open(tmp_path / 'init_code.py', 'w') as _f:
         _f.write(register_code)
 
-    import_file(tmp_path / 'init_code.py')
+    registry_utils.import_file(tmp_path / 'init_code.py')
 
     assert issubclass(registry.loggers.get('test_logger'), InMemoryLogger)
 
@@ -191,3 +193,25 @@ def test_registry_builder(monkeypatch: pytest.MonkeyPatch):
                                                new_registry,
                                                partial_function=False)
     assert isinstance(valid_built_class, TestLoggerDestination)
+    assert os.environ['TEST_ENVIRON_REGISTRY_KEY'] == 'test'
+
+    del os.environ['TEST_ENVIRON_REGISTRY_KEY']
+
+
+def test_registry_init_code_fails(tmp_path: pathlib.Path):
+    register_code = """
+import os
+os.environ['TEST_ENVIRON_REGISTRY_KEY'] = 'test'
+asdf
+"""
+
+    with open(tmp_path / 'init_code.py', 'w') as _f:
+        _f.write(register_code)
+
+    with pytest.raises(RuntimeError, match='Error executing .*init_code.py'):
+        registry_utils.import_file(tmp_path / 'init_code.py')
+
+
+def test_registry_init_code_dne(tmp_path: pathlib.Path):
+    with pytest.raises(FileNotFoundError, match='File .* does not exist'):
+        registry_utils.import_file(tmp_path / 'init_code.py')

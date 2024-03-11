@@ -23,6 +23,7 @@ from transformers import PreTrainedTokenizerBase
 
 install()
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.utils.registry_utils import import_file
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_evaluators, build_logger,
                                        build_tokenizer)
@@ -196,10 +197,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                             default_value=[],
                             convert=True)
     for code_path in code_paths:
-        try:
-            import_file(code_path)
-        except Exception as e:
-            raise ValueError(f'Error importing code from {code_path}: {e}')
+        import_file(code_path)
 
     om.resolve(cfg)
 

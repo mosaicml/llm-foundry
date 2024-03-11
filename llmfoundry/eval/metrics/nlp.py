@@ -6,13 +6,13 @@
 
 """A collection of common torchmetrics for NLP tasks."""
 
-import ast
 import logging
 import os
 import re
 import string
 import warnings
-from typing import Any, Dict, List, Optional
+import functools
+from typing import Any, Dict, List, Optional, Callable
 from composer.utils import dist, MissingConditionalImportError
 import numpy as np
 import torch
@@ -44,6 +44,38 @@ class InContextLearningMetric(Metric):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.needs_batch = True
+
+    def _wrap_update(self, update: Callable) -> Callable:
+        """Overwrite default _wrap_update to return result of update().
+
+        Torch metrics wraps update with following wrapped_func but explicitly does not return the value.
+        In general, torchmetrics update() does not return a value, but we want to in order to pass it on
+        to state.metric_outputs.
+        """
+
+        @functools.wraps(update)
+        def wrapped_func(*args: Any, **kwargs: Any) -> None:
+            self._computed = None
+            self._update_count += 1
+            with torch.set_grad_enabled(self._enable_grad):
+                try:
+                    update_result = update(*args, **kwargs)
+                except RuntimeError as err:
+                    if 'Expected all tensors to be on' in str(err):
+                        raise RuntimeError(
+                            'Encountered different devices in metric calculation (see stacktrace for details).'
+                            ' This could be due to the metric class not being on the same device as input.'
+                            f' Instead of `metric={self.__class__.__name__}(...)` try to do'
+                            f' `metric={self.__class__.__name__}(...).to(device)` where'
+                            ' device corresponds to the device of the input.',
+                        ) from err
+                    raise err
+
+            if self.compute_on_cpu:
+                self._move_list_states_to_cpu()
+            return update_result
+
+        return wrapped_func
 
     def update(
         self,

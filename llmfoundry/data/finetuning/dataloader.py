@@ -181,7 +181,6 @@ def build_finetuning_dataloader(cfg: DictConfig,
         backend, _, _ = parse_uri(dataset_name_or_path)
         if backend not in ['', None]:
             if split is None:
-                # flag-ft-error
                 raise MissingHuggingFaceURLSplitError()
             dataset_name_or_path = _download_remote_hf_dataset(
                 remote_path=dataset_name_or_path, split=split)
@@ -218,7 +217,6 @@ def build_finetuning_dataloader(cfg: DictConfig,
             if hasattr(dataset, '__len__'):
                 full_dataset_size = len(dataset)
                 if full_dataset_size < minimum_dataset_size:
-                    # flag-ft-error
                     raise NotEnoughDatasetSamplesError(
                         dataset_name=cfg.dataset.hf_name,
                         split=split,

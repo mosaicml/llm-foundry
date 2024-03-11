@@ -380,7 +380,6 @@ def convert_text_to_mds(
 
     object_names = get_object_names(input_folder)
     if len(object_names) == 0:
-        #flag-ft-error
         raise InputFolderMissingDataError(input_folder)
 
     # Check if the text files in the bucket have already been processed.
@@ -398,7 +397,6 @@ def convert_text_to_mds(
     ).name if is_remote_output else output_folder
 
     if os.path.isdir(output_folder) and len(os.listdir(output_folder)) > 0:
-        # flag-ft-error
         raise OutputFolderNotEmptyError(output_folder)
 
     if processes > 1:

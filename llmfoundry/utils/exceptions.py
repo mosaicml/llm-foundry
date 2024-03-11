@@ -8,8 +8,7 @@ from typing import Dict, List
 
 # Finetuning dataloader exceptions
 class MissingHuggingFaceURLSplitError(ValueError):
-    """Error thrown when a split is not found in a Hugging Face dataset used by
-    the dataloader."""
+    """Error thrown when there's no split used in HF dataset config."""
 
     def __init__(self) -> None:
         message = 'When using a HuggingFace dataset from a URL, you must set the ' + \
@@ -73,10 +72,10 @@ class InvalidLastChatMessageRoleError(ValueError):
 
 
 class IncorrectMessageKeyQuantityError(ValueError):
-    """Error thrown when a conversation message has an incorrect number of
-    keys."""
+    """Error thrown when a message has an incorrect number of keys."""
 
     def __init__(self, num_keys: int) -> None:
+        self.num_keys = num_keys
         message = f'Expected 2 keys in message, but found {num_keys}'
         super().__init__(message)
 
@@ -85,6 +84,7 @@ class InvalidRoleError(ValueError):
     """Error thrown when a role is invalid."""
 
     def __init__(self, role: str) -> None:
+        self.role = role
         message = f'Invalid role: {role}'
         super().__init__(message)
 
@@ -93,6 +93,7 @@ class InvalidContentTypeError(TypeError):
     """Error thrown when the content type is invalid."""
 
     def __init__(self, content_type: type) -> None:
+        self.content_type = content_type
         message = f'Expected content to be a string, but found {content_type}'
         super().__init__(message)
 
@@ -101,6 +102,7 @@ class InvalidPromptTypeError(TypeError):
     """Error thrown when the prompt type is invalid."""
 
     def __init__(self, prompt_type: type) -> None:
+        self.prompt_type = prompt_type
         message = f'Expected prompt to be a string, but found {prompt_type}'
         super().__init__(message)
 
@@ -109,15 +111,16 @@ class InvalidResponseTypeError(TypeError):
     """Error thrown when the response type is invalid."""
 
     def __init__(self, response_type: type) -> None:
+        self.response_type = response_type
         message = f'Expected response to be a string, but found {response_type}'
         super().__init__(message)
 
 
 class MissingLocalPathSplitError(ValueError):
-    """Error thrown when a split is not found in a local dataset used by the
-    dataloader."""
+    """Error thrown when there's no split in a local dataset config."""
 
     def __init__(self, local: str, split: str) -> None:
+        self.split = split
         message = f'Local directory {local} does not contain split {split}'
         super().__init__(message)
 
@@ -134,6 +137,8 @@ class InvalidFileExtensionError(FileNotFoundError):
     """Error thrown when a file extension is not a safe extension."""
 
     def __init__(self, dataset_name: str, valid_extensions: List[str]) -> None:
+        self.dataset_name = dataset_name
+        self.valid_extensions = valid_extensions
         message = (
             f'safe_load is set to True. No data files with safe extensions {valid_extensions} '
             + f'found for dataset at local path {dataset_name}.')
@@ -153,13 +158,13 @@ class ClusterDoesNotExistError(ValueError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str) -> None:
+        self.cluster_id = cluster_id
         message = f'Cluster with id {cluster_id} does not exist. Check cluster id and try again!'
         super().__init__(message)
 
 
 class FailedToCreateSQLConnectionError(RuntimeError):
-    """Error thrown when the client fails to create sql connection to Databricks
-    workspace."""
+    """Error thrown when client can't sql connect to Databricks."""
 
     def __init__(self) -> None:
         message = 'Failed to create sql connection to db workspace. To use sql connect, you need to provide http_path and cluster_id!'
@@ -186,6 +191,7 @@ class JSONOutputFolderExistsError(RuntimeError):
     """Error thrown when the output folder already exists."""
 
     def __init__(self, output_folder: str) -> None:
+        self.output_folder = output_folder
         message = f'Output folder {output_folder} already exists and is not empty. Please remove it and retry.'
         super().__init__(message)
 
@@ -195,6 +201,7 @@ class InputFolderMissingDataError(ValueError):
     """Error thrown when the input folder is missing data."""
 
     def __init__(self, input_folder: str) -> None:
+        self.input_folder = input_folder
         message = f'No text files were found at {input_folder}.'
         super().__init__(message)
 
@@ -203,5 +210,6 @@ class OutputFolderNotEmptyError(FileExistsError):
     """Error thrown when the output folder is not empty."""
 
     def __init__(self, output_folder: str) -> None:
+        self.output_folder = output_folder
         message = f'{output_folder} is not empty. Please remove or empty it and retry.'
         super().__init__(message)

@@ -415,7 +415,6 @@ def validate_and_get_cluster_info(cluster_id: str,
         w = WorkspaceClient()
         res = w.clusters.get(cluster_id=cluster_id)
         if res is None:
-            # flag-ft-error
             raise ClusterDoesNotExistError(cluster_id)
 
         stripped_runtime = re.sub(
@@ -450,7 +449,6 @@ def validate_and_get_cluster_info(cluster_id: str,
                     cluster_id=cluster_id).getOrCreate()
 
         except Exception as e:
-            # flag-ft-error
             raise FailedToConnectToDatabricksError() from e
     else:
         try:
@@ -462,7 +460,6 @@ def validate_and_get_cluster_info(cluster_id: str,
                 access_token=databricks_token,
             )
         except Exception as e:
-            # flag-ft-error: double check that you have data_prep_cluster_id
             raise FailedToCreateSQLConnectionError() from e
     return method, dbsql, sparkSession
 
@@ -473,13 +470,11 @@ def fetch_DT(args: Namespace) -> None:
 
     obj = urllib.parse.urlparse(args.json_output_folder)
     if obj.scheme != '':
-        # flag-ft-error
         raise JSONOutputFolderNotLocalError()
 
     if os.path.exists(args.json_output_folder):
         if not os.path.isdir(args.json_output_folder) or os.listdir(
                 args.json_output_folder):
-            # flag-ft-error
             raise JSONOutputFolderExistsError(args.json_output_folder)
 
     os.makedirs(args.json_output_folder, exist_ok=True)

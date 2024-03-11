@@ -1,4 +1,4 @@
-# LLM Foundry Registry
+# :construction: LLM Foundry Registry
 
 Some components of LLM Foundry are registrable. This means that you can register options for these components, and then use them in your yaml config, without forking the library.
 

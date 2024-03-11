@@ -27,8 +27,7 @@ from composer.models import HuggingFaceModel
 from composer.utils import dist
 
 from llmfoundry.metrics import TokenAccuracy
-from llmfoundry.models.layers.attention import (is_flash_v1_installed,
-                                                is_flash_v2_installed)
+from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 if is_flash_v2_installed():
@@ -36,12 +35,6 @@ if is_flash_v2_installed():
         from flash_attn import bert_padding
         from flash_attn.layers.rotary import \
             RotaryEmbedding as DAILRotaryEmbedding
-    except Exception as e:
-        raise e
-
-if is_flash_v1_installed():
-    try:  # This try...except is needed because transformers requires it despite the 'if' statement above
-        from flash_attn import bert_padding
     except Exception as e:
         raise e
 

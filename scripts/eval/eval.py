@@ -64,7 +64,7 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
                           icl_tasks: Union[str, ListConfig],
                           eval_gauntlet_config: Optional[Union[str,
                                                                DictConfig]]):
-    metrics = {
+    metrics: Dict[str, Any] = {
         'llmfoundry/script': 'eval',
     }
 

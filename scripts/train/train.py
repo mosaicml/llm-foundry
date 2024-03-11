@@ -163,7 +163,7 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
                           icl_tasks_config: Optional[Union[ListConfig, str]],
                           eval_gauntlet: Optional[Union[DictConfig, str]]):
     train_loader_dataset = train_loader_config.get('dataset', {})
-    metrics = {
+    metrics: Dict[str, Any] = {
         'llmfoundry/tokenizer_name':
             tokenizer_name,
         'llmfoundry/script':

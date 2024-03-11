@@ -166,7 +166,8 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
     metrics = {
         'llmfoundry/tokenizer_name':
             tokenizer_name,
-        'llmfoundry/script': 'train',
+        'llmfoundry/script':
+            'train',
         'llmfoundry/train_loader_name':
             train_loader_config.get('name'),
         'llmfoundry/train_loader_workers':
@@ -188,19 +189,20 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
             metrics['llmfoundry/icl_configured'] = True
         elif len(icl_tasks_config) > 0:
             metrics['llmfoundry/icl_configured'] = True
-        else: 
+        else:
             metrics['llmfoundry/icl_configured'] = False
     else:
         metrics['llmfoundry/icl_configured'] = False
 
-
     if load_path is not None:
         metrics['llmfoundry/cloud_provider_data'] = load_path.split(':')[0]
     if save_folder is not None:
-        metrics['llmfoundry/cloud_provider_checkpoints'] = save_folder.split(':')[0]
+        metrics['llmfoundry/cloud_provider_checkpoints'] = save_folder.split(
+            ':')[0]
 
     if train_loader_dataset.get('hf_name', None) is not None:
-        metrics['llmfoundry/train_dataset_hf_name'] = train_loader_dataset.get('hf_name', None)
+        metrics['llmfoundry/train_dataset_hf_name'] = train_loader_dataset.get(
+            'hf_name', None)
     if train_loader_config.get('name') == 'finetuning':
         metrics['llmfoundry/train_task_type'] = 'INSTRUCTION_FINETUNE'
     elif train_loader_config.get('name') == 'text':
@@ -221,9 +223,11 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
             eval_loader_info = {}
             eval_loader_dataset = loader_config.get('dataset', {})
             eval_loader_info['name'] = loader_config.get('name')
-            eval_loader_info['num_workers'] = eval_loader_dataset.get('num_workers', None)
+            eval_loader_info['num_workers'] = eval_loader_dataset.get(
+                'num_workers', None)
             if eval_loader_dataset.get('hf_name', None) is not None:
-                eval_loader_info['dataset_hf_name'] = eval_loader_dataset.get('hf_name')
+                eval_loader_info['dataset_hf_name'] = eval_loader_dataset.get(
+                    'hf_name')
 
             # Log as a key-sorted JSON string, so that we can easily parse it in Spark / SQL
             metrics['llmfoundry/eval_loaders'].append(

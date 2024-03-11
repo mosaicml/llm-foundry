@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib.metadata
-import pathlib
 import os
+import pathlib
 from importlib.metadata import EntryPoint
 from typing import Any, Callable, Type, Union
 

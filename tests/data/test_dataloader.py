@@ -911,11 +911,11 @@ def test_malformed_conversation_data(tmp_path: pathlib.Path,
         error_context = pytest.raises(InvalidLastChatMessageRoleError,
                                       match='Invalid last message role:')
     if add_invalid_message_key_quantity:
-        error_context = pytest.raises(InvalidContentTypeError,
-                                      match='Expected response to be')
-    if add_invalid_content_type:
         error_context = pytest.raises(IncorrectMessageKeyQuantityError,
                                       match='Expected 2 keys in message')
+    if add_invalid_content_type:
+        error_context = pytest.raises(InvalidContentTypeError,
+                                      match='Expected content to be')
     if add_invalid_role:
         error_context = pytest.raises(InvalidRoleError, match='Invalid role')
 
